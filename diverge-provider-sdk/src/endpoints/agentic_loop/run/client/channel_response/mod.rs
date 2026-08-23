@@ -1,10 +1,13 @@
 //! The answers a client sends on the channels a server opened.
 //!
-//! Five of them are one MCP exchange each. [`mcp_list_tools`],
-//! [`mcp_list_resources`], [`mcp_call_tool`] and [`mcp_read_resource`]
-//! answer once and finish; [`mcp_notifications`] carries a frame per
-//! notification for as long as the channel lives. All five are a value
-//! or an [`ErrorData`](rmcp::ErrorData), with nothing around it.
+//! Five of them are one MCP exchange each, and every one is an alias
+//! of the shape [`shared::mcp`](crate::shared::mcp) defines: what a
+//! channel carries here is what MCP says it carries, and MCP says the
+//! same thing whichever direction the channel runs.
+//!
+//! [`mcp_list_tools`], [`mcp_list_resources`], [`mcp_call_tool`] and
+//! [`mcp_read_resource`] answer once and finish; [`mcp_notifications`]
+//! carries a frame per notification for as long as the channel lives.
 //!
 //! Every one is prefixed `mcp_`, because a channel a container opens is
 //! not necessarily MCP's — a plugin's are a database and a command —

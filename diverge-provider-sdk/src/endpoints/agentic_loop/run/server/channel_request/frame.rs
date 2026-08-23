@@ -3,12 +3,9 @@
 use std::error;
 use std::fmt;
 
-use rmcp::model::{
-    CallToolRequestParams, PaginatedRequestParams, ReadResourceRequestParams,
-};
-
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::mcp;
 
 /// The payload of a [`ServerFrame::ChannelRequest`](crate::frame::server::ServerFrame::ChannelRequest).
 ///
@@ -92,25 +89,25 @@ pub enum Frame {
     /// [`rmcp`](rmcp::model::ListToolsRequest) makes the params
     /// optional and this keeps that, because params absent and a cursor
     /// absent are different things to a server that reads them.
-    McpListTools(Option<PaginatedRequestParams>),
+    McpListTools(mcp::list_tools::request::Request),
     /// What resources are there. Tag `1`.
     ///
     /// The same shape as [`McpListTools`](Self::McpListTools), for the same
     /// reason: it is the same MCP request against a different noun.
-    McpListResources(Option<PaginatedRequestParams>),
+    McpListResources(mcp::list_resources::request::Request),
     /// Run one tool. Tag `2`.
     ///
     /// The name and the arguments, as
     /// [`rmcp`](rmcp::model::CallToolRequestParams) defines them. What
     /// an argument means belongs to the tool, and nothing between here
     /// and it looks.
-    McpCallTool(CallToolRequestParams),
+    McpCallTool(mcp::call_tool::request::Request),
     /// Read one resource. Tag `3`.
     ///
     /// By URI, as [`rmcp`](rmcp::model::ReadResourceRequestParams)
     /// defines it. The URI is the server's to interpret; a relay that
     /// resolved one would be deciding what a resource is.
-    McpReadResource(ReadResourceRequestParams),
+    McpReadResource(mcp::read_resource::request::Request),
     /// Everything the server says on its own account. Tag `4`.
     ///
     /// Tools changed, resources changed, a resource updated, a log
@@ -142,7 +139,7 @@ pub enum Frame {
     /// stream whose connection dropped while its session survived, and
     /// here a channel can only die with the scope and a scope only with
     /// the connection, so there is nothing left to resume onto.
-    McpNotifications,
+    McpNotifications(mcp::notifications::request::Request),
 }
 
 /// Tag for [`Frame::McpListTools`].
@@ -168,25 +165,27 @@ impl Encode for Frame {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         match self {
-            Frame::McpListTools(params) => {
+            Frame::McpListTools(request) => {
                 out.extend_from_slice(&[MCP_LIST_TOOLS]);
-                serde_json::to_writer(out, params)
+                request.encode(out)
             }
-            Frame::McpListResources(params) => {
+            Frame::McpListResources(request) => {
                 out.extend_from_slice(&[MCP_LIST_RESOURCES]);
-                serde_json::to_writer(out, params)
+                request.encode(out)
             }
-            Frame::McpCallTool(params) => {
+            Frame::McpCallTool(request) => {
                 out.extend_from_slice(&[MCP_CALL_TOOL]);
-                serde_json::to_writer(out, params)
+                request.encode(out)
             }
-            Frame::McpReadResource(params) => {
+            Frame::McpReadResource(request) => {
                 out.extend_from_slice(&[MCP_READ_RESOURCE]);
-                serde_json::to_writer(out, params)
+                request.encode(out)
             }
-            Frame::McpNotifications => {
+            Frame::McpNotifications(request) => {
                 out.extend_from_slice(&[MCP_NOTIFICATIONS]);
-                Ok(())
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                request.encode(out).map_err(|error| match error {})
             }
         }
     }
@@ -199,23 +198,26 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            MCP_LIST_TOOLS => serde_json::from_slice(rest)
+            MCP_LIST_TOOLS => mcp::list_tools::request::Request::decode(rest)
                 .map(Frame::McpListTools)
                 .map_err(FrameError::Body),
-            MCP_LIST_RESOURCES => serde_json::from_slice(rest)
-                .map(Frame::McpListResources)
-                .map_err(FrameError::Body),
-            MCP_CALL_TOOL => serde_json::from_slice(rest)
+            MCP_LIST_RESOURCES => {
+                mcp::list_resources::request::Request::decode(rest)
+                    .map(Frame::McpListResources)
+                    .map_err(FrameError::Body)
+            }
+            MCP_CALL_TOOL => mcp::call_tool::request::Request::decode(rest)
                 .map(Frame::McpCallTool)
                 .map_err(FrameError::Body),
-            MCP_READ_RESOURCE => serde_json::from_slice(rest)
-                .map(Frame::McpReadResource)
-                .map_err(FrameError::Body),
-            // Whatever follows the tag is ignored rather than rejected.
-            // There is nothing this variant could carry, so a reader
-            // that found something has met a writer from a version that
-            // gave it one — and the tag already said what was meant.
-            MCP_NOTIFICATIONS => Ok(Frame::McpNotifications),
+            MCP_READ_RESOURCE => {
+                mcp::read_resource::request::Request::decode(rest)
+                    .map(Frame::McpReadResource)
+                    .map_err(FrameError::Body)
+            }
+            MCP_NOTIFICATIONS => Ok(Frame::McpNotifications(
+                mcp::notifications::request::Request::decode(rest)
+                    .unwrap_or_else(|error| match error {}),
+            )),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
