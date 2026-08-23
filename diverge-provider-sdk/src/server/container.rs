@@ -16,6 +16,7 @@ use serde_json::value::RawValue;
 
 use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 use crate::shared::error::Error;
+use crate::shared::filetree;
 
 /// A running container, as far as this crate needs one.
 ///
@@ -41,9 +42,10 @@ use crate::shared::error::Error;
 /// is the provider's own control plane, so it is a method and never an
 /// address.
 ///
-/// A filetree will join them when it is written, since watching a
-/// filesystem is knowing where one is. A transfer will not — it is a
-/// read on one container and a write on another, both already here.
+/// [`filetree`](Self::filetree) is among them for the same reason:
+/// watching a filesystem is knowing where one is. A transfer is not —
+/// it is a read on one container and a write on another, both already
+/// here.
 ///
 /// # Ports are exchanges, not one pipe
 ///
@@ -56,7 +58,9 @@ use crate::shared::error::Error;
 /// container's own MCP client asks, and what it is asking for lives
 /// with the caller. The five `mcp_` methods are the provider ASKING,
 /// into an MCP server the container runs itself. An agentic loop needs
-/// the first, a plugin the second, and a laboratory both.
+/// the first; a plugin and a laboratory need the second — a
+/// laboratory's own asks of the caller are an image, an authorization
+/// and a write's content, none of which is MCP.
 ///
 /// [`agentic_loop`](Self::agentic_loop) is neither, being the
 /// one thing a container says that this crate defined — so it is the
@@ -270,6 +274,25 @@ pub trait Container: Send + Sync {
     /// pipe closing is the whole vocabulary the plugin has, whatever
     /// ended them.
     type CommandWriter: Sink<Bytes, Error = Self::Error>
+        + Send
+        + Unpin
+        + 'static;
+
+    /// The container's filesystem, as it changes.
+    ///
+    /// What [`filetree`](Self::filetree) hands back: one
+    /// [`Snapshot`](filetree::response::Frame::Snapshot) first, then
+    /// one frame per change, for as long as the stream is held.
+    ///
+    /// # The items are infallible, and the ending is the failure
+    ///
+    /// A watch that breaks mid-run simply ends the stream. The
+    /// container is still fine — a broken watch says nothing about the
+    /// filesystem it was watching — so whoever was reading keeps a
+    /// stale tree and everything else keeps working. There is no error
+    /// to carry because there is nothing a consumer could do with one
+    /// that ending does not already say.
+    type FiletreeStream: Stream<Item = filetree::response::Frame>
         + Send
         + Unpin
         + 'static;
@@ -639,6 +662,42 @@ pub trait Container: Send + Sync {
         Output = Result<Self::CommandStream, Self::Error>,
     > + Send;
 
+    /// Watch the container's filesystem.
+    ///
+    /// What a laboratory reports for its whole life: the observable
+    /// part of a container running is its filesystem, so the scope that
+    /// made the container is the scope that reports on it — and this is
+    /// where the reporting comes from.
+    ///
+    /// # Every call is a fresh subscription
+    ///
+    /// One snapshot, then deltas, PER CALL. A connector arriving an
+    /// hour into a run needs the whole tree before any change to it
+    /// means anything, and the runner's own stream is an hour past its
+    /// snapshot — so each observer asks for its own, and an
+    /// implementation multiplexes one watch into as many subscriptions
+    /// as are held. How it does that is its business; that each stream
+    /// begins whole is the contract.
+    ///
+    /// # No port, and no path
+    ///
+    /// Watching a filesystem is knowing where one is, which is exactly
+    /// the fact this trait exists to hold. The tree is the container's
+    /// root; what a provider leaves out of it — mounts being the case
+    /// worth knowing about, being somebody else's filesystem reached
+    /// across a boundary that carries no change notifications — is
+    /// covered on the endpoint's own response.
+    ///
+    /// An [`Err`] is a failure to START: the watch could not be set up
+    /// at all. A failure after that ends the stream — see
+    /// [`FiletreeStream`](Self::FiletreeStream) for why that is the
+    /// whole of it.
+    fn filetree(
+        &self,
+    ) -> impl Future<
+        Output = Result<Self::FiletreeStream, Self::Error>,
+    > + Send;
+
     /// Stop it.
     ///
     /// Returns when the container is stopped, the way a deploy returns
@@ -711,7 +770,7 @@ pub trait Container: Send + Sync {
     /// # The path
     ///
     /// Components from the container's root, the same frame of
-    /// reference a [`filetree`](crate::shared::filetree) stream uses.
+    /// reference a [`filetree`] stream uses.
     /// Components rather than a joined string, because joining invents
     /// a separator that then has to be escaped out of names containing
     /// it.

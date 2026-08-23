@@ -15,7 +15,7 @@ publish = true
 [features]
 # The provider half. Off by default so a client, and a tool that only
 # inspects the protocol, compiles messages and nothing else.
-server = ["__websocket"]
+server = ["__websocket", "dep:uuid"]
 # The caller half. Same bargain in the other direction.
 client = ["__websocket"]
 # Not for anyone to enable. Either half needs a socket, and needs BOTH
@@ -67,3 +67,8 @@ tokio = { version = "1.53.1", default-features = false, features = ["net", "rt",
 # upgrading is the provider's — this crate takes the socket that comes
 # out of either.
 tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["stream"], optional = true }
+# `v4` and nothing else: a laboratory's id is a capability — holding it
+# is what authorizes a connect and a transfer — so it has to be
+# unguessable, and a random UUID is the smallest thing that is. Server
+# side only, because only the run handler mints one.
+uuid = { version = "1.18.1", default-features = false, features = ["v4"], optional = true }
