@@ -5,7 +5,7 @@ use std::future::Future;
 use std::pin::Pin;
 
 use bytes::Bytes;
-use futures_util::Stream;
+use futures_util::{Sink, Stream};
 
 use crate::shared::error::Error;
 use crate::shared::http::{request, response};
@@ -38,18 +38,27 @@ use crate::shared::http::{request, response};
 /// filesystem is knowing where one is. A transfer will not — it is a
 /// read on one container and a write on another, both already here.
 ///
-/// # Ports are two methods, not one
+/// # Ports are three methods, not one
 ///
 /// There was a `connect` that handed back a byte pipe, and everything
-/// spoken to a container rode one. It is gone, because the two things
-/// riding it were not one thing: sometimes the provider asks and the
-/// container answers, and sometimes the container asks and the provider
-/// answers. Those need opposite shapes and only ever shared a socket.
+/// spoken to a container rode one. It is gone, because the things
+/// riding it were not one thing.
 ///
-/// [`http_call`](Self::http_call) is the provider asking, and
-/// [`http_serve`](Self::http_serve) is the provider answering. They
-/// share a transport and nothing else: one takes a request and returns
-/// an answer, and the other returns requests and takes answers.
+/// [`http_call`](Self::http_call) is the provider asking and
+/// [`http_serve`](Self::http_serve) is the provider answering: one
+/// takes a request and returns an answer, the other returns requests
+/// and takes answers. Between them they carry everything a container
+/// says in HTTP, which is an MCP server, an agent's tool calls, and a
+/// plugin's commands.
+///
+/// [`postgres_serve`](Self::postgres_serve) is the exception, and it is
+/// the only one still shaped like a socket — because pgwire is a duplex
+/// conversation rather than a series of exchanges, and there was
+/// nothing in it to hand over instead.
+///
+/// Which is why the pipe was the wrong shape for all of them. It was
+/// built for the one case that needs it, and the other three were made
+/// to speak through a socket when what they had was requests.
 ///
 /// # `Send` and `Sync`
 ///
@@ -134,6 +143,38 @@ pub trait Container: Send + Sync {
     /// not have.
     type HttpResponseWriter: HttpResponseWriter<Error = Self::Error>
         + Send
+        + 'static;
+
+    /// The database connections a container opens, as it opens them.
+    ///
+    /// One item per connection, and nothing before it. A plugin holds a
+    /// POOL, so this is the shape that says how many there are: however
+    /// many turn up.
+    type PostgresConnections: Stream<
+            Item = (Self::PostgresReader, Self::PostgresWriter),
+        > + Send
+        + Unpin
+        + 'static;
+
+    /// What one of those connections says.
+    ///
+    /// Whatever comes off the socket, in whatever pieces it comes off
+    /// in. The pieces mean nothing — pgwire has its own framing and it
+    /// is not this one — which is fine, because nothing here reads
+    /// them: each piece becomes one frame and goes to the caller as it
+    /// arrives.
+    type PostgresReader: Stream<Item = Result<Bytes, Self::Error>>
+        + Send
+        + Unpin
+        + 'static;
+
+    /// Where the answer to one of those connections goes.
+    ///
+    /// What the caller's database said, on its way back in. Also
+    /// unframed, and for the same reason.
+    type PostgresWriter: Sink<Bytes, Error = Self::Error>
+        + Send
+        + Unpin
         + 'static;
 
     /// Serve HTTP to something inside the container.
@@ -265,6 +306,67 @@ pub trait Container: Send + Sync {
         port: u16,
         request: request::Request<'_>,
     ) -> impl Future<Output = Result<(response::Head, Body), Self::Error>> + Send;
+
+    /// Take the database connections a container opens.
+    ///
+    /// A plugin that was given a
+    /// [`postgres_port`](crate::endpoints::mcp_plugin::run::client::request::Frame::postgres_port)
+    /// has a database, and the database lives with the CALLER. So the
+    /// plugin connects, and every connection it opens has to be carried
+    /// out of the container and offered to whoever holds the data.
+    ///
+    /// # It is bytes, and it is the one thing that has to be
+    ///
+    /// Everything else spoken to a container is an HTTP exchange, which
+    /// is what lets [`http_call`](Self::http_call) and
+    /// [`http_serve`](Self::http_serve) hand over requests instead of a
+    /// socket. This cannot be: pgwire is a duplex conversation with its
+    /// own framing, its own pipelining, and messages that arrive
+    /// unprompted, and there is no exchange in it to hand over.
+    ///
+    /// Parsing it would mean tracking it — a wire protocol that gains
+    /// messages on somebody else's schedule, inside the crate that is
+    /// this protocol's normative artifact. So the bytes go through
+    /// unread, which is also what the caller's
+    /// [`PostgresProxy`](crate::client::postgres_proxy::PostgresProxy)
+    /// takes and gives back.
+    ///
+    /// # A stream, because the count is the plugin's
+    ///
+    /// A plugin holds a connection pool and opens as many as it turns
+    /// out to want, so nothing here can say how many there will be or
+    /// when. One item per connection is the whole answer: an
+    /// implementation yields when the plugin opens one, and a consumer
+    /// that is not ready simply has not polled yet.
+    ///
+    /// Which is what makes it possible to stop GUESSING. There is no
+    /// asking for a connection that might be wanted and no reading a
+    /// first byte to find out whether it was — the item's existence is
+    /// the fact, and it arrives when the fact is true.
+    ///
+    /// # A half-close is not needed
+    ///
+    /// Unlike the byte pipe this replaces, which had a conduit
+    /// depending on the read half outliving the write half. Postgres
+    /// says goodbye with a MESSAGE — `Terminate` — and then closes, so
+    /// nothing here needs the two halves to end separately and an
+    /// implementation is free to treat either as the connection's end.
+    ///
+    /// # Ends and errors
+    ///
+    /// The stream ends when the plugin opens no more, which says
+    /// nothing about the container: a plugin between queries and a
+    /// plugin that has finished look identical from here, because they
+    /// are identical from here.
+    ///
+    /// An [`Err`] is a failure to START — nothing listening on that
+    /// port, or a port never declared. A failure after that ends the
+    /// stream. A failure on one CONNECTION is that connection's, and
+    /// arrives in its own reader.
+    fn postgres_serve(
+        &self,
+        port: u16,
+    ) -> impl Future<Output = Result<Self::PostgresConnections, Self::Error>> + Send;
 
     /// Stop it.
     ///
