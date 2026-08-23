@@ -15,7 +15,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use super::super::super::server::channel_response;
 use super::super::channel_request;
-use super::mcp_notification_stream::McpNotificationStream;
+use super::mcp_notifications_stream::McpNotificationsStream;
 use super::read_stream::ReadStream;
 use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
@@ -418,7 +418,7 @@ impl ExecuteHandle {
     /// Hear what the container says on its own account.
     ///
     /// Tools changed, resources changed, a resource updated, a log
-    /// line. What comes back is an [`McpNotificationStream`], and the
+    /// line. What comes back is an [`McpNotificationsStream`], and the
     /// provider is already putting into it.
     ///
     /// # It is the one ask that is not answered
@@ -443,7 +443,7 @@ impl ExecuteHandle {
     /// anything to say, and when, is the stream's to report.
     pub async fn notifications(
         &self,
-    ) -> Result<McpNotificationStream, McpError> {{
+    ) -> Result<McpNotificationsStream, McpError> {
         let mut payload = Vec::new();
         channel_request::Frame::McpNotifications(
             mcp::notifications::request::Request,
@@ -457,8 +457,8 @@ impl ExecuteHandle {
             .await
             .map_err(McpError::Send)?;
 
-        Ok(McpNotificationStream::new(channel.response_receiver))
-    }}
+        Ok(McpNotificationsStream::new(channel.response_receiver))
+    }
 
     /// Read one file out of the container.
     ///

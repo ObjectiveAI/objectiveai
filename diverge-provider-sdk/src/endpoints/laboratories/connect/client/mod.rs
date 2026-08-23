@@ -52,7 +52,7 @@
 //! | `transfer` | one request | one answer |
 //! | the four MCP methods | one request | one answer, or the server's refusal |
 //! | `read` | one request | a [`ReadStream`](execute::ReadStream) of the file |
-//! | `notifications` | one request | an [`McpNotificationStream`](execute::McpNotificationStream), for as long as it is held |
+//! | `notifications` | one request | an [`McpNotificationsStream`](execute::McpNotificationsStream), for as long as it is held |
 //! | `write` | one request, and the content on a channel the PROVIDER opens | one answer |
 //!
 //! Every one of them can come back with the provider saying no. MCP was

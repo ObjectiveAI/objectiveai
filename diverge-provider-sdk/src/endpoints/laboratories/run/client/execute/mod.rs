@@ -4,7 +4,7 @@
 //! [`ExecuteStream`], what the container reports about itself, and
 //! [`ExecuteHandle`], everything a runner can say to it — including
 //! [`stop`](ExecuteHandle::stop). [`RunFrame`] is what the stream
-//! yields; [`ReadStream`] and [`McpNotificationStream`] are what two of the
+//! yields; [`ReadStream`] and [`McpNotificationsStream`] are what two of the
 //! eight asks answer with.
 //!
 //! It is the only executor that takes two of what a caller supplies: an
@@ -18,13 +18,13 @@
 mod execute;
 mod execute_handle;
 mod execute_stream;
-mod mcp_notification_stream;
+mod mcp_notifications_stream;
 mod read_stream;
 mod run_frame;
 
 pub use execute::*;
 pub use execute_handle::*;
 pub use execute_stream::*;
-pub use mcp_notification_stream::*;
+pub use mcp_notifications_stream::*;
 pub use read_stream::*;
 pub use run_frame::*;

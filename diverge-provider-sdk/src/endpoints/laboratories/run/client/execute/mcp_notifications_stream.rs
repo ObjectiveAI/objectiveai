@@ -43,7 +43,7 @@ use crate::frame;
 /// [`None`] is that ending. Everything else is an
 /// [`McpError`], and every one of those is terminal: a stream that has
 /// said it could not read what it was given does not go on reading.
-pub struct McpNotificationStream {
+pub struct McpNotificationsStream {
     /// The channel's answers, until there are no more of them.
     ///
     /// [`None`] once the stream has ended, which is the terminal state
@@ -64,7 +64,7 @@ pub struct McpNotificationStream {
     response_receiver: Option<UnboundedReceiver<Bytes>>,
 }
 
-impl McpNotificationStream {
+impl McpNotificationsStream {
     /// Take the channel's answers, from the
     /// [`notifications`](super::ExecuteHandle::notifications) that
     /// asked for them.
@@ -73,7 +73,7 @@ impl McpNotificationStream {
     /// out, so the only thing that can honestly make one of these is
     /// the thing that sent it.
     pub(super) fn new(response_receiver: UnboundedReceiver<Bytes>) -> Self {
-        McpNotificationStream {
+        McpNotificationsStream {
             response_receiver: Some(response_receiver),
         }
     }
@@ -83,7 +83,7 @@ impl McpNotificationStream {
 ///
 /// See the type's own documentation for what ends it and what that
 /// means.
-impl Stream for McpNotificationStream {
+impl Stream for McpNotificationsStream {
     type Item = Result<ServerNotification, McpError>;
 
     fn poll_next(
@@ -144,7 +144,7 @@ impl Stream for McpNotificationStream {
     }
 }
 
-impl FusedStream for McpNotificationStream {
+impl FusedStream for McpNotificationsStream {
     fn is_terminated(&self) -> bool {
         self.response_receiver.is_none()
     }
