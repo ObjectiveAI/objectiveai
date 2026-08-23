@@ -39,10 +39,19 @@ use crate::shared::http;
 ///
 /// # The container is stopped on every path
 ///
-/// Including the ones that failed, and including the caller simply
-/// leaving. There is no destructor doing it, because teardown in this
-/// crate is a method; there is one call, after the relay, and every
-/// exit goes through it.
+/// Including the ones that failed. There is no destructor doing it,
+/// because teardown in this crate is a method; there is one call, after
+/// the relay, and every exit goes through it.
+///
+/// # A caller hanging up does not reach it early
+///
+/// The run finishes first. Work that was done is work that was done,
+/// and a provider that abandoned it the moment a connection dropped
+/// would be giving it away — a caller could take as much as it wanted
+/// and disconnect before anything could be counted.
+///
+/// So what a caller sees when it leaves is nothing, and what happens is
+/// the rest of the run.
 pub async fn handle<D>(
     scope: ScopeHandle,
     client_identity: &str,
@@ -167,11 +176,11 @@ fn disk(agent: &Agent) -> u64 {
     }
 }
 
-/// Drive the container until the agent stops or the caller goes.
+/// Drive the container until the agent stops.
 ///
 /// Three parts, and this one is the smallest: a task serving the
 /// agent's tool calls, a task running the agent, and this waiting for
-/// whichever ending comes first.
+/// the second of them.
 ///
 /// # Neither worker knows the other exists
 ///
@@ -190,6 +199,31 @@ fn disk(agent: &Agent) -> u64 {
 /// A version that ran the agent here and then started serving deadlocks
 /// on exactly that: the container waits for its tool answer, this waits
 /// for the container's answer, and nothing is left to resolve it.
+///
+/// # A caller leaving does not end the run
+///
+/// It used to. The agent was aborted, the container stopped, and
+/// whatever it had done up to that point was done for nothing.
+///
+/// Which is the wrong way round, because the work was real. Tokens were
+/// spent, an upstream was called, and a provider that throws that away
+/// has given it away — a caller could take as much as it wanted and
+/// disconnect before anything could be counted. So the run finishes,
+/// and what it cost is a fact whatever happened to the connection.
+///
+/// The frames it produces after that go nowhere, and nothing here
+/// pretends otherwise. Writing to a scope whose connection is gone is
+/// a write that is dropped, which is what it should be: the answer had
+/// somewhere to go and no longer does.
+///
+/// # What a caller leaving DOES do
+///
+/// Nothing, deliberately — but the consequence is worth stating,
+/// because it is what keeps this from hanging. A tool call still opens
+/// a channel, and a channel on a dead connection has no sender left, so
+/// its answer stream ends at once. An agent asking for tools it can no
+/// longer be given is told immediately that there are none, rather than
+/// waiting for an answer nothing is coming to give.
 async fn relay<C>(scope: &Arc<ScopeHandle>, container: &Arc<C>, body: Bytes)
 where
     C: Container + 'static,
@@ -208,48 +242,48 @@ where
     let mut agent =
         tokio::spawn(agent(Arc::clone(container), body, Arc::clone(scope)));
 
-    // The agent finishing is the loop being over; the caller leaving is
-    // nobody being left to tell. Nothing else ends this.
-    let stopped = {
+    // The agent finishing is the only thing that ends this. The race
+    // is with the drain rather than against it: a caller that leaves
+    // stops the draining and nothing else — see above.
+    let finished = {
         let hangup = pin!(hangup(scope));
         match future::select(&mut agent, hangup).await {
-            Either::Left((Ok(()), _)) => true,
-            // The agent's own failures are frames before it returns, so
-            // the only thing left here is the task having stopped
-            // existing. Which is the one failure it could not report,
-            // and it must not read as a clean finish: a caller that saw
-            // silence would conclude the loop simply had nothing more
-            // to say.
-            Either::Left((Err(_), _)) => {
-                let error = "the agent relay stopped unexpectedly";
-                let error = Error(Value::String(error.to_owned()));
-                write(scope, &response::Frame::Error(error)).await;
-                true
-            }
-            Either::Right(_) => false,
+            Either::Left((finished, _)) => finished,
+            Either::Right((_, agent)) => agent.await,
         }
     };
 
-    // A `JoinHandle` that has already resolved must not be polled
-    // again, which is why the two are not simply awaited together.
-    if !stopped {
-        agent.abort();
-        let _ = (&mut agent).await;
+    // The agent's own failures are frames before it returns, so the
+    // only thing left here is the task having stopped existing. Which
+    // is the one failure it could not report, and it must not read as a
+    // clean finish: a caller that saw silence would conclude the loop
+    // simply had nothing more to say.
+    if finished.is_err() {
+        let error = "the agent relay stopped unexpectedly";
+        let error = Error(Value::String(error.to_owned()));
+        write(scope, &response::Frame::Error(error)).await;
     }
+
     mcp.abort();
     let _ = (&mut mcp).await;
 }
 
-/// Wait for the caller to leave.
+/// Read what the caller opens, and drop it.
 ///
 /// This endpoint defines no channel for a caller to open, and an answer
 /// to one of ours goes to that channel's own receiver — so nothing is
-/// ever expected here. What is being waited for is the [`None`]: the
-/// session drops the sender when the scope ends, and that is how a
-/// caller hanging up is learned at all.
+/// ever expected here. It is drained anyway, because a queue nobody
+/// reads is memory the far side can grow.
 ///
-/// Anything that does arrive is read and dropped, because a queue
-/// nobody drains is memory the far side can grow.
+/// # It returns when the caller leaves, and that is not an ending
+///
+/// The [`None`] means the session dropped the sender, which means the
+/// connection is gone. Nothing acts on it: [`relay`] goes on waiting
+/// for the agent, because the run is billable whether or not anyone is
+/// still listening.
+///
+/// So returning here only stops the draining, which is exactly right —
+/// there is nothing left to drain.
 async fn hangup(scope: &ScopeHandle) {
     while scope.recv_channel_request().await.is_some() {}
 }
