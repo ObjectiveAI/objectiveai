@@ -6,10 +6,16 @@ use std::pin::Pin;
 
 use bytes::Bytes;
 use futures_util::{Sink, Stream};
+use rmcp::ErrorData;
+use rmcp::model::{
+    CallToolRequestParams, CallToolResult, ListResourcesResult,
+    ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
+    ReadResourceResult, ServerNotification,
+};
+use serde_json::value::RawValue;
 
 use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 use crate::shared::error::Error;
-use crate::shared::http::{request, response};
 
 /// A running container, as far as this crate needs one.
 ///
@@ -30,7 +36,7 @@ use crate::shared::http::{request, response};
 /// So these are facts a provider keeps to itself. Where the container's
 /// filesystem is, for [`read`](Self::read) and [`write`](Self::write).
 /// How to end it, for [`stop`](Self::stop). How to reach a port inside
-/// it, for [`serve_http_raw`](Self::serve_http_raw) — a container's port has a
+/// it, for [`mcp_serve`](Self::mcp_serve) — a container's port has a
 /// host-side address only on some runtimes, and on the rest the way in
 /// is the provider's own control plane, so it is a method and never an
 /// address.
@@ -39,23 +45,22 @@ use crate::shared::http::{request, response};
 /// filesystem is knowing where one is. A transfer will not — it is a
 /// read on one container and a write on another, both already here.
 ///
-/// # Ports are four methods, not one
+/// # Ports are exchanges, not one pipe
 ///
 /// There was a `connect` that handed back a byte pipe, and everything
 /// spoken to a container rode one. It is gone, because the things
 /// riding it were not one thing.
 ///
-/// [`call_http_raw`](Self::call_http_raw) is the provider asking and
-/// [`serve_http_raw`](Self::serve_http_raw) is the provider answering: one
-/// takes a request and returns an answer, the other returns requests
-/// and takes answers. Between them they carry everything a container
-/// says in HTTP, which is an MCP server, an agent's tool calls, and a
-/// plugin's commands.
+/// MCP goes both ways and they are not the same method.
+/// [`mcp_serve`](Self::mcp_serve) is the provider ANSWERING: a
+/// container's own MCP client asks, and what it is asking for lives
+/// with the caller. The five `mcp_` methods are the provider ASKING,
+/// into an MCP server the container runs itself. An agentic loop needs
+/// the first, a plugin the second, and a laboratory both.
 ///
-/// [`call_http_agentic_loop`](Self::call_http_agentic_loop) is the same
-/// exchange as the first with the answer read rather than relayed,
-/// because an agentic loop is the one thing a container says that this
-/// crate defined.
+/// [`call_agentic_loop`](Self::call_agentic_loop) is neither, being the
+/// one thing a container says that this crate defined — so it is the
+/// one thing read rather than relayed.
 ///
 /// [`postgres_serve`](Self::postgres_serve) is the exception, and it is
 /// the only one still shaped like a socket — because pgwire is a duplex
@@ -63,8 +68,22 @@ use crate::shared::http::{request, response};
 /// nothing in it to hand over instead.
 ///
 /// Which is why the pipe was the wrong shape for all of them. It was
-/// built for the one case that needs it, and the other three were made
-/// to speak through a socket when what they had was requests.
+/// built for the one case that needs it, and the rest were made to
+/// speak through a socket when what they had was exchanges.
+///
+/// # HTTP is the implementation's, and is named nowhere here
+///
+/// A container really is an HTTP server — an MCP one, reached over
+/// Streamable HTTP. This trait used to say so, handing over parsed
+/// requests and statuses and header maps, and every one of those was a
+/// chance to relay something wrong: a `Content-Length` copied onto a
+/// body that had been re-encoded, a `Connection` forwarded past the hop
+/// it belonged to.
+///
+/// So the exchanges are typed and the transport is not mentioned. An
+/// implementation is an MCP client on one port and an MCP server on
+/// another, which is what rmcp is for, and what it does with sockets is
+/// its own business.
 ///
 /// # `Send` and `Sync`
 ///
@@ -105,38 +124,32 @@ pub trait Container: Send + Sync {
 
     /// What arrives when the container asks for something.
     ///
-    /// One item per request, each with the [`HttpResponseWriter`] that
+    /// One item per request, each with the [`McpResponder`] that
     /// answers that one. The stream ends when the container has no more
-    /// to ask — see [`serve_http_raw`](Self::serve_http_raw).
+    /// to ask — see [`mcp_serve`](Self::mcp_serve).
     ///
-    /// # The request is bytes, and they are a
-    /// [`Request`](crate::shared::http::request::Request)
+    /// # The request is typed, where it used to be bytes
     ///
-    /// Encoded as that type encodes: JSON, with the body nested
-    /// verbatim as the [`RawValue`](serde_json::value::RawValue) it
-    /// already is. An implementation produces one; a consumer decodes
-    /// it.
+    /// It was an encoded HTTP request, forwarded onward without being
+    /// read, because the wire carried the same thing and a relay that
+    /// decoded one only to encode it again would be taking a request
+    /// apart to prove it could be.
     ///
-    /// # Why not the type itself
+    /// The wire carries the exchanges themselves now — a
+    /// [`CallToolRequestParams`] rather than a `POST` containing one —
+    /// so there is nothing left to pass through. What replaces the
+    /// saved re-encoding is a whole class of relay bug that cannot be
+    /// written: the request that goes out is the request that arrived,
+    /// because they are the same value.
     ///
-    /// Because a [`Request`](crate::shared::http::request::Request)
-    /// borrows its body from the buffer it was decoded out of, so it
-    /// cannot be a stream item — an item has to stand on its own once
-    /// yielded, and that one points into something.
+    /// # It is a pair rather than a request that answers itself
     ///
-    /// [`Bytes`] is that buffer, made ownable. A consumer holds the
-    /// item and decodes a request that borrows from it, which is the
-    /// same arrangement every frame in this crate already has: the
-    /// bytes are the thing that lives, and the typed view is a way of
-    /// reading them.
-    ///
-    /// It also means a relay does not have to re-encode. What a
-    /// container asked is already in the form a channel request
-    /// carries, so forwarding it is a copy at worst and a
-    /// [`slice_ref`](Bytes::slice_ref) at best — where a decoded
-    /// request would have been taken apart and put back together for
-    /// nothing.
-    type HttpRequestStream: Stream<Item = (Bytes, Self::HttpResponseWriter)>
+    /// Because the answer travels a different way than the ask. An
+    /// implementation holds whatever it needs to write back — a
+    /// connection, a stream id, a channel into its own server — and
+    /// that is the responder, not something this crate could put inside
+    /// an enum it defines.
+    type McpRequests: Stream<Item = (McpRequest, Self::McpResponder)>
         + Send
         + Unpin
         + 'static;
@@ -147,16 +160,29 @@ pub trait Container: Send + Sync {
     /// failure of the same connection the request arrived on, and
     /// splitting them would be inventing a distinction a provider does
     /// not have.
-    type HttpResponseWriter: HttpResponseWriter<Error = Self::Error>
+    type McpResponder: McpResponder<Error = Self::Error> + Send + 'static;
+
+    /// What a container's own MCP server says on its own account.
+    ///
+    /// What [`mcp_notifications`](Self::mcp_notifications) hands back:
+    /// tools changed, resources changed, a resource updated, a log
+    /// line, for as long as the container has any.
+    ///
+    /// An item that is [`Err`] is the container's server saying it will
+    /// push no more, and why. Nothing follows one — which is the
+    /// server's own vocabulary and not this crate's, so it is an
+    /// [`ErrorData`] rather than a [`Self::Error`].
+    type McpNotifications: Stream<Item = Result<ServerNotification, ErrorData>>
         + Send
+        + Unpin
         + 'static;
 
     /// What an agent says, as it says it.
     ///
     /// One item per chunk, already parsed. See
-    /// [`call_http_agentic_loop`](Self::call_http_agentic_loop) for why
-    /// this is the one thing a container says that arrives as something
-    /// other than bytes.
+    /// [`call_agentic_loop`](Self::call_agentic_loop) for why this is
+    /// the one thing a container says that arrives as something other
+    /// than bytes.
     ///
     /// An item that is [`Err`] is an event that could not be read, and
     /// it does not end the stream: it is one thing the agent said that
@@ -200,11 +226,10 @@ pub trait Container: Send + Sync {
         + Unpin
         + 'static;
 
-    /// Serve HTTP to something inside the container.
+    /// Serve MCP to something inside the container.
     ///
-    /// The container is the CLIENT here. It makes requests and this end
-    /// answers them, which is the direction an agent's tool calls
-    /// travel: an
+    /// The container is the CLIENT here. It asks and this end answers,
+    /// which is the direction an agent's tool calls travel: an
     /// [`agentic_loop`](crate::endpoints::agentic_loop::run) runs its
     /// agent beside the provider and the MCP servers live with the
     /// caller, so a tool call has to leave the container before it can
@@ -223,38 +248,31 @@ pub trait Container: Send + Sync {
     /// [`ports`](super::deployment::Deployment::ports), and how a
     /// provider reaches it is the provider's business.
     ///
-    /// # Requests, not a byte pipe
+    /// # Exchanges, not a byte pipe
     ///
-    /// The implementation speaks HTTP and this crate does not. Which is
-    /// the whole point of the shape: a pipe would have every consumer
-    /// parsing request heads and decoding chunked bodies, and there is
-    /// no version of that which is this protocol's business.
+    /// The implementation speaks MCP and this crate speaks the wire.
+    /// Which is the whole point of the shape: a pipe would have every
+    /// consumer parsing request heads and decoding chunked bodies, and
+    /// there is no version of that which is this protocol's business.
     ///
-    /// What arrives is one request per item, already separated from the
-    /// next and already stripped of the framing that separated them.
-    /// That it arrives as bytes rather than as a struct is a different
-    /// question, answered on
-    /// [`HttpRequestStream`](Self::HttpRequestStream).
-    ///
-    /// It also means the framing question is answered by HTTP rather
-    /// than by anything invented here. Several tool calls at once are
-    /// several requests, told apart by the protocol that already tells
-    /// requests apart, on however many connections the implementation
-    /// finds convenient.
+    /// What arrives is one exchange per item, already separated from
+    /// the next and already read. Where one ends is MCP's question and
+    /// HTTP's beneath it, answered by neither this crate nor its
+    /// consumers.
     ///
     /// # Answers can be given in any order
     ///
-    /// Each request arrives with its own writer, and nothing pairs a
-    /// writer with the one that came before it. A consumer that takes
-    /// three requests and answers the third first has done nothing
-    /// wrong, and an implementation has to be able to carry that —
-    /// which for HTTP/1.1 means a connection each, and for anything
-    /// newer means a stream each.
+    /// Each request arrives with its own responder, and nothing pairs a
+    /// responder with the one that came before it. A consumer that
+    /// takes three requests and answers the third first has done
+    /// nothing wrong, and an implementation has to be able to carry
+    /// that — which for HTTP/1.1 means a connection each, and for
+    /// anything newer means a stream each.
     ///
     /// # The stream ends when the container stops asking
     ///
-    /// Cleanly, and it says nothing about the container. A plugin that
-    /// has no more tool calls to make and a plugin that has finished
+    /// Cleanly, and it says nothing about the container. An agent that
+    /// has no more tool calls to make and an agent that has finished
     /// its work look the same from here, because they are the same
     /// thing from here: the conversation is over and the container's
     /// own life is [`stop`](Self::stop)'s business.
@@ -263,78 +281,140 @@ pub trait Container: Send + Sync {
     /// that port, or a port that was never declared. A failure after
     /// that ends the stream, since a request that cannot be received is
     /// indistinguishable from one that was never sent.
-    fn serve_http_raw(
+    fn mcp_serve(
         &self,
         port: u16,
-    ) -> impl Future<Output = Result<Self::HttpRequestStream, Self::Error>> + Send;
+    ) -> impl Future<Output = Result<Self::McpRequests, Self::Error>> + Send;
 
-    /// Make one HTTP request to something inside the container.
+    /// Ask what tools the container offers.
     ///
-    /// The other direction from [`serve_http_raw`](Self::serve_http_raw), and
-    /// the more ordinary one: a plugin's MCP server, a laboratory's, an
-    /// agent image asked to start a run. The container is the server
-    /// and this end is its client.
+    /// [`None`] asks for the first page. A server with more to give
+    /// says so with a cursor, and the next page is another call.
     ///
-    /// # One call is one exchange
+    /// # Two failures, nested, and they are different facts
     ///
-    /// No session, no connection to hold, nothing kept between calls.
-    /// Which is what MCP over Streamable HTTP already is — a series of
-    /// discrete requests over a session identified by a HEADER rather
-    /// than by anything at the transport layer — so a connection held
-    /// open between them would be a pool this crate was managing on
-    /// somebody else's behalf.
+    /// The outer [`Err`] is this crate not reaching the container:
+    /// nothing listening on that port, a port never declared, a
+    /// connection that broke. The inner one is the container's own MCP
+    /// server refusing, in its own vocabulary, with a JSON-RPC code
+    /// that means something.
     ///
-    /// Whether an implementation actually opens a socket each time is
-    /// its own business. Nothing here can tell, and nothing here should
-    /// care.
-    ///
-    /// # The request is not encoded
-    ///
-    /// Unlike [`serve_http_raw`](Self::serve_http_raw), whose items are bytes.
-    /// The asymmetry is not an inconsistency: there the bytes ARE the
-    /// buffer a borrowed request needs, and here the request is an
-    /// argument that lives for the call, so there is nothing to own it
-    /// and no reason to serialize it first.
-    ///
-    /// # The answer is a head and a body
-    ///
-    /// Separately, and the body is one piece or a stream of them — see
-    /// [`Body`]. Which is the shape MCP forces: a `Content-Type` of
-    /// `application/json` introduces one document and the exchange is
-    /// over, and `text/event-stream` introduces a stream held open for
-    /// the session. Collapsing them would mean buffering the second
-    /// into the first, which for a session stream means buffering until
-    /// it closes and answering nothing until then.
-    ///
-    /// It is the same pair a
-    /// [`McpProxy`](crate::client::mcp_proxy::McpProxy) hands back on
-    /// the other half of this crate, for the same reason and with the
-    /// same meaning.
-    ///
-    /// # What an [`Err`] is
-    ///
-    /// No answer at all — nothing listening on that port, a port never
-    /// declared, a connection that broke before a head arrived. A
-    /// response with a status in it is [`Ok`], including a `500`: what
-    /// a status MEANS belongs to whatever asked, and this layer would
-    /// be guessing.
-    ///
-    /// A failure after the head has gone is neither. There is nowhere
-    /// to report one — the status is already sent and HTTP has no way
-    /// to take it back — so the body simply stops, which is what an
-    /// ordinary HTTP connection dropping looks like and is what this
-    /// stands in for.
-    fn call_http_raw(
+    /// Flattening them would make "the port is wrong" and "no such
+    /// tool" the same answer, and only one of those is about the
+    /// plugin. It is the rule the whole trait follows: what the thing
+    /// inside SAID is an [`Ok`], including when what it said was no.
+    fn mcp_list_tools(
         &self,
         port: u16,
-        request: request::Request<'_>,
-    ) -> impl Future<Output = Result<(response::Head, Body), Self::Error>> + Send;
+        params: Option<PaginatedRequestParams>,
+    ) -> impl Future<Output = Result<Result<ListToolsResult, ErrorData>, Self::Error>>
+    + Send;
+
+    /// Ask what resources the container offers.
+    ///
+    /// The same shape [`mcp_list_tools`](Self::mcp_list_tools) has, for
+    /// the same reason: it is the same MCP request against a different
+    /// noun.
+    ///
+    /// # Two failures, nested, and they are different facts
+    ///
+    /// The outer [`Err`] is this crate not reaching the container:
+    /// nothing listening on that port, a port never declared, a
+    /// connection that broke. The inner one is the container's own MCP
+    /// server refusing, in its own vocabulary, with a JSON-RPC code
+    /// that means something.
+    ///
+    /// Flattening them would make "the port is wrong" and "no such
+    /// tool" the same answer, and only one of those is about the
+    /// plugin. It is the rule the whole trait follows: what the thing
+    /// inside SAID is an [`Ok`], including when what it said was no.
+    fn mcp_list_resources(
+        &self,
+        port: u16,
+        params: Option<PaginatedRequestParams>,
+    ) -> impl Future<Output = Result<Result<ListResourcesResult, ErrorData>, Self::Error>>
+    + Send;
+
+    /// Run one of the container's tools.
+    ///
+    /// A tool that FAILS is still an inner [`Ok`]:
+    /// [`CallToolResult`] carries its own `is_error`, which is a tool
+    /// saying its work did not succeed. An inner [`Err`] is the server
+    /// refusing to run it at all.
+    ///
+    /// # Two failures, nested, and they are different facts
+    ///
+    /// The outer [`Err`] is this crate not reaching the container:
+    /// nothing listening on that port, a port never declared, a
+    /// connection that broke. The inner one is the container's own MCP
+    /// server refusing, in its own vocabulary, with a JSON-RPC code
+    /// that means something.
+    ///
+    /// Flattening them would make "the port is wrong" and "no such
+    /// tool" the same answer, and only one of those is about the
+    /// plugin. It is the rule the whole trait follows: what the thing
+    /// inside SAID is an [`Ok`], including when what it said was no.
+    fn mcp_call_tool(
+        &self,
+        port: u16,
+        params: CallToolRequestParams,
+    ) -> impl Future<Output = Result<Result<CallToolResult, ErrorData>, Self::Error>>
+    + Send;
+
+    /// Read one of the container's resources.
+    ///
+    /// By URI, which is the container's to interpret. Nothing between
+    /// here and it resolves one.
+    ///
+    /// # Two failures, nested, and they are different facts
+    ///
+    /// The outer [`Err`] is this crate not reaching the container:
+    /// nothing listening on that port, a port never declared, a
+    /// connection that broke. The inner one is the container's own MCP
+    /// server refusing, in its own vocabulary, with a JSON-RPC code
+    /// that means something.
+    ///
+    /// Flattening them would make "the port is wrong" and "no such
+    /// tool" the same answer, and only one of those is about the
+    /// plugin. It is the rule the whole trait follows: what the thing
+    /// inside SAID is an [`Ok`], including when what it said was no.
+    fn mcp_read_resource(
+        &self,
+        port: u16,
+        params: ReadResourceRequestParams,
+    ) -> impl Future<Output = Result<Result<ReadResourceResult, ErrorData>, Self::Error>>
+    + Send;
+
+    /// Hear what the container's own MCP server says unprompted.
+    ///
+    /// The fifth of the inward asks, and the one that is not answered
+    /// once. The other four ask and are told; this opens the place a
+    /// server pushes into and reads it for as long as it is held.
+    ///
+    /// # It takes nothing
+    ///
+    /// Because in MCP there is nothing to ask: a client opens that
+    /// stream with a bare `GET` and no body, and there is no
+    /// `notifications/subscribe` to mirror.
+    ///
+    /// Dropping the stream is how this end says it has stopped
+    /// listening. There is nothing to unsubscribe with and nothing
+    /// needs one.
+    ///
+    /// The [`Err`] here is the same outer one the four have: no stream
+    /// at all, because the port was wrong or nothing was listening. A
+    /// server that refuses says so inside the stream — see
+    /// [`McpNotifications`](Self::McpNotifications).
+    fn mcp_notifications(
+        &self,
+        port: u16,
+    ) -> impl Future<Output = Result<Self::McpNotifications, Self::Error>> + Send;
 
     /// Start an agentic loop, and take the chunks it produces.
     ///
-    /// The same exchange [`call_http_raw`](Self::call_http_raw) makes,
-    /// with the answer read rather than relayed. What comes back is
-    /// what the agent said, in the shape this crate defines for it.
+    /// The one exchange whose answer is read rather than relayed. What
+    /// comes back is what the agent said, in the shape this crate
+    /// defines for it.
     ///
     /// # It is the one thing here that is not somebody else's protocol
     ///
@@ -362,9 +442,9 @@ pub trait Container: Send + Sync {
     /// whole one is there.
     ///
     /// That something knows it is reading an event stream, because it
-    /// read the head. A consumer handed
-    /// [`Body::Stream`] would be reassembling from
-    /// pieces, having been told nothing about how they were cut.
+    /// read the head — and it is the only thing that does. A consumer
+    /// handed the body would be reassembling from pieces, having been
+    /// told nothing about how they were cut.
     ///
     /// # No head, and no unary case
     ///
@@ -382,10 +462,17 @@ pub trait Container: Send + Sync {
     /// would be simpler: a caller reading a stream reads the same code
     /// either way, where a caller choosing between two shapes writes
     /// the choice out every time.
-    fn call_http_agentic_loop(
+    /// # What goes in is the caller's own body
+    ///
+    /// Borrowed as the [`RawValue`] it arrived as, rather than
+    /// re-serialized out of a decoder, so a field this crate does not
+    /// model survives the trip. What an implementation wraps it in —
+    /// which verb, which path, which headers — is between it and the
+    /// image, and neither is this protocol's.
+    fn call_agentic_loop(
         &self,
         port: u16,
-        request: request::Request<'_>,
+        body: &RawValue,
     ) -> impl Future<Output = Result<Self::AgenticLoopStream, Self::Error>> + Send;
 
     /// Take the database connections a container opens.
@@ -398,12 +485,13 @@ pub trait Container: Send + Sync {
     ///
     /// # It is bytes, and it is the one thing that has to be
     ///
-    /// Everything else spoken to a container is an HTTP exchange, which
-    /// is what lets [`call_http_raw`](Self::call_http_raw) and
-    /// [`serve_http_raw`](Self::serve_http_raw) hand over requests instead of a
-    /// socket. This cannot be: pgwire is a duplex conversation with its
-    /// own framing, its own pipelining, and messages that arrive
-    /// unprompted, and there is no exchange in it to hand over.
+    /// Everything else spoken to a container is an exchange with a
+    /// beginning and an end, which is what lets
+    /// [`mcp_serve`](Self::mcp_serve) and the five `mcp_` methods hand
+    /// over asks and answers instead of a socket. This cannot be:
+    /// pgwire is a duplex conversation with its own framing, its own
+    /// pipelining, and messages that arrive unprompted, and there is no
+    /// exchange in it to hand over.
     ///
     /// Parsing it would mean tracking it — a wire protocol that gains
     /// messages on somebody else's schedule, inside the crate that is
@@ -595,146 +683,158 @@ pub trait Container: Send + Sync {
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
-/// The body of an answer: all of it, or a piece at a time.
+/// One thing a container's MCP client asked for.
 ///
-/// What [`Container::call_http_raw`] hands back beside the head.
+/// The item of [`Container::McpRequests`], paired with the
+/// [`McpResponder`] that answers it.
 ///
-/// # Why the shape is a choice at all
+/// # Five, because the wire carries five
 ///
-/// Because MCP over Streamable HTTP answers in two ways, and the head
-/// says which. A `Content-Type` of `application/json` introduces one
-/// document, complete, and a request that got one is over. A
-/// `text/event-stream` introduces an event stream held open for the
-/// session, which is where a server pushes notifications and the
-/// answers to things it was asked while it was thinking.
+/// They are the exchanges an
+/// [`agentic_loop`](crate::endpoints::agentic_loop::run::server::channel_request::Frame)
+/// relays and nothing else. MCP has more — `initialize`, `ping`,
+/// `complete`, `subscribe` — and none of them crosses this connection:
+/// initialization is between the container and whatever serves it, and
+/// the rest were never in the protocol this crate defines.
 ///
-/// Something that had to pick one would have to buffer the second into
-/// the first — which for a stream held open for a session means
-/// buffering forever, and answering nothing until it closed.
+/// So an implementation that receives one of those answers it itself or
+/// refuses it. It never arrives here, because there is no variant for
+/// it to arrive as.
 ///
-/// # Both end the same way
+/// # It carries the params and not the request
 ///
-/// The answer is over when the body is: after the one piece, or after
-/// the stream yields [`None`]. Nothing else says so, and nothing needs
-/// to.
-///
-/// Which is also all a stream can do about its own failure. There is
-/// nowhere to report one after the head has gone — the status is
-/// already sent, and HTTP has no way to take it back — so a body that
-/// breaks ends, and whoever is reading sees a body that stopped. That
-/// is what an ordinary HTTP connection dropping looks like, which is
-/// what this is standing in for.
-///
-/// # It is the same enum a proxy has, written again
-///
-/// [`McpProxy`](crate::client::mcp_proxy::McpProxy) and
-/// [`OciProxy`](crate::client::oci_proxy::OciProxy) each carry one of
-/// these, and this is a third copy rather than a shared definition.
-/// Deliberately: those two are the CALLER's half and this is the
-/// PROVIDER's, they are behind different features, and a type shared
-/// across that line would tie two halves together that a build is
-/// allowed to compile one of.
-pub enum Body {
-    /// The whole answer, at once.
+/// Which is what an rmcp `CallToolRequest` would have added: a `method`
+/// that is a constant, and a `jsonrpc` that is a constant. Both are
+/// framing, both are the implementation's, and neither survives being
+/// put on a wire that already knows which exchange this is — the
+/// variant says it.
+#[derive(Debug, Clone, PartialEq)]
+pub enum McpRequest {
+    /// What tools have you got.
     ///
-    /// For the ordinary case: one JSON document, complete before it was
-    /// sent.
-    Single(Bytes),
-    /// The answer a piece at a time, for as long as it lasts.
+    /// [`None`] is the first page. A cursor asks for another.
+    ListTools(Option<PaginatedRequestParams>),
+    /// What resources have you got.
+    ListResources(Option<PaginatedRequestParams>),
+    /// Run this tool.
+    CallTool(CallToolRequestParams),
+    /// Read this resource.
+    ReadResource(ReadResourceRequestParams),
+    /// Tell me what happens.
     ///
-    /// Each item is another piece of the BODY — whatever came off the
-    /// socket, cut wherever the transport cut it — and the answer is
-    /// over when the stream ends. The pieces mean nothing, which is the
-    /// point: an answer relayed onward has to arrive the way it left,
-    /// and something that reshaped it would not be a relay.
+    /// It carries nothing because there is nothing to ask: a client
+    /// opens that stream with a bare `GET` and no body.
     ///
-    /// So a consumer that needs to know where one THING ends reassembles
-    /// them, and a consumer that is relaying does not care. An agentic
-    /// loop is the first kind and does not use this at all — see
-    /// [`Container::call_http_agentic_loop`], where the reassembly is
-    /// done by the thing that read the head.
-    ///
-    /// # Why it is boxed, and why the bounds are what they are
-    ///
-    /// [`Send`] and `'static` because it outlives the call that made it
-    /// and will be polled from wherever the answer is being read, which
-    /// is not where it was built.
-    ///
-    /// [`Sync`] is NOT required. Whoever reads the answer OWNS this and
-    /// polls it through `&mut`, so a shared reference to it never
-    /// exists — and requiring one turns away the obvious way to write a
-    /// stream, since an `async_stream` generator is [`Sync`] only if
-    /// everything it awaits is. A mutex guard held across an await is
-    /// enough to disqualify it.
-    Stream(Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>),
+    /// It is also the only variant whose answer is not one thing. See
+    /// [`McpResponder::notification`], which is written as many times
+    /// as there are notifications.
+    Notifications,
 }
 
-/// How one HTTP response is written.
+/// How one of those is answered.
 ///
-/// The other half of [`Container::serve_http_raw`]: it hands out requests
-/// and one of these each, and this is what an answer goes into.
+/// The other half of [`Container::mcp_serve`]: it hands out requests
+/// and one of these each, and this is where an answer goes.
 ///
-/// # A head, then a body, then a finish
+/// # A method per variant, and the pairing is not enforced
 ///
-/// Which is HTTP's own order and is not a convention imposed here. The
-/// [`Head`] carries the status and the headers, so it goes first and
-/// goes once; [`body`](Self::body) is called for as much body as there
-/// turns out to be, including none.
+/// Nothing stops a [`ListTools`](McpRequest::ListTools) being answered
+/// with [`call_tool`](Self::call_tool). The alternative was a responder
+/// type per variant, so that the result type is fixed by the request
+/// that arrived — five associated types on [`Container`], to prevent a
+/// mistake in the one place that constructs these and matches on them
+/// two lines earlier.
 ///
-/// It is the same split
-/// [`http::response::Frame`](crate::shared::http::response::Frame)
-/// makes on the wire, which is what lets an answer be relayed from one
-/// to the other without being assembled first.
+/// # Four consume, one does not
+///
+/// [`list_tools`](Self::list_tools),
+/// [`list_resources`](Self::list_resources),
+/// [`call_tool`](Self::call_tool) and
+/// [`read_resource`](Self::read_resource) take `self`, because an
+/// exchange answered once cannot be answered again — and taking `self`
+/// is how that stops being a rule and starts being a fact. Answering
+/// them IS finishing them; there is nothing left to terminate.
+///
+/// [`notification`](Self::notification) takes `&mut self` and is called
+/// for as long as there is anything to say, then
+/// [`notifications_finish`](Self::notifications_finish) ends it.
 ///
 /// # Finishing is a method, not a destructor
 ///
-/// Because a destructor cannot await and cannot report. A response has
-/// to be terminated — a chunked body has a terminator, and a reader
-/// that does not see one has no way to tell a complete answer from a
-/// truncated one — and whether that terminator reached the container is
-/// a fact worth having.
+/// Because a destructor cannot await and cannot report. A notification
+/// stream has to be terminated — a reader that never sees the end has
+/// no way to tell a server that finished from a connection that
+/// dropped — and whether that terminator reached the container is a
+/// fact worth having.
 ///
-/// So [`finish`](Self::finish) consumes the writer and says whether it
-/// worked. Dropping one without calling it is not a protocol error and
+/// Dropping one without finishing it is not a protocol error and
 /// nothing here can prevent it; what the container sees is a connection
 /// that closed mid-answer, which is what actually happened.
 ///
 /// The same argument this crate makes everywhere it has a choice
 /// between a method and a `Drop`.
-///
-/// [`Head`]: crate::shared::http::response::Head
-pub trait HttpResponseWriter {
+pub trait McpResponder {
     /// Why an answer could not be written.
     ///
     /// A provider's own, like everything else here.
     type Error: Send + 'static;
 
-    /// Send the status and the headers.
-    ///
-    /// Once, before any [`body`](Self::body). What an implementation
-    /// does about a second one is its business — there is nothing
-    /// useful to do with it, and a type that made it unrepresentable
-    /// would be a second writer type for the sake of one mistake.
-    fn head(
-        &mut self,
-        head: crate::shared::http::response::Head,
+    /// Answer a [`ListTools`](McpRequest::ListTools).
+    fn list_tools(
+        self,
+        result: Result<ListToolsResult, ErrorData>,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
-    /// Send some of the body.
-    ///
-    /// As many times as there are pieces, and the pieces mean nothing:
-    /// an implementation is free to buffer them, and a reader on the
-    /// far side will see whatever boundaries the transport produces
-    /// rather than these.
-    fn body(
-        &mut self,
-        bytes: &[u8],
+    /// Answer a [`ListResources`](McpRequest::ListResources).
+    fn list_resources(
+        self,
+        result: Result<ListResourcesResult, ErrorData>,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
-    /// Say the answer is complete.
+    /// Answer a [`CallTool`](McpRequest::CallTool).
     ///
-    /// See the type's own documentation for why this is a method.
-    fn finish(self) -> impl Future<Output = Result<(), Self::Error>> + Send;
+    /// An [`Err`] is the tool not being run — no such tool, arguments
+    /// that do not match its schema. A tool that ran and failed is an
+    /// [`Ok`] whose [`CallToolResult`] says so, which is MCP's
+    /// distinction and this keeps it.
+    fn call_tool(
+        self,
+        result: Result<CallToolResult, ErrorData>,
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+
+    /// Answer a [`ReadResource`](McpRequest::ReadResource).
+    fn read_resource(
+        self,
+        result: Result<ReadResourceResult, ErrorData>,
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+
+    /// Push one notification onto a
+    /// [`Notifications`](McpRequest::Notifications).
+    ///
+    /// As many times as there are notifications, and then
+    /// [`notifications_finish`](Self::notifications_finish).
+    fn notification(
+        &mut self,
+        notification: ServerNotification,
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+
+    /// Say a [`Notifications`](McpRequest::Notifications) is over.
+    ///
+    /// Named for its variant rather than called `finish`, because the
+    /// other four have nothing to finish: they are answered once and
+    /// answering is the end of them.
+    ///
+    /// # The error is the far server's, and it belongs here
+    ///
+    /// [`None`] is a stream that ended with nothing more to say.
+    /// [`Some`] is the caller's MCP server saying it will push no more,
+    /// and why — which is a thing that channel can carry, and a
+    /// container told only that there is no more could not tell a
+    /// server that finished from one that broke.
+    fn notifications_finish(
+        self,
+        error: Option<ErrorData>,
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
 /// The content for a write ran out early, and this is whose fault it

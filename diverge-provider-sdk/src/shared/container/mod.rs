@@ -20,9 +20,9 @@
 //! does not vary between the kinds — which today is who supplies the
 //! image, and nothing else.
 //!
-//! Unlike [`http`](super::http) and [`filetree`](super::filetree),
-//! which are shapes any endpoint could ride, everything in this module
-//! is about containers specifically. It is here rather than in one
+//! Unlike [`filetree`](super::filetree) and [`oci`](super::oci), which
+//! are shapes any endpoint could ride, everything in this module is
+//! about containers specifically. It is here rather than in one
 //! endpoint because more than one of them needs it, not because it is
 //! general.
 

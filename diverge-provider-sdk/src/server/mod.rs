@@ -23,12 +23,18 @@
 //! server or process does — none of it is this protocol's business,
 //! and a crate that served HTTP would have opinions about all of it.
 //!
-//! It does not speak HTTP either, in either direction. It did briefly:
-//! a container was reached over a byte pipe, so something here had to
-//! turn one into a request. Now
-//! [`Container`](container::Container) takes and returns requests, and
-//! whatever speaks HTTP to a container is on the provider's side of
-//! that line with everything else about how a container is reached.
+//! It does not speak HTTP either, in either direction. It did twice
+//! over: a container was reached through a byte pipe, so something here
+//! had to turn one into a request; and then through parsed requests and
+//! statuses and header maps, which only moved the problem up a level.
+//!
+//! Now [`Container`](container::Container) takes and returns the
+//! exchanges themselves — MCP asks and MCP answers — and whatever
+//! speaks HTTP to a container is on the provider's side of that line
+//! with everything else about how a container is reached. Which is
+//! where it belongs: an implementation is already an MCP client and an
+//! MCP server, and neither of those is a thing this crate should be
+//! reimplementing halfway.
 //!
 //! # Nothing is re-exported
 //!

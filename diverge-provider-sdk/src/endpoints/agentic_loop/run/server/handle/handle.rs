@@ -3,24 +3,27 @@
 use std::pin::pin;
 use std::sync::Arc;
 
-use bytes::{Bytes, BytesMut};
-use futures_util::StreamExt as _;
+use bytes::Bytes;
 use futures_util::future::{self, Either};
+use futures_util::{Stream, StreamExt as _};
+use rmcp::ErrorData;
 use serde_json::Value;
 use serde_json::value::RawValue;
 
+use super::super::channel_request;
 use super::super::response;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::endpoints::agentic_loop::run::client::channel_response;
 use crate::endpoints::agentic_loop::run::client::request;
 use crate::endpoints::agentic_loop::run::client::request::agent::Agent;
 use crate::frame::client::ClientFrame;
-use crate::server::container::{Body, Container, HttpResponseWriter};
+use crate::server::container::{Container, McpRequest, McpResponder};
 use crate::server::container_deployer::ContainerDeployer;
 use crate::server::deployment::Deployment;
 use crate::server::scope_handle::ScopeHandle;
 use crate::shared::error::Error;
-use crate::shared::http;
+use crate::shared::mcp;
 
 /// Run the loop and relay it, until it ends or the caller goes.
 ///
@@ -230,7 +233,7 @@ where
     C::Error: Into<Error>,
 {
     // TODO: the port is settled when the images are.
-    let requests = match container.serve_http_raw(8081).await {
+    let requests = match container.mcp_serve(8081).await {
         Ok(requests) => requests,
         Err(error) => {
             write(scope, &response::Frame::Error(error.into())).await;
@@ -311,205 +314,26 @@ where
         }
     };
 
-    let request = http::request::Request {
-        method: http::request::Method::Post,
-        // TODO: settled when the images are.
-        path: "/".to_owned(),
-        headers: Default::default(),
-        body: Some(body),
-    };
-
     // TODO: the port is settled when the images are.
-    let (head, body) = match container.call_http_raw(8080, request).await {
-        Ok(answer) => answer,
+    let mut chunks = match container.call_agentic_loop(8080, body).await {
+        Ok(chunks) => chunks,
         Err(error) => {
             return write(&scope, &response::Frame::Error(error.into())).await;
         }
     };
 
-    // A status is the container's answer about itself, and this is the
-    // one place to judge it: everything after here assumes chunks.
-    if !(200..300).contains(&head.status) {
-        let status = head.status;
-        let error = format!("the agent container answered {status}");
-        let error = Error(Value::String(error));
-        return write(&scope, &response::Frame::Error(error)).await;
-    }
-
-    let mut chunks = Chunks::new(&head);
-    match body {
-        Body::Single(bytes) => {
-            if !chunks.feed(&scope, &bytes).await {
-                return;
+    while let Some(chunk) = chunks.next().await {
+        match chunk {
+            Ok(chunk) => write(&scope, &response::Frame::Chunk(chunk)).await,
+            // One thing the agent said that could not be read. The
+            // stream is free to go on — see
+            // [`AgenticLoopStream`](Container::AgenticLoopStream) — but
+            // the relay is not: an error frame is the last thing a
+            // caller's stream accepts, so this is where it stops.
+            Err(error) => {
+                return write(&scope, &response::Frame::Error(error.into()))
+                    .await;
             }
-        }
-        Body::Stream(mut body) => {
-            while let Some(piece) = body.next().await {
-                if !chunks.feed(&scope, &piece).await {
-                    return;
-                }
-            }
-        }
-    }
-    chunks.finish(&scope).await;
-}
-
-/// Chunks, out of however the body turned out to be delivered.
-///
-/// A body arrives in pieces the transport chose, which are not the
-/// pieces the agent wrote — so something has to hold the leftovers and
-/// hand over a chunk each time a whole one is there. This is that.
-struct Chunks {
-    /// Whether the body is an event stream.
-    ///
-    /// False means the whole body is one chunk and nothing delimits
-    /// anything, so the buffer below simply accumulates until the body
-    /// ends.
-    events: bool,
-    /// What has arrived and not yet been used.
-    buffer: BytesMut,
-}
-
-impl Chunks {
-    /// Read the head to learn how to read the body.
-    ///
-    /// Which is what a head is for, and why the answer is a head and a
-    /// body rather than one thing: `text/event-stream` is many chunks
-    /// and anything else is one, and the status line already had to
-    /// arrive before either.
-    ///
-    /// Matching only the media type, since a charset or a boundary can
-    /// follow it and neither changes what is being read.
-    fn new(head: &http::response::Head) -> Self {
-        let events = head
-            .headers
-            .iter()
-            .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
-            .and_then(|(_, value)| value.split(';').next())
-            .is_some_and(|kind| {
-                kind.trim().eq_ignore_ascii_case("text/event-stream")
-            });
-        Chunks {
-            events,
-            buffer: BytesMut::new(),
-        }
-    }
-
-    /// Take one piece of the body, sending whatever it completed.
-    ///
-    /// Returns whether to keep going. `false` means a chunk did not
-    /// deserialize and the run has been ended with an error frame: a
-    /// stream that has started saying things this crate cannot read is
-    /// not one to keep relaying.
-    async fn feed(&mut self, scope: &ScopeHandle, piece: &[u8]) -> bool {
-        self.buffer.extend_from_slice(piece);
-        if !self.events {
-            return true;
-        }
-        while let Some(data) = self.event() {
-            if !send(scope, &data).await {
-                return false;
-            }
-        }
-        true
-    }
-
-    /// Take the last chunk, if the body ended holding one.
-    ///
-    /// A unary body is entirely this: nothing is sent until here,
-    /// because nothing said where it ended until it ended. An event
-    /// stream usually has nothing left, and has something when the last
-    /// event ran to the end of the body without a blank line after it.
-    async fn finish(mut self, scope: &ScopeHandle) {
-        if self.buffer.is_empty() {
-            return;
-        }
-        if !self.events {
-            send(scope, &self.buffer).await;
-            return;
-        }
-        // Terminating the buffer is what makes `event` see the last
-        // one, which a producer that closed the connection instead of
-        // writing a blank line did not leave behind.
-        self.buffer.extend_from_slice(b"\n\n");
-        if let Some(data) = self.event() {
-            send(scope, &data).await;
-        }
-    }
-
-    /// Take the next whole event's data, if there is one.
-    ///
-    /// Server-sent events, and only as much of them as this needs.
-    /// Events are separated by a blank line; within one, a `data:`
-    /// field contributes a line to the payload, with one optional space
-    /// after the colon.
-    ///
-    /// Every other field — `event`, `id`, `retry` — and every comment is
-    /// skipped, because nothing here dispatches on them: one kind of
-    /// thing arrives on this stream, and its own `type` says which. An
-    /// event carrying no data is passed over entirely, which is what a
-    /// keep-alive is.
-    fn event(&mut self) -> Option<Bytes> {
-        loop {
-            let (end, separator) = self.boundary()?;
-            let event = self.buffer.split_to(end);
-            let _ = self.buffer.split_to(separator);
-
-            // Sliced first, because `BytesMut` has a `split` of its
-            // own and the one wanted here is the slice's.
-            let event: &[u8] = &event;
-            let mut data = BytesMut::new();
-            for line in event.split(|byte| *byte == b'\n') {
-                let line = line.strip_suffix(b"\r").unwrap_or(line);
-                let Some(rest) = line.strip_prefix(b"data:") else {
-                    continue;
-                };
-                let rest = rest.strip_prefix(b" ").unwrap_or(rest);
-                if !data.is_empty() {
-                    data.extend_from_slice(b"\n");
-                }
-                data.extend_from_slice(rest);
-            }
-            if !data.is_empty() {
-                return Some(data.freeze());
-            }
-        }
-    }
-
-    /// Where the next event ends, and how many bytes separate it from
-    /// the one after.
-    ///
-    /// A blank line, in any of the three spellings the format allows.
-    fn boundary(&self) -> Option<(usize, usize)> {
-        let bytes = &self.buffer[..];
-        (0..bytes.len()).find_map(|at| {
-            let rest = &bytes[at..];
-            if rest.starts_with(b"\r\n\r\n") {
-                Some((at, 4))
-            } else if rest.starts_with(b"\n\n") || rest.starts_with(b"\r\r") {
-                Some((at, 2))
-            } else {
-                None
-            }
-        })
-    }
-}
-
-/// Send one chunk's JSON down the scope.
-///
-/// Returns whether to keep going. It is deserialized rather than
-/// relayed, so that a body which has stopped being chunks is caught
-/// here rather than by the caller.
-async fn send(scope: &ScopeHandle, data: &[u8]) -> bool {
-    match serde_json::from_slice(data) {
-        Ok(chunk) => {
-            write(scope, &response::Frame::Chunk(chunk)).await;
-            true
-        }
-        Err(error) => {
-            let error = Error(Value::String(error.to_string()));
-            write(scope, &response::Frame::Error(error)).await;
-            false
         }
     }
 }
@@ -528,20 +352,20 @@ async fn send(scope: &ScopeHandle, data: &[u8]) -> bool {
 /// set is owned here rather than spawned loose, so aborting this aborts
 /// what it started: a call outliving the loop it was serving would hold
 /// a channel on a scope that has finished.
-async fn mcp<S, W>(requests: S, scope: Arc<ScopeHandle>)
+async fn mcp<S, R>(requests: S, scope: Arc<ScopeHandle>)
 where
-    S: futures_util::Stream<Item = (Bytes, W)> + Send + Unpin + 'static,
-    W: HttpResponseWriter + Send + 'static,
+    S: Stream<Item = (McpRequest, R)> + Send + Unpin + 'static,
+    R: McpResponder + Send + 'static,
 {
     let mut requests = requests;
     let mut calls = tokio::task::JoinSet::new();
 
-    while let Some((request, writer)) = requests.next().await {
+    while let Some((request, responder)) = requests.next().await {
         // Finished ones, so the set does not grow for the life of the
         // run. An agent makes a great many tool calls.
         while calls.try_join_next().is_some() {}
 
-        calls.spawn(call(request, writer, Arc::clone(&scope)));
+        calls.spawn(call(request, responder, Arc::clone(&scope)));
     }
 
     // Drained rather than dropped. The stream ending means the agent
@@ -555,58 +379,238 @@ where
     while calls.join_next().await.is_some() {}
 }
 
-/// Relay one tool call out, and its answer back.
+/// Relay one MCP exchange out, and its answer back.
 ///
-/// # The request is forwarded verbatim
+/// # The responder is used on every path
 ///
-/// It arrives as an encoded
-/// [`Request`](crate::shared::http::request::Request), and a
-/// [`channel_request::Frame`](crate::endpoints::agentic_loop::run::server::channel_request::Frame)
-/// is that request with nothing in front of it — so the bytes go out as
-/// they came in. Decoding one only to encode it again would be taking a
-/// request apart and putting it back together to prove it could be.
+/// Including the ones that went wrong. An agent that asked is an agent
+/// waiting, and this connection is the only thing that can tell it
+/// otherwise — so a caller that never answered, a frame that would not
+/// decode and a channel that closed all end in an
+/// [`ErrorData`] rather than in a return.
 ///
-/// # The answer is always finished
-///
-/// Including when it went wrong, and including when there was none. A
-/// response that is never terminated leaves the agent unable to tell a
-/// complete answer from a truncated one, and it has no other way to
+/// It is the same reason the old shape always finished its writer,
+/// arrived at again now that an answer is a value rather than a stream:
+/// a response that is never terminated leaves the agent unable to tell
+/// a complete answer from a truncated one, and it has no other way to
 /// find out.
-async fn call<W>(request: Bytes, writer: W, scope: Arc<ScopeHandle>)
+///
+/// # Which method answers is this function's to get right
+///
+/// A [`McpResponder`] has one per variant and does not check. The match
+/// below is the whole of that guarantee, which is why each arm names
+/// its request and its answer within a line of each other.
+async fn call<R>(request: McpRequest, responder: R, scope: Arc<ScopeHandle>)
 where
-    W: HttpResponseWriter,
+    R: McpResponder,
 {
-    let mut channel = scope.send_channel_request(&request).await;
-    let mut writer = writer;
+    match request {
+        McpRequest::ListTools(params) => {
+            let answer = ask(
+                &scope,
+                &channel_request::Frame::McpListTools(
+                    mcp::list_tools::request::Request(params),
+                ),
+            )
+            .await;
+            let result = match answer.as_ref().map(|bytes| {
+                channel_response::mcp_list_tools::Frame::decode(bytes)
+            }) {
+                Some(Ok(channel_response::mcp_list_tools::Frame::Result(
+                    result,
+                ))) => Ok(result),
+                Some(Ok(channel_response::mcp_list_tools::Frame::Error(
+                    error,
+                ))) => Err(error),
+                Some(Err(_)) => Err(unreadable()),
+                None => Err(unanswered()),
+            };
+            let _ = responder.list_tools(result).await;
+        }
+        McpRequest::ListResources(params) => {
+            let answer = ask(
+                &scope,
+                &channel_request::Frame::McpListResources(
+                    mcp::list_resources::request::Request(params),
+                ),
+            )
+            .await;
+            let result = match answer.as_ref().map(|bytes| {
+                channel_response::mcp_list_resources::Frame::decode(bytes)
+            }) {
+                Some(Ok(
+                    channel_response::mcp_list_resources::Frame::Result(
+                        result,
+                    ),
+                )) => Ok(result),
+                Some(Ok(channel_response::mcp_list_resources::Frame::Error(
+                    error,
+                ))) => Err(error),
+                Some(Err(_)) => Err(unreadable()),
+                None => Err(unanswered()),
+            };
+            let _ = responder.list_resources(result).await;
+        }
+        McpRequest::CallTool(params) => {
+            let answer = ask(
+                &scope,
+                &channel_request::Frame::McpCallTool(
+                    mcp::call_tool::request::Request(params),
+                ),
+            )
+            .await;
+            let result = match answer.as_ref().map(|bytes| {
+                channel_response::mcp_call_tool::Frame::decode(bytes)
+            }) {
+                Some(Ok(channel_response::mcp_call_tool::Frame::Result(
+                    result,
+                ))) => Ok(result),
+                Some(Ok(channel_response::mcp_call_tool::Frame::Error(
+                    error,
+                ))) => Err(error),
+                Some(Err(_)) => Err(unreadable()),
+                None => Err(unanswered()),
+            };
+            let _ = responder.call_tool(result).await;
+        }
+        McpRequest::ReadResource(params) => {
+            let answer = ask(
+                &scope,
+                &channel_request::Frame::McpReadResource(
+                    mcp::read_resource::request::Request(params),
+                ),
+            )
+            .await;
+            let result = match answer.as_ref().map(|bytes| {
+                channel_response::mcp_read_resource::Frame::decode(bytes)
+            }) {
+                Some(Ok(channel_response::mcp_read_resource::Frame::Result(
+                    result,
+                ))) => Ok(result),
+                Some(Ok(channel_response::mcp_read_resource::Frame::Error(
+                    error,
+                ))) => Err(error),
+                Some(Err(_)) => Err(unreadable()),
+                None => Err(unanswered()),
+            };
+            let _ = responder.read_resource(result).await;
+        }
+        McpRequest::Notifications => {
+            notifications(responder, &scope).await;
+        }
+    }
+}
 
-    while let Some(bytes) = channel.response_receiver.recv().await {
-        // Whole client frames arrive here: a session forwards the
-        // finish to the receiver and only then closes the channel, so
-        // the stream ends by itself and there is nothing to do about a
-        // finish but let it pass.
+/// Relay a notification stream out, and everything on it back.
+///
+/// The one exchange that is not answered once, so it is the one that
+/// does not fit the shape of the four above: the channel stays open and
+/// every frame on it is another notification.
+///
+/// # It always finishes
+///
+/// Whatever ended it — the caller saying so, a frame that would not
+/// decode, the connection going. A container reading a stream that
+/// simply stops has no way to tell an MCP server that finished from one
+/// that was cut off, and this is the only thing that knows which.
+async fn notifications<R>(mut responder: R, scope: &ScopeHandle)
+where
+    R: McpResponder,
+{
+    let mut payload = Vec::new();
+    if channel_request::Frame::McpNotifications(
+        mcp::notifications::request::Request,
+    )
+    .encode(&mut Writer::new(&mut payload))
+    .is_err()
+    {
+        let _ = responder.notifications_finish(Some(unreadable())).await;
+        return;
+    }
+    let mut channel = scope.send_channel_request(&payload).await;
+
+    let error = loop {
+        let Some(bytes) = channel.response_receiver.recv().await else {
+            // The scope ended, which for a stream held open is the
+            // ordinary way to find out there will be no more.
+            break Some(unanswered());
+        };
         let Ok(ClientFrame::ChannelResponse { payload, .. }) =
             ClientFrame::decode(&bytes)
         else {
-            continue;
+            // A finish, which is the caller saying it will push no
+            // more, or a frame with no business here. Both end it and
+            // neither is a failure to report.
+            break None;
         };
-
-        let written = match http::response::Frame::decode(payload) {
-            Ok(http::response::Frame::Head(head)) => {
-                writer.head(head).await.is_ok()
+        match channel_response::mcp_notifications::Frame::decode(payload) {
+            Ok(channel_response::mcp_notifications::Frame::Notification(
+                notification,
+            )) => {
+                if responder.notification(notification).await.is_err() {
+                    // The container stopped listening. Nothing left to
+                    // relay to, and nothing to tell it about that.
+                    return;
+                }
             }
-            Ok(http::response::Frame::Body(body)) => {
-                writer.body(body).await.is_ok()
+            // The caller's own server saying it will push no more, and
+            // why. Nothing follows it.
+            Ok(channel_response::mcp_notifications::Frame::Error(error)) => {
+                break Some(error);
             }
-            // A frame this crate cannot read is not one to relay, and
-            // the rest of the answer may still be good.
-            Err(_) => true,
-        };
-        if !written {
-            break;
+            Err(_) => break Some(unreadable()),
         }
-    }
+    };
+    let _ = responder.notifications_finish(error).await;
+}
 
-    let _ = writer.finish().await;
+/// Send one ask out on its own channel and take the one frame back.
+///
+/// The payload of the answer, refcounted out of the frame it arrived
+/// in, or [`None`] if there was no answer to take — a scope that ended,
+/// a channel that finished with nothing on it, a frame that would not
+/// decode.
+///
+/// The channel is dropped on the way out rather than drained. Finishing
+/// it is the caller's, and nothing here waits to see it done.
+async fn ask(
+    scope: &ScopeHandle,
+    frame: &channel_request::Frame,
+) -> Option<Bytes> {
+    let mut payload = Vec::new();
+    frame.encode(&mut Writer::new(&mut payload)).ok()?;
+    let mut channel = scope.send_channel_request(&payload).await;
+
+    let bytes = channel.response_receiver.recv().await?;
+    let ClientFrame::ChannelResponse { payload, .. } =
+        ClientFrame::decode(&bytes).ok()?
+    else {
+        // A finish with nothing before it, which is what a caller says
+        // when it cannot serve the exchange at all.
+        return None;
+    };
+    Some(bytes.slice_ref(payload))
+}
+
+/// Nobody answered, and the agent has to be told something.
+///
+/// A scope that ended, a caller that left, a channel that finished with
+/// nothing on it. From inside the container these are one fact — the
+/// tools are not reachable — and the JSON-RPC code for that is the
+/// internal one, because the failure is on this side of the agent
+/// rather than in what it asked for.
+fn unanswered() -> ErrorData {
+    ErrorData::internal_error("the caller did not answer", None)
+}
+
+/// Something answered and this crate could not read it.
+///
+/// Which is not the caller refusing — a refusal is a frame this
+/// understands. It is a caller disagreeing with this one about what an
+/// answer looks like, and an agent can do nothing about either, so both
+/// arrive as an error rather than as silence.
+fn unreadable() -> ErrorData {
+    ErrorData::internal_error("the caller's answer could not be read", None)
 }
 
 /// End the scope, which needs the handle back to itself.

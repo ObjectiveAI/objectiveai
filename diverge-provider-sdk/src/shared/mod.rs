@@ -5,13 +5,22 @@
 //! the pieces several of them turn out to be built from, factored out
 //! so that one definition serves all of them.
 //!
-//! [`http`] is a tunneled HTTP exchange — MCP rides it in an agentic
-//! loop and in a container, and the OCI Distribution protocol rides it
-//! when a caller serves its own image. [`filetree`] is a live
-//! filesystem view — a watch answers with one, and so does a
-//! laboratory run, over a different tree. [`container`] is what a container
-//! endpoint does to a container once it has one, plus the part of
-//! asking for one that does not vary between the kinds.
+//! [`mcp`] is the five exchanges an MCP server answers, each one typed
+//! and each one its own channel. [`oci`] is the OCI Distribution
+//! protocol, which is bytes: a caller serving its own image answers
+//! what the runtime asked, verbatim, and nothing between them reads it.
+//!
+//! They were one module until recently — a tunneled HTTP exchange that
+//! both rode. Removing it lost nothing, because MCP over HTTP is
+//! JSON-RPC with a transport under it and the transport was the only
+//! part being carried; and it took with it every bug that came of
+//! rebuilding a request rather than forwarding one.
+//!
+//! [`filetree`] is a live filesystem view — a watch answers with one,
+//! and so does a laboratory run, over a different tree. [`container`]
+//! is what a container endpoint does to a container once it has one,
+//! plus the part of asking for one that does not vary between the
+//! kinds.
 //!
 //! [`error`] is the odd one out: a shape nothing carries yet. It is
 //! here rather than beside whichever frame first needs it, because a
@@ -27,6 +36,5 @@
 pub mod container;
 pub mod error;
 pub mod filetree;
-pub mod http;
 pub mod mcp;
 pub mod oci;
