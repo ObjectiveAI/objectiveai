@@ -1,13 +1,14 @@
 //! What a client's response frame carries on an OCI channel.
 
-/// One registry answer: the head once, then as much body as there
-/// turns out to be.
+/// One piece of a registry's answer, or the reason there is no more.
 ///
-/// The body is a manifest, a config blob, or a layer — which can run
-/// to hundreds of megabytes, and is the reason the head goes first.
-/// A provider writes the status and headers onto the runtime's socket
-/// the moment it has them and pumps the rest through, rather than
-/// holding a layer in memory to learn its length.
+/// An alias, because a registry answer is bytes off a socket and
+/// nothing about relaying one changes between the endpoints that do
+/// it. See
+/// [`oci::response::Frame`](crate::shared::oci::response::Frame) for
+/// what it is and why it carries no head.
 ///
-/// See [`http::response::Frame`](crate::shared::http::response::Frame).
-pub type Frame<'a> = crate::shared::http::response::Frame<'a>;
+/// An alias rather than a re-export because this module is real. The
+/// path says this endpoint's registry answers live here, and they do,
+/// rather than naming somewhere else and hoping a reader follows.
+pub type Frame<'a> = crate::shared::oci::response::Frame<'a>;

@@ -5,9 +5,9 @@
 //! database, one runs a command — see [`Frame`].
 //!
 //! What an OCI one carries is
-//! [`http::request`](crate::shared::http::request), which is not here
-//! and should not be: a tunneled HTTP request is the same request
-//! whatever protocol rides it.
+//! [`oci::request`](crate::shared::oci::request), which is not here
+//! and should not be: a registry request is the same request whichever
+//! endpoint relays it.
 //!
 //! [`Postgres`] is here, because a connection id is this exchange's
 //! own and means nothing outside it. It is also the only one of the

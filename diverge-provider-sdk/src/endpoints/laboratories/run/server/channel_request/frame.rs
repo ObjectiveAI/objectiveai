@@ -6,8 +6,8 @@ use std::fmt;
 use super::Authorize;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::oci;
 use crate::shared::container::write_bytes;
-use crate::shared::http::request::Request;
 
 /// What a provider asks a caller for while a laboratory runs.
 ///
@@ -40,7 +40,7 @@ pub enum Frame<'a> {
     /// The repository segment of the path names the scope, so one
     /// endpoint serves every run happening at once and a request
     /// routes itself without a provider keeping state between them.
-    Oci(Request<'a>),
+    Oci(oci::request::Request<'a>),
     /// Ask the caller whether a connector may attach to the container.
     ///
     /// Opened when one arrives. A yes lets it attach and names it —
@@ -83,7 +83,9 @@ impl Encode for Frame<'_> {
         match self {
             Frame::Oci(request) => {
                 out.extend_from_slice(&[OCI]);
-                request.encode(out)
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                request.encode(out).map_err(|error| match error {})
             }
             Frame::Authorize(authorize) => {
                 out.extend_from_slice(&[AUTHORIZE]);
@@ -106,9 +108,10 @@ impl<'a> Decode<'a> for Frame<'a> {
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            OCI => {
-                Request::decode(rest).map(Frame::Oci).map_err(FrameError::Oci)
-            }
+            OCI => Ok(Frame::Oci(
+                oci::request::Request::decode(rest)
+                    .unwrap_or_else(|error| match error {}),
+            )),
             AUTHORIZE => serde_json::from_slice(rest)
                 .map(Frame::Authorize)
                 .map_err(FrameError::Authorize),
@@ -129,8 +132,6 @@ pub enum FrameError {
     UnknownTag(u8),
     /// The authorization request did not parse.
     Authorize(serde_json::Error),
-    /// The registry request did not parse.
-    Oci(serde_json::Error),
     /// The write content request did not decode.
     Write(write_bytes::request::RequestError),
 }
@@ -147,9 +148,6 @@ impl fmt::Display for FrameError {
             FrameError::Authorize(error) => {
                 write!(f, "authorization request did not parse: {error}")
             }
-            FrameError::Oci(error) => {
-                write!(f, "registry request did not parse: {error}")
-            }
             FrameError::Write(error) => {
                 write!(f, "write content request did not decode: {error}")
             }
@@ -160,7 +158,6 @@ impl fmt::Display for FrameError {
 impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameError::Oci(error) => Some(error),
             FrameError::Authorize(error) => Some(error),
             FrameError::Write(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,

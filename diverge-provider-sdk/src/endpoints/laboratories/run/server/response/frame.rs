@@ -15,9 +15,9 @@ use crate::shared::error::Error;
 /// A payload leads with one byte saying which variant it is — `0` for
 /// [`Id`](Self::Id), `1` for [`Filetree`](Self::Filetree), `2` for
 /// [`Disconnected`](Self::Disconnected) — and the rest is that
-/// variant's own bytes. The same arrangement
-/// [`http::response::Frame`](crate::shared::http::response::Frame) uses, and
-/// for the same reason: a frame that means something only in the
+/// variant's own bytes. The same arrangement every tagged frame in
+/// this crate uses, and for the same reason: a frame that means
+/// something only in the
 /// context of the ones before it needs a reader carrying state, and
 /// one arriving out of order is not detectably wrong, it is silently
 /// the other thing.

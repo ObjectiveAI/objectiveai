@@ -6,7 +6,7 @@ use std::fmt;
 use super::Postgres;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::http::request::Request;
+use crate::shared::oci;
 
 /// What a provider asks a caller for while a plugin runs.
 ///
@@ -70,7 +70,7 @@ pub enum Frame<'a> {
     /// endpoint serves every run happening at once — plugins and
     /// laboratories alike — and a request routes itself without a
     /// provider keeping state between them.
-    Oci(Request<'a>),
+    Oci(oci::request::Request<'a>),
     /// One database connection, opened toward the caller. Tag `1`.
     ///
     /// Carries no bytes. It names a connection and asks the caller to
@@ -167,7 +167,9 @@ impl Encode for Frame<'_> {
         match self {
             Frame::Oci(request) => {
                 out.extend_from_slice(&[OCI]);
-                request.encode(out)
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                request.encode(out).map_err(|error| match error {})
             }
             Frame::Postgres(postgres) => {
                 out.extend_from_slice(&[POSTGRES]);
@@ -193,7 +195,10 @@ impl<'a> Decode<'a> for Frame<'a> {
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            OCI => Request::decode(rest).map(Frame::Oci).map_err(FrameError::Oci),
+            OCI => Ok(Frame::Oci(
+                oci::request::Request::decode(rest)
+                    .unwrap_or_else(|error| match error {}),
+            )),
             POSTGRES => Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
@@ -213,8 +218,6 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's three.
     UnknownTag(u8),
-    /// The registry request did not parse.
-    Oci(serde_json::Error),
     /// The connection request was not a connection id.
     Postgres(super::postgres::PostgresError),
 }
@@ -228,9 +231,6 @@ impl fmt::Display for FrameError {
             FrameError::UnknownTag(tag) => {
                 write!(f, "unknown mcp plugin channel request tag {tag}")
             }
-            FrameError::Oci(error) => {
-                write!(f, "registry request did not parse: {error}")
-            }
             FrameError::Postgres(error) => {
                 write!(f, "postgres connection request did not parse: {error}")
             }
@@ -241,7 +241,6 @@ impl fmt::Display for FrameError {
 impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameError::Oci(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }

@@ -17,13 +17,13 @@
 ///
 /// # The lifetime
 ///
-/// `Self` may borrow from `bytes` — [`mcp::Request`] holds its
-/// JSON-RPC body as a `&RawValue` pointing into the frame it arrived
-/// in, and the tunnel payloads are `&[u8]` outright. A payload that
-/// owns everything implements `Decode<'_>` and ignores it.
+/// `Self` may borrow from `bytes` — a [`registry request`] is a
+/// `&[u8]` pointing into the frame it arrived in, and so is everything
+/// else this crate relays without reading. A payload that owns
+/// everything implements `Decode<'_>` and ignores it.
 ///
 /// [`serde::Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
-/// [`mcp::Request`]: crate::shared::http::request::Request
+/// [`registry request`]: crate::shared::oci::request::Request
 pub trait Decode<'a>: Sized {
     /// What went wrong, in the format's own words.
     ///

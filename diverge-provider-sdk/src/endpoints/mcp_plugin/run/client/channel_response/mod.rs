@@ -9,12 +9,14 @@
 //! three types called `Frame` apart, so it has to stay in the path.
 //!
 //! [`oci`]'s frame is an ALIAS of
-//! [`http::response::Frame`](crate::shared::http::response::Frame) —
-//! the head-then-body split is a fact about HTTP rather than about
-//! that channel. The other two are their own types, and both are
-//! opaque bytes, for different reasons: a database connection must not
-//! be parsed, and a command's output is not this specification's to
-//! describe.
+//! [`oci::response::Frame`](crate::shared::oci::response::Frame),
+//! since relaying a registry answer is the same act wherever it
+//! happens.
+//!
+//! All three are opaque bytes, for three different reasons: a registry
+//! answer is HTTP and stays HTTP so that a caller can behave like a
+//! proxy, a database connection must not be parsed, and a command's
+//! output is not this specification's to describe.
 
 pub mod command;
 pub mod oci;

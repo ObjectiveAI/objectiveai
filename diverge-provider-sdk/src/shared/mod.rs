@@ -29,3 +29,4 @@ pub mod error;
 pub mod filetree;
 pub mod http;
 pub mod mcp;
+pub mod oci;

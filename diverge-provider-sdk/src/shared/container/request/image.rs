@@ -36,8 +36,9 @@ pub enum Image {
     /// request the container runtime makes arrives at `/v2/<scope>/…`,
     /// the provider strips the scope segment, and the rest goes to the
     /// caller as an
-    /// [`http::request::Request`](crate::shared::http::request::Request) on a
-    /// channel. The runtime never learns it is talking to a proxy; the
+    /// [`oci::request::Request`](crate::shared::oci::request::Request)
+    /// on a channel — the bytes as the runtime wrote them, unread.
+    /// The runtime never learns it is talking to a proxy; the
     /// caller never learns it is not being pulled from directly.
     ///
     /// Which is why a provider needs nothing else. It does not read a
