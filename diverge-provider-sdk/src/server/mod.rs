@@ -23,12 +23,12 @@
 //! server or process does — none of it is this protocol's business,
 //! and a crate that served HTTP would have opinions about all of it.
 //!
-//! It does speak HTTP in one direction, and that is not a reversal.
-//! `hyper`'s CLIENT is compiled in, because a container is reached over
-//! a byte pipe and something has to turn that into a request — see
-//! `http`, which is private for the same reason the rest of this is
-//! careful: dialling a pipe somebody handed over is not owning an
-//! endpoint.
+//! It does not speak HTTP either, in either direction. It did briefly:
+//! a container was reached over a byte pipe, so something here had to
+//! turn one into a request. Now
+//! [`Container`](container::Container) takes and returns requests, and
+//! whatever speaks HTTP to a container is on the provider's side of
+//! that line with everything else about how a container is reached.
 //!
 //! # Nothing is re-exported
 //!
@@ -217,15 +217,6 @@
 //! only the second reaches [`client_registry`] and [`oci_stream`],
 //! which exist for an image the CALLER serves.
 //!
-//! [`mcp_conduit`] is what goes with that last one. An agent runs in a
-//! container beside the provider and calls tools that live with the
-//! CALLER, so a tool call has to leave the container — and it leaves on
-//! a second pipe the container listens on and the provider dials,
-//! because a provider cannot put a listening socket inside somebody
-//! else's container. It is a contract with an image rather than
-//! anything a provider implements, which is why it is documented as
-//! carefully as a frame.
-//!
 //! [`version`](crate::endpoints::version) has a handler too and asks
 //! for nothing at all, its answer being a compile-time constant. It is
 //! the one request a provider can serve without supplying anything.
@@ -238,11 +229,7 @@ pub mod client_registry;
 pub mod container;
 pub mod container_deployer;
 pub mod deployment;
-// Waiting with the handlers above. It turns a byte pipe into an HTTP
-// exchange, and there is no byte pipe at the moment.
-// pub(crate) mod http;
 pub mod image_checker;
-pub mod mcp_conduit;
 pub mod mount;
 mod notice;
 pub mod oci_stream;
