@@ -114,18 +114,22 @@
 //! [`ScopeHandle::request`](scope_handle::ScopeHandle::request) hands
 //! out the payload and
 //! [`recv_channel_request`](scope_handle::ScopeHandle::recv_channel_request)
-//! takes the channels off their queue — and seven endpoints have a
-//! `server::handle` that uses them: the five
+//! takes the channels off their queue — and eight endpoints have a
+//! `server::handle` that uses them. The five
 //! [`volumes`](crate::endpoints::volumes),
 //! [`images::check`](crate::endpoints::images::check) and
-//! [`version`](crate::endpoints::version). Each answers and finishes,
-//! which is the whole of what those endpoints do.
+//! [`version`](crate::endpoints::version) answer and finish, which is
+//! the whole of what those endpoints do.
 //!
-//! Two more are written and not compiled.
-//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run) and
-//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run) were built
-//! around a byte pipe into the container, and that is being
-//! reconsidered — see [`container`] for what went and why.
+//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run) is the
+//! one that does not. It deploys a container, relays what the agent
+//! says down the scope, and serves the agent's tool calls out on
+//! channels — two directions at once, neither waiting on the other.
+//!
+//! One is written and not compiled:
+//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run) was built
+//! around the byte pipe that [`container`] no longer has, and is a
+//! rewrite rather than a repair.
 //!
 //! The two [`laboratories`](crate::endpoints::laboratories) scopes have
 //! no handler at all yet.
@@ -213,7 +217,7 @@
 //! [`agentic_loop::run`](crate::endpoints::agentic_loop::run) and
 //! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run) — the two
 //! endpoints that put a container somewhere. Only the second uses all
-//! three of its methods, an agent's image being this crate's own; and
+//! three of its methods, an agent's image being this crate's own, and
 //! only the second reaches [`client_registry`] and [`oci_stream`],
 //! which exist for an image the CALLER serves.
 //!

@@ -1,37 +1,33 @@
 //! Running an agent in a container, and relaying both directions.
 
 use std::pin::pin;
-
-use bytes::Bytes;
-use eventsource_stream::Eventsource as _;
-use futures_util::future::{self, Either};
-use futures_util::{SinkExt as _, StreamExt as _};
-use http_body_util::{BodyStream, Full};
-use serde_json::Value;
 use std::sync::Arc;
 
-use super::super::{channel_request, response};
+use bytes::{Bytes, BytesMut};
+use futures_util::StreamExt as _;
+use futures_util::future::{self, Either};
+use serde_json::Value;
+use serde_json::value::RawValue;
+
+use super::super::response;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::agentic_loop::run::client::request;
 use crate::endpoints::agentic_loop::run::client::request::agent::Agent;
 use crate::frame::client::ClientFrame;
-use crate::server::channel::Channel;
-use crate::server::container::Container;
+use crate::server::container::{Body, Container, HttpResponseWriter};
 use crate::server::container_deployer::ContainerDeployer;
 use crate::server::deployment::Deployment;
-use crate::server::mcp_conduit;
 use crate::server::scope_handle::ScopeHandle;
 use crate::shared::error::Error;
 use crate::shared::http;
 
 /// Run the loop and relay it, until it ends or the caller goes.
 ///
-/// Two directions at once, which is what makes this the largest
-/// handler. Chunks come out of the container and go down to the caller;
-/// tool calls come out of the container the other way and go out on
-/// channels, and the caller's answers come back and go in. Neither
-/// waits for the other, because neither is in the other's loop.
+/// Two directions at once. Chunks come out of the container and go down
+/// to the caller; tool calls come out the other way and go out on
+/// channels, and the caller's answers go back in. Neither waits for the
+/// other, because neither is in the other's loop.
 ///
 /// # The identity goes to the deployer and no further
 ///
@@ -39,29 +35,19 @@ use crate::shared::http;
 /// gets no mounts, no volumes and no environment — so there is no
 /// namespace to resolve one against and nothing inside is told who
 /// asked. What it is for is the deploy, which is a provider spending
-/// its own capacity on somebody's behalf and is entitled to know
-/// whose.
-///
-/// # The request is forwarded verbatim
-///
-/// The bytes the caller sent, minus the tag that said which request it
-/// was. It is decoded here only to work out what to deploy, and what
-/// goes into the container is the original JSON rather than a
-/// re-serialization of what came out of the decoder — so a field this
-/// crate does not know about survives the trip.
+/// its own capacity on somebody's behalf and is entitled to know whose.
 ///
 /// # The container is stopped on every path
 ///
 /// Including the ones that failed, and including the caller simply
 /// leaving. There is no destructor doing it, because teardown in this
-/// crate is a method; there is one call, after the loop, and every exit
-/// goes through it.
+/// crate is a method; there is one call, after the relay, and every
+/// exit goes through it.
 pub async fn handle<D>(
     scope: ScopeHandle,
     client_identity: &str,
     deployer: &D,
-)
-where
+) where
     D: ContainerDeployer,
     D::Error: Into<Error>,
     <D::Container as Container>::Error: Into<Error>,
@@ -69,17 +55,11 @@ where
     // Shared from here, because both workers write on it and neither
     // may hold it alone. `ScopeHandle`'s methods take `&self` for
     // exactly this; what stays exclusive is ENDING the scope, which is
-    // why the finish below has to get the handle back out.
+    // why the finish has to get the handle back out.
     let scope = Arc::new(scope);
 
-    let (agent, body) = match request::Frame::decode(scope.request()) {
-        // The payload is a tag byte and then the request's own JSON, so
-        // what the container should be handed is everything after the
-        // first byte.
-        Ok(frame) => (
-            frame.agent.clone(),
-            Bytes::copy_from_slice(&scope.request()[1..]),
-        ),
+    let agent = match request::Frame::decode(scope.request()) {
+        Ok(frame) => frame.agent.clone(),
         Err(error) => {
             let error = Error(Value::String(error.to_string()));
             write(&scope, &response::Frame::Error(error)).await;
@@ -88,6 +68,11 @@ where
         }
     };
 
+    // The payload is a tag byte and then the request's own JSON, so what
+    // the container is handed is everything after the first byte. Owned
+    // because the task that sends it outlives this borrow.
+    let body = Bytes::copy_from_slice(&scope.request()[1..]);
+
     let deployment = Deployment {
         memory: memory(&agent),
         disk: disk(&agent),
@@ -95,8 +80,8 @@ where
         // An agent works in the container it was given. Nothing of the
         // caller's is mounted into it.
         mounts: Vec::new(),
-        // The loop, then the MCP conduit — in that order, and the
-        // `connect` calls below have to agree with it.
+        // The loop, then the tool calls it makes — in that order, and
+        // the calls below have to agree with it.
         // TODO: settled when the images are.
         ports: vec![8080, 8081],
     };
@@ -104,7 +89,7 @@ where
     let deployed =
         deployer.registry(client_identity, &deployment, image(&agent));
     let container = match deployed.await {
-        Ok(container) => container,
+        Ok(container) => Arc::new(container),
         Err(error) => {
             write(&scope, &response::Frame::Error(error.into())).await;
             finish(scope).await;
@@ -116,25 +101,6 @@ where
 
     container.stop().await;
     finish(scope).await;
-}
-
-/// End the scope, which needs the handle back to itself.
-///
-/// [`send_response_finish`](ScopeHandle::send_response_finish) consumes
-/// the handle, and that is what makes one finish per scope a fact
-/// rather than a rule. So it cannot be reached through a share, and
-/// this is where the shares are proved gone.
-///
-/// [`relay`] awaits both workers after aborting them, so their clones
-/// are dropped before this is reached and there is one left. If somehow
-/// there were not, the scope still ends when the last clone goes -- a
-/// [`ScopeHandle`] tells the session on drop -- but with no finish
-/// frame, and a caller would see the connection account for it rather
-/// than the scope.
-async fn finish(scope: Arc<ScopeHandle>) {
-    if let Some(scope) = Arc::into_inner(scope) {
-        scope.send_response_finish().await;
-    }
 }
 
 /// Which image runs this agent.
@@ -203,57 +169,44 @@ fn disk(agent: &Agent) -> u64 {
 
 /// Drive the container until the agent stops or the caller goes.
 ///
-/// Three parts, and this is the smallest of them: a task that asks the
-/// agent and reads its stream, a task working the MCP conduit, and this
-/// waiting for whichever ending comes first.
+/// Three parts, and this one is the smallest: a task serving the
+/// agent's tool calls, a task running the agent, and this waiting for
+/// whichever ending comes first.
 ///
 /// # Neither worker knows the other exists
 ///
 /// They share the scope and nothing else. Both write on it directly,
-/// because a [`ScopeHandle`] takes `&self` --- so there is no queue
-/// between them, no third party deciding whose turn it is, and a tool
-/// call that takes a minute cannot delay a chunk.
+/// because a [`ScopeHandle`] takes `&self` — so there is no queue
+/// between them and no third party deciding whose turn it is, and a
+/// tool call that takes a minute cannot delay a chunk.
 ///
-/// # The conduit is open before the request is sent
+/// # Tool calls are served before the agent is asked to run
 ///
-/// Which is the ordering that matters, and the reason the request is
-/// not sent from here. A container is free to want a tool call while it
-/// is still working out how to answer, so the pipe it would ask on has
-/// to be dialled first --- and the task that serves it has to be
-/// running rather than waiting behind the very request it would be
-/// unblocking.
-async fn relay<C>(scope: &Arc<ScopeHandle>, container: &C, body: Bytes)
+/// Which is the ordering that matters. An agent is free to want a tool
+/// call while it is still working out how to answer, so the thing that
+/// serves those has to be RUNNING rather than waiting behind the very
+/// request it would be unblocking.
+///
+/// A version that ran the agent here and then started serving deadlocks
+/// on exactly that: the container waits for its tool answer, this waits
+/// for the container's answer, and nothing is left to resolve it.
+async fn relay<C>(scope: &Arc<ScopeHandle>, container: &Arc<C>, body: Bytes)
 where
-    C: Container,
+    C: Container + 'static,
     C::Error: Into<Error>,
 {
-    // TODO: both ports are settled when the images are. The conduit
-    // first, deliberately --- see above.
-    let (mcp_reader, mcp_writer) = match container.connect(8081).await {
-        Ok(pipe) => pipe,
+    // TODO: the port is settled when the images are.
+    let requests = match container.http_serve(8081).await {
+        Ok(requests) => requests,
         Err(error) => {
             write(scope, &response::Frame::Error(error.into())).await;
             return;
         }
     };
-    let mut mcp =
-        tokio::spawn(mcp(mcp_reader, mcp_writer, Arc::clone(scope)));
+    let mut mcp = tokio::spawn(mcp(requests, Arc::clone(scope)));
 
-    let (agent_reader, agent_writer) = match container.connect(8080).await {
-        Ok(pipe) => pipe,
-        Err(error) => {
-            mcp.abort();
-            let _ = (&mut mcp).await;
-            write(scope, &response::Frame::Error(error.into())).await;
-            return;
-        }
-    };
-    let mut agent = tokio::spawn(agent(
-        agent_reader,
-        agent_writer,
-        body,
-        Arc::clone(scope),
-    ));
+    let mut agent =
+        tokio::spawn(agent(Arc::clone(container), body, Arc::clone(scope)));
 
     // The agent finishing is the loop being over; the caller leaving is
     // nobody being left to tell. Nothing else ends this.
@@ -262,11 +215,11 @@ where
         match future::select(&mut agent, hangup).await {
             Either::Left((Ok(()), _)) => true,
             // The agent's own failures are frames before it returns, so
-            // the only thing left here is the task itself having
-            // stopped existing. Which is the one failure it could not
-            // report, and it must not read as a clean finish: a caller
-            // that saw silence would conclude the loop simply had
-            // nothing more to say.
+            // the only thing left here is the task having stopped
+            // existing. Which is the one failure it could not report,
+            // and it must not read as a clean finish: a caller that saw
+            // silence would conclude the loop simply had nothing more
+            // to say.
             Either::Left((Err(_), _)) => {
                 let error = "the agent relay stopped unexpectedly";
                 let error = Error(Value::String(error.to_owned()));
@@ -290,7 +243,7 @@ where
 /// Wait for the caller to leave.
 ///
 /// This endpoint defines no channel for a caller to open, and an answer
-/// to one of ours goes to that channel's own receiver --- so nothing is
+/// to one of ours goes to that channel's own receiver — so nothing is
 /// ever expected here. What is being waited for is the [`None`]: the
 /// session drops the sender when the scope ends, and that is how a
 /// caller hanging up is learned at all.
@@ -303,210 +256,342 @@ async fn hangup(scope: &ScopeHandle) {
 
 /// Ask the agent to run, and turn what comes back into frames.
 ///
-/// A straight loop that mentions the conduit nowhere. It sends the
+/// A straight loop that mentions the tool calls nowhere. It makes the
 /// request itself rather than being handed the answer, because the
-/// container may want a tool call before it answers and the task that
-/// serves those has to already be running --- see [`relay`].
-///
-/// An event that is not a chunk ends it and is reported, because a
-/// stream that has started saying things this crate cannot read is not
-/// one to keep relaying.
-async fn agent<R, W, E>(
-    reader: R,
-    writer: W,
-    body: Bytes,
-    scope: Arc<ScopeHandle>,
-) where
-    R: futures_util::Stream<Item = Result<Bytes, E>> + Send + Unpin + 'static,
-    W: futures_util::Sink<Bytes, Error = E> + Send + Unpin + 'static,
-    E: Into<Error> + Send + 'static,
+/// container may want a tool call before it answers and the thing that
+/// serves those has to already be running — see [`relay`].
+async fn agent<C>(container: Arc<C>, body: Bytes, scope: Arc<ScopeHandle>)
+where
+    C: Container,
+    C::Error: Into<Error>,
 {
-    // TODO: the path is settled when the images are.
-    let request = hyper::Request::builder()
-        .method(hyper::Method::POST)
-        .uri("/")
-        .header(hyper::header::HOST, "container")
-        .header(hyper::header::CONTENT_TYPE, "application/json")
-        .header(hyper::header::ACCEPT, "text/event-stream")
-        .body(Full::new(body));
-
-    let answer = match request {
-        Ok(request) => {
-            crate::server::http::request(reader, writer, request).await
-        }
-        Err(error) => Err(Error(Value::String(error.to_string()))),
-    };
-
-    let answer = match answer {
-        Ok(answer) => answer,
+    // Borrowed straight out of the bytes, which is what a [`RawValue`]
+    // is for: the caller's request goes into the container as the JSON
+    // it arrived as, rather than as a re-serialization of what came out
+    // of a decoder, so a field this crate does not model survives.
+    let body: &RawValue = match serde_json::from_slice(&body) {
+        Ok(body) => body,
         Err(error) => {
+            let error = Error(Value::String(error.to_string()));
             return write(&scope, &response::Frame::Error(error)).await;
         }
     };
 
+    let request = http::request::Request {
+        method: http::request::Method::Post,
+        // TODO: settled when the images are.
+        path: "/".to_owned(),
+        headers: Default::default(),
+        body: Some(body),
+    };
+
+    // TODO: the port is settled when the images are.
+    let (head, body) = match container.http_call(8080, request).await {
+        Ok(answer) => answer,
+        Err(error) => {
+            return write(&scope, &response::Frame::Error(error.into())).await;
+        }
+    };
+
     // A status is the container's answer about itself, and this is the
-    // one place to judge it: everything after here assumes a stream.
-    if !answer.status().is_success() {
-        let status = answer.status().as_u16();
+    // one place to judge it: everything after here assumes chunks.
+    if !(200..300).contains(&head.status) {
+        let status = head.status;
         let error = format!("the agent container answered {status}");
         let error = Error(Value::String(error));
         return write(&scope, &response::Frame::Error(error)).await;
     }
 
-    // The body is a stream of frames, of which the data ones are the
-    // bytes; a trailer is not an event and there are none here anyway.
-    let events = BodyStream::new(answer.into_body()).filter_map(|frame| {
-        async {
-            match frame {
-                Ok(frame) => frame.into_data().ok().map(Ok),
-                Err(error) => {
-                    Some(Err(std::io::Error::other(error.to_string())))
-                }
-            }
-        }
-    });
-    let mut events = pin!(events.eventsource());
-
-    while let Some(event) = events.next().await {
-        let chunk = event
-            .map_err(|error| Error(Value::String(error.to_string())))
-            .and_then(|event| {
-                serde_json::from_str(&event.data)
-                    .map_err(|error| Error(Value::String(error.to_string())))
-            });
-
-        match chunk {
-            Ok(chunk) => write(&scope, &response::Frame::Chunk(chunk)).await,
-            Err(error) => {
-                return write(&scope, &response::Frame::Error(error)).await;
-            }
-        }
-    }
-}
-
-/// Work the MCP conduit, in both of its directions.
-///
-/// A straight loop with no knowledge of the chunks beside it. Each
-/// message that arrives is an exchange the container wants performed,
-/// and each one gets a task of its own — a tool call that takes a while
-/// must not hold up the next one, which is the whole reason the conduit
-/// carries an exchange number.
-///
-/// # It does not end the scope
-///
-/// A conduit that ends means the agent has no tools left, not that the
-/// agent is finished. What it is doing without them is its own
-/// business, and it is still being relayed.
-async fn mcp<R, W, E>(reader: R, writer: W, scope: Arc<ScopeHandle>)
-where
-    R: futures_util::Stream<Item = Result<Bytes, E>> + Unpin,
-    W: futures_util::Sink<Bytes> + Send + Unpin + 'static,
-    E: Into<Error>,
-{
-    let writer = Arc::new(tokio::sync::Mutex::new(writer));
-    let mut messages = pin!(mcp_conduit::messages(reader));
-    // Owned here rather than spawned loose, so that aborting this task
-    // aborts the exchanges it started: dropping the set cancels every
-    // one of them, and a tool call outliving the loop it was serving
-    // would be holding a channel on a scope that has finished.
-    let mut exchanges = tokio::task::JoinSet::new();
-
-    while let Some(message) = messages.next().await {
-        // Finished ones, so the set does not grow for the whole run.
-        while exchanges.try_join_next().is_some() {}
-
-        let message = match message {
-            Ok(message) => message,
-            // The pipe is broken, so there is nothing to read and
-            // nothing to answer into. The loop above carries on.
-            Err(_) => return,
-        };
-
-        let request = match http::request::Request::decode(&message.payload) {
-            Ok(request) => request,
-            // A payload that is not a request must not reach the caller
-            // as though it were. Everything else on the conduit is
-            // still good, so only this exchange ends — and it has to
-            // END, because nothing else is ever going to answer it.
-            Err(_) => {
-                ended(&writer, message.exchange).await;
-                continue;
-            }
-        };
-
-        let mut bytes = Vec::new();
-        if channel_request::Frame(request)
-            .encode(&mut Writer::new(&mut bytes))
-            .is_err()
-        {
-            ended(&writer, message.exchange).await;
-            continue;
-        }
-
-        // Opened here, on the scope itself. There is nothing between
-        // this task and the wire.
-        let channel = scope.send_channel_request(&bytes).await;
-
-        exchanges.spawn(exchange(
-            message.exchange,
-            channel,
-            Arc::clone(&writer),
-        ));
-    }
-}
-
-/// Pump one caller's answer back down the conduit.
-///
-/// # Whole frames arrive here
-///
-/// Not payloads. A
-/// [`Session`](crate::server::session::Session) forwards a
-/// [`ChannelResponseFinish`](ClientFrame::ChannelResponseFinish) to the
-/// receiver and only then closes the channel, so what comes off it is
-/// client frames and the stream ends by itself afterwards. The finish
-/// carries nothing to forward; the stream ending is what says the
-/// exchange is over, and that is what the empty message below means.
-async fn exchange<W>(
-    exchange: u32,
-    mut channel: Channel,
-    writer: Arc<tokio::sync::Mutex<W>>,
-) where
-    W: futures_util::Sink<Bytes> + Unpin,
-{
-    while let Some(bytes) = channel.response_receiver.recv().await {
-        if let Ok(ClientFrame::ChannelResponse { payload, .. }) =
-            ClientFrame::decode(&bytes)
-        {
-            let message = mcp_conduit::encode(exchange, payload);
-            // One message, and the lock is held for exactly that. A
-            // conduit shared by several exchanges is the reason there
-            // is a lock at all.
-            if writer.lock().await.send(message).await.is_err() {
+    let mut chunks = Chunks::new(&head);
+    match body {
+        Body::Single(bytes) => {
+            if !chunks.feed(&scope, &bytes).await {
                 return;
             }
         }
+        Body::Stream(mut body) => {
+            while let Some(piece) = body.next().await {
+                if !chunks.feed(&scope, &piece).await {
+                    return;
+                }
+            }
+        }
     }
-
-    ended(&writer, exchange).await;
+    chunks.finish(&scope).await;
 }
 
-/// Say an exchange is over, and nothing more.
+/// Chunks, out of however the body turned out to be delivered.
 ///
-/// The empty message, which is the conduit's only way of ending one.
-/// Every path that stops serving an exchange goes through here — the
-/// caller having finished its answer, and the two where a message never
-/// became a channel request at all.
+/// A body arrives in pieces the transport chose, which are not the
+/// pieces the agent wrote — so something has to hold the leftovers and
+/// hand over a chunk each time a whole one is there. This is that.
+struct Chunks {
+    /// Whether the body is an event stream.
+    ///
+    /// False means the whole body is one chunk and nothing delimits
+    /// anything, so the buffer below simply accumulates until the body
+    /// ends.
+    events: bool,
+    /// What has arrived and not yet been used.
+    buffer: BytesMut,
+}
+
+impl Chunks {
+    /// Read the head to learn how to read the body.
+    ///
+    /// Which is what a head is for, and why the answer is a head and a
+    /// body rather than one thing: `text/event-stream` is many chunks
+    /// and anything else is one, and the status line already had to
+    /// arrive before either.
+    ///
+    /// Matching only the media type, since a charset or a boundary can
+    /// follow it and neither changes what is being read.
+    fn new(head: &http::response::Head) -> Self {
+        let events = head
+            .headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+            .and_then(|(_, value)| value.split(';').next())
+            .is_some_and(|kind| {
+                kind.trim().eq_ignore_ascii_case("text/event-stream")
+            });
+        Chunks {
+            events,
+            buffer: BytesMut::new(),
+        }
+    }
+
+    /// Take one piece of the body, sending whatever it completed.
+    ///
+    /// Returns whether to keep going. `false` means a chunk did not
+    /// deserialize and the run has been ended with an error frame: a
+    /// stream that has started saying things this crate cannot read is
+    /// not one to keep relaying.
+    async fn feed(&mut self, scope: &ScopeHandle, piece: &[u8]) -> bool {
+        self.buffer.extend_from_slice(piece);
+        if !self.events {
+            return true;
+        }
+        while let Some(data) = self.event() {
+            if !send(scope, &data).await {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Take the last chunk, if the body ended holding one.
+    ///
+    /// A unary body is entirely this: nothing is sent until here,
+    /// because nothing said where it ended until it ended. An event
+    /// stream usually has nothing left, and has something when the last
+    /// event ran to the end of the body without a blank line after it.
+    async fn finish(mut self, scope: &ScopeHandle) {
+        if self.buffer.is_empty() {
+            return;
+        }
+        if !self.events {
+            send(scope, &self.buffer).await;
+            return;
+        }
+        // Terminating the buffer is what makes `event` see the last
+        // one, which a producer that closed the connection instead of
+        // writing a blank line did not leave behind.
+        self.buffer.extend_from_slice(b"\n\n");
+        if let Some(data) = self.event() {
+            send(scope, &data).await;
+        }
+    }
+
+    /// Take the next whole event's data, if there is one.
+    ///
+    /// Server-sent events, and only as much of them as this needs.
+    /// Events are separated by a blank line; within one, a `data:`
+    /// field contributes a line to the payload, with one optional space
+    /// after the colon.
+    ///
+    /// Every other field — `event`, `id`, `retry` — and every comment is
+    /// skipped, because nothing here dispatches on them: one kind of
+    /// thing arrives on this stream, and its own `type` says which. An
+    /// event carrying no data is passed over entirely, which is what a
+    /// keep-alive is.
+    fn event(&mut self) -> Option<Bytes> {
+        loop {
+            let (end, separator) = self.boundary()?;
+            let event = self.buffer.split_to(end);
+            let _ = self.buffer.split_to(separator);
+
+            // Sliced first, because `BytesMut` has a `split` of its
+            // own and the one wanted here is the slice's.
+            let event: &[u8] = &event;
+            let mut data = BytesMut::new();
+            for line in event.split(|byte| *byte == b'\n') {
+                let line = line.strip_suffix(b"\r").unwrap_or(line);
+                let Some(rest) = line.strip_prefix(b"data:") else {
+                    continue;
+                };
+                let rest = rest.strip_prefix(b" ").unwrap_or(rest);
+                if !data.is_empty() {
+                    data.extend_from_slice(b"\n");
+                }
+                data.extend_from_slice(rest);
+            }
+            if !data.is_empty() {
+                return Some(data.freeze());
+            }
+        }
+    }
+
+    /// Where the next event ends, and how many bytes separate it from
+    /// the one after.
+    ///
+    /// A blank line, in any of the three spellings the format allows.
+    fn boundary(&self) -> Option<(usize, usize)> {
+        let bytes = &self.buffer[..];
+        (0..bytes.len()).find_map(|at| {
+            let rest = &bytes[at..];
+            if rest.starts_with(b"\r\n\r\n") {
+                Some((at, 4))
+            } else if rest.starts_with(b"\n\n") || rest.starts_with(b"\r\r") {
+                Some((at, 2))
+            } else {
+                None
+            }
+        })
+    }
+}
+
+/// Send one chunk's JSON down the scope.
 ///
-/// That second kind is why this is a function. A container that asked
-/// and is told nothing waits for an answer that no longer has anything
-/// to produce it, and it waits forever: nothing in this protocol times
-/// out, and the conduit is the only place the news could arrive.
-async fn ended<W>(writer: &tokio::sync::Mutex<W>, exchange: u32)
+/// Returns whether to keep going. It is deserialized rather than
+/// relayed, so that a body which has stopped being chunks is caught
+/// here rather than by the caller.
+async fn send(scope: &ScopeHandle, data: &[u8]) -> bool {
+    match serde_json::from_slice(data) {
+        Ok(chunk) => {
+            write(scope, &response::Frame::Chunk(chunk)).await;
+            true
+        }
+        Err(error) => {
+            let error = Error(Value::String(error.to_string()));
+            write(scope, &response::Frame::Error(error)).await;
+            false
+        }
+    }
+}
+
+/// Serve the agent's tool calls, out to whoever holds the tools.
+///
+/// A straight loop that mentions the agent's own answer nowhere. Each
+/// request the container makes becomes a channel, and what the caller
+/// answers becomes the response — so what an agent talks to is an MCP
+/// server living on the other side of the connection.
+///
+/// # One task per request
+///
+/// Because a tool call that takes a minute must not hold up the next
+/// one, and an agent making several at once is the ordinary case. The
+/// set is owned here rather than spawned loose, so aborting this aborts
+/// what it started: a call outliving the loop it was serving would hold
+/// a channel on a scope that has finished.
+async fn mcp<S, W>(requests: S, scope: Arc<ScopeHandle>)
 where
-    W: futures_util::Sink<Bytes> + Unpin,
+    S: futures_util::Stream<Item = (Bytes, W)> + Send + Unpin + 'static,
+    W: HttpResponseWriter + Send + 'static,
 {
-    let message = mcp_conduit::encode(exchange, &[]);
-    let _ = writer.lock().await.send(message).await;
+    let mut requests = requests;
+    let mut calls = tokio::task::JoinSet::new();
+
+    while let Some((request, writer)) = requests.next().await {
+        // Finished ones, so the set does not grow for the life of the
+        // run. An agent makes a great many tool calls.
+        while calls.try_join_next().is_some() {}
+
+        calls.spawn(call(request, writer, Arc::clone(&scope)));
+    }
+
+    // Drained rather than dropped. The stream ending means the agent
+    // has no more to ASK, which says nothing about the calls already in
+    // flight — and dropping the set would cancel them, leaving answers
+    // half written and writers never finished.
+    //
+    // Abandoning them is still what an abort does, and that is the
+    // difference worth keeping: the run being over is not the same
+    // event as the asking being over.
+    while calls.join_next().await.is_some() {}
+}
+
+/// Relay one tool call out, and its answer back.
+///
+/// # The request is forwarded verbatim
+///
+/// It arrives as an encoded
+/// [`Request`](crate::shared::http::request::Request), and a
+/// [`channel_request::Frame`](crate::endpoints::agentic_loop::run::server::channel_request::Frame)
+/// is that request with nothing in front of it — so the bytes go out as
+/// they came in. Decoding one only to encode it again would be taking a
+/// request apart and putting it back together to prove it could be.
+///
+/// # The answer is always finished
+///
+/// Including when it went wrong, and including when there was none. A
+/// response that is never terminated leaves the agent unable to tell a
+/// complete answer from a truncated one, and it has no other way to
+/// find out.
+async fn call<W>(request: Bytes, writer: W, scope: Arc<ScopeHandle>)
+where
+    W: HttpResponseWriter,
+{
+    let mut channel = scope.send_channel_request(&request).await;
+    let mut writer = writer;
+
+    while let Some(bytes) = channel.response_receiver.recv().await {
+        // Whole client frames arrive here: a session forwards the
+        // finish to the receiver and only then closes the channel, so
+        // the stream ends by itself and there is nothing to do about a
+        // finish but let it pass.
+        let Ok(ClientFrame::ChannelResponse { payload, .. }) =
+            ClientFrame::decode(&bytes)
+        else {
+            continue;
+        };
+
+        let written = match http::response::Frame::decode(payload) {
+            Ok(http::response::Frame::Head(head)) => {
+                writer.head(head).await.is_ok()
+            }
+            Ok(http::response::Frame::Body(body)) => {
+                writer.body(body).await.is_ok()
+            }
+            // A frame this crate cannot read is not one to relay, and
+            // the rest of the answer may still be good.
+            Err(_) => true,
+        };
+        if !written {
+            break;
+        }
+    }
+
+    let _ = writer.finish().await;
+}
+
+/// End the scope, which needs the handle back to itself.
+///
+/// [`send_response_finish`](ScopeHandle::send_response_finish) consumes
+/// the handle, and that is what makes one finish per scope a fact
+/// rather than a rule. So it cannot be reached through a share, and
+/// this is where the shares are proved gone.
+///
+/// [`relay`] awaits both workers after aborting them, so their clones
+/// are dropped before this is reached and there is one left. If somehow
+/// there were not, the scope still ends when the last clone goes — a
+/// [`ScopeHandle`] tells the session on drop — but with no finish
+/// frame, and a caller would see the connection account for it rather
+/// than the scope.
+async fn finish(scope: Arc<ScopeHandle>) {
+    if let Some(scope) = Arc::into_inner(scope) {
+        scope.send_response_finish().await;
+    }
 }
 
 /// Write one frame, or write nothing if it will not encode.
