@@ -108,10 +108,11 @@ pub struct Frame {
     pub environment: IndexMap<String, String>,
     /// Where the plugin's MCP server listens, inside the container.
     ///
-    /// A provider connects to it and relays a caller's
-    /// [`Mcp`](crate::endpoints::mcp_plugin::run::client::channel_request::Frame::Mcp)
-    /// exchanges in. It is the only one of the three where the
-    /// connection and the requests run the same way round.
+    /// A provider connects to it and relays a caller's MCP exchanges
+    /// in — the five
+    /// [`shared::mcp`](crate::shared::mcp) defines. It is the only one
+    /// of the three where the connection and the requests run the same
+    /// way round.
     pub mcp_port: u16,
     /// Where the plugin listens for its database conduit, inside the
     /// container.

@@ -7,9 +7,9 @@
 //!
 //! # And, behind the `client` feature, a way to use it
 //!
-//! [`execute`] joins a laboratory and hands back TWO things, which no
-//! other endpoint does: an [`ExecuteStream`](execute::ExecuteStream) of the container's
-//! filesystem, and an [`ExecuteHandle`](execute::ExecuteHandle) to reach into it with.
+//! `execute` joins a laboratory and hands back TWO things, which no
+//! other endpoint does: an `ExecuteStream` of the container's
+//! filesystem, and an `ExecuteHandle` to reach into it with.
 //!
 //! They are split because a connection is two jobs at once and neither
 //! is the other's subject. Every other endpoint has one — a
@@ -19,7 +19,7 @@
 //! reading the filetree had stopped being able to read a file.
 //!
 //! Dropping the stream costs a view of the filesystem. Leaving is
-//! [`disconnect`](execute::ExecuteHandle::disconnect), which is a
+//! `disconnect`, which is a
 //! method rather than a destructor: a caller says when it is done, and
 //! dropping the handle without saying so leaves the connection open as
 //! far as the provider is concerned.
@@ -30,20 +30,20 @@
 //!
 //! # All four asks
 //!
-//! [`ExecuteHandle`](execute::ExecuteHandle) has [`mcp`](execute::ExecuteHandle::mcp),
-//! [`read`](execute::ExecuteHandle::read), [`write`](execute::ExecuteHandle::write) and
-//! [`transfer`](execute::ExecuteHandle::transfer) — everything a connector can
+//! `ExecuteHandle` has `mcp`,
+//! `read`, `write` and
+//! `transfer` — everything a connector can
 //! say. The fifth thing it can do is leave, and that is
-//! [`disconnect`](execute::ExecuteHandle::disconnect).
+//! `disconnect`.
 //!
 //! They are three shapes rather than one, because the exchanges are:
 //!
 //! | ask | goes out | comes back |
 //! |-----|----------|------------|
-//! | [`transfer`](execute::ExecuteHandle::transfer) | one request | one answer |
-//! | [`read`](execute::ExecuteHandle::read) | one request | a [`ReadStream`](execute::ReadStream) of the file |
-//! | [`mcp`](execute::ExecuteHandle::mcp) | one request | an [`McpStream`](execute::McpStream): the head, then the body |
-//! | [`write`](execute::ExecuteHandle::write) | one request, and the content on a channel the PROVIDER opens | one answer |
+//! | `transfer` | one request | one answer |
+//! | `read` | one request | a `ReadStream` of the file |
+//! | `mcp` | one request | an `McpStream`: the head, then the body |
+//! | `write` | one request, and the content on a channel the PROVIDER opens | one answer |
 //!
 //! An MCP exchange is the one with no failure of its own. The other
 //! three can come back with the provider saying no; that channel has
@@ -52,7 +52,7 @@
 //!
 //! Only the write needed machinery. Its content cannot travel on the
 //! channel that asked for it — only a responder can finish a channel —
-//! so [`execute`] spawns a task that holds registered content until the
+//! so `execute` spawns a task that holds registered content until the
 //! provider asks for it and routes by write id.
 //!
 //! Every other module in [`endpoints`](crate::endpoints) is types only,
@@ -64,5 +64,13 @@ pub mod channel_request;
 pub mod channel_response;
 pub mod request;
 
-#[cfg(feature = "client")]
-pub mod execute;
+// The executor is written and does not compile: it sends the tunneled
+// MCP request that this endpoint no longer has, and reads an answer
+// split into a head and a body. The five typed exchanges replaced both
+// and nothing has been rewired to them yet.
+//
+// Left whole rather than gutted. What replaces it is a rewrite against
+// the new shape, and this is the account of what the endpoint does.
+//
+// One line restores it.
+// pub mod execute;

@@ -6,10 +6,10 @@ use crate::endpoints::volumes::watch::client::channel_request;
 
 /// A running watch, and the one thing a caller can say about it.
 ///
-/// Half of what [`execute`](super::execute) gives back. The other half
+/// Half of what `execute` gives back. The other half
 /// is an [`ExecuteStream`](super::ExecuteStream) of the changes, and the
 /// split is the same one
-/// [`laboratories::connect`](crate::endpoints::laboratories::connect::client::execute)
+/// `laboratories::connect`
 /// makes: the stream is what the provider says, and this is how a
 /// caller says anything back.
 ///
@@ -46,7 +46,7 @@ pub struct ExecuteHandle {
 }
 
 impl ExecuteHandle {
-    /// Take the pieces, from the [`execute`](super::execute) that has
+    /// Take the pieces, from the `execute` that has
     /// them.
     ///
     /// Not public. A watch exists because a request went out, so the

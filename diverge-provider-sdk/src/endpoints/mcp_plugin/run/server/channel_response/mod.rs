@@ -1,6 +1,11 @@
 //! The answers a provider sends on the channels a caller opened.
 //!
-//! [`mcp`] is what the plugin's MCP server said. [`postgres`] is what
+//! Five of them are what the plugin's MCP server said, one per
+//! exchange, and each is an alias of the shape
+//! [`shared::mcp`](crate::shared::mcp) defines — what a channel carries
+//! is what MCP says it carries, whichever direction it runs.
+//!
+//! [`postgres`] is what
 //! the plugin wrote toward the caller's database.
 //!
 //! Two, and they are not two of a kind. An MCP channel is an exchange
@@ -14,7 +19,6 @@
 //! Nothing is re-exported upward: the module is the only thing telling
 //! them apart, so it has to stay in the path.
 
-pub mod mcp;
 pub mod mcp_call_tool;
 pub mod mcp_list_resources;
 pub mod mcp_list_tools;

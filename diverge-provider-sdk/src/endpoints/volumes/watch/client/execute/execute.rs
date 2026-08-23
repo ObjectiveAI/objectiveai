@@ -24,7 +24,7 @@ use crate::encode::{Encode, Writer};
 /// owes it — and the [`ExecuteHandle`] is how a caller says stop.
 ///
 /// They are split for the reason
-/// [`laboratories::connect`](crate::endpoints::laboratories::connect::client::execute)
+/// `laboratories::connect`
 /// splits its two: a caller that has stopped reading the changes has
 /// not necessarily stopped wanting the watch, and one that wants to end
 /// it should not have to hold a stream to do so.

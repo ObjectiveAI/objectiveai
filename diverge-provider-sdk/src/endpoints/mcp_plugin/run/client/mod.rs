@@ -7,7 +7,7 @@
 
 //! # And, behind the `client` feature, a way to use it
 //!
-//! [`execute`] starts the plugin and hands back an [`ExecuteHandle`](execute::ExecuteHandle),
+//! `execute` starts the plugin and hands back an `ExecuteHandle`,
 //! which waits for it to end and says why. It takes THREE proxies —
 //! an [`OciProxy`](crate::client::oci_proxy::OciProxy), a
 //! [`PostgresProxy`](crate::client::postgres_proxy::PostgresProxy) and
@@ -17,10 +17,10 @@
 //! An [`agentic loop`](crate::endpoints::agentic_loop::run::client) is
 //! asked for one thing while it runs; a plugin is asked for three, and
 //! they arrive interleaved on one scope. That task is most of what is
-//! in [`execute`].
+//! in `execute`.
 //!
-//! [`stop`](execute::ExecuteHandle::stop) ends the run, and
-//! [`wait`](execute::ExecuteHandle::wait) sees it through. They are two
+//! `stop` ends the run, and
+//! `wait` sees it through. They are two
 //! methods rather than a destructor because a destructor could do
 //! neither in sequence: it sent the frame and gave up the receiver in
 //! the same move, so stopping a plugin and watching it go was not
@@ -28,8 +28,8 @@
 //!
 //! # What is not here, and is the next thing
 //!
-//! Calling the plugin. [`channel_request::Frame::Mcp`] is the frame for
-//! it, and there is nothing that sends one: an [`ExecuteHandle`](execute::ExecuteHandle) gives
+//! Calling the plugin. `channel_request::Frame::Mcp` is the frame for
+//! it, and there is nothing that sends one: an `ExecuteHandle` gives
 //! out no scope number, so the plugin cannot be reached from outside
 //! this crate at all.
 //!
@@ -47,5 +47,13 @@ pub mod channel_request;
 pub mod channel_response;
 pub mod request;
 
-#[cfg(feature = "client")]
-pub mod execute;
+// The executor is written and does not compile: it sends the tunneled
+// MCP request that this endpoint no longer has, and reads an answer
+// split into a head and a body. The five typed exchanges replaced both
+// and nothing has been rewired to them yet.
+//
+// Left whole rather than gutted. What replaces it is a rewrite against
+// the new shape, and this is the account of what the endpoint does.
+//
+// One line restores it.
+// pub mod execute;

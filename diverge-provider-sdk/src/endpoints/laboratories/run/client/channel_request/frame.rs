@@ -7,7 +7,6 @@ use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::mcp;
 use crate::shared::container::{read, transfer, write_path};
-use crate::shared::http::request::Request;
 
 /// What a caller asks a provider for while a laboratory runs.
 ///
@@ -16,39 +15,30 @@ use crate::shared::http::request::Request;
 ///
 /// | tag | asks for |
 /// |-----|----------|
-/// | `0` | [`Mcp`](Self::Mcp) |
-/// | `1` | [`Read`](Self::Read) |
-/// | `2` | [`Write`](Self::Write) |
-/// | `3` | [`Transfer`](Self::Transfer) |
-/// | `4` | [`Stop`](Self::Stop) |
-/// | `5` | [`McpListTools`](Self::McpListTools) |
-/// | `6` | [`McpListResources`](Self::McpListResources) |
-/// | `7` | [`McpCallTool`](Self::McpCallTool) |
-/// | `8` | [`McpReadResource`](Self::McpReadResource) |
-/// | `9` | [`McpNotifications`](Self::McpNotifications) |
+/// | `0` | [`Read`](Self::Read) |
+/// | `1` | [`Write`](Self::Write) |
+/// | `2` | [`Transfer`](Self::Transfer) |
+/// | `3` | [`Stop`](Self::Stop) |
+/// | `4` | [`McpListTools`](Self::McpListTools) |
+/// | `5` | [`McpListResources`](Self::McpListResources) |
+/// | `6` | [`McpCallTool`](Self::McpCallTool) |
+/// | `7` | [`McpReadResource`](Self::McpReadResource) |
+/// | `8` | [`McpNotifications`](Self::McpNotifications) |
 ///
-/// All of them but the last reach INTO the container, which is the
+/// All of them but the fourth reach INTO the container, which is the
 /// thing a caller cannot dial: it runs on the provider. That is the
 /// whole reason these channels open outward from the client rather
 /// than the other way.
 ///
-/// # Six of them are MCP, and five of those are the ones to use
+/// # Five of them are MCP
 ///
-/// [`Mcp`](Self::Mcp) tunnels a whole HTTP exchange, which was the
-/// only way to reach an MCP server before the five beneath it existed.
-/// They say what is being asked instead of carrying a request that
-/// says it, and between them they cover everything the tunnel could
-/// do — see [`shared::mcp`](crate::shared::mcp).
+/// And they are the whole of it. There was a sixth that tunneled an
+/// HTTP exchange, which was the only way to reach an MCP server before
+/// these existed; they say what is being asked instead of carrying a
+/// request that says it, and between them they cover everything the
+/// tunnel could do — see [`shared::mcp`](crate::shared::mcp).
 #[derive(Debug, Clone, PartialEq)]
-pub enum Frame<'a> {
-    /// One MCP exchange, toward the container.
-    ///
-    /// The provider relays and nothing more. It does not parse
-    /// JSON-RPC, does not track sessions, and never reads the
-    /// `Mcp-Session-Id` that ties a caller's exchanges together —
-    /// so two clients on one container hold two sessions the provider
-    /// has no opinion about.
-    Mcp(Request<'a>),
+pub enum Frame {
     /// One file, read out of the container.
     ///
     /// See [`read`](crate::shared::container::read) for why this is
@@ -132,46 +122,39 @@ pub enum Frame<'a> {
     McpNotifications(mcp::notifications::request::Request),
 }
 
-/// Tag for [`Frame::Mcp`].
-const MCP: u8 = 0;
-
 /// Tag for [`Frame::Read`].
-const READ: u8 = 1;
+const READ: u8 = 0;
 
 /// Tag for [`Frame::Write`].
-const WRITE: u8 = 2;
+const WRITE: u8 = 1;
 
 /// Tag for [`Frame::Transfer`].
-const TRANSFER: u8 = 3;
+const TRANSFER: u8 = 2;
 
 /// Tag for [`Frame::Stop`].
-const STOP: u8 = 4;
+const STOP: u8 = 3;
 
 /// Tag for [`Frame::McpListTools`].
-const MCP_LIST_TOOLS: u8 = 5;
+const MCP_LIST_TOOLS: u8 = 4;
 
 /// Tag for [`Frame::McpListResources`].
-const MCP_LIST_RESOURCES: u8 = 6;
+const MCP_LIST_RESOURCES: u8 = 5;
 
 /// Tag for [`Frame::McpCallTool`].
-const MCP_CALL_TOOL: u8 = 7;
+const MCP_CALL_TOOL: u8 = 6;
 
 /// Tag for [`Frame::McpReadResource`].
-const MCP_READ_RESOURCE: u8 = 8;
+const MCP_READ_RESOURCE: u8 = 7;
 
 /// Tag for [`Frame::McpNotifications`].
-const MCP_NOTIFICATIONS: u8 = 9;
+const MCP_NOTIFICATIONS: u8 = 8;
 
-impl Encode for Frame<'_> {
+impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half is present.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         match self {
-            Frame::Mcp(request) => {
-                out.extend_from_slice(&[MCP]);
-                request.encode(out)
-            }
             Frame::Read(request) => {
                 out.extend_from_slice(&[READ]);
                 request.encode(out)
@@ -214,15 +197,14 @@ impl Encode for Frame<'_> {
     }
 }
 
-impl<'a> Decode<'a> for Frame<'a> {
+impl Decode<'_> for Frame {
     /// Seven ways to fail, and the parses among them name which
     /// failed.
     type Error = FrameError;
 
-    fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            MCP => Request::decode(rest).map(Frame::Mcp).map_err(FrameError::Mcp),
             READ => read::request::Request::decode(rest)
                 .map(Frame::Read)
                 .map_err(FrameError::Read),
@@ -261,8 +243,6 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's ten.
     UnknownTag(u8),
-    /// The MCP request did not parse.
-    Mcp(serde_json::Error),
     /// One of the five MCP exchanges' params did not parse.
     ///
     /// One variant for five tags, because they fail the same way and
@@ -287,9 +267,6 @@ impl fmt::Display for FrameError {
             FrameError::UnknownTag(tag) => {
                 write!(f, "unknown laboratory run channel request tag {tag}")
             }
-            FrameError::Mcp(error) => {
-                write!(f, "mcp request did not parse: {error}")
-            }
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
@@ -309,8 +286,7 @@ impl fmt::Display for FrameError {
 impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameError::Mcp(error)
-            | FrameError::McpParams(error)
+            FrameError::McpParams(error)
             | FrameError::Read(error)
             | FrameError::Write(error)
             | FrameError::Transfer(error) => Some(error),

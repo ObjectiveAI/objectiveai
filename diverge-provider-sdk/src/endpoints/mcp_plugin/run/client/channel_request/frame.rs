@@ -7,7 +7,6 @@ use super::Postgres;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::mcp;
-use crate::shared::http::request::Request;
 
 /// What a caller asks a provider for while a plugin runs.
 ///
@@ -16,30 +15,28 @@ use crate::shared::http::request::Request;
 ///
 /// | tag | asks for |
 /// |-----|----------|
-/// | `0` | [`Mcp`](Self::Mcp) |
-/// | `1` | [`Stop`](Self::Stop) |
-/// | `2` | [`Postgres`](Self::Postgres) |
-/// | `3` | [`McpListTools`](Self::McpListTools) |
-/// | `4` | [`McpListResources`](Self::McpListResources) |
-/// | `5` | [`McpCallTool`](Self::McpCallTool) |
-/// | `6` | [`McpReadResource`](Self::McpReadResource) |
-/// | `7` | [`McpNotifications`](Self::McpNotifications) |
+/// | `0` | [`Stop`](Self::Stop) |
+/// | `1` | [`Postgres`](Self::Postgres) |
+/// | `2` | [`McpListTools`](Self::McpListTools) |
+/// | `3` | [`McpListResources`](Self::McpListResources) |
+/// | `4` | [`McpCallTool`](Self::McpCallTool) |
+/// | `5` | [`McpReadResource`](Self::McpReadResource) |
+/// | `6` | [`McpNotifications`](Self::McpNotifications) |
 ///
-/// # Six of them are MCP, and five of those are the ones to use
+/// # Five of them are MCP
 ///
-/// [`Mcp`](Self::Mcp) tunnels a whole HTTP exchange, which was the
-/// only way to reach the plugin's MCP server before the five at the
-/// end existed. They say what is being asked instead of carrying a
-/// request that says it, and between them they cover everything the
-/// tunnel could do — see [`shared::mcp`](crate::shared::mcp).
+/// And they are the whole of it. There was a sixth that tunneled an
+/// HTTP exchange, which was the only way to reach the plugin's MCP
+/// server before these existed; they say what is being asked instead
+/// of carrying a request that says it, and between them they cover
+/// everything the tunnel could do — see
+/// [`shared::mcp`](crate::shared::mcp).
 ///
 /// # Two reach into the container, and one does not
 ///
-/// [`Mcp`](Self::Mcp) and [`Stop`](Self::Stop) are aimed at the thing
-/// a caller cannot dial: the container runs on the provider, on a port
-/// the provider published to its own loopback and told nobody. That is
-/// the whole reason those channels open outward from the client rather
-/// than the other way.
+/// The five and [`Stop`](Self::Stop) are aimed at the thing a caller
+/// cannot dial: the container runs on the provider, on a port the
+/// provider published to its own loopback and told nobody.
 ///
 /// [`Postgres`](Self::Postgres) opens outward for a different reason,
 /// and the difference is worth keeping. It asks for bytes the provider
@@ -47,38 +44,8 @@ use crate::shared::http::request::Request;
 /// writes have to arrive as a RESPONSE stream, because only a
 /// responder can finish a channel and the provider needs to be able to
 /// say the plugin has gone.
-///
-/// A [`laboratory run`](crate::endpoints::laboratories::run::client::channel_request::Frame)
-/// has five. The three there and missing here are about files — a
-/// plugin serves tools rather than holds a filesystem, takes no
-/// [`mounts`], and reports no tree — so a read, a write and a transfer
-/// have nothing to act on.
-///
-/// [`mounts`]: crate::endpoints::laboratories::run::client::request::Frame::mounts
 #[derive(Debug, Clone, PartialEq)]
-pub enum Frame<'a> {
-    /// One MCP exchange, toward the container. Tag `0`.
-    ///
-    /// The provider relays and nothing more. It does not parse
-    /// JSON-RPC, does not track sessions, and never reads the
-    /// `Mcp-Session-Id` that ties a caller's exchanges together.
-    ///
-    /// # It is the same relay a laboratory gets, pointed somewhere
-    /// else
-    ///
-    /// A laboratory's MCP server was put there by the provider, so the
-    /// provider chose its port. A plugin's arrived with the image and
-    /// bound whatever its author chose, which the caller stated as
-    /// [`mcp_port`](crate::endpoints::mcp_plugin::run::client::request::Frame::mcp_port).
-    /// Both end up as an HTTP request written onto a socket inside the
-    /// container. Nothing about the relaying differs; only what it was
-    /// aimed at, and that was settled before the container started.
-    ///
-    /// Which means a wrong `mcp_port` surfaces HERE, as an exchange that
-    /// finishes without an answer, rather than when the plugin
-    /// started — the container came up fine, and there was never
-    /// anything to discover.
-    Mcp(Request<'a>),
+pub enum Frame {
     /// Stop the container. Tag `1`.
     ///
     /// # It has no answer, and does not need one
@@ -165,41 +132,34 @@ pub enum Frame<'a> {
     McpNotifications(mcp::notifications::request::Request),
 }
 
-/// Tag for [`Frame::Mcp`].
-const MCP: u8 = 0;
-
 /// Tag for [`Frame::Stop`].
-const STOP: u8 = 1;
+const STOP: u8 = 0;
 
 /// Tag for [`Frame::Postgres`].
-const POSTGRES: u8 = 2;
+const POSTGRES: u8 = 1;
 
 /// Tag for [`Frame::McpListTools`].
-const MCP_LIST_TOOLS: u8 = 3;
+const MCP_LIST_TOOLS: u8 = 2;
 
 /// Tag for [`Frame::McpListResources`].
-const MCP_LIST_RESOURCES: u8 = 4;
+const MCP_LIST_RESOURCES: u8 = 3;
 
 /// Tag for [`Frame::McpCallTool`].
-const MCP_CALL_TOOL: u8 = 5;
+const MCP_CALL_TOOL: u8 = 4;
 
 /// Tag for [`Frame::McpReadResource`].
-const MCP_READ_RESOURCE: u8 = 6;
+const MCP_READ_RESOURCE: u8 = 5;
 
 /// Tag for [`Frame::McpNotifications`].
-const MCP_NOTIFICATIONS: u8 = 7;
+const MCP_NOTIFICATIONS: u8 = 6;
 
-impl Encode for Frame<'_> {
+impl Encode for Frame {
     /// The ordinary JSON failure, from the only variant that has one.
     /// A stop carries nothing and a connection id is four known bytes.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         match self {
-            Frame::Mcp(request) => {
-                out.extend_from_slice(&[MCP]);
-                request.encode(out)
-            }
             Frame::Stop => {
                 out.extend_from_slice(&[STOP]);
                 Ok(())
@@ -237,14 +197,13 @@ impl Encode for Frame<'_> {
     }
 }
 
-impl<'a> Decode<'a> for Frame<'a> {
+impl Decode<'_> for Frame {
     /// Five ways to fail, and two of them are JSON.
     type Error = FrameError;
 
-    fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            MCP => Request::decode(rest).map(Frame::Mcp).map_err(FrameError::Mcp),
             STOP => Ok(Frame::Stop),
             POSTGRES => Postgres::decode(rest)
                 .map(Frame::Postgres)
@@ -277,8 +236,6 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's eight.
     UnknownTag(u8),
-    /// The MCP request did not parse.
-    Mcp(serde_json::Error),
     /// One of the five MCP exchanges' params did not parse.
     ///
     /// One variant for five tags, because they fail the same way and
@@ -299,9 +256,6 @@ impl fmt::Display for FrameError {
             FrameError::UnknownTag(tag) => {
                 write!(f, "unknown mcp plugin channel request tag {tag}")
             }
-            FrameError::Mcp(error) => {
-                write!(f, "mcp request did not parse: {error}")
-            }
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
@@ -315,7 +269,6 @@ impl fmt::Display for FrameError {
 impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameError::Mcp(error) => Some(error),
             FrameError::McpParams(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
