@@ -75,7 +75,7 @@ pub trait LaboratoryConnectionAuthorizer: Send + Sync {
     ///
     /// # The request is owned
     ///
-    /// Unlike [`McpProxy::handle`](super::mcp_proxy::McpProxy::handle),
+    /// Unlike an [`McpProxy`](super::mcp_proxy::McpProxy) method,
     /// which borrows because it is answered in the task that received
     /// the frame. An [`Authorize`] carries an owned
     /// [`String`] already — a JSON credential with an escape in it is

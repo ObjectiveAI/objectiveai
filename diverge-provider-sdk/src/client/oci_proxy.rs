@@ -148,10 +148,14 @@ pub trait OciProxy: Send + Sync {
 /// is what this is standing in for, and a runtime already knows to
 /// retry it.
 ///
-/// # It is its own type, not
-/// [`mcp_proxy::Body`](super::mcp_proxy::Body)
+/// # It is its own type
 ///
-/// They are identical today. Two endpoints happening to relay the same
+/// [`McpProxy`](super::mcp_proxy::McpProxy) had one of these and no
+/// longer does — its five exchanges answer with values rather than a
+/// body. This one survives because a registry answer really is a body:
+/// a manifest, a config, or a layer of hundreds of megabytes.
+///
+/// Two endpoints happening to relay the same
 /// thing is a fact about them rather than a shared abstraction one of
 /// them should own — and the day one grows a variant the other has no
 /// use for, sharing would be the thing standing in the way. Told apart
