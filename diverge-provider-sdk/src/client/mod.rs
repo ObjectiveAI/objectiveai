@@ -105,11 +105,11 @@
 //! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run::client::execute)
 //! takes an [`oci_proxy`], a [`postgres_proxy`] and a
 //! [`command_proxy`];
-//! `laboratories::run`
+//! [`laboratories::run`](crate::endpoints::laboratories::run::client::execute)
 //! takes an [`oci_proxy`] and a
 //! [`laboratory_connection_authorizer`].
 //!
-//! `laboratories::connect`
+//! [`laboratories::connect`](crate::endpoints::laboratories::connect::client::execute)
 //! takes none, because a connector is asked for one thing and that
 //! thing is an argument rather than a service.
 //!

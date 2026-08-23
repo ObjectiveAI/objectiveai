@@ -13,9 +13,10 @@ use crate::shared::filetree;
 /// the stream stops.
 ///
 /// Which is the same relationship
-/// [`McpFrame`](super::McpFrame) has to its wire frame, for a different
-/// reason — that one drops nothing and owns its body, this one owns
-/// everything already and drops a variant.
+/// [`ReadStream`](super::ReadStream)'s item has to the frame it came
+/// out of, for a different reason — that one drops the envelope and
+/// keeps the payload, this one owns everything already and drops a
+/// variant.
 ///
 /// # Three kinds, and only one pair is ordered
 ///

@@ -200,6 +200,11 @@ async fn serve_writes(
 ///
 /// Returning that way leaves the channel unfinished, deliberately.
 /// There is nothing left to finish it over.
+///
+/// A body that will not ENCODE is the other case and not that one:
+/// nothing went out, so the connection is still working and the channel
+/// is still owed its finish. That one stops the content and finishes
+/// anyway.
 async fn send_content(
     handle: Handle,
     scope: u32,
@@ -211,13 +216,18 @@ async fn send_content(
         buffer.clear();
         match piece {
             Ok(bytes) => {
+                // Breaking rather than returning: an encode that failed
+                // sent nothing, so the connection is still working and
+                // the channel is still owed its finish. Only a send
+                // that did not land means there is nobody to finish it
+                // at.
                 if channel_response::write_bytes::Frame::Body(
                     write_bytes::response::Frame(&bytes),
                 )
                 .encode(&mut Writer::new(&mut buffer))
                 .is_err()
                 {
-                    return;
+                    break;
                 }
                 if handle
                     .send_channel_response(scope, channel, &buffer)

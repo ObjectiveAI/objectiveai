@@ -4,20 +4,26 @@ use std::fmt;
 use std::pin::Pin;
 
 use bytes::Bytes;
+use rmcp::ErrorData;
+use rmcp::model::{
+    CallToolRequestParams, CallToolResult, ListResourcesResult,
+    ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
+    ReadResourceResult,
+};
 use futures_util::Stream;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::super::super::server::channel_response;
 use super::super::channel_request;
-use super::mcp_stream::McpStream;
+use super::mcp_notification_stream::McpNotificationStream;
 use super::read_stream::ReadStream;
 use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::mcp;
 use crate::frame;
 use crate::shared::container::{read, transfer, write_path};
 use crate::shared::error::Error;
-use crate::shared::http::request;
 
 /// An attachment to somebody else's laboratory.
 ///
@@ -45,17 +51,29 @@ use crate::shared::http::request;
 /// [`Stop`](crate::endpoints::laboratories::run::client::channel_request::Frame::Stop)
 /// on their scope, not anything a connector can reach.
 ///
-/// # All four asks are here
+/// # Every ask is here
 ///
-/// [`mcp`](Self::mcp), [`read`](Self::read), [`write`](Self::write)
-/// and [`transfer`](Self::transfer), which is everything a connector
-/// can say. The fifth thing it can do is leave, and that is [`Drop`].
+/// Five against the container's MCP server —
+/// [`list_tools`](Self::list_tools),
+/// [`list_resources`](Self::list_resources),
+/// [`call_tool`](Self::call_tool),
+/// [`read_resource`](Self::read_resource) and
+/// [`notifications`](Self::notifications) — and three against the
+/// container itself: [`read`](Self::read), [`write`](Self::write) and
+/// [`transfer`](Self::transfer). The ninth thing a connector can do is
+/// leave, and that is [`Drop`].
 ///
-/// They are three shapes, not one. A transfer is one ask and one
-/// answer, so it resolves to a result. A read and an MCP exchange are
-/// one ask and a stream, so they hand one back. A write is one ask
-/// whose CONTENT travels the other way, on a channel the provider
-/// opens, which is why it is the only one that needed anything built.
+/// MCP used to be one of them, when it was a tunnel and the ask was a
+/// request somebody else had built. It is five now because the wire
+/// carries the exchanges themselves, and five exchanges cannot be one
+/// method without inventing a union of them.
+///
+/// They are three shapes, not one. The four MCP asks and a transfer are
+/// one ask and one answer, so they resolve to a result. A read and
+/// [`notifications`](Self::notifications) are one ask and a stream, so
+/// they hand one back. A write is one ask whose CONTENT travels the
+/// other way, on a channel the provider opens, which is why it is the
+/// only one that needed anything built.
 #[must_use = "dropping the handle leaves the laboratory"]
 #[derive(Debug)]
 pub struct ExecuteHandle {
@@ -155,66 +173,292 @@ impl ExecuteHandle {
             .map_err(DisconnectError::Send)
     }
 
-    /// Make one MCP exchange against the container's server.
+    /// Ask what tools the container offers.
     ///
-    /// Returns once the request has gone out, not once it has been
-    /// answered — what comes back is an [`McpStream`] of the head and
-    /// then the body, and the provider is already relaying into it.
+    /// [`None`] asks for the first page. A server with more to give
+    /// says so with a cursor, and the next page is another call.
     ///
-    /// # It is a tunnel, not a client
+    /// # One channel, one answer
     ///
-    /// What goes in is an HTTP request and what comes out is an HTTP
-    /// response. Nothing on the way parses JSON-RPC, tracks a session,
-    /// or reads the `Mcp-Session-Id` that ties exchanges together — the
-    /// provider relays and nothing more, which is why two connectors on
-    /// one container hold two sessions it has no opinion about.
-    ///
-    /// It is the same relay an
-    /// [`McpProxy`](crate::client::mcp_proxy::McpProxy) implements,
-    /// pointed the other way: that trait answers exchanges a provider
-    /// forwards, and this makes them.
-    ///
-    /// # The session is yours to carry
-    ///
-    /// The initialize response mints a session id and it arrives in the
-    /// head. Putting it back on later requests is this end's job, and
-    /// nothing here does it — a caller that wants one session makes
-    /// every call carry the header, and a caller that wants two makes
-    /// two.
-    ///
-    /// Ending one is also an exchange: a `DELETE` carrying the session
-    /// id, sent through here like anything else. There is no
-    /// channel-level way to do it, which matters for an event stream —
-    /// see [`McpStream`] for why.
-    ///
-    /// # A refusal is a status, not an error
-    ///
-    /// [`McpError`] is only this exchange failing to start. A server
-    /// that is not there, a method that does not exist, a body the far
-    /// end will not accept — all of those are answers, and they arrive
-    /// as a head on a stream that is working.
+    /// This opens a channel, writes the ask, and reads the one frame
+    /// that answers it. The channel finishes after, which is the
+    /// provider's to do and not something a caller waits for — so the
+    /// channel is dropped here rather than drained.
     ///
     /// # Several at once are fine
     ///
     /// Each takes its own channel, so exchanges do not queue behind one
-    /// another — which matters more here than for a read, because an
-    /// event stream is held open for as long as the session lasts and
-    /// would otherwise hold up everything behind it.
-    pub async fn mcp(
+    /// another and a slow tool does not hold up a listing. Their frames
+    /// interleave on the socket, which is what keeps that true.
+    pub async fn list_tools(
         &self,
-        request: request::Request<'_>,
-    ) -> Result<McpStream, McpError> {
+        params: Option<PaginatedRequestParams>,
+    ) -> Result<ListToolsResult, McpError> {
         let mut payload = Vec::new();
-        channel_request::Frame::Mcp(request)
-            .encode(&mut Writer::new(&mut payload))
-            .map_err(McpError::Request)?;
+        channel_request::Frame::McpListTools(mcp::list_tools::request::Request(
+            params,
+        ))
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
+        let mut channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+
+        let bytes = channel
+            .response_receiver
+            .recv()
+            .await
+            .ok_or(McpError::Unanswered)?;
+        let envelope = frame::server::ServerFrame::decode(&bytes)
+            .map_err(McpError::Frame)?;
+        let payload = match envelope {
+            frame::server::ServerFrame::ChannelResponse { payload, .. } => {
+                payload
+            }
+            // A finish with nothing before it, which is what a provider
+            // says when it cannot serve the exchange at all.
+            frame::server::ServerFrame::ChannelResponseFinish { .. } => {
+                return Err(McpError::Unanswered);
+            }
+            _ => return Err(McpError::Misrouted),
+        };
+
+        match channel_response::mcp_list_tools::Frame::decode(payload).map_err(McpError::Answer)? {
+            channel_response::mcp_list_tools::Frame::Result(result) => Ok(result),
+            channel_response::mcp_list_tools::Frame::Error(error) => Err(McpError::Mcp(error)),
+        }
+    }
+
+    /// Ask what resources the container offers.
+    ///
+    /// The same shape [`list_tools`](Self::list_tools) has, for the
+    /// same reason: it is the same MCP request against a different
+    /// noun.
+    ///
+    /// # One channel, one answer
+    ///
+    /// This opens a channel, writes the ask, and reads the one frame
+    /// that answers it. The channel finishes after, which is the
+    /// provider's to do and not something a caller waits for — so the
+    /// channel is dropped here rather than drained.
+    ///
+    /// # Several at once are fine
+    ///
+    /// Each takes its own channel, so exchanges do not queue behind one
+    /// another and a slow tool does not hold up a listing. Their frames
+    /// interleave on the socket, which is what keeps that true.
+    pub async fn list_resources(
+        &self,
+        params: Option<PaginatedRequestParams>,
+    ) -> Result<ListResourcesResult, McpError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::McpListResources(mcp::list_resources::request::Request(
+            params,
+        ))
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
+        let mut channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+
+        let bytes = channel
+            .response_receiver
+            .recv()
+            .await
+            .ok_or(McpError::Unanswered)?;
+        let envelope = frame::server::ServerFrame::decode(&bytes)
+            .map_err(McpError::Frame)?;
+        let payload = match envelope {
+            frame::server::ServerFrame::ChannelResponse { payload, .. } => {
+                payload
+            }
+            // A finish with nothing before it, which is what a provider
+            // says when it cannot serve the exchange at all.
+            frame::server::ServerFrame::ChannelResponseFinish { .. } => {
+                return Err(McpError::Unanswered);
+            }
+            _ => return Err(McpError::Misrouted),
+        };
+
+        match channel_response::mcp_list_resources::Frame::decode(payload).map_err(McpError::Answer)? {
+            channel_response::mcp_list_resources::Frame::Result(result) => Ok(result),
+            channel_response::mcp_list_resources::Frame::Error(error) => Err(McpError::Mcp(error)),
+        }
+    }
+
+    /// Run one of the container's tools.
+    ///
+    /// # A tool that fails is still [`Ok`]
+    ///
+    /// [`CallToolResult`] carries its own `is_error`, which is a tool
+    /// saying its work did not succeed. An [`McpError::Mcp`] is the
+    /// server refusing to run it at all: no such tool, arguments that
+    /// do not match its schema, a server that broke. The distinction is
+    /// MCP's and this keeps it.
+    ///
+    /// # One channel, one answer
+    ///
+    /// This opens a channel, writes the ask, and reads the one frame
+    /// that answers it. The channel finishes after, which is the
+    /// provider's to do and not something a caller waits for — so the
+    /// channel is dropped here rather than drained.
+    ///
+    /// # Several at once are fine
+    ///
+    /// Each takes its own channel, so exchanges do not queue behind one
+    /// another and a slow tool does not hold up a listing. Their frames
+    /// interleave on the socket, which is what keeps that true.
+    pub async fn call_tool(
+        &self,
+        params: CallToolRequestParams,
+    ) -> Result<CallToolResult, McpError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::McpCallTool(mcp::call_tool::request::Request(
+            params,
+        ))
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
+        let mut channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+
+        let bytes = channel
+            .response_receiver
+            .recv()
+            .await
+            .ok_or(McpError::Unanswered)?;
+        let envelope = frame::server::ServerFrame::decode(&bytes)
+            .map_err(McpError::Frame)?;
+        let payload = match envelope {
+            frame::server::ServerFrame::ChannelResponse { payload, .. } => {
+                payload
+            }
+            // A finish with nothing before it, which is what a provider
+            // says when it cannot serve the exchange at all.
+            frame::server::ServerFrame::ChannelResponseFinish { .. } => {
+                return Err(McpError::Unanswered);
+            }
+            _ => return Err(McpError::Misrouted),
+        };
+
+        match channel_response::mcp_call_tool::Frame::decode(payload).map_err(McpError::Answer)? {
+            channel_response::mcp_call_tool::Frame::Result(result) => Ok(result),
+            channel_response::mcp_call_tool::Frame::Error(error) => Err(McpError::Mcp(error)),
+        }
+    }
+
+    /// Read one of the container's resources.
+    ///
+    /// By URI, which is the server's to interpret. Nothing between
+    /// here and it resolves one.
+    ///
+    /// # One channel, one answer
+    ///
+    /// This opens a channel, writes the ask, and reads the one frame
+    /// that answers it. The channel finishes after, which is the
+    /// provider's to do and not something a caller waits for — so the
+    /// channel is dropped here rather than drained.
+    ///
+    /// # Several at once are fine
+    ///
+    /// Each takes its own channel, so exchanges do not queue behind one
+    /// another and a slow tool does not hold up a listing. Their frames
+    /// interleave on the socket, which is what keeps that true.
+    pub async fn read_resource(
+        &self,
+        params: ReadResourceRequestParams,
+    ) -> Result<ReadResourceResult, McpError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::McpReadResource(mcp::read_resource::request::Request(
+            params,
+        ))
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
+        let mut channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+
+        let bytes = channel
+            .response_receiver
+            .recv()
+            .await
+            .ok_or(McpError::Unanswered)?;
+        let envelope = frame::server::ServerFrame::decode(&bytes)
+            .map_err(McpError::Frame)?;
+        let payload = match envelope {
+            frame::server::ServerFrame::ChannelResponse { payload, .. } => {
+                payload
+            }
+            // A finish with nothing before it, which is what a provider
+            // says when it cannot serve the exchange at all.
+            frame::server::ServerFrame::ChannelResponseFinish { .. } => {
+                return Err(McpError::Unanswered);
+            }
+            _ => return Err(McpError::Misrouted),
+        };
+
+        match channel_response::mcp_read_resource::Frame::decode(payload).map_err(McpError::Answer)? {
+            channel_response::mcp_read_resource::Frame::Result(result) => Ok(result),
+            channel_response::mcp_read_resource::Frame::Error(error) => Err(McpError::Mcp(error)),
+        }
+    }
+
+    /// Hear what the container says on its own account.
+    ///
+    /// Tools changed, resources changed, a resource updated, a log
+    /// line. What comes back is an [`McpNotificationStream`], and the
+    /// provider is already putting into it.
+    ///
+    /// # It is the one ask that is not answered
+    ///
+    /// The other four are asked once and answered once. This is not an
+    /// answer: it is the place a server pushes into, and it produces
+    /// for as long as the stream is held.
+    ///
+    /// Dropping the stream drops the channel, and that is what tells
+    /// the provider nobody is listening. There is nothing to
+    /// unsubscribe with and nothing needs one.
+    ///
+    /// # It takes nothing
+    ///
+    /// Because in MCP there is nothing to ask: a client opens that
+    /// stream with a bare `GET` and no body, and there is no
+    /// `notifications/subscribe` to mirror.
+    ///
+    /// # Returning is not hearing
+    ///
+    /// This resolves once the ask has gone out. Whether the server has
+    /// anything to say, and when, is the stream's to report.
+    pub async fn notifications(
+        &self,
+    ) -> Result<McpNotificationStream, McpError> {{
+        let mut payload = Vec::new();
+        channel_request::Frame::McpNotifications(
+            mcp::notifications::request::Request,
+        )
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
         let channel = self
             .handle
             .send_channel_request(self.scope, &payload)
             .await
             .map_err(McpError::Send)?;
-        Ok(McpStream::new(channel.response_receiver))
-    }
+
+        Ok(McpNotificationStream::new(channel.response_receiver))
+    }}
 
     /// Read one file out of the container.
     ///
@@ -500,23 +744,56 @@ impl std::error::Error for DisconnectError {
     }
 }
 
-/// An MCP exchange that never started.
+/// One MCP exchange that did not happen.
 ///
-/// Two ways, and neither of them is the far server refusing — there is
-/// no error frame on an MCP channel at all. A refusal is a status, and
-/// a status arrives as a head on an
-/// [`McpStream`](super::McpStream) that is working. See
-/// [`McpStreamError`](super::McpStreamError) for the exchange that
-/// started and then stopped without ending.
+/// # It is not what the server said
+///
+/// [`Mcp`](Self::Mcp) is, and it is the only variant that is: the
+/// container's own MCP server refusing, in its own vocabulary, with a
+/// JSON-RPC code that means something. Everything else here is this end
+/// failing to ask or failing to read the answer.
+///
+/// The two are worth telling apart because only one of them says
+/// anything about the container.
+///
+/// It used to be two variants and no answers at all, because the
+/// exchange was HTTP and a refusal was a status on a stream that was
+/// working. There is no status now, so a refusal has to be sayable.
 #[derive(Debug)]
 pub enum McpError {
-    /// The request would not serialize.
+    /// The ask would not serialize.
+    ///
+    /// Which means the params would not, since nothing else in the
+    /// frame can fail.
     Request(serde_json::Error),
-    /// The request never went out.
+    /// The ask never went out.
     ///
     /// See [`SendError`] for the three reasons, only one of which is
     /// about this exchange rather than the whole connection.
     Send(SendError),
+    /// The scope ended before the answer came.
+    ///
+    /// A provider that finished the scope, or a connection that went.
+    /// Also what a channel finishing with nothing on it looks like,
+    /// which is what a provider says when it cannot serve the exchange
+    /// at all.
+    Unanswered,
+    /// The answer was not a frame this crate could read.
+    Frame(frame::FrameError),
+    /// A frame arrived that has no business on this channel.
+    ///
+    /// A router puts only a channel response and its finish here, so
+    /// anything else is a provider or a router disagreeing with this
+    /// one about what a channel is.
+    Misrouted,
+    /// The frame was read and its payload was not an answer.
+    Answer(mcp::FrameError),
+    /// The container's MCP server said no.
+    ///
+    /// Relayed whole, because the JSON-RPC code is content: `-32601` is
+    /// "no such tool" and `-32602` is "the arguments were wrong", and a
+    /// caller told only that something failed can act on neither.
+    Mcp(ErrorData),
 }
 
 impl fmt::Display for McpError {
@@ -526,7 +803,22 @@ impl fmt::Display for McpError {
                 write!(f, "mcp request did not serialize: {error}")
             }
             McpError::Send(error) => {
-                write!(f, "the mcp request never went out: {error}")
+                write!(f, "mcp request was not sent: {error}")
+            }
+            McpError::Unanswered => {
+                f.write_str("the scope ended before the server answered")
+            }
+            McpError::Frame(error) => {
+                write!(f, "the answer was not a frame: {error}")
+            }
+            McpError::Misrouted => {
+                f.write_str("a frame arrived that was not an mcp answer")
+            }
+            McpError::Answer(error) => {
+                write!(f, "the answer did not parse: {error}")
+            }
+            McpError::Mcp(error) => {
+                write!(f, "the server refused: {error}")
             }
         }
     }
@@ -537,6 +829,11 @@ impl std::error::Error for McpError {
         match self {
             McpError::Request(error) => Some(error),
             McpError::Send(error) => Some(error),
+            McpError::Frame(error) => Some(error),
+            McpError::Answer(error) => Some(error),
+            McpError::Unanswered
+            | McpError::Misrouted
+            | McpError::Mcp(_) => None,
         }
     }
 }

@@ -18,7 +18,8 @@ use crate::client::handle::{Handle, SendError};
 use crate::client::laboratory_connection_authorizer::{
     Decision, LaboratoryConnectionAuthorizer,
 };
-use crate::client::oci_proxy::{self, OciProxy};
+use crate::client::oci_proxy::OciProxy;
+use crate::shared::oci;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::frame;
@@ -211,10 +212,11 @@ async fn serve<O, A>(
 
 /// Answer one registry request.
 ///
-/// The head goes back first and then the body, as one frame or as many,
-/// and the channel finishes after. That order is the wire's — see
-/// [`http::response::Frame`](crate::shared::http::response::Frame) for
-/// why a head arrives separately from the body it introduces.
+/// The bytes the proxy produces go back as they arrive, as one frame or
+/// as many, and the channel finishes after. There is no head: the answer
+/// IS the registry's, headers and status and body together, and this end
+/// carries it rather than describing it — see
+/// [`oci`](crate::shared::oci) for why the exchange is bytes.
 ///
 /// # It decodes the frame again
 ///
@@ -251,38 +253,16 @@ where
         let _ = handle.send_channel_response_finish(scope, channel).await;
         return;
     };
-    let (head, body) = oci_proxy.handle(request).await;
+    // Refcounted rather than copied: the answer outlives this frame by
+    // as long as a layer takes to send, so a borrow could not have gone
+    // with it.
+    let request = bytes.slice_ref(request.0);
 
+    let mut answer = oci_proxy.handle(request).await;
     let mut buffer = Vec::new();
-    if channel_response::oci::Frame::Head(head)
-        .encode(&mut Writer::new(&mut buffer))
-        .is_err()
-    {
-        return;
-    }
-    if handle
-        .send_channel_response(scope, channel, &buffer)
-        .await
-        .is_err()
-    {
-        return;
-    }
-
-    match body {
-        oci_proxy::Body::Single(body) => {
-            if !send_oci_body(&handle, scope, channel, &mut buffer, &body).await
-            {
-                return;
-            }
-        }
-        oci_proxy::Body::Stream(mut body) => {
-            while let Some(piece) = body.next().await {
-                if !send_oci_body(&handle, scope, channel, &mut buffer, &piece)
-                    .await
-                {
-                    return;
-                }
-            }
+    while let Some(piece) = answer.next().await {
+        if !send_oci_body(&handle, scope, channel, &mut buffer, &piece).await {
+            return;
         }
     }
     // Nothing follows it, so there is nothing to do about a failure
@@ -290,14 +270,16 @@ where
     let _ = handle.send_channel_response_finish(scope, channel).await;
 }
 
-/// One piece of a registry body, out.
+/// One piece of a registry answer, out.
 ///
-/// The buffer is the one the head was built in, reused: a body frame is
-/// a tag and a copy, and a fresh [`Vec`] per piece would reallocate its
-/// way up from nothing for every one of them.
+/// The buffer is reused across pieces: a frame is a copy, and a fresh
+/// [`Vec`] per piece would reallocate its way up from nothing for every
+/// one of them.
 ///
 /// Answers whether to carry on, so a stream of them can stop at the
-/// first refusal.
+/// first refusal. Encoding cannot fail — an answer is bytes and has
+/// nothing to get wrong — so the only `false` is a send that did not
+/// land.
 async fn send_oci_body(
     handle: &Handle,
     scope: u32,
@@ -306,12 +288,11 @@ async fn send_oci_body(
     body: &[u8],
 ) -> bool {
     buffer.clear();
-    if channel_response::oci::Frame::Body(body)
+    // The shared type rather than this endpoint's alias of it: an alias
+    // names a tuple struct but cannot construct one.
+    oci::response::Frame(body)
         .encode(&mut Writer::new(buffer))
-        .is_err()
-    {
-        return false;
-    }
+        .unwrap_or_else(|error| match error {});
     handle
         .send_channel_response(scope, channel, buffer)
         .await
@@ -379,6 +360,11 @@ async fn serve_authorize<A>(
 ///
 /// Returning that way leaves the channel unfinished, deliberately.
 /// There is nothing left to finish it over.
+///
+/// A body that will not ENCODE is the other case and not that one:
+/// nothing went out, so the connection is still working and the channel
+/// is still owed its finish. That one stops the content and finishes
+/// anyway.
 async fn send_content(
     handle: Handle,
     scope: u32,
@@ -390,13 +376,18 @@ async fn send_content(
         buffer.clear();
         match piece {
             Ok(bytes) => {
+                // Breaking rather than returning: an encode that failed
+                // sent nothing, so the connection is still working and
+                // the channel is still owed its finish. Only a send
+                // that did not land means there is nobody to finish it
+                // at.
                 if channel_response::write_bytes::Frame::Body(
                     write_bytes::response::Frame(&bytes),
                 )
                 .encode(&mut Writer::new(&mut buffer))
                 .is_err()
                 {
-                    return;
+                    break;
                 }
                 if handle
                     .send_channel_response(scope, channel, &buffer)
