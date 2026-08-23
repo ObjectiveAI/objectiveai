@@ -6,9 +6,17 @@ use std::sync::Arc;
 use bytes::Bytes;
 use tokio::sync::mpsc::UnboundedReceiver;
 
+use futures_util::StreamExt as _;
+
 use super::execute_stream::ExecuteStream;
+use super::super::channel_response::{
+    mcp_call_tool, mcp_list_resources, mcp_list_tools, mcp_notifications,
+    mcp_read_resource,
+};
 use super::super::request;
 use crate::client::handle::{Handle, SendError};
+use crate::decode::Decode;
+use crate::endpoints::agentic_loop::run::server::channel_request;
 use crate::client::mcp_proxy::McpProxy;
 use crate::encode::{Encode, Writer};
 use crate::frame;
@@ -118,49 +126,146 @@ async fn proxy_channel_requests<P>(
 
 /// Answer one thing the agent asked for.
 ///
-/// # It answers none of them yet
+/// Five things it can be, and each is answered once — except the
+/// notification stream, which is answered until it stops.
 ///
-/// The five exchanges an agent can open are on the wire and nothing
-/// serves them. Serving them needs
-/// [`McpProxy`](crate::client::mcp_proxy::McpProxy) to grow a method
-/// each — the tunneled HTTP request it answers today is gone from this
-/// endpoint — so every channel is declined until it has them.
+/// # A frame it cannot read is ENDED, not abandoned
 ///
-/// Declined, and not abandoned. The channel is finished with nothing
-/// before it, which this protocol already means as there being no
-/// answer: a provider waiting on one waits forever otherwise, and
-/// nothing anywhere would time it out.
-async fn proxy_one<P>(
-    bytes: Bytes,
-    handle: Handle,
-    scope: u32,
-    mcp_proxy: Arc<P>,
-)
+/// The channel is known and the connection is fine; only the payload is
+/// unreadable, which is what a provider newer than this client
+/// produces. Finishing it with nothing before it is what this protocol
+/// already means by there being no answer — where returning would leave
+/// a provider waiting forever, since nothing anywhere times one out.
+async fn proxy_one<P>(bytes: Bytes, handle: Handle, scope: u32, mcp_proxy: Arc<P>)
 where
     P: McpProxy,
 {
-    // TODO: nothing serves the five typed exchanges. Serving them needs
-    // `McpProxy` to grow a method each — the tunneled HTTP request it
-    // answers today is gone from the wire — and until it has them there
-    // is nothing to hand a request to.
-    //
-    // The proxy is still threaded here rather than removed, because it
-    // is what will answer these and taking it out would churn this
-    // module's signature twice.
-    let _ = mcp_proxy;
-
-    let Ok(frame::server::ServerFrame::ChannelRequest { channel, .. }) =
-        frame::server::ServerFrame::decode(&bytes)
+    let Ok(frame::server::ServerFrame::ChannelRequest {
+        channel, payload, ..
+    }) = frame::server::ServerFrame::decode(&bytes)
     else {
         return;
     };
 
-    // The channel is known, the connection is fine, and nothing is
-    // going to answer this. So it is ENDED rather than abandoned: a
-    // provider waiting on it waits forever otherwise, and a finish with
-    // nothing before it is already what this protocol means by there
-    // being no answer.
+    let Ok(request) = channel_request::Frame::decode(payload) else {
+        let _ = handle.send_channel_response_finish(scope, channel).await;
+        return;
+    };
+
+    // Whatever happened, the answer is over. Ignoring the outcome is
+    // deliberate: an answer that could not be ENCODED leaves a healthy
+    // connection with an unfinished channel on it, and a provider
+    // waiting on one waits forever. An answer that could not be SENT
+    // means the connection is gone and this fails too, harmlessly.
+    match request {
+        channel_request::Frame::McpListTools(request) => {
+            let answer = match mcp_proxy.list_tools(request.0).await {
+                Ok(result) => mcp_list_tools::Frame::Result(result),
+                Err(error) => mcp_list_tools::Frame::Error(error),
+            };
+            answer_with(&handle, scope, channel, &answer).await
+        }
+        channel_request::Frame::McpListResources(request) => {
+            let answer = match mcp_proxy.list_resources(request.0).await {
+                Ok(result) => mcp_list_resources::Frame::Result(result),
+                Err(error) => mcp_list_resources::Frame::Error(error),
+            };
+            answer_with(&handle, scope, channel, &answer).await
+        }
+        channel_request::Frame::McpCallTool(request) => {
+            let answer = match mcp_proxy.call_tool(request.0).await {
+                Ok(result) => mcp_call_tool::Frame::Result(result),
+                Err(error) => mcp_call_tool::Frame::Error(error),
+            };
+            answer_with(&handle, scope, channel, &answer).await
+        }
+        channel_request::Frame::McpReadResource(request) => {
+            let answer = match mcp_proxy.read_resource(request.0).await {
+                Ok(result) => mcp_read_resource::Frame::Result(result),
+                Err(error) => mcp_read_resource::Frame::Error(error),
+            };
+            answer_with(&handle, scope, channel, &answer).await
+        }
+        channel_request::Frame::McpNotifications(_) => {
+            notify(&handle, scope, channel, &*mcp_proxy).await
+        }
+    };
+
     let _ = handle.send_channel_response_finish(scope, channel).await;
+}
+
+/// Relay a server's notifications until it stops saying things.
+///
+/// One frame each, for as long as the stream lasts. Unlike the other
+/// four this is not an answer — it is the place a server pushes into,
+/// and it ends when the server has no more to push or when the caller
+/// can no longer listen.
+///
+/// # An error is the last one
+///
+/// It goes out like any other frame and then the stream is dropped,
+/// because there is nothing after a stream that stopped. Dropping it is
+/// also how a caller stops listening: there is no unsubscribe, and the
+/// channel finishing is one.
+async fn notify<P>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    mcp_proxy: &P,
+) -> bool
+where
+    P: McpProxy,
+{
+    let mut notifications = mcp_proxy.notifications().await;
+    while let Some(item) = notifications.next().await {
+        // Asked before the value moves into the frame.
+        let last = item.is_err();
+        let frame = match item {
+            Ok(notification) => {
+                mcp_notifications::Frame::Notification(notification)
+            }
+            Err(error) => mcp_notifications::Frame::Error(error),
+        };
+        if !answer_with(handle, scope, channel, &frame).await {
+            return false;
+        }
+        if last {
+            break;
+        }
+    }
+    true
+}
+
+/// Encode one answer and write it.
+///
+/// Generic over the frame because the five exchanges answer with five
+/// types, and what happens to each of them here is identical: build it,
+/// write it, stop if it did not go.
+///
+/// Answers whether to carry on, so the caller knows whether a finish is
+/// still worth sending.
+///
+/// A frame that will not encode is treated as a refusal rather than
+/// handled. There is nowhere to report one — the channel for saying so
+/// is the thing that would not serialize — and stopping is what a
+/// caller would do about it anyway.
+async fn answer_with<F>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    frame: &F,
+) -> bool
+where
+    F: Encode,
+{
+    let mut buffer = Vec::new();
+    if frame.encode(&mut Writer::new(&mut buffer)).is_err() {
+        return false;
+    }
+    handle
+        .send_channel_response(scope, channel, &buffer)
+        .await
+        .is_ok()
 }
 
 /// A loop that never started.
