@@ -15,4 +15,9 @@
 //! them apart, so it has to stay in the path.
 
 pub mod mcp;
+pub mod mcp_call_tool;
+pub mod mcp_list_resources;
+pub mod mcp_list_tools;
+pub mod mcp_notifications;
+pub mod mcp_read_resource;
 pub mod postgres;

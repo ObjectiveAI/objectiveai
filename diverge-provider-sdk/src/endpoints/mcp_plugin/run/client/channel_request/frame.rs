@@ -6,14 +6,32 @@ use std::fmt;
 use super::Postgres;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::mcp;
 use crate::shared::http::request::Request;
 
 /// What a caller asks a provider for while a plugin runs.
 ///
-/// A payload leads with one byte saying which — `0` for
-/// [`Mcp`](Self::Mcp), `1` for [`Stop`](Self::Stop), `2` for
-/// [`Postgres`](Self::Postgres) — and the rest is that variant's own
-/// bytes, of which the second has none.
+/// A payload leads with one byte saying which, and the rest is that
+/// variant's own bytes.
+///
+/// | tag | asks for |
+/// |-----|----------|
+/// | `0` | [`Mcp`](Self::Mcp) |
+/// | `1` | [`Stop`](Self::Stop) |
+/// | `2` | [`Postgres`](Self::Postgres) |
+/// | `3` | [`McpListTools`](Self::McpListTools) |
+/// | `4` | [`McpListResources`](Self::McpListResources) |
+/// | `5` | [`McpCallTool`](Self::McpCallTool) |
+/// | `6` | [`McpReadResource`](Self::McpReadResource) |
+/// | `7` | [`McpNotifications`](Self::McpNotifications) |
+///
+/// # Six of them are MCP, and five of those are the ones to use
+///
+/// [`Mcp`](Self::Mcp) tunnels a whole HTTP exchange, which was the
+/// only way to reach the plugin's MCP server before the five at the
+/// end existed. They say what is being asked instead of carrying a
+/// request that says it, and between them they cover everything the
+/// tunnel could do — see [`shared::mcp`](crate::shared::mcp).
 ///
 /// # Two reach into the container, and one does not
 ///
@@ -110,6 +128,41 @@ pub enum Frame<'a> {
     /// See [`Postgres`] for why a connection takes two channels and
     /// what a caller owes the provider once it has taken the first.
     Postgres(Postgres),
+    /// What tools are there. Tag `3`.
+    ///
+    /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
+    /// defines. See
+    /// [`mcp::list_tools`](crate::shared::mcp::list_tools) for what it asks
+    /// and what answers it.
+    McpListTools(mcp::list_tools::request::Request),
+    /// What resources are there. Tag `4`.
+    ///
+    /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
+    /// defines. See
+    /// [`mcp::list_resources`](crate::shared::mcp::list_resources) for what it asks
+    /// and what answers it.
+    McpListResources(mcp::list_resources::request::Request),
+    /// Run one tool. Tag `5`.
+    ///
+    /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
+    /// defines. See
+    /// [`mcp::call_tool`](crate::shared::mcp::call_tool) for what it asks
+    /// and what answers it.
+    McpCallTool(mcp::call_tool::request::Request),
+    /// Read one resource. Tag `6`.
+    ///
+    /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
+    /// defines. See
+    /// [`mcp::read_resource`](crate::shared::mcp::read_resource) for what it asks
+    /// and what answers it.
+    McpReadResource(mcp::read_resource::request::Request),
+    /// Everything the server says on its own account. Tag `7`.
+    ///
+    /// One of the five exchanges [`shared::mcp`](crate::shared::mcp)
+    /// defines. See
+    /// [`mcp::notifications`](crate::shared::mcp::notifications) for what it asks
+    /// and what answers it.
+    McpNotifications(mcp::notifications::request::Request),
 }
 
 /// Tag for [`Frame::Mcp`].
@@ -120,6 +173,21 @@ const STOP: u8 = 1;
 
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 2;
+
+/// Tag for [`Frame::McpListTools`].
+const MCP_LIST_TOOLS: u8 = 3;
+
+/// Tag for [`Frame::McpListResources`].
+const MCP_LIST_RESOURCES: u8 = 4;
+
+/// Tag for [`Frame::McpCallTool`].
+const MCP_CALL_TOOL: u8 = 5;
+
+/// Tag for [`Frame::McpReadResource`].
+const MCP_READ_RESOURCE: u8 = 6;
+
+/// Tag for [`Frame::McpNotifications`].
+const MCP_NOTIFICATIONS: u8 = 7;
 
 impl Encode for Frame<'_> {
     /// The ordinary JSON failure, from the only variant that has one.
@@ -143,12 +211,34 @@ impl Encode for Frame<'_> {
                     .unwrap_or_else(|error| match error {});
                 Ok(())
             }
+            Frame::McpListTools(request) => {
+                out.extend_from_slice(&[MCP_LIST_TOOLS]);
+                request.encode(out)
+            }
+            Frame::McpListResources(request) => {
+                out.extend_from_slice(&[MCP_LIST_RESOURCES]);
+                request.encode(out)
+            }
+            Frame::McpCallTool(request) => {
+                out.extend_from_slice(&[MCP_CALL_TOOL]);
+                request.encode(out)
+            }
+            Frame::McpReadResource(request) => {
+                out.extend_from_slice(&[MCP_READ_RESOURCE]);
+                request.encode(out)
+            }
+            Frame::McpNotifications(request) => {
+                out.extend_from_slice(&[MCP_NOTIFICATIONS]);
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                request.encode(out).map_err(|error| match error {})
+            }
         }
     }
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Four ways to fail, and only one of them is JSON.
+    /// Five ways to fail, and two of them are JSON.
     type Error = FrameError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
@@ -159,6 +249,22 @@ impl<'a> Decode<'a> for Frame<'a> {
             POSTGRES => Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
+            MCP_LIST_TOOLS => mcp::list_tools::request::Request::decode(rest)
+                .map(Frame::McpListTools)
+                .map_err(FrameError::McpParams),
+            MCP_LIST_RESOURCES => mcp::list_resources::request::Request::decode(rest)
+                .map(Frame::McpListResources)
+                .map_err(FrameError::McpParams),
+            MCP_CALL_TOOL => mcp::call_tool::request::Request::decode(rest)
+                .map(Frame::McpCallTool)
+                .map_err(FrameError::McpParams),
+            MCP_READ_RESOURCE => mcp::read_resource::request::Request::decode(rest)
+                .map(Frame::McpReadResource)
+                .map_err(FrameError::McpParams),
+            MCP_NOTIFICATIONS => Ok(Frame::McpNotifications(
+                mcp::notifications::request::Request::decode(rest)
+                    .unwrap_or_else(|error| match error {}),
+            )),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -169,10 +275,17 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's eight.
     UnknownTag(u8),
     /// The MCP request did not parse.
     Mcp(serde_json::Error),
+    /// One of the five MCP exchanges' params did not parse.
+    ///
+    /// One variant for five tags, because they fail the same way and
+    /// the tag already said which was meant. Naming each would be five
+    /// cases every reader matches and none of them distinguishes
+    /// anything a caller could act on.
+    McpParams(serde_json::Error),
     /// The write request was not a connection id.
     Postgres(super::postgres::PostgresError),
 }
@@ -189,6 +302,9 @@ impl fmt::Display for FrameError {
             FrameError::Mcp(error) => {
                 write!(f, "mcp request did not parse: {error}")
             }
+            FrameError::McpParams(error) => {
+                write!(f, "mcp request params did not parse: {error}")
+            }
             FrameError::Postgres(error) => {
                 write!(f, "postgres write request did not parse: {error}")
             }
@@ -200,6 +316,7 @@ impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             FrameError::Mcp(error) => Some(error),
+            FrameError::McpParams(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
