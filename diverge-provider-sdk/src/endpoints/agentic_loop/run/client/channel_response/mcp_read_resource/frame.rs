@@ -1,20 +1,20 @@
-//! What a client's response frame carries on a resource listing channel.
+//! What a client's response frame carries on a resource read channel.
 
 use std::error;
 use std::fmt;
 
 use rmcp::ErrorData;
-use rmcp::model::ListResourcesResult;
+use rmcp::model::ReadResourceResult;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// The answer to a resource listing, or the reason there is not one.
+/// The answer to a resource read, or the reason there is not one.
 ///
 /// The payload of a
 /// [`ClientFrame::ChannelResponse`](crate::frame::client::ClientFrame::ChannelResponse)
 /// on a channel opened by
-/// [`channel_request::Frame::ListResources`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::ListResources).
+/// [`channel_request::Frame::McpReadResource`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::McpReadResource).
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Result`](Self::Result), `1` for [`Error`](Self::Error) — and the
@@ -44,8 +44,8 @@ use crate::encode::{Encode, Writer};
 /// MCP error means less than MCP says it does.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The resources a server offers, and a cursor if there are more. Tag `0`.
-    Result(ListResourcesResult),
+    /// The resource's contents. Tag `0`.
+    Result(ReadResourceResult),
     /// The server refused or could not answer. Tag `1`.
     ///
     /// See the type's own documentation for why this is
@@ -99,7 +99,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// An answer to a resource listing that could not be read.
+/// An answer to a resource read that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -114,13 +114,13 @@ impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FrameError::Empty => {
-                f.write_str("list_resources response frame is empty")
+                f.write_str("read_resource response frame is empty")
             }
             FrameError::UnknownTag(tag) => {
-                write!(f, "unknown list_resources response frame tag {tag}")
+                write!(f, "unknown read_resource response frame tag {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "list_resources response did not parse: {error}")
+                write!(f, "read_resource response did not parse: {error}")
             }
         }
     }

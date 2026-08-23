@@ -15,7 +15,7 @@ use crate::encode::{Encode, Writer};
 /// The payload of a
 /// [`ClientFrame::ChannelResponse`](crate::frame::client::ClientFrame::ChannelResponse)
 /// on a channel opened by
-/// [`channel_request::Frame::Notifications`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::Notifications).
+/// [`channel_request::Frame::McpNotifications`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::McpNotifications).
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Notification`](Self::Notification), `1` for

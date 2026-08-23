@@ -9,7 +9,6 @@ use rmcp::model::{
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::http::request::Request;
 
 /// The payload of a [`ServerFrame::ChannelRequest`](crate::frame::server::ServerFrame::ChannelRequest).
 ///
@@ -26,19 +25,13 @@ use crate::shared::http::request::Request;
 ///
 /// # MCP is carried as exchanges, not as a socket
 ///
-/// Because MCP over Streamable HTTP is not a connection. It is a
-/// series of discrete exchanges over a session identified by a HEADER
-/// rather than by anything at the transport layer.
+/// Because MCP over Streamable HTTP is not a connection. It is a series
+/// of discrete exchanges over a session identified by a HEADER rather
+/// than by anything at the transport layer.
 ///
-/// Terminating the HTTP at each end and carrying the exchange itself
-/// keeps HTTP/1.1 framing out of this protocol entirely: no chunked
-/// encoding, no keep-alive boundaries, no request parser in the
-/// conduit, and a terminator that can rebuild an ordinary request and
-/// hand it to an ordinary router. The JSON-RPC inside stays opaque
-/// regardless — see
-/// [`Request::body`](crate::shared::http::request::Request::body).
-///
-/// # A struct, and no tag
+/// So there is nothing to tunnel that would not be tunneling a socket
+/// for the sake of it. What travels is what was asked: a tool listed, a
+/// tool called, a resource read, or the stream a server pushes into.
 ///
 /// A payload leads with one byte saying which, and the rest is that
 /// variant's own JSON.
@@ -50,11 +43,16 @@ use crate::shared::http::request::Request;
 /// struct and the byte that would have said which was not spent.
 ///
 /// That was right, and it stopped being right the moment there were
-/// six. The five beside [`Mcp`](Self::Mcp) are what a tunneled MCP
-/// request was standing in for: an agent listing tools, listing
-/// resources, calling one, reading one, and hearing what the server
-/// says unprompted. Naming them is what lets a relay hand over
-/// `rmcp`'s own types instead of an HTTP envelope nobody reads.
+/// five. They are what a tunneled MCP request used to stand in for: an
+/// agent listing tools, listing resources, calling one, reading one,
+/// and hearing what the server says unprompted. Naming them is what
+/// lets a relay hand over `rmcp`'s own types instead of an HTTP
+/// envelope nobody reads.
+///
+/// Every one is prefixed `Mcp`, because a channel a container opens is
+/// not necessarily MCP's — a plugin's are a database and a command —
+/// and a variant called `CallTool` would only read as MCP's to someone
+/// who already knew.
 ///
 /// # The tag is the GET and the POST
 ///
@@ -86,57 +84,39 @@ use crate::shared::http::request::Request;
 /// tunnel ends where the tool runs, and this loop never sees a
 /// connection it has no query to send down.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Frame<'a> {
-    /// One MCP exchange, tunneled. Tag `0`.
-    ///
-    /// The request, relayed verbatim. Handed off to
-    /// [`Request`](crate::shared::http::request::Request)'s own impl
-    /// rather than serialized here — not to save the four lines, but
-    /// because an MCP request has ONE wire form, and writing it a
-    /// second time in a second place is how two wire forms start.
-    ///
-    /// # It is being replaced
-    ///
-    /// By the four beneath it, which say what they are asking for
-    /// instead of carrying a request that says it. What keeps this
-    /// alive is what those four cannot do yet: an event stream, which
-    /// is how a server pushes notifications and answers things it was
-    /// asked while it was thinking.
-    ///
-    /// When that has a variant of its own, this goes.
-    Mcp(Request<'a>),
-    /// What tools are there. Tag `1`.
+pub enum Frame {
+    /// What tools are there. Tag `0`.
     ///
     /// [`None`] asks for the first page, which is also what a caller
     /// with nothing to say sends —
     /// [`rmcp`](rmcp::model::ListToolsRequest) makes the params
     /// optional and this keeps that, because params absent and a cursor
     /// absent are different things to a server that reads them.
-    ListTools(Option<PaginatedRequestParams>),
-    /// What resources are there. Tag `2`.
+    McpListTools(Option<PaginatedRequestParams>),
+    /// What resources are there. Tag `1`.
     ///
-    /// The same shape as [`ListTools`](Self::ListTools), for the same
+    /// The same shape as [`McpListTools`](Self::McpListTools), for the same
     /// reason: it is the same MCP request against a different noun.
-    ListResources(Option<PaginatedRequestParams>),
-    /// Run one tool. Tag `3`.
+    McpListResources(Option<PaginatedRequestParams>),
+    /// Run one tool. Tag `2`.
     ///
     /// The name and the arguments, as
     /// [`rmcp`](rmcp::model::CallToolRequestParams) defines them. What
     /// an argument means belongs to the tool, and nothing between here
     /// and it looks.
-    CallTool(CallToolRequestParams),
-    /// Read one resource. Tag `4`.
+    McpCallTool(CallToolRequestParams),
+    /// Read one resource. Tag `3`.
     ///
     /// By URI, as [`rmcp`](rmcp::model::ReadResourceRequestParams)
     /// defines it. The URI is the server's to interpret; a relay that
     /// resolved one would be deciding what a resource is.
-    ReadResource(ReadResourceRequestParams),
-    /// Everything the server says on its own account. Tag `5`.
+    McpReadResource(ReadResourceRequestParams),
+    /// Everything the server says on its own account. Tag `4`.
     ///
     /// Tools changed, resources changed, a resource updated, a log
     /// line. What comes back is one frame per notification for as long
     /// as the channel lives, where the four above answer once — see
-    /// [`notifications`](crate::endpoints::agentic_loop::run::client::channel_response::notifications).
+    /// [`mcp_notifications`](crate::endpoints::agentic_loop::run::client::channel_response::mcp_notifications).
     ///
     /// # It carries nothing, and MCP is why
     ///
@@ -151,8 +131,9 @@ pub enum Frame<'a> {
     ///
     /// # What it replaces, and what it does not
     ///
-    /// It is the last thing [`Mcp`](Self::Mcp) could do that nothing
-    /// else could, which is what kept a tunneled HTTP exchange alive.
+    /// It was the last thing a tunneled HTTP exchange could do that
+    /// nothing else could, which is what kept one on this endpoint
+    /// until there was this.
     ///
     /// Two pieces of that exchange do not come with it. An
     /// `Mcp-Session-Id` said which session a stream belonged to, and
@@ -161,88 +142,80 @@ pub enum Frame<'a> {
     /// stream whose connection dropped while its session survived, and
     /// here a channel can only die with the scope and a scope only with
     /// the connection, so there is nothing left to resume onto.
-    Notifications,
+    McpNotifications,
 }
 
-/// Tag for [`Frame::Mcp`].
-const MCP: u8 = 0;
+/// Tag for [`Frame::McpListTools`].
+const MCP_LIST_TOOLS: u8 = 0;
 
-/// Tag for [`Frame::ListTools`].
-const LIST_TOOLS: u8 = 1;
+/// Tag for [`Frame::McpListResources`].
+const MCP_LIST_RESOURCES: u8 = 1;
 
-/// Tag for [`Frame::ListResources`].
-const LIST_RESOURCES: u8 = 2;
+/// Tag for [`Frame::McpCallTool`].
+const MCP_CALL_TOOL: u8 = 2;
 
-/// Tag for [`Frame::CallTool`].
-const CALL_TOOL: u8 = 3;
+/// Tag for [`Frame::McpReadResource`].
+const MCP_READ_RESOURCE: u8 = 3;
 
-/// Tag for [`Frame::ReadResource`].
-const READ_RESOURCE: u8 = 4;
-
-/// Tag for [`Frame::Notifications`].
-const NOTIFICATIONS: u8 = 5;
+/// Tag for [`Frame::McpNotifications`].
+const MCP_NOTIFICATIONS: u8 = 4;
 
 /// A tag, then that variant's own JSON.
-impl Encode for Frame<'_> {
+impl Encode for Frame {
     /// The ordinary JSON failure. Every variant is serialized, and the
     /// tag cannot fail.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         match self {
-            Frame::Mcp(request) => {
-                out.extend_from_slice(&[MCP]);
-                request.encode(out)
-            }
-            Frame::ListTools(params) => {
-                out.extend_from_slice(&[LIST_TOOLS]);
+            Frame::McpListTools(params) => {
+                out.extend_from_slice(&[MCP_LIST_TOOLS]);
                 serde_json::to_writer(out, params)
             }
-            Frame::ListResources(params) => {
-                out.extend_from_slice(&[LIST_RESOURCES]);
+            Frame::McpListResources(params) => {
+                out.extend_from_slice(&[MCP_LIST_RESOURCES]);
                 serde_json::to_writer(out, params)
             }
-            Frame::CallTool(params) => {
-                out.extend_from_slice(&[CALL_TOOL]);
+            Frame::McpCallTool(params) => {
+                out.extend_from_slice(&[MCP_CALL_TOOL]);
                 serde_json::to_writer(out, params)
             }
-            Frame::ReadResource(params) => {
-                out.extend_from_slice(&[READ_RESOURCE]);
+            Frame::McpReadResource(params) => {
+                out.extend_from_slice(&[MCP_READ_RESOURCE]);
                 serde_json::to_writer(out, params)
             }
-            Frame::Notifications => {
-                out.extend_from_slice(&[NOTIFICATIONS]);
+            Frame::McpNotifications => {
+                out.extend_from_slice(&[MCP_NOTIFICATIONS]);
                 Ok(())
             }
         }
     }
 }
 
-impl<'a> Decode<'a> for Frame<'a> {
+impl Decode<'_> for Frame {
     /// Three ways to fail, and only one of them is JSON.
     type Error = FrameError;
 
-    fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            MCP => Request::decode(rest).map(Frame::Mcp).map_err(FrameError::Body),
-            LIST_TOOLS => serde_json::from_slice(rest)
-                .map(Frame::ListTools)
+            MCP_LIST_TOOLS => serde_json::from_slice(rest)
+                .map(Frame::McpListTools)
                 .map_err(FrameError::Body),
-            LIST_RESOURCES => serde_json::from_slice(rest)
-                .map(Frame::ListResources)
+            MCP_LIST_RESOURCES => serde_json::from_slice(rest)
+                .map(Frame::McpListResources)
                 .map_err(FrameError::Body),
-            CALL_TOOL => serde_json::from_slice(rest)
-                .map(Frame::CallTool)
+            MCP_CALL_TOOL => serde_json::from_slice(rest)
+                .map(Frame::McpCallTool)
                 .map_err(FrameError::Body),
-            READ_RESOURCE => serde_json::from_slice(rest)
-                .map(Frame::ReadResource)
+            MCP_READ_RESOURCE => serde_json::from_slice(rest)
+                .map(Frame::McpReadResource)
                 .map_err(FrameError::Body),
             // Whatever follows the tag is ignored rather than rejected.
             // There is nothing this variant could carry, so a reader
             // that found something has met a writer from a version that
             // gave it one — and the tag already said what was meant.
-            NOTIFICATIONS => Ok(Frame::Notifications),
+            MCP_NOTIFICATIONS => Ok(Frame::McpNotifications),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -253,7 +226,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's six.
+    /// A tag that is none of this frame's five.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not

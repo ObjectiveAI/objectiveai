@@ -4,17 +4,13 @@ use std::fmt;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use futures_util::StreamExt as _;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use super::super::channel_response::mcp;
 use super::execute_stream::ExecuteStream;
 use super::super::request;
 use crate::client::handle::{Handle, SendError};
-use crate::client::mcp_proxy::{Body, McpProxy};
-use crate::decode::Decode;
+use crate::client::mcp_proxy::McpProxy;
 use crate::encode::{Encode, Writer};
-use crate::endpoints::agentic_loop::run::server::channel_request;
 use crate::frame;
 
 /// Run an agent, and answer its tools while it does.
@@ -120,35 +116,20 @@ async fn proxy_channel_requests<P>(
     }
 }
 
-/// Answer one tool call.
+/// Answer one thing the agent asked for.
 ///
-/// The head goes back first and then the body, as one frame or as many,
-/// and the channel finishes after. That order is the wire's — see
-/// [`http::response::Frame`](crate::shared::http::response::Frame) for
-/// why a head arrives separately from the body it introduces.
+/// # It answers none of them yet
 ///
-/// # What a frame it cannot read does
+/// The five exchanges an agent can open are on the wire and nothing
+/// serves them. Serving them needs
+/// [`McpProxy`](crate::client::mcp_proxy::McpProxy) to grow a method
+/// each — the tunneled HTTP request it answers today is gone from this
+/// endpoint — so every channel is declined until it has them.
 ///
-/// Nothing, and the channel is left unfinished. There is no error
-/// variant on an MCP channel — the exchange is HTTP and HTTP says how
-/// things go wrong — but a request this end cannot even decode has no
-/// status to answer with, because it is not an HTTP request as far as
-/// this can tell. Finishing an unanswered channel would say the answer
-/// was empty, which is a different and worse thing to say.
-///
-/// A head that will not serialize is the same case one step later.
-///
-/// # It stops at the first refusal
-///
-/// A [`Handle`] answers whether a frame went out, and `false` means no
-/// later one will either — the connection is gone, or the scope is. So
-/// this returns rather than going on, which matters most for the answer
-/// that would otherwise never stop: an event stream held open for a
-/// session, being written at a provider that is no longer listening.
-///
-/// It is the only thing that ends this task early. Nothing cancels it,
-/// so without the check a tool call outliving its loop would run for as
-/// long as its own body stream did.
+/// Declined, and not abandoned. The channel is finished with nothing
+/// before it, which this protocol already means as there being no
+/// answer: a provider waiting on one waits forever otherwise, and
+/// nothing anywhere would time it out.
 async fn proxy_one<P>(
     bytes: Bytes,
     handle: Handle,
@@ -158,102 +139,28 @@ async fn proxy_one<P>(
 where
     P: McpProxy,
 {
-    let Ok(frame::server::ServerFrame::ChannelRequest {
-        channel, payload, ..
-    }) = frame::server::ServerFrame::decode(&bytes)
+    // TODO: nothing serves the five typed exchanges. Serving them needs
+    // `McpProxy` to grow a method each — the tunneled HTTP request it
+    // answers today is gone from the wire — and until it has them there
+    // is nothing to hand a request to.
+    //
+    // The proxy is still threaded here rather than removed, because it
+    // is what will answer these and taking it out would churn this
+    // module's signature twice.
+    let _ = mcp_proxy;
+
+    let Ok(frame::server::ServerFrame::ChannelRequest { channel, .. }) =
+        frame::server::ServerFrame::decode(&bytes)
     else {
         return;
     };
-    // TODO: the four typed exchanges are on the wire and nothing serves
-    // them. Doing so needs `McpProxy` to grow a method each, which is
-    // the next step; until then they are declined the way an unreadable
-    // frame is, and for the same reason.
-    let Ok(channel_request::Frame::Mcp(request)) =
-        channel_request::Frame::decode(payload)
-    else {
-        // The channel is known, the connection is fine, and nothing
-        // is going to answer this. So it is ENDED rather than
-        // abandoned: a provider waiting on it waits forever otherwise,
-        // and a finish with no head is already what this protocol
-        // means by there being no answer.
-        let _ = handle.send_channel_response_finish(scope, channel).await;
-        return;
-    };
-    let (head, body) = mcp_proxy.handle(request).await;
 
-    let mut buffer = Vec::new();
-    if mcp::Frame::Head(head)
-        .encode(&mut Writer::new(&mut buffer))
-        .is_err()
-    {
-        return;
-    }
-    if handle
-        .send_channel_response(scope, channel, &buffer)
-        .await
-        .is_err()
-    {
-        return;
-    }
-
-    match body {
-        Body::Single(body) => {
-            if !send_body(&handle, scope, channel, &mut buffer, &body).await {
-                return;
-            }
-        }
-        Body::Stream(mut body) => {
-            while let Some(piece) = body.next().await {
-                if !send_body(&handle, scope, channel, &mut buffer, &piece)
-                    .await
-                {
-                    return;
-                }
-            }
-        }
-    }
-    // Nothing follows it, so there is nothing to do about a
-    // failure here that returning would not already have done.
+    // The channel is known, the connection is fine, and nothing is
+    // going to answer this. So it is ENDED rather than abandoned: a
+    // provider waiting on it waits forever otherwise, and a finish with
+    // nothing before it is already what this protocol means by there
+    // being no answer.
     let _ = handle.send_channel_response_finish(scope, channel).await;
-}
-
-/// One piece of a body, out.
-///
-/// The buffer is the one the head was built in, reused: a body frame is
-/// a tag and a copy, and a fresh [`Vec`] per piece would reallocate its
-/// way up from nothing for every one of them.
-///
-/// Answers whether to carry on, so a stream of them can stop at the
-/// first refusal.
-///
-/// A [`bool`] rather than the [`SendError`] itself, because there is
-/// one thing to do about every one of them here and it is stop. Which
-/// of the three it was matters to a caller deciding whether the
-/// connection is worth keeping, and this is not that caller.
-///
-/// Encoding cannot fail — a body is bytes and has nothing to get wrong
-/// — so a failure there is treated as a refusal rather than handled.
-/// Saying it in a match on
-/// [`Infallible`](std::convert::Infallible) is not available here,
-/// because the frame it shares an impl with can fail.
-async fn send_body(
-    handle: &Handle,
-    scope: u32,
-    channel: u32,
-    buffer: &mut Vec<u8>,
-    body: &[u8],
-) -> bool {
-    buffer.clear();
-    if mcp::Frame::Body(body)
-        .encode(&mut Writer::new(buffer))
-        .is_err()
-    {
-        return false;
-    }
-    handle
-        .send_channel_response(scope, channel, buffer)
-        .await
-        .is_ok()
 }
 
 /// A loop that never started.
