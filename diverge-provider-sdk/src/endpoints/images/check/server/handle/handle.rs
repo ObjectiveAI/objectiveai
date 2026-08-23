@@ -1,9 +1,7 @@
 //! Answering an image check, from a scope and a checker.
 
-use serde_json::Value;
 
 use super::super::response;
-use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::images::check::client::request;
 use crate::server::image_checker::ImageChecker;
@@ -24,27 +22,28 @@ use crate::shared::error::Error;
 /// So a checker's [`Err`] becomes the second and its
 /// [`Ok`] becomes the first, whichever way the `Ok` went. Nothing here
 /// turns a no into a failure or a failure into a no.
+///
+/// # The request arrives decoded
+///
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request once to dispatch it, and hands the result here — so a
+/// malformed request never reaches this function, and nothing in it
+/// decodes one.
 pub async fn handle<C>(
     scope: ScopeHandle,
+    request: request::Frame,
     client_identity: &str,
     checker: &C,
 ) where
     C: ImageChecker,
     C::Error: Into<Error>,
 {
-    let frame = match request::Frame::decode(scope.request()) {
-        Ok(request) => {
-            match checker
-                .check(client_identity, &request.name, &request.digest)
-                .await
-            {
-                Ok(response) => response::Frame::Response(response),
-                Err(error) => response::Frame::Error(error.into()),
-            }
-        }
-        Err(error) => {
-            response::Frame::Error(Error(Value::String(error.to_string())))
-        }
+    let frame = match checker
+        .check(client_identity, &request.name, &request.digest)
+        .await
+    {
+        Ok(response) => response::Frame::Response(response),
+        Err(error) => response::Frame::Error(error.into()),
     };
 
     let mut buffer = Vec::new();

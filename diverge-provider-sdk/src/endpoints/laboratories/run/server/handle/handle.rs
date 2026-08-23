@@ -68,8 +68,16 @@ use crate::shared::error::Error;
 /// [`closed`](mpsc::UnboundedSender::closed) resolves on — so ending
 /// this run IS telling every connector, without this run knowing who
 /// they are.
+///
+/// # The request arrives decoded
+///
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request once to dispatch it, and hands the result here — so a
+/// malformed request never reaches this function, and nothing in it
+/// decodes one.
 pub async fn handle<D>(
     scope: ScopeHandle,
+    request: request::Frame,
     client_identity: &str,
     deployer: &D,
     laboratories: &Laboratories<D::Container>,
@@ -82,16 +90,6 @@ pub async fn handle<D>(
     // them may hold it alone. What stays exclusive is ENDING the scope,
     // which is why the finish has to get the handle back out.
     let scope = Arc::new(scope);
-
-    let request = match request::Frame::decode(scope.request()) {
-        Ok(request) => request,
-        Err(error) => {
-            let error = Error(Value::String(error.to_string()));
-            write(&scope, &response::Frame::Error(error)).await;
-            finish(scope).await;
-            return;
-        }
-    };
 
     let deployment = Deployment {
         memory: request.memory,

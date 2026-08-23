@@ -4,10 +4,8 @@ use std::pin::pin;
 
 use futures_util::StreamExt as _;
 use futures_util::future::{self, Either};
-use serde_json::Value;
 
 use super::super::response;
-use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::volumes::watch::client::request;
 use crate::server::scope_handle::ScopeHandle;
@@ -45,25 +43,22 @@ use crate::shared::error::Error;
 /// The channel request has no payload — a watch's caller has one thing
 /// to say and saying it is the whole message. So a frame arriving on
 /// any channel of this scope is the stop, and nothing here decodes it.
+///
+/// # The request arrives decoded
+///
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request once to dispatch it, and hands the result here — so a
+/// malformed request never reaches this function, and nothing in it
+/// decodes one.
 pub async fn handle<M>(
     scope: ScopeHandle,
+    request: request::Frame,
     client_identity: &str,
     manager: &M,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let request = match request::Frame::decode(scope.request()) {
-        Ok(request) => request,
-        Err(error) => {
-            let frame =
-                response::Frame::Error(Error(Value::String(error.to_string())));
-            send(&scope, &frame).await;
-            scope.send_response_finish().await;
-            return;
-        }
-    };
-
     let mut stream = match manager.watch(client_identity, &request.name).await {
         Ok(stream) => stream,
         Err(error) => {

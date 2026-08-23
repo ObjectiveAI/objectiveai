@@ -17,9 +17,10 @@ use crate::frame::server::ServerFrame;
 
 /// A scope a client opened, and the means to answer it.
 ///
-/// What a [`Session`](super::session::Session) yields. The scope is
-/// open from the moment this exists — the request has arrived, and the
-/// session already knows where to put what follows it.
+/// What a [`Session`](super::session::Session) yields, beside the
+/// request that opened it. The scope is open from the moment this
+/// exists — the request has arrived, and the session already knows
+/// where to put what follows it.
 ///
 /// This is the half that writes. A [`Session`](super::session::Session)
 /// reads a socket and hands out scopes; everything a provider actually
@@ -63,13 +64,17 @@ use crate::frame::server::ServerFrame;
 /// dropped without one leaves the client's reader waiting until the
 /// socket dies. Nothing anywhere will time it out.
 ///
-/// # Both halves are here
+/// # The request is not in here
 ///
-/// Every frame a provider can send, and both of the things it can
-/// receive: [`request`](Self::request) is what opened the scope, and
-/// [`recv_channel_request`](Self::recv_channel_request) is what the
-/// client opens inside it — which is where the two `channel_response`
-/// calls get the channel number they have to quote.
+/// It travels BESIDE this, as the other half of what a session yields:
+/// a request is read once, by whatever dispatches on it, and a handle
+/// that carried the bytes too would be a second copy of a thing with
+/// one reader. So this holds every frame a provider can send and the
+/// one thing it can receive —
+/// [`recv_channel_request`](Self::recv_channel_request), what the
+/// client opens inside the scope, which is where the two
+/// `channel_response` calls get the channel number they have to
+/// quote.
 #[derive(Debug)]
 pub struct ScopeHandle {
     /// The scope's number, chosen by the CLIENT.
@@ -78,19 +83,6 @@ pub struct ScopeHandle {
     /// both directions. What it is free for afterwards is the client's
     /// business; this end never mints one and never reuses one.
     scope: u32,
-    /// The frame that opened the scope, whole.
-    ///
-    /// Kept rather than decoded, because everything that could be
-    /// decoded out of it borrows from it: a
-    /// [`ClientRequest`](crate::endpoints::ClientRequest) holds slices
-    /// of these bytes, so a handle that owned one would be
-    /// self-referential.
-    ///
-    /// Whole, header included, though nothing here needs the header —
-    /// the type is always `1` and the channel always `0`, and the scope
-    /// is already a field. [`request`](Self::request) is what slices it
-    /// off.
-    request: Bytes,
     /// The channels the client opens inside this scope.
     ///
     /// Whole frames, and the channel number in each header is the
@@ -178,7 +170,6 @@ impl ScopeHandle {
     /// is no other answer a caller could give.
     pub(super) fn new(
         scope: u32,
-        request: Bytes,
         channel_request_receiver: UnboundedReceiver<Bytes>,
         finished_channel_receiver: UnboundedReceiver<u32>,
         notice_sender: UnboundedSender<Notice>,
@@ -186,7 +177,6 @@ impl ScopeHandle {
     ) -> Self {
         ScopeHandle {
             scope,
-            request,
             channel_request_receiver: Mutex::new(channel_request_receiver),
             minter: Mutex::new(Minter {
                 counter: 0,
@@ -199,27 +189,6 @@ impl ScopeHandle {
         }
     }
 
-    /// What was asked, without the header.
-    ///
-    /// The payload of the frame that opened this scope: a tag byte
-    /// saying which request it is, then that request's own bytes. It is
-    /// what [`ClientRequest`](crate::endpoints::ClientRequest) decodes,
-    /// and what an endpoint's own `request::Frame` decodes.
-    ///
-    /// Borrowed rather than handed over, because everything decoded out
-    /// of it borrows from it — a `ClientRequest` holds slices of these
-    /// bytes, so it cannot outlive the handle.
-    ///
-    /// The header is sliced off here rather than left to a caller. It
-    /// carries nothing a reader of this does not already have: the type
-    /// is always `1`, the channel always `0`, and the scope is
-    /// [`ScopeHandle`]'s own.
-    pub fn request(&self) -> &[u8] {
-        // The session parsed a header out of these very bytes before
-        // building this, so the slice is always there.
-        self.request.get(crate::frame::HEADER_LEN..).unwrap_or_default()
-    }
-
     /// Take the next channel the client opened inside this scope.
     ///
     /// [`None`] when the client will open no more — it left, or the
@@ -229,7 +198,7 @@ impl ScopeHandle {
     ///
     /// # Whole frames
     ///
-    /// Header included, unlike [`request`](Self::request), because a
+    /// Header included, because a
     /// caller needs what is in it: the channel number is the CLIENT's,
     /// and it is what
     /// [`send_channel_response`](Self::send_channel_response) has to

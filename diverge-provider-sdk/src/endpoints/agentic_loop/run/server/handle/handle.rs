@@ -55,8 +55,22 @@ use crate::shared::mcp;
 ///
 /// So what a caller sees when it leaves is nothing, and what happens is
 /// the rest of the run.
+///
+/// # The request arrives decoded, and the body arrives raw
+///
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request once to dispatch it, and hands the result here — so a
+/// malformed request never reaches this function, and nothing in it
+/// decodes one.
+///
+/// `body` is the same request as bytes, less the tag in front: the
+/// caller's own JSON, which is what the container is handed. Handing
+/// it the bytes rather than a re-serialization of `request` is what
+/// lets a field this crate does not model survive the trip.
 pub async fn handle<D>(
     scope: ScopeHandle,
+    request: request::Frame,
+    body: Bytes,
     client_identity: &str,
     deployer: &D,
 ) where
@@ -70,20 +84,7 @@ pub async fn handle<D>(
     // why the finish has to get the handle back out.
     let scope = Arc::new(scope);
 
-    let agent = match request::Frame::decode(scope.request()) {
-        Ok(frame) => frame.agent.clone(),
-        Err(error) => {
-            let error = Error(Value::String(error.to_string()));
-            write(&scope, &response::Frame::Error(error)).await;
-            finish(scope).await;
-            return;
-        }
-    };
-
-    // The payload is a tag byte and then the request's own JSON, so what
-    // the container is handed is everything after the first byte. Owned
-    // because the task that sends it outlives this borrow.
-    let body = Bytes::copy_from_slice(&scope.request()[1..]);
+    let agent = request.agent;
 
     let deployment = Deployment {
         memory: memory(&agent),

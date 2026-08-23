@@ -114,47 +114,32 @@
 //! two directions and neither should wait on the other. A client shares
 //! the thing that makes scopes; a provider shares the scope.
 //!
-//! # What is not here yet
+//! # Every endpoint is handled, and [`handle`] wires them together
 //!
-//! **Dispatch.** A scope can now be read as well as written —
-//! [`ScopeHandle::request`](scope_handle::ScopeHandle::request) hands
-//! out the payload and
-//! [`recv_channel_request`](scope_handle::ScopeHandle::recv_channel_request)
-//! takes the channels off their queue — and eight endpoints have a
-//! `server::handle` that uses them. The five
-//! [`volumes`](crate::endpoints::volumes),
+//! All eleven scopes have a `server::handle`, and this module's
+//! [`handle`] is the dispatch in front of them: it reads each request
+//! a [`Session`](session::Session) yields, decides which endpoint it
+//! belongs to, and spawns that endpoint's handler with the decoded
+//! request. One call per connection is a provider's whole loop.
+//!
+//! The five [`volumes`](crate::endpoints::volumes),
 //! [`images::check`](crate::endpoints::images::check) and
 //! [`version`](crate::endpoints::version) answer and finish, which is
-//! the whole of what those endpoints do.
+//! the whole of what those endpoints do. The three container
+//! endpoints serve for as long as their containers run, and
+//! [`laboratories::connect`](crate::endpoints::laboratories::connect)
+//! serves a container somebody else runs.
 //!
-//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run) is the
-//! one that does not. It deploys a container, relays what the agent
-//! says down the scope, and serves the agent's tool calls out on
-//! channels — two directions at once, neither waiting on the other.
-//!
-//! One is written and not compiled:
-//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run) was built
-//! around the byte pipe that [`container`] no longer has, and is a
-//! rewrite rather than a repair.
-//!
-//! The two [`laboratories`](crate::endpoints::laboratories) scopes have
-//! no handler at all yet.
-//!
-//! And in front of all of them, nothing reads the leading tag byte of a
-//! request and decides which handler it belongs to. So the pieces exist
-//! and nothing wires them together.
+//! # What is not here yet
 //!
 //! **Auth**, in both directions. A credential belongs to the connection
 //! and there is nowhere for one to go, so a
 //! [`ClientFrame::Auth`](crate::frame::client::ClientFrame::Auth) is
 //! discarded and a provider on an
 //! [`Outgoing`](crate::connection::Connection::Outgoing) connection
-//! cannot send the one it owes.
-//!
-//! There was a handler tree here before any of this, written before the
-//! client half had a shape. It is gone rather than carried — what
-//! answers requests should be built knowing how the reading was solved,
-//! not around a sketch that predates it.
+//! cannot send the one it owes. Until that changes, the identity a
+//! connection speaks under is the provider's to establish at the
+//! upgrade and hand to [`handle`].
 //!
 //! # And what a provider supplies
 //!
@@ -246,14 +231,19 @@
 //! for nothing at all, its answer being a compile-time constant. It is
 //! the one request a provider can serve without supplying anything.
 //!
-//! What is missing in front of all of them is the dispatch that reads a
-//! request's tag and picks which to call.
+//! And in front of all of them stands [`handle`]: take a
+//! [`Session`](session::Session), the connection's identity and
+//! address, and the capabilities above, and every scope the client
+//! opens is read, routed and served in a task of its own until the
+//! connection ends. One call per connection is the whole of a
+//! provider's loop.
 
 pub mod channel;
 pub mod client_registry;
 pub mod container;
 pub mod container_deployer;
 pub mod deployment;
+pub mod handle;
 pub mod image_checker;
 pub mod laboratories;
 pub mod mount;

@@ -1,11 +1,8 @@
 //! Answering a listing, from a scope and a manager.
 
-use serde_json::Value;
 
 use super::super::response;
-use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::endpoints::volumes::list::client::request;
 use crate::server::scope_handle::ScopeHandle;
 use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
@@ -26,13 +23,13 @@ use crate::shared::error::Error;
 ///
 /// # Every failure becomes a frame
 ///
-/// A request that will not decode and a manager that will not answer
-/// are both an [`Error`](response::Frame::Error) — the endpoint has one
-/// place to put a failure, so there is nothing else to say. The
-/// difference is only in what the error carries: the provider's own
-/// value for the second, and the decoder's complaint as a string for
-/// the first, since a caller that sent unreadable bytes is the one
-/// party that can act on knowing which bytes.
+/// A manager that will not answer is an
+/// [`Error`](response::Frame::Error) — the endpoint has one place to
+/// put a failure, so there is nothing else to say. A malformed request
+/// never arrives:
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request to dispatch it, and this one carried nothing to begin
+/// with.
 ///
 /// A response that will not ENCODE is the one failure with nowhere to
 /// go, and the scope simply finishes without an answer. A caller reads
@@ -45,14 +42,9 @@ pub async fn handle<M>(
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let frame = match request::Frame::decode(scope.request()) {
-        Ok(request::Frame) => match manager.list(client_identity).await {
-            Ok(volumes) => response::Frame::Volumes(volumes),
-            Err(error) => response::Frame::Error(error.into()),
-        },
-        Err(error) => {
-            response::Frame::Error(Error(Value::String(error.to_string())))
-        }
+    let frame = match manager.list(client_identity).await {
+        Ok(volumes) => response::Frame::Volumes(volumes),
+        Err(error) => response::Frame::Error(error.into()),
     };
 
     let mut buffer = Vec::new();

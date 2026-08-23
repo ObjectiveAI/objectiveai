@@ -11,7 +11,6 @@ use indexmap::IndexMap;
 use rmcp::model::{
     CallToolRequestParams, PaginatedRequestParams, ReadResourceRequestParams,
 };
-use serde_json::Value;
 use tokio::sync::{Mutex, mpsc};
 
 use super::super::{channel_request, channel_response, response};
@@ -55,8 +54,19 @@ use crate::shared::error::Error;
 /// is what the PROVIDER established about the connection, and it goes
 /// to the [`ContainerDeployer`], which is the party that decides
 /// whether this caller may have a container at all.
-pub async fn handle<D>(scope: ScopeHandle, client_identity: &str, deployer: &D)
-where
+///
+/// # The request arrives decoded
+///
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request once to dispatch it, and hands the result here — so a
+/// malformed request never reaches this function, and nothing in it
+/// decodes one.
+pub async fn handle<D>(
+    scope: ScopeHandle,
+    request: request::Frame,
+    client_identity: &str,
+    deployer: &D,
+) where
     D: ContainerDeployer,
     D::Error: Into<Error>,
 {
@@ -64,16 +74,6 @@ where
     // them may hold it alone. What stays exclusive is ENDING the scope,
     // which is why the finish has to get the handle back out.
     let scope = Arc::new(scope);
-
-    let request = match request::Frame::decode(scope.request()) {
-        Ok(request) => request,
-        Err(error) => {
-            let error = Error(Value::String(error.to_string()));
-            write(&scope, &response::Frame(error)).await;
-            finish(scope).await;
-            return;
-        }
-    };
 
     let mut ports = vec![request.mcp_port];
     ports.extend(request.postgres_port);

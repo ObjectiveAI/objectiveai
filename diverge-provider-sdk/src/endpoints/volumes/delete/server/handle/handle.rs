@@ -1,9 +1,7 @@
 //! Answering a deletion, from a scope and a manager.
 
-use serde_json::Value;
 
 use super::super::response;
-use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::volumes::delete::client::request;
 use crate::server::scope_handle::ScopeHandle;
@@ -20,24 +18,25 @@ use crate::shared::error::Error;
 /// manager either way. Whether that is refused, performed, or performed
 /// and left to break what was holding it is the manager's to decide —
 /// the protocol does not adjudicate it, so neither does this.
+///
+/// # The request arrives decoded
+///
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request once to dispatch it, and hands the result here — so a
+/// malformed request never reaches this function, and nothing in it
+/// decodes one.
 pub async fn handle<M>(
     scope: ScopeHandle,
+    request: request::Frame,
     client_identity: &str,
     manager: &M,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let frame = match request::Frame::decode(scope.request()) {
-        Ok(request) => {
-            match manager.delete(client_identity, &request.name).await {
-                Ok(()) => response::Frame::Deleted,
-                Err(error) => response::Frame::Error(error.into()),
-            }
-        }
-        Err(error) => {
-            response::Frame::Error(Error(Value::String(error.to_string())))
-        }
+    let frame = match manager.delete(client_identity, &request.name).await {
+        Ok(()) => response::Frame::Deleted,
+        Err(error) => response::Frame::Error(error.into()),
     };
 
     let mut buffer = Vec::new();

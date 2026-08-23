@@ -1,9 +1,7 @@
 //! Answering a version request, from a scope and nothing else.
 
 use super::super::response;
-use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::endpoints::version::client::request;
 use crate::server::scope_handle::ScopeHandle;
 
 /// What this crate's version is.
@@ -29,26 +27,20 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// the honest version is the one in the binary, and anything else is a
 /// claim about code that is not running.
 ///
-/// # A request that will not decode is answered with silence
+/// # Nothing is checked, because everything was
 ///
-/// There is nowhere else for it to go. This endpoint's response is a
-/// string and has no error case — deliberately, since the question has
-/// no parameters and so nothing to get wrong — so the scope finishes
-/// without a response and a caller reads that as
-/// [`Unanswered`](crate::endpoints::version::client::execute::ExecuteError::Unanswered).
-///
-/// It is checked at all because this is public and a scope is a scope.
-/// Whatever dispatches here read the tag to get here; this confirms it
-/// rather than trusting it.
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request once to dispatch it, so a scope arriving here already
+/// parsed as a version ask — which carried nothing, the question
+/// having no parameters. There is nothing left to look at, and this
+/// takes the scope alone.
 pub async fn handle(scope: ScopeHandle) {
-    if request::Frame::decode(scope.request()).is_ok() {
-        let mut buffer = Vec::new();
-        response::Frame(VERSION)
-            .encode(&mut Writer::new(&mut buffer))
-            // The response is a string written as bytes. There is no
-            // failure to handle, and the compiler agrees.
-            .unwrap_or_else(|error| match error {});
-        scope.send_response(&buffer).await;
-    }
+    let mut buffer = Vec::new();
+    response::Frame(VERSION)
+        .encode(&mut Writer::new(&mut buffer))
+        // The response is a string written as bytes. There is no
+        // failure to handle, and the compiler agrees.
+        .unwrap_or_else(|error| match error {});
+    scope.send_response(&buffer).await;
     scope.send_response_finish().await;
 }

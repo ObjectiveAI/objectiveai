@@ -1,9 +1,7 @@
 //! Answering a creation, from a scope and a manager.
 
-use serde_json::Value;
 
 use super::super::response;
-use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::volumes::create::client::request;
 use crate::server::scope_handle::ScopeHandle;
@@ -24,27 +22,28 @@ use crate::shared::error::Error;
 /// does not decide when one is owed. See
 /// [`VolumeManager`] for why: the wire has one error per endpoint and
 /// no vocabulary for the reasons.
+///
+/// # The request arrives decoded
+///
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request once to dispatch it, and hands the result here — so a
+/// malformed request never reaches this function, and nothing in it
+/// decodes one.
 pub async fn handle<M>(
     scope: ScopeHandle,
+    request: request::Frame,
     client_identity: &str,
     manager: &M,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let frame = match request::Frame::decode(scope.request()) {
-        Ok(request) => {
-            match manager
-                .create(client_identity, &request.name, request.bytes)
-                .await
-            {
-                Ok(()) => response::Frame::Created,
-                Err(error) => response::Frame::Error(error.into()),
-            }
-        }
-        Err(error) => {
-            response::Frame::Error(Error(Value::String(error.to_string())))
-        }
+    let frame = match manager
+        .create(client_identity, &request.name, request.bytes)
+        .await
+    {
+        Ok(()) => response::Frame::Created,
+        Err(error) => response::Frame::Error(error.into()),
     };
 
     let mut buffer = Vec::new();

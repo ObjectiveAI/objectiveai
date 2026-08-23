@@ -61,8 +61,16 @@ use crate::shared::error::Error;
 /// running, other connectors stay attached, and the runner sees one
 /// fewer connection — which is the whole difference between a
 /// connector and a runner.
+///
+/// # The request arrives decoded
+///
+/// [`server::handle`](crate::server::handle::handle) reads every
+/// request once to dispatch it, and hands the result here — so a
+/// malformed request never reaches this function, and nothing in it
+/// decodes one.
 pub async fn handle<C>(
     scope: ScopeHandle,
+    request: request::Frame,
     address: IpAddr,
     laboratories: &Laboratories<C>,
 ) where
@@ -73,16 +81,6 @@ pub async fn handle<C>(
     // them may hold it alone. What stays exclusive is ENDING the scope,
     // which is why the finish has to get the handle back out.
     let scope = Arc::new(scope);
-
-    let request = match request::Frame::decode(scope.request()) {
-        Ok(request) => request,
-        Err(error) => {
-            let error = Error(Value::String(error.to_string()));
-            write(&scope, &response::Frame::Error(error)).await;
-            finish(scope).await;
-            return;
-        }
-    };
 
     // Holding the id is what entitles the connector to ASK; whether it
     // may attach is still the runner's answer, below. An id the

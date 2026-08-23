@@ -63,10 +63,14 @@ pub enum ClientRequest<'a> {
     ///
     /// # It is answered, not dropped
     ///
-    /// A server answers it with an error and finishes the scope, like
-    /// any other request. Which is the whole point: a client that sent
-    /// something wrong learns so, in the scope it opened, and its
-    /// other work carries on.
+    /// A server finishes the scope over it, with nothing in front:
+    /// eleven endpoints have eleven error vocabularies, and an invalid
+    /// request names none of them — where a finish with nothing before
+    /// it is already what the wire means by a request that could not
+    /// be served, and every executor reads it as its own "unanswered".
+    /// Which is the point all the same: a client that sent something
+    /// wrong learns so, in the scope it opened, and its other work
+    /// carries on.
     ///
     /// # Why it carries no reason
     ///

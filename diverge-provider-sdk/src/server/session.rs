@@ -18,9 +18,17 @@ use crate::frame::client::ClientFrame;
 
 /// A connection's provider side: the scopes a client opens on it.
 ///
-/// A [`Stream`] of [`ScopeHandle`]s, and that is the whole of a
-/// provider's outer loop — take a scope, spawn something to serve it,
-/// take the next.
+/// A [`Stream`] of requests, each beside the [`ScopeHandle`] that
+/// answers it — and that is the whole of a provider's outer loop: take
+/// a pair, read the request, spawn something to serve the scope, take
+/// the next.
+///
+/// The request rides beside the handle rather than inside it because
+/// it is read exactly once, by whatever dispatches on it, and a handle
+/// that carried the bytes too would be a copy nobody reads. What
+/// arrives is the frame's payload — the tag byte and the request's own
+/// bytes, header already gone — which is exactly what
+/// [`ClientRequest`](crate::endpoints::ClientRequest) decodes.
 ///
 /// # Why this is not a router
 ///
@@ -55,15 +63,15 @@ use crate::frame::client::ClientFrame;
 ///
 /// # What is not here yet
 ///
-/// **Reading a request.** A scope arrives with the frame that opened it
-/// and no way to look inside, so a provider can answer but cannot yet
-/// find out what it is answering.
-///
 /// **Auth.** A credential belongs to the connection and there is
 /// nowhere for one to go, in either direction. An
 /// [`Auth`](ClientFrame::Auth) frame is discarded, and a provider on an
 /// [`Outgoing`](crate::connection::Connection::Outgoing) connection
-/// cannot send the one it owes.
+/// cannot send the one it owes. Which is why
+/// [`handle`](super::handle::handle) takes a `client_identity` rather
+/// than learning one: the connection's identity is whatever the
+/// provider established at the upgrade, and this crate cannot yet see
+/// it.
 #[derive(Debug)]
 pub struct Session {
     /// The read half of the connection.
@@ -192,18 +200,12 @@ impl Session {
         }
     }
 
-    /// Make a scope's inbox, and hand it out with the request that
-    /// opened it.
+    /// Make a scope's inbox, and hand it out.
     ///
     /// [`None`] for a scope that is already open, which is the whole of
     /// what can go wrong here. A scope this end did not create, holding
     /// a number this end does not mint, needs nothing decided about it
     /// beyond somewhere to put what arrives inside.
-    ///
-    /// The receiver goes out with the request rather than after it,
-    /// because half a scope is not a thing a consumer could do anything
-    /// with — and because it has to reach the same party that got the
-    /// request, which handing it over separately could not guarantee.
     ///
     /// # Occupied is not the same as open
     ///
@@ -218,11 +220,7 @@ impl Session {
     /// Overwriting takes the old scope's channels with it, which is
     /// correct: they belonged to a scope that no longer exists, and
     /// nothing will ever answer on them again.
-    fn open_scope(
-        &mut self,
-        scope: u32,
-        request: Bytes,
-    ) -> Option<ScopeHandle> {
+    fn open_scope(&mut self, scope: u32) -> Option<ScopeHandle> {
         let occupied = self
             .scopes
             .get(&scope)
@@ -240,7 +238,6 @@ impl Session {
         );
         Some(ScopeHandle::new(
             scope,
-            request,
             channel_request_receiver,
             finished_channel_receiver,
             self.notice_sender.clone(),
@@ -416,7 +413,7 @@ impl Session {
     }
 }
 
-/// One scope at a time, until the connection ends.
+/// One request and its scope at a time, until the connection ends.
 ///
 /// [`None`] means the connection ended — a peer that closed and a peer
 /// that vanished arrive the same way, and there is no other ending: a
@@ -451,12 +448,12 @@ impl Session {
 /// holds the first. Both are worse than dropping, and a client that
 /// does it sees a request that is never answered.
 impl Stream for Session {
-    type Item = ScopeHandle;
+    type Item = (Bytes, ScopeHandle);
 
     fn poll_next(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<ScopeHandle>> {
+    ) -> Poll<Option<(Bytes, ScopeHandle)>> {
         // Every field is `Unpin` — the two socket halves, a map, and
         // two channel ends — so this never has to project.
         let this = self.get_mut();
@@ -480,9 +477,13 @@ impl Stream for Session {
                 // Nowhere to go. See the type's documentation: this is
                 // the gap, not a decision.
                 ClientFrame::Auth { .. } => {}
-                ClientFrame::Request { scope, .. } => {
-                    if let Some(handle) = this.open_scope(scope, bytes) {
-                        return Poll::Ready(Some(handle));
+                ClientFrame::Request { scope, payload } => {
+                    if let Some(handle) = this.open_scope(scope) {
+                        // A refcounted view of exactly the payload —
+                        // the tag and the request's bytes, the header
+                        // already behind it.
+                        let payload = bytes.slice_ref(payload);
+                        return Poll::Ready(Some((payload, handle)));
                     }
                 }
                 // A send that fails is a scope whose handle went away
