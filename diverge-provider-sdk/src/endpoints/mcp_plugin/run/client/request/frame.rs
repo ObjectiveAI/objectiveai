@@ -142,11 +142,16 @@ pub struct Frame {
     /// Where the plugin listens for its command conduit, inside the
     /// container.
     ///
-    /// The same shape as
+    /// The same inversion as
     /// [`postgres_port`](Self::postgres_port): a provider connects, and
     /// then the plugin asks for commands to be run and the provider
     /// relays them to the caller. See
     /// [`Command`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Command).
+    ///
+    /// What rides it is HTTP, where a database conduit carries pgwire.
+    /// So the plugin serves nothing here and asks for everything: it
+    /// makes a request, and what comes back is the answer the caller
+    /// gave. The provider reads neither.
     ///
     /// [`None`] is a plugin that runs no commands, on the same terms.
     #[serde(default, skip_serializing_if = "Option::is_none")]
