@@ -148,10 +148,10 @@ pub struct Frame {
     /// relays them to the caller. See
     /// [`Command`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Command).
     ///
-    /// What rides it is HTTP, where a database conduit carries pgwire.
-    /// So the plugin serves nothing here and asks for everything: it
-    /// makes a request, and what comes back is the answer the caller
-    /// gave. The provider reads neither.
+    /// What rides it is bytes, where a database conduit carries pgwire.
+    /// The plugin serves nothing here and asks for everything: it sends
+    /// a command, and what comes back is what the caller's CLI produced
+    /// running it. The provider reads neither.
     ///
     /// [`None`] is a plugin that runs no commands, on the same terms.
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -10,7 +10,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use super::super::channel_response::{command, oci, postgres};
 use super::execute_handle::ExecuteHandle;
 use super::super::{channel_request, request};
-use crate::client::command_proxy::{self, CommandProxy};
+use crate::client::command_proxy::CommandProxy;
 use crate::client::handle::{Handle, SendError};
 use crate::client::oci_proxy::{self, OciProxy};
 use crate::client::postgres_proxy::PostgresProxy;
@@ -181,6 +181,9 @@ async fn serve_one<O, P, C>(
             serve_oci(&handle, scope, channel, request, &*oci_proxy).await;
         }
         Ok(server_channel_request::Frame::Command(command)) => {
+            // Refcounted rather than copied: the command outlives this
+            // frame, so a borrow could not have gone with it.
+            let command = bytes.slice_ref(command);
             serve_command(&handle, scope, channel, command, &*command_proxy)
                 .await;
         }
@@ -299,90 +302,51 @@ async fn send_oci_body(
         .is_ok()
 }
 
-/// Run one command, and answer it.
+/// Run one command, and stream its items back.
 ///
-/// The head goes back first and then the body, as one frame or as many,
-/// and the channel finishes after — the same order a registry answer
-/// takes, and for the same reason: a status is known before what it
-/// introduces is.
+/// One frame per item, then a finish. A failure is the last item and
+/// travels as an
+/// [`Error`](command::Frame::Error) frame, which is what makes it
+/// something a plugin can act on rather than something it has to
+/// recognise inside an item it was meant to pass along.
 ///
-/// It stops at the first refusal, also for the same reason. A failure
-/// to send means the connection or the scope is gone, and nothing later
-/// will land either.
+/// It stops at the first refusal, for the same reason a registry answer
+/// does: a failure to send means the connection or the scope is gone,
+/// and nothing later will land either.
 async fn serve_command<C>(
     handle: &Handle,
     scope: u32,
     channel: u32,
-    command: crate::shared::http::request::Request<'_>,
+    command: Bytes,
     command_proxy: &C,
 ) where
     C: CommandProxy,
 {
-    let (head, body) = command_proxy.handle(command).await;
-
+    let mut items = command_proxy.run(command).await;
     let mut buffer = Vec::new();
-    if command::Frame::Head(head)
-        .encode(&mut Writer::new(&mut buffer))
-        .is_err()
-    {
-        return;
-    }
-    if handle
-        .send_channel_response(scope, channel, &buffer)
-        .await
-        .is_err()
-    {
-        return;
-    }
-
-    match body {
-        command_proxy::Body::Single(body) => {
-            if !send_command_body(handle, scope, channel, &mut buffer, &body)
-                .await
-            {
-                return;
-            }
+    while let Some(item) = items.next().await {
+        buffer.clear();
+        let frame = match &item {
+            Ok(item) => command::Frame::Item(item),
+            Err(error) => command::Frame::Error(error.clone()),
+        };
+        if frame.encode(&mut Writer::new(&mut buffer)).is_err() {
+            break;
         }
-        command_proxy::Body::Stream(mut body) => {
-            while let Some(piece) = body.next().await {
-                if !send_command_body(
-                    handle, scope, channel, &mut buffer, &piece,
-                )
-                .await
-                {
-                    return;
-                }
-            }
+        if handle
+            .send_channel_response(scope, channel, &buffer)
+            .await
+            .is_err()
+        {
+            return;
+        }
+        // Nothing follows an error. The finish below is what says the
+        // command is over, and it says it either way.
+        if item.is_err() {
+            break;
         }
     }
-    // Nothing follows it, so there is nothing to do about a failure
-    // here that returning would not already have done.
     let _ = handle.send_channel_response_finish(scope, channel).await;
-}
-
-/// One piece of a command's body, out.
-///
-/// The buffer is the one the head was built in, reused: a body frame is
-/// a tag and a copy, and a fresh [`Vec`] per piece would reallocate its
-/// way through a long answer for nothing.
-async fn send_command_body(
-    handle: &Handle,
-    scope: u32,
-    channel: u32,
-    buffer: &mut Vec<u8>,
-    body: &[u8],
-) -> bool {
-    buffer.clear();
-    if command::Frame::Body(body)
-        .encode(&mut Writer::new(buffer))
-        .is_err()
-    {
-        return false;
-    }
-    handle
-        .send_channel_response(scope, channel, buffer)
-        .await
-        .is_ok()
 }
 
 /// Splice one database connection onto the pair of channels carrying

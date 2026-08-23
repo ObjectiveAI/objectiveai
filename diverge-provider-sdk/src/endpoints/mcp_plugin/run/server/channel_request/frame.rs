@@ -105,43 +105,26 @@ pub enum Frame<'a> {
     /// [`command`](crate::endpoints::mcp_plugin::run::client::channel_response::command)
     /// frames.
     ///
-    /// # One ask, one answer
+    /// # One ask, then a stream
     ///
     /// One of these opens the channel and nothing follows it in this
-    /// direction. What comes back is the answer to it: a head, then as
-    /// much body as there turns out to be, then a finish.
+    /// direction. The answer is as many response frames as the command
+    /// produces items, then a finish — so a command yielding a thousand
+    /// rows delivers them as they come rather than as one document
+    /// assembled first.
     ///
     /// Which is why it is a channel rather than a field on some
-    /// existing exchange — the channel already means "one thing asked,
-    /// answers until finished", and that is exactly an HTTP exchange's
-    /// shape.
+    /// existing exchange: the channel already means "one thing asked,
+    /// answers until finished", and that is exactly a command's shape.
     ///
-    /// # HTTP, like [`Oci`](Self::Oci), and not for the same reason
+    /// # Opaque, and for a different reason than Postgres
     ///
-    /// A registry request is HTTP because a registry speaks HTTP. A
-    /// command is HTTP because it needed SOME envelope, and this is the
-    /// one the endpoint already carries: a method, a path, headers and
-    /// a body, answered with a status, headers and a body.
-    ///
-    /// What that buys is everything an envelope is for, none of it
-    /// invented here. A command that fails says so in a status rather
-    /// than in an item a reader has to recognise as a failure. A
-    /// command that answers once and a command that answers a thousand
-    /// times are one exchange with different bodies, where before every
-    /// command was a stream because one of them had to be. And a header
-    /// is somewhere to put what is about the asking rather than about
-    /// the command.
-    ///
-    /// # A shape, still not a vocabulary
-    ///
-    /// The path is where a command names itself, and this specification
-    /// does not say what may go there. That belongs to the CLI, which
-    /// gains subcommands on its own schedule, and a protocol that
-    /// enumerated them would be revised every time one appeared —
-    /// coupling the shape of the wire to a surface that moves faster
-    /// than it.
-    ///
-    /// The body is opaque for the same reason, in both directions.
+    /// Postgres is opaque because parsing it would mean tracking a wire
+    /// protocol. This is opaque because the command vocabulary is not
+    /// this specification's to define. It belongs to the CLI, which
+    /// gains subcommands on its own schedule, and a protocol that named
+    /// them would have to be revised every time one appeared — coupling
+    /// the shape of the wire to a surface that moves faster than it.
     ///
     /// So a provider relays and never reads. It cannot tell one command
     /// from another, which also means it cannot decide it disapproves
@@ -149,7 +132,19 @@ pub enum Frame<'a> {
     /// and the caller, using the
     /// [`identity`](crate::endpoints::mcp_plugin::run::client::request::Frame::identity)
     /// the caller supplied.
-    Command(Request<'a>),
+    ///
+    /// # Bytes, where a registry request is a request
+    ///
+    /// [`Oci`](Self::Oci) is HTTP because a registry speaks HTTP, and
+    /// carrying anything else would mean the far end reassembling one.
+    /// Nothing speaks a command but the CLI, and the CLI is on the
+    /// other side of this relay — so there is no protocol here to be
+    /// faithful to, and an envelope would be one this specification
+    /// invented and then had to justify.
+    ///
+    /// What a command IS lives inside these bytes, and this end never
+    /// looks.
+    Command(&'a [u8]),
 }
 
 /// Tag for [`Frame::Oci`].
@@ -162,9 +157,10 @@ const POSTGRES: u8 = 1;
 const COMMAND: u8 = 2;
 
 impl Encode for Frame<'_> {
-    /// The ordinary JSON failure, from the two variants that carry a
-    /// request. A connection id is four known bytes and cannot
-    /// contribute one.
+    /// The registry request's error, since the other two have none. A
+    /// connection id is four known bytes and a command is bytes copied,
+    /// neither of which can fail — so the union of the three is just
+    /// what a registry request can do wrong.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
@@ -180,9 +176,10 @@ impl Encode for Frame<'_> {
                     .unwrap_or_else(|error| match error {});
                 Ok(())
             }
-            Frame::Command(request) => {
+            Frame::Command(bytes) => {
                 out.extend_from_slice(&[COMMAND]);
-                request.encode(out)
+                out.extend_from_slice(bytes);
+                Ok(())
             }
         }
     }
@@ -200,9 +197,7 @@ impl<'a> Decode<'a> for Frame<'a> {
             POSTGRES => Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            COMMAND => Request::decode(rest)
-                .map(Frame::Command)
-                .map_err(FrameError::Command),
+            COMMAND => Ok(Frame::Command(rest)),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -222,8 +217,6 @@ pub enum FrameError {
     Oci(serde_json::Error),
     /// The connection request was not a connection id.
     Postgres(super::postgres::PostgresError),
-    /// The command request did not parse.
-    Command(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -241,9 +234,6 @@ impl fmt::Display for FrameError {
             FrameError::Postgres(error) => {
                 write!(f, "postgres connection request did not parse: {error}")
             }
-            FrameError::Command(error) => {
-                write!(f, "command request did not parse: {error}")
-            }
         }
     }
 }
@@ -253,7 +243,6 @@ impl Error for FrameError {
         match self {
             FrameError::Oci(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
-            FrameError::Command(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }
