@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 
-import { REVISION } from "../../revision";
-import { absolute, ordered, type Section } from "../../spec";
+import { REVISION } from "../revision";
+import { absolute, ordered, type Section } from "../spec";
 
 // Every rendered page has a raw-markdown twin at the same path with a
 // `.md` extension — one clean fetch per section for anything that
@@ -11,7 +11,6 @@ export async function getStaticPaths() {
   const all = await ordered();
   return all.map((section) => ({
     params: {
-      revision: REVISION,
       slug:
         section.section === null
           ? section.layer

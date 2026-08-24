@@ -1,6 +1,6 @@
 import { getCollection, type CollectionEntry } from "astro:content";
 
-import { ORIGIN, REVISION } from "./revision";
+import { ORIGIN } from "./revision";
 
 /** One section of the specification, located. */
 export interface Section {
@@ -31,8 +31,8 @@ function locate(entry: CollectionEntry<"spec">): Section {
     entry,
     layer,
     section,
-    url: `/${REVISION}/${path}/`,
-    markdownUrl: `/${REVISION}/${path}.md`,
+    url: `/${path}/`,
+    markdownUrl: `/${path}.md`,
   };
 }
 

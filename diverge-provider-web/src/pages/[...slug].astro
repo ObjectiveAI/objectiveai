@@ -1,17 +1,16 @@
 ---
 import { render } from "astro:content";
 
-import { SpecPage } from "../../components/SpecPage";
-import Layout from "../../layouts/Layout.astro";
-import { REVISION } from "../../revision";
-import { navigation, ordered, type Section } from "../../spec";
+import { SpecPage } from "../components/SpecPage";
+import Layout from "../layouts/Layout.astro";
+import { REVISION } from "../revision";
+import { navigation, ordered, type Section } from "../spec";
 
 export async function getStaticPaths() {
   const all = await ordered();
   const navLayers = await navigation();
   return all.map((section, position) => ({
     params: {
-      revision: REVISION,
       slug:
         section.section === null
           ? section.layer
