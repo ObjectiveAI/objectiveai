@@ -23,8 +23,8 @@ between turns.
 
 The `agent` object is one of four kinds, discriminated by its
 `upstream` member — the object carries no other wrapper. The values of
-`upstream` are `"openrouter"`, `"claude_agent_sdk"`, `"codex_sdk"`,
-and `"python"`.
+`upstream` are `"openrouter"`, `"claude_code"`, `"codex"`, and
+`"python"`.
 
 ### `openrouter`
 
@@ -32,7 +32,6 @@ and `"python"`.
 |--------|------|----------|
 | `upstream` | `"openrouter"` | required |
 | `model` | string | required |
-| `synthetic_reasoning` | boolean | optional |
 | `top_logprobs` | integer | optional |
 | `frequency_penalty` | number | optional |
 | `logit_bias` | object: token → integer bias | optional |
@@ -43,43 +42,55 @@ and `"python"`.
 | `top_p` | number | optional |
 | `max_tokens` | integer | optional |
 | `min_p` | number | optional |
-| `provider` | object, below | optional |
-| `reasoning` | object, below | optional |
+| `provider` | object, tabulated below | optional |
+| `reasoning` | object, tabulated below | optional |
 | `repetition_penalty` | number | optional |
 | `top_a` | number | optional |
 | `top_k` | integer | optional |
 | `verbosity` | `"low"` \| `"medium"` \| `"high"` \| `"max"` | optional |
 | `context_compression` | `"middle_out"` | optional |
 
-`provider` constrains upstream routing:
-`allow_fallbacks` (boolean), `require_parameters` (boolean),
-`order`, `only`, `ignore` (arrays of provider names), and
-`quantizations` (array drawn from `"int4"`, `"int8"`, `"fp4"`,
-`"fp6"`, `"fp8"`, `"fp16"`, `"bf16"`, `"fp32"`, `"unknown"`), each
-optional.
+#### `provider`
 
-`reasoning` configures reasoning output: `enabled` (boolean),
-`max_tokens` (integer), `effort` (`"none"` \| `"minimal"` \| `"low"`
-\| `"medium"` \| `"high"` \| `"xhigh"`), and `summary_verbosity`
-(`"auto"` \| `"concise"` \| `"detailed"`), each optional.
+Constrains upstream routing.
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `allow_fallbacks` | boolean | optional |
+| `require_parameters` | boolean | optional |
+| `order` | array of provider names (strings) | optional |
+| `only` | array of provider names (strings) | optional |
+| `ignore` | array of provider names (strings) | optional |
+| `quantizations` | array drawn from `"int4"`, `"int8"`, `"fp4"`, `"fp6"`, `"fp8"`, `"fp16"`, `"bf16"`, `"fp32"`, `"unknown"` | optional |
+
+#### `reasoning`
+
+Configures reasoning output.
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `enabled` | boolean | optional |
+| `max_tokens` | integer | optional |
+| `effort` | `"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` | optional |
+| `summary_verbosity` | `"auto"` \| `"concise"` \| `"detailed"` | optional |
 
 The semantics of these parameters are those of the OpenRouter API;
 this specification fixes their names, types, and placement.
 
-### `claude_agent_sdk`
+### `claude_code`
 
 | Member | Type | Presence |
 |--------|------|----------|
-| `upstream` | `"claude_agent_sdk"` | required |
+| `upstream` | `"claude_code"` | required |
 | `model` | string | required |
 | `thinking` | boolean | optional |
 | `effort` | `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` | optional |
 
-### `codex_sdk`
+### `codex`
 
 | Member | Type | Presence |
 |--------|------|----------|
-| `upstream` | `"codex_sdk"` | required |
+| `upstream` | `"codex"` | required |
 | `model` | string | required |
 | `effort` | `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` | optional |
 | `web_search_enabled` | boolean | optional |

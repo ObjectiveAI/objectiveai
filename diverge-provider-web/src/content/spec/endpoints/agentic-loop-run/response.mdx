@@ -44,8 +44,25 @@ types of the [Model Context Protocol specification](https://modelcontextprotocol
 | Member | Type | Presence |
 |--------|------|----------|
 | `type` | as tabulated | required |
-| `logprobs` | array of logprob objects, below | optional |
+| `logprobs` | array of objects, tabulated below | optional |
 | `inner` | `TextContent` (MCP) | required |
+
+#### Elements of `logprobs`
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `token` | string | required |
+| `bytes` | array of integers | optional |
+| `logprob` | number | required |
+| `top_logprobs` | array of objects, tabulated below | required |
+
+#### Elements of `top_logprobs`
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `token` | string | required |
+| `bytes` | array of integers | optional |
+| `logprob` | number | optional |
 
 ### `assistant_image_content`, `assistant_audio_content`
 
@@ -96,14 +113,3 @@ types of the [Model Context Protocol specification](https://modelcontextprotocol
 | `type` | `"continuation"` | required | |
 | `continuation` | string | required | The token a subsequent request presents to resume this loop. Opaque to the client. |
 | `meta` | metadata object (MCP) | optional | |
-
-### Logprob objects
-
-Where `logprobs` is present, each element is:
-
-| Member | Type | Presence |
-|--------|------|----------|
-| `token` | string | required |
-| `bytes` | array of integers | optional |
-| `logprob` | number | required |
-| `top_logprobs` | array of `{ token, bytes?, logprob? }` | required |
