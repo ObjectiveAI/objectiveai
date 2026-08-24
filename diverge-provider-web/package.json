@@ -1,7 +1,7 @@
 {
   "name": "diverge-provider-web",
   "type": "module",
-  "version": "0.0.1",
+  "version": "2.3.0",
   "engines": {
     "node": ">=22.12.0"
   },

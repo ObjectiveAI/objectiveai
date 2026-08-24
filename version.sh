@@ -255,6 +255,7 @@ PYPROJECT_TOMLS=(
 )
 
 PACKAGE_JSONS=(
+  diverge-provider-web/package.json
   objectiveai-sdk-js/package.json
   objectiveai-viewer/package.json
 )

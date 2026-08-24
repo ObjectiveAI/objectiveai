@@ -1663,7 +1663,7 @@ dependencies = [
 
 [[package]]
 name = "diverge-broker-sdk"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1671,7 +1671,7 @@ dependencies = [
 
 [[package]]
 name = "diverge-provider-sdk"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "axum",
  "bytes",
@@ -4278,7 +4278,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-api"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "ahash 0.8.12",
  "async-stream",
@@ -4344,7 +4344,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-cli"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "clap",
  "dirs",
@@ -4382,7 +4382,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-daemon"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "async-stream",
  "axum",
@@ -4447,7 +4447,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-db"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "clap",
  "objectiveai-sdk",
@@ -4457,7 +4457,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-db-proxy"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "axum",
  "dashmap",
@@ -4470,7 +4470,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-json-schema-builder"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "objectiveai-sdk",
  "schemars 1.2.2",
@@ -4479,7 +4479,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-laboratory"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "chrono",
  "clap",
@@ -4507,7 +4507,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-laboratory"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -4538,7 +4538,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-plugin-framework"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "arc-swap",
  "axum",
@@ -4558,7 +4558,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-proxy"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -4583,7 +4583,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "allocative",
  "anyhow",
@@ -4640,7 +4640,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-cffi"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4652,11 +4652,11 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-macros"
-version = "2.2.15"
+version = "2.3.0"
 
 [[package]]
 name = "objectiveai-sdk-rs-pyo3"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4670,7 +4670,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-wasm-js"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "arbitrary",
  "getrandom 0.4.2",
@@ -4693,7 +4693,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-viewer"
-version = "2.2.15"
+version = "2.3.0"
 dependencies = [
  "base64 0.22.1",
  "cef",

@@ -1,6 +1,6 @@
 [package]
 name = "diverge-provider-sdk"
-version = "2.2.15"
+version = "2.3.0"
 edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
 description = "Wire types for the Diverge provider API — the normative artifact of the provider specification"
