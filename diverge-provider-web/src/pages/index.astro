@@ -2,16 +2,9 @@
 import { SpecNav } from "../components/SpecNav";
 import Layout from "../layouts/Layout.astro";
 import { REVISION } from "../revision";
-import { layers } from "../spec";
+import { navigation } from "../spec";
 
-const tree = await layers();
-const navLayers = tree.map((layer) => ({
-  index: { url: layer.index.url, title: layer.index.entry.data.title },
-  sections: layer.sections.map((child) => ({
-    url: child.url,
-    title: child.entry.data.title,
-  })),
-}));
+const navLayers = await navigation();
 ---
 
 <Layout
@@ -34,12 +27,11 @@ const navLayers = tree.map((layer) => ({
             handshake in front.
           </p>
           <p>
-            The protocol's normative definition is the
+            This specification is the protocol's normative definition.
             <a href="https://docs.rs/diverge-provider-sdk"
               ><code>diverge-provider-sdk</code></a
-            > Rust crate — its types define the messages, and where this site's
-            prose and the crate disagree, the crate is correct. The revision
-            number is that crate's version.
+            > is a Rust SDK that implements it, versioned with this
+            specification's revisions.
           </p>
           <p>
             The whole specification is also available as

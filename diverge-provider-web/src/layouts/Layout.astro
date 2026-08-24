@@ -49,6 +49,11 @@ const canonical = absolute(path);
          through the slot, which Astro's scoped styles cannot see. */
       :root {
         color-scheme: light dark;
+        /* On the root, so the canvas paints it across the whole
+           viewport however short a page runs — a background on body
+           alone stops where the content does the moment anything
+           interferes with its propagation to the canvas. */
+        background: light-dark(#ffffff, #131313);
       }
       * {
         box-sizing: border-box;
@@ -64,7 +69,6 @@ const canonical = absolute(path);
           sans-serif;
         line-height: 1.6;
         color: light-dark(#1a1a1a, #d6d6d6);
-        background: light-dark(#ffffff, #131313);
       }
       code,
       pre {

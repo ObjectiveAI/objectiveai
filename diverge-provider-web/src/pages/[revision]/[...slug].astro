@@ -1,0 +1,63 @@
+---
+import { render } from "astro:content";
+
+import { SpecPage } from "../../components/SpecPage";
+import Layout from "../../layouts/Layout.astro";
+import { REVISION } from "../../revision";
+import { navigation, ordered, type Section } from "../../spec";
+
+export async function getStaticPaths() {
+  const all = await ordered();
+  const navLayers = await navigation();
+  return all.map((section, position) => ({
+    params: {
+      revision: REVISION,
+      slug:
+        section.section === null
+          ? section.layer
+          : `${section.layer}/${section.section}`,
+    },
+    props: {
+      section,
+      navLayers,
+      previous: position > 0 ? all[position - 1] : null,
+      next: position + 1 < all.length ? all[position + 1] : null,
+    },
+  }));
+}
+
+interface Props {
+  section: Section;
+  navLayers: Awaited<ReturnType<typeof navigation>>;
+  previous: Section | null;
+  next: Section | null;
+}
+
+const { section, navLayers, previous, next } = Astro.props;
+const { Content } = await render(section.entry);
+
+const crumbs = [{ url: "/", label: `Specification ${REVISION}` }];
+---
+
+<Layout
+  title={section.entry.data.title}
+  description={section.entry.data.summary}
+  path={section.url}
+  markdown={section.markdownUrl}
+>
+  <SpecPage
+    title={section.entry.data.title}
+    summary={section.entry.data.summary}
+    markdownUrl={section.markdownUrl}
+    crumbs={crumbs}
+    layers={navLayers}
+    current={section.url}
+    previous={previous
+      ? { url: previous.url, title: previous.entry.data.title }
+      : { url: "/", title: "Overview" }}
+    next={next && { url: next.url, title: next.entry.data.title }}
+    draft={section.entry.data.draft}
+  >
+    <Content />
+  </SpecPage>
+</Layout>

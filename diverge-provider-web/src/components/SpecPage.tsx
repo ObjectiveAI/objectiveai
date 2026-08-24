@@ -56,12 +56,7 @@ export function SpecPage(props: {
             <p className="summary">{props.summary}</p>
             {props.draft && (
               <p className="draft" role="note">
-                This section's prose is not yet written. The{" "}
-                <a href="https://docs.rs/diverge-provider-sdk">
-                  <code>diverge-provider-sdk</code>
-                </a>{" "}
-                crate is the normative source, and what this page will
-                describe already exists there in full.
+                This section is not yet written.
               </p>
             )}
             {props.children}

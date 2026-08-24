@@ -54,6 +54,26 @@ export async function layers(): Promise<Layer[]> {
   }));
 }
 
+/**
+ * The sidebar: Overview first, pointing at the root — the overview IS
+ * the front page — then every layer and section from the collection.
+ */
+export async function navigation(): Promise<
+  { index: { url: string; title: string }; sections: { url: string; title: string }[] }[]
+> {
+  const tree = await layers();
+  return [
+    { index: { url: "/", title: "Overview" }, sections: [] },
+    ...tree.map((layer) => ({
+      index: { url: layer.index.url, title: layer.index.entry.data.title },
+      sections: layer.sections.map((child) => ({
+        url: child.url,
+        title: child.entry.data.title,
+      })),
+    })),
+  ];
+}
+
 /** Every section in reading order, layer pages included. */
 export async function ordered(): Promise<Section[]> {
   return (await layers()).flatMap((layer) => [
