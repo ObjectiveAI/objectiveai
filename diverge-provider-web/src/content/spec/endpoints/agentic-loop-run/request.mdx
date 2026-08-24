@@ -107,4 +107,17 @@ runs, and the numbers are needed before it does.
 | `python` | string | required | The source, verbatim. |
 | `memory` | integer | required | Memory ceiling, in bytes. |
 | `disk` | integer | required | Writable-disk ceiling, in bytes. |
-| `requirements` | object: package → version specifier (string) | required | The packages the source imports. |
+| `requirements` | object: package name → version constraint, tabulated below | optional | The packages the source imports. Absent and empty are equivalent. One constraint per package: a name cannot appear twice, so contradictory constraints are unrepresentable. |
+
+#### Values of `requirements`
+
+Each value is one version constraint, split into an operator and a
+version so the operator is a closed set rather than a prefix to parse.
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `operator` | `"=="` \| `"!="` \| `">="` \| `">"` \| `"<="` \| `"<"` \| `"~="` | required |
+| `version` | string: a [PEP 440](https://peps.python.org/pep-0440/) version, without the operator — `"2.31.0"`, not `">=2.31.0"` | required |
+
+The operators compare as PEP 440 defines them. `===`, arbitrary
+equality, is not among them.
