@@ -5,94 +5,143 @@ import { ORIGIN } from "./revision";
 /** One section of the specification, located. */
 export interface Section {
   entry: CollectionEntry<"spec">;
-  /** The layer's path segment. */
-  layer: string;
-  /** The section's path segment, or null for the layer's own page. */
-  section: string | null;
+  /** The section's path segments, however deep. */
+  segments: string[];
   /** Site-relative URL of the rendered page, with trailing slash. */
   url: string;
   /** Site-relative URL of the raw-markdown twin. */
   markdownUrl: string;
 }
 
-/** One layer: its own page first, then its sections in order. */
-export interface Layer {
-  index: Section;
-  sections: Section[];
+/** A section and the sections beneath it. */
+export interface Node {
+  section: Section;
+  children: Node[];
+}
+
+/** A section with its place: ancestors above, children below. */
+export interface Located {
+  section: Section;
+  /** Ancestors, outermost first. The root page is not among them. */
+  trail: Section[];
+  children: Section[];
+}
+
+/** The recursive shape the sidebar renders. */
+export interface NavNode {
+  url: string;
+  title: string;
+  children: NavNode[];
 }
 
 function locate(entry: CollectionEntry<"spec">): Section {
-  const parts = entry.id.split("/");
-  const layer = parts[0];
-  const section =
-    parts.length > 1 && parts[1] !== "index" ? parts[1] : null;
-  const path = section === null ? layer : `${layer}/${section}`;
+  const segments = entry.id.split("/").filter((part) => part !== "index");
+  const path = segments.join("/");
   return {
     entry,
-    layer,
-    section,
+    segments,
     url: `/${path}/`,
     markdownUrl: `/${path}.md`,
   };
 }
 
 /**
- * The whole specification, in reading order: layers by their index
- * page's `order`, sections by their own within each layer.
+ * The specification as a tree, however deep the sections nest. A node
+ * with children is a directory with an `index.mdx` beside them; a leaf
+ * is a file. Siblings order by frontmatter `order`. A child whose
+ * parent has no index is an authoring error, and the build says so.
+ *
+ * The overview is not in the tree: it is the root page, fetched by
+ * [`overview`], and the navigation hardcodes its entry first.
  */
-export async function layers(): Promise<Layer[]> {
+export async function tree(): Promise<Node[]> {
   const entries = await getCollection("spec");
-  // The overview is not a layer: it lives at the root, fetched by
-  // [`overview`], and the navigation hardcodes its entry first.
-  const located = entries
-    .filter((entry) => entry.id.split("/")[0] !== "overview")
-    .map(locate);
-  const indexes = located
-    .filter((s) => s.section === null)
-    .sort((a, b) => a.entry.data.order - b.entry.data.order);
-  return indexes.map((index) => ({
-    index,
-    sections: located
-      .filter((s) => s.layer === index.layer && s.section !== null)
-      .sort((a, b) => a.entry.data.order - b.entry.data.order),
-  }));
+  const sections = entries
+    .map(locate)
+    .filter((section) => section.segments[0] !== "overview");
+  const byPath = new Map<string, Node>();
+  for (const section of sections) {
+    byPath.set(section.segments.join("/"), { section, children: [] });
+  }
+  const roots: Node[] = [];
+  for (const node of byPath.values()) {
+    const parentPath = node.section.segments.slice(0, -1).join("/");
+    if (parentPath === "") {
+      roots.push(node);
+      continue;
+    }
+    const parent = byPath.get(parentPath);
+    if (!parent) {
+      throw new Error(
+        `spec section "${node.section.segments.join("/")}" has no parent index`,
+      );
+    }
+    parent.children.push(node);
+  }
+  const sort = (nodes: Node[]) => {
+    nodes.sort(
+      (a, b) => a.section.entry.data.order - b.section.entry.data.order,
+    );
+    for (const node of nodes) {
+      sort(node.children);
+    }
+  };
+  sort(roots);
+  return roots;
+}
+
+/**
+ * Every section in reading order — the tree, depth first — each with
+ * its ancestor trail and its children.
+ */
+export async function flattened(): Promise<Located[]> {
+  const roots = await tree();
+  const out: Located[] = [];
+  const walk = (node: Node, trail: Section[]) => {
+    out.push({
+      section: node.section,
+      trail,
+      children: node.children.map((child) => child.section),
+    });
+    for (const child of node.children) {
+      walk(child, [...trail, node.section]);
+    }
+  };
+  for (const root of roots) {
+    walk(root, []);
+  }
+  return out;
+}
+
+/** Every section in reading order. */
+export async function ordered(): Promise<Section[]> {
+  return (await flattened()).map((located) => located.section);
 }
 
 /**
  * The sidebar: Overview first, pointing at the root — the overview IS
- * the front page — then every layer and section from the collection.
+ * the front page — then the whole tree, to its full depth, on every
+ * page.
  */
-export async function navigation(): Promise<
-  { index: { url: string; title: string }; sections: { url: string; title: string }[] }[]
-> {
-  const tree = await layers();
+export async function navigation(): Promise<NavNode[]> {
+  const toNav = (node: Node): NavNode => ({
+    url: node.section.url,
+    title: node.section.entry.data.title,
+    children: node.children.map(toNav),
+  });
   return [
-    { index: { url: "/", title: "Overview" }, sections: [] },
-    ...tree.map((layer) => ({
-      index: { url: layer.index.url, title: layer.index.entry.data.title },
-      sections: layer.sections.map((child) => ({
-        url: child.url,
-        title: child.entry.data.title,
-      })),
-    })),
+    { url: "/", title: "Overview", children: [] },
+    ...(await tree()).map(toNav),
   ];
-}
-
-/** Every section in reading order, layer pages included. */
-export async function ordered(): Promise<Section[]> {
-  return (await layers()).flatMap((layer) => [
-    layer.index,
-    ...layer.sections,
-  ]);
 }
 
 /**
  * The overview: the front page's prose, single-sourced for the page
- * and its twin. Its URLs are the root's own, not a layer's.
+ * and its twin. Its URLs are the root's own, not a section's.
  */
 export async function overview(): Promise<Section> {
   const entries = await getCollection("spec");
-  // The glob loader names a layer's index by the directory alone.
+  // The glob loader names a directory's index by the directory alone.
   const entry = entries.find(
     (candidate) =>
       candidate.id === "overview" || candidate.id === "overview/index",
@@ -102,8 +151,7 @@ export async function overview(): Promise<Section> {
   }
   return {
     entry,
-    layer: "overview",
-    section: null,
+    segments: [],
     url: "/",
     markdownUrl: "/index.md",
   };

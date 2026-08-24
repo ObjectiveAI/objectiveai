@@ -9,7 +9,7 @@ import Layout from "../layouts/Layout.astro";
 import { REVISION } from "../revision";
 import { navigation, ordered, overview } from "../spec";
 
-const navLayers = await navigation();
+const navNodes = await navigation();
 const all = await ordered();
 const next =
   all.length > 0
@@ -33,7 +33,7 @@ const { Content } = await render(page.entry);
     />
     <div class="columns">
       <aside>
-        <SpecNav layers={navLayers} current={page.url} />
+        <SpecNav nodes={navNodes} current={page.url} />
       </aside>
       <main>
         <article>

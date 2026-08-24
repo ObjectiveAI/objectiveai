@@ -4,38 +4,40 @@ import { render } from "astro:content";
 import { SpecPage } from "../components/SpecPage";
 import Layout from "../layouts/Layout.astro";
 import { REVISION } from "../revision";
-import { navigation, ordered, type Section } from "../spec";
+import { flattened, navigation, type Located } from "../spec";
 
 export async function getStaticPaths() {
-  const all = await ordered();
-  const navLayers = await navigation();
-  return all.map((section, position) => ({
-    params: {
-      slug:
-        section.section === null
-          ? section.layer
-          : `${section.layer}/${section.section}`,
-    },
+  const all = await flattened();
+  const nodes = await navigation();
+  return all.map((located, position) => ({
+    params: { slug: located.section.segments.join("/") },
     props: {
-      section,
-      navLayers,
-      previous: position > 0 ? all[position - 1] : null,
-      next: position + 1 < all.length ? all[position + 1] : null,
+      located,
+      nodes,
+      previous: position > 0 ? all[position - 1].section : null,
+      next: position + 1 < all.length ? all[position + 1].section : null,
     },
   }));
 }
 
 interface Props {
-  section: Section;
-  navLayers: Awaited<ReturnType<typeof navigation>>;
-  previous: Section | null;
-  next: Section | null;
+  located: Located;
+  nodes: Awaited<ReturnType<typeof navigation>>;
+  previous: Located["section"] | null;
+  next: Located["section"] | null;
 }
 
-const { section, navLayers, previous, next } = Astro.props;
+const { located, nodes, previous, next } = Astro.props;
+const { section, trail, children } = located;
 const { Content } = await render(section.entry);
 
-const crumbs = [{ url: "/", label: `Specification ${REVISION}` }];
+const crumbs = [
+  { url: "/", label: `Specification ${REVISION}` },
+  ...trail.map((ancestor) => ({
+    url: ancestor.url,
+    label: ancestor.entry.data.title,
+  })),
+];
 ---
 
 <Layout
@@ -49,13 +51,18 @@ const crumbs = [{ url: "/", label: `Specification ${REVISION}` }];
     summary={section.entry.data.summary}
     markdownUrl={section.markdownUrl}
     crumbs={crumbs}
-    layers={navLayers}
+    nodes={nodes}
     current={section.url}
     previous={previous
       ? { url: previous.url, title: previous.entry.data.title }
       : { url: "/", title: "Overview" }}
     next={next && { url: next.url, title: next.entry.data.title }}
     draft={section.entry.data.draft}
+    subsections={children.map((child) => ({
+      url: child.url,
+      title: child.entry.data.title,
+      summary: child.entry.data.summary,
+    }))}
   >
     <Content />
   </SpecPage>

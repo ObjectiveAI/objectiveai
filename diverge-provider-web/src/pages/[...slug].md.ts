@@ -10,12 +10,7 @@ import { absolute, ordered, type Section } from "../spec";
 export async function getStaticPaths() {
   const all = await ordered();
   return all.map((section) => ({
-    params: {
-      slug:
-        section.section === null
-          ? section.layer
-          : `${section.layer}/${section.section}`,
-    },
+    params: { slug: section.segments.join("/") },
     props: { section },
   }));
 }
