@@ -42,9 +42,11 @@ const canonical = absolute(path);
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <style>
+    <style is:global>
       /* System fonts, a readable measure, and nothing loaded from
-         anywhere. The whole presentation is this block. */
+         anywhere. The whole presentation is this block — global on
+         purpose: the markup it styles is rendered by React components
+         through the slot, which Astro's scoped styles cannot see. */
       :root {
         color-scheme: light dark;
       }
@@ -140,15 +142,15 @@ const canonical = absolute(path);
         border-radius: 0 4px 4px 0;
       }
       /* rehype-autolink-headings appends these. */
-      article :global(a.anchor) {
+      article a.anchor {
         margin-left: 0.35rem;
         text-decoration: none;
         opacity: 0;
       }
-      article :global(h2:hover a.anchor),
-      article :global(h3:hover a.anchor),
-      article :global(h4:hover a.anchor),
-      article :global(a.anchor:focus) {
+      article h2:hover a.anchor,
+      article h3:hover a.anchor,
+      article h4:hover a.anchor,
+      article a.anchor:focus {
         opacity: 0.6;
       }
       table {
