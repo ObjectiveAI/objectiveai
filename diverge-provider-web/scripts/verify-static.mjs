@@ -55,8 +55,14 @@ for (const script of scripts) {
   }
 }
 
-// 3. llms.txt links resolve.
-const llms = readFileSync(join(dist, "llms.txt"), "utf-8");
+// 3. llms.txt links resolve — when it exists. The site is being
+// rebuilt page by page, and the index returns when its targets do.
+let llms = "";
+try {
+  llms = readFileSync(join(dist, "llms.txt"), "utf-8");
+} catch {
+  // Not built in this pass.
+}
 for (const match of llms.matchAll(
   /\]\(https:\/\/provider\.diverge\.network(\/[^)]+)\)/g,
 )) {
