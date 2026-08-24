@@ -1,10 +1,17 @@
 ---
+import { Adjacent } from "../components/Adjacent";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { SpecNav } from "../components/SpecNav";
 import Layout from "../layouts/Layout.astro";
 import { REVISION } from "../revision";
-import { navigation } from "../spec";
+import { navigation, ordered } from "../spec";
 
 const navLayers = await navigation();
+const all = await ordered();
+const next =
+  all.length > 0
+    ? { url: all[0].url, title: all[0].entry.data.title }
+    : null;
 ---
 
 <Layout
@@ -13,6 +20,10 @@ const navLayers = await navigation();
   path="/"
 >
   <div class="page">
+    <Breadcrumbs
+      crumbs={[{ url: "/", label: `Specification ${REVISION}` }]}
+      current="Overview"
+    />
     <div class="columns">
       <aside>
         <SpecNav layers={navLayers} current="/" />
@@ -45,6 +56,7 @@ const navLayers = await navigation();
             >.
           </p>
         </article>
+        <Adjacent previous={null} next={next} />
       </main>
     </div>
   </div>

@@ -1,20 +1,13 @@
 import type { ReactNode } from "react";
 
+import { Adjacent, type Neighbor } from "./Adjacent";
+import { Breadcrumbs, type Crumb } from "./Breadcrumbs";
 import { SpecNav, type NavLayer } from "./SpecNav";
 
-export interface Crumb {
-  url: string;
-  label: string;
-}
-
-export interface Neighbor {
-  url: string;
-  title: string;
-}
-
 /**
- * One specification page: breadcrumbs, the article, the outline, and
- * where to go next.
+ * One specification section: breadcrumbs, the article, the outline,
+ * and where to go next — the trail and the footer nav being the shared
+ * [`Breadcrumbs`] and [`Adjacent`] the front page composes too.
  *
  * React as an authoring language and nothing else — this renders once,
  * at build time, and ships as HTML. The article's body arrives as
@@ -34,18 +27,7 @@ export function SpecPage(props: {
 }): ReactNode {
   return (
     <div className="page">
-      <header>
-        <nav aria-label="Breadcrumbs">
-          <ol className="crumbs">
-            {props.crumbs.map((crumb) => (
-              <li key={crumb.url}>
-                <a href={crumb.url}>{crumb.label}</a>
-              </li>
-            ))}
-            <li aria-current="page">{props.title}</li>
-          </ol>
-        </nav>
-      </header>
+      <Breadcrumbs crumbs={props.crumbs} current={props.title} />
       <div className="columns">
         <aside>
           <SpecNav layers={props.layers} current={props.current} />
@@ -68,22 +50,7 @@ export function SpecPage(props: {
               </p>
             </footer>
           </article>
-          <nav aria-label="Adjacent sections" className="adjacent">
-            {props.previous ? (
-              <a rel="prev" href={props.previous.url}>
-                ← {props.previous.title}
-              </a>
-            ) : (
-              <span />
-            )}
-            {props.next ? (
-              <a rel="next" href={props.next.url}>
-                {props.next.title} →
-              </a>
-            ) : (
-              <span />
-            )}
-          </nav>
+          <Adjacent previous={props.previous} next={props.next} />
         </main>
       </div>
     </div>
