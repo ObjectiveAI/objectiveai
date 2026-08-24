@@ -10,7 +10,7 @@ A server sends six frame types.
 - **Type `0` — authorization.** The scope and channel fields are
   ignored. The payload is a credential. Sent only when the server is
   the connection's initiator, only as the connection's first frame —
-  see [Authorization](/frames/authorization/).
+  see [Authorization](/authorization/).
 - **Type `2` — response.** One piece of the answer to a
   [scope](/frames/scopes/)'s request. The scope field names the scope;
   the channel field is ignored. The payload is the piece.

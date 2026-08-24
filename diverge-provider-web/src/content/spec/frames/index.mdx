@@ -28,7 +28,7 @@ never spans messages.
 
 | Type | Client → Server | Server → Client |
 |------|-----------------|-----------------|
-| `0` | [authorization](/frames/authorization/) | [authorization](/frames/authorization/) |
+| `0` | [authorization](/authorization/) | [authorization](/authorization/) |
 | `1` | [request](/frames/scopes/) | — |
 | `2` | — | [response](/frames/scopes/) |
 | `3` | — | [response finish](/frames/scopes/) |
@@ -59,7 +59,8 @@ never spans messages.
   exchange are new payload forms, not new frame types.
 
 The frame types each role sends are enumerated in
-[Client Frames](/frames/client/) and [Server Frames](/frames/server/).
-The requirements governing their use are
-[Authorization](/frames/authorization/), [Scopes](/frames/scopes/),
-and [Channels](/frames/channels/).
+[Client Frames](/frames/client/) and [Server Frames](/frames/server/);
+the requirements governing scopes and channels are
+[Scopes](/frames/scopes/) and [Channels](/frames/channels/). The
+authorization frame is governed by the next layer,
+[Authorization](/authorization/).
