@@ -35,3 +35,34 @@ sections; their tag values are normative as tabulated.
 - **Growth is new tag values.** A future endpoint is a new tag value
   in this table. The frame types of the [Frames](/frames/) layer are
   unaffected by the addition of endpoints.
+
+## Notation
+
+The JSON payloads of this layer are defined by type declarations,
+written as Rust with serde attributes. The declarations are normative
+for the JSON they describe — the protocol is not Rust, and the
+notation binds no implementation language — under the following
+reading:
+
+- A `struct` is a JSON object. A field is a member of the same name,
+  unless `#[serde(rename = "…")]` states the wire name; `r#type` is
+  the member `type`.
+- A field marked `#[serde(default, skip_serializing_if = …)]` may be
+  absent, and absence has the marked default's meaning. An `Option`
+  field without that marking is present, and may be `null`.
+- An enum marked `#[serde(untagged)]` is exactly one of its variants'
+  shapes, with no wrapper naming the variant.
+- An enum of unit variants is a string: each variant's
+  `#[serde(rename = "…")]` value, or its name in `snake_case` where
+  `#[serde(rename_all = "snake_case")]` is stated. A one-variant enum
+  is thereby a constant.
+- A field marked `#[serde(flatten)]` contributes its members to the
+  containing object; the field's own name never appears.
+- `String` is a string; `bool` is a boolean; `u64` and `i64` are
+  integers; `f64` and `Decimal` are numbers; `Vec<T>` is an array;
+  `Vec<u8>` is an array of integers; a map is an object;
+  `serde_json::Value` is any JSON value.
+- Types named from `rmcp::model` are the types of the
+  [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25),
+  serialized as MCP defines them; they are incorporated by reference
+  and not restated.

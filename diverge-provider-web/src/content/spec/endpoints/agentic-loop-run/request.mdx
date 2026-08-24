@@ -1,99 +1,248 @@
 ---
 title: 'Request'
-summary: 'Tag byte 0, then a JSON object: the agent to run — one of four agent kinds, discriminated by its upstream field — the prompt, and an optional continuation token.'
+summary: 'Tag byte 0, then a JSON object: the agent to run — one of four agent kinds, discriminated by its upstream member — the prompt, and an optional continuation token.'
 order: 1
 draft: false
 ---
 
 The request's payload is the endpoint tag byte `0` followed by a JSON
 text (UTF-8, [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259))
-whose top-level value is an object with the following members.
+whose top-level value is defined by the following declaration, read
+under the layer's [notation](/endpoints/#notation).
 
-| Member | Type | Presence | Meaning |
-|--------|------|----------|---------|
-| `agent` | object | required | The agent to run, and its parameters. One of the four kinds below. |
-| `prompt` | array | required | The input for this turn: an array of content blocks as defined by the [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25). A prompt, not a conversation — what came before is the server's state, reached through `continuation`. |
-| `continuation` | string | optional | Resume the loop named by this token, previously issued in a [continuation chunk](/endpoints/agentic-loop-run/response/). Opaque to the client. |
+```rust
+pub struct Request {
+    /// What to run, and how to sample it.
+    pub agent: Agent,
+    /// The input for this turn: MCP content blocks.
+    pub prompt: Vec<ContentBlock>,
+    /// Resume the loop this token names.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub continuation: Option<String>,
+}
+```
 
-A resumption is this same request with `continuation` present; it is
-not a distinct request form, and the agent's parameters may differ
-between turns.
+- **The prompt is post-transform.** What an agent as authored carries
+  to shape a request — a system prompt, prefix and suffix messages —
+  is applied before a request is built; `prompt` is the result, and
+  the server does not rewrite it. A prompt, not a conversation: what
+  came before is the server's state, reached through `continuation`.
+- **Resumption is the same request.** A resumption is this request
+  with `continuation` present — the token previously issued in a
+  [continuation chunk](/endpoints/agentic-loop-run/response/) — not a
+  distinct request form, and the agent's parameters may differ between
+  turns. The token is opaque to the client.
 
 ## The agent
 
-The `agent` object is one of four kinds, discriminated by its
-`upstream` member — the object carries no other wrapper. The values of
-`upstream` are `"openrouter"`, `"claude_code"`, `"codex"`, and
-`"python"`.
+The agent is one of four kinds, discriminated by each kind's constant
+`upstream` member — the union is untagged, so an agent goes on the
+wire as its parameters and nothing more.
+
+```rust
+#[serde(untagged)]
+pub enum Agent {
+    Openrouter(openrouter::Agent),
+    ClaudeCode(claude_code::Agent),
+    Codex(codex::Agent),
+    Python(python::Agent),
+}
+```
 
 ### `openrouter`
 
-| Member | Type | Presence |
-|--------|------|----------|
-| `upstream` | `"openrouter"` | required |
-| `model` | string | required |
-| `top_logprobs` | integer | optional |
-| `frequency_penalty` | number | optional |
-| `logit_bias` | object: token → integer bias | optional |
-| `max_completion_tokens` | integer | optional |
-| `presence_penalty` | number | optional |
-| `stop` | string, or array of strings | optional |
-| `temperature` | number | optional |
-| `top_p` | number | optional |
-| `max_tokens` | integer | optional |
-| `min_p` | number | optional |
-| `provider` | object, tabulated below | optional |
-| `reasoning` | object, tabulated below | optional |
-| `repetition_penalty` | number | optional |
-| `top_a` | number | optional |
-| `top_k` | integer | optional |
-| `verbosity` | `"low"` \| `"medium"` \| `"high"` \| `"max"` | optional |
-| `context_compression` | `"middle_out"` | optional |
+```rust
+pub struct Agent {
+    /// The discriminator. Always "openrouter".
+    pub upstream: Upstream,
+    /// The model to route to, in OpenRouter's vendor/name form.
+    pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_logprobs: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logit_bias: Option<IndexMap<String, i64>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_completion_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<Stop>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_p: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<Provider>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<Reasoning>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repetition_penalty: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_a: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verbosity: Option<Verbosity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_compression: Option<ContextCompression>,
+}
 
-#### `provider`
+#[serde(rename_all = "snake_case")]
+pub enum Upstream {
+    Openrouter,
+}
 
-Constrains upstream routing.
+/// One stop sequence, or several.
+#[serde(untagged)]
+pub enum Stop {
+    String(String),
+    Strings(Vec<String>),
+}
 
-| Member | Type | Presence |
-|--------|------|----------|
-| `allow_fallbacks` | boolean | optional |
-| `require_parameters` | boolean | optional |
-| `order` | array of provider names (strings) | optional |
-| `only` | array of provider names (strings) | optional |
-| `ignore` | array of provider names (strings) | optional |
-| `quantizations` | array drawn from `"int4"`, `"int8"`, `"fp4"`, `"fp6"`, `"fp8"`, `"fp16"`, `"bf16"`, `"fp32"`, `"unknown"` | optional |
+#[serde(rename_all = "snake_case")]
+pub enum Verbosity {
+    Low,
+    Medium,
+    High,
+    Max,
+}
 
-#### `reasoning`
+#[serde(rename_all = "snake_case")]
+pub enum ContextCompression {
+    MiddleOut,
+}
 
-Configures reasoning output.
+/// Constrains upstream routing.
+pub struct Provider {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allow_fallbacks: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub require_parameters: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub order: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub only: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ignore: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quantizations: Option<Vec<ProviderQuantization>>,
+}
 
-| Member | Type | Presence |
-|--------|------|----------|
-| `enabled` | boolean | optional |
-| `max_tokens` | integer | optional |
-| `effort` | `"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` | optional |
-| `summary_verbosity` | `"auto"` \| `"concise"` \| `"detailed"` | optional |
+#[serde(rename_all = "snake_case")]
+pub enum ProviderQuantization {
+    Int4,
+    Int8,
+    Fp4,
+    Fp6,
+    Fp8,
+    Fp16,
+    Bf16,
+    Fp32,
+    Unknown,
+}
+
+/// Configures reasoning output.
+pub struct Reasoning {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effort: Option<ReasoningEffort>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary_verbosity: Option<ReasoningSummaryVerbosity>,
+}
+
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningEffort {
+    None,
+    Minimal,
+    Low,
+    Medium,
+    High,
+    Xhigh,
+}
+
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningSummaryVerbosity {
+    Auto,
+    Concise,
+    Detailed,
+}
+```
 
 The semantics of these parameters are those of the OpenRouter API;
 this specification fixes their names, types, and placement.
 
 ### `claude_code`
 
-| Member | Type | Presence |
-|--------|------|----------|
-| `upstream` | `"claude_code"` | required |
-| `model` | string | required |
-| `thinking` | boolean | optional |
-| `effort` | `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` | optional |
+```rust
+pub struct Agent {
+    /// The discriminator. Always "claude_code".
+    pub upstream: Upstream,
+    /// The model to run.
+    pub model: String,
+    /// Whether to think before answering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<bool>,
+    /// How much effort to spend thinking. Meaningful only with
+    /// thinking on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effort: Option<Effort>,
+}
+
+#[serde(rename_all = "snake_case")]
+pub enum Upstream {
+    ClaudeCode,
+}
+
+#[serde(rename_all = "snake_case")]
+pub enum Effort {
+    Low,
+    Medium,
+    High,
+    Xhigh,
+    Max,
+}
+```
 
 ### `codex`
 
-| Member | Type | Presence |
-|--------|------|----------|
-| `upstream` | `"codex"` | required |
-| `model` | string | required |
-| `effort` | `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` | optional |
-| `web_search_enabled` | boolean | optional |
+```rust
+pub struct Agent {
+    /// The discriminator. Always "codex".
+    pub upstream: Upstream,
+    /// The model to run.
+    pub model: String,
+    /// How much effort to spend reasoning.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effort: Option<Effort>,
+    /// Whether the model may search the web — a capability of the
+    /// upstream rather than a tool.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub web_search_enabled: Option<bool>,
+}
+
+#[serde(rename_all = "snake_case")]
+pub enum Upstream {
+    Codex,
+}
+
+#[serde(rename_all = "snake_case")]
+pub enum Effort {
+    Low,
+    Medium,
+    High,
+    Xhigh,
+    Max,
+}
+```
 
 ### `python`
 
@@ -101,23 +250,59 @@ A Python agent is source code the server executes, and its resource
 requirements are the client's to state — the source is opaque until it
 runs, and the numbers are needed before it does.
 
-| Member | Type | Presence | Meaning |
-|--------|------|----------|---------|
-| `upstream` | `"python"` | required | |
-| `python` | string | required | The source, verbatim. |
-| `memory` | integer | required | Memory ceiling, in bytes. |
-| `disk` | integer | required | Writable-disk ceiling, in bytes. |
-| `requirements` | object: package name → version constraint, tabulated below | optional | The packages the source imports. Absent and empty are equivalent. One constraint per package: a name cannot appear twice, so contradictory constraints are unrepresentable. |
+```rust
+pub struct Agent {
+    /// The discriminator. Always "python".
+    pub upstream: Upstream,
+    /// The source, verbatim. Never normalized: whitespace is
+    /// significant in Python.
+    pub python: String,
+    /// Memory ceiling, in bytes, interpreter included. Not a hint:
+    /// a process that exceeds it is killed.
+    pub memory: u64,
+    /// Writable-disk ceiling, in bytes. What the run writes over its
+    /// image; the image's own layers are not counted, and neither is
+    /// what the requirements install.
+    pub disk: u64,
+    /// Third-party packages the source needs: distribution name to
+    /// version constraint. A map, so one package cannot carry two
+    /// contradictory constraints. Absent and empty are equivalent.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub requirements: IndexMap<String, Version>,
+}
 
-#### Values of `requirements`
+#[serde(rename_all = "snake_case")]
+pub enum Upstream {
+    Python,
+}
 
-Each value is one version constraint, split into an operator and a
-version so the operator is a closed set rather than a prefix to parse.
+/// One version constraint: an operator and a PEP 440 version,
+/// held apart so the operator is a closed set rather than a
+/// prefix to parse. "2.31.0", not ">=2.31.0".
+pub struct Version {
+    pub operator: VersionOperator,
+    pub version: String,
+}
 
-| Member | Type | Presence |
-|--------|------|----------|
-| `operator` | `"=="` \| `"!="` \| `">="` \| `">"` \| `"<="` \| `"<"` \| `"~="` | required |
-| `version` | string: a [PEP 440](https://peps.python.org/pep-0440/) version, without the operator — `"2.31.0"`, not `">=2.31.0"` | required |
+/// The comparisons of PEP 440. `===`, arbitrary equality, is
+/// not among them.
+pub enum VersionOperator {
+    #[serde(rename = "==")]
+    Equal,
+    #[serde(rename = "!=")]
+    NotEqual,
+    #[serde(rename = ">=")]
+    GreaterEqual,
+    #[serde(rename = ">")]
+    Greater,
+    #[serde(rename = "<=")]
+    LessEqual,
+    #[serde(rename = "<")]
+    Less,
+    #[serde(rename = "~=")]
+    Compatible,
+}
+```
 
-The operators compare as PEP 440 defines them. `===`, arbitrary
-equality, is not among them.
+The operators compare as
+[PEP 440](https://peps.python.org/pep-0440/) defines them.
