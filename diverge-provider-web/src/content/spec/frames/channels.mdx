@@ -11,15 +11,25 @@ and the stream of responses that answers it.
 - **Opening.** Either party may open a channel, by sending a channel
   request (type `4`) naming the scope. The opener chooses the
   channel's number.
-- **Numbering is per opener.** The client's channel *n* and the
-  server's channel *n* are distinct channels, distinguished by the
-  direction their channel requests travelled. A channel is therefore
-  identified by its scope, its opener, and its number, and neither
-  party can collide with numbers the other has chosen.
-- **One request per channel.** A channel carries exactly one request.
-  A second request frame never appears on a live channel, and the
-  channel's number may not be reused until the response stream on it
-  has finished.
+- **Numbering is per opener, per scope.** A channel number identifies
+  a channel only together with the scope it was opened in and the
+  party that opened it. The same number therefore names distinct
+  channels across scopes, across openers, or both: the client's
+  channel *n* in one scope, the client's channel *n* in another, and
+  the server's channel *n* in each are four distinct channels, all
+  four may be open at once, and none collides with any other.
+- **Uniqueness, mandated.** An opener does not send a channel request
+  whose channel field names a channel it still has open within the
+  named scope. A number may bear a new channel — for that opener, in
+  that scope — only after the responder has ended the channel that
+  previously bore it, by that channel's response finish.
+- **A channel request naming an open channel is ignored.** The
+  receiver — server and client alike — disregards any channel request
+  whose scope and channel fields name a channel its sender already
+  has open. The disregarded request is never answered, and the
+  channel it named continues, unaffected.
+- **One request per channel.** A channel carries exactly one request;
+  a second request frame never appears on a live channel.
 - **Answering.** The responder — the party that received the channel
   request — answers with zero or more channel responses (type `5`) and
   ends the channel with exactly one channel response finish (type
