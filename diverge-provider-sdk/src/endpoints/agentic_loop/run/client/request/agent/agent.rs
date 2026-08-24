@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// parameters rather than as a wrapper around them.
 ///
 /// One variant per upstream because the parameter sets genuinely do
-/// not overlap: `logit_bias` means nothing to the Claude Agent SDK,
+/// not overlap: `logit_bias` means nothing to Claude Code,
 /// `thinking` means nothing to OpenRouter, and a Python agent has
 /// no sampling parameters at all. A union of every provider's
 /// knobs would be a struct where most fields are always absent, and
@@ -21,10 +21,10 @@ use serde::{Deserialize, Serialize};
 pub enum Agent {
     /// See [`openrouter::Agent`](super::openrouter::Agent).
     Openrouter(super::openrouter::Agent),
-    /// See [`claude_agent_sdk::Agent`](super::claude_agent_sdk::Agent).
-    ClaudeAgentSdk(super::claude_agent_sdk::Agent),
-    /// See [`codex_sdk::Agent`](super::codex_sdk::Agent).
-    CodexSdk(super::codex_sdk::Agent),
+    /// See [`claude_code::Agent`](super::claude_code::Agent).
+    ClaudeCode(super::claude_code::Agent),
+    /// See [`codex::Agent`](super::codex::Agent).
+    Codex(super::codex::Agent),
     /// See [`python::Agent`](super::python::Agent).
     Python(super::python::Agent),
 }

@@ -1,4 +1,4 @@
-//! Claude Agent SDK upstream marker.
+//! Codex upstream marker.
 
 use serde::{Deserialize, Serialize};
 
@@ -12,5 +12,5 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Upstream {
     #[default]
-    ClaudeAgentSdk,
+    Codex,
 }

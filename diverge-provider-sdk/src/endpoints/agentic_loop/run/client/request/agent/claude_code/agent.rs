@@ -1,17 +1,17 @@
-//! The Claude Agent SDK agent.
+//! The Claude Code agent.
 
 use serde::{Deserialize, Serialize};
 
 use super::{Effort, Upstream};
 
-/// An agent running against the Claude Agent SDK.
+/// An agent running against Claude Code.
 ///
 /// Far fewer knobs than OpenRouter's, and not because anything is
-/// missing: the SDK is an agent harness in its own right, so the
-/// sampling decisions OpenRouter exposes are made inside it.
+/// missing: Claude Code is an agent harness in its own right, so
+/// the sampling decisions OpenRouter exposes are made inside it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct Agent {
-    /// The discriminator. Always `claude_agent_sdk`.
+    /// The discriminator. Always `claude_code`.
     pub upstream: Upstream,
     /// The model to run.
     pub model: String,

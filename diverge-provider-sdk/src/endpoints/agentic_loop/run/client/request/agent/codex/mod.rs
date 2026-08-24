@@ -1,4 +1,4 @@
-//! Claude Agent SDK agent parameters.
+//! Codex agent parameters.
 
 mod agent;
 mod effort;

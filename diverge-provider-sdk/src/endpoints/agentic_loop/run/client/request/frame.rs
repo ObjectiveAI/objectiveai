@@ -27,7 +27,7 @@ pub struct Frame {
     ///
     /// The model and every decoding parameter live here rather than on
     /// the request, because which parameters exist DEPENDS on the
-    /// upstream — `logit_bias` is meaningless to the Claude Agent SDK,
+    /// upstream — `logit_bias` is meaningless to Claude Code,
     /// `thinking` is meaningless to OpenRouter, and a Python agent
     /// samples nothing at all.
     pub agent: Agent,

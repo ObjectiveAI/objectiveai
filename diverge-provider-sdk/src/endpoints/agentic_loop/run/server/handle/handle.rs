@@ -126,8 +126,8 @@ fn image(agent: &Agent) -> &'static str {
     match agent {
         // TODO: none of these images are published yet.
         Agent::Openrouter(_) => "TODO",
-        Agent::ClaudeAgentSdk(_) => "TODO",
-        Agent::CodexSdk(_) => "TODO",
+        Agent::ClaudeCode(_) => "TODO",
+        Agent::Codex(_) => "TODO",
         Agent::Python(_) => "TODO",
     }
 }
@@ -158,8 +158,8 @@ fn memory(agent: &Agent) -> u64 {
         // TODO: numbers nobody has justified, and which belong with the
         // images once those exist.
         Agent::Openrouter(_) => 512 * 1024 * 1024,
-        Agent::ClaudeAgentSdk(_) => 2 * 1024 * 1024 * 1024,
-        Agent::CodexSdk(_) => 2 * 1024 * 1024 * 1024,
+        Agent::ClaudeCode(_) => 2 * 1024 * 1024 * 1024,
+        Agent::Codex(_) => 2 * 1024 * 1024 * 1024,
         Agent::Python(agent) => agent.memory,
     }
 }
@@ -174,8 +174,8 @@ fn disk(agent: &Agent) -> u64 {
     match agent {
         // TODO: as above.
         Agent::Openrouter(_) => 256 * 1024 * 1024,
-        Agent::ClaudeAgentSdk(_) => 4 * 1024 * 1024 * 1024,
-        Agent::CodexSdk(_) => 4 * 1024 * 1024 * 1024,
+        Agent::ClaudeCode(_) => 4 * 1024 * 1024 * 1024,
+        Agent::Codex(_) => 4 * 1024 * 1024 * 1024,
         Agent::Python(agent) => agent.disk,
     }
 }

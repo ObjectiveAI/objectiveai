@@ -11,8 +11,8 @@
 //! plugins decide what an agent CAN reach, which is settled before a
 //! request is built rather than declared inside one.
 
-pub mod claude_agent_sdk;
-pub mod codex_sdk;
+pub mod claude_code;
+pub mod codex;
 pub mod openrouter;
 pub mod python;
 
