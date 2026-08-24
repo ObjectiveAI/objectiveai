@@ -1,6 +1,7 @@
 //! The read loop: frames in, and off to whoever is waiting.
 
 use std::collections::HashMap;
+use std::fmt;
 
 use bytes::Bytes;
 use futures_util::StreamExt as _;
@@ -173,11 +174,16 @@ impl Router {
 
     /// Read frames until the connection ends.
     ///
-    /// Returns when the stream ends, and at no other point. A peer that
-    /// closed and a peer that vanished arrive the same way, and every
-    /// consumer learns it the same way too: this is dropped, and with it
-    /// every sender in it, so a receiver that was waiting sees its
-    /// channel close.
+    /// Returns when the stream ends — or, the one early exit, when a
+    /// credential arrives. A connection has ONE, presented by the side
+    /// that dialled, before this router existed:
+    /// [`authorize`](super::authorize::authorize) already consumed the
+    /// only lawful one, so a provider sending one now is disagreeing
+    /// with this end about what the handshake is, and nothing after
+    /// that disagreement is worth routing. Either way this is dropped,
+    /// and with it every sender in it — a peer that closed, a peer
+    /// that vanished, and a peer that broke the handshake all arrive
+    /// at every consumer the same way: a channel that closed.
     ///
     /// A transport error is not the end. It yields no frame, so there
     /// is nothing to route and the loop takes the next one — which is
@@ -211,7 +217,7 @@ impl Router {
     /// with no entry inside a scope that has one. The last two are the
     /// ordinary ones — a scope ends and its late frames arrive after,
     /// or a consumer never registered at all.
-    pub async fn run(mut self) {
+    pub async fn run(mut self) -> Result<(), InvalidAuthorize> {
         while let Some(received) = self.stream.next().await {
             // No frame, so nothing to route. The stream is what ends
             // this loop, and it has not ended.
@@ -221,9 +227,13 @@ impl Router {
             // untouched.
             let Ok(frame) = ServerFrame::decode(&bytes) else { continue };
             match frame {
-                // Not a scope's frame — it answers the connection, and
-                // the connection is not routed.
-                ServerFrame::Auth { .. } => {}
+                // The connection's one credential was spent before this
+                // router existed — see `run`. Ending here drops every
+                // sender, which is how consumers already learn a
+                // connection went.
+                ServerFrame::Auth { .. } => {
+                    return Err(InvalidAuthorize);
+                }
                 ServerFrame::Response { scope, .. } => {
                     if let Some((response_sender, ..)) = self.scope(scope) {
                         let _ = response_sender.send(bytes);
@@ -266,6 +276,7 @@ impl Router {
                 }
             }
         }
+        Ok(())
     }
 
     /// Find a scope, draining registrations first if it is not there.
@@ -391,3 +402,29 @@ impl Router {
         }
     }
 }
+
+/// A credential arrived after the handshake.
+///
+/// What [`Router::run`] returns instead of ending cleanly, and the
+/// caller-half mirror of the server's
+/// [`HandleError::InvalidAuthorize`](crate::server::handle::HandleError::InvalidAuthorize):
+/// a connection has one credential, presented by the side that dialled
+/// before anything else, and
+/// [`authorize`](super::authorize::authorize) already consumed it. A
+/// provider presenting another is disagreeing about what the handshake
+/// is, and routing stopped where the disagreement started.
+///
+/// It reaches the party that spawned the router and nobody else — in
+/// particular, not the provider, which is owed no reply on the subject
+/// of credentials, and not the consumers, who see exactly what a
+/// vanished connection shows them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InvalidAuthorize;
+
+impl fmt::Display for InvalidAuthorize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("a credential arrived after the handshake")
+    }
+}
+
+impl std::error::Error for InvalidAuthorize {}

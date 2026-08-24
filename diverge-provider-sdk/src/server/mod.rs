@@ -145,15 +145,16 @@
 //! handshake that failed is reported — never to the peer, which is the
 //! auth frame's own no-answer rule.
 //!
-//! What is NOT here is the client half of the same story: a caller
-//! that dialled does not yet send its credential, and one that was
-//! dialled into still discards the credential a provider presents.
-//! That is [`client`](crate::client)'s gap now, not this module's.
+//! The client half tells the same story from the other chair:
+//! [`client::authorize`](crate::client::authorize) presents this
+//! end's credential or judges a provider's, and the two handshakes
+//! are mirrors with one asymmetry — only this half derives an
+//! identity, because only this half acts on somebody's behalf.
 //!
 //! # And what a provider supplies
 //!
 //! Four traits, which are what this half asks FOR rather than
-//! provides. They mirror what [`client`](crate::client) has five of:
+//! provides. They mirror the ones [`client`](crate::client) supplies:
 //! something a provider implements, so that the parts this crate cannot
 //! know are somebody else's.
 //!

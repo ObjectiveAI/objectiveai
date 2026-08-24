@@ -12,7 +12,14 @@
 //!
 //! # What is here
 //!
-//! One socket, split in two.
+//! One socket: authenticated first, then split in two.
+//!
+//! [`authorize`] is the step in front. Whichever side dialled presents
+//! the connection's one credential before anything else — this end's
+//! going out, or the provider's being judged by the
+//! [`unbrokered_authorizer`] a caller supplies — and the
+//! [`Connection`](crate::connection::Connection) comes back out ready
+//! to be split. See [`authorization`] for which side does which.
 //!
 //! [`router`] is the read loop: frames off the socket, forwarded to
 //! whoever is waiting. [`handle`] is the write half and what a caller
@@ -57,7 +64,9 @@
 //! a database, a registry, a command — and something has to answer
 //! them.
 //!
-//! There are five, one per thing that can be asked.
+//! There are five, one per thing that can be asked — the
+//! [`unbrokered_authorizer`] above is a sixth supplied trait, but it
+//! answers the connection rather than anything asked on it.
 //! [`mcp_proxy`] forwards an exchange to a server the provider cannot
 //! see. [`oci_proxy`] serves an image, for a plugin run and a
 //! laboratory run alike. [`command_proxy`] runs a command a plugin has
@@ -134,6 +143,8 @@
 //! under either half, because which end dialled is not a fact about
 //! the protocol.
 
+pub mod authorization;
+pub mod authorize;
 pub mod channel;
 pub mod command_proxy;
 pub mod handle;
@@ -144,3 +155,4 @@ pub mod postgres_proxy;
 pub mod registration;
 pub mod router;
 pub mod scope;
+pub mod unbrokered_authorizer;
