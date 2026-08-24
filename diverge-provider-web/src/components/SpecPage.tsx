@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { Adjacent, type Neighbor } from "./Adjacent";
 import { Breadcrumbs, type Crumb } from "./Breadcrumbs";
+import { MarkdownLink } from "./MarkdownLink";
 import { SpecNav, type NavLayer } from "./SpecNav";
 
 /**
@@ -42,13 +43,7 @@ export function SpecPage(props: {
               </p>
             )}
             {props.children}
-            <footer>
-              <p>
-                <a href={props.markdownUrl} type="text/markdown">
-                  This page as Markdown
-                </a>
-              </p>
-            </footer>
+            <MarkdownLink url={props.markdownUrl} />
           </article>
           <Adjacent previous={props.previous} next={props.next} />
         </main>
