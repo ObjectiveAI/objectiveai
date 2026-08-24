@@ -1,9 +1,17 @@
 ---
+import { SpecNav } from "../components/SpecNav";
 import Layout from "../layouts/Layout.astro";
 import { REVISION } from "../revision";
 import { layers } from "../spec";
 
 const tree = await layers();
+const navLayers = tree.map((layer) => ({
+  index: { url: layer.index.url, title: layer.index.entry.data.title },
+  sections: layer.sections.map((child) => ({
+    url: child.url,
+    title: child.entry.data.title,
+  })),
+}));
 ---
 
 <Layout
@@ -12,55 +20,40 @@ const tree = await layers();
   path="/"
 >
   <div class="page">
-    <main>
-      <article>
-        <h1>Diverge Provider Protocol — Specification {REVISION}</h1>
-        <p class="summary">
-          The wire protocol between callers and providers: running agentic
-          loops, MCP plugins, and laboratories; managing volumes; checking
-          images. One WebSocket connection, framed and multiplexed, with a
-          handshake in front.
-        </p>
-        <p>
-          The protocol's normative definition is the
-          <a href="https://docs.rs/diverge-provider-sdk"
-            ><code>diverge-provider-sdk</code></a
-          > Rust crate — its types define the messages, and where this site's
-          prose and the crate disagree, the crate is correct. The revision
-          number is that crate's version.
-        </p>
-        <p>
-          The whole specification is also available as
-          <a href={`/${REVISION}/full/`}>a single page</a>, as
-          <a href="/llms-full.txt">one plain-text file</a>, and section by
-          section as raw Markdown — every page links its own
-          <code>.md</code> twin, and <a href="/llms.txt">/llms.txt</a> indexes
-          them all. The crate and this site live in
-          <a href="https://github.com/ObjectiveAI/objectiveai"
-            >one repository</a
-          >.
-        </p>
-        {
-          tree.map((layer) => (
-            <section>
-              <h2 id={layer.index.layer}>
-                <a href={layer.index.url}>{layer.index.entry.data.title}</a>
-              </h2>
-              <p>{layer.index.entry.data.summary}</p>
-              {layer.sections.length > 0 && (
-                <ul>
-                  {layer.sections.map((child) => (
-                    <li>
-                      <a href={child.url}>{child.entry.data.title}</a> —{" "}
-                      {child.entry.data.summary}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))
-        }
-      </article>
-    </main>
+    <div class="columns">
+      <aside>
+        <SpecNav layers={navLayers} current="/" />
+      </aside>
+      <main>
+        <article>
+          <h1>Diverge Provider Protocol — Specification {REVISION}</h1>
+          <p class="summary">
+            The wire protocol between callers and providers: running agentic
+            loops, MCP plugins, and laboratories; managing volumes; checking
+            images. One WebSocket connection, framed and multiplexed, with a
+            handshake in front.
+          </p>
+          <p>
+            The protocol's normative definition is the
+            <a href="https://docs.rs/diverge-provider-sdk"
+              ><code>diverge-provider-sdk</code></a
+            > Rust crate — its types define the messages, and where this site's
+            prose and the crate disagree, the crate is correct. The revision
+            number is that crate's version.
+          </p>
+          <p>
+            The whole specification is also available as
+            <a href={`/${REVISION}/full/`}>a single page</a>, as
+            <a href="/llms-full.txt">one plain-text file</a>, and section by
+            section as raw Markdown — every page links its own
+            <code>.md</code> twin, and <a href="/llms.txt">/llms.txt</a>
+            indexes them all. The crate and this site live in
+            <a href="https://github.com/ObjectiveAI/objectiveai"
+              >one repository</a
+            >.
+          </p>
+        </article>
+      </main>
+    </div>
   </div>
 </Layout>
