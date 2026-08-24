@@ -18,8 +18,9 @@ define frame type `0`.
   frame. An authorization frame arriving at any later point, or from
   the connectee, is a protocol violation, and its receiver ceases the
   connection.
-- **Header.** The scope and channel fields are zero and carry no
-  meaning: the frame precedes the existence of any scope or channel.
+- **Header.** The scope and channel fields are ignored: the frame
+  precedes the existence of any scope or channel, no value is
+  prescribed for the sender, and the receiver does not read them.
 - **Payload.** The payload is a credential. Its format and its
   interpretation are defined at a later layer; at this layer it is
   bytes.

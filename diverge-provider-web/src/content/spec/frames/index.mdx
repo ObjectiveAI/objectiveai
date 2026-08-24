@@ -45,6 +45,10 @@ never spans messages.
   direction does not define is malformed. A receiver disregards frames
   it cannot interpret or cannot attribute; neither occurrence ends the
   connection.
+- **Unread fields are ignored.** Where a frame's kind involves no
+  scope or no channel, the corresponding header field is ignored: no
+  value is prescribed for the sender to set, and the receiver does not
+  read it.
 - **Nothing is acknowledged.** No frame acknowledges the receipt of
   another. A party learns that its request arrived by being answered.
 - **A stream ends at its finish frame, and nowhere else.** A quiet
