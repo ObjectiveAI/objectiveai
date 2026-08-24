@@ -7,28 +7,26 @@ use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
 use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::{Stream, StreamExt as _};
+use futures_util::{SinkExt as _, Stream, StreamExt as _};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 use super::notice::Notice;
+use super::received::Received;
 use super::scope_handle::ScopeHandle;
 use crate::connection::Connection;
+use crate::encode::{Encode, Writer};
+use crate::frame::auth::Auth;
 use crate::frame::client::ClientFrame;
+use crate::frame::server::ServerFrame;
 
-/// A connection's provider side: the scopes a client opens on it.
+/// A connection's provider side: what a client starts on it.
 ///
-/// A [`Stream`] of requests, each beside the [`ScopeHandle`] that
-/// answers it — and that is the whole of a provider's outer loop: take
-/// a pair, read the request, spawn something to serve the scope, take
-/// the next.
-///
-/// The request rides beside the handle rather than inside it because
-/// it is read exactly once, by whatever dispatches on it, and a handle
-/// that carried the bytes too would be a copy nobody reads. What
-/// arrives is the frame's payload — the tag byte and the request's own
-/// bytes, header already gone — which is exactly what
-/// [`ClientRequest`](crate::endpoints::ClientRequest) decodes.
+/// A [`Stream`] of [`Received`] — a credential, or a request beside
+/// the [`ScopeHandle`] that answers it — and that is the whole of a
+/// provider's outer loop: take an item, judge or serve it, take the
+/// next. See [`Received`] for why there are exactly two kinds and why
+/// the ordering rules between them are not enforced here.
 ///
 /// # Why this is not a router
 ///
@@ -61,17 +59,15 @@ use crate::frame::client::ClientFrame;
 /// if that work is itself waiting on the client, neither side moves
 /// again.
 ///
-/// # What is not here yet
+/// # Auth flows through, in both directions
 ///
-/// **Auth.** A credential belongs to the connection and there is
-/// nowhere for one to go, in either direction. An
-/// [`Auth`](ClientFrame::Auth) frame is discarded, and a provider on an
+/// A peer's credential arrives as [`Received::Auth`] and is judged by
+/// whoever holds this stream; the credential a provider owes on an
 /// [`Outgoing`](crate::connection::Connection::Outgoing) connection
-/// cannot send the one it owes. Which is why
-/// [`handle`](super::handle::handle) takes a `client_identity` rather
-/// than learning one: the connection's identity is whatever the
-/// provider established at the upgrade, and this crate cannot yet see
-/// it.
+/// goes out through the session too, sent by
+/// [`handle`](super::handle::handle) before it reads. This type carries
+/// them and takes no position on either — the handshake's rules live
+/// with the handshake, in [`handle`](super::handle::handle).
 #[derive(Debug)]
 pub struct Session {
     /// The read half of the connection.
@@ -245,6 +241,32 @@ impl Session {
         ))
     }
 
+    /// Present this end's credential, as the connection's first frame.
+    ///
+    /// The one thing a session ever writes: everything else a provider
+    /// says goes through the [`ScopeHandle`]s it hands out, and a
+    /// credential belongs to the connection rather than to any scope.
+    /// [`handle`](super::handle::handle) calls it exactly once, on an
+    /// [`Outgoing`](super::authorization::Authorization::Outgoing)
+    /// connection, before it reads anything — "nothing may precede it"
+    /// is the frame's own rule.
+    ///
+    /// There is no answer to wait for and no failure to report: an
+    /// accepted credential is followed by the connection simply
+    /// working, a rejected one by a close, and a send that did not
+    /// land is a connection that is already over — which the very next
+    /// read will say.
+    pub(super) async fn send_auth(&self, auth: Auth<'_>) {
+        let mut payload = Vec::new();
+        auth.encode(&mut Writer::new(&mut payload))
+            .unwrap_or_else(|error| match error {});
+        let mut buffer = Vec::new();
+        ServerFrame::Auth { payload: &payload }
+            .encode(&mut Writer::new(&mut buffer))
+            .unwrap_or_else(|error| match error {});
+        let _ = self.sink.lock().await.send(Bytes::from(buffer)).await;
+    }
+
     /// Find a channel this end opened.
     ///
     /// No retry, unlike
@@ -413,7 +435,7 @@ impl Session {
     }
 }
 
-/// One request and its scope at a time, until the connection ends.
+/// One [`Received`] at a time, until the connection ends.
 ///
 /// [`None`] means the connection ended — a peer that closed and a peer
 /// that vanished arrive the same way, and there is no other ending: a
@@ -435,11 +457,10 @@ impl Session {
 /// carries on. There is no one to tell, and the connection is still
 /// good for every other scope on it.
 ///
-/// It happens five ways: a header too short to read, a type this layer
+/// It happens four ways: a header too short to read, a type this layer
 /// does not define (including `2` and `3`, which are a server's replies
-/// and not a client's to send), an auth frame, a request for a scope
-/// that is already open, and anything inside a scope or a channel with
-/// no entry.
+/// and not a client's to send), a request for a scope that is already
+/// open, and anything inside a scope or a channel with no entry.
 ///
 /// A duplicate scope is the peer's mistake rather than this end's, and
 /// it is still silent. Handing out a second scope for one number would
@@ -448,12 +469,12 @@ impl Session {
 /// holds the first. Both are worse than dropping, and a client that
 /// does it sees a request that is never answered.
 impl Stream for Session {
-    type Item = (Bytes, ScopeHandle);
+    type Item = Received;
 
     fn poll_next(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<(Bytes, ScopeHandle)>> {
+    ) -> Poll<Option<Received>> {
         // Every field is `Unpin` — the two socket halves, a map, and
         // two channel ends — so this never has to project.
         let this = self.get_mut();
@@ -474,16 +495,22 @@ impl Stream for Session {
             // `drain` for why here and why that is enough.
             this.drain();
             match frame {
-                // Nowhere to go. See the type's documentation: this is
-                // the gap, not a decision.
-                ClientFrame::Auth { .. } => {}
+                // Yielded like a request, judged by whoever reads this
+                // stream. Whether it was allowed to arrive NOW is the
+                // handshake's rule, not a router's.
+                ClientFrame::Auth { payload } => {
+                    let payload = bytes.slice_ref(payload);
+                    return Poll::Ready(Some(Received::Auth(payload)));
+                }
                 ClientFrame::Request { scope, payload } => {
                     if let Some(handle) = this.open_scope(scope) {
                         // A refcounted view of exactly the payload —
                         // the tag and the request's bytes, the header
                         // already behind it.
                         let payload = bytes.slice_ref(payload);
-                        return Poll::Ready(Some((payload, handle)));
+                        return Poll::Ready(Some(Received::Request(
+                            payload, handle,
+                        )));
                     }
                 }
                 // A send that fails is a scope whose handle went away

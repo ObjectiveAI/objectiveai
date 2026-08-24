@@ -130,20 +130,29 @@
 //! [`laboratories::connect`](crate::endpoints::laboratories::connect)
 //! serves a container somebody else runs.
 //!
-//! # What is not here yet
+//! # Auth is a handshake in front of [`handle`]
 //!
-//! **Auth**, in both directions. A credential belongs to the connection
-//! and there is nowhere for one to go, so a
-//! [`ClientFrame::Auth`](crate::frame::client::ClientFrame::Auth) is
-//! discarded and a provider on an
-//! [`Outgoing`](crate::connection::Connection::Outgoing) connection
-//! cannot send the one it owes. Until that changes, the identity a
-//! connection speaks under is the provider's to establish at the
-//! upgrade and hand to [`handle`].
+//! Whichever side dialled authenticates. On an
+//! [`Incoming`](crate::connection::Connection::Incoming) connection the
+//! peer's first frame must be its credential, judged by the
+//! [`unbrokered_authorizer`] the provider supplies — the identity it
+//! produces is the `client_identity` everything downstream receives.
+//! On an [`Outgoing`](crate::connection::Connection::Outgoing)
+//! connection this end sends the credential before reading anything,
+//! and the identity was never in question: the provider dialled the
+//! peer, so it already knows who it is. [`authorization`] is the
+//! argument that says which, and [`handle`]'s error type is where a
+//! handshake that failed is reported — never to the peer, which is the
+//! auth frame's own no-answer rule.
+//!
+//! What is NOT here is the client half of the same story: a caller
+//! that dialled does not yet send its credential, and one that was
+//! dialled into still discards the credential a provider presents.
+//! That is [`client`](crate::client)'s gap now, not this module's.
 //!
 //! # And what a provider supplies
 //!
-//! Three traits, which are what this half asks FOR rather than
+//! Four traits, which are what this half asks FOR rather than
 //! provides. They mirror what [`client`](crate::client) has five of:
 //! something a provider implements, so that the parts this crate cannot
 //! know are somebody else's.
@@ -207,7 +216,13 @@
 //! pulls nothing, and because no is an ANSWER here where it would be an
 //! error there.
 //!
-//! Nothing implements any of them, and all three are consumed:
+//! [`unbrokered_authorizer`] is the fourth, and it is the door: every
+//! other trait is asked things on behalf of a caller, and this is the
+//! one that decides who the caller IS. It is consumed by [`handle`]
+//! itself rather than by any endpoint's handler, because a credential
+//! belongs to the connection and not to any scope on it.
+//!
+//! Nothing implements any of them, and all four are consumed:
 //! [`volume_manager`] by the five
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
@@ -238,6 +253,7 @@
 //! connection ends. One call per connection is the whole of a
 //! provider's loop.
 
+pub mod authorization;
 pub mod channel;
 pub mod client_registry;
 pub mod container;
@@ -249,6 +265,8 @@ pub mod laboratories;
 pub mod mount;
 mod notice;
 pub mod oci_stream;
+pub mod received;
 pub mod scope_handle;
 pub mod session;
+pub mod unbrokered_authorizer;
 pub mod volume_manager;
