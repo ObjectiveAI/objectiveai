@@ -1,0 +1,27 @@
+---
+title: 'Channels'
+summary: 'Every channel on this endpoint is opened by the server, and each carries one of the five exchanges of the Model Context Protocol.'
+order: 3
+draft: false
+---
+
+Every [channel](/frames/channels/) on this endpoint is opened by the
+server; the client opens none. Each channel carries one exchange of
+the [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25), revision 2025-11-25, whose payload types this layer
+incorporates by reference.
+
+A channel request's payload is a single tag byte designating the
+exchange, followed by the exchange's request content. The client
+answers on channel responses whose payloads are defined per exchange.
+
+| Tag | Exchange |
+|-----|----------|
+| `0` | [tools/list](/endpoints/agentic-loop-run/channels/mcp-list-tools/) |
+| `1` | [resources/list](/endpoints/agentic-loop-run/channels/mcp-list-resources/) |
+| `2` | [tools/call](/endpoints/agentic-loop-run/channels/mcp-call-tool/) |
+| `3` | [resources/read](/endpoints/agentic-loop-run/channels/mcp-read-resource/) |
+| `4` | [Notifications](/endpoints/agentic-loop-run/channels/mcp-notifications/) |
+
+Four of the five are answered exactly once; notifications is a stream.
+In every case, a channel that finishes with no response preceding the
+finish states that the exchange could not be served.

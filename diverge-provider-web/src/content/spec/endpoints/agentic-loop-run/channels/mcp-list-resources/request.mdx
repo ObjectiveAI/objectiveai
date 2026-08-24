@@ -1,0 +1,12 @@
+---
+title: 'Request'
+summary: 'Channel tag 1, then the paginated request parameters of `resources/list` as JSON, or null.'
+order: 1
+draft: false
+---
+
+The channel request's payload is the exchange tag byte `1`
+followed by the JSON serialization of the paginated request parameters of `resources/list` as defined by the [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25), or the JSON literal `null` when the agent supplied no parameters.
+
+No JSON-RPC envelope is present: no `jsonrpc`, no `id`, no `method`.
+The channel is the envelope, and the tag is the method.

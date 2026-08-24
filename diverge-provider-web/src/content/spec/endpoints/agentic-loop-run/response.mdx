@@ -1,0 +1,109 @@
+---
+title: 'Response'
+summary: 'Each response’s payload is one tag byte then JSON: tag 0 a chunk of the loop’s output, discriminated by its type member; tag 1 an error, which is the scope’s final response.'
+order: 2
+draft: false
+---
+
+Each response's payload is a single tag byte followed by a JSON text.
+
+| Tag | Payload |
+|-----|---------|
+| `0` | A **chunk**: one piece of the loop's output, an object discriminated by its `type` member. |
+| `1` | An **error**: an arbitrary JSON value describing the failure. |
+
+- **An error is terminal.** A response bearing tag `1` is the scope's
+  final response; the response finish follows it. The error's value is
+  the server's to compose, and this specification does not constrain
+  it.
+- **Chunks are ordered.** The chunks of one scope form one stream, in
+  the order sent.
+
+## Chunks
+
+A chunk is an object whose `type` member takes one of ten values.
+`TextContent`, `ImageContent`, `AudioContent`, the tool-call
+parameters, the tool result, and the metadata object (`meta`) are the
+types of the [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25), incorporated by reference.
+
+| `type` | Chunk |
+|--------|-------|
+| `"assistant_reasoning"` | Reasoning text produced by the agent. |
+| `"assistant_text_content"` | Text produced by the agent. |
+| `"assistant_image_content"` | An image produced by the agent. |
+| `"assistant_audio_content"` | Audio produced by the agent. |
+| `"assistant_tool_call"` | A tool call the agent issued. |
+| `"assistant_refusal"` | A refusal the agent issued. |
+| `"tool_response"` | The answer a tool call received. |
+| `"usage"` | Token accounting. |
+| `"notification"` | A condition the server reports. |
+| `"continuation"` | The token that resumes this loop. |
+
+### `assistant_reasoning`, `assistant_text_content`, `assistant_refusal`
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `type` | as tabulated | required |
+| `logprobs` | array of logprob objects, below | optional |
+| `inner` | `TextContent` (MCP) | required |
+
+### `assistant_image_content`, `assistant_audio_content`
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `type` | as tabulated | required |
+| `inner` | `ImageContent` / `AudioContent` (MCP) | required |
+
+### `assistant_tool_call`
+
+| Member | Type | Presence | Meaning |
+|--------|------|----------|---------|
+| `type` | `"assistant_tool_call"` | required | |
+| `id` | string | required | Correlates the call with its `tool_response`. |
+| `inner` | the params of `tools/call` (MCP) | required | The call itself. |
+
+### `tool_response`
+
+| Member | Type | Presence | Meaning |
+|--------|------|----------|---------|
+| `type` | `"tool_response"` | required | |
+| `id` | string | required | The `id` of the `assistant_tool_call` this answers. |
+| `inner` | the result of `tools/call` (MCP) | required | The answer. |
+
+### `usage`
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `type` | `"usage"` | required |
+| `completion_tokens` | integer | required |
+| `prompt_tokens` | integer | required |
+| `total_tokens` | integer | required |
+| `meta` | metadata object (MCP) | optional |
+
+### `notification`
+
+| Member | Type | Presence | Meaning |
+|--------|------|----------|---------|
+| `type` | `"notification"` | required | |
+| `is_fatal` | boolean | required | Whether the reported condition ends the loop. |
+| `message` | any JSON value | required | The condition, in the server's vocabulary. |
+| `meta` | metadata object (MCP) | optional | |
+
+### `continuation`
+
+| Member | Type | Presence | Meaning |
+|--------|------|----------|---------|
+| `type` | `"continuation"` | required | |
+| `continuation` | string | required | The token a subsequent request presents to resume this loop. Opaque to the client. |
+| `meta` | metadata object (MCP) | optional | |
+
+### Logprob objects
+
+Where `logprobs` is present, each element is:
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `token` | string | required |
+| `bytes` | array of integers | optional |
+| `logprob` | number | required |
+| `top_logprobs` | array of `{ token, bytes?, logprob? }` | required |

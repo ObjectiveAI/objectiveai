@@ -1,0 +1,99 @@
+---
+title: 'Request'
+summary: 'Tag byte 0, then a JSON object: the agent to run — one of four agent kinds, discriminated by its upstream field — the prompt, and an optional continuation token.'
+order: 1
+draft: false
+---
+
+The request's payload is the endpoint tag byte `0` followed by a JSON
+text (UTF-8, [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259))
+whose top-level value is an object with the following members.
+
+| Member | Type | Presence | Meaning |
+|--------|------|----------|---------|
+| `agent` | object | required | The agent to run, and its parameters. One of the four kinds below. |
+| `prompt` | array | required | The input for this turn: an array of content blocks as defined by the [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25). A prompt, not a conversation — what came before is the server's state, reached through `continuation`. |
+| `continuation` | string | optional | Resume the loop named by this token, previously issued in a [continuation chunk](/endpoints/agentic-loop-run/response/). Opaque to the client. |
+
+A resumption is this same request with `continuation` present; it is
+not a distinct request form, and the agent's parameters may differ
+between turns.
+
+## The agent
+
+The `agent` object is one of four kinds, discriminated by its
+`upstream` member — the object carries no other wrapper. The values of
+`upstream` are `"openrouter"`, `"claude_agent_sdk"`, `"codex_sdk"`,
+and `"python"`.
+
+### `openrouter`
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `upstream` | `"openrouter"` | required |
+| `model` | string | required |
+| `synthetic_reasoning` | boolean | optional |
+| `top_logprobs` | integer | optional |
+| `frequency_penalty` | number | optional |
+| `logit_bias` | object: token → integer bias | optional |
+| `max_completion_tokens` | integer | optional |
+| `presence_penalty` | number | optional |
+| `stop` | string, or array of strings | optional |
+| `temperature` | number | optional |
+| `top_p` | number | optional |
+| `max_tokens` | integer | optional |
+| `min_p` | number | optional |
+| `provider` | object, below | optional |
+| `reasoning` | object, below | optional |
+| `repetition_penalty` | number | optional |
+| `top_a` | number | optional |
+| `top_k` | integer | optional |
+| `verbosity` | `"low"` \| `"medium"` \| `"high"` \| `"max"` | optional |
+| `context_compression` | `"middle_out"` | optional |
+
+`provider` constrains upstream routing:
+`allow_fallbacks` (boolean), `require_parameters` (boolean),
+`order`, `only`, `ignore` (arrays of provider names), and
+`quantizations` (array drawn from `"int4"`, `"int8"`, `"fp4"`,
+`"fp6"`, `"fp8"`, `"fp16"`, `"bf16"`, `"fp32"`, `"unknown"`), each
+optional.
+
+`reasoning` configures reasoning output: `enabled` (boolean),
+`max_tokens` (integer), `effort` (`"none"` \| `"minimal"` \| `"low"`
+\| `"medium"` \| `"high"` \| `"xhigh"`), and `summary_verbosity`
+(`"auto"` \| `"concise"` \| `"detailed"`), each optional.
+
+The semantics of these parameters are those of the OpenRouter API;
+this specification fixes their names, types, and placement.
+
+### `claude_agent_sdk`
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `upstream` | `"claude_agent_sdk"` | required |
+| `model` | string | required |
+| `thinking` | boolean | optional |
+| `effort` | `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` | optional |
+
+### `codex_sdk`
+
+| Member | Type | Presence |
+|--------|------|----------|
+| `upstream` | `"codex_sdk"` | required |
+| `model` | string | required |
+| `effort` | `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` | optional |
+| `web_search_enabled` | boolean | optional |
+
+### `python`
+
+A Python agent is source code the server executes, and its resource
+requirements are the client's to state — the source is opaque until it
+runs, and the numbers are needed before it does.
+
+| Member | Type | Presence | Meaning |
+|--------|------|----------|---------|
+| `upstream` | `"python"` | required | |
+| `python` | string | required | The source, verbatim. |
+| `memory` | integer | required | Memory ceiling, in bytes. |
+| `disk` | integer | required | Writable-disk ceiling, in bytes. |
+| `requirements` | object: package → version specifier (string) | required | The packages the source imports. |
