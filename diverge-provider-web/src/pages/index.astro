@@ -1,11 +1,13 @@
 ---
+import { render } from "astro:content";
+
 import { Adjacent } from "../components/Adjacent";
 import { Breadcrumbs } from "../components/Breadcrumbs";
 import { MarkdownLink } from "../components/MarkdownLink";
 import { SpecNav } from "../components/SpecNav";
 import Layout from "../layouts/Layout.astro";
 import { REVISION } from "../revision";
-import { navigation, ordered } from "../spec";
+import { navigation, ordered, overview } from "../spec";
 
 const navLayers = await navigation();
 const all = await ordered();
@@ -13,51 +15,32 @@ const next =
   all.length > 0
     ? { url: all[0].url, title: all[0].entry.data.title }
     : null;
+
+const page = await overview();
+const { Content } = await render(page.entry);
 ---
 
 <Layout
   title={`Diverge Provider Protocol — Specification ${REVISION}`}
-  description="The specification of the Diverge Provider Protocol: the wire protocol between callers and providers for running agentic loops, MCP plugins, and laboratories, and for managing volumes and images."
-  path="/"
-  markdown="/index.md"
+  description={page.entry.data.summary}
+  path={page.url}
+  markdown={page.markdownUrl}
 >
   <div class="page">
     <Breadcrumbs
       crumbs={[{ url: "/", label: `Specification ${REVISION}` }]}
-      current="Overview"
+      current={page.entry.data.title}
     />
     <div class="columns">
       <aside>
-        <SpecNav layers={navLayers} current="/" />
+        <SpecNav layers={navLayers} current={page.url} />
       </aside>
       <main>
         <article>
           <h1>Diverge Provider Protocol — Specification {REVISION}</h1>
-          <p class="summary">
-            The wire protocol between callers and providers: running agentic
-            loops, MCP plugins, and laboratories; managing volumes; checking
-            images. One WebSocket connection, framed and multiplexed, with a
-            handshake in front.
-          </p>
-          <p>
-            This specification is the protocol's normative definition.
-            <a href="https://docs.rs/diverge-provider-sdk"
-              ><code>diverge-provider-sdk</code></a
-            > is a Rust SDK that implements it, versioned with this
-            specification's revisions.
-          </p>
-          <p>
-            The whole specification is also available as
-            <a href={`/${REVISION}/full/`}>a single page</a>, as
-            <a href="/llms-full.txt">one plain-text file</a>, and section by
-            section as raw Markdown — every page links its own
-            <code>.md</code> twin, and <a href="/llms.txt">/llms.txt</a>
-            indexes them all. The crate and this site live in
-            <a href="https://github.com/ObjectiveAI/objectiveai"
-              >one repository</a
-            >.
-          </p>
-          <MarkdownLink url="/index.md" />
+          <p class="summary">{page.entry.data.summary}</p>
+          <Content />
+          <MarkdownLink url={page.markdownUrl} />
         </article>
         <Adjacent previous={null} next={next} />
       </main>

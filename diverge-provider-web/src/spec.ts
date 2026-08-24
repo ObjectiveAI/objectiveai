@@ -42,7 +42,11 @@ function locate(entry: CollectionEntry<"spec">): Section {
  */
 export async function layers(): Promise<Layer[]> {
   const entries = await getCollection("spec");
-  const located = entries.map(locate);
+  // The overview is not a layer: it lives at the root, fetched by
+  // [`overview`], and the navigation hardcodes its entry first.
+  const located = entries
+    .filter((entry) => entry.id.split("/")[0] !== "overview")
+    .map(locate);
   const indexes = located
     .filter((s) => s.section === null)
     .sort((a, b) => a.entry.data.order - b.entry.data.order);
@@ -80,6 +84,29 @@ export async function ordered(): Promise<Section[]> {
     layer.index,
     ...layer.sections,
   ]);
+}
+
+/**
+ * The overview: the front page's prose, single-sourced for the page
+ * and its twin. Its URLs are the root's own, not a layer's.
+ */
+export async function overview(): Promise<Section> {
+  const entries = await getCollection("spec");
+  // The glob loader names a layer's index by the directory alone.
+  const entry = entries.find(
+    (candidate) =>
+      candidate.id === "overview" || candidate.id === "overview/index",
+  );
+  if (!entry) {
+    throw new Error("src/content/spec/overview/index.mdx is missing");
+  }
+  return {
+    entry,
+    layer: "overview",
+    section: null,
+    url: "/",
+    markdownUrl: "/index.md",
+  };
 }
 
 /** An absolute URL for a site-relative path. */
