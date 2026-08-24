@@ -22,11 +22,9 @@ pub struct Request {
 }
 ```
 
-- **The prompt is post-transform.** What an agent as authored carries
-  to shape a request — a system prompt, prefix and suffix messages —
-  is applied before a request is built; `prompt` is the result, and
-  the server does not rewrite it. A prompt, not a conversation: what
-  came before is the server's state, reached through `continuation`.
+- **A prompt, not a conversation.** `prompt` is this turn's input,
+  and the server does not rewrite it. What came before is the
+  server's state, reached through `continuation`.
 - **Resumption is the same request.** A resumption is this request
   with `continuation` present — the token previously issued in a
   [continuation chunk](/endpoints/agentic-loop-run/response/) — not a
