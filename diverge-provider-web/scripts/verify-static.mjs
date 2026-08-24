@@ -13,6 +13,10 @@
 // 4. Every HTML page has exactly one <h1>, a canonical, a meta
 //    description — and, for specification pages, the alternate
 //    Markdown link with an existing twin.
+// 5. Every docs.rs/rmcp link is pinned to the rmcp version the SDK
+//    builds against. The links are the spec's incorporated type
+//    definitions; a version drift silently changes what the spec
+//    says, so the SDK's Cargo.toml is the authority.
 
 import { readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -105,6 +109,26 @@ for (const page of html) {
       statSync(join(dist, twin[1]));
     } catch {
       failures.push(`${name}: markdown twin ${twin[1]} does not exist`);
+    }
+  }
+}
+
+// 5. rmcp links match the SDK's pinned rmcp version.
+const cargo = readFileSync(
+  new URL("../../diverge-provider-sdk/Cargo.toml", import.meta.url),
+  "utf-8",
+);
+const rmcp = cargo.match(/^rmcp\s*=\s*\{\s*version\s*=\s*"([^"]+)"/m)?.[1];
+if (!rmcp) {
+  failures.push("Cargo.toml: no rmcp version found in the SDK manifest");
+}
+for (const page of html) {
+  const text = readFileSync(page, "utf-8");
+  for (const match of text.matchAll(/docs\.rs\/rmcp\/([^/"]+)\//g)) {
+    if (rmcp && match[1] !== rmcp) {
+      failures.push(
+        `${relative(dist, page)}: rmcp link pinned to ${match[1]}, SDK uses ${rmcp}`,
+      );
     }
   }
 }

@@ -52,8 +52,9 @@ pub enum AgenticLoopChunk {
 `CallToolRequestParams`, `CallToolResult`, and `MetaObject` are the
 types of the
 [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25),
-incorporated by reference. Where a chunk flattens one of them, the
-MCP type's members appear directly in the chunk's object.
+incorporated by reference; each is linked beneath the declaration
+that references it. Where a chunk flattens one of them, the MCP
+type's members appear directly in the chunk's object.
 
 ### `assistant_reasoning`
 
@@ -88,6 +89,8 @@ pub struct TopLogprob {
 }
 ```
 
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::TextContent`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.TextContent.html).
+
 ### `assistant_text_content`
 
 Text the agent produced.
@@ -108,6 +111,8 @@ pub enum AssistantTextContentChunkType {
 }
 ```
 
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::TextContent`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.TextContent.html).
+
 ### `assistant_image_content`
 
 An image the agent produced.
@@ -126,6 +131,8 @@ pub enum AssistantImageContentChunkType {
 }
 ```
 
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::ImageContent`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.ImageContent.html).
+
 ### `assistant_audio_content`
 
 Audio the agent produced.
@@ -143,6 +150,8 @@ pub enum AssistantAudioContentChunkType {
     AssistantAudioContent,
 }
 ```
+
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::AudioContent`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.AudioContent.html).
 
 ### `assistant_tool_call`
 
@@ -164,6 +173,8 @@ pub enum AssistantToolCallChunkType {
 }
 ```
 
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::CallToolRequestParams`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.CallToolRequestParams.html).
+
 ### `assistant_refusal`
 
 A refusal the agent issued.
@@ -183,6 +194,8 @@ pub enum AssistantRefusalChunkType {
     AssistantRefusal,
 }
 ```
+
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::TextContent`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.TextContent.html).
 
 ### `tool_response`
 
@@ -205,6 +218,8 @@ pub enum ToolResponseChunkType {
 }
 ```
 
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::CallToolResult`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.CallToolResult.html).
+
 ### `usage`
 
 Token accounting.
@@ -225,6 +240,8 @@ pub enum UsageChunkType {
     Usage,
 }
 ```
+
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::MetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.MetaObject.html).
 
 ### `notification`
 
@@ -247,6 +264,8 @@ pub enum NotificationChunkType {
 }
 ```
 
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::MetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.MetaObject.html).
+
 ### `continuation`
 
 The token a subsequent
@@ -267,3 +286,5 @@ pub enum ContinuationChunkType {
     Continuation,
 }
 ```
+
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::MetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.MetaObject.html).
