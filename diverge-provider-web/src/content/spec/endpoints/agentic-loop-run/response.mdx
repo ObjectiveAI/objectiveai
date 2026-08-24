@@ -55,27 +55,23 @@ types of the
 incorporated by reference. Where a chunk flattens one of them, the
 MCP type's members appear directly in the chunk's object.
 
-### `assistant_reasoning`, `assistant_text_content`, `assistant_refusal`
+### `assistant_reasoning`
 
-Reasoning text, answer text, and refusal text the agent produced —
-one shape, three discriminants.
+Reasoning text the agent produced.
 
 ```rust
-pub struct AssistantTextContentChunk {
-    /// "assistant_text_content" — or "assistant_reasoning",
-    /// or "assistant_refusal", for the sibling chunks.
-    pub r#type: AssistantTextContentChunkType,
+pub struct AssistantReasoningChunk {
+    /// "assistant_reasoning"
+    pub r#type: AssistantReasoningChunkType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<Vec<Logprob>>,
     #[serde(flatten)]
     pub inner: TextContent,
 }
 
-/// Every chunk's marker enum takes this form: one variant,
-/// renamed to the discriminant string.
-pub enum AssistantTextContentChunkType {
-    #[serde(rename = "assistant_text_content")]
-    AssistantTextContent,
+pub enum AssistantReasoningChunkType {
+    #[serde(rename = "assistant_reasoning")]
+    AssistantReasoning,
 }
 
 pub struct Logprob {
@@ -92,25 +88,65 @@ pub struct TopLogprob {
 }
 ```
 
-### `assistant_image_content`, `assistant_audio_content`
+### `assistant_text_content`
 
-An image or audio the agent produced — one shape, two discriminants,
-no log probabilities.
+Text the agent produced.
+
+```rust
+pub struct AssistantTextContentChunk {
+    /// "assistant_text_content"
+    pub r#type: AssistantTextContentChunkType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<Vec<Logprob>>,
+    #[serde(flatten)]
+    pub inner: TextContent,
+}
+
+pub enum AssistantTextContentChunkType {
+    #[serde(rename = "assistant_text_content")]
+    AssistantTextContent,
+}
+```
+
+### `assistant_image_content`
+
+An image the agent produced.
 
 ```rust
 pub struct AssistantImageContentChunk {
-    /// "assistant_image_content" — or "assistant_audio_content",
-    /// flattening AudioContent instead.
+    /// "assistant_image_content"
     pub r#type: AssistantImageContentChunkType,
     #[serde(flatten)]
     pub inner: ImageContent,
 }
+
+pub enum AssistantImageContentChunkType {
+    #[serde(rename = "assistant_image_content")]
+    AssistantImageContent,
+}
 ```
 
-### `assistant_tool_call`, `tool_response`
+### `assistant_audio_content`
 
-A tool call the agent issued, and the answer it received; `id`
-correlates the two.
+Audio the agent produced.
+
+```rust
+pub struct AssistantAudioContentChunk {
+    /// "assistant_audio_content"
+    pub r#type: AssistantAudioContentChunkType,
+    #[serde(flatten)]
+    pub inner: AudioContent,
+}
+
+pub enum AssistantAudioContentChunkType {
+    #[serde(rename = "assistant_audio_content")]
+    AssistantAudioContent,
+}
+```
+
+### `assistant_tool_call`
+
+A tool call the agent issued.
 
 ```rust
 pub struct AssistantToolCallChunk {
@@ -122,6 +158,38 @@ pub struct AssistantToolCallChunk {
     pub inner: CallToolRequestParams,
 }
 
+pub enum AssistantToolCallChunkType {
+    #[serde(rename = "assistant_tool_call")]
+    AssistantToolCall,
+}
+```
+
+### `assistant_refusal`
+
+A refusal the agent issued.
+
+```rust
+pub struct AssistantRefusalChunk {
+    /// "assistant_refusal"
+    pub r#type: AssistantRefusalChunkType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<Vec<Logprob>>,
+    #[serde(flatten)]
+    pub inner: TextContent,
+}
+
+pub enum AssistantRefusalChunkType {
+    #[serde(rename = "assistant_refusal")]
+    AssistantRefusal,
+}
+```
+
+### `tool_response`
+
+The answer a tool call received; `id` names the `assistant_tool_call`
+it answers.
+
+```rust
 pub struct ToolResponseChunk {
     /// "tool_response"
     pub r#type: ToolResponseChunkType,
@@ -129,6 +197,11 @@ pub struct ToolResponseChunk {
     pub id: String,
     #[serde(flatten)]
     pub inner: CallToolResult,
+}
+
+pub enum ToolResponseChunkType {
+    #[serde(rename = "tool_response")]
+    ToolResponse,
 }
 ```
 
@@ -146,6 +219,11 @@ pub struct UsageChunk {
     #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
     pub meta: Option<MetaObject>,
 }
+
+pub enum UsageChunkType {
+    #[serde(rename = "usage")]
+    Usage,
+}
 ```
 
 ### `notification`
@@ -162,6 +240,11 @@ pub struct NotificationChunk {
     #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
     pub meta: Option<MetaObject>,
 }
+
+pub enum NotificationChunkType {
+    #[serde(rename = "notification")]
+    Notification,
+}
 ```
 
 ### `continuation`
@@ -177,5 +260,10 @@ pub struct ContinuationChunk {
     pub continuation: String,
     #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
     pub meta: Option<MetaObject>,
+}
+
+pub enum ContinuationChunkType {
+    #[serde(rename = "continuation")]
+    Continuation,
 }
 ```
