@@ -1,0 +1,15 @@
+---
+title: 'Authorization'
+summary: "The connection's first frame is a credential, presented by whichever side dialled and never answered."
+order: 4
+---
+
+Whichever side dialled authenticates: its first frame — nothing may
+precede it — carries a credential, in one mode today (*unbrokered*: an
+opaque string the two ends agreed on beforehand) with a tag reserved
+for a brokered mode to come. There is no answer frame. An accepted
+credential is followed by the connection simply working, a rejected
+one by a close, and a peer that has not authenticated is owed no bytes
+at all — not even an error. On the provider side, the accepted
+credential's judgment produces the caller's identity, which every
+subsequent operation receives.

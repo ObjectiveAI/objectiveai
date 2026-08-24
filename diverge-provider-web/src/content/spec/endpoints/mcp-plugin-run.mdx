@@ -1,0 +1,13 @@
+---
+title: 'mcp_plugin::run'
+summary: 'Run an MCP plugin in a container and call its tools; the plugin may reach back for a database, and for commands only the caller can run.'
+order: 2
+---
+
+The caller names an image, ports, environment, and an identity; the
+provider deploys it and then serves both directions at once. The
+caller opens channels for MCP exchanges against the plugin; the
+plugin, from inside its container, opens database connections that are
+carried out to the caller's own Postgres, and asks for commands that
+only the caller's CLI can run. A working run is silent — the only
+scope-level answer is the error that says the plugin never came up.

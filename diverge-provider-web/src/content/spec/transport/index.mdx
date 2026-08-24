@@ -1,0 +1,14 @@
+---
+title: 'Transport'
+summary: 'One WebSocket connection carries everything, and either side may be the one that dialled.'
+order: 2
+---
+
+A connection is a single WebSocket carrying binary messages, each
+message one protocol frame. Which side dialled is a fact about TCP,
+not about the protocol: a provider usually waits to be dialled and a
+caller usually dials, but both roles work in either direction, and the
+only place the direction shows is the authorization handshake — the
+side that dialled is the side that presents the credential. How the
+socket is obtained — URLs, TLS, the HTTP upgrade — is deliberately
+outside the protocol.

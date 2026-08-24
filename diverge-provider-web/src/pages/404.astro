@@ -1,0 +1,24 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { REVISION } from "../revision";
+---
+
+<Layout
+  title="Not found"
+  description="There is nothing at this URL. The specification's table of contents lists every page that exists."
+  path="/404/"
+>
+  <div class="page">
+    <main>
+      <article>
+        <h1>Not found</h1>
+        <p>
+          There is nothing at this URL. Start from the
+          <a href={`/specification/${REVISION}/`}>table of contents</a>, or
+          the <a href="/">front page</a> — and if a link brought you here,
+          the page may belong to a different revision than {REVISION}.
+        </p>
+      </article>
+    </main>
+  </div>
+</Layout>

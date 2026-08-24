@@ -1,0 +1,61 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import { REVISION } from "../../../revision";
+import { layers } from "../../../spec";
+
+export function getStaticPaths() {
+  return [{ params: { revision: REVISION } }];
+}
+
+const tree = await layers();
+const path = `/specification/${REVISION}/`;
+---
+
+<Layout
+  title={`Specification ${REVISION}`}
+  description={`The Diverge Provider Protocol specification, revision ${REVISION} — every layer and section, in reading order.`}
+  path={path}
+>
+  <div class="page">
+    <main>
+      <article>
+        <h1>Diverge Provider Protocol — Specification {REVISION}</h1>
+        <p class="summary">
+          The revision number is the version of the normative
+          <a href="https://docs.rs/diverge-provider-sdk"
+            ><code>diverge-provider-sdk</code></a
+          > crate: the crate defines the protocol's messages, and where this
+          prose and the crate disagree, the crate is correct.
+        </p>
+        <p>
+          The whole specification is also available as
+          <a href={`/specification/${REVISION}/full/`}>a single page</a>, as
+          <a href="/llms-full.txt">one plain-text file</a>, and section by
+          section as raw Markdown — every page links its own
+          <code>.md</code> twin, and <a href="/llms.txt">/llms.txt</a> indexes
+          them all.
+        </p>
+        {
+          tree.map((layer) => (
+            <section>
+              <h2 id={layer.index.layer}>
+                <a href={layer.index.url}>{layer.index.entry.data.title}</a>
+              </h2>
+              <p>{layer.index.entry.data.summary}</p>
+              {layer.sections.length > 0 && (
+                <ul>
+                  {layer.sections.map((child) => (
+                    <li>
+                      <a href={child.url}>{child.entry.data.title}</a> —{" "}
+                      {child.entry.data.summary}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ))
+        }
+      </article>
+    </main>
+  </div>
+</Layout>

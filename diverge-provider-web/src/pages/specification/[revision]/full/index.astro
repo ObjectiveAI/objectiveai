@@ -1,0 +1,53 @@
+---
+import { render } from "astro:content";
+
+import Layout from "../../../../layouts/Layout.astro";
+import { REVISION } from "../../../../revision";
+import { ordered } from "../../../../spec";
+
+export function getStaticPaths() {
+  return [{ params: { revision: REVISION } }];
+}
+
+const all = await ordered();
+const rendered = await Promise.all(
+  all.map(async (section) => ({
+    section,
+    Content: (await render(section.entry)).Content,
+  })),
+);
+const path = `/specification/${REVISION}/full/`;
+---
+
+<Layout
+  title={`Specification ${REVISION}, complete`}
+  description={`The entire Diverge Provider Protocol specification, revision ${REVISION}, as one page — every layer and section in reading order.`}
+  path={path}
+>
+  <div class="page">
+    <main>
+      <article>
+        <h1>
+          Diverge Provider Protocol — Specification {REVISION}, complete
+        </h1>
+        <p class="summary">
+          Every layer and section on one page, in reading order. For the
+          sectioned rendering, start at
+          <a href={`/specification/${REVISION}/`}>the table of contents</a>;
+          for plain text, fetch <a href="/llms-full.txt">/llms-full.txt</a>.
+        </p>
+        {
+          rendered.map(({ section, Content }) => (
+            <section>
+              <h2 id={section.url.split("/").filter(Boolean).slice(2).join("--")}>
+                <a href={section.url}>{section.entry.data.title}</a>
+              </h2>
+              <p>{section.entry.data.summary}</p>
+              <Content />
+            </section>
+          ))
+        }
+      </article>
+    </main>
+  </div>
+</Layout>

@@ -1,0 +1,26 @@
+---
+title: 'Endpoints'
+summary: 'The eleven things a caller can open a scope for, and the tag byte that names each on the wire.'
+order: 6
+---
+
+A scope-opening request's payload begins with one tag byte naming the
+endpoint. The allocation:
+
+| Tag | Endpoint | Ask |
+|-----|----------|-----|
+| `0` | agentic-loop-run | Run an agent and stream what it does |
+| `1` | mcp-plugin-run | Run an MCP plugin and call it |
+| `2` | laboratories-run | Run a laboratory |
+| `3` | laboratories-connect | Join a laboratory somebody else runs |
+| `4` | volumes-list | List the volumes a provider offers |
+| `5` | volumes-watch | Watch one volume's filesystem |
+| `6` | volumes-create | Make a volume |
+| `7` | volumes-edit | Change how much a volume reserves |
+| `8` | volumes-delete | Destroy a volume |
+| `9` | images-check | Ask whether an image can be supplied |
+| `10` | version | Ask what protocol a provider speaks |
+
+A payload the receiver cannot read — an unknown tag, a body that will
+not parse — is still answered: the scope finishes with nothing in it,
+which every caller-side executor reads as its own "unanswered".

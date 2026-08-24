@@ -1,0 +1,52 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { REVISION } from "../revision";
+---
+
+<Layout
+  title="Diverge Provider Protocol"
+  description="The specification of the Diverge Provider Protocol: the wire protocol between callers and providers for running agentic loops, MCP plugins, and laboratories, and for managing volumes and images."
+  path="/"
+>
+  <div class="page">
+    <main>
+      <article>
+        <h1>Diverge Provider Protocol</h1>
+        <p class="summary">
+          The wire protocol between callers and providers: running agentic
+          loops, MCP plugins, and laboratories; managing volumes; checking
+          images. One WebSocket connection, framed and multiplexed, with a
+          handshake in front.
+        </p>
+        <p>
+          The protocol's normative definition is the
+          <a href="https://docs.rs/diverge-provider-sdk"
+            ><code>diverge-provider-sdk</code></a
+          > Rust crate — its types define the messages, and where this site's
+          prose and the crate disagree, the crate is correct. This site is the
+          specification's readable form, and its revisions are the crate's
+          versions.
+        </p>
+        <ul>
+          <li>
+            <a href={`/specification/${REVISION}/`}
+              >Specification {REVISION}</a
+            > — the current revision, layer by layer
+          </li>
+          <li>
+            <a href={`/specification/${REVISION}/full/`}>Complete on one page</a>
+          </li>
+          <li>
+            <a href="/llms.txt"><code>/llms.txt</code></a> and
+            <a href="/llms-full.txt"><code>/llms-full.txt</code></a> — Markdown
+            indexes for machine consumption; every page also serves a raw
+            <code>.md</code> twin at its own URL
+          </li>
+          <li>
+            <a href="https://github.com/ObjectiveAI/objectiveai">Source</a>
+          </li>
+        </ul>
+      </article>
+    </main>
+  </div>
+</Layout>

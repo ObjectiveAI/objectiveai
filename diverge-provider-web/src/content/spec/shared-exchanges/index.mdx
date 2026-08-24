@@ -1,0 +1,14 @@
+---
+title: 'Shared exchanges'
+summary: "The payload shapes several endpoints are built from: MCP's five exchanges, OCI as verbatim bytes, container file operations, and filesystem trees."
+order: 7
+---
+
+Four families of payload recur across endpoints, defined once and
+carried by each endpoint's own frames. MCP crosses the wire as five
+typed exchanges rather than a tunneled transport; the OCI Distribution
+protocol crosses as verbatim bytes, because its semantics belong to
+the registry and the runtime speaking to it; container file
+operations — read, write, transfer — have one definition wherever a
+container is reached into; and filesystem views are one snapshot
+followed by deltas, wherever a tree is watched.

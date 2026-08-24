@@ -1,0 +1,115 @@
+// The build's own proof of what the README claims. Runs after
+// `astro build`, fails the build if any claim stops being true, and
+// strips the one piece of dead weight the toolchain emits.
+//
+// 1. No HTML page ships a <script>. React is an authoring language
+//    here; the day someone adds a `client:*` directive, this is what
+//    says so, loudly, instead of the site quietly growing a runtime.
+// 2. Unreferenced JS assets are deleted. @astrojs/react emits its
+//    client entry into _astro/ even when nothing hydrates; once (1)
+//    holds, any emitted .js is dead weight by definition — verified
+//    unreferenced anyway before deletion.
+// 3. Every link in llms.txt resolves to a file in dist/.
+// 4. Every HTML page has exactly one <h1>, a canonical, a meta
+//    description — and, for specification pages, the alternate
+//    Markdown link with an existing twin.
+
+import { readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
+
+const dist = new URL("../dist/", import.meta.url).pathname.replace(
+  /^\/([A-Za-z]:)/,
+  "$1",
+);
+
+function walk(dir) {
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    return statSync(path).isDirectory() ? walk(path) : [path];
+  });
+}
+
+const files = walk(dist);
+const failures = [];
+
+// 1. No scripts in any HTML.
+const html = files.filter((f) => f.endsWith(".html"));
+for (const page of html) {
+  const text = readFileSync(page, "utf-8");
+  if (text.includes("<script")) {
+    failures.push(`${relative(dist, page)}: contains a <script> tag`);
+  }
+}
+
+// 2. Emitted JS must be unreferenced, then goes.
+const scripts = files.filter((f) => f.endsWith(".js") || f.endsWith(".mjs"));
+for (const script of scripts) {
+  const name = relative(dist, script).replace(/\\/g, "/");
+  const referenced = html.some((page) =>
+    readFileSync(page, "utf-8").includes(name.split("/").pop()),
+  );
+  if (referenced) {
+    failures.push(`${name}: JS asset is referenced by a page`);
+  } else {
+    rmSync(script);
+  }
+}
+
+// 3. llms.txt links resolve.
+const llms = readFileSync(join(dist, "llms.txt"), "utf-8");
+for (const match of llms.matchAll(
+  /\]\(https:\/\/provider\.diverge\.network(\/[^)]+)\)/g,
+)) {
+  const path = match[1];
+  const candidates = path.endsWith("/")
+    ? [join(dist, path, "index.html")]
+    : [join(dist, path)];
+  if (
+    !candidates.some((candidate) => {
+      try {
+        return statSync(candidate).isFile();
+      } catch {
+        return false;
+      }
+    })
+  ) {
+    failures.push(`llms.txt: ${path} resolves to nothing in dist/`);
+  }
+}
+
+// 4. Page anatomy.
+for (const page of html) {
+  const text = readFileSync(page, "utf-8");
+  const name = relative(dist, page);
+  const h1s = (text.match(/<h1[\s>]/g) ?? []).length;
+  if (h1s !== 1) {
+    failures.push(`${name}: ${h1s} <h1> elements`);
+  }
+  if (!text.includes('rel="canonical"')) {
+    failures.push(`${name}: no canonical link`);
+  }
+  if (!text.includes('name="description"')) {
+    failures.push(`${name}: no meta description`);
+  }
+  const twin = text.match(
+    /rel="alternate" type="text\/markdown" href="https:\/\/provider\.diverge\.network(\/[^"]+)"/,
+  );
+  if (twin) {
+    try {
+      statSync(join(dist, twin[1]));
+    } catch {
+      failures.push(`${name}: markdown twin ${twin[1]} does not exist`);
+    }
+  }
+}
+
+if (failures.length > 0) {
+  console.error("verify-static: the build breaks its own claims:");
+  for (const failure of failures) {
+    console.error(`  - ${failure}`);
+  }
+  process.exit(1);
+}
+console.log(
+  `verify-static: ${html.length} pages, zero scripts, llms.txt resolves, anatomy sound.`,
+);

@@ -1,0 +1,13 @@
+---
+title: 'MCP'
+summary: 'Five typed exchanges — list tools, list resources, call a tool, read a resource, and a notification stream — one channel each.'
+order: 1
+---
+
+MCP over Streamable HTTP is JSON-RPC riding a transport, and only the
+exchanges cross this wire: four asks answered once each with a result
+or the server's own JSON-RPC error, and a fifth — notifications — that
+carries nothing up and streams the server's unprompted messages back
+until either side is done. Each exchange is its own channel, and a
+channel that finishes with no answer at all is the provider saying the
+exchange could not be served.

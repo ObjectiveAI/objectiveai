@@ -1,0 +1,14 @@
+---
+title: 'OCI'
+summary: 'Registry pulls as verbatim bytes: requests forwarded whole, answers forwarded whole, nothing between the two reading either.'
+order: 2
+---
+
+When a caller serves its own image, the provider's container runtime
+pulls through a relay: each registry request travels as the bytes the
+runtime wrote, and each answer as the bytes the registry's server
+wrote, status line and headers and body together. There is no parsed
+head and no error variant, because the registry already speaks
+refusals as statuses — and because forwarding whole is what keeps
+`Range` resumes and `HEAD` probes working, nothing between the two
+being able to get a header wrong.

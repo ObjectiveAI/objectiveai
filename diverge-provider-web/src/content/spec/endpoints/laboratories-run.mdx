@@ -1,0 +1,14 @@
+---
+title: 'laboratories::run'
+summary: 'Run a laboratory: a container with mounts and a live filesystem view, reachable by other callers the runner authorizes.'
+order: 3
+---
+
+The provider deploys the requested image with the caller's mounts,
+mints an unguessable laboratory id, and reports three things for the
+scope's life: the id, every filesystem change, and every departure of
+a connector the runner previously authorized. The runner reads and
+writes files, transfers them between laboratories, calls the
+laboratory's MCP server, answers each would-be connector's
+authorization, and stops the laboratory — which takes every connection
+into it down too.

@@ -1,0 +1,10 @@
+---
+title: 'volumes::watch'
+summary: "Watch one volume's filesystem: a snapshot, then a frame per change, until the watcher disconnects."
+order: 6
+---
+
+The answer is a filesystem tree stream — one snapshot, then one frame
+per change — the same shape a laboratory's filesystem view uses, over
+a different tree. The watch ends when the caller says so or leaves;
+there is nothing to unsubscribe beyond that.
