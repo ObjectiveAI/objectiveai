@@ -31,8 +31,8 @@ function locate(entry: CollectionEntry<"spec">): Section {
     entry,
     layer,
     section,
-    url: `/specification/${REVISION}/${path}/`,
-    markdownUrl: `/specification/${REVISION}/${path}.md`,
+    url: `/${REVISION}/${path}/`,
+    markdownUrl: `/${REVISION}/${path}.md`,
   };
 }
 

@@ -1,17 +1,20 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { REVISION } from "../revision";
+import { layers } from "../spec";
+
+const tree = await layers();
 ---
 
 <Layout
-  title="Diverge Provider Protocol"
+  title={`Diverge Provider Protocol — Specification ${REVISION}`}
   description="The specification of the Diverge Provider Protocol: the wire protocol between callers and providers for running agentic loops, MCP plugins, and laboratories, and for managing volumes and images."
   path="/"
 >
   <div class="page">
     <main>
       <article>
-        <h1>Diverge Provider Protocol</h1>
+        <h1>Diverge Provider Protocol — Specification {REVISION}</h1>
         <p class="summary">
           The wire protocol between callers and providers: running agentic
           loops, MCP plugins, and laboratories; managing volumes; checking
@@ -23,29 +26,40 @@ import { REVISION } from "../revision";
           <a href="https://docs.rs/diverge-provider-sdk"
             ><code>diverge-provider-sdk</code></a
           > Rust crate — its types define the messages, and where this site's
-          prose and the crate disagree, the crate is correct. This site is the
-          specification's readable form, and its revisions are the crate's
-          versions.
+          prose and the crate disagree, the crate is correct. The revision
+          number is that crate's version.
         </p>
-        <ul>
-          <li>
-            <a href={`/specification/${REVISION}/`}
-              >Specification {REVISION}</a
-            > — the current revision, layer by layer
-          </li>
-          <li>
-            <a href={`/specification/${REVISION}/full/`}>Complete on one page</a>
-          </li>
-          <li>
-            <a href="/llms.txt"><code>/llms.txt</code></a> and
-            <a href="/llms-full.txt"><code>/llms-full.txt</code></a> — Markdown
-            indexes for machine consumption; every page also serves a raw
-            <code>.md</code> twin at its own URL
-          </li>
-          <li>
-            <a href="https://github.com/ObjectiveAI/objectiveai">Source</a>
-          </li>
-        </ul>
+        <p>
+          The whole specification is also available as
+          <a href={`/${REVISION}/full/`}>a single page</a>, as
+          <a href="/llms-full.txt">one plain-text file</a>, and section by
+          section as raw Markdown — every page links its own
+          <code>.md</code> twin, and <a href="/llms.txt">/llms.txt</a> indexes
+          them all. The crate and this site live in
+          <a href="https://github.com/ObjectiveAI/objectiveai"
+            >one repository</a
+          >.
+        </p>
+        {
+          tree.map((layer) => (
+            <section>
+              <h2 id={layer.index.layer}>
+                <a href={layer.index.url}>{layer.index.entry.data.title}</a>
+              </h2>
+              <p>{layer.index.entry.data.summary}</p>
+              {layer.sections.length > 0 && (
+                <ul>
+                  {layer.sections.map((child) => (
+                    <li>
+                      <a href={child.url}>{child.entry.data.title}</a> —{" "}
+                      {child.entry.data.summary}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ))
+        }
       </article>
     </main>
   </div>

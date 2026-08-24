@@ -44,7 +44,7 @@ export const GET: APIRoute = async () => {
     "## Optional",
     "",
     `- [Complete specification, one file](${absolute("/llms-full.txt")}): every section above, concatenated in reading order`,
-    `- [Rendered specification](${absolute(`/specification/${REVISION}/`)}): the HTML table of contents`,
+    `- [Rendered specification](${absolute("/")}): the HTML table of contents`,
     "- [diverge-provider-sdk on docs.rs](https://docs.rs/diverge-provider-sdk): the normative crate's API documentation",
     "",
   );

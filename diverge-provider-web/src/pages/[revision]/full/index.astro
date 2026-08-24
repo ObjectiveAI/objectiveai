@@ -1,9 +1,9 @@
 ---
 import { render } from "astro:content";
 
-import Layout from "../../../../layouts/Layout.astro";
-import { REVISION } from "../../../../revision";
-import { ordered } from "../../../../spec";
+import Layout from "../../../layouts/Layout.astro";
+import { REVISION } from "../../../revision";
+import { ordered } from "../../../spec";
 
 export function getStaticPaths() {
   return [{ params: { revision: REVISION } }];
@@ -16,7 +16,7 @@ const rendered = await Promise.all(
     Content: (await render(section.entry)).Content,
   })),
 );
-const path = `/specification/${REVISION}/full/`;
+const path = `/${REVISION}/full/`;
 ---
 
 <Layout
@@ -33,13 +33,13 @@ const path = `/specification/${REVISION}/full/`;
         <p class="summary">
           Every layer and section on one page, in reading order. For the
           sectioned rendering, start at
-          <a href={`/specification/${REVISION}/`}>the table of contents</a>;
+          <a href="/">the table of contents</a>;
           for plain text, fetch <a href="/llms-full.txt">/llms-full.txt</a>.
         </p>
         {
           rendered.map(({ section, Content }) => (
             <section>
-              <h2 id={section.url.split("/").filter(Boolean).slice(2).join("--")}>
+              <h2 id={section.url.split("/").filter(Boolean).slice(1).join("--")}>
                 <a href={section.url}>{section.entry.data.title}</a>
               </h2>
               <p>{section.entry.data.summary}</p>
