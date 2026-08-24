@@ -20,6 +20,12 @@ export default defineConfig({
   trailingSlash: "always",
   integrations: [react(), mdx(), sitemap()],
   markdown: {
+    // Shiki highlights at build time into inline-styled spans — the
+    // zero-JS gate stays true, and the raw .md twins keep plain fenced
+    // blocks. Dual themes; the swap is a few lines of CSS in Layout.
+    shikiConfig: {
+      themes: { light: "github-light", dark: "github-dark" },
+    },
     rehypePlugins: [
       // Every heading gets a stable id, and a visible anchor link:
       // deep links are half of what makes a specification citable.
