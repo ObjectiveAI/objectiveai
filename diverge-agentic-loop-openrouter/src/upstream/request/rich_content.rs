@@ -1,5 +1,6 @@
 //! Rich (multimodal) message content.
 
+use rmcp::model;
 use serde::{Deserialize, Serialize};
 
 /// Rich content for user/assistant messages (supports multimodal input).
@@ -14,7 +15,7 @@ use serde::{Deserialize, Serialize};
 pub enum RichContent {
     /// Plain text content.
     Text(String),
-    /// Multi-part content (text, images, audio, video, files).
+    /// Multi-part content (text, images, audio, files).
     Parts(Vec<RichContentPart>),
 }
 
@@ -36,10 +37,6 @@ pub enum RichContentPart {
     ImageUrl { image_url: ImageUrl },
     /// Audio input.
     InputAudio { input_audio: InputAudio },
-    /// Video input.
-    InputVideo { video_url: VideoUrl },
-    /// A video URL.
-    VideoUrl { video_url: VideoUrl },
     /// A file.
     File { file: File },
 }
@@ -102,21 +99,6 @@ pub struct InputAudio {
     pub format: String,
 }
 
-/// A video URL for multimodal input.
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-)]
-pub struct VideoUrl {
-    /// The URL of the video.
-    pub url: String,
-}
-
 /// A file attachment for multimodal input.
 #[derive(
     Debug,
@@ -140,4 +122,148 @@ pub struct File {
     /// A URL to fetch the file from.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_url: Option<String>,
+}
+
+/// A text block's text, and nothing else: annotations and `_meta`
+/// have no OpenRouter home.
+impl From<model::TextContent> for RichContentPart {
+    fn from(text: model::TextContent) -> Self {
+        RichContentPart::Text { text: text.text }
+    }
+}
+
+/// Compose a base64 data URL from an MCP image's mime and data.
+/// `detail` defaults to absent.
+impl From<model::ImageContent> for ImageUrl {
+    fn from(image: model::ImageContent) -> Self {
+        ImageUrl {
+            url: format!("data:{};base64,{}", image.mime_type, image.data),
+            detail: None,
+        }
+    }
+}
+
+impl From<model::ImageContent> for RichContentPart {
+    fn from(image: model::ImageContent) -> Self {
+        RichContentPart::ImageUrl {
+            image_url: image.into(),
+        }
+    }
+}
+
+/// Adopt an MCP audio block's `mime_type` as `format`, verbatim.
+impl From<model::AudioContent> for InputAudio {
+    fn from(audio: model::AudioContent) -> Self {
+        InputAudio {
+            data: audio.data,
+            format: audio.mime_type,
+        }
+    }
+}
+
+impl From<model::AudioContent> for RichContentPart {
+    fn from(audio: model::AudioContent) -> Self {
+        RichContentPart::InputAudio {
+            input_audio: audio.into(),
+        }
+    }
+}
+
+/// An embedded resource's contents. Text is text; a blob is
+/// dispatched on its mime prefix — an image becomes a data-URL image
+/// part, audio becomes an audio part with the full mime as its
+/// format, and anything else (video included, which has no part to
+/// become) is a file, its filename lifted from the URI's trailing
+/// path segment.
+impl From<model::ResourceContents> for RichContentPart {
+    fn from(contents: model::ResourceContents) -> Self {
+        match contents {
+            model::ResourceContents::TextResourceContents {
+                text, ..
+            } => RichContentPart::Text { text },
+            model::ResourceContents::BlobResourceContents {
+                uri,
+                mime_type,
+                blob,
+                ..
+            } => {
+                let mime = mime_type.as_deref().unwrap_or("");
+                if mime.starts_with("image/") {
+                    RichContentPart::ImageUrl {
+                        image_url: ImageUrl {
+                            url: format!("data:{mime};base64,{blob}"),
+                            detail: None,
+                        },
+                    }
+                } else if mime.starts_with("audio/") {
+                    RichContentPart::InputAudio {
+                        input_audio: InputAudio {
+                            data: blob,
+                            format: mime.to_string(),
+                        },
+                    }
+                } else {
+                    let filename = uri
+                        .rsplit('/')
+                        .next()
+                        .filter(|segment| !segment.is_empty())
+                        .map(String::from);
+                    RichContentPart::File {
+                        file: File {
+                            file_data: Some(blob),
+                            file_id: None,
+                            filename,
+                            file_url: None,
+                        },
+                    }
+                }
+            }
+            // Contents a newer MCP defines and this crate does not
+            // know: their JSON, which loses nothing and pretends
+            // nothing.
+            contents => RichContentPart::Text {
+                text: serde_json::to_string(&contents).unwrap_or_default(),
+            },
+        }
+    }
+}
+
+impl From<model::EmbeddedResource> for RichContentPart {
+    fn from(embedded: model::EmbeddedResource) -> Self {
+        embedded.resource.into()
+    }
+}
+
+/// A resource link is a file by URL: OpenRouter's file part carries
+/// one natively, so nothing has to be fetched to represent the link.
+impl From<model::Resource> for RichContentPart {
+    fn from(resource: model::Resource) -> Self {
+        RichContentPart::File {
+            file: File {
+                file_data: None,
+                file_id: None,
+                filename: Some(resource.name),
+                file_url: Some(resource.uri),
+            },
+        }
+    }
+}
+
+/// One MCP content block, as the part it is. The wildcard arm covers
+/// variants a newer MCP defines and this crate does not know: they
+/// pass through as their JSON, which loses nothing and pretends
+/// nothing.
+impl From<model::ContentBlock> for RichContentPart {
+    fn from(block: model::ContentBlock) -> Self {
+        match block {
+            model::ContentBlock::Text(text) => text.into(),
+            model::ContentBlock::Image(image) => image.into(),
+            model::ContentBlock::Audio(audio) => audio.into(),
+            model::ContentBlock::Resource(embedded) => embedded.into(),
+            model::ContentBlock::ResourceLink(resource) => resource.into(),
+            block => RichContentPart::Text {
+                text: serde_json::to_string(&block).unwrap_or_default(),
+            },
+        }
+    }
 }
