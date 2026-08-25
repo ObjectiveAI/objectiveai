@@ -1666,6 +1666,15 @@ name = "diverge-agentic-loop-cc"
 version = "2.3.0"
 
 [[package]]
+name = "diverge-agentic-loop-mcp-proxy"
+version = "2.3.0"
+dependencies = [
+ "diverge-provider-sdk",
+ "tokio",
+ "tokio-tungstenite 0.29.0",
+]
+
+[[package]]
 name = "diverge-agentic-loop-openrouter"
 version = "2.3.0"
 
