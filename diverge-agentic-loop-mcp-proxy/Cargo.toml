@@ -10,13 +10,25 @@ homepage = "https://diverge.network"
 publish = false
 
 [dependencies]
+# `ws` on top of the defaults: one listener serves the WebSocket at `/`
+# and the MCP server at `/mcp`, and axum's upgrade is the listener half
+# the wire needs.
+axum = { version = "0.8.9", features = ["ws"] }
+# What a WebSocket message carries, and what a channel's responses are
+# routed as — sliced out of the frame they arrived in, not copied.
+bytes = { version = "1.11.1", default-features = false }
 # Path-only: this crate rides the workspace and is never published, so
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.
 diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+# `Sink`/`Stream` on the split socket.
+futures-util = { version = "0.3.33", default-features = false }
+# The MCP server the agent talks to: a compliant Streamable HTTP
+# server whose handler is this crate's relay.
+rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
+# Named for the encode failure `open` reports; the JSON itself is the
+# SDK's business.
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
 # The runtime under the listener. No `macros` — the runtime is built in
 # main, not attributed onto it.
 tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }
-# The WebSocket listener: `accept_async` on the connections the
-# provider opens. Default features for the server handshake.
-tokio-tungstenite = { version = "0.29.0" }
