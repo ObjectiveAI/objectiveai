@@ -7,11 +7,26 @@ use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::Agenti
 /// A continuation token, opened.
 ///
 /// The token is opaque to everyone but this container: what it holds
-/// is the loop's own history — the chunks the run produced, in order —
-/// as a JSON array, base64-ified. Resuming is deserializing it and
-/// rebuilding the conversation from what was already said.
+/// is the conversation's own history — each turn's user prompt and
+/// the chunks the loop produced, in order — as a JSON array,
+/// base64-ified. Resuming is deserializing it and rebuilding the
+/// conversation from what was already said.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Continuation(pub Vec<AgenticLoopChunk>);
+pub struct Continuation(pub Vec<ContinuationItem>);
+
+/// One entry in the history.
+///
+/// Untagged, and unambiguous without a tag: a chunk serializes as a
+/// JSON object — its `type` member inside — and a prompt as a JSON
+/// array of content blocks. An object and an array cannot collide.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum ContinuationItem {
+    /// One chunk the loop produced.
+    Chunk(AgenticLoopChunk),
+    /// One turn's user prompt, as its content blocks.
+    Prompt(Vec<rmcp::model::ContentBlock>),
+}
 
 impl Continuation {
     /// Open a raw continuation string: un-base64 it, deserialize it.

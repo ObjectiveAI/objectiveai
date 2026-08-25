@@ -9,3 +9,10 @@ pub struct SystemMessage {
     /// The prompt's text content.
     pub content: String,
 }
+
+impl SystemMessage {
+    /// The agent's system prompt, as the message it leads with.
+    pub fn new(content: String) -> Self {
+        SystemMessage { content }
+    }
+}

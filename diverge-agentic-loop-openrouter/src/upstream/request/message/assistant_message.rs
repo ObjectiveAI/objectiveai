@@ -1,7 +1,9 @@
 //! Assistant messages and their tool calls.
 
-use super::super::RichContent;
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 use serde::{Deserialize, Serialize};
+
+use super::super::{RichContent, RichContentPart};
 
 /// An assistant message (model's previous response).
 #[derive(
@@ -115,4 +117,105 @@ pub struct AssistantToolCallFunctionDelta {
     /// The arguments being streamed (accumulated across deltas).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<String>,
+}
+
+impl AssistantMessage {
+    /// Start a message from its first chunk.
+    ///
+    /// The chunk must be one of the assistant kinds — the caller
+    /// controls what arrives here, so anything else is unreachable.
+    pub fn new(chunk: AgenticLoopChunk) -> Self {
+        let mut message = AssistantMessage {
+            content: None,
+            refusal: None,
+            tool_calls: None,
+            reasoning: None,
+        };
+        message.push(chunk);
+        message
+    }
+
+    /// Merge one more assistant chunk into this message.
+    ///
+    /// Content is kept as parts, in arrival order; reasoning and
+    /// refusal text concatenate; tool calls accumulate. A chunk's log
+    /// probabilities have no home in a message and are dropped. Only
+    /// the assistant kinds arrive here — the caller controls that —
+    /// so the rest are unreachable.
+    pub fn push(&mut self, chunk: AgenticLoopChunk) {
+        match chunk {
+            AgenticLoopChunk::AssistantReasoning(chunk) => {
+                append(&mut self.reasoning, chunk.inner.text);
+            }
+            AgenticLoopChunk::AssistantTextContent(chunk) => {
+                self.push_part(RichContentPart::Text {
+                    text: chunk.inner.text,
+                });
+            }
+            AgenticLoopChunk::AssistantImageContent(chunk) => {
+                self.push_part(chunk.inner.into());
+            }
+            AgenticLoopChunk::AssistantAudioContent(chunk) => {
+                self.push_part(chunk.inner.into());
+            }
+            AgenticLoopChunk::AssistantToolCall(chunk) => {
+                let arguments = chunk
+                    .inner
+                    .arguments
+                    .as_ref()
+                    .and_then(|arguments| {
+                        serde_json::to_string(arguments).ok()
+                    })
+                    .unwrap_or_else(|| String::from("{}"));
+                self.tool_calls.get_or_insert_with(Vec::new).push(
+                    super::AssistantToolCall::Function {
+                        id: chunk.id,
+                        function: super::AssistantToolCallFunction {
+                            name: chunk.inner.name.into_owned(),
+                            arguments,
+                        },
+                    },
+                );
+            }
+            AgenticLoopChunk::AssistantRefusal(chunk) => {
+                append(&mut self.refusal, chunk.inner.text);
+            }
+            AgenticLoopChunk::ToolResponse(_)
+            | AgenticLoopChunk::Usage(_)
+            | AgenticLoopChunk::Notification(_)
+            | AgenticLoopChunk::Continuation(_) => {
+                unreachable!("only assistant chunks are pushed here")
+            }
+        }
+    }
+
+    /// Append one part, keeping `content` as parts. A plain-text
+    /// content — which this type's own constructors never produce —
+    /// is first rewrapped as a text part, so nothing is lost.
+    fn push_part(&mut self, part: RichContentPart) {
+        match &mut self.content {
+            Some(RichContent::Parts(parts)) => parts.push(part),
+            Some(RichContent::Text(_)) => {
+                let Some(RichContent::Text(text)) = self.content.take()
+                else {
+                    unreachable!("matched Text above");
+                };
+                self.content = Some(RichContent::Parts(vec![
+                    RichContentPart::Text { text },
+                    part,
+                ]));
+            }
+            None => {
+                self.content = Some(RichContent::Parts(vec![part]));
+            }
+        }
+    }
+}
+
+/// Concatenate streamed text into an optional accumulator.
+fn append(accumulator: &mut Option<String>, text: String) {
+    match accumulator {
+        Some(existing) => existing.push_str(&text),
+        None => *accumulator = Some(text),
+    }
 }
