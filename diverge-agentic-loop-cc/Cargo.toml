@@ -1,0 +1,12 @@
+[package]
+name = "diverge-agentic-loop-cc"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The ClaudeCode agentic_loop container of the Diverge provider protocol"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]

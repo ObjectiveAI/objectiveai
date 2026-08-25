@@ -1,0 +1,8 @@
+//! The `openrouter` agentic loop, as a container.
+//!
+//! The program an `agentic_loop::run` server deploys for an agent
+//! whose `upstream` is `openrouter`, per the Container section of the
+//! provider specification: the loop served over HTTP and SSE on port
+//! 8080, MCP asked on port 8081, Postgres opened to port 8082.
+
+fn main() {}

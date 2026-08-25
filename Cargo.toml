@@ -8,6 +8,8 @@ members = [
     "objectiveai-mcp-laboratory",
     "objectiveai-mcp-proxy",
     "objectiveai-mcp-plugin-framework-rs",
+    "diverge-agentic-loop-cc",
+    "diverge-agentic-loop-openrouter",
     "diverge-broker-sdk",
     "diverge-provider-sdk",
     "objectiveai-sdk-rs",
