@@ -1691,7 +1691,12 @@ dependencies = [
  "axum",
  "diverge-provider-sdk",
  "futures-util",
+ "indexmap 2.14.0",
+ "mime2ext",
  "rmcp 3.1.2",
+ "rust_decimal",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 

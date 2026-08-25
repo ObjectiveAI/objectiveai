@@ -151,14 +151,23 @@ impl From<model::ImageContent> for RichContentPart {
     }
 }
 
-/// Adopt an MCP audio block's `mime_type` as `format`, verbatim.
+/// An MCP audio block's `mime_type`, mapped to the bare format token
+/// OpenRouter expects — `"audio/mpeg"` is `"mp3"` — falling back to
+/// the mime itself when the mapping does not know it.
 impl From<model::AudioContent> for InputAudio {
     fn from(audio: model::AudioContent) -> Self {
         InputAudio {
+            format: audio_format(&audio.mime_type),
             data: audio.data,
-            format: audio.mime_type,
         }
     }
+}
+
+/// The bare format token for an audio mime type.
+fn audio_format(mime: &str) -> String {
+    mime2ext::mime2ext(mime)
+        .map(str::to_string)
+        .unwrap_or_else(|| mime.to_string())
 }
 
 impl From<model::AudioContent> for RichContentPart {
@@ -171,8 +180,8 @@ impl From<model::AudioContent> for RichContentPart {
 
 /// An embedded resource's contents. Text is text; a blob is
 /// dispatched on its mime prefix — an image becomes a data-URL image
-/// part, audio becomes an audio part with the full mime as its
-/// format, and anything else (video included, which has no part to
+/// part, audio becomes an audio part with its bare format token, and
+/// anything else (video included, which has no part to
 /// become) is a file, its filename lifted from the URI's trailing
 /// path segment.
 impl From<model::ResourceContents> for RichContentPart {
@@ -198,8 +207,8 @@ impl From<model::ResourceContents> for RichContentPart {
                 } else if mime.starts_with("audio/") {
                     RichContentPart::InputAudio {
                         input_audio: InputAudio {
+                            format: audio_format(mime),
                             data: blob,
-                            format: mime.to_string(),
                         },
                     }
                 } else {
