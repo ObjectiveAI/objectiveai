@@ -59,11 +59,19 @@ impl ProxyHandler {
 }
 
 impl ServerHandler for ProxyHandler {
+    /// Tools, resources, and the list-changed notifications the
+    /// resident stream broadcasts — advertised, because a client that
+    /// was not promised a notification is entitled to ignore it.
+    /// `resources.subscribe` is deliberately absent: `resources/
+    /// subscribe` is not one of the five wire exchanges, so it is a
+    /// promise this server could not keep.
     fn get_info(&self) -> ServerInfo {
         let mut info = ServerInfo::default();
         info.capabilities = ServerCapabilities::builder()
             .enable_tools()
+            .enable_tool_list_changed()
             .enable_resources()
+            .enable_resources_list_changed()
             .build();
         info
     }
