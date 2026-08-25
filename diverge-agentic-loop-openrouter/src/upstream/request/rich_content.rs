@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 pub enum RichContent {
     /// Plain text content.
     Text(String),
-    /// Multi-part content (text, images, audio, files).
+    /// Multi-part content (text, images, audio, video, files).
     Parts(Vec<RichContentPart>),
 }
 
@@ -37,6 +37,8 @@ pub enum RichContentPart {
     ImageUrl { image_url: ImageUrl },
     /// Audio input.
     InputAudio { input_audio: InputAudio },
+    /// Video input.
+    InputVideo { video_url: VideoUrl },
     /// A file.
     File { file: File },
 }
@@ -97,6 +99,21 @@ pub struct InputAudio {
     pub data: String,
     /// The audio format (e.g., "wav", "mp3").
     pub format: String,
+}
+
+/// A video URL for multimodal input.
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+)]
+pub struct VideoUrl {
+    /// The URL of the video.
+    pub url: String,
 }
 
 /// A file attachment for multimodal input.
@@ -180,10 +197,9 @@ impl From<model::AudioContent> for RichContentPart {
 
 /// An embedded resource's contents. Text is text; a blob is
 /// dispatched on its mime prefix — an image becomes a data-URL image
-/// part, audio becomes an audio part with its bare format token, and
-/// anything else (video included, which has no part to
-/// become) is a file, its filename lifted from the URI's trailing
-/// path segment.
+/// part, audio becomes an audio part with its bare format token,
+/// video becomes a data-URL video part, and anything else is a file,
+/// its filename lifted from the URI's trailing path segment.
 impl From<model::ResourceContents> for RichContentPart {
     fn from(contents: model::ResourceContents) -> Self {
         match contents {
@@ -209,6 +225,12 @@ impl From<model::ResourceContents> for RichContentPart {
                         input_audio: InputAudio {
                             format: audio_format(mime),
                             data: blob,
+                        },
+                    }
+                } else if mime.starts_with("video/") {
+                    RichContentPart::InputVideo {
+                        video_url: VideoUrl {
+                            url: format!("data:{mime};base64,{blob}"),
                         },
                     }
                 } else {
