@@ -17,6 +17,10 @@ the agent.
   [responses](/endpoints/agentic-loop-run/response/) are the loop's
   chunks; a response carrying an error is the scope's final response.
   The response finish ends the scope.
+- **The container.** The server executes each run in a container it
+  deploys — one image per agent kind, fixed resources, and three
+  in-container ports, stated in
+  [Container](/endpoints/agentic-loop-run/container/).
 - **The channels.** Every channel on this endpoint is opened by the
   server; the client opens none. The channels are the five exchanges
   of the [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25), enumerated in

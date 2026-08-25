@@ -1,0 +1,76 @@
+---
+title: 'Container'
+summary: 'The server executes each run in a container it deploys: one image per agent kind, fixed resources, and three in-container ports — the loop over HTTP and SSE, MCP, and Postgres.'
+order: 2
+draft: false
+---
+
+The server executes each run in a **container** it deploys for that
+run. This section states what the server deploys and what traffic it
+handles across the container's boundary.
+
+- **The image is the server's choice, made by the agent kind.** Each
+  of the four agent kinds names one image, tabulated in this
+  section's kind pages; the caller does not choose an image, and the
+  request carries no field that could.
+- **The container receives nothing of the caller's.** No mounts, no
+  volumes, and no environment; nothing inside the container is told
+  who asked.
+- **The container is stopped on every path.** Including the paths
+  that failed: after the run, whatever the run was, the server stops
+  the container.
+- **A caller leaving does not end the run.** The run finishes; what
+  it produces after the connection is gone is written nowhere.
+
+## Ports
+
+The server exposes three ports within the container. The container
+addresses all three on its own loopback interface.
+
+| Port | Traffic |
+|------|---------|
+| `8080` | The loop: the request in, over HTTP; the chunks out, over SSE. |
+| `8081` | MCP: the agent's tool calls, answered by the server. |
+| `8082` | Postgres: database sessions, routed to the caller. |
+
+## The loop
+
+The server forwards the caller's request into the container over HTTP
+on port `8080`: the request's JSON — the request payload less its tag
+byte, byte for byte, so a member this specification does not model
+survives the trip.
+
+The container answers with a server-sent event stream
+(`text/event-stream`). Each event carries one chunk of the
+[Response](/endpoints/agentic-loop-run/response/) vocabulary as JSON;
+the server forwards each chunk to the caller as a response, in the
+order the events arrive; the stream ending is the loop ending. An
+answer that is not a success, or is not an event stream, is a failure
+of the run, and the server reports it as the scope's error.
+
+## MCP
+
+The container is the MCP client, and the caller holds the servers —
+so a tool call must leave the container before it can go anywhere.
+The container listens on port `8081`; the server connects and answers
+the container's MCP requests, relaying each as the corresponding
+[channel exchange](/endpoints/agentic-loop-run/channels/) and
+returning what the caller answers.
+
+Answers may be given in any order: nothing pairs an answer with the
+request that preceded it, and an agent making several calls at once
+is the ordinary case. The container's request stream ending states
+only that the container has no more to ask.
+
+## Postgres
+
+The container opens connections to port `8082`. One TCP connection is
+one database session, carrying the PostgreSQL wire protocol verbatim:
+the server relays the bytes unread, in both directions, and routes
+each connection to the caller. The count and timing of connections
+are the container's own — the server serves each as it is opened.
+
+Either side closing the connection ends the session. PostgreSQL ends
+a session with a `Terminate` message before closing, so no half-close
+semantics are required: the server may treat either half closing as
+the connection's end.
