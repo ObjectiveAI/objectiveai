@@ -66,6 +66,7 @@ pub mod decode;
 pub mod encode;
 pub mod endpoints;
 pub mod frame;
+pub mod mcp_proxy;
 #[cfg(feature = "server")]
 pub mod server;
 pub mod shared;
