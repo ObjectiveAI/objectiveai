@@ -1,8 +1,6 @@
 //! Request types for OpenRouter API calls.
 
-mod assistant_message;
 mod chat_completion_create_params;
-mod conversation;
 mod message;
 mod prediction;
 mod provider;
@@ -12,17 +10,12 @@ mod response_format;
 mod rich_content;
 mod stop;
 mod stream_options;
-mod system_prompt;
 mod tool;
 mod tool_choice;
-mod tool_message;
 mod usage;
-mod user_message;
 mod verbosity;
 
-pub use assistant_message::*;
 pub use chat_completion_create_params::*;
-pub use conversation::*;
 pub use message::*;
 pub use prediction::*;
 pub use provider::*;
@@ -32,10 +25,7 @@ pub use response_format::*;
 pub use rich_content::*;
 pub use stop::*;
 pub use stream_options::*;
-pub use system_prompt::*;
 pub use tool::*;
 pub use tool_choice::*;
-pub use tool_message::*;
 pub use usage::*;
-pub use user_message::*;
 pub use verbosity::*;

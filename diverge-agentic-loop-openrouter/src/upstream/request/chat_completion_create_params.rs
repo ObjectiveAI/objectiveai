@@ -23,7 +23,7 @@ pub struct ChatCompletionCreateParams {
     /// Messages for the conversation: the agent's system prompt (if any) as the
     /// leading entry, followed by the conversation (including any prefix/suffix
     /// from the Agent).
-    pub messages: Vec<super::RequestMessage>,
+    pub messages: Vec<super::Message>,
     /// Provider preferences merged from request and Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<super::Provider>,

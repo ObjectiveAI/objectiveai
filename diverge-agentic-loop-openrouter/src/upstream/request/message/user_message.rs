@@ -1,6 +1,6 @@
 //! User messages.
 
-use super::RichContent;
+use super::super::RichContent;
 use serde::{Deserialize, Serialize};
 
 /// A user message from the end user.

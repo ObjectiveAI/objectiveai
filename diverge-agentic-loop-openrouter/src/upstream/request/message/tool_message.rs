@@ -1,6 +1,6 @@
 //! Tool messages.
 
-use super::RichContent;
+use super::super::RichContent;
 use serde::{Deserialize, Serialize};
 
 /// Vendor-extension metadata attached to a tool response. The

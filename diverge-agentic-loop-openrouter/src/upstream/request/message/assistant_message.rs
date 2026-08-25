@@ -1,6 +1,6 @@
 //! Assistant messages and their tool calls.
 
-use super::RichContent;
+use super::super::RichContent;
 use serde::{Deserialize, Serialize};
 
 /// An assistant message (model's previous response).
