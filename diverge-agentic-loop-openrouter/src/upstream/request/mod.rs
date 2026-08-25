@@ -2,6 +2,7 @@
 
 mod chat_completion_create_params;
 mod message;
+mod plugin;
 mod provider;
 mod provider_options;
 mod reasoning;
@@ -14,6 +15,7 @@ mod verbosity;
 
 pub use chat_completion_create_params::*;
 pub use message::*;
+pub use plugin::*;
 pub use provider::*;
 pub use provider_options::*;
 pub use reasoning::*;

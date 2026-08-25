@@ -4,17 +4,6 @@ use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-/// One entry in OpenRouter's request-body `plugins` array. Today the
-/// only producer is `context-compression` (see the agent's
-/// `context_compression` field), but the shape is OpenRouter-defined
-/// — any future plugin id slots in here.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Plugin {
-    pub id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub engine: Option<String>,
-}
-
 /// Chat completion request parameters formatted for the OpenRouter API.
 ///
 /// Combines parameters from both the Agent configuration and the
@@ -76,7 +65,7 @@ pub struct ChatCompletionCreateParams {
     /// Plugins array derived from Agent (currently only sourced from
     /// `context_compression`).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub plugins: Option<Vec<Plugin>>,
+    pub plugins: Option<Vec<super::Plugin>>,
 
     /// Whether to include log probabilities from request.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -94,21 +83,6 @@ pub struct ChatCompletionCreateParams {
     pub stream_options: super::StreamOptions,
     /// Usage reporting options.
     pub usage: super::Usage,
-}
-
-/// The agent's context compression, as the plugin entry it rides in
-/// as: the id is the plugin's, and the engine is the enum's own wire
-/// string.
-impl From<openrouter::ContextCompression> for Plugin {
-    fn from(compression: openrouter::ContextCompression) -> Self {
-        let engine = serde_json::to_value(compression)
-            .ok()
-            .and_then(|value| value.as_str().map(String::from));
-        Plugin {
-            id: "context-compression".to_string(),
-            engine,
-        }
-    }
 }
 
 impl ChatCompletionCreateParams {
