@@ -14,6 +14,8 @@ publish = false
 # the Container specification names. Default features carry the JSON
 # extractor and the HTTP/1 server.
 axum = { version = "0.8.9" }
+# The continuation token's outer coat: JSON, base64-ified.
+base64 = { version = "0.22.1" }
 # Path-only: this crate rides the workspace and is never published, so
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.

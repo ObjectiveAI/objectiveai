@@ -8,8 +8,10 @@
 //! agent's tool calls go out as an MCP client against the in-container
 //! proxy on port 8081.
 
-// The OpenRouter API types land before the loop that will speak
-// them; the allow leaves with that implementation.
+// The continuation and API types land before the loop that will
+// speak them; the allows leave with that implementation.
+#[allow(dead_code)]
+mod continuation;
 #[allow(dead_code, unused_imports)]
 mod upstream;
 
