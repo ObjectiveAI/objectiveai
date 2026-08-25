@@ -23,6 +23,14 @@ futures-util = { version = "0.3.33", default-features = false, features = ["std"
 # The MCP CLIENT half only: the agent's tool calls go to the in-container
 # proxy at 8081/mcp over Streamable HTTP, and nothing here serves MCP.
 rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
+# The map types the OpenRouter shapes carry: ordered, so the same
+# request always serializes identically.
+indexmap = { version = "2.14.0", features = ["serde"] }
+# Costs and prices in the OpenRouter response are decimals, never
+# floats.
+rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
 # The runtime under the listener. No `macros` — the runtime is built in
 # main, not attributed onto it.
 tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }

@@ -8,6 +8,11 @@
 //! agent's tool calls go out as an MCP client against the in-container
 //! proxy on port 8081.
 
+// The OpenRouter API types land before the loop that will speak
+// them; the allow leaves with that implementation.
+#[allow(dead_code, unused_imports)]
+mod upstream;
+
 use std::pin::Pin;
 
 use axum::Json;
