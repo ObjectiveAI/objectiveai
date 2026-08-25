@@ -1,12 +1,12 @@
 //! The proxy's shared state: one connection slot, 256 channels.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use bytes::Bytes;
 use diverge_provider_sdk::encode::{Encode, Writer};
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::channel_request;
 use diverge_provider_sdk::mcp_proxy;
-use tokio::sync::{Notify, mpsc, watch};
+use tokio::sync::{Mutex, Notify, mpsc, watch};
 
 /// How many frames may queue toward the socket before senders wait.
 const OUTBOUND_CAPACITY: usize = 64;
@@ -29,7 +29,7 @@ const OUTBOUND_CAPACITY: usize = 64;
 /// connection publishes itself — the proxy's standing rule, applied by
 /// construction.
 ///
-/// # The locks are sync, and never held across an await
+/// # The locks are short, and never held across the wire
 ///
 /// Every critical section here is a read-modify-write on plain
 /// state. What waits — for a connection, for a freed tag — waits on
@@ -107,8 +107,8 @@ impl Proxy {
     }
 
     /// Take the connection slot, or learn that it is taken.
-    pub fn claim(self: &Arc<Self>) -> Option<Claim> {
-        let mut occupancy = self.occupancy.lock().expect("occupancy poisoned");
+    pub async fn claim(self: &Arc<Self>) -> Option<Claim> {
+        let mut occupancy = self.occupancy.lock().await;
         if occupancy.taken {
             return None;
         }
@@ -164,7 +164,7 @@ impl Proxy {
             }
             .encode(&mut Writer::new(&mut frame));
             if let Err(error) = encoded {
-                self.finish(channel);
+                self.finish(channel).await;
                 return Err(error);
             }
 
@@ -175,7 +175,7 @@ impl Proxy {
             // The connection died between the wait and the send. Free
             // the tag and wait for the slot to move past that
             // connection before trying again.
-            self.finish(channel);
+            self.finish(channel).await;
             let _ = watcher
                 .wait_for(|slot| match slot {
                     Some(current) => current.generation != outbound.generation,
@@ -188,8 +188,8 @@ impl Proxy {
     /// Route one response to its channel's opener. A response on a
     /// dead tag is dropped — the opener is gone, and there is nobody
     /// to tell.
-    pub fn respond(&self, channel: u8, payload: Bytes) {
-        let routes = self.routes.lock().expect("routes poisoned");
+    pub async fn respond(&self, channel: u8, payload: Bytes) {
+        let routes = self.routes.lock().await;
         if let Some(sender) = &routes.slots[channel as usize] {
             let _ = sender.send(payload);
         }
@@ -197,8 +197,8 @@ impl Proxy {
 
     /// End a channel: drop its route — the opener sees the stream
     /// end — and return the tag to the pool.
-    pub fn finish(&self, channel: u8) {
-        let mut routes = self.routes.lock().expect("routes poisoned");
+    pub async fn finish(&self, channel: u8) {
+        let mut routes = self.routes.lock().await;
         routes.slots[channel as usize] = None;
         drop(routes);
         self.freed.notify_waiters();
@@ -209,7 +209,7 @@ impl Proxy {
         loop {
             let notified = std::pin::pin!(self.freed.notified());
             {
-                let mut routes = self.routes.lock().expect("routes poisoned");
+                let mut routes = self.routes.lock().await;
                 if let Some(index) =
                     routes.slots.iter().position(Option::is_none)
                 {
@@ -226,10 +226,9 @@ impl Proxy {
     /// claim still holds it, and kill every live channel — their
     /// exchanges were not served, and their openers see the stream
     /// end. A no-op for a stale claim.
-    fn release(&self, generation: u64) {
+    async fn release(&self, generation: u64) {
         {
-            let mut occupancy =
-                self.occupancy.lock().expect("occupancy poisoned");
+            let mut occupancy = self.occupancy.lock().await;
             if occupancy.generation != generation {
                 return;
             }
@@ -243,7 +242,7 @@ impl Proxy {
             _ => false,
         });
         {
-            let mut routes = self.routes.lock().expect("routes poisoned");
+            let mut routes = self.routes.lock().await;
             for slot in routes.slots.iter_mut() {
                 *slot = None;
             }
@@ -252,8 +251,18 @@ impl Proxy {
     }
 }
 
+/// The release rides a spawned task, because a drop cannot await and
+/// the locks it needs are async. The generation guard is what makes
+/// that safe: however late the task runs, it frees only the claim it
+/// was spawned for. The one visible consequence is a window in which
+/// the slot is still taken after a connection died — an arrival in
+/// that window is refused, and the next attempt finds the slot free.
 impl Drop for Claim {
     fn drop(&mut self) {
-        self.proxy.release(self.generation);
+        let proxy = Arc::clone(&self.proxy);
+        let generation = self.generation;
+        tokio::spawn(async move {
+            proxy.release(generation).await;
+        });
     }
 }

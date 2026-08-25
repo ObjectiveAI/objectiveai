@@ -23,7 +23,7 @@ pub async fn accept(
     State(proxy): State<Arc<Proxy>>,
     upgrade: WebSocketUpgrade,
 ) -> Response {
-    let Some(claim) = proxy.claim() else {
+    let Some(claim) = proxy.claim().await else {
         return StatusCode::CONFLICT.into_response();
     };
     upgrade
@@ -60,10 +60,12 @@ async fn serve(socket: WebSocket, proxy: Arc<Proxy>, claim: Claim) {
                     Ok(mcp_proxy::server::Frame::ChannelResponse {
                         channel,
                         payload,
-                    }) => proxy.respond(channel, bytes.slice_ref(payload)),
+                    }) => {
+                        proxy.respond(channel, bytes.slice_ref(payload)).await
+                    }
                     Ok(mcp_proxy::server::Frame::ChannelResponseFinish {
                         channel,
-                    }) => proxy.finish(channel),
+                    }) => proxy.finish(channel).await,
                     // A peer speaking something else. There is no
                     // answering a frame that could not be read, and no
                     // reading past it either — the stream has lost its
