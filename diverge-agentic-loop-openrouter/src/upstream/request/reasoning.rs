@@ -1,5 +1,6 @@
 //! Reasoning/thinking configuration.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
 use serde::{Deserialize, Serialize};
 
 /// Configuration for model reasoning/thinking capabilities.
@@ -85,4 +86,45 @@ pub enum ReasoningSummaryVerbosity {
     Concise,
     /// Thorough summary of reasoning.
     Detailed,
+}
+
+/// The provider request's reasoning configuration, field for field.
+impl From<openrouter::Reasoning> for Reasoning {
+    fn from(reasoning: openrouter::Reasoning) -> Self {
+        Reasoning {
+            enabled: reasoning.enabled,
+            max_tokens: reasoning.max_tokens,
+            effort: reasoning.effort.map(Into::into),
+            summary_verbosity: reasoning.summary_verbosity.map(Into::into),
+        }
+    }
+}
+
+impl From<openrouter::ReasoningEffort> for ReasoningEffort {
+    fn from(effort: openrouter::ReasoningEffort) -> Self {
+        match effort {
+            openrouter::ReasoningEffort::None => ReasoningEffort::None,
+            openrouter::ReasoningEffort::Minimal => ReasoningEffort::Minimal,
+            openrouter::ReasoningEffort::Low => ReasoningEffort::Low,
+            openrouter::ReasoningEffort::Medium => ReasoningEffort::Medium,
+            openrouter::ReasoningEffort::High => ReasoningEffort::High,
+            openrouter::ReasoningEffort::Xhigh => ReasoningEffort::Xhigh,
+        }
+    }
+}
+
+impl From<openrouter::ReasoningSummaryVerbosity> for ReasoningSummaryVerbosity {
+    fn from(verbosity: openrouter::ReasoningSummaryVerbosity) -> Self {
+        match verbosity {
+            openrouter::ReasoningSummaryVerbosity::Auto => {
+                ReasoningSummaryVerbosity::Auto
+            }
+            openrouter::ReasoningSummaryVerbosity::Concise => {
+                ReasoningSummaryVerbosity::Concise
+            }
+            openrouter::ReasoningSummaryVerbosity::Detailed => {
+                ReasoningSummaryVerbosity::Detailed
+            }
+        }
+    }
 }

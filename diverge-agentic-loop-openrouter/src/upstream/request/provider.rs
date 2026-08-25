@@ -1,5 +1,6 @@
 //! Provider preferences for OpenRouter requests.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
 use serde::{Deserialize, Serialize};
 
 /// Provider preferences from the Agent configuration.
@@ -23,4 +24,20 @@ pub struct Provider {
     /// Allowed quantizations. From Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quantizations: Option<Vec<super::ProviderQuantization>>,
+}
+
+/// The provider request's routing preferences, field for field.
+impl From<openrouter::Provider> for Provider {
+    fn from(provider: openrouter::Provider) -> Self {
+        Provider {
+            allow_fallbacks: provider.allow_fallbacks,
+            require_parameters: provider.require_parameters,
+            order: provider.order,
+            only: provider.only,
+            ignore: provider.ignore,
+            quantizations: provider
+                .quantizations
+                .map(|q| q.into_iter().map(Into::into).collect()),
+        }
+    }
 }

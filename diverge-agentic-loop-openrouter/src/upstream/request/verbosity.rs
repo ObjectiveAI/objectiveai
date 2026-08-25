@@ -1,5 +1,6 @@
 //! Output verbosity.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
 use serde::{Deserialize, Serialize};
 
 /// The verbosity level for model output.
@@ -27,4 +28,16 @@ pub enum Verbosity {
     /// Maximum verbosity, most detailed output possible.
     #[serde(rename = "max")]
     Max,
+}
+
+/// The provider request's verbosity, variant for variant.
+impl From<openrouter::Verbosity> for Verbosity {
+    fn from(verbosity: openrouter::Verbosity) -> Self {
+        match verbosity {
+            openrouter::Verbosity::Low => Verbosity::Low,
+            openrouter::Verbosity::Medium => Verbosity::Medium,
+            openrouter::Verbosity::High => Verbosity::High,
+            openrouter::Verbosity::Max => Verbosity::Max,
+        }
+    }
 }

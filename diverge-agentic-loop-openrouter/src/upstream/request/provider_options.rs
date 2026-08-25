@@ -1,5 +1,6 @@
 //! Provider routing options: quantization.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
 use serde::{Deserialize, Serialize};
 
 /// Model quantization levels for provider filtering.
@@ -36,4 +37,33 @@ pub enum ProviderQuantization {
     Fp32,
     /// Unknown quantization level.
     Unknown,
+}
+
+/// The provider request's quantization, variant for variant.
+impl From<openrouter::ProviderQuantization> for ProviderQuantization {
+    fn from(quantization: openrouter::ProviderQuantization) -> Self {
+        match quantization {
+            openrouter::ProviderQuantization::Int4 => {
+                ProviderQuantization::Int4
+            }
+            openrouter::ProviderQuantization::Int8 => {
+                ProviderQuantization::Int8
+            }
+            openrouter::ProviderQuantization::Fp4 => ProviderQuantization::Fp4,
+            openrouter::ProviderQuantization::Fp6 => ProviderQuantization::Fp6,
+            openrouter::ProviderQuantization::Fp8 => ProviderQuantization::Fp8,
+            openrouter::ProviderQuantization::Fp16 => {
+                ProviderQuantization::Fp16
+            }
+            openrouter::ProviderQuantization::Bf16 => {
+                ProviderQuantization::Bf16
+            }
+            openrouter::ProviderQuantization::Fp32 => {
+                ProviderQuantization::Fp32
+            }
+            openrouter::ProviderQuantization::Unknown => {
+                ProviderQuantization::Unknown
+            }
+        }
+    }
 }
