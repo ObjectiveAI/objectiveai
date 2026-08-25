@@ -51,9 +51,23 @@
 //!
 //! The proxy accepts exactly one WebSocket connection at a time. A
 //! second connection while one is live is refused. A connection dying
-//! is not an ending: the channels open on it are dead — their
-//! exchanges were not served — and the proxy waits for the next
-//! connection, blocking new exchanges until it arrives.
+//! is not an ending: the channels open on it are dead, and the proxy
+//! waits for the next connection, blocking new exchanges until it
+//! arrives.
+//!
+//! # A connection dying does not fail an exchange
+//!
+//! An exchange is answered when its response has arrived AND its
+//! channel has finished. A channel that died before that point — its
+//! connection went — left the exchange un-answered, and the container
+//! asks it again on the next connection, as a fresh channel. So a
+//! server may legitimately receive the same logical ask as two wire
+//! exchanges, and an ask with side effects may be performed twice;
+//! that is the chosen trade, because the agent inside is waiting and
+//! the alternative is telling it a transport story it can do nothing
+//! about. The one non-answer that is not re-asked is the deliberate
+//! one: a finish with no response is the far side's statement, not an
+//! accident.
 //!
 //! # The request is typed, and the responses are not
 //!
