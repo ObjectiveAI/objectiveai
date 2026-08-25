@@ -201,7 +201,7 @@ impl Proxy {
         request: channel_request::Frame,
     ) -> Result<Option<Bytes>, serde_json::Error> {
         loop {
-            let mut receiver = self.open(request.clone()).await?;
+            let (_, mut receiver) = self.open(request.clone()).await?;
 
             let mut response = None;
             let attempt = loop {
@@ -238,14 +238,19 @@ impl Proxy {
     ///
     /// The receiver yields the channel's [`ChannelEvent`]s; the
     /// stream ending without a `Finished` is the connection dying.
+    /// Alongside it comes the generation of the connection the
+    /// channel was sent on, for a caller that wants to outwait that
+    /// connection — see [`wait_past`](Self::wait_past).
     ///
     /// [`ask`](Self::ask) is this plus the retry law, and is what the
-    /// unary exchanges use; the notifications relay opens directly,
-    /// because it consumes the stream rather than an answer.
+    /// unary exchanges use; the resident notifications stream opens
+    /// directly, because it consumes the stream rather than an
+    /// answer.
     pub async fn open(
         &self,
         request: channel_request::Frame,
-    ) -> Result<mpsc::UnboundedReceiver<ChannelEvent>, serde_json::Error> {
+    ) -> Result<(u64, mpsc::UnboundedReceiver<ChannelEvent>), serde_json::Error>
+    {
         let mut watcher = self.outbound.subscribe();
         loop {
             // Wait for a connection. `wait_for` sees the current value
@@ -279,7 +284,7 @@ impl Proxy {
             }
 
             if outbound.sender.send(frame).await.is_ok() {
-                return Ok(receiver);
+                return Ok((outbound.generation, receiver));
             }
 
             // The connection died between the wait and the send. Free
@@ -290,6 +295,14 @@ impl Proxy {
             self.free(channel).await;
             self.next(&mut watcher, outbound.generation).await;
         }
+    }
+
+    /// Wait until the outbound slot no longer holds `generation` —
+    /// a fresh subscription over [`next`](Self::next), for callers
+    /// outside the open loop.
+    pub async fn wait_past(&self, generation: u64) {
+        let mut watcher = self.outbound.subscribe();
+        self.next(&mut watcher, generation).await;
     }
 
     /// Wait until the outbound slot no longer holds `generation`.

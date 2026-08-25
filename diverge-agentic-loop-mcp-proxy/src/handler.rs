@@ -13,7 +13,8 @@ use rmcp::model::{
 use rmcp::service::{NotificationContext, RequestContext};
 use rmcp::{ErrorData, RoleServer, ServerHandler};
 
-use crate::proxy::{ChannelEvent, Proxy};
+use crate::peers::Peers;
+use crate::proxy::Proxy;
 
 /// A compliant MCP server whose answers all live somewhere else.
 ///
@@ -26,6 +27,9 @@ use crate::proxy::{ChannelEvent, Proxy};
 #[derive(Clone)]
 pub struct ProxyHandler {
     pub proxy: Arc<Proxy>,
+    /// The broadcast registry the resident notifications stream fans
+    /// out to; a session enters it when it initializes.
+    pub peers: Arc<Peers>,
 }
 
 impl ProxyHandler {
@@ -132,65 +136,12 @@ impl ServerHandler for ProxyHandler {
         }
     }
 
-    /// The fifth exchange, opened when a session begins: the far
-    /// side's notifications, relayed to this session's peer.
-    ///
-    /// Notifications are emitted as they arrive — before any finish —
-    /// and the relay outlives connections: a connection dying does
-    /// not end it, it re-opens the channel on the next connection and
-    /// keeps propagating. What DOES end it is deliberate — the far
-    /// side's error frame or clean finish, an answer this crate could
-    /// not read, or the session itself going away.
+    /// A session that initialized is a session the resident
+    /// notifications stream addresses from now on — registration is
+    /// the whole of what happens here. The stream itself is one per
+    /// PROXY, not per session: see [`crate::notifications`].
     async fn on_initialized(&self, context: NotificationContext<RoleServer>) {
-        let proxy = Arc::clone(&self.proxy);
-        let peer = context.peer.clone();
-        tokio::spawn(async move {
-            loop {
-                let Ok(mut receiver) = proxy
-                    .open(channel_request::Frame::McpNotifications(
-                        mcp::notifications::request::Request,
-                    ))
-                    .await
-                else {
-                    // The request would not encode, which cannot
-                    // change by retrying: it has no params.
-                    return;
-                };
-                while let Some(event) = receiver.recv().await {
-                    let bytes = match event {
-                        ChannelEvent::Response(bytes) => bytes,
-                        // The far side closing the stream on purpose.
-                        // Nothing follows a finish, and nothing is
-                        // re-asked: the stream ended, it did not die.
-                        ChannelEvent::Finished => return,
-                    };
-                    match mcp::notifications::response::Frame::decode(&bytes) {
-                        Ok(mcp::notifications::response::Frame::Notification(
-                            notification,
-                        )) => {
-                            if peer
-                                .send_notification(notification)
-                                .await
-                                .is_err()
-                            {
-                                // The session is gone; there is
-                                // nobody left to relay to.
-                                return;
-                            }
-                        }
-                        // The far side saying it will push no more,
-                        // and why — or a frame this crate could not
-                        // read. Both are deliberate endings, not
-                        // deaths.
-                        Ok(mcp::notifications::response::Frame::Error(_))
-                        | Err(_) => return,
-                    }
-                }
-                // The stream ended un-finished: the connection died
-                // under it. The next iteration re-opens on the next
-                // connection, however long that takes.
-            }
-        });
+        self.peers.insert(context.peer.clone()).await;
     }
 }
 

@@ -9,6 +9,8 @@
 //! by the caller's servers on the far side of the provider protocol.
 
 mod handler;
+mod notifications;
+mod peers;
 mod proxy;
 mod ws;
 
@@ -32,13 +34,21 @@ fn main() {
 
 async fn run() {
     let proxy = Arc::new(proxy::Proxy::new());
+    let peers = Arc::new(peers::Peers::new());
+
+    tokio::spawn(notifications::run(
+        Arc::clone(&proxy),
+        Arc::clone(&peers),
+    ));
 
     let mcp = StreamableHttpService::new(
         {
             let proxy = Arc::clone(&proxy);
+            let peers = Arc::clone(&peers);
             move || {
                 Ok(handler::ProxyHandler {
                     proxy: Arc::clone(&proxy),
+                    peers: Arc::clone(&peers),
                 })
             }
         },
