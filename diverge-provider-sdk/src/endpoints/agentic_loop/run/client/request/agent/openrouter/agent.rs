@@ -4,7 +4,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ContextCompression, Provider, Reasoning, Stop, Upstream, Verbosity,
+    ContextCompression, Provider, Reasoning, Stop, SystemPrompt, Upstream,
+    Verbosity,
 };
 
 /// An agent running against OpenRouter.
@@ -17,6 +18,9 @@ pub struct Agent {
     pub upstream: Upstream,
     /// The model to route to, in OpenRouter's `vendor/name` form.
     pub model: String,
+    /// The system prompt, sent as the conversation's leading message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_prompt: Option<SystemPrompt>,
     /// How many alternatives to report per token. Absent means report
     /// no log probabilities at all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
