@@ -2,12 +2,16 @@
 
 use crate::endpoints::agentic_loop::run::server::channel_request;
 
-/// The bytes a header occupies: `type` plus `channel`.
+/// The bytes a SERVER frame's header occupies: `type` plus
+/// `channel`.
 ///
 /// A constant, for the same reason the main protocol's
 /// [`HEADER_LEN`](crate::frame::HEADER_LEN) is one: the payload
 /// starts at a known offset rather than wherever a parse happened to
 /// finish.
+///
+/// The container's frame is not counted here: it has one kind, so no
+/// type byte, and its header is the channel alone.
 pub const HEADER_LEN: usize = 1 + 1;
 
 /// A frame that could not be read.
@@ -22,14 +26,12 @@ pub const HEADER_LEN: usize = 1 + 1;
 pub enum FrameError {
     /// Fewer than [`HEADER_LEN`] bytes.
     Truncated,
-    /// A `type` this wire does not define.
+    /// A `type` this wire does not define, on a server frame — the
+    /// one direction that has a type byte to be wrong about.
     ///
-    /// Every frame kind is fixed and enumerated, in both directions,
-    /// so an unfamiliar value is a malformed frame rather than a peer
-    /// with more protocol than this one. The directions count too: a
-    /// server sending `0` is opening a channel only the container
-    /// mints, and a container sending `1` or `2` is answering a
-    /// request nobody made.
+    /// Every frame kind is fixed and enumerated, so an unfamiliar
+    /// value is a malformed frame rather than a peer with more
+    /// protocol than this one.
     UnknownType(u8),
     /// A container request whose exchange would not decode.
     Request(channel_request::FrameError),
@@ -60,11 +62,11 @@ impl std::error::Error for FrameError {
     }
 }
 
-/// Split a frame's header off the front, returning
+/// Split a server frame's header off the front, returning
 /// `(type, channel, payload)`.
 ///
-/// Shared by both directions: the header is the same bytes whoever
-/// sent it, and only the MEANING of `type` differs.
+/// The server's alone: a container frame has no type byte, and its
+/// decoder splits the channel off itself.
 pub(super) fn split_header(
     bytes: &[u8],
 ) -> Result<(u8, u8, &[u8]), FrameError> {

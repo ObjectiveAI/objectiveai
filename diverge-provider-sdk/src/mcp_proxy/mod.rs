@@ -7,17 +7,20 @@
 //! exchanges leave the container on that socket, and this module is
 //! the frames they ride.
 //!
-//! Every message is one WebSocket BINARY frame:
+//! Every message is one WebSocket BINARY frame. The two directions
+//! frame differently, because they have different amounts to say:
 //!
 //! ```text
-//! [type: u8][channel: u8][payload…]
+//! container → server:  [channel: u8][request…]
+//! server → container:  [type: u8][channel: u8][payload…]
 //! ```
 //!
-//! Two bytes, always — see [`HEADER_LEN`]. The same arguments as the
-//! main protocol's header, at the size this wire needs: no length
-//! prefix because WebSocket already delimits messages, and a fixed
-//! offset because a header nobody has to parse is a header nobody
-//! gets wrong.
+//! The container sends one kind of frame, so no byte says which — a
+//! discriminant with nothing to discriminate is a byte not spent. The
+//! server sends two, and one byte says which; see [`HEADER_LEN`].
+//! Fixed headers, no length prefix: WebSocket already delimits
+//! messages, and a header nobody has to parse is a header nobody gets
+//! wrong.
 //!
 //! # It is the channel discipline, in miniature
 //!
@@ -69,15 +72,13 @@
 //!
 //! # Types
 //!
-//! | type | container | server |
-//! |------|-----------|--------|
-//! | 0    | channel request | — |
-//! | 1    | — | channel response |
-//! | 2    | — | channel response finish |
+//! The type space is the server's alone — the container's one frame
+//! carries none.
 //!
-//! A number means one thing in one direction, and each direction
-//! sends only its own: the container asks, the server answers. A
-//! type alone determines what a frame is.
+//! | type | server |
+//! |------|--------|
+//! | 0    | channel response |
+//! | 1    | channel response finish |
 //!
 //! [`channel_request::Frame`]: crate::endpoints::agentic_loop::run::server::channel_request::Frame
 

@@ -13,7 +13,7 @@ use crate::encode::{Encode, Writer};
 /// container is the only minter on this wire.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
-    /// Type `1`. One piece of the answer. There may be any number,
+    /// Type `0`. One piece of the answer. There may be any number,
     /// including none.
     ///
     /// Bytes rather than a type, and not for want of one: which
@@ -29,7 +29,7 @@ pub enum Frame<'a> {
         /// result or error.
         payload: &'a [u8],
     },
-    /// Type `2`. The answer is complete and the channel is closed.
+    /// Type `1`. The answer is complete and the channel is closed.
     /// Nothing follows on it, and the number is free again.
     ///
     /// With no response preceding it, this states that the exchange
@@ -50,11 +50,11 @@ impl Encode for Frame<'_> {
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Infallible> {
         match self {
             Frame::ChannelResponse { channel, payload } => {
-                out.extend_from_slice(&[1, *channel]);
+                out.extend_from_slice(&[0, *channel]);
                 out.extend_from_slice(payload);
             }
             Frame::ChannelResponseFinish { channel } => {
-                out.extend_from_slice(&[2, *channel]);
+                out.extend_from_slice(&[1, *channel]);
             }
         }
         Ok(())
@@ -67,8 +67,8 @@ impl<'a> Frame<'a> {
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (r#type, channel, payload) = super::split_header(bytes)?;
         match r#type {
-            1 => Ok(Frame::ChannelResponse { channel, payload }),
-            2 => Ok(Frame::ChannelResponseFinish { channel }),
+            0 => Ok(Frame::ChannelResponse { channel, payload }),
+            1 => Ok(Frame::ChannelResponseFinish { channel }),
             other => Err(FrameError::UnknownType(other)),
         }
     }
