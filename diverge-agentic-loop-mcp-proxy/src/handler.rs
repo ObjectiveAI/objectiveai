@@ -6,9 +6,10 @@ use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::channel_request;
 use diverge_provider_sdk::shared::mcp;
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, ListResourcesResult,
-    ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
-    ReadResourceResponse, ServerCapabilities, ServerInfo,
+    CallToolRequestParams, CallToolResponse, Implementation,
+    ListResourcesResult, ListToolsResult, PaginatedRequestParams,
+    ReadResourceRequestParams, ReadResourceResponse, ServerCapabilities,
+    ServerInfo,
 };
 use rmcp::service::{NotificationContext, RequestContext};
 use rmcp::{ErrorData, RoleServer, ServerHandler};
@@ -73,6 +74,10 @@ impl ServerHandler for ProxyHandler {
             .enable_resources()
             .enable_resources_list_changed()
             .build();
+        // Expanded HERE, not in rmcp: `env!` reads the crate being
+        // compiled, so the default introduces every server as "rmcp".
+        info.server_info =
+            Implementation::new("diverge", env!("CARGO_PKG_VERSION"));
         info
     }
 
