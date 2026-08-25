@@ -1,8 +1,9 @@
-//! The wire between a provider and the MCP proxy inside a container.
+//! The wire between a provider server and the MCP proxy inside a
+//! container.
 //!
 //! An agentic loop container runs an MCP proxy: to the agent beside
 //! it, a fully compliant MCP server on the container's loopback; to
-//! the provider outside, a WebSocket listener. The agent's MCP
+//! the server outside, a WebSocket listener. The agent's MCP
 //! exchanges leave the container on that socket, and this module is
 //! the frames they ride.
 //!
@@ -20,7 +21,7 @@
 //!
 //! # It is the channel discipline, in miniature
 //!
-//! One channel is one exchange: a request from the proxy, the
+//! One channel is one exchange: a request from the container, the
 //! responses that answer it, and a finish — after which the channel
 //! is dead and nothing follows on it. A stream ends at its finish
 //! frame and nowhere else; a quiet channel is a channel still
@@ -30,17 +31,17 @@
 //! There are no scopes, because there is nothing to scope: the
 //! connection serves exactly one run, and the run is the scope.
 //!
-//! # The proxy mints the channels
+//! # The container mints the channels
 //!
-//! Only the proxy opens channels, so there is one minter and nothing
-//! to collide with. A channel is a `u8`: an agent's concurrent
-//! exchanges are counted in the handful, and 256 live channels is
-//! headroom, not a ceiling anyone approaches.
+//! Only the container opens channels, so there is one minter and
+//! nothing to collide with. A channel is a `u8`: an agent's
+//! concurrent exchanges are counted in the handful, and 256 live
+//! channels is headroom, not a ceiling anyone approaches.
 //!
-//! The number is unique among the proxy's LIVE channels. Reusing one
-//! whose responses have not finished makes two exchanges
-//! indistinguishable, and the proxy is the only party that could have
-//! prevented it. Reuse after a finish is fine, because nothing
+//! The number is unique among the container's LIVE channels. Reusing
+//! one whose responses have not finished makes two exchanges
+//! indistinguishable, and the container is the only party that could
+//! have prevented it. Reuse after a finish is fine, because nothing
 //! remembers.
 //!
 //! # One connection, and the proxy waits for it
@@ -51,32 +52,37 @@
 //! exchanges were not served — and the proxy waits for the next
 //! connection, blocking new exchanges until it arrives.
 //!
-//! # The payloads are the endpoint's own
+//! # The request is typed, and the responses are not
 //!
-//! Nothing here is discriminated by the envelope. A channel request's
-//! payload is the exchange encoding the endpoint layer already
-//! defines — one exchange tag byte, then the params, exactly as
-//! [`channel_request::Frame`](crate::endpoints::agentic_loop::run::server::channel_request)
-//! encodes it — and a channel response's payload is that exchange's
-//! response encoding, result or error, as defined in
-//! [`shared::mcp`](crate::shared::mcp). This module splits a header
-//! and names a frame kind; what a payload MEANS belongs to the
-//! protocol carrying it.
+//! A [`container::Frame`] carries its exchange as
+//! [`channel_request::Frame`] — the same type a server's own channel
+//! request carries on the main wire, because it is the same ask one
+//! hop earlier. There is exactly one thing the frame can hold, so it
+//! holds the type.
+//!
+//! A [`server::Frame`] response stays bytes, and not for want of a
+//! type: which exchange a response answers is known only to whoever
+//! opened the channel, and the payload's own tag — result or error —
+//! discriminates within an exchange, not between them. The opener
+//! decodes with the response type of the exchange it asked for, as
+//! [`shared::mcp`](crate::shared::mcp) defines them.
 //!
 //! # Types
 //!
-//! | type | proxy | provider |
-//! |------|-------|----------|
+//! | type | container | server |
+//! |------|-----------|--------|
 //! | 0    | channel request | — |
 //! | 1    | — | channel response |
 //! | 2    | — | channel response finish |
 //!
 //! A number means one thing in one direction, and each direction
-//! sends only its own: the proxy asks, the provider answers. A type
-//! alone determines what a frame is.
+//! sends only its own: the container asks, the server answers. A
+//! type alone determines what a frame is.
+//!
+//! [`channel_request::Frame`]: crate::endpoints::agentic_loop::run::server::channel_request::Frame
 
-pub mod provider;
-pub mod proxy;
+pub mod container;
+pub mod server;
 
 mod error;
 

@@ -1,25 +1,32 @@
-//! Frames the provider sends.
+//! Frames the server sends.
 
 use std::convert::Infallible;
 
 use super::FrameError;
 use crate::encode::{Encode, Writer};
 
-/// A frame sent by the provider.
+/// A frame sent by the server — the provider, on the connection it
+/// opened into the container.
 ///
-/// The answering half: responses on a channel the proxy opened, and
-/// the finish that ends it. The provider opens nothing — the proxy is
-/// the only minter on this wire.
+/// The answering half: responses on a channel the container opened,
+/// and the finish that ends it. The server opens nothing — the
+/// container is the only minter on this wire.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// Type `1`. One piece of the answer. There may be any number,
     /// including none.
+    ///
+    /// Bytes rather than a type, and not for want of one: which
+    /// exchange a response answers is known only to whoever opened
+    /// the channel, and the payload's own tag — result or error —
+    /// discriminates within an exchange, not between them. The opener
+    /// decodes with the response type of the exchange it asked for,
+    /// as defined in [`shared::mcp`](crate::shared::mcp).
     ChannelResponse {
-        /// The channel of the proxy request being answered.
+        /// The channel of the container request being answered.
         channel: u8,
         /// The response bytes: the exchange's response encoding —
-        /// result or error — as
-        /// [`shared::mcp`](crate::shared::mcp) defines it.
+        /// result or error.
         payload: &'a [u8],
     },
     /// Type `2`. The answer is complete and the channel is closed.
@@ -28,7 +35,7 @@ pub enum Frame<'a> {
     /// With no response preceding it, this states that the exchange
     /// could not be served — the standing convention, unchanged.
     ChannelResponseFinish {
-        /// The channel of the proxy request being answered.
+        /// The channel of the container request being answered.
         channel: u8,
     },
 }

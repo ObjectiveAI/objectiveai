@@ -1,5 +1,7 @@
 //! Why a proxy frame could not be decoded.
 
+use crate::endpoints::agentic_loop::run::server::channel_request;
+
 /// The bytes a header occupies: `type` plus `channel`.
 ///
 /// A constant, for the same reason the main protocol's
@@ -10,10 +12,13 @@ pub const HEADER_LEN: usize = 1 + 1;
 
 /// A frame that could not be read.
 ///
-/// Both are about the ENVELOPE, and there is no third: every payload
-/// is bytes here, so the only things that can go wrong are a header
-/// too short to read and a type nobody defines.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Two are about the envelope — a header too short to read, a type
+/// nobody defines — and the third is the one payload this wire types:
+/// a container's request that would not decode. A server response's
+/// payload is bytes to this layer, so it has no failure to report
+/// here; what an opener's own decoder makes of one is reported by
+/// that decoder, in its own vocabulary.
+#[derive(Debug)]
 pub enum FrameError {
     /// Fewer than [`HEADER_LEN`] bytes.
     Truncated,
@@ -22,10 +27,12 @@ pub enum FrameError {
     /// Every frame kind is fixed and enumerated, in both directions,
     /// so an unfamiliar value is a malformed frame rather than a peer
     /// with more protocol than this one. The directions count too: a
-    /// provider sending `0` is opening a channel only the proxy
-    /// mints, and a proxy sending `1` or `2` is answering a request
-    /// nobody made.
+    /// server sending `0` is opening a channel only the container
+    /// mints, and a container sending `1` or `2` is answering a
+    /// request nobody made.
     UnknownType(u8),
+    /// A container request whose exchange would not decode.
+    Request(channel_request::FrameError),
 }
 
 impl std::fmt::Display for FrameError {
@@ -37,14 +44,21 @@ impl std::fmt::Display for FrameError {
             FrameError::UnknownType(byte) => {
                 write!(f, "unknown proxy frame type {byte}")
             }
+            FrameError::Request(error) => {
+                write!(f, "a proxy channel request could not be read: {error}")
+            }
         }
     }
 }
 
-/// No source. Neither variant wraps another error, because neither is
-/// about a payload — what a payload's own decoder makes of it is
-/// reported by that decoder, in its own vocabulary.
-impl std::error::Error for FrameError {}
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Request(error) => Some(error),
+            FrameError::Truncated | FrameError::UnknownType(_) => None,
+        }
+    }
+}
 
 /// Split a frame's header off the front, returning
 /// `(type, channel, payload)`.
