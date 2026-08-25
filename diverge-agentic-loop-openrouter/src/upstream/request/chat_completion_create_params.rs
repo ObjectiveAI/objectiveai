@@ -87,23 +87,28 @@ pub struct ChatCompletionCreateParams {
 
 impl ChatCompletionCreateParams {
     /// Build an OpenRouter request from the provider request's fields
-    /// — the agent, already known to be the `openrouter` kind, and
-    /// the prompt. The continuation is not taken: resumption is this
-    /// container's own state, applied to the messages elsewhere.
+    /// — the agent, already known to be the `openrouter` kind, the
+    /// continuation opened (if this run resumes one), and the prompt.
     ///
     /// Every parameter the agent carries moves across, delegating to
-    /// the sub-type conversions beside each type. `tools` is `None`
-    /// here — tools are not a request field; they come from the MCP
-    /// proxy and are the loop's to add.
+    /// the sub-type conversions beside each type; the messages are
+    /// [`messages`](super::messages) — system prompt, history, prompt,
+    /// in that order. `tools` is `None` here — tools are not a request
+    /// field; they come from the MCP proxy and are the loop's to add.
     pub fn new(
         agent: openrouter::Agent,
+        continuation: Option<crate::continuation::Continuation>,
         prompt: Vec<rmcp::model::ContentBlock>,
     ) -> Self {
         // Log probabilities are reported only when the agent asked
         // for a positive count; zero is the same statement as absent.
         let top_logprobs = agent.top_logprobs.filter(|count| *count > 0);
         Self {
-            messages: messages(prompt),
+            messages: super::messages(
+                agent.system_prompt,
+                continuation,
+                prompt,
+            ),
             provider: agent.provider.map(Into::into),
             model: agent.model,
             frequency_penalty: agent.frequency_penalty,
@@ -133,11 +138,4 @@ impl ChatCompletionCreateParams {
             usage: super::Usage { include: true },
         }
     }
-}
-
-/// The message array: the prompt (and, on resumption, the state the
-/// continuation names) as OpenRouter messages.
-fn messages(prompt: Vec<rmcp::model::ContentBlock>) -> Vec<super::Message> {
-    let _ = prompt;
-    unimplemented!("the message array is built with its own care")
 }
