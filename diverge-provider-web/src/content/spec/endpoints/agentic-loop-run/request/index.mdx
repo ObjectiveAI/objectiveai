@@ -1,0 +1,58 @@
+---
+title: 'Request'
+summary: 'Tag byte 0, then a JSON object: the agent to run — one of four agent kinds, discriminated by its upstream member — the prompt, and an optional continuation token.'
+order: 1
+draft: false
+---
+
+The request's payload is the endpoint tag byte `0` followed by a JSON
+text (UTF-8, [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259))
+whose top-level value is defined by the following declaration, read
+under the layer's [notation](/endpoints/#notation).
+
+```rust
+pub struct Request {
+    /// What to run, and how to sample it.
+    pub agent: Agent,
+    /// The input for this turn: MCP content blocks.
+    pub prompt: Vec<ContentBlock>,
+    /// Resume the loop this token names.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub continuation: Option<String>,
+}
+```
+
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::ContentBlock`](https://docs.rs/rmcp/3.1.2/rmcp/model/enum.ContentBlock.html).
+
+- **A prompt, not a conversation.** `prompt` is this turn's input,
+  and the server does not rewrite it. What came before is the
+  server's state, reached through `continuation`.
+- **Resumption is the same request.** A resumption is this request
+  with `continuation` present — the token previously issued in a
+  [continuation chunk](/endpoints/agentic-loop-run/response/) — not a
+  distinct request form, and the agent's parameters may differ between
+  turns. The token is opaque to the client.
+
+## The agent
+
+The agent is one of four kinds, discriminated by each kind's constant
+`upstream` member — the union is untagged, so an agent goes on the
+wire as its parameters and nothing more.
+
+```rust
+#[serde(untagged)]
+pub enum Agent {
+    Openrouter(openrouter::Agent),
+    ClaudeCode(claude_code::Agent),
+    Codex(codex::Agent),
+    Python(python::Agent),
+}
+```
+
+The values of `upstream` are `"openrouter"`, `"claude_code"`,
+`"codex"`, and `"python"`; each kind's declarations are the section
+that bears its name:
+[OpenRouter](/endpoints/agentic-loop-run/request/openrouter/),
+[ClaudeCode](/endpoints/agentic-loop-run/request/claude-code/),
+[Codex](/endpoints/agentic-loop-run/request/codex/), and
+[Python](/endpoints/agentic-loop-run/request/python/).
