@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use bytes::Bytes;
 use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::channel_request;
 use diverge_provider_sdk::shared::mcp;
@@ -14,7 +13,7 @@ use rmcp::model::{
 use rmcp::service::{NotificationContext, RequestContext};
 use rmcp::{ErrorData, RoleServer, ServerHandler};
 
-use crate::proxy::Proxy;
+use crate::proxy::{ChannelEvent, Proxy};
 
 /// A compliant MCP server whose answers all live somewhere else.
 ///
@@ -30,8 +29,14 @@ pub struct ProxyHandler {
 }
 
 impl ProxyHandler {
-    /// One ask, one answer: open the channel, take the first
-    /// response, decode it as the exchange's response frame.
+    /// One logical ask, answered however many connections it takes:
+    /// [`Proxy::ask`] retries the wire exchange until a response
+    /// arrives and its channel finishes, and what comes back here is
+    /// decoded as the exchange's response frame.
+    ///
+    /// The failures that remain are the ones no retry can cure: the
+    /// far side's deliberate empty finish, an answer this crate could
+    /// not read, and a request whose params would not serialize.
     async fn exchange<F>(
         &self,
         request: channel_request::Frame,
@@ -39,24 +44,13 @@ impl ProxyHandler {
     where
         F: for<'a> Decode<'a>,
     {
-        let bytes = self.ask(request).await?;
-        F::decode(&bytes).map_err(|_| unreadable())
-    }
-
-    async fn ask(
-        &self,
-        request: channel_request::Frame,
-    ) -> Result<Bytes, ErrorData> {
-        let mut receiver = self
+        let bytes = self
             .proxy
-            .open(request)
+            .ask(request)
             .await
-            .map_err(|error| ErrorData::internal_error(error.to_string(), None))?;
-        // The stream ending with nothing on it is the far side saying
-        // the exchange could not be served at all — or the connection
-        // going. The agent is told the same thing either way, because
-        // from inside the container they are the same fact.
-        receiver.recv().await.ok_or_else(unanswered)
+            .map_err(|error| ErrorData::internal_error(error.to_string(), None))?
+            .ok_or_else(unserved)?;
+        F::decode(&bytes).map_err(|_| unreadable())
     }
 }
 
@@ -139,46 +133,71 @@ impl ServerHandler for ProxyHandler {
     }
 
     /// The fifth exchange, opened when a session begins: the far
-    /// side's notifications, relayed to this session's peer for as
-    /// long as both live.
+    /// side's notifications, relayed to this session's peer.
+    ///
+    /// Notifications are emitted as they arrive — before any finish —
+    /// and the relay outlives connections: a connection dying does
+    /// not end it, it re-opens the channel on the next connection and
+    /// keeps propagating. What DOES end it is deliberate — the far
+    /// side's error frame or clean finish, an answer this crate could
+    /// not read, or the session itself going away.
     async fn on_initialized(&self, context: NotificationContext<RoleServer>) {
         let proxy = Arc::clone(&self.proxy);
         let peer = context.peer.clone();
         tokio::spawn(async move {
-            let Ok(mut receiver) = proxy
-                .open(channel_request::Frame::McpNotifications(
-                    mcp::notifications::request::Request,
-                ))
-                .await
-            else {
-                return;
-            };
-            while let Some(bytes) = receiver.recv().await {
-                match mcp::notifications::response::Frame::decode(&bytes) {
-                    Ok(mcp::notifications::response::Frame::Notification(
-                        notification,
-                    )) => {
-                        if peer.send_notification(notification).await.is_err() {
-                            // The session is gone; there is nobody
-                            // left to relay to.
-                            return;
+            loop {
+                let Ok(mut receiver) = proxy
+                    .open(channel_request::Frame::McpNotifications(
+                        mcp::notifications::request::Request,
+                    ))
+                    .await
+                else {
+                    // The request would not encode, which cannot
+                    // change by retrying: it has no params.
+                    return;
+                };
+                while let Some(event) = receiver.recv().await {
+                    let bytes = match event {
+                        ChannelEvent::Response(bytes) => bytes,
+                        // The far side closing the stream on purpose.
+                        // Nothing follows a finish, and nothing is
+                        // re-asked: the stream ended, it did not die.
+                        ChannelEvent::Finished => return,
+                    };
+                    match mcp::notifications::response::Frame::decode(&bytes) {
+                        Ok(mcp::notifications::response::Frame::Notification(
+                            notification,
+                        )) => {
+                            if peer
+                                .send_notification(notification)
+                                .await
+                                .is_err()
+                            {
+                                // The session is gone; there is
+                                // nobody left to relay to.
+                                return;
+                            }
                         }
+                        // The far side saying it will push no more,
+                        // and why — or a frame this crate could not
+                        // read. Both are deliberate endings, not
+                        // deaths.
+                        Ok(mcp::notifications::response::Frame::Error(_))
+                        | Err(_) => return,
                     }
-                    // The far side saying it will push no more, and
-                    // why — or a frame this crate could not read.
-                    // Either ends the relay; an agent reading a stream
-                    // that stops is the ordinary ending here.
-                    Ok(mcp::notifications::response::Frame::Error(_))
-                    | Err(_) => return,
                 }
+                // The stream ended un-finished: the connection died
+                // under it. The next iteration re-opens on the next
+                // connection, however long that takes.
             }
         });
     }
 }
 
-/// Nobody answered, and the agent has to be told something.
-fn unanswered() -> ErrorData {
-    ErrorData::internal_error("the caller did not answer", None)
+/// The far side's deliberate empty finish: the exchange could not be
+/// served, and retrying is refusing to hear that.
+fn unserved() -> ErrorData {
+    ErrorData::internal_error("the caller could not serve the exchange", None)
 }
 
 /// Something answered and this crate could not read it.

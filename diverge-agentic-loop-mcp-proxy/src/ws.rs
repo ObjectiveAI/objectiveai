@@ -51,7 +51,7 @@ async fn serve(socket: WebSocket, proxy: Arc<Proxy>, claim: Claim) {
         }
     });
 
-    proxy.publish(&claim, sender);
+    proxy.publish(&claim, sender).await;
 
     while let Some(Ok(message)) = stream.next().await {
         match message {

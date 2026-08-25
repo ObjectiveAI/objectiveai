@@ -1,4 +1,5 @@
-//! The proxy's shared state: one connection slot, 256 channels.
+//! The proxy's shared state: one connection slot, 256 channels, and
+//! the asking that outlives connections.
 
 use std::sync::Arc;
 
@@ -11,6 +12,20 @@ use tokio::sync::{Mutex, Notify, mpsc, watch};
 /// How many frames may queue toward the socket before senders wait.
 const OUTBOUND_CAPACITY: usize = 64;
 
+/// What arrives on a channel an opener holds.
+///
+/// The third thing that can happen — the connection dying — is not a
+/// variant, because nothing sends it: the route's sender is dropped
+/// without a [`Finished`](ChannelEvent::Finished), and the opener
+/// reads the stream ending un-finished as the death it is.
+#[derive(Debug, Clone)]
+pub enum ChannelEvent {
+    /// One response frame's payload.
+    Response(Bytes),
+    /// The server's finish: the channel is over, deliberately.
+    Finished,
+}
+
 /// The connection slot and the channel table, shared by the WebSocket
 /// half and the MCP handlers.
 ///
@@ -22,29 +37,44 @@ const OUTBOUND_CAPACITY: usize = 64;
 /// never completes, so a connection that failed to arrive cannot wedge
 /// the slot shut.
 ///
-/// # Exchanges block until a connection exists
+/// # An exchange is answered, or it is asked again
 ///
-/// [`open`](Self::open) waits on the slot. A request made before any
-/// connection, or after one died, sits in that wait until the next
-/// connection publishes itself — the proxy's standing rule, applied by
-/// construction.
+/// [`ask`](Self::ask) does not fail because a connection did. An
+/// exchange counts as answered only when its response has arrived AND
+/// its channel has finished; a connection dying before that point
+/// un-answers it, and the ask is sent again on the next connection —
+/// forever, because the agent is waiting and nothing here has the
+/// standing to tell it no. The far side may therefore see the same
+/// logical ask as two wire exchanges, and a re-sent `tools/call` may
+/// execute twice; that is the chosen trade.
+///
+/// # The routes belong to a generation
+///
+/// The channel table is stamped with the generation of the connection
+/// it serves. Registration checks the stamp under the same lock, and
+/// release wipes only its own generation's table — so a route can
+/// neither be registered into a table that was already wiped (a
+/// channel nothing would ever end) nor wiped out of a newer
+/// connection's table (a tag freed while the far side still holds it).
 ///
 /// # The locks are short, and never held across the wire
 ///
 /// Every critical section here is a read-modify-write on plain
-/// state. What waits — for a connection, for a freed tag — waits on
-/// [`watch`] and [`Notify`], outside any lock.
+/// state. What waits — for a connection, for a freed tag, for a
+/// frame — waits on [`watch`], [`Notify`] and the routes' queues,
+/// outside any lock.
 pub struct Proxy {
     /// Whether a connection currently holds the slot, and the
     /// generation of the latest claim. The generation is what makes
     /// release idempotent: a stale release cannot free a newer
     /// claim's slot.
     occupancy: Mutex<Occupancy>,
-    /// The live connection's outbound queue, if any. MCP handlers
-    /// wait for `Some`; the WebSocket half publishes on arrival, and
-    /// release clears it.
+    /// The live connection's outbound queue, if any. Askers wait for
+    /// `Some`; the WebSocket half publishes on arrival, and release
+    /// clears it.
     outbound: watch::Sender<Option<Outbound>>,
-    /// Response routing, one slot per channel tag.
+    /// Response routing, one slot per channel tag, stamped with the
+    /// generation it serves.
     routes: Mutex<Routes>,
     /// Signalled when a tag is freed, for openers waiting on a full
     /// table.
@@ -67,12 +97,17 @@ struct Occupancy {
     generation: u64,
 }
 
-/// One slot per possible tag. `Some` is a live channel: the sender
-/// routes its responses to whoever opened it, and dropping the sender
-/// is how both endings — finish and connection death — look the same
-/// to the opener: the stream ends.
+/// One slot per possible tag, and the generation the table serves.
+///
+/// `Some` is a live channel: the sender routes its events to whoever
+/// opened it. [`Proxy::finish`] sends [`ChannelEvent::Finished`]
+/// before freeing a slot; the wipe in release frees without it —
+/// which is exactly the difference an opener reads.
 struct Routes {
-    slots: Vec<Option<mpsc::UnboundedSender<Bytes>>>,
+    slots: Vec<Option<mpsc::UnboundedSender<ChannelEvent>>>,
+    /// The generation whose connection these routes ride, or `0` for
+    /// none. Registration and wipe both check it under the lock.
+    current: u64,
 }
 
 /// A claimed connection slot, released on drop.
@@ -86,6 +121,18 @@ pub struct Claim {
     generation: u64,
 }
 
+/// How one wire attempt of an ask ended.
+enum Attempt {
+    /// A response arrived and the finish followed it.
+    Answered(Bytes),
+    /// The finish arrived with no response before it: the far side's
+    /// deliberate "could not be served."
+    Refused,
+    /// The stream ended un-finished: the connection died. The ask is
+    /// still owed an answer.
+    Died,
+}
+
 impl Proxy {
     pub fn new() -> Self {
         Self {
@@ -96,6 +143,7 @@ impl Proxy {
             outbound: watch::Sender::new(None),
             routes: Mutex::new(Routes {
                 slots: (0..=u8::MAX as usize).map(|_| None).collect(),
+                current: 0,
             }),
             freed: Notify::new(),
         }
@@ -122,26 +170,82 @@ impl Proxy {
 
     /// Publish a claimed connection's outbound queue, unblocking every
     /// waiting opener.
-    pub fn publish(&self, claim: &Claim, sender: mpsc::Sender<Vec<u8>>) {
+    ///
+    /// The routes are stamped BEFORE the queue is visible, so an
+    /// opener that sees the connection can always register on it.
+    pub async fn publish(&self, claim: &Claim, sender: mpsc::Sender<Vec<u8>>) {
+        {
+            let mut routes = self.routes.lock().await;
+            routes.current = claim.generation;
+        }
         self.outbound.send_replace(Some(Outbound {
             generation: claim.generation,
             sender,
         }));
     }
 
-    /// Open a channel: allocate a tag, register its route, and send
-    /// the request on the live connection — waiting for one if none is
-    /// live, and moving to the next if the one it tried died under it.
+    /// Ask, until answered.
     ///
-    /// The receiver yields the channel's responses; the stream ending
-    /// is the channel ending, whether by finish or by the connection.
+    /// One wire exchange per live connection, re-sent on the next
+    /// connection every time one dies before the answer finished.
+    /// Returns the response bytes, or `None` for the far side's
+    /// deliberate empty finish — the one non-answer that is not
+    /// retried, because it is a statement rather than an accident.
     ///
     /// `Err` is the one failure that is this side's own: a request
-    /// whose params would not serialize.
+    /// whose params would not serialize. It is checked on the first
+    /// attempt and cannot appear later — the request does not change
+    /// between attempts.
+    pub async fn ask(
+        &self,
+        request: channel_request::Frame,
+    ) -> Result<Option<Bytes>, serde_json::Error> {
+        loop {
+            let mut receiver = self.open(request.clone()).await?;
+
+            let mut response = None;
+            let attempt = loop {
+                match receiver.recv().await {
+                    // The first response is the answer; a unary
+                    // channel has no business carrying a second, and
+                    // extras are ignored rather than obeyed.
+                    Some(ChannelEvent::Response(bytes)) => {
+                        response.get_or_insert(bytes);
+                    }
+                    Some(ChannelEvent::Finished) => {
+                        break match response.take() {
+                            Some(bytes) => Attempt::Answered(bytes),
+                            None => Attempt::Refused,
+                        };
+                    }
+                    None => break Attempt::Died,
+                }
+            };
+
+            match attempt {
+                Attempt::Answered(bytes) => return Ok(Some(bytes)),
+                Attempt::Refused => return Ok(None),
+                // A response without its finish died with the
+                // connection: un-answered, and asked again.
+                Attempt::Died => continue,
+            }
+        }
+    }
+
+    /// Open a channel once: allocate a tag on the live connection and
+    /// send the request — waiting for a connection if none is live,
+    /// and moving to the next if the one it tried died under it.
+    ///
+    /// The receiver yields the channel's [`ChannelEvent`]s; the
+    /// stream ending without a `Finished` is the connection dying.
+    ///
+    /// [`ask`](Self::ask) is this plus the retry law, and is what the
+    /// unary exchanges use; the notifications relay opens directly,
+    /// because it consumes the stream rather than an answer.
     pub async fn open(
         &self,
         request: channel_request::Frame,
-    ) -> Result<mpsc::UnboundedReceiver<Bytes>, serde_json::Error> {
+    ) -> Result<mpsc::UnboundedReceiver<ChannelEvent>, serde_json::Error> {
         let mut watcher = self.outbound.subscribe();
         loop {
             // Wait for a connection. `wait_for` sees the current value
@@ -153,18 +257,24 @@ impl Proxy {
                 .clone()
                 .expect("checked Some");
 
-            let (channel, receiver) = self.allocate().await;
+            // Allocation is refused when the table no longer belongs
+            // to this connection — the release already ran — in which
+            // case the next connection is waited for like any other.
+            let Some((channel, receiver)) =
+                self.allocate(outbound.generation).await
+            else {
+                self.next(&mut watcher, outbound.generation).await;
+                continue;
+            };
 
             let mut frame = Vec::new();
             let encoded = mcp_proxy::container::Frame {
                 channel,
-                // Cloned in, because a retry after a dead connection
-                // needs the request again.
                 request: request.clone(),
             }
             .encode(&mut Writer::new(&mut frame));
             if let Err(error) = encoded {
-                self.finish(channel).await;
+                self.free(channel).await;
                 return Err(error);
             }
 
@@ -174,15 +284,26 @@ impl Proxy {
 
             // The connection died between the wait and the send. Free
             // the tag and wait for the slot to move past that
-            // connection before trying again.
-            self.finish(channel).await;
-            let _ = watcher
-                .wait_for(|slot| match slot {
-                    Some(current) => current.generation != outbound.generation,
-                    None => true,
-                })
-                .await;
+            // connection before trying again. If the release beat the
+            // free, the slot is already empty, and freeing it again
+            // is freeing nothing.
+            self.free(channel).await;
+            self.next(&mut watcher, outbound.generation).await;
         }
+    }
+
+    /// Wait until the outbound slot no longer holds `generation`.
+    async fn next(
+        &self,
+        watcher: &mut watch::Receiver<Option<Outbound>>,
+        generation: u64,
+    ) {
+        let _ = watcher
+            .wait_for(|slot| match slot {
+                Some(current) => current.generation != generation,
+                None => true,
+            })
+            .await;
     }
 
     /// Route one response to its channel's opener. A response on a
@@ -191,49 +312,75 @@ impl Proxy {
     pub async fn respond(&self, channel: u8, payload: Bytes) {
         let routes = self.routes.lock().await;
         if let Some(sender) = &routes.slots[channel as usize] {
-            let _ = sender.send(payload);
+            let _ = sender.send(ChannelEvent::Response(payload));
         }
     }
 
-    /// End a channel: drop its route — the opener sees the stream
-    /// end — and return the tag to the pool.
+    /// End a channel the server's way: tell the opener it finished,
+    /// then return the tag to the pool.
     pub async fn finish(&self, channel: u8) {
+        let mut routes = self.routes.lock().await;
+        if let Some(sender) = routes.slots[channel as usize].take() {
+            let _ = sender.send(ChannelEvent::Finished);
+        }
+        drop(routes);
+        self.freed.notify_waiters();
+    }
+
+    /// Return a tag to the pool without a finish — the opener's own
+    /// cleanup for a request that never made it onto the wire.
+    async fn free(&self, channel: u8) {
         let mut routes = self.routes.lock().await;
         routes.slots[channel as usize] = None;
         drop(routes);
         self.freed.notify_waiters();
     }
 
-    /// Allocate the lowest free tag, waiting if all 256 are live.
-    async fn allocate(&self) -> (u8, mpsc::UnboundedReceiver<Bytes>) {
+    /// Allocate the lowest free tag on `generation`'s table, waiting
+    /// if all 256 are live. `None` when the table no longer belongs to
+    /// that generation — the caller re-waits for a connection rather
+    /// than registering a channel nothing would ever end.
+    async fn allocate(
+        &self,
+        generation: u64,
+    ) -> Option<(u8, mpsc::UnboundedReceiver<ChannelEvent>)> {
         loop {
             let notified = std::pin::pin!(self.freed.notified());
             {
                 let mut routes = self.routes.lock().await;
+                if routes.current != generation {
+                    return None;
+                }
                 if let Some(index) =
                     routes.slots.iter().position(Option::is_none)
                 {
                     let (sender, receiver) = mpsc::unbounded_channel();
                     routes.slots[index] = Some(sender);
-                    return (index as u8, receiver);
+                    return Some((index as u8, receiver));
                 }
             }
             notified.await;
         }
     }
 
-    /// The release behind [`Claim`]'s drop: clear the slot if this
-    /// claim still holds it, and kill every live channel — their
-    /// exchanges were not served, and their openers see the stream
-    /// end. A no-op for a stale claim.
+    /// The release behind [`Claim`]'s drop, in the order that keeps a
+    /// newer connection whole: wipe this generation's routes first —
+    /// senders dropped without a finish, which is how their openers
+    /// learn the connection died — then clear the outbound slot, then
+    /// free the occupancy. A newer connection cannot exist until the
+    /// last step, so the wipe can only ever touch its own generation's
+    /// table; the guards make the late and the stale into no-ops.
     async fn release(&self, generation: u64) {
         {
-            let mut occupancy = self.occupancy.lock().await;
-            if occupancy.generation != generation {
-                return;
+            let mut routes = self.routes.lock().await;
+            if routes.current == generation {
+                routes.current = 0;
+                for slot in routes.slots.iter_mut() {
+                    *slot = None;
+                }
             }
-            occupancy.taken = false;
         }
+        self.freed.notify_waiters();
         self.outbound.send_if_modified(|slot| match slot {
             Some(outbound) if outbound.generation == generation => {
                 *slot = None;
@@ -242,12 +389,11 @@ impl Proxy {
             _ => false,
         });
         {
-            let mut routes = self.routes.lock().await;
-            for slot in routes.slots.iter_mut() {
-                *slot = None;
+            let mut occupancy = self.occupancy.lock().await;
+            if occupancy.generation == generation {
+                occupancy.taken = false;
             }
         }
-        self.freed.notify_waiters();
     }
 }
 
