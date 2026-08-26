@@ -8,18 +8,25 @@
 //! agent's tool calls go out as an MCP client against the in-container
 //! proxy on port 8081.
 
-// The continuation and API types land before the loop that will
-// speak them; the allows leave with that implementation.
+// The continuation, API types and fetch land before the loop that
+// will speak them; the allows leave with that wiring.
 #[allow(dead_code)]
 mod continuation;
+#[allow(dead_code)]
+mod error;
+#[allow(dead_code)]
+mod fetch;
 #[allow(dead_code, unused_imports)]
-mod upstream;
+mod request;
+#[allow(dead_code, unused_imports)]
+mod response;
+mod serde_util;
 
 use std::pin::Pin;
 
 use axum::Json;
 use axum::response::sse::{Event, Sse};
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request;
+use diverge_provider_sdk::endpoints::agentic_loop::run::client;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 use futures_util::{Stream, StreamExt as _};
 
@@ -54,13 +61,13 @@ async fn run() {
 /// body is the bare object — and every chunk the loop produces leaves
 /// as one SSE event carrying that chunk's JSON.
 async fn serve(
-    Json(request): Json<request::Frame>,
+    Json(request): Json<client::request::Frame>,
 ) -> Sse<impl Stream<Item = Result<Event, axum::Error>>> {
     Sse::new(chunks(request).map(|chunk| Event::default().json_data(&chunk)))
 }
 
 /// The loop itself: everything between a request and its chunks.
-fn chunks(request: request::Frame) -> ChunkStream {
+fn chunks(request: client::request::Frame) -> ChunkStream {
     let _ = request;
     unimplemented!("the OpenRouter loop is not yet written")
 }
