@@ -40,7 +40,9 @@ pub async fn fetch(
     continuation: Option<Continuation>,
     prompt: Vec<rmcp::model::ContentBlock>,
 ) -> Result<
-    impl Stream<Item = Result<AgenticLoopChunk, Error>> + Send + Unpin,
+    // `use<>`: the stream borrows nothing from the arguments — the
+    // key is spent on a header before the stream exists.
+    impl Stream<Item = Result<AgenticLoopChunk, Error>> + Send + Unpin + use<>,
     Error,
 > {
     let request = ChatCompletionCreateParams::new(agent, continuation, prompt);

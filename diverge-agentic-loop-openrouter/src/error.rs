@@ -60,3 +60,65 @@ pub struct ProviderErrorInner {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
 }
+
+impl Error {
+    /// The HTTP status this failure answers with, inherited from
+    /// OpenRouter's own verdict wherever one exists.
+    pub fn status(&self) -> reqwest::StatusCode {
+        match self {
+            Error::Provider(error) => error
+                .error
+                .code
+                .and_then(|code| reqwest::StatusCode::from_u16(code).ok())
+                .unwrap_or(reqwest::StatusCode::INTERNAL_SERVER_ERROR),
+            Error::Deserialization(_) => {
+                reqwest::StatusCode::INTERNAL_SERVER_ERROR
+            }
+            Error::BadStatus { code, .. } => *code,
+            Error::Stream(reqwest_eventsource::Error::InvalidStatusCode(
+                code,
+                _,
+            )) => *code,
+            Error::Stream(reqwest_eventsource::Error::Transport(error)) => {
+                error
+                    .status()
+                    .unwrap_or(reqwest::StatusCode::INTERNAL_SERVER_ERROR)
+            }
+            Error::Stream(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            Error::EmptyStream => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    /// The failure as JSON, in the shape the api crate reported it.
+    pub fn message(&self) -> serde_json::Value {
+        serde_json::json!({
+            "kind": "openrouter",
+            "error": match self {
+                Error::Provider(error) => serde_json::json!({
+                    "kind": "provider_error",
+                    "error": {
+                        "kind": "provider",
+                        "message": error.error.message,
+                        "metadata": error.error.metadata,
+                    },
+                }),
+                Error::Deserialization(error) => serde_json::json!({
+                    "kind": "deserialization",
+                    "error": error.to_string(),
+                }),
+                Error::BadStatus { body, .. } => serde_json::json!({
+                    "kind": "bad_status",
+                    "error": body,
+                }),
+                Error::Stream(error) => serde_json::json!({
+                    "kind": "stream_error",
+                    "error": error.to_string(),
+                }),
+                Error::EmptyStream => serde_json::json!({
+                    "kind": "empty_stream",
+                    "error": "received an empty stream",
+                }),
+            },
+        })
+    }
+}
