@@ -11,8 +11,9 @@
 //! back before Claude Code starts.
 //!
 //! The container fixes its geometry — one working directory, one
-//! `CLAUDE_CONFIG_DIR` — so every relative path in a token minted by
-//! one run resolves identically in the next. The harness's flow:
+//! config dir (the stock `~/.claude`, no environment overrides) — so
+//! every relative path in a token minted by one run resolves
+//! identically in the next. The harness's flow:
 //! fresh runs launch Claude Code and harvest `projects/**` into a
 //! token; resumed runs [`write`](Continuation::write) the token's
 //! files and launch with `--resume` and the token's session id.
@@ -20,11 +21,11 @@
 use std::io;
 use std::path::{Component, Path};
 
-/// Where the session state lives, fixed for the container's life.
-/// The harness launches Claude Code with `CLAUDE_CONFIG_DIR` set to
-/// this same path, so what [`Continuation::write`] lays down is what
-/// Claude Code finds.
-pub const CONFIG_DIR: &str = "/claude";
+/// Where the session state lives, fixed for the container's life:
+/// Claude Code's own default, `~/.claude` for the container's root
+/// user. The environment stays stock — no `CLAUDE_CONFIG_DIR` — so
+/// what [`Continuation::write`] lays down is what Claude Code finds.
+pub const CONFIG_DIR: &str = "/root/.claude";
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
