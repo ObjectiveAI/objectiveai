@@ -1,7 +1,6 @@
 # The ClaudeCode agentic_loop image: the harness on 8080, the MCP
-# proxy on 8081, Claude Code itself spawned per run — as a separate,
-# unprivileged user, so the agent is physically unable to touch the
-# harness or the proxy.
+# proxy on 8081, Claude Code itself spawned per run — everything as
+# root.
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
@@ -38,25 +37,16 @@ FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db8
 # linux-x64-musl platform binaries, so Alpine is a supported host.
 RUN apk add --no-cache nodejs npm     && npm install -g @anthropic-ai/claude-code@2.1.246     && npm cache clean --force
 
-# The privilege split: the harness and the proxy run as ROOT; Claude
-# Code is spawned as `agent`. A non-root process cannot signal,
-# ptrace, or reach into /proc of root processes, and cannot rebind
-# their ports — the agent is left only the interfaces it is meant to
-# have. Its home is where the continuation's files land
-# (/home/agent/.claude, Claude Code's stock default for that user)
-# and its workdir is the session's fixed cwd.
-RUN adduser -D agent     && mkdir -p /home/agent/work     && chown -R agent:agent /home/agent
 
 COPY --from=build     /build/diverge-agentic-loop-cc/target/release/diverge-agentic-loop-cc     /usr/local/bin/diverge-agentic-loop-cc
 COPY --from=build     /build/diverge-agentic-loop-mcp-proxy/target/release/diverge-agentic-loop-mcp-proxy     /usr/local/bin/diverge-agentic-loop-mcp-proxy
 
 # Two programs, one container: the proxy in the background, the
-# harness in the foreground as the container's own life. 0700, root:
-# the agent user cannot execute, read, or replace any of the three.
+# harness in the foreground as the container's own life.
 RUN printf '#!/bin/sh
 /usr/local/bin/diverge-agentic-loop-mcp-proxy &
 exec /usr/local/bin/diverge-agentic-loop-cc
-'     > /usr/local/bin/entrypoint     && chmod 0700 /usr/local/bin/entrypoint         /usr/local/bin/diverge-agentic-loop-cc         /usr/local/bin/diverge-agentic-loop-mcp-proxy
+'     > /usr/local/bin/entrypoint     && chmod +x /usr/local/bin/entrypoint
 
 # The Container specification's ports: 8080 the loop, 8081 MCP.
 EXPOSE 8080 8081
