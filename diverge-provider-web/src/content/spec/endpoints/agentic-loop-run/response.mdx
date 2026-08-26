@@ -49,7 +49,7 @@ pub enum AgenticLoopChunk {
 ```
 
 `TextContent`, `ImageContent`, `AudioContent`,
-`CallToolRequestParams`, `CallToolResult`, and `MetaObject` are the
+`CallToolResult` and `MetaObject` are the
 types of the
 [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25),
 incorporated by reference; each is linked beneath the declaration
@@ -155,7 +155,8 @@ Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP imp
 
 ### `assistant_tool_call`
 
-A tool call the agent issued.
+A tool call the agent issued, whole: `arguments` is a structured
+object, assembled before the chunk is emitted, never a fragment.
 
 ```rust
 pub struct AssistantToolCallChunk {
@@ -163,8 +164,18 @@ pub struct AssistantToolCallChunk {
     pub r#type: AssistantToolCallChunkType,
     /// Quoted by the answering tool_response chunk.
     pub id: String,
-    #[serde(flatten)]
-    pub inner: CallToolRequestParams,
+    #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
+    pub meta: Option<RequestMetaObject>,
+    /// The name of the tool to call.
+    pub name: String,
+    /// Arguments to pass to the tool, matching the tool's input
+    /// schema.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<JsonObject>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_responses: Option<InputResponses>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_state: Option<String>,
 }
 
 pub enum AssistantToolCallChunkType {
@@ -173,7 +184,7 @@ pub enum AssistantToolCallChunkType {
 }
 ```
 
-Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::CallToolRequestParams`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.CallToolRequestParams.html).
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::RequestMetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.RequestMetaObject.html); [`rmcp::model::JsonObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/type.JsonObject.html); [`rmcp::model::InputResponses`](https://docs.rs/rmcp/3.1.2/rmcp/model/type.InputResponses.html).
 
 ### `assistant_refusal`
 
