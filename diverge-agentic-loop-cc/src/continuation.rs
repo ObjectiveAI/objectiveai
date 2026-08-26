@@ -105,6 +105,137 @@ impl Continuation {
     }
 }
 
+impl Continuation {
+    /// Harvest one session's on-disk state into a [`Continuation`].
+    ///
+    /// The inverse of [`write`](Continuation::write), called when a run
+    /// ends: the session id arrives from Claude Code's own output (its
+    /// stream-json chunks carry it), and everything the session left
+    /// under [`CONFIG_DIR`] is swept up:
+    ///
+    /// - `projects/<dir>/<session>.jsonl` — found by NAME in every
+    ///   project directory, rather than recomputing Claude Code's cwd
+    ///   sanitizer;
+    /// - `projects/<dir>/<session>/**` — subagents, tool results,
+    ///   session memory, remote agents;
+    /// - `file-history/<session>/**` — the edit backups the transcript's
+    ///   checkpoint lines reference;
+    /// - `tasks/<session>/**` — todo state, whose list id falls back to
+    ///   the session id.
+    ///
+    /// Not harvested, deliberately: `history.jsonl` (global prompt
+    /// history, cross-session), `image-cache` and `uploads` (binary,
+    /// which the token does not carry), `debug` (diagnostics), plan
+    /// documents (their slug lives inside transcript lines), and the
+    /// config file. A file that is not valid UTF-8 is skipped for the
+    /// same binary reason.
+    ///
+    /// Absence is not an error: missing directories contribute nothing,
+    /// and a session that wrote no files yields an empty `files` — the
+    /// caller judges that. `Err` is a real IO failure.
+    pub async fn read(session_id: String) -> io::Result<Self> {
+        let config_dir = Path::new(CONFIG_DIR);
+        let mut files = Vec::new();
+
+        // The transcripts: each project directory may hold this
+        // session — worktrees make several possible.
+        let projects = config_dir.join("projects");
+        if let Ok(mut dirs) = tokio::fs::read_dir(&projects).await {
+            while let Some(dir) = dirs.next_entry().await? {
+                if !dir.file_type().await?.is_dir() {
+                    continue;
+                }
+                let transcript =
+                    dir.path().join(format!("{session_id}.jsonl"));
+                collect_file(config_dir, &transcript, &mut files).await?;
+                collect_tree(
+                    config_dir,
+                    dir.path().join(&session_id),
+                    &mut files,
+                )
+                .await?;
+            }
+        }
+
+        // The session-keyed families beside the transcripts.
+        collect_tree(
+            config_dir,
+            config_dir.join("file-history").join(&session_id),
+            &mut files,
+        )
+        .await?;
+        collect_tree(
+            config_dir,
+            config_dir.join("tasks").join(&session_id),
+            &mut files,
+        )
+        .await?;
+
+        Ok(Continuation { session_id, files })
+    }
+}
+
+/// Collect one file, if it exists and is UTF-8.
+async fn collect_file(
+    config_dir: &Path,
+    path: &Path,
+    files: &mut Vec<ContinuationFile>,
+) -> io::Result<()> {
+    let bytes = match tokio::fs::read(path).await {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return Ok(());
+        }
+        Err(error) => return Err(error),
+    };
+    // Not UTF-8 is not carried — the token holds text.
+    let Ok(content) = String::from_utf8(bytes) else {
+        return Ok(());
+    };
+    let Ok(relative) = path.strip_prefix(config_dir) else {
+        return Ok(());
+    };
+    files.push(ContinuationFile {
+        path: relative
+            .components()
+            .filter_map(|component| match component {
+                Component::Normal(part) => part.to_str(),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("/"),
+        content,
+    });
+    Ok(())
+}
+
+/// Collect every file under `root`, walked with an explicit stack —
+/// absence contributes nothing.
+async fn collect_tree(
+    config_dir: &Path,
+    root: std::path::PathBuf,
+    files: &mut Vec<ContinuationFile>,
+) -> io::Result<()> {
+    let mut stack = vec![root];
+    while let Some(dir) = stack.pop() {
+        let mut entries = match tokio::fs::read_dir(&dir).await {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
+        while let Some(entry) = entries.next_entry().await? {
+            if entry.file_type().await?.is_dir() {
+                stack.push(entry.path());
+            } else {
+                collect_file(config_dir, &entry.path(), files).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
 /// A continuation token that could not be opened.
 ///
 /// Two layers, two failures: the coat did not decode, or what was
