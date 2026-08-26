@@ -40,6 +40,11 @@ impl ChatCompletionChunk {
     /// stream, in the fixed order: reasoning, content, images,
     /// refusal, tool calls — then usage.
     ///
+    /// Every chunk appended here is stamped with an `openrouter`
+    /// entry in its `_meta` — `{"id": <the completion's id>}` — the
+    /// provenance a chunk keeps when it leaves the stream that gave
+    /// it context.
+    ///
     /// `tool_calls` carries call identity across fragments: OpenRouter
     /// sends a call's `id` and `name` only in its first fragment, so a
     /// fragment that has them enters the map by its `index`, and one
@@ -47,8 +52,8 @@ impl ChatCompletionChunk {
     /// [`AssistantToolCallDelta::into_chunks`](crate::upstream::request::AssistantToolCallDelta::into_chunks).
     ///
     /// Only the FIRST choice is read: an OpenRouter completion carries
-    /// exactly one, and anything beyond it is dropped. The envelope —
-    /// `id`, `created`, `model`, `object`, `service_tier`,
+    /// exactly one, and anything beyond it is dropped. The rest of the
+    /// envelope — `created`, `model`, `object`, `service_tier`,
     /// `system_fingerprint`, `provider` — describes the stream rather
     /// than anything a chunk carries, and is dropped with it.
     pub fn into_chunks(
@@ -56,11 +61,65 @@ impl ChatCompletionChunk {
         tool_calls: &mut HashMap<u64, (String, String)>,
         chunks: &mut Vec<response::AgenticLoopChunk>,
     ) {
+        let openrouter = serde_json::json!({
+            "id": self.id,
+        });
+
+        let start = chunks.len();
         if let Some(choice) = self.choices.into_iter().next() {
             choice.into_chunks(tool_calls, chunks);
         }
         if let Some(usage) = self.usage {
             usage.into_chunks(chunks);
         }
+        for chunk in &mut chunks[start..] {
+            stamp(chunk, &openrouter);
+        }
     }
+}
+
+/// Insert the `openrouter` provenance entry into one chunk's `_meta`.
+///
+/// Every chunk kind has a `_meta` slot — the content-bearing kinds
+/// through the MCP content they flatten, the rest through their own
+/// `meta` field — created here when absent.
+fn stamp(
+    chunk: &mut response::AgenticLoopChunk,
+    openrouter: &serde_json::Value,
+) {
+    use response::AgenticLoopChunk;
+
+    let map: &mut rmcp::model::JsonObject = match chunk {
+        AgenticLoopChunk::AssistantReasoning(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::AssistantTextContent(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::AssistantImageContent(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::AssistantAudioContent(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::AssistantRefusal(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::AssistantToolCall(chunk) => {
+            &mut chunk.meta.get_or_insert_with(Default::default).0.0
+        }
+        AgenticLoopChunk::ToolResponse(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::Usage(chunk) => {
+            &mut chunk.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::Notification(chunk) => {
+            &mut chunk.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::Continuation(chunk) => {
+            &mut chunk.meta.get_or_insert_with(Default::default).0
+        }
+    };
+    map.insert("openrouter".to_string(), openrouter.clone());
 }
