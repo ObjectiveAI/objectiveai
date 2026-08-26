@@ -32,3 +32,55 @@ pub enum Error {
     #[error("a tool call failed: {0}")]
     CallTool(rmcp::ServiceError),
 }
+
+impl Error {
+    /// The HTTP status this failure answers with. A fetch failure
+    /// inherits OpenRouter's verdict; everything else here is the
+    /// server's own machinery failing, which is a `500`.
+    pub fn status(&self) -> reqwest::StatusCode {
+        match self {
+            Error::Fetch(error) => error.status(),
+            Error::Connect(_)
+            | Error::ListTools(_)
+            | Error::Tokenize(_)
+            | Error::CallTool(_) => {
+                reqwest::StatusCode::INTERNAL_SERVER_ERROR
+            }
+        }
+    }
+
+    /// The failure as JSON, in the same shape fetch reports.
+    pub fn message(&self) -> serde_json::Value {
+        match self {
+            Error::Fetch(error) => error.message(),
+            Error::Connect(error) => serde_json::json!({
+                "kind": "loop",
+                "error": {
+                    "kind": "connect",
+                    "error": error.to_string(),
+                },
+            }),
+            Error::ListTools(error) => serde_json::json!({
+                "kind": "loop",
+                "error": {
+                    "kind": "list_tools",
+                    "error": error.to_string(),
+                },
+            }),
+            Error::Tokenize(error) => serde_json::json!({
+                "kind": "loop",
+                "error": {
+                    "kind": "tokenize",
+                    "error": error.to_string(),
+                },
+            }),
+            Error::CallTool(error) => serde_json::json!({
+                "kind": "loop",
+                "error": {
+                    "kind": "call_tool",
+                    "error": error.to_string(),
+                },
+            }),
+        }
+    }
+}

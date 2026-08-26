@@ -5,14 +5,12 @@
 //! provider specification: one POST at `/` on port 8080 carries the
 //! caller's request JSON in, and the answer is a server-sent event
 //! stream, each event one chunk of the response vocabulary — the
-//! OpenRouter call behind it made by [`fetch`](fetch::fetch). The
-//! agent's tool calls go out as an MCP client against the
-//! in-container proxy on port 8081.
+//! turns behind it run by [`r#loop`](r#loop::r#loop). The agent's
+//! tool calls go out as an MCP client against the in-container proxy
+//! on port 8081.
 
 mod continuation;
 mod fetch;
-// Not yet wired into serve; the allow leaves with that wiring.
-#[allow(dead_code, unused_imports)]
 mod r#loop;
 mod request;
 mod response;
@@ -69,8 +67,9 @@ async fn run() {
 ///   misconfiguration: `500`. The caller's request carries no
 ///   credential for the upstream; whose key the container runs with
 ///   is the image's business.
-/// - OpenRouter failing to answer inherits OpenRouter's own verdict:
-///   [`Error::status`](fetch::Error::status).
+/// - The loop failing to start inherits OpenRouter's own verdict
+///   where there is one — [`Error::status`](r#loop::Error::status) —
+///   and answers `500` for the server's own machinery.
 /// - An error after the stream began cannot change the status that
 ///   already left; it arrives IN the stream, as a `notification`
 ///   chunk with `is_fatal` set, and is the stream's last word.
@@ -122,7 +121,7 @@ async fn serve(
     };
 
     let chunks =
-        match fetch::fetch(&api_key, agent, continuation, request.prompt, None)
+        match r#loop::r#loop(&api_key, agent, continuation, request.prompt)
             .await
         {
             Ok(chunks) => chunks,
