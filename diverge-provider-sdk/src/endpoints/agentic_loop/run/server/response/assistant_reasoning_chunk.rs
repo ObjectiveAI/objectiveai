@@ -43,3 +43,19 @@ pub enum AssistantReasoningChunkType {
     #[default]
     AssistantReasoning,
 }
+
+impl AssistantReasoningChunk {
+    /// Merge the fragment that arrived directly behind this one: the
+    /// text concatenates, the log probabilities append. What else the
+    /// other fragment carried — its `_meta`, its annotations — is
+    /// dropped in favour of this chunk's own; fragments of one run
+    /// say the same things there.
+    pub fn push(&mut self, other: Self) {
+        self.inner.text.push_str(&other.inner.text);
+        match (&mut self.logprobs, other.logprobs) {
+            (Some(logprobs), Some(other)) => logprobs.extend(other),
+            (None, Some(other)) => self.logprobs = Some(other),
+            _ => {}
+        }
+    }
+}
