@@ -46,3 +46,18 @@ pub enum AssistantToolCallChunkType {
     #[default]
     AssistantToolCall,
 }
+
+impl AssistantToolCallChunk {
+    /// Merge the fragment that continued this call — same `id`, the
+    /// caller checks — by appending its piece of the arguments. What
+    /// else the fragment carried says nothing new about a call it is
+    /// the continuation of, and is dropped.
+    pub fn push(&mut self, other: Self) {
+        if let Some(arguments) = other.arguments {
+            match &mut self.arguments {
+                Some(existing) => existing.push_str(&arguments),
+                None => self.arguments = Some(arguments),
+            }
+        }
+    }
+}

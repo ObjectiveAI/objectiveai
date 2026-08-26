@@ -215,33 +215,19 @@ async fn list(
 /// Keep what the history keeps.
 ///
 /// The six assistant kinds accumulate, `_meta` stripped — the yielded
-/// chunk keeps its provenance, the recorded one does not. A tool-call
-/// fragment whose id matches the LAST recorded tool call joins it
-/// rather than standing alone, and the streamable text kinds coalesce
-/// through the SDK's own [`response::push`] — the history keeps what
-/// was said, not how it was cut. Usage, notifications and
-/// continuations say nothing the conversation replays, and are not
-/// kept.
+/// chunk keeps its provenance, the recorded one does not — and the
+/// streamed kinds coalesce through the SDK's own [`response::push`]:
+/// the history keeps what was said, not how it was cut. Usage,
+/// notifications and continuations say nothing the conversation
+/// replays, and are not kept.
 fn accumulate(turn: &mut Vec<AgenticLoopChunk>, chunk: &AgenticLoopChunk) {
-    match chunk {
+    if matches!(
+        chunk,
         AgenticLoopChunk::Usage(_)
-        | AgenticLoopChunk::Notification(_)
-        | AgenticLoopChunk::Continuation(_) => return,
-        AgenticLoopChunk::AssistantToolCall(fragment) => {
-            if let Some(AgenticLoopChunk::AssistantToolCall(last)) =
-                turn.last_mut()
-                && last.id == fragment.id
-            {
-                if let Some(arguments) = &fragment.arguments {
-                    match &mut last.arguments {
-                        Some(existing) => existing.push_str(arguments),
-                        None => last.arguments = Some(arguments.clone()),
-                    }
-                }
-                return;
-            }
-        }
-        _ => {}
+            | AgenticLoopChunk::Notification(_)
+            | AgenticLoopChunk::Continuation(_)
+    ) {
+        return;
     }
     let mut kept = chunk.clone();
     strip(&mut kept);
