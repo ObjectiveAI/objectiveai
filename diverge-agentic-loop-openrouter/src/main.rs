@@ -21,6 +21,8 @@ mod request;
 #[allow(dead_code, unused_imports)]
 mod response;
 mod serde_util;
+#[allow(dead_code)]
+mod stream_once;
 
 use std::pin::Pin;
 

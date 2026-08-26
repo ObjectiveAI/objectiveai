@@ -9,6 +9,7 @@ use futures_util::{Stream, StreamExt as _};
 use reqwest_eventsource::{Event, RequestBuilderExt as _};
 
 use crate::continuation::Continuation;
+use crate::stream_once::StreamOnce;
 use crate::error::{Error, ProviderError};
 use crate::request::ChatCompletionCreateParams;
 use crate::response::ChatCompletionChunk;
@@ -38,8 +39,10 @@ pub async fn fetch(
     agent: openrouter::Agent,
     continuation: Option<Continuation>,
     prompt: Vec<rmcp::model::ContentBlock>,
-) -> Result<impl Stream<Item = Result<AgenticLoopChunk, Error>> + Send, Error>
-{
+) -> Result<
+    impl Stream<Item = Result<AgenticLoopChunk, Error>> + Send + Unpin,
+    Error,
+> {
     let request = ChatCompletionCreateParams::new(agent, continuation, prompt);
 
     let event_source = reqwest::Client::new()
@@ -63,9 +66,7 @@ pub async fn fetch(
     // front of the rest; nothing is lost.
     let mut rest = Box::pin(inner);
     match rest.next().await {
-        Some(Ok(first)) => {
-            Ok(futures_util::stream::iter([Ok(first)]).chain(rest))
-        }
+        Some(Ok(first)) => Ok(StreamOnce::new(Ok(first)).chain(rest)),
         Some(Err(error)) => Err(error),
         None => Err(Error::EmptyStream),
     }
