@@ -1,5 +1,6 @@
 //! Log probabilities.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::{Deserialize, Serialize};
 
 /// Log probabilities for generated tokens.
@@ -56,4 +57,39 @@ pub struct TopLogprob {
     /// The log probability of this token.
     #[serde(deserialize_with = "crate::upstream::serde_util::option_decimal")]
     pub logprob: Option<rust_decimal::Decimal>,
+}
+
+/// Field for field: the shapes agree, because both descend from the
+/// same upstream vocabulary.
+impl From<Logprob> for response::Logprob {
+    fn from(logprob: Logprob) -> Self {
+        response::Logprob {
+            token: logprob.token,
+            bytes: logprob.bytes,
+            logprob: logprob.logprob,
+            top_logprobs: logprob
+                .top_logprobs
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}
+
+impl From<TopLogprob> for response::TopLogprob {
+    fn from(top: TopLogprob) -> Self {
+        response::TopLogprob {
+            token: top.token,
+            bytes: top.bytes,
+            logprob: top.logprob,
+        }
+    }
+}
+
+/// The conversion the chunks want: a list of logprobs, converted
+/// element-wise, or nothing.
+pub(super) fn convert(
+    logprobs: Option<Vec<Logprob>>,
+) -> Option<Vec<response::Logprob>> {
+    logprobs.map(|list| list.into_iter().map(Into::into).collect())
 }

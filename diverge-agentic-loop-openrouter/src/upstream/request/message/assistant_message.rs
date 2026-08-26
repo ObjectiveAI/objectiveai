@@ -1,5 +1,8 @@
 //! Assistant messages and their tool calls.
 
+use std::collections::HashMap;
+
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 use serde::{Deserialize, Serialize};
 
@@ -211,5 +214,46 @@ fn append(accumulator: &mut Option<String>, text: String) {
     match accumulator {
         Some(existing) => existing.push_str(&text),
         None => *accumulator = Some(text),
+    }
+}
+
+impl AssistantToolCallDelta {
+    /// Append this fragment as a tool call chunk — when it can be
+    /// named.
+    ///
+    /// OpenRouter sends a call's `id` and `name` only in its first
+    /// fragment. A fragment that carries an id registers `(id, name)`
+    /// in the map under its `index`; one that does not reads the map;
+    /// an index the map cannot name is dropped, because a chunk
+    /// without an id correlates with nothing.
+    pub fn into_chunks(
+        self,
+        tool_calls: &mut HashMap<u64, (String, String)>,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        let name = self
+            .function
+            .as_ref()
+            .and_then(|function| function.name.clone());
+        let (id, name) = match self.id {
+            Some(id) => {
+                let entry = (id, name.unwrap_or_default());
+                tool_calls.insert(self.index, entry.clone());
+                entry
+            }
+            None => match tool_calls.get(&self.index) {
+                Some(entry) => entry.clone(),
+                None => return,
+            },
+        };
+        chunks.push(response::AgenticLoopChunk::AssistantToolCall(
+            response::AssistantToolCallChunk {
+                r#type: Default::default(),
+                id,
+                meta: None,
+                name,
+                arguments: self.function.and_then(|function| function.arguments),
+            },
+        ));
     }
 }

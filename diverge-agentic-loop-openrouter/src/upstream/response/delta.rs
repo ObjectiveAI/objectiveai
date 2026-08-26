@@ -1,5 +1,9 @@
 //! Delta type for streaming responses.
 
+use std::collections::HashMap;
+
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
+
 use serde::{Deserialize, Serialize};
 
 /// A delta (incremental update) in a streaming response.
@@ -28,4 +32,57 @@ pub struct Delta {
     /// New generated images.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub images: Option<Vec<super::Image>>,
+}
+
+impl Delta {
+    /// Append this delta's chunks, in the fixed order: reasoning,
+    /// content, images, refusal, tool calls. `logprobs` are the
+    /// choice's, split to the chunks they describe — content's to the
+    /// text chunk, refusal's to the refusal chunk. The `role` says
+    /// nothing a chunk carries and is dropped.
+    pub fn into_chunks(
+        self,
+        logprobs: Option<super::Logprobs>,
+        tool_calls: &mut HashMap<u64, (String, String)>,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        let (content_logprobs, refusal_logprobs) = match logprobs {
+            Some(logprobs) => (logprobs.content, logprobs.refusal),
+            None => (None, None),
+        };
+
+        if let Some(reasoning) = self.reasoning {
+            chunks.push(response::AgenticLoopChunk::AssistantReasoning(
+                response::AssistantReasoningChunk {
+                    r#type: Default::default(),
+                    logprobs: None,
+                    inner: rmcp::model::TextContent::new(reasoning),
+                },
+            ));
+        }
+        if let Some(content) = self.content {
+            chunks.push(response::AgenticLoopChunk::AssistantTextContent(
+                response::AssistantTextContentChunk {
+                    r#type: Default::default(),
+                    logprobs: super::logprobs::convert(content_logprobs),
+                    inner: rmcp::model::TextContent::new(content),
+                },
+            ));
+        }
+        for image in self.images.into_iter().flatten() {
+            image.into_chunks(chunks);
+        }
+        if let Some(refusal) = self.refusal {
+            chunks.push(response::AgenticLoopChunk::AssistantRefusal(
+                response::AssistantRefusalChunk {
+                    r#type: Default::default(),
+                    logprobs: super::logprobs::convert(refusal_logprobs),
+                    inner: rmcp::model::TextContent::new(refusal),
+                },
+            ));
+        }
+        for tool_call in self.tool_calls.into_iter().flatten() {
+            tool_call.into_chunks(tool_calls, chunks);
+        }
+    }
 }

@@ -1,5 +1,9 @@
 //! Choice type for streaming responses.
 
+use std::collections::HashMap;
+
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
+
 use serde::{Deserialize, Serialize};
 
 /// A choice in a streaming agent completion chunk.
@@ -14,4 +18,17 @@ pub struct Choice {
     /// Log probabilities for tokens, if requested.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<super::Logprobs>,
+}
+
+impl Choice {
+    /// Append this choice's chunks: the delta's, with the choice's
+    /// log probabilities beside them. The finish reason is a fact
+    /// about the stream, not a chunk, and is dropped here.
+    pub fn into_chunks(
+        self,
+        tool_calls: &mut HashMap<u64, (String, String)>,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        self.delta.into_chunks(self.logprobs, tool_calls, chunks);
+    }
 }
