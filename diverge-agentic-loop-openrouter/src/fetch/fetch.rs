@@ -10,7 +10,7 @@ use reqwest_eventsource::{Event, RequestBuilderExt as _};
 
 use crate::continuation::Continuation;
 use crate::stream_once::StreamOnce;
-use crate::error::{Error, ProviderError};
+use super::{Error, ProviderError};
 use crate::request::ChatCompletionCreateParams;
 use crate::response::ChatCompletionChunk;
 

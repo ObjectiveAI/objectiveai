@@ -10,7 +10,6 @@
 //! in-container proxy on port 8081.
 
 mod continuation;
-mod error;
 mod fetch;
 mod request;
 mod response;
@@ -68,7 +67,7 @@ async fn run() {
 ///   credential for the upstream; whose key the container runs with
 ///   is the image's business.
 /// - OpenRouter failing to answer inherits OpenRouter's own verdict:
-///   [`Error::status`](error::Error::status).
+///   [`Error::status`](fetch::Error::status).
 /// - An error after the stream began cannot change the status that
 ///   already left; it arrives IN the stream, as a `notification`
 ///   chunk with `is_fatal` set, and is the stream's last word.
