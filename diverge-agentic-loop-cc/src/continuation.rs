@@ -49,7 +49,7 @@ pub struct ContinuationFile {
 
 impl Continuation {
     /// Open a raw continuation string: un-base64 it, deserialize it.
-    pub fn new(token: &str) -> Result<Self, ContinuationError> {
+    pub fn parse(token: &str) -> Result<Self, ContinuationError> {
         let json = STANDARD
             .decode(token)
             .map_err(ContinuationError::Base64)?;
@@ -57,7 +57,7 @@ impl Continuation {
     }
 
     /// Close the coat back up: serialize the state, base64 it.
-    /// [`new`](Self::new)'s exact inverse.
+    /// [`parse`](Self::parse)'s exact inverse.
     pub fn tokenize(&self) -> Result<String, serde_json::Error> {
         serde_json::to_vec(self).map(|json| STANDARD.encode(json))
     }

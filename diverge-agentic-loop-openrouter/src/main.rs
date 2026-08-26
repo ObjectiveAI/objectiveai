@@ -105,7 +105,7 @@ async fn serve(
     let continuation = match request
         .continuation
         .as_deref()
-        .map(Continuation::new)
+        .map(Continuation::parse)
         .transpose()
     {
         Ok(continuation) => continuation,
