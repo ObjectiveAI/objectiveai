@@ -10,3 +10,10 @@ homepage = "https://diverge.network"
 publish = false
 
 [dependencies]
+# The continuation token's outer coat: JSON, base64-ified.
+base64 = { version = "0.22.1" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+# `fs` for writing the continuation's files; the runtime itself comes
+# with the harness.
+tokio = { version = "1.53.1", default-features = false, features = ["fs"] }
