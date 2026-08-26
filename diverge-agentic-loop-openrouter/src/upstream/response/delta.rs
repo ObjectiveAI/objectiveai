@@ -64,7 +64,7 @@ impl Delta {
             chunks.push(response::AgenticLoopChunk::AssistantTextContent(
                 response::AssistantTextContentChunk {
                     r#type: Default::default(),
-                    logprobs: super::logprobs::convert(content_logprobs),
+                    logprobs: super::logprobs::into_chunk_logprobs(content_logprobs),
                     inner: rmcp::model::TextContent::new(content),
                 },
             ));
@@ -76,7 +76,7 @@ impl Delta {
             chunks.push(response::AgenticLoopChunk::AssistantRefusal(
                 response::AssistantRefusalChunk {
                     r#type: Default::default(),
-                    logprobs: super::logprobs::convert(refusal_logprobs),
+                    logprobs: super::logprobs::into_chunk_logprobs(refusal_logprobs),
                     inner: rmcp::model::TextContent::new(refusal),
                 },
             ));

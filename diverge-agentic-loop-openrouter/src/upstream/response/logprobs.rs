@@ -86,9 +86,9 @@ impl From<TopLogprob> for response::TopLogprob {
     }
 }
 
-/// The conversion the chunks want: a list of logprobs, converted
-/// element-wise, or nothing.
-pub(super) fn convert(
+/// A choice's logprob list, as the form a response chunk carries —
+/// converted element-wise, or nothing.
+pub(super) fn into_chunk_logprobs(
     logprobs: Option<Vec<Logprob>>,
 ) -> Option<Vec<response::Logprob>> {
     logprobs.map(|list| list.into_iter().map(Into::into).collect())
