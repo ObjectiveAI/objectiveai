@@ -24,7 +24,7 @@ pub struct Delta {
     /// Tool call updates.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls:
-        Option<Vec<crate::upstream::request::AssistantToolCallDelta>>,
+        Option<Vec<crate::request::AssistantToolCallDelta>>,
 
     /// New reasoning text since the last delta.
     #[serde(skip_serializing_if = "Option::is_none")]

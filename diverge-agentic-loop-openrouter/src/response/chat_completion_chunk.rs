@@ -49,7 +49,7 @@ impl ChatCompletionChunk {
     /// sends a call's `id` and `name` only in its first fragment, so a
     /// fragment that has them enters the map by its `index`, and one
     /// that does not reads the map. See
-    /// [`AssistantToolCallDelta::into_chunks`](crate::upstream::request::AssistantToolCallDelta::into_chunks).
+    /// [`AssistantToolCallDelta::into_chunks`](crate::request::AssistantToolCallDelta::into_chunks).
     ///
     /// Only the FIRST choice is read: an OpenRouter completion carries
     /// exactly one, and anything beyond it is dropped. The rest of the
