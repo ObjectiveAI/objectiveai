@@ -159,13 +159,8 @@ impl AssistantMessage {
                 self.push_part(chunk.inner.into());
             }
             AgenticLoopChunk::AssistantToolCall(chunk) => {
-                let arguments = chunk
-                    .arguments
-                    .as_ref()
-                    .and_then(|arguments| {
-                        serde_json::to_string(arguments).ok()
-                    })
-                    .unwrap_or_else(|| String::from("{}"));
+                let arguments =
+                    chunk.arguments.unwrap_or_else(|| String::from("{}"));
                 self.tool_calls.get_or_insert_with(Vec::new).push(
                     super::AssistantToolCall::Function {
                         id: chunk.id,

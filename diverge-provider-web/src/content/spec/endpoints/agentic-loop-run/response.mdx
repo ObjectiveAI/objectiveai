@@ -155,8 +155,10 @@ Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP imp
 
 ### `assistant_tool_call`
 
-A tool call the agent issued, whole: `arguments` is a structured
-object, assembled before the chunk is emitted, never a fragment.
+A tool call the agent issued, as a delta: consecutive tool call
+chunks bearing the same `id` continue one call, their `arguments`
+fragments concatenating, in the order sent, into the call's JSON
+text; a chunk with a new `id` is a new call.
 
 ```rust
 pub struct AssistantToolCallChunk {
@@ -168,10 +170,10 @@ pub struct AssistantToolCallChunk {
     pub meta: Option<RequestMetaObject>,
     /// The name of the tool to call.
     pub name: String,
-    /// Arguments to pass to the tool, matching the tool's input
-    /// schema.
+    /// One fragment of the call's arguments: JSON text, complete
+    /// only once every fragment with this id has been concatenated.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub arguments: Option<JsonObject>,
+    pub arguments: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input_responses: Option<InputResponses>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -184,7 +186,7 @@ pub enum AssistantToolCallChunkType {
 }
 ```
 
-Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::RequestMetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.RequestMetaObject.html); [`rmcp::model::JsonObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/type.JsonObject.html); [`rmcp::model::InputResponses`](https://docs.rs/rmcp/3.1.2/rmcp/model/type.InputResponses.html).
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::RequestMetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.RequestMetaObject.html); [`rmcp::model::InputResponses`](https://docs.rs/rmcp/3.1.2/rmcp/model/type.InputResponses.html).
 
 ### `assistant_refusal`
 

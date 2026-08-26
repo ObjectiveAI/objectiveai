@@ -1,25 +1,22 @@
 //! The assistant tool call chunk.
 
-use rmcp::model::{InputResponses, JsonObject, RequestMetaObject};
+use rmcp::model::{InputResponses, RequestMetaObject};
 use serde::{Deserialize, Serialize};
 
 /// The model calling a tool.
 ///
-/// Whole, not a delta. Providers stream tool arguments in fragments,
-/// but a fragment of a JSON object is not a JSON object — the same
-/// reason the image and audio chunks arrive intact. A provider
-/// assembles the arguments and emits one of these when there is
-/// something a caller can act on.
+/// A delta, like the text chunks around it. Providers stream tool
+/// arguments in fragments, and this chunk carries them as they come:
+/// consecutive tool call chunks bearing the same `id` continue one
+/// call, their `arguments` concatenating in the order sent; a chunk
+/// with a new `id` is a new call. The concatenation is the call's
+/// arguments as JSON text, complete only when the last fragment has
+/// arrived.
 ///
-/// The fields are this chunk's own, spelled bare. They used to arrive
-/// as MCP's `CallToolRequestParams`, flattened; the wire shape is
-/// unchanged — the same members in the same places — but the type no
-/// longer rides MCP's, so what a tool call chunk carries is this
-/// crate's to evolve.
-///
-/// `arguments` is a structured `JsonObject`, not a JSON string. There
-/// is no encoding step, and therefore no way for the arguments to be
-/// syntactically invalid by the time a caller reads them.
+/// The fields are this chunk's own, spelled bare — they no longer
+/// ride MCP's `CallToolRequestParams`, which is what made a delta
+/// form possible: a fragment of a JSON object is not a JSON object,
+/// but a fragment of a string is a string.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AssistantToolCallChunk {
     /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
@@ -35,10 +32,11 @@ pub struct AssistantToolCallChunk {
     pub meta: Option<RequestMetaObject>,
     /// The name of the tool to call.
     pub name: String,
-    /// Arguments to pass to the tool, matching the tool's input
-    /// schema.
+    /// One fragment of the call's arguments: JSON text, complete
+    /// only once every fragment with this `id` has been
+    /// concatenated. Matches the tool's input schema when whole.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub arguments: Option<JsonObject>,
+    pub arguments: Option<String>,
     /// Client responses to server-initiated input requests from a
     /// previous incomplete result.
     #[serde(default, skip_serializing_if = "Option::is_none")]
