@@ -160,7 +160,6 @@ impl AssistantMessage {
             }
             AgenticLoopChunk::AssistantToolCall(chunk) => {
                 let arguments = chunk
-                    .inner
                     .arguments
                     .as_ref()
                     .and_then(|arguments| {
@@ -171,7 +170,7 @@ impl AssistantMessage {
                     super::AssistantToolCall::Function {
                         id: chunk.id,
                         function: super::AssistantToolCallFunction {
-                            name: chunk.inner.name.into_owned(),
+                            name: chunk.name,
                             arguments,
                         },
                     },
