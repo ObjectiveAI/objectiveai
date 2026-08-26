@@ -20,6 +20,12 @@ pub enum Error {
     #[error("listing tools failed: {0}")]
     ListTools(rmcp::ServiceError),
 
+    /// The history would not serialize into a continuation token —
+    /// which plain data never fails to do, so this names a bug rather
+    /// than a circumstance.
+    #[error("the continuation would not serialize: {0}")]
+    Tokenize(serde_json::Error),
+
     /// A tool call could not be carried at all — the MCP link itself
     /// failed. The proxy converts every tool-level failure into a
     /// tool response, so this is never a tool merely refusing.

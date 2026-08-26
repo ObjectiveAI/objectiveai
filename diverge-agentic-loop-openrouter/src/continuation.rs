@@ -38,6 +38,12 @@ impl Continuation {
             .map(Continuation)
             .map_err(ContinuationError::Json)
     }
+
+    /// Close the coat back up: serialize the history, base64 it.
+    /// [`new`](Self::new)'s exact inverse.
+    pub fn tokenize(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_vec(&self.0).map(|json| STANDARD.encode(json))
+    }
 }
 
 /// A continuation token that could not be opened.

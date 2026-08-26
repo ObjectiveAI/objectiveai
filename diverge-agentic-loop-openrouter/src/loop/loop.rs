@@ -3,7 +3,7 @@
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
-    AgenticLoopChunk, ToolResponseChunk,
+    AgenticLoopChunk, ContinuationChunk, ToolResponseChunk,
 };
 use futures_util::stream::FuturesUnordered;
 use futures_util::{Stream, StreamExt as _};
@@ -129,8 +129,24 @@ pub async fn r#loop(
             }
             items.extend(turn.into_iter().map(ContinuationItem::Chunk));
 
-            // No calls: the model is done, and so is the loop.
+            // No calls: the model is done, and the loop's last word
+            // is the continuation — the whole history, tokenized, so
+            // a later request can pick up exactly here.
             if calls.is_empty() {
+                match Continuation(items).tokenize() {
+                    Ok(token) => {
+                        yield Ok(AgenticLoopChunk::Continuation(
+                            ContinuationChunk {
+                                r#type: Default::default(),
+                                continuation: token,
+                                meta: None,
+                            },
+                        ));
+                    }
+                    Err(error) => {
+                        yield Err(Error::Tokenize(error));
+                    }
+                }
                 return;
             }
 
