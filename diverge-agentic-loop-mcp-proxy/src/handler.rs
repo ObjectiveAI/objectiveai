@@ -113,22 +113,30 @@ impl ServerHandler for ProxyHandler {
         }
     }
 
+    /// The one method that never returns `Err(ErrorData)`: every
+    /// `ErrorData` — the far side's refusal and the relay's own
+    /// unanswered/unreadable — becomes a tool-level error result the
+    /// agent can read and react to. An `Err` out of `call_tool` is
+    /// thereby reserved for the MCP link itself failing, which is a
+    /// distinction the loop on the other side depends on.
     async fn call_tool(
         &self,
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
-        match self
+        let result = match self
             .exchange(channel_request::Frame::McpCallTool(
                 mcp::call_tool::request::Request(request),
             ))
-            .await?
+            .await
         {
-            mcp::call_tool::response::Frame::Result(result) => {
-                Ok(result.into())
+            Ok(mcp::call_tool::response::Frame::Result(result)) => result,
+            Ok(mcp::call_tool::response::Frame::Error(error)) => {
+                failed(error)
             }
-            mcp::call_tool::response::Frame::Error(error) => Err(error),
-        }
+            Err(error) => failed(error),
+        };
+        Ok(result.into())
     }
 
     async fn read_resource(
@@ -156,6 +164,17 @@ impl ServerHandler for ProxyHandler {
     async fn on_initialized(&self, context: NotificationContext<RoleServer>) {
         self.peers.insert(context.peer.clone()).await;
     }
+}
+
+/// An `ErrorData`, as the tool-level error result it becomes: the
+/// whole error as JSON text, `is_error` set, so nothing the far side
+/// said is lost on the way to the agent.
+fn failed(error: ErrorData) -> rmcp::model::CallToolResult {
+    let text = serde_json::to_string(&error)
+        .unwrap_or_else(|_| error.to_string());
+    rmcp::model::CallToolResult::error(vec![
+        rmcp::model::ContentBlock::text(text),
+    ])
 }
 
 /// The far side's deliberate empty finish: the exchange could not be
