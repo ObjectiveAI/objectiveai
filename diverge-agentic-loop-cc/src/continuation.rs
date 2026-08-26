@@ -20,6 +20,12 @@
 use std::io;
 use std::path::{Component, Path};
 
+/// Where the session state lives, fixed for the container's life.
+/// The harness launches Claude Code with `CLAUDE_CONFIG_DIR` set to
+/// this same path, so what [`Continuation::write`] lays down is what
+/// Claude Code finds.
+pub const CONFIG_DIR: &str = "/claude";
+
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 
@@ -62,7 +68,7 @@ impl Continuation {
         serde_json::to_vec(self).map(|json| STANDARD.encode(json))
     }
 
-    /// Write every file under `config_dir`, parents created as
+    /// Write every file under [`CONFIG_DIR`], parents created as
     /// needed. Safe to do wholesale before Claude Code starts:
     /// nothing else is reading, and the format has no index or lock
     /// to maintain.
@@ -71,7 +77,8 @@ impl Continuation {
     /// component is refused with [`io::ErrorKind::InvalidInput`] —
     /// the token names files inside the config directory, and does
     /// not get to escape it.
-    pub async fn write(&self, config_dir: &Path) -> io::Result<()> {
+    pub async fn write(&self) -> io::Result<()> {
+        let config_dir = Path::new(CONFIG_DIR);
         for file in &self.files {
             let relative = Path::new(&file.path);
             if !relative.components().all(|component| {
