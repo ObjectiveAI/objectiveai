@@ -39,7 +39,8 @@ pub enum Message {
 
 /// The whole conversation, in the order it happened: the system
 /// prompt, then the history the continuation carries — each turn's
-/// prompt and what the loop said back — then this turn's prompt.
+/// prompt and what the loop said back — then this turn's prompt,
+/// when there is one: turns after the first send none.
 ///
 /// Consecutive assistant chunks always merge into one assistant
 /// message; a tool response, or the next prompt, is what ends a run
@@ -89,6 +90,10 @@ pub fn messages(
     if let Some(assistant) = current.take() {
         messages.push(Message::Assistant(assistant));
     }
-    messages.push(Message::User(super::UserMessage::new(prompt)));
+    // Turns after the first send no new prompt — it already rode into
+    // the history — and an empty user message is not a message.
+    if !prompt.is_empty() {
+        messages.push(Message::User(super::UserMessage::new(prompt)));
+    }
     messages
 }

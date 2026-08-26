@@ -93,12 +93,13 @@ impl ChatCompletionCreateParams {
     /// Every parameter the agent carries moves across, delegating to
     /// the sub-type conversions beside each type; the messages are
     /// [`messages`](super::messages) — system prompt, history, prompt,
-    /// in that order. `tools` is `None` here — tools are not a request
-    /// field; they come from the MCP proxy and are the loop's to add.
+    /// in that order. `tools` are the loop's to supply: they are not a
+    /// request field, they come from the MCP proxy's listing.
     pub fn new(
         agent: openrouter::Agent,
         continuation: Option<crate::continuation::Continuation>,
         prompt: Vec<rmcp::model::ContentBlock>,
+        tools: Option<Vec<super::Tool>>,
     ) -> Self {
         // Log probabilities are reported only when the agent asked
         // for a positive count; zero is the same statement as absent.
@@ -130,7 +131,7 @@ impl ChatCompletionCreateParams {
                 .map(|compression| vec![compression.into()]),
             logprobs: top_logprobs.map(|_| true),
             top_logprobs,
-            tools: None,
+            tools,
             stream: true,
             stream_options: super::StreamOptions {
                 include_usage: Some(true),

@@ -122,7 +122,7 @@ async fn serve(
     };
 
     let chunks =
-        match fetch::fetch(&api_key, agent, continuation, request.prompt)
+        match fetch::fetch(&api_key, agent, continuation, request.prompt, None)
             .await
         {
             Ok(chunks) => chunks,

@@ -39,13 +39,15 @@ pub async fn fetch(
     agent: openrouter::Agent,
     continuation: Option<Continuation>,
     prompt: Vec<rmcp::model::ContentBlock>,
+    tools: Option<Vec<crate::request::Tool>>,
 ) -> Result<
     // `use<>`: the stream borrows nothing from the arguments — the
     // key is spent on a header before the stream exists.
     impl Stream<Item = Result<AgenticLoopChunk, Error>> + Send + Unpin + use<>,
     Error,
 > {
-    let request = ChatCompletionCreateParams::new(agent, continuation, prompt);
+    let request =
+        ChatCompletionCreateParams::new(agent, continuation, prompt, tools);
 
     let event_source = reqwest::Client::new()
         .post(format!("{ADDRESS}/chat/completions"))

@@ -19,4 +19,10 @@ pub enum Error {
     /// The proxy could not list the tools.
     #[error("listing tools failed: {0}")]
     ListTools(rmcp::ServiceError),
+
+    /// A tool call could not be carried at all — the MCP link itself
+    /// failed. The proxy converts every tool-level failure into a
+    /// tool response, so this is never a tool merely refusing.
+    #[error("a tool call failed: {0}")]
+    CallTool(rmcp::ServiceError),
 }
