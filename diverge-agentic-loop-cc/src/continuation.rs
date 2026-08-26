@@ -22,10 +22,12 @@ use std::io;
 use std::path::{Component, Path};
 
 /// Where the session state lives, fixed for the container's life:
-/// Claude Code's own default, `~/.claude` for the container's root
-/// user. The environment stays stock — no `CLAUDE_CONFIG_DIR` — so
-/// what [`Continuation::write`] lays down is what Claude Code finds.
-pub const CONFIG_DIR: &str = "/root/.claude";
+/// Claude Code's own default, `~/.claude` for the container's `agent`
+/// user — the unprivileged user the harness spawns Claude Code as,
+/// while the harness and proxy stay root beyond its reach. The
+/// environment stays stock — no `CLAUDE_CONFIG_DIR` — so what
+/// [`Continuation::write`] lays down is what Claude Code finds.
+pub const CONFIG_DIR: &str = "/home/agent/.claude";
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;

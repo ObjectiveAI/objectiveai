@@ -1,0 +1,64 @@
+# The ClaudeCode agentic_loop image: the harness on 8080, the MCP
+# proxy on 8081, Claude Code itself spawned per run — as a separate,
+# unprivileged user, so the agent is physically unable to touch the
+# harness or the proxy.
+#
+# Build from the WORKSPACE ROOT — the crates ride path dependencies:
+#
+#     podman build -f diverge-agentic-loop-cc/Containerfile .
+#
+# Digests pinned from Docker Hub on 2026-08-26; the Claude Code
+# version pinned from the npm registry the same day. Bump deliberately.
+
+# rust:1.98.0-alpine3.24 — the musl toolchain is the image's default
+# target, so what it builds runs on the Alpine below.
+FROM docker.io/library/rust:1.98.0-alpine3.24@sha256:a10e64dd139b7387337c7fbe8aca31b959b57b2fd4c8ae20a02cf1d6ea424dce AS build
+
+RUN apk add --no-cache build-base
+
+WORKDIR /build
+
+# Only the crates this image needs, in their workspace layout — the
+# workspace manifest itself is NOT copied, so each crate builds as its
+# own root. The workspace lockfile rides into each crate so resolved
+# versions hold; cargo prunes what the crate does not use.
+COPY diverge-provider-sdk diverge-provider-sdk
+COPY diverge-agentic-loop-mcp-proxy diverge-agentic-loop-mcp-proxy
+COPY diverge-agentic-loop-cc diverge-agentic-loop-cc
+COPY Cargo.lock diverge-agentic-loop-cc/Cargo.lock
+COPY Cargo.lock diverge-agentic-loop-mcp-proxy/Cargo.lock
+
+RUN cargo build --release     --manifest-path diverge-agentic-loop-cc/Cargo.toml
+RUN cargo build --release     --manifest-path diverge-agentic-loop-mcp-proxy/Cargo.toml
+
+# alpine:latest (3.24.1), by digest.
+FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+
+# Claude Code requires node >= 22 (its engines field); it ships
+# linux-x64-musl platform binaries, so Alpine is a supported host.
+RUN apk add --no-cache nodejs npm     && npm install -g @anthropic-ai/claude-code@2.1.246     && npm cache clean --force
+
+# The privilege split: the harness and the proxy run as ROOT; Claude
+# Code is spawned as `agent`. A non-root process cannot signal,
+# ptrace, or reach into /proc of root processes, and cannot rebind
+# their ports — the agent is left only the interfaces it is meant to
+# have. Its home is where the continuation's files land
+# (/home/agent/.claude, Claude Code's stock default for that user)
+# and its workdir is the session's fixed cwd.
+RUN adduser -D agent     && mkdir -p /home/agent/work     && chown -R agent:agent /home/agent
+
+COPY --from=build     /build/diverge-agentic-loop-cc/target/release/diverge-agentic-loop-cc     /usr/local/bin/diverge-agentic-loop-cc
+COPY --from=build     /build/diverge-agentic-loop-mcp-proxy/target/release/diverge-agentic-loop-mcp-proxy     /usr/local/bin/diverge-agentic-loop-mcp-proxy
+
+# Two programs, one container: the proxy in the background, the
+# harness in the foreground as the container's own life. 0700, root:
+# the agent user cannot execute, read, or replace any of the three.
+RUN printf '#!/bin/sh
+/usr/local/bin/diverge-agentic-loop-mcp-proxy &
+exec /usr/local/bin/diverge-agentic-loop-cc
+'     > /usr/local/bin/entrypoint     && chmod 0700 /usr/local/bin/entrypoint         /usr/local/bin/diverge-agentic-loop-cc         /usr/local/bin/diverge-agentic-loop-mcp-proxy
+
+# The Container specification's ports: 8080 the loop, 8081 MCP.
+EXPOSE 8080 8081
+
+ENTRYPOINT ["/usr/local/bin/entrypoint"]
