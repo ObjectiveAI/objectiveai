@@ -39,6 +39,8 @@ pub enum RichContentPart {
     InputAudio { input_audio: InputAudio },
     /// Video input.
     InputVideo { video_url: VideoUrl },
+    /// A video URL.
+    VideoUrl { video_url: VideoUrl },
     /// A file.
     File { file: File },
 }
