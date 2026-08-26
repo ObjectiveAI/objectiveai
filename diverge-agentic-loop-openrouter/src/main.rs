@@ -11,6 +11,9 @@
 
 mod continuation;
 mod fetch;
+// Not yet wired into serve; the allow leaves with that wiring.
+#[allow(dead_code, unused_imports)]
+mod r#loop;
 mod request;
 mod response;
 mod serde_util;

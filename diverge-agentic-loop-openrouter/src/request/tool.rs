@@ -26,3 +26,30 @@ pub struct FunctionTool {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub strict: Option<bool>,
 }
+
+impl Tool {
+    /// An MCP tool, as the function tool OpenRouter takes.
+    ///
+    /// The name is the tool's own — the proxy already presents final
+    /// names — and the parameters are the tool's input schema,
+    /// entry for entry. What rmcp carries beyond that (output
+    /// schema, annotations, icons) has no home in a function tool
+    /// and is dropped.
+    pub fn new(tool: rmcp::model::Tool) -> Self {
+        Tool::Function {
+            function: FunctionTool {
+                name: tool.name.into_owned(),
+                description: tool
+                    .description
+                    .map(|description| description.into_owned()),
+                parameters: Some(
+                    tool.input_schema
+                        .iter()
+                        .map(|(key, value)| (key.clone(), value.clone()))
+                        .collect(),
+                ),
+                strict: None,
+            },
+        }
+    }
+}
