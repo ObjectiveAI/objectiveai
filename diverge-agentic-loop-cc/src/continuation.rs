@@ -103,9 +103,7 @@ impl Continuation {
         }
         Ok(())
     }
-}
 
-impl Continuation {
     /// Harvest one session's on-disk state into a [`Continuation`].
     ///
     /// The inverse of [`write`](Continuation::write), called when a run
