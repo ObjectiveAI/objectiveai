@@ -1,6 +1,6 @@
 //! The assistant tool call chunk.
 
-use rmcp::model::{InputResponses, RequestMetaObject};
+use rmcp::model::RequestMetaObject;
 use serde::{Deserialize, Serialize};
 
 /// The model calling a tool.
@@ -37,14 +37,6 @@ pub struct AssistantToolCallChunk {
     /// concatenated. Matches the tool's input schema when whole.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arguments: Option<String>,
-    /// Client responses to server-initiated input requests from a
-    /// previous incomplete result.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub input_responses: Option<InputResponses>,
-    /// Opaque request state echoed back from a previous incomplete
-    /// result.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub request_state: Option<String>,
 }
 
 /// [`AssistantToolCallChunk`]'s discriminator.

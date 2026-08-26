@@ -174,10 +174,6 @@ pub struct AssistantToolCallChunk {
     /// only once every fragment with this id has been concatenated.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arguments: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub input_responses: Option<InputResponses>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub request_state: Option<String>,
 }
 
 pub enum AssistantToolCallChunkType {
@@ -186,7 +182,7 @@ pub enum AssistantToolCallChunkType {
 }
 ```
 
-Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::RequestMetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.RequestMetaObject.html); [`rmcp::model::InputResponses`](https://docs.rs/rmcp/3.1.2/rmcp/model/type.InputResponses.html).
+Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::RequestMetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.RequestMetaObject.html).
 
 ### `assistant_refusal`
 
