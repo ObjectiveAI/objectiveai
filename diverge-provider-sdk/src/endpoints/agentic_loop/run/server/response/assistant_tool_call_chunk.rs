@@ -1,6 +1,6 @@
 //! The assistant tool call chunk.
 
-use rmcp::model::CallToolRequestParams;
+use rmcp::model::{InputResponses, JsonObject, RequestMetaObject};
 use serde::{Deserialize, Serialize};
 
 /// The model calling a tool.
@@ -11,12 +11,11 @@ use serde::{Deserialize, Serialize};
 /// assembles the arguments and emits one of these when there is
 /// something a caller can act on.
 ///
-/// The payload is MCP's [`CallToolRequestParams`], flattened — the
-/// exact counterpart of the [`CallToolResult`](rmcp::model::CallToolResult)
-/// that [`ToolResponseChunk`](super::ToolResponseChunk) carries. A
-/// call and its result are described by the same pair of types MCP
-/// uses for them, so neither direction needs translating before it
-/// reaches a server.
+/// The fields are this chunk's own, spelled bare. They used to arrive
+/// as MCP's `CallToolRequestParams`, flattened; the wire shape is
+/// unchanged — the same members in the same places — but the type no
+/// longer rides MCP's, so what a tool call chunk carries is this
+/// crate's to evolve.
 ///
 /// `arguments` is a structured `JsonObject`, not a JSON string. There
 /// is no encoding step, and therefore no way for the arguments to be
@@ -31,9 +30,23 @@ pub struct AssistantToolCallChunk {
     /// Ours, not MCP's: in MCP the JSON-RPC envelope correlates a
     /// request with its response, and a stream has no envelope.
     pub id: String,
-    /// The call itself — tool name and arguments.
-    #[serde(flatten)]
-    pub inner: CallToolRequestParams,
+    /// Protocol-level metadata for the call.
+    #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
+    pub meta: Option<RequestMetaObject>,
+    /// The name of the tool to call.
+    pub name: String,
+    /// Arguments to pass to the tool, matching the tool's input
+    /// schema.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<JsonObject>,
+    /// Client responses to server-initiated input requests from a
+    /// previous incomplete result.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_responses: Option<InputResponses>,
+    /// Opaque request state echoed back from a previous incomplete
+    /// result.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_state: Option<String>,
 }
 
 /// [`AssistantToolCallChunk`]'s discriminator.
