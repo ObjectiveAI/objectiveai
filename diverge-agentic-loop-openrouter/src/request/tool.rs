@@ -48,7 +48,7 @@ impl Tool {
                         .map(|(key, value)| (key.clone(), value.clone()))
                         .collect(),
                 ),
-                strict: None,
+                strict: Some(true),
             },
         }
     }
