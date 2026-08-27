@@ -34,4 +34,16 @@ pub struct Agent {
     /// time instead of shuffling between runs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub skills: Option<IndexMap<String, String>>,
+    /// The subagents the agent runs with, keyed by agent name. Each
+    /// value is the agent definition's dirhash — the same
+    /// deterministic content identity [`skills`](Self::skills) uses.
+    ///
+    /// Named for the definition FORMAT, not the field's address:
+    /// skills share one client-side folder because their format is
+    /// harness-agnostic, but agent definitions do not — Claude Code's
+    /// markdown-with-frontmatter files and Codex's TOML cannot share
+    /// a directory, so the folder and the field carry the format's
+    /// name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_code_agents: Option<IndexMap<String, String>>,
 }
