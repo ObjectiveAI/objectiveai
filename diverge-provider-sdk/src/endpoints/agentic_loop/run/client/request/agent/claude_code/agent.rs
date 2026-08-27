@@ -1,5 +1,6 @@
 //! The Claude Code agent.
 
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{Effort, Upstream};
@@ -22,4 +23,15 @@ pub struct Agent {
     /// [`thinking`](Self::thinking) on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
+    /// The skills the agent runs with, keyed by skill name — the
+    /// directory name Claude Code treats as the skill's identity.
+    /// Each value is the skill directory's dirhash: the deterministic
+    /// content identity of its files, by which the provider knows
+    /// WHICH skill without carrying the skill itself in the request.
+    ///
+    /// An `IndexMap` rather than a `HashMap`: insertion order is
+    /// preserved, so the same skill set serializes identically every
+    /// time instead of shuffling between runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skills: Option<IndexMap<String, String>>,
 }
