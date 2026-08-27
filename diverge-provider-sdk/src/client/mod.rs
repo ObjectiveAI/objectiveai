@@ -76,11 +76,11 @@
 //! caller's database, and is handed the request that started the
 //! plugin so that a caller can decide what that connection may reach.
 //!
-//! Which is one of the two things here that name a type from
-//! [`endpoints`](crate::endpoints). Both do it for the same reason:
-//! what they have to decide is that endpoint's question, and no
-//! [`shared`](crate::shared) type says it. See each trait for the whole
-//! of that argument.
+//! Which is one of the three things here that name a type from
+//! [`endpoints`](crate::endpoints) — [`fetch_proxy`] is another. All
+//! do it for the same reason: what they have to decide is that
+//! endpoint's question, and no [`shared`](crate::shared) type says it.
+//! See each trait for the whole of that argument.
 //!
 //! They are traits rather than callbacks because each has its own
 //! shape, and the shapes really are different: one request one answer,

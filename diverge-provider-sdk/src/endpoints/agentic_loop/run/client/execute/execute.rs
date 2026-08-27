@@ -269,7 +269,7 @@ async fn fetched<F>(
     scope: u32,
     channel: u32,
     fetch_proxy: &F,
-    request: crate::shared::fetch::request::Request,
+    request: channel_request::fetch::Request,
 ) -> bool
 where
     F: FetchProxy,

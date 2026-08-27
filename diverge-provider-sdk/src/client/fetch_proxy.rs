@@ -5,8 +5,8 @@ use std::pin::Pin;
 
 use futures_util::Stream;
 
-use crate::shared::fetch::request::Kind;
-use crate::shared::fetch::response::Frame;
+use crate::endpoints::agentic_loop::run::client::channel_response::fetch::Frame;
+use crate::endpoints::agentic_loop::run::server::channel_request::fetch::Kind;
 
 /// What answers a provider asking for content it does not hold.
 ///
@@ -21,6 +21,13 @@ use crate::shared::fetch::response::Frame;
 /// The kind says which folder family to look in; the dirhash says
 /// which content. Not the name — a name is the caller's own label,
 /// and the provider never learned it.
+///
+/// # It names the endpoint's own types
+///
+/// [`Kind`] and [`Frame`] are the agentic loop's, not
+/// [`shared`](crate::shared)'s, because nothing but an agentic loop
+/// fetches — the same argument [`postgres_proxy`](super::postgres_proxy)
+/// makes for naming a plugin's request.
 ///
 /// # The answer is a stream, and its end means whole
 ///

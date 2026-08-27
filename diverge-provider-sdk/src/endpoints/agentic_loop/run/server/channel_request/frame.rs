@@ -3,9 +3,10 @@
 use std::error;
 use std::fmt;
 
+use super::fetch;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::{fetch, mcp};
+use crate::shared::mcp;
 
 /// The payload of a [`ServerFrame::ChannelRequest`](crate::frame::server::ServerFrame::ChannelRequest).
 ///
@@ -147,9 +148,8 @@ pub enum Frame {
     ///
     /// A skill or an agent definition the request named by dirhash and
     /// the provider does not hold. The kind and the hash, as
-    /// [`shared::fetch`](crate::shared::fetch) defines them — not the
-    /// name, because the hash is the content and the name is only the
-    /// caller's label for it.
+    /// [`fetch`] defines them — not the name, because the hash is the
+    /// content and the name is only the caller's label for it.
     ///
     /// The one variant here that is not MCP, which is why it carries
     /// no `Mcp` prefix: what answers it is not a server the client
@@ -158,7 +158,7 @@ pub enum Frame {
     /// [`fetch`](crate::endpoints::agentic_loop::run::client::channel_response::fetch)
     /// — and the empty finish is the client saying it does not hold
     /// the hash.
-    Fetch(fetch::request::Request),
+    Fetch(fetch::Request),
 }
 
 /// Tag for [`Frame::McpListTools`].
@@ -244,7 +244,7 @@ impl Decode<'_> for Frame {
                 mcp::notifications::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
-            FETCH => fetch::request::Request::decode(rest)
+            FETCH => fetch::Request::decode(rest)
                 .map(Frame::Fetch)
                 .map_err(FrameError::Body),
             tag => Err(FrameError::UnknownTag(tag)),

@@ -12,8 +12,8 @@ use crate::encode::{Encode, Writer};
 /// Not the name: a name is the caller's label and may point at
 /// different content tomorrow, where the dirhash is the content. The
 /// client answers with the directory's files — one
-/// [`response::Frame`](super::super::response::Frame) each — or, if
-/// it does not hold the hash, with the empty finish.
+/// [`fetch::Frame`](crate::endpoints::agentic_loop::run::client::channel_response::fetch::Frame)
+/// each — or, if it does not hold the hash, with the empty finish.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Request {
     /// What the content is, which is which folder it lives in.

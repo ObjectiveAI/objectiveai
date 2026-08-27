@@ -1,12 +1,13 @@
-//! Fetching content the server is missing, by its identity.
+//! Asking for content the provider is missing, by its identity.
 //!
 //! An agent names its skills and its agent definitions by dirhash —
 //! a deterministic content identity — and the content itself lives
 //! with the client, in folders of the client's own. A provider that
 //! is asked to run what it does not hold opens a channel with a
-//! [`request::Request`] naming the kind and the hash, and the client
-//! answers with the directory itself: one [`response::Frame`] per
-//! file, then the finish.
+//! [`Request`] naming the kind and the hash, and the client answers
+//! with the directory itself: one
+//! [`fetch::Frame`](crate::endpoints::agentic_loop::run::client::channel_response::fetch::Frame)
+//! per file, then the finish.
 //!
 //! # By hash, not by name
 //!
@@ -23,6 +24,16 @@
 //! could-not-serve. There is no error vocabulary on this exchange:
 //! nothing an error could say would change what the provider does
 //! next, which is not run the agent.
+//!
+//! # This endpoint's own, not [`shared`](crate::shared)
+//!
+//! The MCP exchanges beside it are shared because several endpoints
+//! carry them, in both directions. Nothing but an agentic loop
+//! fetches, so this lives where it is used — a shape moves to
+//! `shared` when a second endpoint needs it, not before.
 
-pub mod request;
-pub mod response;
+mod kind;
+mod request;
+
+pub use kind::*;
+pub use request::*;
