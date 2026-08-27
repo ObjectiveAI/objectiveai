@@ -9,6 +9,9 @@
 //! and each one its own channel. [`oci`] is the OCI Distribution
 //! protocol, which is bytes: a caller serving its own image answers
 //! what the runtime asked, verbatim, and nothing between them reads it.
+//! [`fetch`] is content by identity — a skill or an agent definition
+//! the provider is missing, asked for by dirhash and answered as one
+//! frame per file.
 //!
 //! They were one module until recently — a tunneled HTTP exchange that
 //! both rode. Removing it lost nothing, because MCP over HTTP is
@@ -35,6 +38,7 @@
 
 pub mod container;
 pub mod error;
+pub mod fetch;
 pub mod filetree;
 pub mod mcp;
 pub mod oci;
