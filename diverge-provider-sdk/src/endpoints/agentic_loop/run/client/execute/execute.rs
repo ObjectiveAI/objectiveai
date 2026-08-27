@@ -14,6 +14,7 @@ use super::super::channel_response::{
     mcp_read_resource,
 };
 use super::super::request;
+use crate::client::fetch_proxy::FetchProxy;
 use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
 use crate::endpoints::agentic_loop::run::server::channel_request;
@@ -36,6 +37,10 @@ use crate::frame;
 /// stops to think about a chunk would otherwise be a caller that has
 /// stopped answering the agent's tools, and an agent waiting on a tool
 /// produces no chunks — which is a stall that feeds itself.
+///
+/// It takes a [`FetchProxy`] for the same reason: a provider missing
+/// the content behind a dirhash asks for it on a channel of its own,
+/// and a run that cannot be furnished is a run that never starts.
 ///
 /// # One task per exchange, not one for all of them
 ///
@@ -70,13 +75,15 @@ use crate::frame;
 /// What it costs is a bound. A caller that stops reading grows a queue
 /// instead of stopping anything, and dropping the [`ExecuteStream`] is
 /// what frees it.
-pub async fn execute<P>(
+pub async fn execute<P, F>(
     handle: &Handle,
     request: &request::Frame,
     mcp_proxy: Arc<P>,
+    fetch_proxy: Arc<F>,
 ) -> Result<ExecuteStream, ExecuteError>
 where
     P: McpProxy + 'static,
+    F: FetchProxy + 'static,
 {
     let mut payload = Vec::new();
     request
@@ -91,6 +98,7 @@ where
         handle.clone(),
         scope.scope,
         mcp_proxy,
+        fetch_proxy,
     ));
     Ok(ExecuteStream::new(scope.response_receiver, proxying))
 }
@@ -106,13 +114,15 @@ where
 /// The frame is passed on whole and undecoded. Decoding it here would
 /// mean either borrowing across the spawn, which cannot be done, or
 /// copying out of it, which would be a copy per tool call for nothing.
-async fn proxy_channel_requests<P>(
+async fn proxy_channel_requests<P, F>(
     mut request_receiver: UnboundedReceiver<Bytes>,
     handle: Handle,
     scope: u32,
     mcp_proxy: Arc<P>,
+    fetch_proxy: Arc<F>,
 ) where
     P: McpProxy + 'static,
+    F: FetchProxy + 'static,
 {
     while let Some(bytes) = request_receiver.recv().await {
         tokio::spawn(proxy_one(
@@ -120,14 +130,16 @@ async fn proxy_channel_requests<P>(
             handle.clone(),
             scope,
             mcp_proxy.clone(),
+            fetch_proxy.clone(),
         ));
     }
 }
 
-/// Answer one thing the agent asked for.
+/// Answer one thing the server asked for.
 ///
-/// Five things it can be, and each is answered once — except the
-/// notification stream, which is answered until it stops.
+/// Six things it can be, and each is answered once — except the
+/// notification stream, which is answered until it stops, and the
+/// fetch, which is answered once per file.
 ///
 /// # A frame it cannot read is ENDED, not abandoned
 ///
@@ -136,9 +148,15 @@ async fn proxy_channel_requests<P>(
 /// produces. Finishing it with nothing before it is what this protocol
 /// already means by there being no answer — where returning would leave
 /// a provider waiting forever, since nothing anywhere times one out.
-async fn proxy_one<P>(bytes: Bytes, handle: Handle, scope: u32, mcp_proxy: Arc<P>)
-where
+async fn proxy_one<P, F>(
+    bytes: Bytes,
+    handle: Handle,
+    scope: u32,
+    mcp_proxy: Arc<P>,
+    fetch_proxy: Arc<F>,
+) where
     P: McpProxy,
+    F: FetchProxy,
 {
     let Ok(frame::server::ServerFrame::ChannelRequest {
         channel, payload, ..
@@ -189,6 +207,9 @@ where
         channel_request::Frame::McpNotifications(_) => {
             notify(&handle, scope, channel, &*mcp_proxy).await
         }
+        channel_request::Frame::Fetch(request) => {
+            fetched(&handle, scope, channel, &*fetch_proxy, request).await
+        }
     };
 
     let _ = handle.send_channel_response_finish(scope, channel).await;
@@ -236,9 +257,36 @@ where
     true
 }
 
+/// Send a fetched directory, one file per frame.
+///
+/// The stream ending is the whole of "the directory is complete", and
+/// an empty stream sends nothing at all — the finish the caller sends
+/// afterwards is then the empty finish, which is how a client says it
+/// does not hold the hash. Nothing here can tell those apart, and
+/// nothing needs to: both are the stream being over.
+async fn fetched<F>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    fetch_proxy: &F,
+    request: crate::shared::fetch::request::Request,
+) -> bool
+where
+    F: FetchProxy,
+{
+    let mut files =
+        fetch_proxy.fetch(request.kind, request.dirhash).await;
+    while let Some(file) = files.next().await {
+        if !answer_with(handle, scope, channel, &file).await {
+            return false;
+        }
+    }
+    true
+}
+
 /// Encode one answer and write it.
 ///
-/// Generic over the frame because the five exchanges answer with five
+/// Generic over the frame because the six exchanges answer with six
 /// types, and what happens to each of them here is identical: build it,
 /// write it, stop if it did not go.
 ///

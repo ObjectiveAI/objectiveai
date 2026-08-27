@@ -64,11 +64,13 @@
 //! a database, a registry, a command — and something has to answer
 //! them.
 //!
-//! There are five, one per thing that can be asked — the
-//! [`unbrokered_authorizer`] above is a sixth supplied trait, but it
+//! There are six, one per thing that can be asked — the
+//! [`unbrokered_authorizer`] above is a seventh supplied trait, but it
 //! answers the connection rather than anything asked on it.
 //! [`mcp_proxy`] forwards an exchange to a server the provider cannot
-//! see. [`oci_proxy`] serves an image, for a plugin run and a
+//! see. [`fetch_proxy`] hands over a skill or an agent definition the
+//! provider is missing, out of the caller's own folders, by dirhash.
+//! [`oci_proxy`] serves an image, for a plugin run and a
 //! laboratory run alike. [`command_proxy`] runs a command a plugin has
 //! no binary for. [`postgres_proxy`] splices a connection onto the
 //! caller's database, and is handed the request that started the
@@ -90,15 +92,16 @@
 //! What they share is one idea rather than one signature — each punts
 //! failure into a vocabulary that already exists, and each punts to a
 //! different one. An HTTP status, a pgwire `ErrorResponse`, an item in
-//! the CLI's own shape. None of them has an error variant, because a
-//! second way to say a thing is a second thing to disagree about.
+//! the CLI's own shape, the empty finish. None of them has an error
+//! variant, because a second way to say a thing is a second thing to
+//! disagree about.
 //!
-//! The roster is finished, and the fifth is not a proxy.
+//! The roster is finished, and the sixth is not a proxy.
 //! [`laboratory_connection_authorizer`] decides whether a connector may
 //! join a running laboratory, and there is nothing on the other side of
 //! it to forward to — it is asked a question and it answers.
 //!
-//! Which makes it the one whose answer is not an aside. The four above
+//! Which makes it the one whose answer is not an aside. The five above
 //! have no error variant because a refusal already has somewhere to
 //! live; here a refusal IS the answer, and a denial is as ordinary an
 //! outcome as an admission.
@@ -110,7 +113,7 @@
 //! # Who asks for them
 //!
 //! [`agentic_loop::run`](crate::endpoints::agentic_loop::run::client::execute)
-//! takes an [`mcp_proxy`];
+//! takes an [`mcp_proxy`] and a [`fetch_proxy`];
 //! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run::client::execute)
 //! takes an [`oci_proxy`], a [`postgres_proxy`] and a
 //! [`command_proxy`];
@@ -122,7 +125,7 @@
 //! takes none, because a connector is asked for one thing and that
 //! thing is an argument rather than a service.
 //!
-//! # Two things true of all five
+//! # Two things true of all six
 //!
 //! None is `dyn`-compatible, because each returns `impl Future`. So a
 //! dispatcher is generic over the ones it needs at once rather than
@@ -147,6 +150,7 @@ pub mod authorization;
 pub mod authorize;
 pub mod channel;
 pub mod command_proxy;
+pub mod fetch_proxy;
 pub mod handle;
 pub mod laboratory_connection_authorizer;
 pub mod mcp_proxy;

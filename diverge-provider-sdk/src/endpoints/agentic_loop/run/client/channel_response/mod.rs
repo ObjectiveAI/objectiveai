@@ -9,18 +9,23 @@
 //! [`mcp_read_resource`] answer once and finish; [`mcp_notifications`]
 //! carries a frame per notification for as long as the channel lives.
 //!
-//! Every one is prefixed `mcp_`, because a channel a container opens is
+//! The five are prefixed `mcp_`, because a channel a container opens is
 //! not necessarily MCP's — a plugin's are a database and a command —
 //! and a module called `call_tool` would only read as MCP's to somebody
 //! who already knew.
 //!
-//! There was a sixth, and it was the older way: a whole HTTP exchange
-//! tunneled, head and body and all. The five replaced everything it
-//! could do, so it is gone, and nothing a client sends on this endpoint
-//! is HTTP any more.
+//! [`fetch`] is the sixth and not MCP at all: content the provider is
+//! missing, asked for by dirhash and answered out of the client's own
+//! folders — one frame per file until the finish says the directory is
+//! whole, zero frames saying the client does not hold the hash.
+//!
+//! There was another once, and it was the older way: a whole HTTP
+//! exchange tunneled, head and body and all. The five replaced
+//! everything it could do, so it is gone, and nothing a client sends
+//! on this endpoint is HTTP any more.
 //!
 //! Each stays a module in the path rather than being re-exported
-//! upward. It is what tells five types called `Frame` apart, which was
+//! upward. It is what tells six types called `Frame` apart, which was
 //! the reason to keep the shape when there was only one of them.
 //!
 //! Note what is NOT here. The chunks of the loop itself are a response
@@ -29,6 +34,7 @@
 //! module is the other direction — a client answering what it was
 //! asked for.
 
+pub mod fetch;
 pub mod mcp_call_tool;
 pub mod mcp_list_resources;
 pub mod mcp_list_tools;
