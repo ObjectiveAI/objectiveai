@@ -5,20 +5,21 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::mcp;
+use crate::shared::{fetch, mcp};
 
 /// The payload of a [`ServerFrame::ChannelRequest`](crate::frame::server::ServerFrame::ChannelRequest).
 ///
-/// One MCP exchange, toward the client's MCP proxy. Complete in this
-/// frame; the answer comes back as client response frames.
+/// One ask toward the client — an MCP exchange toward its proxy, or a
+/// [`Fetch`](Self::Fetch) of content the provider is missing. Complete
+/// in this frame; the answer comes back as client response frames.
 ///
 /// A payload leads with one byte and the rest is the request.
 ///
-/// It is the one thing a server asks its client for, and it is a
-/// connection the server cannot make itself: the agent runs beside the
-/// provider, and the MCP servers live with the client. So the provider
-/// opens a channel, and the client splices the far end into the real
-/// thing.
+/// What they share is that each is something the server cannot reach
+/// itself: the agent runs beside the provider, and the MCP servers —
+/// and the folders the skills and agent definitions live in — live
+/// with the client. So the provider opens a channel, and the client
+/// splices the far end into the real thing.
 ///
 /// # MCP is carried as exchanges, not as a socket
 ///
@@ -46,10 +47,12 @@ use crate::shared::mcp;
 /// lets a relay hand over `rmcp`'s own types instead of an HTTP
 /// envelope nobody reads.
 ///
-/// Every one is prefixed `Mcp`, because a channel a container opens is
+/// The five are prefixed `Mcp`, because a channel a container opens is
 /// not necessarily MCP's — a plugin's are a database and a command —
 /// and a variant called `CallTool` would only read as MCP's to someone
-/// who already knew.
+/// who already knew. [`Fetch`](Self::Fetch) carries no prefix for the
+/// same reason from the other side: it is not an MCP exchange, and a
+/// name that suggested one would be the same confusion in reverse.
 ///
 /// # The tag is the GET and the POST
 ///
@@ -140,6 +143,22 @@ pub enum Frame {
     /// here a channel can only die with the scope and a scope only with
     /// the connection, so there is nothing left to resume onto.
     McpNotifications(mcp::notifications::request::Request),
+    /// Content the provider is missing, by identity. Tag `5`.
+    ///
+    /// A skill or an agent definition the request named by dirhash and
+    /// the provider does not hold. The kind and the hash, as
+    /// [`shared::fetch`](crate::shared::fetch) defines them — not the
+    /// name, because the hash is the content and the name is only the
+    /// caller's label for it.
+    ///
+    /// The one variant here that is not MCP, which is why it carries
+    /// no `Mcp` prefix: what answers it is not a server the client
+    /// proxies but the client's own folders. The answer is one file
+    /// per frame — see
+    /// [`fetch`](crate::endpoints::agentic_loop::run::client::channel_response::fetch)
+    /// — and the empty finish is the client saying it does not hold
+    /// the hash.
+    Fetch(fetch::request::Request),
 }
 
 /// Tag for [`Frame::McpListTools`].
@@ -156,6 +175,9 @@ const MCP_READ_RESOURCE: u8 = 3;
 
 /// Tag for [`Frame::McpNotifications`].
 const MCP_NOTIFICATIONS: u8 = 4;
+
+/// Tag for [`Frame::Fetch`].
+const FETCH: u8 = 5;
 
 /// A tag, then that variant's own JSON.
 impl Encode for Frame {
@@ -186,6 +208,10 @@ impl Encode for Frame {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
+            }
+            Frame::Fetch(request) => {
+                out.extend_from_slice(&[FETCH]);
+                request.encode(out)
             }
         }
     }
@@ -218,17 +244,20 @@ impl Decode<'_> for Frame {
                 mcp::notifications::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
+            FETCH => fetch::request::Request::decode(rest)
+                .map(Frame::Fetch)
+                .map_err(FrameError::Body),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
 }
 
-/// An MCP channel request that could not be read.
+/// A channel request that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not
@@ -243,13 +272,13 @@ impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FrameError::Empty => {
-                f.write_str("mcp channel request frame is empty")
+                f.write_str("channel request frame is empty")
             }
             FrameError::UnknownTag(tag) => {
-                write!(f, "unknown mcp channel request tag {tag}")
+                write!(f, "unknown channel request tag {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "mcp channel request did not parse: {error}")
+                write!(f, "channel request did not parse: {error}")
             }
         }
     }
