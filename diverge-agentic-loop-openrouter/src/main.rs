@@ -39,7 +39,7 @@ use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::Notifi
 use futures_util::{Stream, StreamExt as _};
 
 use crate::continuation::Continuation;
-use crate::queue::{Fate, QUEUE};
+use crate::queue::QUEUE;
 
 /// The loop port of the Container section of the provider
 /// specification: where the server POSTs the request in.
@@ -218,21 +218,9 @@ async fn enqueue(
 > {
     let fate = QUEUE.enqueue(request.prompt).await;
     match fate.await {
-        Ok(Fate::Delivered) => {
-            Ok(Json(agentic_loop_container::enqueue::Response::Delivered {
-                r#type: Default::default(),
-            }))
-        }
-        Ok(Fate::Dequeued) => {
-            Ok(Json(agentic_loop_container::enqueue::Response::Dequeued {
-                r#type: Default::default(),
-            }))
-        }
-        Ok(Fate::Missed) => {
-            Ok(Json(agentic_loop_container::enqueue::Response::Missed {
-                r#type: Default::default(),
-            }))
-        }
+        // The queue speaks the SDK's own response type, so the fate
+        // forwards as itself.
+        Ok(response) => Ok(Json(response)),
         Err(_) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({

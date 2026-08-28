@@ -7,6 +7,7 @@
 //! container is one run — the door already enforces that — and one
 //! run has one queue.
 
+use diverge_provider_sdk::agentic_loop_container::enqueue::Response;
 use tokio::sync::Mutex;
 use tokio::sync::oneshot;
 
@@ -18,32 +19,17 @@ pub static QUEUE: Queue = Queue {
     }),
 };
 
-/// What became of one enqueued message — the container-internal
-/// mirror of the fates the SDK's
-/// [`enqueue::Response`](diverge_provider_sdk::agentic_loop_container::enqueue::Response)
-/// names. There is no error among them: an error is the machinery
-/// failing, not a fate the queue assigns, and it travels as HTTP's
-/// own.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Fate {
-    /// The loop took the message into the conversation.
-    Delivered,
-    /// A dequeue withdrew it first.
-    Dequeued,
-    /// The run ended before it could be taken — or was already over,
-    /// or never managed to start.
-    Missed,
-}
-
 /// One message waiting in the queue: its text, and the wire back to
 /// the caller still holding the `/enqueue` response open.
 pub struct Pending {
     /// The message's text.
     pub prompt: String,
-    /// Where the fate goes. Consumed by exactly one of
-    /// [`Pending::deliver`], the dequeue that clears it, or the
-    /// close that misses it.
-    fate: oneshot::Sender<Fate>,
+    /// Where the fate goes — the SDK's own
+    /// [`Response`], because the fate IS the response and a second
+    /// vocabulary for it would be a second thing to keep agreeing.
+    /// Consumed by exactly one of [`Pending::deliver`], the dequeue
+    /// that clears it, or the close that misses it.
+    fate: oneshot::Sender<Response>,
 }
 
 impl Pending {
@@ -53,7 +39,9 @@ impl Pending {
     /// dropped its `/enqueue` request stopped listening, and the
     /// message is delivered whether or not anybody hears it said.
     pub fn deliver(self) {
-        let _ = self.fate.send(Fate::Delivered);
+        let _ = self.fate.send(Response::Delivered {
+            r#type: Default::default(),
+        });
     }
 }
 
@@ -71,7 +59,7 @@ struct State {
     /// Messages not yet taken, in arrival order.
     pending: Vec<Pending>,
     /// Whether the run is over. A closed queue takes nothing and
-    /// holds nothing: enqueues answer [`Fate::Missed`] immediately.
+    /// holds nothing: enqueues answer missed immediately.
     ///
     /// The flag is only ever set INSIDE the same critical section
     /// that proves the queue empty — [`Queue::take_or_close`] — or
@@ -86,14 +74,19 @@ impl Queue {
     /// Put a message in, and get the wire its fate will arrive on.
     ///
     /// On a closed queue the fate is already known — the run is
-    /// over, the message is [`Missed`](Fate::Missed) — and the
-    /// returned receiver resolves immediately.
-    pub async fn enqueue(&self, prompt: String) -> oneshot::Receiver<Fate> {
+    /// over, the message is missed — and the returned receiver
+    /// resolves immediately.
+    pub async fn enqueue(
+        &self,
+        prompt: String,
+    ) -> oneshot::Receiver<Response> {
         let (sender, receiver) = oneshot::channel();
         let mut state = self.state.lock().await;
         if state.closed {
             drop(state);
-            let _ = sender.send(Fate::Missed);
+            let _ = sender.send(Response::Missed {
+                r#type: Default::default(),
+            });
         } else {
             state.pending.push(Pending {
                 prompt,
@@ -104,8 +97,7 @@ impl Queue {
     }
 
     /// Withdraw everything pending, answering each message
-    /// [`Dequeued`](Fate::Dequeued). Answers whether there was
-    /// anything to withdraw.
+    /// dequeued. Answers whether there was anything to withdraw.
     ///
     /// Naive about the closed flag, deliberately: a closed queue is
     /// an empty queue, so the honest answer falls out for free.
@@ -116,7 +108,9 @@ impl Queue {
         };
         let any = !taken.is_empty();
         for pending in taken {
-            let _ = pending.fate.send(Fate::Dequeued);
+            let _ = pending.fate.send(Response::Dequeued {
+                r#type: Default::default(),
+            });
         }
         any
     }
@@ -147,8 +141,7 @@ impl Queue {
     }
 
     /// The run is over, however it got that way: everything still
-    /// pending is [`Missed`](Fate::Missed), and so is everything
-    /// that arrives after.
+    /// pending is missed, and so is everything that arrives after.
     pub async fn close(&self) {
         let taken = {
             let mut state = self.state.lock().await;
@@ -156,7 +149,9 @@ impl Queue {
             std::mem::take(&mut state.pending)
         };
         for pending in taken {
-            let _ = pending.fate.send(Fate::Missed);
+            let _ = pending.fate.send(Response::Missed {
+                r#type: Default::default(),
+            });
         }
     }
 }
