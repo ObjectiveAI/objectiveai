@@ -29,11 +29,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
-use diverge_provider_sdk::endpoints::agentic_loop::run::client;
+use diverge_provider_sdk::agentic_loop_container;
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::Agent;
-use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
-    AgenticLoopChunk, NotificationChunk,
-};
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::NotificationChunk;
 use futures_util::{Stream, StreamExt as _};
 
 use crate::continuation::Continuation;
@@ -100,7 +98,7 @@ async fn run() {
 ///   already left; it arrives IN the stream, as a `notification`
 ///   chunk with `is_fatal` set, and is the stream's last word.
 async fn serve(
-    Json(request): Json<client::request::Frame>,
+    Json(request): Json<agentic_loop_container::request::Request>,
 ) -> Result<
     Sse<impl Stream<Item = Result<Event, axum::Error>>>,
     (StatusCode, Json<serde_json::Value>),
@@ -176,12 +174,14 @@ async fn serve(
             // The stream has already begun; there is no status left to
             // change. The failure travels IN the stream, fatally, and
             // fetch ends the stream right after it.
-            Err(error) => AgenticLoopChunk::Notification(NotificationChunk {
-                r#type: Default::default(),
-                is_fatal: true,
-                message: error.message(),
-                meta: None,
-            }),
+            Err(error) => agentic_loop_container::response::Response::Notification(
+                NotificationChunk {
+                    r#type: Default::default(),
+                    is_fatal: true,
+                    message: error.message(),
+                    meta: None,
+                },
+            ),
         };
         Event::default().json_data(&chunk)
     })))
