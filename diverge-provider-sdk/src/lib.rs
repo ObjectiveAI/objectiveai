@@ -58,8 +58,8 @@
 //!
 //! Under construction. The types land as the provider API is defined.
 
-#[cfg(feature = "client")]
 pub mod agentic_loop_container;
+#[cfg(feature = "client")]
 pub mod client;
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod connection;
