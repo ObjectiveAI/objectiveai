@@ -10,6 +10,7 @@ homepage = "https://diverge.network"
 publish = false
 
 [dependencies]
+axum = { version = "0.8.9" }
 # The continuation token's outer coat: JSON, base64-ified.
 base64 = { version = "0.22.1" }
 diverge-provider-sdk = { path = "../diverge-provider-sdk" }
@@ -19,11 +20,14 @@ indexmap = { version = "2.14.0", features = ["serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 # `fs` for the continuation's files; `process`, `io-util` and `sync`
-# for the subprocess and the tasks around it.
+# for the subprocess and the tasks around it; `net` and
+# `rt-multi-thread` for the server.
 tokio = { version = "1.53.1", default-features = false, features = [
     "fs",
     "io-util",
+    "net",
     "process",
+    "rt-multi-thread",
     "sync",
 ] }
 # The enqueue correlation keys and cancel request ids.
