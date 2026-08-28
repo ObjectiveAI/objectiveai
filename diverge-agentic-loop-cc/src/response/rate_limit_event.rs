@@ -76,10 +76,19 @@ pub struct RateLimitInfo {
 }
 
 /// Whether requests pass a limit.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "snake_case")]
+///
+/// # Knowns and an open tail, because the vocabulary is the server's
+///
+/// All three enums here are unchecked casts of raw HTTP response
+/// headers in the source — the values come from Anthropic's servers,
+/// unvalidated, and the source's own display code is defensive about
+/// values it does not know. So each names the schema's set and
+/// catches anything newer in `Other`, the string preserved verbatim,
+/// the same way [`StopReason`](super::message::StopReason) does:
+/// serde goes through [`String`] both ways, which is what lets unit
+/// variants and a catch-all share one flat enum.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(from = "String", into = "String")]
 pub enum RateLimitStatus {
     /// Under the limit.
     Allowed,
@@ -87,13 +96,43 @@ pub enum RateLimitStatus {
     AllowedWarning,
     /// Over it.
     Rejected,
+    /// A status newer than this crate, preserved verbatim.
+    Other(String),
+}
+
+impl From<String> for RateLimitStatus {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "allowed" => RateLimitStatus::Allowed,
+            "allowed_warning" => RateLimitStatus::AllowedWarning,
+            "rejected" => RateLimitStatus::Rejected,
+            _ => RateLimitStatus::Other(value),
+        }
+    }
+}
+
+impl From<RateLimitStatus> for String {
+    fn from(value: RateLimitStatus) -> Self {
+        match value {
+            RateLimitStatus::Allowed => "allowed".to_string(),
+            RateLimitStatus::AllowedWarning => {
+                "allowed_warning".to_string()
+            }
+            RateLimitStatus::Rejected => "rejected".to_string(),
+            RateLimitStatus::Other(value) => value,
+        }
+    }
 }
 
 /// Which limit a [`RateLimitInfo`] describes.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "snake_case")]
+///
+/// Open-tailed for the reason [`RateLimitStatus`] gives — with one
+/// concrete suspect already on file: the source reads this from a
+/// "representative claim" header whose vocabulary elsewhere in the
+/// same file uses abbreviations (`5h`, `7d`) that never pass through
+/// the long-form mapping.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(from = "String", into = "String")]
 pub enum RateLimitType {
     /// The rolling five-hour window.
     FiveHour,
@@ -105,13 +144,45 @@ pub enum RateLimitType {
     SevenDaySonnet,
     /// The overage pool.
     Overage,
+    /// A limit newer than this crate, preserved verbatim.
+    Other(String),
 }
 
-/// Why overage is unavailable — the source's own thirteen reasons.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "snake_case")]
+impl From<String> for RateLimitType {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "five_hour" => RateLimitType::FiveHour,
+            "seven_day" => RateLimitType::SevenDay,
+            "seven_day_opus" => RateLimitType::SevenDayOpus,
+            "seven_day_sonnet" => RateLimitType::SevenDaySonnet,
+            "overage" => RateLimitType::Overage,
+            _ => RateLimitType::Other(value),
+        }
+    }
+}
+
+impl From<RateLimitType> for String {
+    fn from(value: RateLimitType) -> Self {
+        match value {
+            RateLimitType::FiveHour => "five_hour".to_string(),
+            RateLimitType::SevenDay => "seven_day".to_string(),
+            RateLimitType::SevenDayOpus => "seven_day_opus".to_string(),
+            RateLimitType::SevenDaySonnet => {
+                "seven_day_sonnet".to_string()
+            }
+            RateLimitType::Overage => "overage".to_string(),
+            RateLimitType::Other(value) => value,
+        }
+    }
+}
+
+/// Why overage is unavailable — the schema's thirteen reasons, and
+/// the open tail [`RateLimitStatus`] explains. The schema's own
+/// `unknown` is kept as a NAMED variant: the server saying "unknown"
+/// and the server saying something this crate does not know are
+/// different facts.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(from = "String", into = "String")]
 pub enum OverageDisabledReason {
     /// Overage was never provisioned.
     OverageNotProvisioned,
@@ -137,8 +208,98 @@ pub enum OverageDisabledReason {
     OrgServiceZeroCreditLimit,
     /// No limits are configured at all.
     NoLimitsConfigured,
-    /// Something else.
+    /// The server itself does not know.
     Unknown,
+    /// A reason newer than this crate, preserved verbatim.
+    Other(String),
+}
+
+impl From<String> for OverageDisabledReason {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "overage_not_provisioned" => {
+                OverageDisabledReason::OverageNotProvisioned
+            }
+            "org_level_disabled" => {
+                OverageDisabledReason::OrgLevelDisabled
+            }
+            "org_level_disabled_until" => {
+                OverageDisabledReason::OrgLevelDisabledUntil
+            }
+            "out_of_credits" => OverageDisabledReason::OutOfCredits,
+            "seat_tier_level_disabled" => {
+                OverageDisabledReason::SeatTierLevelDisabled
+            }
+            "member_level_disabled" => {
+                OverageDisabledReason::MemberLevelDisabled
+            }
+            "seat_tier_zero_credit_limit" => {
+                OverageDisabledReason::SeatTierZeroCreditLimit
+            }
+            "group_zero_credit_limit" => {
+                OverageDisabledReason::GroupZeroCreditLimit
+            }
+            "member_zero_credit_limit" => {
+                OverageDisabledReason::MemberZeroCreditLimit
+            }
+            "org_service_level_disabled" => {
+                OverageDisabledReason::OrgServiceLevelDisabled
+            }
+            "org_service_zero_credit_limit" => {
+                OverageDisabledReason::OrgServiceZeroCreditLimit
+            }
+            "no_limits_configured" => {
+                OverageDisabledReason::NoLimitsConfigured
+            }
+            "unknown" => OverageDisabledReason::Unknown,
+            _ => OverageDisabledReason::Other(value),
+        }
+    }
+}
+
+impl From<OverageDisabledReason> for String {
+    fn from(value: OverageDisabledReason) -> Self {
+        match value {
+            OverageDisabledReason::OverageNotProvisioned => {
+                "overage_not_provisioned".to_string()
+            }
+            OverageDisabledReason::OrgLevelDisabled => {
+                "org_level_disabled".to_string()
+            }
+            OverageDisabledReason::OrgLevelDisabledUntil => {
+                "org_level_disabled_until".to_string()
+            }
+            OverageDisabledReason::OutOfCredits => {
+                "out_of_credits".to_string()
+            }
+            OverageDisabledReason::SeatTierLevelDisabled => {
+                "seat_tier_level_disabled".to_string()
+            }
+            OverageDisabledReason::MemberLevelDisabled => {
+                "member_level_disabled".to_string()
+            }
+            OverageDisabledReason::SeatTierZeroCreditLimit => {
+                "seat_tier_zero_credit_limit".to_string()
+            }
+            OverageDisabledReason::GroupZeroCreditLimit => {
+                "group_zero_credit_limit".to_string()
+            }
+            OverageDisabledReason::MemberZeroCreditLimit => {
+                "member_zero_credit_limit".to_string()
+            }
+            OverageDisabledReason::OrgServiceLevelDisabled => {
+                "org_service_level_disabled".to_string()
+            }
+            OverageDisabledReason::OrgServiceZeroCreditLimit => {
+                "org_service_zero_credit_limit".to_string()
+            }
+            OverageDisabledReason::NoLimitsConfigured => {
+                "no_limits_configured".to_string()
+            }
+            OverageDisabledReason::Unknown => "unknown".to_string(),
+            OverageDisabledReason::Other(value) => value,
+        }
+    }
 }
 
 /// The `rate_limit_event` literal.
