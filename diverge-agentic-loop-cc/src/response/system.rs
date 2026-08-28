@@ -348,21 +348,47 @@ pub struct Plugin {
 }
 
 /// Where the API credential came from.
+///
+/// A union of two vocabularies, because the source keeps two and
+/// they disagree: the zod schema declares five values, but the only
+/// producer writes `getAnthropicApiKeyWithSource().source` through
+/// an unchecked cast, and THAT function's return type is a different
+/// four. The wire carries the four today; the five stay admitted in
+/// case a later version fixes the producer to match its schema.
+/// Either way a record deserializes.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
-#[serde(rename_all = "snake_case")]
 pub enum ApiKeySource {
+    // The zod schema's five.
     /// The user's own key.
+    #[serde(rename = "user")]
     User,
     /// A project key.
+    #[serde(rename = "project")]
     Project,
     /// An organization key.
+    #[serde(rename = "org")]
     Org,
     /// A temporary key.
+    #[serde(rename = "temporary")]
     Temporary,
     /// An OAuth login.
+    #[serde(rename = "oauth")]
     Oauth,
+    // The producer's four.
+    /// The `ANTHROPIC_API_KEY` environment variable.
+    #[serde(rename = "ANTHROPIC_API_KEY")]
+    AnthropicApiKey,
+    /// The configured `apiKeyHelper` command.
+    #[serde(rename = "apiKeyHelper")]
+    ApiKeyHelper,
+    /// A key managed by `/login`.
+    #[serde(rename = "/login managed key")]
+    LoginManagedKey,
+    /// No API key at all — OAuth sessions land here.
+    #[serde(rename = "none")]
+    None,
 }
 
 /// The permission mode in force.
