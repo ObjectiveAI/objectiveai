@@ -118,8 +118,10 @@ pub enum System {
         attempt: u64,
         /// How many will be made.
         max_retries: u64,
-        /// How long until the next one.
-        retry_delay_ms: u64,
+        /// How long until the next one. Fractional, because the
+        /// source's backoff is jittered by `Math.random()` and only
+        /// a `Retry-After` header ever produces a whole number.
+        retry_delay_ms: f64,
         /// The HTTP status, or `null` for a connection error that
         /// never got a response.
         error_status: Option<i64>,
