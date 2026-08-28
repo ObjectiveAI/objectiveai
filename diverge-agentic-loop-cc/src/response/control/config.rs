@@ -4,13 +4,16 @@ use serde::{Deserialize, Serialize};
 
 use super::super::system::PermissionMode;
 
-/// A permission-rule change, discriminated by `type` — the source's
-/// six, camel-cased on the wire.
+/// A permission-rule change — the source's six kinds, camel-cased on
+/// the wire. Untagged, each variant carrying its `type` literal as a
+/// marker field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(untagged)]
 pub enum PermissionUpdate {
     /// Add rules with a behavior, somewhere.
     AddRules {
+        /// Always `addRules`.
+        r#type: AddRulesType,
         /// The rules.
         rules: Vec<PermissionRuleValue>,
         /// What they decide.
@@ -20,6 +23,8 @@ pub enum PermissionUpdate {
     },
     /// Replace the rules with these.
     ReplaceRules {
+        /// Always `replaceRules`.
+        r#type: ReplaceRulesType,
         /// The rules.
         rules: Vec<PermissionRuleValue>,
         /// What they decide.
@@ -29,6 +34,8 @@ pub enum PermissionUpdate {
     },
     /// Remove these rules.
     RemoveRules {
+        /// Always `removeRules`.
+        r#type: RemoveRulesType,
         /// The rules.
         rules: Vec<PermissionRuleValue>,
         /// What they decided.
@@ -38,6 +45,8 @@ pub enum PermissionUpdate {
     },
     /// Change the permission mode.
     SetMode {
+        /// Always `setMode`.
+        r#type: SetModeType,
         /// The new mode.
         mode: PermissionMode,
         /// Which settings layer it lands in.
@@ -45,6 +54,8 @@ pub enum PermissionUpdate {
     },
     /// Grant access to directories.
     AddDirectories {
+        /// Always `addDirectories`.
+        r#type: AddDirectoriesType,
         /// The directories.
         directories: Vec<String>,
         /// Which settings layer they land in.
@@ -52,6 +63,8 @@ pub enum PermissionUpdate {
     },
     /// Revoke access to directories.
     RemoveDirectories {
+        /// Always `removeDirectories`.
+        r#type: RemoveDirectoriesType,
         /// The directories.
         directories: Vec<String>,
         /// Which settings layer they leave.
@@ -406,4 +419,70 @@ pub enum StdioType {
     /// The only value.
     #[default]
     Stdio,
+}
+
+/// The `addRules` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AddRulesType {
+    /// The only value.
+    #[default]
+    AddRules,
+}
+
+/// The `replaceRules` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum ReplaceRulesType {
+    /// The only value.
+    #[default]
+    ReplaceRules,
+}
+
+/// The `removeRules` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum RemoveRulesType {
+    /// The only value.
+    #[default]
+    RemoveRules,
+}
+
+/// The `setMode` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum SetModeType {
+    /// The only value.
+    #[default]
+    SetMode,
+}
+
+/// The `addDirectories` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AddDirectoriesType {
+    /// The only value.
+    #[default]
+    AddDirectories,
+}
+
+/// The `removeDirectories` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum RemoveDirectoriesType {
+    /// The only value.
+    #[default]
+    RemoveDirectories,
 }

@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 /// information changes for a subscription-authenticated run.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RateLimitEvent {
+    /// Always `rate_limit_event`.
+    pub r#type: RateLimitEventType,
     /// The new information.
     pub rate_limit_info: RateLimitInfo,
     /// The record's own id.
@@ -137,4 +139,15 @@ pub enum OverageDisabledReason {
     NoLimitsConfigured,
     /// Something else.
     Unknown,
+}
+
+/// The `rate_limit_event` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum RateLimitEventType {
+    /// The only value.
+    #[default]
+    RateLimitEvent,
 }

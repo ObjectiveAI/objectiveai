@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 /// of preceding tool calls, named by id.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolUseSummary {
+    /// Always `tool_use_summary`.
+    pub r#type: ToolUseSummaryType,
     /// The summary text.
     pub summary: String,
     /// The calls it summarizes.
@@ -14,4 +16,15 @@ pub struct ToolUseSummary {
     pub uuid: String,
     /// The session.
     pub session_id: String,
+}
+
+/// The `tool_use_summary` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolUseSummaryType {
+    /// The only value.
+    #[default]
+    ToolUseSummary,
 }

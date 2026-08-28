@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use super::super::assistant::AssistantMessageError;
 use super::config::PermissionUpdate;
 
-/// A hook's input, discriminated by `hook_event_name` — the source's
-/// twenty-seven, each the base fields intersected with the event's
-/// own.
+/// A hook's input — the source's twenty-seven, each the base fields
+/// intersected with the event's own. Untagged, each variant carrying
+/// its `hook_event_name` literal (PascalCase, as the source spells
+/// them) as a marker field.
 ///
 /// The base rides in every variant rather than being factored out:
 /// serde's flatten would consume the base's OPTIONAL `agent_id` and
@@ -20,10 +21,12 @@ use super::config::PermissionUpdate;
 /// requires — a zod object with an `unknown` field accepts its
 /// absence, so this port does too.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "hook_event_name")]
+#[serde(untagged)]
 pub enum HookInput {
     /// Before a tool runs.
     PreToolUse {
+        /// Always `PreToolUse`.
+        hook_event_name: PreToolUseEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -50,6 +53,8 @@ pub enum HookInput {
     },
     /// After a tool runs.
     PostToolUse {
+        /// Always `PostToolUse`.
+        hook_event_name: PostToolUseEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -79,6 +84,8 @@ pub enum HookInput {
     },
     /// After a tool fails.
     PostToolUseFailure {
+        /// Always `PostToolUseFailure`.
+        hook_event_name: PostToolUseFailureEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -109,6 +116,8 @@ pub enum HookInput {
     },
     /// A permission was denied.
     PermissionDenied {
+        /// Always `PermissionDenied`.
+        hook_event_name: PermissionDeniedEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -136,6 +145,8 @@ pub enum HookInput {
     },
     /// A notification fired.
     Notification {
+        /// Always `Notification`.
+        hook_event_name: NotificationEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -161,6 +172,8 @@ pub enum HookInput {
     },
     /// A prompt was submitted.
     UserPromptSubmit {
+        /// Always `UserPromptSubmit`.
+        hook_event_name: UserPromptSubmitEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -181,6 +194,8 @@ pub enum HookInput {
     },
     /// A session started.
     SessionStart {
+        /// Always `SessionStart`.
+        hook_event_name: SessionStartEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -204,6 +219,8 @@ pub enum HookInput {
     },
     /// A session ended.
     SessionEnd {
+        /// Always `SessionEnd`.
+        hook_event_name: SessionEndEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -224,6 +241,8 @@ pub enum HookInput {
     },
     /// The turn stopped.
     Stop {
+        /// Always `Stop`.
+        hook_event_name: StopEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -248,6 +267,8 @@ pub enum HookInput {
     },
     /// The turn stopped on a failure.
     StopFailure {
+        /// Always `StopFailure`.
+        hook_event_name: StopFailureEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -275,6 +296,8 @@ pub enum HookInput {
     /// A subagent started. The base's optional agent fields are
     /// REQUIRED here — the intersection makes them so.
     SubagentStart {
+        /// Always `SubagentStart`.
+        hook_event_name: SubagentStartEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -291,6 +314,8 @@ pub enum HookInput {
     },
     /// A subagent stopped. The agent fields are required, as above.
     SubagentStop {
+        /// Always `SubagentStop`.
+        hook_event_name: SubagentStopEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -314,6 +339,8 @@ pub enum HookInput {
     },
     /// Before compaction.
     PreCompact {
+        /// Always `PreCompact`.
+        hook_event_name: PreCompactEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -336,6 +363,8 @@ pub enum HookInput {
     },
     /// After compaction.
     PostCompact {
+        /// Always `PostCompact`.
+        hook_event_name: PostCompactEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -358,6 +387,8 @@ pub enum HookInput {
     },
     /// A permission is being asked.
     PermissionRequest {
+        /// Always `PermissionRequest`.
+        hook_event_name: PermissionRequestEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -384,6 +415,8 @@ pub enum HookInput {
     },
     /// Setup ran.
     Setup {
+        /// Always `Setup`.
+        hook_event_name: SetupEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -404,6 +437,8 @@ pub enum HookInput {
     },
     /// A teammate went idle.
     TeammateIdle {
+        /// Always `TeammateIdle`.
+        hook_event_name: TeammateIdleEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -426,6 +461,8 @@ pub enum HookInput {
     },
     /// A task was created.
     TaskCreated {
+        /// Always `TaskCreated`.
+        hook_event_name: TaskCreatedEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -457,6 +494,8 @@ pub enum HookInput {
     },
     /// A task completed.
     TaskCompleted {
+        /// Always `TaskCompleted`.
+        hook_event_name: TaskCompletedEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -488,6 +527,8 @@ pub enum HookInput {
     },
     /// An MCP server requested user input.
     Elicitation {
+        /// Always `Elicitation`.
+        hook_event_name: ElicitationEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -523,6 +564,8 @@ pub enum HookInput {
     },
     /// The user answered an MCP elicitation.
     ElicitationResult {
+        /// Always `ElicitationResult`.
+        hook_event_name: ElicitationResultEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -554,6 +597,8 @@ pub enum HookInput {
     },
     /// Configuration changed on disk.
     ConfigChange {
+        /// Always `ConfigChange`.
+        hook_event_name: ConfigChangeEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -577,6 +622,8 @@ pub enum HookInput {
     },
     /// Memory instructions were loaded.
     InstructionsLoaded {
+        /// Always `InstructionsLoaded`.
+        hook_event_name: InstructionsLoadedEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -610,6 +657,8 @@ pub enum HookInput {
     },
     /// A worktree was created.
     WorktreeCreate {
+        /// Always `WorktreeCreate`.
+        hook_event_name: WorktreeCreateEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -630,6 +679,8 @@ pub enum HookInput {
     },
     /// A worktree was removed.
     WorktreeRemove {
+        /// Always `WorktreeRemove`.
+        hook_event_name: WorktreeRemoveEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -650,6 +701,8 @@ pub enum HookInput {
     },
     /// The working directory changed.
     CwdChanged {
+        /// Always `CwdChanged`.
+        hook_event_name: CwdChangedEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -672,6 +725,8 @@ pub enum HookInput {
     },
     /// A watched file changed.
     FileChanged {
+        /// Always `FileChanged`.
+        hook_event_name: FileChangedEventName,
         /// The session.
         session_id: String,
         /// The transcript's path on disk.
@@ -831,4 +886,274 @@ pub enum FileChangeEvent {
     Add,
     /// It vanished.
     Unlink,
+}
+
+/// The `PreToolUse` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum PreToolUseEventName {
+    /// The only value.
+    #[default]
+    PreToolUse,
+}
+
+/// The `PostToolUse` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum PostToolUseEventName {
+    /// The only value.
+    #[default]
+    PostToolUse,
+}
+
+/// The `PostToolUseFailure` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum PostToolUseFailureEventName {
+    /// The only value.
+    #[default]
+    PostToolUseFailure,
+}
+
+/// The `PermissionDenied` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum PermissionDeniedEventName {
+    /// The only value.
+    #[default]
+    PermissionDenied,
+}
+
+/// The `Notification` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum NotificationEventName {
+    /// The only value.
+    #[default]
+    Notification,
+}
+
+/// The `UserPromptSubmit` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum UserPromptSubmitEventName {
+    /// The only value.
+    #[default]
+    UserPromptSubmit,
+}
+
+/// The `SessionStart` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum SessionStartEventName {
+    /// The only value.
+    #[default]
+    SessionStart,
+}
+
+/// The `SessionEnd` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum SessionEndEventName {
+    /// The only value.
+    #[default]
+    SessionEnd,
+}
+
+/// The `Stop` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum StopEventName {
+    /// The only value.
+    #[default]
+    Stop,
+}
+
+/// The `StopFailure` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum StopFailureEventName {
+    /// The only value.
+    #[default]
+    StopFailure,
+}
+
+/// The `SubagentStart` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum SubagentStartEventName {
+    /// The only value.
+    #[default]
+    SubagentStart,
+}
+
+/// The `SubagentStop` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum SubagentStopEventName {
+    /// The only value.
+    #[default]
+    SubagentStop,
+}
+
+/// The `PreCompact` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum PreCompactEventName {
+    /// The only value.
+    #[default]
+    PreCompact,
+}
+
+/// The `PostCompact` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum PostCompactEventName {
+    /// The only value.
+    #[default]
+    PostCompact,
+}
+
+/// The `PermissionRequest` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum PermissionRequestEventName {
+    /// The only value.
+    #[default]
+    PermissionRequest,
+}
+
+/// The `Setup` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum SetupEventName {
+    /// The only value.
+    #[default]
+    Setup,
+}
+
+/// The `TeammateIdle` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum TeammateIdleEventName {
+    /// The only value.
+    #[default]
+    TeammateIdle,
+}
+
+/// The `TaskCreated` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum TaskCreatedEventName {
+    /// The only value.
+    #[default]
+    TaskCreated,
+}
+
+/// The `TaskCompleted` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum TaskCompletedEventName {
+    /// The only value.
+    #[default]
+    TaskCompleted,
+}
+
+/// The `Elicitation` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum ElicitationEventName {
+    /// The only value.
+    #[default]
+    Elicitation,
+}
+
+/// The `ElicitationResult` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum ElicitationResultEventName {
+    /// The only value.
+    #[default]
+    ElicitationResult,
+}
+
+/// The `ConfigChange` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum ConfigChangeEventName {
+    /// The only value.
+    #[default]
+    ConfigChange,
+}
+
+/// The `InstructionsLoaded` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum InstructionsLoadedEventName {
+    /// The only value.
+    #[default]
+    InstructionsLoaded,
+}
+
+/// The `WorktreeCreate` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum WorktreeCreateEventName {
+    /// The only value.
+    #[default]
+    WorktreeCreate,
+}
+
+/// The `WorktreeRemove` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum WorktreeRemoveEventName {
+    /// The only value.
+    #[default]
+    WorktreeRemove,
+}
+
+/// The `CwdChanged` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum CwdChangedEventName {
+    /// The only value.
+    #[default]
+    CwdChanged,
+}
+
+/// The `FileChanged` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum FileChangedEventName {
+    /// The only value.
+    #[default]
+    FileChanged,
 }

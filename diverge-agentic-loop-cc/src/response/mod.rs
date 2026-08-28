@@ -60,9 +60,17 @@ pub use user::*;
 use serde::{Deserialize, Serialize};
 
 /// One line of stdout, whichever record it is — the source's
-/// `StdoutMessage` union, whole, discriminated by `type`.
+/// `StdoutMessage` union, whole.
+///
+/// Untagged, the way this crate models unions: every record carries
+/// its own `type` literal as a marker field (and its `subtype` where
+/// it has one), so a record is self-describing wherever it travels —
+/// nested inside another record just as at the top of a line — and
+/// only the right variant can accept a given literal. What a tagged
+/// parent would have hoisted out of the child stays on the child,
+/// which is where the source's schemas put it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum StdoutMessage {
     /// The run narrating itself; see [`System`] for the subtypes.
     System(System),

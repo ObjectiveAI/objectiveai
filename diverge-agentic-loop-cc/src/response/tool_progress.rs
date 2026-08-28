@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 /// throttled to one per interval per spawning call.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolProgress {
+    /// Always `tool_progress`.
+    pub r#type: ToolProgressType,
     /// The call still running.
     pub tool_use_id: String,
     /// The tool being run.
@@ -24,4 +26,15 @@ pub struct ToolProgress {
     pub uuid: String,
     /// The session.
     pub session_id: String,
+}
+
+/// The `tool_progress` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolProgressType {
+    /// The only value.
+    #[default]
+    ToolProgress,
 }

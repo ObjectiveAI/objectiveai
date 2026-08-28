@@ -10,4 +10,18 @@ use serde::{Deserialize, Serialize};
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
-pub struct KeepAlive {}
+pub struct KeepAlive {
+    /// Always `keep_alive`.
+    pub r#type: KeepAliveType,
+}
+
+/// The `keep_alive` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum KeepAliveType {
+    /// The only value.
+    #[default]
+    KeepAlive,
+}

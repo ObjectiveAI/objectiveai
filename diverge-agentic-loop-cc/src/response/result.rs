@@ -4,8 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use super::system::FastModeState;
 
-/// A `type: "result"` record, discriminated by `subtype`: the turn's
-/// verdict and its bill.
+/// A `type: "result"` record: the turn's verdict and its bill.
+///
+/// Two arms, which is the source's own shape — one success schema,
+/// one error schema whose `subtype` is a four-value enum. Untagged,
+/// with the literals as marker fields, like every union here.
 ///
 /// # It is not always the last word
 ///
@@ -16,11 +19,14 @@ use super::system::FastModeState;
 /// [`session_state_changed { state: idle }`](super::System::SessionStateChanged),
 /// not this record's arrival.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "subtype")]
+#[serde(untagged)]
 pub enum Result {
     /// The turn finished.
-    #[serde(rename = "success")]
     Success {
+        /// Always `result`.
+        r#type: ResultType,
+        /// Always `success`.
+        subtype: SuccessSubtype,
         /// Wall-clock, whole turn.
         duration_ms: f64,
         /// Wall-clock inside API calls.
@@ -55,27 +61,42 @@ pub enum Result {
         /// The session.
         session_id: String,
     },
-    /// The turn died mid-flight.
-    #[serde(rename = "error_during_execution")]
-    ErrorDuringExecution(ResultError),
-    /// The turn hit the turn cap.
-    #[serde(rename = "error_max_turns")]
-    ErrorMaxTurns(ResultError),
-    /// The turn hit the budget cap.
-    #[serde(rename = "error_max_budget_usd")]
-    ErrorMaxBudgetUsd(ResultError),
-    /// The turn never produced valid structured output.
-    #[serde(rename = "error_max_structured_output_retries")]
-    ErrorMaxStructuredOutputRetries(ResultError),
+    /// The turn ended badly; [`ResultError::subtype`] says how.
+    Error(ResultError),
 }
 
-/// What every error result carries: the success fields minus the
-/// answer, plus the reasons.
-///
-/// One shape for the four subtypes because the source gives them one
-/// schema; which cap was hit is the tag's knowledge.
+/// The `result` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ResultType {
+    /// The only value.
+    #[default]
+    Result,
+}
+
+/// The `success` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SuccessSubtype {
+    /// The only value.
+    #[default]
+    Success,
+}
+
+/// An error result: the success fields minus the answer, plus the
+/// reasons. One shape for the four subtypes because the source gives
+/// them one schema; which cap was hit is
+/// [`subtype`](Self::subtype)'s knowledge.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ResultError {
+    /// Always `result`.
+    pub r#type: ResultType,
+    /// Which way the turn ended.
+    pub subtype: ResultErrorSubtype,
     /// Wall-clock, whole turn.
     pub duration_ms: f64,
     /// Wall-clock inside API calls.
@@ -105,6 +126,23 @@ pub struct ResultError {
     pub uuid: String,
     /// The session.
     pub session_id: String,
+}
+
+/// The four ways a turn ends badly — the error schema's own
+/// `subtype` enum.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ResultErrorSubtype {
+    /// The turn died mid-flight.
+    ErrorDuringExecution,
+    /// The turn hit the turn cap.
+    ErrorMaxTurns,
+    /// The turn hit the budget cap.
+    ErrorMaxBudgetUsd,
+    /// The turn never produced valid structured output.
+    ErrorMaxStructuredOutputRetries,
 }
 
 /// The summed usage a result carries.

@@ -17,6 +17,8 @@ use super::message;
 /// and true is what a replay is.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct User {
+    /// Always `user`.
+    pub r#type: UserType,
     /// The message params: role and content, the request vocabulary.
     pub message: message::UserMessage,
     /// The spawning tool call, for a subagent's record; `null` on
@@ -69,4 +71,15 @@ pub enum Priority {
     Next,
     /// Whenever.
     Later,
+}
+
+/// The `user` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum UserType {
+    /// The only value.
+    #[default]
+    User,
 }

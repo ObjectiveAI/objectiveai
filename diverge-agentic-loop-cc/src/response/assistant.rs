@@ -22,6 +22,8 @@ use super::message;
 /// `isSidechain` never reaches stdout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Assistant {
+    /// Always `assistant`.
+    pub r#type: AssistantType,
     /// The API message, carrying this record's one block.
     pub message: message::Message,
     /// The spawning tool call, for a subagent's record; `null` on
@@ -59,4 +61,15 @@ pub enum AssistantMessageError {
     Unknown,
     /// The output token ceiling.
     MaxOutputTokens,
+}
+
+/// The `assistant` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum AssistantType {
+    /// The only value.
+    #[default]
+    Assistant,
 }

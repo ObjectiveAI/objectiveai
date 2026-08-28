@@ -37,22 +37,30 @@ use hook_input::HookInput;
 /// `control_response` quoting its [`request_id`](Self::request_id).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ControlRequest {
+    /// Always `control_request`.
+    pub r#type: ControlRequestType,
     /// The ask's id, quoted by its answer.
     pub request_id: String,
     /// The ask itself.
     pub request: ControlRequestInner,
 }
 
-/// What a control request asks, discriminated by `subtype` — the
-/// source's twenty-one.
+/// What a control request asks — the source's twenty-one subtypes,
+/// untagged, each variant carrying its `subtype` literal as a marker
+/// field so the object is self-describing wherever it travels.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "subtype", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum ControlRequestInner {
     /// Stop the running turn.
-    Interrupt,
+    Interrupt {
+        /// Always `interrupt`.
+        subtype: InterruptSubtype,
+    },
     /// May this tool run? The one subtype plain print mode really
     /// sends outward — sandbox network asks ride it too.
     CanUseTool {
+        /// Always `can_use_tool`.
+        subtype: CanUseToolSubtype,
         /// The tool.
         tool_name: String,
         /// What it would run with.
@@ -83,6 +91,8 @@ pub enum ControlRequestInner {
     },
     /// Configure the SDK session.
     Initialize {
+        /// Always `initialize`.
+        subtype: InitializeSubtype,
         /// Hook registrations by event.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         hooks: Option<
@@ -136,6 +146,8 @@ pub enum ControlRequestInner {
     },
     /// Change the permission mode.
     SetPermissionMode {
+        /// Always `set_permission_mode`.
+        subtype: SetPermissionModeSubtype,
         /// The new mode.
         mode: PermissionMode,
         /// Internal remote-session marker.
@@ -144,21 +156,33 @@ pub enum ControlRequestInner {
     },
     /// Change the model.
     SetModel {
+        /// Always `set_model`.
+        subtype: SetModelSubtype,
         /// The new model; absent means the default.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         model: Option<String>,
     },
     /// Change the thinking budget.
     SetMaxThinkingTokens {
+        /// Always `set_max_thinking_tokens`.
+        subtype: SetMaxThinkingTokensSubtype,
         /// The new budget; `null` clears it.
         max_thinking_tokens: Option<u64>,
     },
     /// Ask after the MCP servers.
-    McpStatus,
+    McpStatus {
+        /// Always `mcp_status`.
+        subtype: McpStatusSubtype,
+    },
     /// Ask for the context-window breakdown.
-    GetContextUsage,
+    GetContextUsage {
+        /// Always `get_context_usage`.
+        subtype: GetContextUsageSubtype,
+    },
     /// Deliver a hook callback's input.
     HookCallback {
+        /// Always `hook_callback`.
+        subtype: HookCallbackSubtype,
         /// Which registered callback.
         callback_id: String,
         /// The hook's input, typed per lifecycle event.
@@ -169,6 +193,8 @@ pub enum ControlRequestInner {
     },
     /// Relay a JSON-RPC message to an MCP server.
     McpMessage {
+        /// Always `mcp_message`.
+        subtype: McpMessageSubtype,
         /// The server.
         server_name: String,
         /// The message — `unknown` in the source's own schema, and
@@ -179,6 +205,8 @@ pub enum ControlRequestInner {
     },
     /// Rewind file changes to a user message.
     RewindFiles {
+        /// Always `rewind_files`.
+        subtype: RewindFilesSubtype,
         /// The message to rewind to.
         user_message_id: String,
         /// Whether to only report what would change.
@@ -187,11 +215,15 @@ pub enum ControlRequestInner {
     },
     /// Drop a queued async message.
     CancelAsyncMessage {
+        /// Always `cancel_async_message`.
+        subtype: CancelAsyncMessageSubtype,
         /// The queued message, by uuid.
         message_uuid: String,
     },
     /// Seed the read-state cache so a later edit validates.
     SeedReadState {
+        /// Always `seed_read_state`.
+        subtype: SeedReadStateSubtype,
         /// The file.
         path: String,
         /// The mtime the client observed.
@@ -199,19 +231,28 @@ pub enum ControlRequestInner {
     },
     /// Replace the dynamically managed MCP servers.
     McpSetServers {
+        /// Always `mcp_set_servers`.
+        subtype: McpSetServersSubtype,
         /// The new set, name to config.
         servers: indexmap::IndexMap<String, McpServerConfig>,
     },
     /// Reload plugins from disk.
-    ReloadPlugins,
+    ReloadPlugins {
+        /// Always `reload_plugins`.
+        subtype: ReloadPluginsSubtype,
+    },
     /// Reconnect a failed MCP server.
     McpReconnect {
+        /// Always `mcp_reconnect`.
+        subtype: McpReconnectSubtype,
         /// The server.
         #[serde(rename = "serverName")]
         server_name: String,
     },
     /// Enable or disable an MCP server.
     McpToggle {
+        /// Always `mcp_toggle`.
+        subtype: McpToggleSubtype,
         /// The server.
         #[serde(rename = "serverName")]
         server_name: String,
@@ -220,18 +261,27 @@ pub enum ControlRequestInner {
     },
     /// Stop a background task.
     StopTask {
+        /// Always `stop_task`.
+        subtype: StopTaskSubtype,
         /// The task.
         task_id: String,
     },
     /// Merge settings into the flag layer.
     ApplyFlagSettings {
+        /// Always `apply_flag_settings`.
+        subtype: ApplyFlagSettingsSubtype,
         /// The settings to merge.
         settings: indexmap::IndexMap<String, serde_json::Value>,
     },
     /// Ask for the effective settings.
-    GetSettings,
+    GetSettings {
+        /// Always `get_settings`.
+        subtype: GetSettingsSubtype,
+    },
     /// Ask the SDK consumer to run an MCP elicitation.
     Elicitation {
+        /// Always `elicitation`.
+        subtype: ElicitationSubtype,
         /// The server eliciting.
         mcp_server_name: String,
         /// What it wants to say.
@@ -268,16 +318,21 @@ pub enum ElicitationMode {
 /// request, either way.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ControlResponse {
+    /// Always `control_response`.
+    pub r#type: ControlResponseType,
     /// The verdict.
     pub response: ControlResponseInner,
 }
 
-/// A control response's body, discriminated by `subtype`.
+/// A control response's body — two arms, untagged, each carrying
+/// its `subtype` literal as a marker field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "subtype", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum ControlResponseInner {
     /// The request succeeded.
     Success {
+        /// Always `success`.
+        subtype: SuccessSubtype,
         /// The request being answered.
         request_id: String,
         /// The response body, shaped per request subtype — a record
@@ -287,6 +342,8 @@ pub enum ControlResponseInner {
     },
     /// The request failed.
     Error {
+        /// Always `error`.
+        subtype: ErrorSubtype,
         /// The request being answered.
         request_id: String,
         /// What went wrong.
@@ -301,6 +358,294 @@ pub enum ControlResponseInner {
 /// request, withdrawn.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ControlCancelRequest {
+    /// Always `control_cancel_request`.
+    pub r#type: ControlCancelRequestType,
     /// The ask being withdrawn.
     pub request_id: String,
+}
+
+/// The `control_request` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlRequestType {
+    /// The only value.
+    #[default]
+    ControlRequest,
+}
+
+/// The `control_response` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlResponseType {
+    /// The only value.
+    #[default]
+    ControlResponse,
+}
+
+/// The `control_cancel_request` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlCancelRequestType {
+    /// The only value.
+    #[default]
+    ControlCancelRequest,
+}
+
+/// The `can_use_tool` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CanUseToolSubtype {
+    /// The only value.
+    #[default]
+    CanUseTool,
+}
+
+/// The `initialize` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum InitializeSubtype {
+    /// The only value.
+    #[default]
+    Initialize,
+}
+
+/// The `set_permission_mode` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SetPermissionModeSubtype {
+    /// The only value.
+    #[default]
+    SetPermissionMode,
+}
+
+/// The `set_model` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SetModelSubtype {
+    /// The only value.
+    #[default]
+    SetModel,
+}
+
+/// The `set_max_thinking_tokens` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SetMaxThinkingTokensSubtype {
+    /// The only value.
+    #[default]
+    SetMaxThinkingTokens,
+}
+
+/// The `hook_callback` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum HookCallbackSubtype {
+    /// The only value.
+    #[default]
+    HookCallback,
+}
+
+/// The `mcp_message` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum McpMessageSubtype {
+    /// The only value.
+    #[default]
+    McpMessage,
+}
+
+/// The `rewind_files` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum RewindFilesSubtype {
+    /// The only value.
+    #[default]
+    RewindFiles,
+}
+
+/// The `cancel_async_message` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CancelAsyncMessageSubtype {
+    /// The only value.
+    #[default]
+    CancelAsyncMessage,
+}
+
+/// The `seed_read_state` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SeedReadStateSubtype {
+    /// The only value.
+    #[default]
+    SeedReadState,
+}
+
+/// The `mcp_set_servers` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum McpSetServersSubtype {
+    /// The only value.
+    #[default]
+    McpSetServers,
+}
+
+/// The `mcp_reconnect` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum McpReconnectSubtype {
+    /// The only value.
+    #[default]
+    McpReconnect,
+}
+
+/// The `mcp_toggle` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum McpToggleSubtype {
+    /// The only value.
+    #[default]
+    McpToggle,
+}
+
+/// The `stop_task` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum StopTaskSubtype {
+    /// The only value.
+    #[default]
+    StopTask,
+}
+
+/// The `apply_flag_settings` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplyFlagSettingsSubtype {
+    /// The only value.
+    #[default]
+    ApplyFlagSettings,
+}
+
+/// The `elicitation` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ElicitationSubtype {
+    /// The only value.
+    #[default]
+    Elicitation,
+}
+
+/// The `interrupt` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum InterruptSubtype {
+    /// The only value.
+    #[default]
+    Interrupt,
+}
+
+/// The `mcp_status` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum McpStatusSubtype {
+    /// The only value.
+    #[default]
+    McpStatus,
+}
+
+/// The `get_context_usage` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum GetContextUsageSubtype {
+    /// The only value.
+    #[default]
+    GetContextUsage,
+}
+
+/// The `reload_plugins` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ReloadPluginsSubtype {
+    /// The only value.
+    #[default]
+    ReloadPlugins,
+}
+
+/// The `get_settings` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum GetSettingsSubtype {
+    /// The only value.
+    #[default]
+    GetSettings,
+}
+
+/// The `success` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SuccessSubtype {
+    /// The only value.
+    #[default]
+    Success,
+}
+
+/// The `error` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ErrorSubtype {
+    /// The only value.
+    #[default]
+    Error,
 }

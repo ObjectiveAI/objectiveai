@@ -6,10 +6,23 @@ use serde::{Deserialize, Serialize};
 /// emitted after the result when the run opted into suggestions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PromptSuggestion {
+    /// Always `prompt_suggestion`.
+    pub r#type: PromptSuggestionType,
     /// The suggested prompt.
     pub suggestion: String,
     /// The record's own id.
     pub uuid: String,
     /// The session.
     pub session_id: String,
+}
+
+/// The `prompt_suggestion` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PromptSuggestionType {
+    /// The only value.
+    #[default]
+    PromptSuggestion,
 }

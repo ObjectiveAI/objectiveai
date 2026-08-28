@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 /// started with `--enable-auth-status`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AuthStatus {
+    /// Always `auth_status`.
+    pub r#type: AuthStatusType,
     /// Whether an authentication flow is in progress.
     #[serde(rename = "isAuthenticating")]
     pub is_authenticating: bool,
@@ -18,4 +20,15 @@ pub struct AuthStatus {
     pub uuid: String,
     /// The session.
     pub session_id: String,
+}
+
+/// The `auth_status` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthStatusType {
+    /// The only value.
+    #[default]
+    AuthStatus,
 }

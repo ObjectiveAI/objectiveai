@@ -17,6 +17,8 @@ use super::message;
 /// per event, related to nothing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StreamEvent {
+    /// Always `stream_event`.
+    pub r#type: StreamEventType,
     /// The raw API event.
     pub event: message::StreamEvent,
     /// Always `null` in the pinned source; see the type doc.
@@ -25,4 +27,15 @@ pub struct StreamEvent {
     pub uuid: String,
     /// The session.
     pub session_id: String,
+}
+
+/// The `stream_event` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum StreamEventType {
+    /// The only value.
+    #[default]
+    StreamEvent,
 }

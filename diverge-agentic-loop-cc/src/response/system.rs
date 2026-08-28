@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use super::AssistantMessageError;
 
-/// A `type: "system"` record, discriminated by `subtype`.
+/// A `type: "system"` record: one of sixteen subtypes, each
+/// self-describing — untagged, with the `type` and `subtype`
+/// literals as marker fields on every variant.
 ///
 /// The run's own narration, as opposed to the conversation: what the
 /// session is, what changed, what a hook or a background task did.
@@ -14,11 +16,15 @@ use super::AssistantMessageError;
 /// [`BridgeState`](Self::BridgeState), which is sent and never made
 /// it into the schemas at all.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "subtype", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum System {
     /// The turn beginning: the session introduced. Emitted once per
     /// TURN — every `ask()` leads with one — not once per process.
     Init {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `init`.
+        subtype: InitSubtype,
         /// The subagent roster, by name.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         agents: Option<Vec<String>>,
@@ -63,6 +69,10 @@ pub enum System {
     },
     /// The conversation was compacted here.
     CompactBoundary {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `compact_boundary`.
+        subtype: CompactBoundarySubtype,
         /// What the compaction did.
         compact_metadata: CompactMetadata,
         /// The record's own id.
@@ -73,6 +83,10 @@ pub enum System {
     /// A status change: compaction starting or ending, or the
     /// permission mode changing.
     Status {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `status`.
+        subtype: StatusSubtype,
         /// `compacting`, or `null` for back-to-normal.
         status: Option<Status>,
         /// The new permission mode, when that is what changed.
@@ -89,6 +103,10 @@ pub enum System {
     },
     /// A background summary of the turn that just ended.
     PostTurnSummary {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `post_turn_summary`.
+        subtype: PostTurnSummarySubtype,
         /// The assistant message this summarizes, by uuid.
         summarizes_uuid: String,
         /// Where the work stands.
@@ -114,6 +132,10 @@ pub enum System {
     },
     /// An API request failed retryably and will be retried.
     ApiRetry {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `api_retry`.
+        subtype: ApiRetrySubtype,
         /// Which attempt just failed.
         attempt: u64,
         /// How many will be made.
@@ -138,6 +160,10 @@ pub enum System {
     /// assistant message instead — but a defined shape is a shape a
     /// later version may use.
     LocalCommandOutput {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `local_command_output`.
+        subtype: LocalCommandOutputSubtype,
         /// The output text.
         content: String,
         /// The record's own id.
@@ -147,6 +173,10 @@ pub enum System {
     },
     /// A hook began.
     HookStarted {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `hook_started`.
+        subtype: HookStartedSubtype,
         /// The execution's id, shared by its progress and response.
         hook_id: String,
         /// The hook's name.
@@ -160,6 +190,10 @@ pub enum System {
     },
     /// A hook produced output mid-run.
     HookProgress {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `hook_progress`.
+        subtype: HookProgressSubtype,
         /// The execution's id.
         hook_id: String,
         /// The hook's name.
@@ -179,6 +213,10 @@ pub enum System {
     },
     /// A hook finished.
     HookResponse {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `hook_response`.
+        subtype: HookResponseSubtype,
         /// The execution's id.
         hook_id: String,
         /// The hook's name.
@@ -203,6 +241,10 @@ pub enum System {
     },
     /// A background task began.
     TaskStarted {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `task_started`.
+        subtype: TaskStartedSubtype,
         /// The task's id.
         task_id: String,
         /// The tool call that spawned it, if one did.
@@ -226,6 +268,10 @@ pub enum System {
     },
     /// A background task moved.
     TaskProgress {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `task_progress`.
+        subtype: TaskProgressSubtype,
         /// The task's id.
         task_id: String,
         /// The tool call that spawned it, if one did.
@@ -253,6 +299,10 @@ pub enum System {
     },
     /// A background task ended.
     TaskNotification {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `task_notification`.
+        subtype: TaskNotificationSubtype,
         /// The task's id.
         task_id: String,
         /// The tool call that spawned it, if one did.
@@ -277,6 +327,10 @@ pub enum System {
     /// records while background agents run, but `idle` fires only
     /// once everything has flushed.
     SessionStateChanged {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `session_state_changed`.
+        subtype: SessionStateChangedSubtype,
         /// The new state.
         state: SessionState,
         /// The record's own id.
@@ -286,6 +340,10 @@ pub enum System {
     },
     /// Files were persisted upstream, on builds with that feature.
     FilesPersisted {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `files_persisted`.
+        subtype: FilesPersistedSubtype,
         /// What made it.
         files: Vec<PersistedFile>,
         /// What did not.
@@ -299,6 +357,10 @@ pub enum System {
     },
     /// An MCP server confirmed a URL-mode elicitation finished.
     ElicitationComplete {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `elicitation_complete`.
+        subtype: ElicitationCompleteSubtype,
         /// The server that confirmed it.
         mcp_server_name: String,
         /// Which elicitation.
@@ -312,6 +374,10 @@ pub enum System {
     /// source through an escape-hatch cast, declared in no schema —
     /// typed here because it is real.
     BridgeState {
+        /// Always `system`.
+        r#type: SystemType,
+        /// Always `bridge_state`.
+        subtype: BridgeStateSubtype,
         /// The bridge's new state.
         state: BridgeState,
         /// Detail, when the state has any — a failure's reason.
@@ -588,4 +654,191 @@ pub enum BridgeState {
     Reconnecting,
     /// Given up.
     Failed,
+}
+
+/// The `system` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SystemType {
+    /// The only value.
+    #[default]
+    System,
+}
+
+/// The `init` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum InitSubtype {
+    /// The only value.
+    #[default]
+    Init,
+}
+
+/// The `compact_boundary` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CompactBoundarySubtype {
+    /// The only value.
+    #[default]
+    CompactBoundary,
+}
+
+/// The `status` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum StatusSubtype {
+    /// The only value.
+    #[default]
+    Status,
+}
+
+/// The `post_turn_summary` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PostTurnSummarySubtype {
+    /// The only value.
+    #[default]
+    PostTurnSummary,
+}
+
+/// The `api_retry` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiRetrySubtype {
+    /// The only value.
+    #[default]
+    ApiRetry,
+}
+
+/// The `local_command_output` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalCommandOutputSubtype {
+    /// The only value.
+    #[default]
+    LocalCommandOutput,
+}
+
+/// The `hook_started` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum HookStartedSubtype {
+    /// The only value.
+    #[default]
+    HookStarted,
+}
+
+/// The `hook_progress` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum HookProgressSubtype {
+    /// The only value.
+    #[default]
+    HookProgress,
+}
+
+/// The `hook_response` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum HookResponseSubtype {
+    /// The only value.
+    #[default]
+    HookResponse,
+}
+
+/// The `task_started` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskStartedSubtype {
+    /// The only value.
+    #[default]
+    TaskStarted,
+}
+
+/// The `task_progress` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskProgressSubtype {
+    /// The only value.
+    #[default]
+    TaskProgress,
+}
+
+/// The `task_notification` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskNotificationSubtype {
+    /// The only value.
+    #[default]
+    TaskNotification,
+}
+
+/// The `session_state_changed` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionStateChangedSubtype {
+    /// The only value.
+    #[default]
+    SessionStateChanged,
+}
+
+/// The `files_persisted` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum FilesPersistedSubtype {
+    /// The only value.
+    #[default]
+    FilesPersisted,
+}
+
+/// The `elicitation_complete` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ElicitationCompleteSubtype {
+    /// The only value.
+    #[default]
+    ElicitationComplete,
+}
+
+/// The `bridge_state` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum BridgeStateSubtype {
+    /// The only value.
+    #[default]
+    BridgeState,
 }
