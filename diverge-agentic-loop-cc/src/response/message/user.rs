@@ -3,7 +3,18 @@
 use serde::{Deserialize, Serialize};
 
 use super::content_block::{
-    RedactedThinkingType, TextCitation, TextType, ThinkingType, ToolUseType,
+    BashCodeExecutionToolResultType, CodeExecutionToolResultType,
+    ContainerUploadType, RedactedThinkingType, ServerToolUseType,
+    TextCitation, TextEditorCodeExecutionToolResultType, TextType,
+    ThinkingType, ToolSearchToolResultType, ToolUseType,
+    WebFetchToolResultType, WebSearchToolResultType,
+};
+use super::caller::Caller;
+use super::tool_results::{
+    BashCodeExecutionToolResultContent, CodeExecutionToolResultContent,
+    TextEditorCodeExecutionToolResultContent, ToolReferenceType,
+    ToolSearchToolResultContent, WebFetchResultType,
+    WebFetchToolResultError, WebSearchToolResultContent,
 };
 
 /// What a `user` record wraps: the API's own message params,
@@ -104,10 +115,10 @@ pub enum ContentBlockParam {
         r#type: ToolResultType,
         /// The call being answered.
         tool_use_id: String,
-        /// What the tool said: absent, bare text, or text-and-image
-        /// blocks.
+        /// What the tool said: absent, bare text, or blocks — the
+        /// five kinds a tool result may quote.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        content: Option<ToolResultContent>,
+        content: Option<ToolResultParamContent>,
         /// Whether the tool considers itself to have failed.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
@@ -117,28 +128,118 @@ pub enum ContentBlockParam {
         #[serde(default)]
         cache_control: Option<CacheControl>,
     },
-    /// A document, by bytes, text, content, or URL.
-    Document {
-        /// Always `document`.
-        r#type: DocumentType,
-        /// Where the document comes from.
-        source: DocumentSource,
-        /// Cache-control marker, if any. Optional AND nullable in
-        /// the SDK, so an absent value re-serializes as `null` rather
-        /// than dropping the key.
+    /// A server-side tool call quoted back.
+    ServerToolUse {
+        /// Always `server_tool_use`.
+        r#type: ServerToolUseType,
+        /// The call's id.
+        id: String,
+        /// Which server tool — an API-owned vocabulary, open.
+        name: String,
+        /// The arguments, whatever the tool's schema says.
+        input: serde_json::Value,
+        /// Cache-control marker, if any.
         #[serde(default)]
         cache_control: Option<CacheControl>,
-        /// Whether citations are enabled for it.
+        /// Who made the call, when a server-side tool did.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        citations: Option<CitationsConfig>,
-        /// Context about the document, kept out of the cited text.
-        /// Optional AND nullable in the SDK, like `cache_control`.
-        #[serde(default)]
-        context: Option<String>,
-        /// The document's title. Optional AND nullable, likewise.
-        #[serde(default)]
-        title: Option<String>,
+        caller: Option<Caller>,
     },
+    /// A web search's answer quoted back — the same content union
+    /// the response side carries.
+    WebSearchToolResult {
+        /// Always `web_search_tool_result`.
+        r#type: WebSearchToolResultType,
+        /// The results or the error.
+        content: WebSearchToolResultContent,
+        /// The call being answered.
+        tool_use_id: String,
+        /// Cache-control marker, if any.
+        #[serde(default)]
+        cache_control: Option<CacheControl>,
+        /// Who made the call, when a server-side tool did.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        caller: Option<Caller>,
+    },
+    /// A web fetch's answer quoted back — its document is the
+    /// REQUEST-side one, which is where this union parts from the
+    /// response side's.
+    WebFetchToolResult {
+        /// Always `web_fetch_tool_result`.
+        r#type: WebFetchToolResultType,
+        /// The document or the error.
+        content: WebFetchToolResultParamContent,
+        /// The call being answered.
+        tool_use_id: String,
+        /// Cache-control marker, if any.
+        #[serde(default)]
+        cache_control: Option<CacheControl>,
+        /// Who made the call, when a server-side tool did.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        caller: Option<Caller>,
+    },
+    /// A code execution's answer quoted back.
+    CodeExecutionToolResult {
+        /// Always `code_execution_tool_result`.
+        r#type: CodeExecutionToolResultType,
+        /// The result, its encrypted twin, or the error.
+        content: CodeExecutionToolResultContent,
+        /// The call being answered.
+        tool_use_id: String,
+        /// Cache-control marker, if any.
+        #[serde(default)]
+        cache_control: Option<CacheControl>,
+    },
+    /// A bash execution's answer quoted back.
+    BashCodeExecutionToolResult {
+        /// Always `bash_code_execution_tool_result`.
+        r#type: BashCodeExecutionToolResultType,
+        /// The result or the error.
+        content: BashCodeExecutionToolResultContent,
+        /// The call being answered.
+        tool_use_id: String,
+        /// Cache-control marker, if any.
+        #[serde(default)]
+        cache_control: Option<CacheControl>,
+    },
+    /// A text-editor execution's answer quoted back.
+    TextEditorCodeExecutionToolResult {
+        /// Always `text_editor_code_execution_tool_result`.
+        r#type: TextEditorCodeExecutionToolResultType,
+        /// One of three result shapes, or the error.
+        content: TextEditorCodeExecutionToolResultContent,
+        /// The call being answered.
+        tool_use_id: String,
+        /// Cache-control marker, if any.
+        #[serde(default)]
+        cache_control: Option<CacheControl>,
+    },
+    /// A tool search's answer quoted back.
+    ToolSearchToolResult {
+        /// Always `tool_search_tool_result`.
+        r#type: ToolSearchToolResultType,
+        /// The references found, or the error.
+        content: ToolSearchToolResultContent,
+        /// The call being answered.
+        tool_use_id: String,
+        /// Cache-control marker, if any.
+        #[serde(default)]
+        cache_control: Option<CacheControl>,
+    },
+    /// A container upload quoted back.
+    ContainerUpload {
+        /// Always `container_upload`.
+        r#type: ContainerUploadType,
+        /// The file, by id.
+        file_id: String,
+        /// Cache-control marker, if any.
+        #[serde(default)]
+        cache_control: Option<CacheControl>,
+    },
+    /// A document, by bytes, text, content, or URL.
+    Document(DocumentBlockParam),
+    /// A search result quoted in, citable.
+    SearchResult(SearchResultBlockParam),
     /// Reasoning quoted back for replay.
     Thinking {
         /// Always `thinking`.
@@ -295,7 +396,7 @@ pub enum DocumentSource {
         /// Always `content`.
         r#type: ContentType,
         /// The content itself.
-        content: ToolResultContent,
+        content: DocumentSourceContent,
     },
     /// By URL, fetched by the API.
     Url {
@@ -328,16 +429,156 @@ pub enum PlainTextMediaType {
     TextPlain,
 }
 
-/// Text-or-blocks content: what a tool result says, and what a
-/// `content`-sourced document holds — the SDK gives both the same
-/// `string | Array<text | image>` shape.
+/// What a `content`-sourced document holds: a bare string, or text
+/// and image blocks.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum ToolResultContent {
+pub enum DocumentSourceContent {
     /// The whole content as one string.
     Text(String),
     /// The content as text and image blocks.
     Blocks(Vec<TextOrImageParam>),
+}
+
+/// What a tool result says: a bare string, or blocks of the five
+/// kinds the current SDK admits there.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ToolResultParamContent {
+    /// The whole content as one string.
+    Text(String),
+    /// The content as blocks.
+    Blocks(Vec<ToolResultContentBlock>),
+}
+
+/// One block inside a tool result's content — the current SDK's
+/// five kinds.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ToolResultContentBlock {
+    /// Text.
+    Text {
+        /// Always `text`.
+        r#type: TextType,
+        /// The text itself.
+        text: String,
+        /// Cache-control marker, if any.
+        #[serde(default)]
+        cache_control: Option<CacheControl>,
+        /// Citations attached to the text, if any.
+        #[serde(default)]
+        citations: Option<Vec<TextCitation>>,
+    },
+    /// An image.
+    Image {
+        /// Always `image`.
+        r#type: ImageType,
+        /// Where the image comes from.
+        source: ImageSource,
+        /// Cache-control marker, if any.
+        #[serde(default)]
+        cache_control: Option<CacheControl>,
+    },
+    /// A search result.
+    SearchResult(SearchResultBlockParam),
+    /// A document.
+    Document(DocumentBlockParam),
+    /// A reference to a tool.
+    ToolReference(ToolReferenceBlockParam),
+}
+
+/// A request-side document, standalone — the [`ContentBlockParam`]
+/// variant's body, named so a web fetch's quoted answer and a tool
+/// result's content can carry one too.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DocumentBlockParam {
+    /// Always `document`.
+    pub r#type: DocumentType,
+    /// Where the document comes from.
+    pub source: DocumentSource,
+    /// Cache-control marker, if any. Optional AND nullable in
+    /// the SDK, so an absent value re-serializes as `null` rather
+    /// than dropping the key.
+    #[serde(default)]
+    pub cache_control: Option<CacheControl>,
+    /// Whether citations are enabled for it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub citations: Option<CitationsConfig>,
+    /// Context about the document, kept out of the cited text.
+    /// Optional AND nullable in the SDK, like `cache_control`.
+    #[serde(default)]
+    pub context: Option<String>,
+    /// The document's title. Optional AND nullable, likewise.
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
+/// A search result quoted into the conversation, citable.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SearchResultBlockParam {
+    /// Always `search_result`.
+    pub r#type: SearchResultType,
+    /// The result's content — text blocks on every wire the SDK
+    /// admits.
+    pub content: Vec<TextOrImageParam>,
+    /// Where the result came from.
+    pub source: String,
+    /// The result's title.
+    pub title: String,
+    /// Cache-control marker, if any.
+    #[serde(default)]
+    pub cache_control: Option<CacheControl>,
+    /// Whether citations are enabled for it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub citations: Option<CitationsConfig>,
+}
+
+/// The `search_result` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchResultType {
+    /// The only value.
+    #[default]
+    SearchResult,
+}
+
+/// A reference to a tool, quoted back with cache control.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ToolReferenceBlockParam {
+    /// Always `tool_reference`.
+    pub r#type: ToolReferenceType,
+    /// The tool's name.
+    pub tool_name: String,
+    /// Cache-control marker, if any.
+    #[serde(default)]
+    pub cache_control: Option<CacheControl>,
+}
+
+/// A quoted web fetch's content: the document or the error — the
+/// request side's twin of the response union, differing exactly in
+/// which document rides inside.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WebFetchToolResultParamContent {
+    /// The fetch failed.
+    Error(WebFetchToolResultError),
+    /// The fetched page.
+    Result(WebFetchBlockParam),
+}
+
+/// The fetched page, request-side: a request document and its URL.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WebFetchBlockParam {
+    /// Always `web_fetch_result`.
+    pub r#type: WebFetchResultType,
+    /// The page, as a request-side document.
+    pub content: DocumentBlockParam,
+    /// When it was fetched, when known.
+    pub retrieved_at: Option<String>,
+    /// The URL fetched.
+    pub url: String,
 }
 
 /// The narrow block union inside a [`ToolResultContent`]: text or an
