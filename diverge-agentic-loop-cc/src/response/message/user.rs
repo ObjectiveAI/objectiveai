@@ -581,9 +581,9 @@ pub struct WebFetchBlockParam {
     pub url: String,
 }
 
-/// The narrow block union inside a [`ToolResultContent`]: text or an
-/// image, with the same fields those blocks have anywhere else.
-/// Untagged with the shared literal markers.
+/// The narrow block union inside a [`DocumentSourceContent`]: text
+/// or an image, with the same fields those blocks have anywhere
+/// else. Untagged with the shared literal markers.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum TextOrImageParam {
