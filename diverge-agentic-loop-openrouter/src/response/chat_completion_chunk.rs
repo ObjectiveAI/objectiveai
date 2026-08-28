@@ -116,6 +116,9 @@ fn stamp(
         AgenticLoopChunk::Continuation(chunk) => {
             &mut chunk.meta.get_or_insert_with(Default::default).0
         }
+        AgenticLoopChunk::User(chunk) => {
+            &mut chunk.meta.get_or_insert_with(Default::default).0
+        }
     };
     map.insert("openrouter".to_string(), openrouter.clone());
 }

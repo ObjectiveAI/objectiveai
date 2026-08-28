@@ -235,13 +235,15 @@ async fn list(
 /// streamed kinds coalesce through the SDK's own [`response::push`]:
 /// the history keeps what was said, not how it was cut. Usage,
 /// notifications and continuations say nothing the conversation
-/// replays, and are not kept.
+/// replays, and are not kept; user chunks are not either, because
+/// this upstream never produces one — the queue is unwired here.
 fn accumulate(turn: &mut Vec<AgenticLoopChunk>, chunk: &AgenticLoopChunk) {
     if matches!(
         chunk,
         AgenticLoopChunk::Usage(_)
             | AgenticLoopChunk::Notification(_)
             | AgenticLoopChunk::Continuation(_)
+            | AgenticLoopChunk::User(_)
     ) {
         return;
     }
@@ -274,6 +276,9 @@ fn strip(chunk: &mut AgenticLoopChunk) {
         }
         AgenticLoopChunk::ToolResponse(chunk) => {
             chunk.inner.meta = None;
+        }
+        AgenticLoopChunk::User(chunk) => {
+            chunk.meta = None;
         }
         AgenticLoopChunk::Usage(chunk) => {
             chunk.meta = None;

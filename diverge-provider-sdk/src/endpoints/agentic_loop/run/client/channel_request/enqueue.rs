@@ -1,6 +1,5 @@
 //! A message for the running conversation's queue.
 
-use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
 
@@ -15,14 +14,13 @@ use crate::encode::{Encode, Writer};
 /// next tool results, or opening the next turn when the assistant has
 /// already finished. Nothing about this interrupts anything, ever.
 ///
-/// # The content is the prompt's vocabulary
+/// # The content is a string
 ///
-/// The same [`ContentBlock`]s the run request's
-/// [`prompt`](super::super::request::Frame::prompt) carries — a
-/// message is a prompt that arrived late, and giving it a second
-/// vocabulary would be two ways to say the same thing. What a given
-/// upstream can accept of it is the upstream's business, exactly as
-/// with the prompt.
+/// Plain text, deliberately narrower than the run request's
+/// content-block prompt: a mid-run steer is text. The
+/// [`user`](crate::endpoints::agentic_loop::run::server::response::UserChunk)
+/// chunk that marks this message's delivery carries the same string
+/// back, verbatim, at the position it landed.
 ///
 /// # The answer says what became of it
 ///
@@ -33,8 +31,8 @@ use crate::encode::{Encode, Writer};
 /// nothing — the fate is the answer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Enqueue {
-    /// The message, in the prompt's own vocabulary.
-    pub message: Vec<ContentBlock>,
+    /// The message's text.
+    pub prompt: String,
 }
 
 /// Its JSON, and nothing in front of it. The tag that says which

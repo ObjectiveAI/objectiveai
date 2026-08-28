@@ -175,6 +175,7 @@ impl AssistantMessage {
                 append(&mut self.refusal, chunk.inner.text);
             }
             AgenticLoopChunk::ToolResponse(_)
+            | AgenticLoopChunk::User(_)
             | AgenticLoopChunk::Usage(_)
             | AgenticLoopChunk::Notification(_)
             | AgenticLoopChunk::Continuation(_) => {

@@ -24,6 +24,7 @@ mod notification_chunk;
 mod logprobs;
 mod tool_response_chunk;
 mod usage_chunk;
+mod user_chunk;
 
 pub use assistant_audio_content_chunk::*;
 pub use assistant_image_content_chunk::*;
@@ -39,3 +40,4 @@ pub use notification_chunk::*;
 pub use logprobs::*;
 pub use tool_response_chunk::*;
 pub use usage_chunk::*;
+pub use user_chunk::*;

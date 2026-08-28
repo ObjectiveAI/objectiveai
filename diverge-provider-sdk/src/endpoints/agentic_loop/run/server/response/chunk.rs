@@ -7,7 +7,7 @@ use super::{
     AssistantReasoningChunk, AssistantRefusalChunk,
     AssistantTextContentChunk, AssistantToolCallChunk, ContinuationChunk,
     NotificationChunk,
-    ToolResponseChunk, UsageChunk,
+    ToolResponseChunk, UsageChunk, UserChunk,
 };
 
 /// One chunk of a streaming agentic loop.
@@ -43,6 +43,9 @@ pub enum AgenticLoopChunk {
     AssistantRefusal(AssistantRefusalChunk),
     /// A tool's result. See [`ToolResponseChunk`].
     ToolResponse(ToolResponseChunk),
+    /// An enqueued message entering the conversation. See
+    /// [`UserChunk`].
+    User(UserChunk),
     /// Token usage so far. See [`UsageChunk`].
     Usage(UsageChunk),
     /// Something about the run itself. See [`NotificationChunk`].
