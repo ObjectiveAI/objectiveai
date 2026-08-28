@@ -14,9 +14,11 @@ use super::config::PermissionUpdate;
 /// `agent_type` before a variant that requires them could see them,
 /// so the intersection is spelled per variant, requiredness and all.
 ///
-/// The `tool_input`/`tool_response` fields stay
-/// [`serde_json::Value`]: the source types them `unknown`, because
-/// their shape belongs to whichever tool is involved.
+/// The `tool_input`/`tool_response` fields are
+/// `Option<serde_json::Value>`: the source types them bare
+/// `z.unknown()`, which is a shape nobody promises AND a key nobody
+/// requires — a zod object with an `unknown` field accepts its
+/// absence, so this port does too.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "hook_event_name")]
 pub enum HookInput {
@@ -39,8 +41,10 @@ pub enum HookInput {
         agent_type: Option<String>,
         /// The tool about to run.
         tool_name: String,
-        /// Its input, whatever the tool says it is.
-        tool_input: serde_json::Value,
+        /// Its input, whatever the tool says it is. Optional the
+        /// way every bare `z.unknown()` is: the key may be absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tool_input: Option<serde_json::Value>,
         /// The call's id.
         tool_use_id: String,
     },
@@ -63,10 +67,13 @@ pub enum HookInput {
         agent_type: Option<String>,
         /// The tool that ran.
         tool_name: String,
-        /// Its input.
-        tool_input: serde_json::Value,
-        /// What it answered.
-        tool_response: serde_json::Value,
+        /// Its input. Optional the way every bare `z.unknown()` is.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tool_input: Option<serde_json::Value>,
+        /// What it answered. Optional the way every bare
+        /// `z.unknown()` is.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tool_response: Option<serde_json::Value>,
         /// The call's id.
         tool_use_id: String,
     },
@@ -89,8 +96,9 @@ pub enum HookInput {
         agent_type: Option<String>,
         /// The tool that failed.
         tool_name: String,
-        /// Its input.
-        tool_input: serde_json::Value,
+        /// Its input. Optional the way every bare `z.unknown()` is.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tool_input: Option<serde_json::Value>,
         /// The call's id.
         tool_use_id: String,
         /// What went wrong.
@@ -118,8 +126,9 @@ pub enum HookInput {
         agent_type: Option<String>,
         /// The tool that was refused.
         tool_name: String,
-        /// Its input.
-        tool_input: serde_json::Value,
+        /// Its input. Optional the way every bare `z.unknown()` is.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tool_input: Option<serde_json::Value>,
         /// The call's id.
         tool_use_id: String,
         /// Why it was refused.
@@ -366,8 +375,9 @@ pub enum HookInput {
         agent_type: Option<String>,
         /// The tool asking.
         tool_name: String,
-        /// Its input.
-        tool_input: serde_json::Value,
+        /// Its input. Optional the way every bare `z.unknown()` is.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tool_input: Option<serde_json::Value>,
         /// Rules that would allow it, ready to apply.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         permission_suggestions: Option<Vec<PermissionUpdate>>,

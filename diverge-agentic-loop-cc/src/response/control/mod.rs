@@ -171,8 +171,11 @@ pub enum ControlRequestInner {
     McpMessage {
         /// The server.
         server_name: String,
-        /// The message — `unknown` in the source's own schema.
-        message: serde_json::Value,
+        /// The message — `unknown` in the source's own schema, and
+        /// optional the way every bare `z.unknown()` is: the key may
+        /// be absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<serde_json::Value>,
     },
     /// Rewind file changes to a user message.
     RewindFiles {
