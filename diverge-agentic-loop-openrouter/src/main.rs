@@ -7,7 +7,10 @@
 //! stream, each event one chunk of the response vocabulary — the
 //! turns behind it run by [`r#loop`](r#loop::r#loop). The agent's
 //! tool calls go out as an MCP client against the in-container proxy
-//! on port 8081.
+//! on port 8081. Beside the run, the queue's two verbs: `POST
+//! /enqueue` and `POST /dequeue`, per the SDK's
+//! `agentic_loop_container` module — the caller's way into the
+//! conversation already running.
 
 mod continuation;
 mod fetch;
@@ -36,6 +39,7 @@ use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::Notifi
 use futures_util::{Stream, StreamExt as _};
 
 use crate::continuation::Continuation;
+use crate::queue::{Fate, QUEUE};
 
 /// The loop port of the Container section of the provider
 /// specification: where the server POSTs the request in.
@@ -65,7 +69,10 @@ fn main() {
 }
 
 async fn run() {
-    let app = axum::Router::new().route("/", axum::routing::post(serve));
+    let app = axum::Router::new()
+        .route("/", axum::routing::post(serve))
+        .route("/enqueue", axum::routing::post(enqueue))
+        .route("/dequeue", axum::routing::post(dequeue));
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", PORT))
         .await
@@ -115,6 +122,10 @@ async fn serve(
     }
 
     let Agent::Openrouter(agent) = request.agent else {
+        // The container is spent and no run is coming: the queue
+        // closes, and pending or future enqueues are missed
+        // honestly instead of waiting forever. Likewise below.
+        QUEUE.close().await;
         return Err((
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({
@@ -127,6 +138,7 @@ async fn serve(
     let api_key = match std::env::var("OPENROUTER_API_KEY") {
         Ok(api_key) => api_key,
         Err(_) => {
+            QUEUE.close().await;
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({
@@ -145,6 +157,7 @@ async fn serve(
     {
         Ok(continuation) => continuation,
         Err(error) => {
+            QUEUE.close().await;
             return Err((
                 StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({
@@ -161,6 +174,7 @@ async fn serve(
         {
             Ok(chunks) => chunks,
             Err(error) => {
+                QUEUE.close().await;
                 return Err((
                     StatusCode::from_u16(error.status().as_u16())
                         .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -186,4 +200,64 @@ async fn serve(
         };
         Event::default().json_data(&chunk)
     })))
+}
+
+/// A message for the running conversation's queue.
+///
+/// The response IS the fate, and it arrives when the fate is known —
+/// taken into the conversation, withdrawn by a dequeue, or outlived
+/// by the run. That can be long after the ask; nothing here times
+/// anything out. The one failure with no fate to report — the fate
+/// channel dying, which the loop's close guard exists to prevent —
+/// answers as HTTP does, with a status.
+async fn enqueue(
+    Json(request): Json<agentic_loop_container::enqueue::Request>,
+) -> Result<
+    Json<agentic_loop_container::enqueue::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    let fate = QUEUE.enqueue(request.prompt).await;
+    match fate.await {
+        Ok(Fate::Delivered) => {
+            Ok(Json(agentic_loop_container::enqueue::Response::Delivered {
+                r#type: Default::default(),
+            }))
+        }
+        Ok(Fate::Dequeued) => {
+            Ok(Json(agentic_loop_container::enqueue::Response::Dequeued {
+                r#type: Default::default(),
+            }))
+        }
+        Ok(Fate::Missed) => {
+            Ok(Json(agentic_loop_container::enqueue::Response::Missed {
+                r#type: Default::default(),
+            }))
+        }
+        Err(_) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "kind": "fate_lost",
+                "error": "the message's fate was never decided",
+            })),
+        )),
+    }
+}
+
+/// Clear the running conversation's queue.
+///
+/// Naive, deliberately: whatever is pending is withdrawn — each
+/// message's own `/enqueue` answers `dequeued` — and a queue with
+/// nothing pending, closed or not, answers `empty`.
+async fn dequeue(
+    Json(_request): Json<agentic_loop_container::dequeue::Request>,
+) -> Json<agentic_loop_container::dequeue::Response> {
+    if QUEUE.dequeue().await {
+        Json(agentic_loop_container::dequeue::Response::Dequeued {
+            r#type: Default::default(),
+        })
+    } else {
+        Json(agentic_loop_container::dequeue::Response::Empty {
+            r#type: Default::default(),
+        })
+    }
 }
