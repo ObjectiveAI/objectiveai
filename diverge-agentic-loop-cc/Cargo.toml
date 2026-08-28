@@ -12,6 +12,9 @@ publish = false
 [dependencies]
 # The continuation token's outer coat: JSON, base64-ified.
 base64 = { version = "0.22.1" }
+# Response records carry order-bearing maps (per-model usage, tool
+# inputs); insertion order survives a round trip.
+indexmap = { version = "2.14.0", features = ["serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 # `fs` for writing the continuation's files; the runtime itself comes
