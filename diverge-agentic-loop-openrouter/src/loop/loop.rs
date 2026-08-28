@@ -3,7 +3,7 @@
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
-    AgenticLoopChunk, ContinuationChunk, ToolResponseChunk,
+    AgenticLoopChunk, ContinuationChunk, ToolResponseChunk, UserChunk,
 };
 use futures_util::stream::FuturesUnordered;
 use futures_util::{Stream, StreamExt as _};
@@ -14,6 +14,7 @@ use rmcp::transport::StreamableHttpClientTransport;
 use super::Error;
 use crate::continuation::{Continuation, ContinuationItem};
 use crate::fetch;
+use crate::queue::{CloseOnDrop, QUEUE};
 use crate::request::Tool;
 
 /// Where the in-container MCP proxy serves: its hard-coded port —
@@ -54,6 +55,22 @@ const MCP_PROXY: &str = "http://localhost:8081/mcp";
 /// Tools are re-listed and the request is rebuilt for every turn:
 /// the tool set is the caller's and may have changed while the tools
 /// ran.
+///
+/// # The queue is consulted at the seams
+///
+/// The same two seams Claude Code uses. After a turn's tool calls
+/// have all answered, everything pending in [`QUEUE`] is delivered —
+/// a `user` chunk per message, after the tool responses, which is
+/// the position the message actually enters the conversation — and
+/// each becomes its own `Prompt` item in the history, unjoined and
+/// unwrapped: how delivered prompts sit inside a tool message is the
+/// request builder's derivation, not the continuation's business.
+/// And when a turn ends with NO tool calls, the queue gets a last
+/// look, atomically: messages pending there open another turn, and
+/// only an empty queue — closed in the same lock hold that proved it
+/// empty — lets the continuation be minted. Every delivery answers
+/// its `/enqueue`; everything still pending when the stream ends,
+/// however it ends, is missed.
 pub async fn r#loop(
     api_key: &str,
     agent: openrouter::Agent,
@@ -90,6 +107,11 @@ pub async fn r#loop(
         let mcp = mcp;
         let mut stream = stream;
         let mut items = items;
+        // However this stream ends — continuation minted, error
+        // yielded, or dropped mid-run — the queue ends up closed and
+        // every pending message answered; the graceful path has
+        // already closed it, and this makes the other paths honest.
+        let _close = CloseOnDrop;
 
         loop {
             // Drain the turn: yield everything immediately, keep what
@@ -129,59 +151,102 @@ pub async fn r#loop(
             }
             items.extend(turn.into_iter().map(ContinuationItem::Chunk));
 
-            // No calls: the model is done, and the loop's last word
-            // is the continuation — the whole history, tokenized, so
-            // a later request can pick up exactly here.
+            // No calls: the model may be done — but the queue gets
+            // the last look, and the look is atomic: an empty queue
+            // is CLOSED in the same lock hold that proved it empty,
+            // so no enqueue can land between this decision and the
+            // end. Only then is the loop's last word the
+            // continuation — the whole history, tokenized, so a
+            // later request can pick up exactly here.
             if calls.is_empty() {
-                match Continuation(items).tokenize() {
-                    Ok(token) => {
-                        yield Ok(AgenticLoopChunk::Continuation(
-                            ContinuationChunk {
-                                r#type: Default::default(),
-                                continuation: token,
-                                meta: None,
-                            },
-                        ));
+                let taken = QUEUE.take_or_close().await;
+                if taken.is_empty() {
+                    match Continuation(items).tokenize() {
+                        Ok(token) => {
+                            yield Ok(AgenticLoopChunk::Continuation(
+                                ContinuationChunk {
+                                    r#type: Default::default(),
+                                    continuation: token,
+                                    meta: None,
+                                },
+                            ));
+                        }
+                        Err(error) => {
+                            yield Err(Error::Tokenize(error));
+                        }
                     }
-                    Err(error) => {
-                        yield Err(Error::Tokenize(error));
+                    return;
+                }
+                // Messages pending: they open another turn, each its
+                // own user chunk and its own Prompt item.
+                for message in taken {
+                    yield Ok(AgenticLoopChunk::User(UserChunk {
+                        r#type: Default::default(),
+                        prompt: message.prompt.clone(),
+                        meta: None,
+                    }));
+                    items.push(ContinuationItem::Prompt(vec![
+                        rmcp::model::ContentBlock::text(
+                            message.prompt.clone(),
+                        ),
+                    ]));
+                    message.deliver();
+                }
+            } else {
+                // Every call at once; every answer the moment it
+                // lands.
+                let mut pending = FuturesUnordered::new();
+                for (id, name, arguments) in calls {
+                    let peer = mcp.peer().clone();
+                    pending.push(async move {
+                        let mut params = CallToolRequestParams::new(name);
+                        // Arguments that never became a JSON object
+                        // are sent as none; the tool's refusal comes
+                        // back as a tool response, which is the
+                        // model's to read.
+                        params.arguments =
+                            serde_json::from_str(&arguments).ok();
+                        (id, peer.call_tool(params).await)
+                    });
+                }
+                while let Some((id, result)) = pending.next().await {
+                    match result {
+                        Ok(result) => {
+                            let chunk = ToolResponseChunk {
+                                r#type: Default::default(),
+                                id,
+                                inner: result,
+                            };
+                            let mut kept =
+                                AgenticLoopChunk::ToolResponse(chunk.clone());
+                            strip(&mut kept);
+                            items.push(ContinuationItem::Chunk(kept));
+                            yield Ok(AgenticLoopChunk::ToolResponse(chunk));
+                        }
+                        Err(error) => {
+                            yield Err(Error::CallTool(error));
+                            return;
+                        }
                     }
                 }
-                return;
-            }
 
-            // Every call at once; every answer the moment it lands.
-            let mut pending = FuturesUnordered::new();
-            for (id, name, arguments) in calls {
-                let peer = mcp.peer().clone();
-                pending.push(async move {
-                    let mut params = CallToolRequestParams::new(name);
-                    // Arguments that never became a JSON object are
-                    // sent as none; the tool's refusal comes back as
-                    // a tool response, which is the model's to read.
-                    params.arguments =
-                        serde_json::from_str(&arguments).ok();
-                    (id, peer.call_tool(params).await)
-                });
-            }
-            while let Some((id, result)) = pending.next().await {
-                match result {
-                    Ok(result) => {
-                        let chunk = ToolResponseChunk {
-                            r#type: Default::default(),
-                            id,
-                            inner: result,
-                        };
-                        let mut kept =
-                            AgenticLoopChunk::ToolResponse(chunk.clone());
-                        strip(&mut kept);
-                        items.push(ContinuationItem::Chunk(kept));
-                        yield Ok(AgenticLoopChunk::ToolResponse(chunk));
-                    }
-                    Err(error) => {
-                        yield Err(Error::CallTool(error));
-                        return;
-                    }
+                // The tool seam: everything enqueued while the tools
+                // ran is delivered here, after the answers and before
+                // the model speaks again — the position Claude Code
+                // gives it, and the position it truly enters the
+                // conversation.
+                for message in QUEUE.take().await {
+                    yield Ok(AgenticLoopChunk::User(UserChunk {
+                        r#type: Default::default(),
+                        prompt: message.prompt.clone(),
+                        meta: None,
+                    }));
+                    items.push(ContinuationItem::Prompt(vec![
+                        rmcp::model::ContentBlock::text(
+                            message.prompt.clone(),
+                        ),
+                    ]));
+                    message.deliver();
                 }
             }
 

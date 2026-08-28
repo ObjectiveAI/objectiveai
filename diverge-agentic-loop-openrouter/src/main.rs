@@ -12,6 +12,7 @@
 mod continuation;
 mod fetch;
 mod r#loop;
+mod queue;
 // The wire modules carry OpenRouter's COMPLETE shapes, which is more
 // than this container constructs or reads — a role never built, a
 // field parsed and never consumed. The derives used to count as use;
