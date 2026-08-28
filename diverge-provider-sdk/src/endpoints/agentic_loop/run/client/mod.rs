@@ -2,11 +2,12 @@
 //!
 //! [`request`] opens the scope. [`channel_response`] is what it sends
 //! back on the channels the server opens inside that scope.
+//! [`channel_request`] is the one channel it opens itself: an
+//! [`enqueue`](channel_request::Frame::Enqueue), a message for the
+//! conversation already running.
 //!
-//! There is no `response` here and no `channel_request`. A client does
-//! not answer its own request, and it opens no channels of its own in
-//! a loop — the chunks come back from the server, and the tunnels are
-//! the server's to ask for.
+//! There is no `response` here. A client does not answer its own
+//! request — the chunks come back from the server.
 //!
 //! # And, behind the `client` feature, a way to use it
 //!
@@ -23,6 +24,7 @@
 //! crate that can hold a socket — the same bargain
 //! [`client`](crate::client) itself makes.
 
+pub mod channel_request;
 pub mod channel_response;
 pub mod request;
 

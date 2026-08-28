@@ -2,12 +2,11 @@
 //!
 //! [`channel_request`] is what it opens channels of its own to ask
 //! for. [`response`] is its answer to the client, on channel `0`.
-//! Both happen inside the scope the client's request opened — a server
-//! never initiates one.
+//! [`channel_response`] answers the one channel a client opens — the
+//! enqueue, with the message's fate. All of it happens inside the
+//! scope the client's request opened — a server never initiates one.
 //!
-//! There is no `request` here and no `channel_response`. Only a client
-//! opens a scope, and in a loop only a server opens channels, so there
-//! is nothing on this side for either name to hold.
+//! There is no `request` here. Only a client opens a scope.
 //!
 //! # And, behind the `server` feature, a way to answer it
 //!
@@ -22,6 +21,7 @@
 //! the agent's tool calls out.
 
 pub mod channel_request;
+pub mod channel_response;
 pub mod response;
 
 #[cfg(feature = "server")]
