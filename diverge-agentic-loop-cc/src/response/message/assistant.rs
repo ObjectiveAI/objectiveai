@@ -34,6 +34,13 @@ pub struct Message {
     pub stop_sequence: Option<String>,
     /// What the call billed.
     pub usage: Usage,
+    /// The container the message ran against, when code execution is
+    /// in play — written as `null` by every synthetic constructor and
+    /// passed through verbatim from the API otherwise. Its shape
+    /// belongs to an API newer than the pinned SDK, so it stays
+    /// unread, like its sibling below.
+    #[serde(default)]
+    pub container: Option<serde_json::Value>,
     /// Context-management state, injected by Claude Code's own
     /// normalization as `null` when absent. Its shape belongs to an
     /// API newer than the pinned SDK, so it stays unread.
