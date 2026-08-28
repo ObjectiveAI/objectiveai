@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::message::{CacheCreation, ServerToolUse};
 use super::system::FastModeState;
 
 /// A `type: "result"` record: the turn's verdict and its bill.
@@ -183,32 +184,6 @@ pub struct Usage {
     /// The speed tier that served it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub speed: Option<String>,
-}
-
-/// Server-side tool counts inside [`Usage`].
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default,
-)]
-pub struct ServerToolUse {
-    /// Web searches run.
-    #[serde(default)]
-    pub web_search_requests: u64,
-    /// Web fetches run.
-    #[serde(default)]
-    pub web_fetch_requests: u64,
-}
-
-/// Cache writes by lifetime inside [`Usage`].
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default,
-)]
-pub struct CacheCreation {
-    /// Tokens cached for an hour.
-    #[serde(default)]
-    pub ephemeral_1h_input_tokens: u64,
-    /// Tokens cached for five minutes.
-    #[serde(default)]
-    pub ephemeral_5m_input_tokens: u64,
 }
 
 /// One model's share of a result's usage.
