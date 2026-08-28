@@ -20,8 +20,6 @@ mod response;
 // live; the allow leaves with the root handler.
 #[allow(dead_code)]
 mod spawn;
-#[allow(dead_code)]
-mod stdin;
 
 use axum::Json;
 use axum::http::StatusCode;

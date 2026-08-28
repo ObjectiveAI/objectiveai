@@ -34,7 +34,8 @@ use uuid::Uuid;
 
 use crate::continuation;
 use crate::response;
-use crate::stdin;
+
+use super::stdin;
 
 /// The running session, or `None` before the run starts and after it
 /// ends. Set by [`spawn`], taken out by whoever finds the process
