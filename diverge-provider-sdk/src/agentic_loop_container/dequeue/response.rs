@@ -2,8 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::queue::enqueue;
-use crate::shared;
+use crate::agentic_loop_container::enqueue;
 
 /// Whether the queue held anything — the clearing's summary, not a
 /// restatement of the messages: each withdrawn message's own enqueue
@@ -11,6 +10,8 @@ use crate::shared;
 ///
 /// **Untagged, discriminated by payload**, like every JSON union
 /// here: each variant carries a `type` no other variant can match.
+/// No error among the variants: a container that cannot answer says
+/// so as HTTP does, with a non-2xx status.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Response {
@@ -27,14 +28,6 @@ pub enum Response {
     Empty {
         /// Always `empty`.
         r#type: EmptyType,
-    },
-    /// The queue's state could not be determined — the container's
-    /// own failure, in the protocol's one error shape.
-    Error {
-        /// Always `error`.
-        r#type: enqueue::ErrorType,
-        /// What the container had to say.
-        error: shared::error::Error,
     },
 }
 

@@ -2,16 +2,16 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::shared;
-
 /// The message's fate — the whole of the response, arriving only
 /// when the fate is known.
 ///
 /// **Untagged, discriminated by payload**, the way this crate's JSON
 /// unions are: every variant carries a `type` field whose value no
-/// other variant can produce. The three fates carry nothing else —
-/// the fate IS the answer, and the message's content is the
-/// caller's own to remember.
+/// other variant can produce. The fates carry nothing else — the
+/// fate IS the answer, and the message's content is the caller's
+/// own to remember. There is no error among them: a container that
+/// cannot answer says so as HTTP does, with a non-2xx status, the
+/// same way the run request already fails.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Response {
@@ -38,14 +38,6 @@ pub enum Response {
     Missed {
         /// Always `missed`.
         r#type: MissedType,
-    },
-    /// The message's fate could not be determined — the container's
-    /// own failure, in the protocol's one error shape.
-    Error {
-        /// Always `error`.
-        r#type: ErrorType,
-        /// What the container had to say.
-        error: shared::error::Error,
     },
 }
 
@@ -80,15 +72,4 @@ pub enum MissedType {
     /// The only value.
     #[default]
     Missed,
-}
-
-/// The `error` literal.
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum ErrorType {
-    /// The only value.
-    #[default]
-    Error,
 }

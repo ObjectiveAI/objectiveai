@@ -1,25 +1,26 @@
-//! The queue interface every agentic-loop container serves.
+//! The HTTP surface every agentic-loop container serves.
 //!
-//! A running conversation has a queue, and the queue has exactly two
-//! verbs: [`enqueue`] puts a message in, [`dequeue`] clears whatever
-//! has not yet been taken. This module is the ONE definition of what
-//! those verbs look like over a container's HTTP surface — every
-//! agentic-loop container, whatever its upstream, serves these same
-//! shapes at the same places, which is what lets a provider relay a
-//! caller's
+//! One definition, whatever the upstream behind it: a container
+//! takes THE request ([`request::Request`]) at `POST /` on the loop
+//! port — `8080`, per the Container section of the provider
+//! specification — and answers with a server-sent event stream whose
+//! events are [`response::Response`] chunks. Beside it, the running
+//! conversation's queue has exactly two verbs: [`enqueue`] puts a
+//! message in at `POST /enqueue`, [`dequeue`] clears whatever has
+//! not yet been taken at `POST /dequeue`. Every container speaks all
+//! of it identically, which is what lets a provider relay a caller's
 //! [`Enqueue`](crate::endpoints::agentic_loop::run::client::channel_request::Frame::Enqueue)
 //! or
 //! [`Dequeue`](crate::endpoints::agentic_loop::run::client::channel_request::Frame::Dequeue)
 //! without knowing which container is behind it.
 //!
-//! # The routes
+//! # Failures are HTTP's own
 //!
-//! On the loop port — `8080`, the same one the run request POSTs to:
-//!
-//! - `POST /enqueue`, body an [`enqueue::Request`], answered with an
-//!   [`enqueue::Response`];
-//! - `POST /dequeue`, body a [`dequeue::Request`], answered with a
-//!   [`dequeue::Response`].
+//! A container that cannot serve an ask answers with a non-2xx
+//! status and a JSON body, the same form the run request already
+//! answers with — there is no error variant riding the response
+//! shapes, and no second error vocabulary. The 2xx responses say
+//! only what happened; the failures say so as failures.
 //!
 //! # The response is the fate, whenever it comes
 //!
@@ -45,3 +46,5 @@
 
 pub mod dequeue;
 pub mod enqueue;
+pub mod request;
+pub mod response;
