@@ -82,7 +82,8 @@ pub struct RateLimitInfo {
 /// All three enums here are unchecked casts of raw HTTP response
 /// headers in the source — the values come from Anthropic's servers,
 /// unvalidated, and the source's own display code is defensive about
-/// values it does not know. So each names the schema's set and
+/// values it does not know. So each names the known set — the zod's,
+/// plus the `queueing` pair the api crate's port attests — and
 /// catches anything newer in `Other`, the string preserved verbatim,
 /// the same way [`StopReason`](super::message::StopReason) does:
 /// serde goes through [`String`] both ways, which is what lets unit
@@ -94,6 +95,10 @@ pub enum RateLimitStatus {
     Allowed,
     /// Under the limit, but close.
     AllowedWarning,
+    /// Requests are being queued.
+    Queueing,
+    /// Requests are being queued, softly.
+    QueueingSoft,
     /// Over it.
     Rejected,
     /// A status newer than this crate, preserved verbatim.
@@ -105,6 +110,8 @@ impl From<String> for RateLimitStatus {
         match value.as_str() {
             "allowed" => RateLimitStatus::Allowed,
             "allowed_warning" => RateLimitStatus::AllowedWarning,
+            "queueing" => RateLimitStatus::Queueing,
+            "queueing_soft" => RateLimitStatus::QueueingSoft,
             "rejected" => RateLimitStatus::Rejected,
             _ => RateLimitStatus::Other(value),
         }
@@ -117,6 +124,10 @@ impl From<RateLimitStatus> for String {
             RateLimitStatus::Allowed => "allowed".to_string(),
             RateLimitStatus::AllowedWarning => {
                 "allowed_warning".to_string()
+            }
+            RateLimitStatus::Queueing => "queueing".to_string(),
+            RateLimitStatus::QueueingSoft => {
+                "queueing_soft".to_string()
             }
             RateLimitStatus::Rejected => "rejected".to_string(),
             RateLimitStatus::Other(value) => value,
