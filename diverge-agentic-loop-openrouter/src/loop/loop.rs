@@ -80,6 +80,13 @@ pub async fn r#loop(
     impl Stream<Item = Result<AgenticLoopChunk, Error>> + Send + Unpin + use<>,
     Error,
 > {
+    // First, before anything can fail or unwind: the guard that
+    // closes the queue however this run ends. From here on there is
+    // no exit — Err return, panic, or the stream below dying at any
+    // age, polled or not — that leaves the queue open and a pending
+    // message waiting on a loop that will never look.
+    let close = CloseOnDrop;
+
     // The MCP connection: the proxy beside us, dialled once per run
     // and owned by the generator for the life of the stream.
     let mcp = ()
@@ -103,17 +110,13 @@ pub async fn r#loop(
     items.push(ContinuationItem::Prompt(prompt));
 
     let api_key = api_key.to_string();
-    // However the stream ends — continuation minted, error yielded,
-    // dropped mid-run, or NEVER POLLED AT ALL — the queue ends up
-    // closed and every pending message answered. Constructed out
-    // here and moved in, deliberately: a generator's body runs on
-    // first poll, so a guard born inside it would not exist in the
-    // window where the stream is dropped unpolled — and that window
-    // is exactly the kind of nanosecond this guard exists for. As a
-    // captured local it dies with the stream, polled or not. The
-    // graceful path has already closed the queue by then, and every
-    // close after the first is a no-op.
-    let close = CloseOnDrop;
+    // The guard moves INTO the stream — but as a captured local, not
+    // a body-created one: a generator's body runs on first poll, so
+    // a guard born inside it would not exist in the window where the
+    // stream is dropped unpolled — and that window is exactly the
+    // kind of nanosecond it guards. Captured, it dies with the
+    // stream, polled or not; the graceful path has already closed
+    // the queue by then, and every close after the first is a no-op.
     Ok(Box::pin(async_stream::stream! {
         let _close = close;
         let mcp = mcp;
