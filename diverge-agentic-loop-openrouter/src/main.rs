@@ -24,6 +24,8 @@ mod response;
 mod serde_util;
 mod stream_once;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
@@ -39,6 +41,21 @@ use crate::continuation::Continuation;
 /// The loop port of the Container section of the provider
 /// specification: where the server POSTs the request in.
 const PORT: u16 = 8080;
+
+/// Whether the container's one request has arrived.
+///
+/// A container is one run: its queue, its MCP session, its
+/// filesystem are all one conversation's, and a second request would
+/// share all of them with the first. So the FIRST request claims the
+/// container for good — an atomic swap, so two arrivals a nanosecond
+/// apart resolve to exactly one winner — and everything after it,
+/// concurrent or later, is refused with `409` before anything else
+/// is judged: a first request that fails every later check has still
+/// spent the container, because "one request" is a fact about
+/// arrivals, not about merit. (A body that never parsed as the
+/// request type never arrived as one — the extractor's `400` comes
+/// first and claims nothing.)
+static CLAIMED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -68,6 +85,8 @@ async fn run() {
 ///
 /// The failures divide by whose they are:
 ///
+/// - A request after the first is the CALLER's error, and the first
+///   error checked: `409`, the container is [`CLAIMED`].
 /// - An agent of another kind, or a continuation token that will not
 ///   open, is the CALLER's error: `400`.
 /// - A missing `OPENROUTER_API_KEY` is the server's own
@@ -86,6 +105,16 @@ async fn serve(
     Sse<impl Stream<Item = Result<Event, axum::Error>>>,
     (StatusCode, Json<serde_json::Value>),
 > {
+    if CLAIMED.swap(true, Ordering::SeqCst) {
+        return Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "kind": "claimed",
+                "error": "this container serves one run, and it has already begun",
+            })),
+        ));
+    }
+
     let Agent::Openrouter(agent) = request.agent else {
         return Err((
             StatusCode::BAD_REQUEST,
