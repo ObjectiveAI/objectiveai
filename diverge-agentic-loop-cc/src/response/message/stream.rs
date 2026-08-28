@@ -1,6 +1,6 @@
 //! The API's raw streaming events.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::{
     Container, ContentBlock, ContextManagementResponse, DeltaUsage, Message,
@@ -12,7 +12,7 @@ use super::{
 /// blocks start and grow and stop inside it, the message's tail
 /// deltas arrive, and it stops. Untagged with literal markers, like
 /// every union here.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum StreamEvent {
     /// The message beginning: the whole [`Message`] envelope with
@@ -68,7 +68,7 @@ pub enum StreamEvent {
 
 /// The `message_start` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum MessageStartType {
@@ -79,7 +79,7 @@ pub enum MessageStartType {
 
 /// The `message_delta` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum MessageDeltaType {
@@ -90,7 +90,7 @@ pub enum MessageDeltaType {
 
 /// The `message_stop` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum MessageStopType {
@@ -101,7 +101,7 @@ pub enum MessageStopType {
 
 /// The `content_block_start` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ContentBlockStartType {
@@ -112,7 +112,7 @@ pub enum ContentBlockStartType {
 
 /// The `content_block_delta` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ContentBlockDeltaType {
@@ -123,7 +123,7 @@ pub enum ContentBlockDeltaType {
 
 /// The `content_block_stop` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ContentBlockStopType {
@@ -135,7 +135,7 @@ pub enum ContentBlockStopType {
 /// What a `message_delta` learned: the stop fields, in the same
 /// vocabulary the whole message uses — and the container, whose
 /// expiry can move mid-stream.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct MessageDelta {
     /// Why generation stopped.
     pub stop_reason: Option<StopReason>,
@@ -148,7 +148,7 @@ pub struct MessageDelta {
 /// `content_block_delta`'s growth. Five kinds in the pinned SDK —
 /// one per thing a block can accumulate. Untagged with literal
 /// markers, like every union here.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ContentBlockDelta {
     /// More text for a text block.
@@ -199,7 +199,7 @@ pub enum ContentBlockDelta {
 
 /// The `compaction_delta` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CompactionDeltaType {
@@ -210,7 +210,7 @@ pub enum CompactionDeltaType {
 
 /// The `text_delta` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TextDeltaType {
@@ -221,7 +221,7 @@ pub enum TextDeltaType {
 
 /// The `input_json_delta` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum InputJsonDeltaType {
@@ -232,7 +232,7 @@ pub enum InputJsonDeltaType {
 
 /// The `citations_delta` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CitationsDeltaType {
@@ -243,7 +243,7 @@ pub enum CitationsDeltaType {
 
 /// The `thinking_delta` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ThinkingDeltaType {
@@ -254,7 +254,7 @@ pub enum ThinkingDeltaType {
 
 /// The `signature_delta` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SignatureDeltaType {

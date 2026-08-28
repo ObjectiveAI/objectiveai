@@ -1,6 +1,6 @@
 //! The `result` records: how a turn ended.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::message::{CacheCreation, ServerToolUse};
 use super::system::FastModeState;
@@ -19,7 +19,7 @@ use super::system::FastModeState;
 /// suggestions. The authoritative turn-over signal is
 /// [`session_state_changed { state: idle }`](super::system::System::SessionStateChanged),
 /// not this record's arrival.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum Result {
     /// The turn finished.
@@ -52,10 +52,8 @@ pub enum Result {
         permission_denials: Vec<PermissionDenial>,
         /// The structured output, when one was requested — whatever
         /// shape the caller's schema gave it.
-        #[serde(skip_serializing_if = "Option::is_none")]
         structured_output: Option<serde_json::Value>,
         /// Fast mode's state, when the feature is in play.
-        #[serde(skip_serializing_if = "Option::is_none")]
         fast_mode_state: Option<FastModeState>,
         /// The record's own id.
         uuid: String,
@@ -68,7 +66,7 @@ pub enum Result {
 
 /// The `result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ResultType {
@@ -79,7 +77,7 @@ pub enum ResultType {
 
 /// The `success` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SuccessSubtype {
@@ -92,7 +90,7 @@ pub enum SuccessSubtype {
 /// reasons. One shape for the four subtypes because the source gives
 /// them one schema; which cap was hit is
 /// [`subtype`](Self::subtype)'s knowledge.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ResultError {
     /// Always `result`.
     pub r#type: ResultType,
@@ -121,7 +119,6 @@ pub struct ResultError {
     /// the error log held.
     pub errors: Vec<String>,
     /// Fast mode's state, when the feature is in play.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub fast_mode_state: Option<FastModeState>,
     /// The record's own id.
     pub uuid: String,
@@ -132,7 +129,7 @@ pub struct ResultError {
 /// The four ways a turn ends badly — the error schema's own
 /// `subtype` enum.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ResultErrorSubtype {
@@ -153,7 +150,7 @@ pub enum ResultErrorSubtype {
 /// Claude Code's additions. Only the input and output counts are
 /// demanded; everything else is an `Option`, because a shape the
 /// schema does not promise is a shape a reader should not demand.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Default)]
 pub struct Usage {
     /// Input tokens billed, not counting cache reads or writes.
     pub input_tokens: u64,
@@ -164,28 +161,22 @@ pub struct Usage {
     /// Output tokens billed.
     pub output_tokens: u64,
     /// Server-side tool spend.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub server_tool_use: Option<ServerToolUse>,
     /// The service tier that served it.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub service_tier: Option<String>,
     /// Cache writes, by lifetime.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_creation: Option<CacheCreation>,
     /// Where inference ran.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub inference_geo: Option<String>,
     /// Per-iteration detail, shape unpromised — the clone types it
     /// in a file it does not carry.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub iterations: Option<Vec<serde_json::Value>>,
     /// The speed tier that served it.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub speed: Option<String>,
 }
 
 /// One model's share of a result's usage.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 pub struct ModelUsage {
     /// Input tokens.
     #[serde(rename = "inputTokens")]
@@ -214,7 +205,7 @@ pub struct ModelUsage {
 }
 
 /// One tool call a permission rule refused.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct PermissionDenial {
     /// The tool.
     pub tool_name: String,

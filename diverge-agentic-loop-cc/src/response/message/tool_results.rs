@@ -8,7 +8,7 @@
 //! API-owned open vocabularies and ride as [`String`]s, and counters
 //! that can be absent default rather than fail.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::DocumentBlock;
 
@@ -17,7 +17,7 @@ use super::DocumentBlock;
 // ---------------------------------------------------------------
 
 /// A web search's content: results, or the error shell.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum WebSearchToolResultContent {
     /// The search failed.
@@ -27,7 +27,7 @@ pub enum WebSearchToolResultContent {
 }
 
 /// A web search's error shell.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct WebSearchToolResultError {
     /// Always `web_search_tool_result_error`.
     pub r#type: WebSearchToolResultErrorType,
@@ -37,7 +37,7 @@ pub struct WebSearchToolResultError {
 
 /// The `web_search_tool_result_error` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WebSearchToolResultErrorType {
@@ -47,7 +47,7 @@ pub enum WebSearchToolResultErrorType {
 }
 
 /// One web search hit.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct WebSearchResultBlock {
     /// Always `web_search_result`.
     pub r#type: WebSearchResultType,
@@ -63,7 +63,7 @@ pub struct WebSearchResultBlock {
 
 /// The `web_search_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WebSearchResultType {
@@ -77,7 +77,7 @@ pub enum WebSearchResultType {
 // ---------------------------------------------------------------
 
 /// A web fetch's content: the fetched document, or the error shell.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum WebFetchToolResultContent {
     /// The fetch failed.
@@ -87,7 +87,7 @@ pub enum WebFetchToolResultContent {
 }
 
 /// A web fetch's error shell.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct WebFetchToolResultError {
     /// Always `web_fetch_tool_result_error`.
     pub r#type: WebFetchToolResultErrorType,
@@ -97,7 +97,7 @@ pub struct WebFetchToolResultError {
 
 /// The `web_fetch_tool_result_error` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WebFetchToolResultErrorType {
@@ -107,7 +107,7 @@ pub enum WebFetchToolResultErrorType {
 }
 
 /// The fetched page: a document, and where it came from.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct WebFetchBlock {
     /// Always `web_fetch_result`.
     pub r#type: WebFetchResultType,
@@ -121,7 +121,7 @@ pub struct WebFetchBlock {
 
 /// The `web_fetch_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WebFetchResultType {
@@ -136,7 +136,7 @@ pub enum WebFetchResultType {
 
 /// A code execution's content: a result, its encrypted twin, or the
 /// error shell.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum CodeExecutionToolResultContent {
     /// The execution failed to run at all.
@@ -148,7 +148,7 @@ pub enum CodeExecutionToolResultContent {
 }
 
 /// A code execution's error shell.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct CodeExecutionToolResultError {
     /// Always `code_execution_tool_result_error`.
     pub r#type: CodeExecutionToolResultErrorType,
@@ -158,7 +158,7 @@ pub struct CodeExecutionToolResultError {
 
 /// The `code_execution_tool_result_error` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CodeExecutionToolResultErrorType {
@@ -168,7 +168,7 @@ pub enum CodeExecutionToolResultErrorType {
 }
 
 /// What a code execution produced.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct CodeExecutionResultBlock {
     /// Always `code_execution_result`.
     pub r#type: CodeExecutionResultType,
@@ -184,7 +184,7 @@ pub struct CodeExecutionResultBlock {
 
 /// The `code_execution_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CodeExecutionResultType {
@@ -194,7 +194,7 @@ pub enum CodeExecutionResultType {
 }
 
 /// What a code execution produced, stdout withheld.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct EncryptedCodeExecutionResultBlock {
     /// Always `encrypted_code_execution_result`.
     pub r#type: EncryptedCodeExecutionResultType,
@@ -210,7 +210,7 @@ pub struct EncryptedCodeExecutionResultBlock {
 
 /// The `encrypted_code_execution_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum EncryptedCodeExecutionResultType {
@@ -220,7 +220,7 @@ pub enum EncryptedCodeExecutionResultType {
 }
 
 /// One file a code execution produced.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct CodeExecutionOutputBlock {
     /// Always `code_execution_output`.
     pub r#type: CodeExecutionOutputType,
@@ -230,7 +230,7 @@ pub struct CodeExecutionOutputBlock {
 
 /// The `code_execution_output` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CodeExecutionOutputType {
@@ -244,7 +244,7 @@ pub enum CodeExecutionOutputType {
 // ---------------------------------------------------------------
 
 /// A bash execution's content: a result, or the error shell.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum BashCodeExecutionToolResultContent {
     /// The execution failed to run at all.
@@ -254,7 +254,7 @@ pub enum BashCodeExecutionToolResultContent {
 }
 
 /// A bash execution's error shell.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct BashCodeExecutionToolResultError {
     /// Always `bash_code_execution_tool_result_error`.
     pub r#type: BashCodeExecutionToolResultErrorType,
@@ -264,7 +264,7 @@ pub struct BashCodeExecutionToolResultError {
 
 /// The `bash_code_execution_tool_result_error` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum BashCodeExecutionToolResultErrorType {
@@ -274,7 +274,7 @@ pub enum BashCodeExecutionToolResultErrorType {
 }
 
 /// What a bash execution produced.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct BashCodeExecutionResultBlock {
     /// Always `bash_code_execution_result`.
     pub r#type: BashCodeExecutionResultType,
@@ -290,7 +290,7 @@ pub struct BashCodeExecutionResultBlock {
 
 /// The `bash_code_execution_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum BashCodeExecutionResultType {
@@ -300,7 +300,7 @@ pub enum BashCodeExecutionResultType {
 }
 
 /// One file a bash execution produced.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct BashCodeExecutionOutputBlock {
     /// Always `bash_code_execution_output`.
     pub r#type: BashCodeExecutionOutputType,
@@ -310,7 +310,7 @@ pub struct BashCodeExecutionOutputBlock {
 
 /// The `bash_code_execution_output` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum BashCodeExecutionOutputType {
@@ -325,7 +325,7 @@ pub enum BashCodeExecutionOutputType {
 
 /// A text-editor execution's content: one of three result shapes,
 /// or the error shell.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum TextEditorCodeExecutionToolResultContent {
     /// The operation failed.
@@ -339,7 +339,7 @@ pub enum TextEditorCodeExecutionToolResultContent {
 }
 
 /// A text-editor execution's error shell — the one with a message.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct TextEditorCodeExecutionToolResultError {
     /// Always `text_editor_code_execution_tool_result_error`.
     pub r#type: TextEditorCodeExecutionToolResultErrorType,
@@ -351,7 +351,7 @@ pub struct TextEditorCodeExecutionToolResultError {
 
 /// The `text_editor_code_execution_tool_result_error` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TextEditorCodeExecutionToolResultErrorType {
@@ -361,7 +361,7 @@ pub enum TextEditorCodeExecutionToolResultErrorType {
 }
 
 /// A view of a file.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct TextEditorCodeExecutionViewResultBlock {
     /// Always `text_editor_code_execution_view_result`.
     pub r#type: TextEditorCodeExecutionViewResultType,
@@ -379,7 +379,7 @@ pub struct TextEditorCodeExecutionViewResultBlock {
 
 /// The `text_editor_code_execution_view_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TextEditorCodeExecutionViewResultType {
@@ -389,7 +389,7 @@ pub enum TextEditorCodeExecutionViewResultType {
 }
 
 /// A file created — or replaced, which the flag says.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct TextEditorCodeExecutionCreateResultBlock {
     /// Always `text_editor_code_execution_create_result`.
     pub r#type: TextEditorCodeExecutionCreateResultType,
@@ -399,7 +399,7 @@ pub struct TextEditorCodeExecutionCreateResultBlock {
 
 /// The `text_editor_code_execution_create_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TextEditorCodeExecutionCreateResultType {
@@ -409,7 +409,7 @@ pub enum TextEditorCodeExecutionCreateResultType {
 }
 
 /// A string replacement, and where it landed.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct TextEditorCodeExecutionStrReplaceResultBlock {
     /// Always `text_editor_code_execution_str_replace_result`.
     pub r#type: TextEditorCodeExecutionStrReplaceResultType,
@@ -427,7 +427,7 @@ pub struct TextEditorCodeExecutionStrReplaceResultBlock {
 
 /// The `text_editor_code_execution_str_replace_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TextEditorCodeExecutionStrReplaceResultType {
@@ -441,7 +441,7 @@ pub enum TextEditorCodeExecutionStrReplaceResultType {
 // ---------------------------------------------------------------
 
 /// A tool search's content: references found, or the error shell.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ToolSearchToolResultContent {
     /// The search failed.
@@ -451,7 +451,7 @@ pub enum ToolSearchToolResultContent {
 }
 
 /// A tool search's error shell.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct ToolSearchToolResultError {
     /// Always `tool_search_tool_result_error`.
     pub r#type: ToolSearchToolResultErrorType,
@@ -463,7 +463,7 @@ pub struct ToolSearchToolResultError {
 
 /// The `tool_search_tool_result_error` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ToolSearchToolResultErrorType {
@@ -473,7 +473,7 @@ pub enum ToolSearchToolResultErrorType {
 }
 
 /// What a tool search found: references to tools.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct ToolSearchToolSearchResultBlock {
     /// Always `tool_search_tool_search_result`.
     pub r#type: ToolSearchToolSearchResultType,
@@ -483,7 +483,7 @@ pub struct ToolSearchToolSearchResultBlock {
 
 /// The `tool_search_tool_search_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ToolSearchToolSearchResultType {
@@ -493,7 +493,7 @@ pub enum ToolSearchToolSearchResultType {
 }
 
 /// A reference to a tool, by name.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct ToolReferenceBlock {
     /// Always `tool_reference`.
     pub r#type: ToolReferenceType,
@@ -503,7 +503,7 @@ pub struct ToolReferenceBlock {
 
 /// The `tool_reference` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ToolReferenceType {

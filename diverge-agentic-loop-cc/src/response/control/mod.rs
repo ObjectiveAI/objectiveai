@@ -24,7 +24,7 @@
 pub mod config;
 pub mod hook_input;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::system::PermissionMode;
 use config::{
@@ -35,7 +35,7 @@ use hook_input::HookInput;
 
 /// A `type: "control_request"` record: one ask, to be answered by a
 /// `control_response` quoting its [`request_id`](Self::request_id).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ControlRequest {
     /// Always `control_request`.
     pub r#type: ControlRequestType,
@@ -48,7 +48,7 @@ pub struct ControlRequest {
 /// What a control request asks — the source's twenty-one subtypes,
 /// untagged, each variant carrying its `subtype` literal as a marker
 /// field so the object is self-describing wherever it travels.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ControlRequestInner {
     /// Stop the running turn.
@@ -66,27 +66,20 @@ pub enum ControlRequestInner {
         /// What it would run with.
         input: indexmap::IndexMap<String, serde_json::Value>,
         /// Permission rules that would allow it, ready to apply.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_suggestions: Option<Vec<PermissionUpdate>>,
         /// The path a rule blocked, when one did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         blocked_path: Option<String>,
         /// Why the decision is being asked.
-        #[serde(skip_serializing_if = "Option::is_none")]
         decision_reason: Option<String>,
         /// A title for the prompt.
-        #[serde(skip_serializing_if = "Option::is_none")]
         title: Option<String>,
         /// A display name for the tool.
-        #[serde(skip_serializing_if = "Option::is_none")]
         display_name: Option<String>,
         /// The call awaiting the verdict.
         tool_use_id: String,
         /// The agent asking, when a subagent is.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// What the call would do, in words.
-        #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
     },
     /// Configure the SDK session.
@@ -94,47 +87,39 @@ pub enum ControlRequestInner {
         /// Always `initialize`.
         subtype: InitializeSubtype,
         /// Hook registrations by event.
-        #[serde(skip_serializing_if = "Option::is_none")]
         hooks: Option<
             indexmap::IndexMap<HookEvent, Vec<HookCallbackMatcher>>,
         >,
         /// SDK-hosted MCP servers, by name.
         #[serde(
-            rename = "sdkMcpServers",
-            skip_serializing_if = "Option::is_none"
+            rename = "sdkMcpServers"
         )]
         sdk_mcp_servers: Option<Vec<String>>,
         /// A JSON schema for structured output.
         #[serde(
-            rename = "jsonSchema",
-            skip_serializing_if = "Option::is_none"
+            rename = "jsonSchema"
         )]
         json_schema: Option<indexmap::IndexMap<String, serde_json::Value>>,
         /// A replacement system prompt.
         #[serde(
-            rename = "systemPrompt",
-            skip_serializing_if = "Option::is_none"
+            rename = "systemPrompt"
         )]
         system_prompt: Option<String>,
         /// An addition to the system prompt.
         #[serde(
-            rename = "appendSystemPrompt",
-            skip_serializing_if = "Option::is_none"
+            rename = "appendSystemPrompt"
         )]
         append_system_prompt: Option<String>,
         /// Agent definitions by name.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agents: Option<indexmap::IndexMap<String, AgentDefinition>>,
         /// Whether to emit prompt suggestions.
         #[serde(
-            rename = "promptSuggestions",
-            skip_serializing_if = "Option::is_none"
+            rename = "promptSuggestions"
         )]
         prompt_suggestions: Option<bool>,
         /// Whether to emit agent progress summaries.
         #[serde(
-            rename = "agentProgressSummaries",
-            skip_serializing_if = "Option::is_none"
+            rename = "agentProgressSummaries"
         )]
         agent_progress_summaries: Option<bool>,
     },
@@ -145,7 +130,6 @@ pub enum ControlRequestInner {
         /// The new mode.
         mode: PermissionMode,
         /// Internal remote-session marker.
-        #[serde(skip_serializing_if = "Option::is_none")]
         ultraplan: Option<bool>,
     },
     /// Change the model.
@@ -153,7 +137,6 @@ pub enum ControlRequestInner {
         /// Always `set_model`.
         subtype: SetModelSubtype,
         /// The new model; absent means the default.
-        #[serde(skip_serializing_if = "Option::is_none")]
         model: Option<String>,
     },
     /// Change the thinking budget.
@@ -182,7 +165,6 @@ pub enum ControlRequestInner {
         /// The hook's input, typed per lifecycle event.
         input: HookInput,
         /// The tool call involved, when one is.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_use_id: Option<String>,
     },
     /// Relay a JSON-RPC message to an MCP server.
@@ -194,7 +176,6 @@ pub enum ControlRequestInner {
         /// The message — `unknown` in the source's own schema, and
         /// optional the way every bare `z.unknown()` is: the key may
         /// be absent.
-        #[serde(skip_serializing_if = "Option::is_none")]
         message: Option<serde_json::Value>,
     },
     /// Rewind file changes to a user message.
@@ -204,7 +185,6 @@ pub enum ControlRequestInner {
         /// The message to rewind to.
         user_message_id: String,
         /// Whether to only report what would change.
-        #[serde(skip_serializing_if = "Option::is_none")]
         dry_run: Option<bool>,
     },
     /// Drop a queued async message.
@@ -281,16 +261,12 @@ pub enum ControlRequestInner {
         /// What it wants to say.
         message: String,
         /// Form or URL mode.
-        #[serde(skip_serializing_if = "Option::is_none")]
         mode: Option<ElicitationMode>,
         /// The URL, in URL mode.
-        #[serde(skip_serializing_if = "Option::is_none")]
         url: Option<String>,
         /// The elicitation's id.
-        #[serde(skip_serializing_if = "Option::is_none")]
         elicitation_id: Option<String>,
         /// The schema the answer should satisfy.
-        #[serde(skip_serializing_if = "Option::is_none")]
         requested_schema:
             Option<indexmap::IndexMap<String, serde_json::Value>>,
     },
@@ -298,7 +274,7 @@ pub enum ControlRequestInner {
 
 /// An elicitation's mode.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ElicitationMode {
@@ -310,7 +286,7 @@ pub enum ElicitationMode {
 
 /// A `type: "control_response"` record: the answer to a control
 /// request, either way.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ControlResponse {
     /// Always `control_response`.
     pub r#type: ControlResponseType,
@@ -320,7 +296,7 @@ pub struct ControlResponse {
 
 /// A control response's body — two arms, untagged, each carrying
 /// its `subtype` literal as a marker field.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ControlResponseInner {
     /// The request succeeded.
@@ -331,7 +307,6 @@ pub enum ControlResponseInner {
         request_id: String,
         /// The response body, shaped per request subtype — a record
         /// the source types per subtype and wraps as a plain map.
-        #[serde(skip_serializing_if = "Option::is_none")]
         response: Option<indexmap::IndexMap<String, serde_json::Value>>,
     },
     /// The request failed.
@@ -343,14 +318,13 @@ pub enum ControlResponseInner {
         /// What went wrong.
         error: String,
         /// Permission asks still open when the failure happened.
-        #[serde(skip_serializing_if = "Option::is_none")]
         pending_permission_requests: Option<Vec<ControlRequest>>,
     },
 }
 
 /// A `type: "control_cancel_request"` record: an open control
 /// request, withdrawn.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct ControlCancelRequest {
     /// Always `control_cancel_request`.
     pub r#type: ControlCancelRequestType,
@@ -360,7 +334,7 @@ pub struct ControlCancelRequest {
 
 /// The `control_request` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ControlRequestType {
@@ -371,7 +345,7 @@ pub enum ControlRequestType {
 
 /// The `control_response` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ControlResponseType {
@@ -382,7 +356,7 @@ pub enum ControlResponseType {
 
 /// The `control_cancel_request` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ControlCancelRequestType {
@@ -393,7 +367,7 @@ pub enum ControlCancelRequestType {
 
 /// The `can_use_tool` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CanUseToolSubtype {
@@ -404,7 +378,7 @@ pub enum CanUseToolSubtype {
 
 /// The `initialize` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum InitializeSubtype {
@@ -415,7 +389,7 @@ pub enum InitializeSubtype {
 
 /// The `set_permission_mode` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SetPermissionModeSubtype {
@@ -426,7 +400,7 @@ pub enum SetPermissionModeSubtype {
 
 /// The `set_model` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SetModelSubtype {
@@ -437,7 +411,7 @@ pub enum SetModelSubtype {
 
 /// The `set_max_thinking_tokens` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SetMaxThinkingTokensSubtype {
@@ -448,7 +422,7 @@ pub enum SetMaxThinkingTokensSubtype {
 
 /// The `hook_callback` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum HookCallbackSubtype {
@@ -459,7 +433,7 @@ pub enum HookCallbackSubtype {
 
 /// The `mcp_message` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum McpMessageSubtype {
@@ -470,7 +444,7 @@ pub enum McpMessageSubtype {
 
 /// The `rewind_files` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RewindFilesSubtype {
@@ -481,7 +455,7 @@ pub enum RewindFilesSubtype {
 
 /// The `cancel_async_message` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CancelAsyncMessageSubtype {
@@ -492,7 +466,7 @@ pub enum CancelAsyncMessageSubtype {
 
 /// The `seed_read_state` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SeedReadStateSubtype {
@@ -503,7 +477,7 @@ pub enum SeedReadStateSubtype {
 
 /// The `mcp_set_servers` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum McpSetServersSubtype {
@@ -514,7 +488,7 @@ pub enum McpSetServersSubtype {
 
 /// The `mcp_reconnect` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum McpReconnectSubtype {
@@ -525,7 +499,7 @@ pub enum McpReconnectSubtype {
 
 /// The `mcp_toggle` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum McpToggleSubtype {
@@ -536,7 +510,7 @@ pub enum McpToggleSubtype {
 
 /// The `stop_task` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum StopTaskSubtype {
@@ -547,7 +521,7 @@ pub enum StopTaskSubtype {
 
 /// The `apply_flag_settings` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ApplyFlagSettingsSubtype {
@@ -558,7 +532,7 @@ pub enum ApplyFlagSettingsSubtype {
 
 /// The `elicitation` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ElicitationSubtype {
@@ -569,7 +543,7 @@ pub enum ElicitationSubtype {
 
 /// The `interrupt` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum InterruptSubtype {
@@ -580,7 +554,7 @@ pub enum InterruptSubtype {
 
 /// The `mcp_status` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum McpStatusSubtype {
@@ -591,7 +565,7 @@ pub enum McpStatusSubtype {
 
 /// The `get_context_usage` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum GetContextUsageSubtype {
@@ -602,7 +576,7 @@ pub enum GetContextUsageSubtype {
 
 /// The `reload_plugins` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ReloadPluginsSubtype {
@@ -613,7 +587,7 @@ pub enum ReloadPluginsSubtype {
 
 /// The `get_settings` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum GetSettingsSubtype {
@@ -624,7 +598,7 @@ pub enum GetSettingsSubtype {
 
 /// The `success` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SuccessSubtype {
@@ -635,7 +609,7 @@ pub enum SuccessSubtype {
 
 /// The `error` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorSubtype {

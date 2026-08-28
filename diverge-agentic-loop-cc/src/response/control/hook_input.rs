@@ -1,6 +1,6 @@
 //! What a hook callback is handed: one input per lifecycle event.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::super::assistant::AssistantMessageError;
 use super::config::PermissionUpdate;
@@ -20,7 +20,7 @@ use super::config::PermissionUpdate;
 /// `z.unknown()`, which is a shape nobody promises AND a key nobody
 /// requires — a zod object with an `unknown` field accepts its
 /// absence, so this port does too.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum HookInput {
     /// Before a tool runs.
@@ -34,19 +34,15 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The tool about to run.
         tool_name: String,
         /// Its input, whatever the tool says it is. Optional the
         /// way every bare `z.unknown()` is: the key may be absent.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_input: Option<serde_json::Value>,
         /// The call's id.
         tool_use_id: String,
@@ -62,22 +58,17 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The tool that ran.
         tool_name: String,
         /// Its input. Optional the way every bare `z.unknown()` is.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_input: Option<serde_json::Value>,
         /// What it answered. Optional the way every bare
         /// `z.unknown()` is.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_response: Option<serde_json::Value>,
         /// The call's id.
         tool_use_id: String,
@@ -93,25 +84,20 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The tool that failed.
         tool_name: String,
         /// Its input. Optional the way every bare `z.unknown()` is.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_input: Option<serde_json::Value>,
         /// The call's id.
         tool_use_id: String,
         /// What went wrong.
         error: String,
         /// Whether an interrupt is what failed it.
-        #[serde(skip_serializing_if = "Option::is_none")]
         is_interrupt: Option<bool>,
     },
     /// A permission was denied.
@@ -125,18 +111,14 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The tool that was refused.
         tool_name: String,
         /// Its input. Optional the way every bare `z.unknown()` is.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_input: Option<serde_json::Value>,
         /// The call's id.
         tool_use_id: String,
@@ -154,18 +136,14 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The notification's text.
         message: String,
         /// Its title.
-        #[serde(skip_serializing_if = "Option::is_none")]
         title: Option<String>,
         /// Its kind.
         notification_type: String,
@@ -181,13 +159,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The prompt.
         prompt: String,
@@ -203,18 +178,14 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// How it started.
         source: SessionStartSource,
         /// The model it started with.
-        #[serde(skip_serializing_if = "Option::is_none")]
         model: Option<String>,
     },
     /// A session ended.
@@ -228,13 +199,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// Why it ended.
         reason: ExitReason,
@@ -250,19 +218,15 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// Whether a stop hook is already running.
         stop_hook_active: bool,
         /// The last assistant message's text, so the hook need not
         /// parse the transcript.
-        #[serde(skip_serializing_if = "Option::is_none")]
         last_assistant_message: Option<String>,
     },
     /// The turn stopped on a failure.
@@ -276,21 +240,16 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The failure's kind, in the assistant record's vocabulary.
         error: AssistantMessageError,
         /// The failure, in words.
-        #[serde(skip_serializing_if = "Option::is_none")]
         error_details: Option<String>,
         /// The last assistant message's text.
-        #[serde(skip_serializing_if = "Option::is_none")]
         last_assistant_message: Option<String>,
     },
     /// A subagent started. The base's optional agent fields are
@@ -305,7 +264,6 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent.
         agent_id: String,
@@ -323,7 +281,6 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// Whether a stop hook is already running.
         stop_hook_active: bool,
@@ -334,7 +291,6 @@ pub enum HookInput {
         /// Its type.
         agent_type: String,
         /// Its last assistant message's text.
-        #[serde(skip_serializing_if = "Option::is_none")]
         last_assistant_message: Option<String>,
     },
     /// Before compaction.
@@ -348,13 +304,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// Who asked for it.
         trigger: CompactTrigger,
@@ -372,13 +325,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// Who asked for it.
         trigger: CompactTrigger,
@@ -396,21 +346,16 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The tool asking.
         tool_name: String,
         /// Its input. Optional the way every bare `z.unknown()` is.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_input: Option<serde_json::Value>,
         /// Rules that would allow it, ready to apply.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_suggestions: Option<Vec<PermissionUpdate>>,
     },
     /// Setup ran.
@@ -424,13 +369,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// Why it ran.
         trigger: SetupTrigger,
@@ -446,13 +388,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The teammate.
         teammate_name: String,
@@ -470,26 +409,20 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The task.
         task_id: String,
         /// Its subject.
         task_subject: String,
         /// Its description.
-        #[serde(skip_serializing_if = "Option::is_none")]
         task_description: Option<String>,
         /// The teammate involved, if any.
-        #[serde(skip_serializing_if = "Option::is_none")]
         teammate_name: Option<String>,
         /// Their team.
-        #[serde(skip_serializing_if = "Option::is_none")]
         team_name: Option<String>,
     },
     /// A task completed.
@@ -503,26 +436,20 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The task.
         task_id: String,
         /// Its subject.
         task_subject: String,
         /// Its description.
-        #[serde(skip_serializing_if = "Option::is_none")]
         task_description: Option<String>,
         /// The teammate involved, if any.
-        #[serde(skip_serializing_if = "Option::is_none")]
         teammate_name: Option<String>,
         /// Their team.
-        #[serde(skip_serializing_if = "Option::is_none")]
         team_name: Option<String>,
     },
     /// An MCP server requested user input.
@@ -536,29 +463,22 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The server eliciting.
         mcp_server_name: String,
         /// What it wants to say.
         message: String,
         /// Form or URL mode.
-        #[serde(skip_serializing_if = "Option::is_none")]
         mode: Option<super::ElicitationMode>,
         /// The URL, in URL mode.
-        #[serde(skip_serializing_if = "Option::is_none")]
         url: Option<String>,
         /// The elicitation's id.
-        #[serde(skip_serializing_if = "Option::is_none")]
         elicitation_id: Option<String>,
         /// The schema the answer should satisfy.
-        #[serde(skip_serializing_if = "Option::is_none")]
         requested_schema:
             Option<indexmap::IndexMap<String, serde_json::Value>>,
     },
@@ -573,26 +493,20 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The server that elicited.
         mcp_server_name: String,
         /// The elicitation's id.
-        #[serde(skip_serializing_if = "Option::is_none")]
         elicitation_id: Option<String>,
         /// Form or URL mode.
-        #[serde(skip_serializing_if = "Option::is_none")]
         mode: Option<super::ElicitationMode>,
         /// What the user did.
         action: ElicitationAction,
         /// What they entered.
-        #[serde(skip_serializing_if = "Option::is_none")]
         content: Option<indexmap::IndexMap<String, serde_json::Value>>,
     },
     /// Configuration changed on disk.
@@ -606,18 +520,14 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// Which settings family changed.
         source: ConfigChangeSource,
         /// The file that changed, when one did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         file_path: Option<String>,
     },
     /// Memory instructions were loaded.
@@ -631,13 +541,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The file loaded.
         file_path: String,
@@ -646,13 +553,10 @@ pub enum HookInput {
         /// Why it loaded.
         load_reason: InstructionsLoadReason,
         /// The globs that made it conditional, when any.
-        #[serde(skip_serializing_if = "Option::is_none")]
         globs: Option<Vec<String>>,
         /// The file whose access triggered the load.
-        #[serde(skip_serializing_if = "Option::is_none")]
         trigger_file_path: Option<String>,
         /// The file whose include pulled it in.
-        #[serde(skip_serializing_if = "Option::is_none")]
         parent_file_path: Option<String>,
     },
     /// A worktree was created.
@@ -666,13 +570,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The worktree's name.
         name: String,
@@ -688,13 +589,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The worktree's path.
         worktree_path: String,
@@ -710,13 +608,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// Where it was.
         old_cwd: String,
@@ -734,13 +629,10 @@ pub enum HookInput {
         /// The working directory.
         cwd: String,
         /// The permission mode in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         permission_mode: Option<String>,
         /// The subagent, when the hook fired inside one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// The agent type, inside a subagent or an `--agent` session.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
         /// The file.
         file_path: String,
@@ -751,7 +643,7 @@ pub enum HookInput {
 
 /// How a session started.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SessionStartSource {
@@ -767,7 +659,7 @@ pub enum SessionStartSource {
 
 /// Why a session ended — the source's exit reasons.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ExitReason {
@@ -787,7 +679,7 @@ pub enum ExitReason {
 
 /// Who asked for a compaction — the hooks' copy of the trigger.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CompactTrigger {
@@ -799,7 +691,7 @@ pub enum CompactTrigger {
 
 /// Why Setup ran.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SetupTrigger {
@@ -811,7 +703,7 @@ pub enum SetupTrigger {
 
 /// What the user did with an elicitation.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ElicitationAction {
@@ -825,7 +717,7 @@ pub enum ElicitationAction {
 
 /// Which settings family a ConfigChange saw move.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ConfigChangeSource {
@@ -843,7 +735,7 @@ pub enum ConfigChangeSource {
 
 /// Which memory tier an InstructionsLoaded file belongs to.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum InstructionsMemoryType {
     /// The user tier.
@@ -858,7 +750,7 @@ pub enum InstructionsMemoryType {
 
 /// Why an InstructionsLoaded file loaded.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum InstructionsLoadReason {
@@ -876,7 +768,7 @@ pub enum InstructionsLoadReason {
 
 /// What happened to a watched file.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum FileChangeEvent {
@@ -890,7 +782,7 @@ pub enum FileChangeEvent {
 
 /// The `PreToolUse` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PreToolUseEventName {
     /// The only value.
@@ -900,7 +792,7 @@ pub enum PreToolUseEventName {
 
 /// The `PostToolUse` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PostToolUseEventName {
     /// The only value.
@@ -910,7 +802,7 @@ pub enum PostToolUseEventName {
 
 /// The `PostToolUseFailure` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PostToolUseFailureEventName {
     /// The only value.
@@ -920,7 +812,7 @@ pub enum PostToolUseFailureEventName {
 
 /// The `PermissionDenied` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PermissionDeniedEventName {
     /// The only value.
@@ -930,7 +822,7 @@ pub enum PermissionDeniedEventName {
 
 /// The `Notification` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum NotificationEventName {
     /// The only value.
@@ -940,7 +832,7 @@ pub enum NotificationEventName {
 
 /// The `UserPromptSubmit` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum UserPromptSubmitEventName {
     /// The only value.
@@ -950,7 +842,7 @@ pub enum UserPromptSubmitEventName {
 
 /// The `SessionStart` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum SessionStartEventName {
     /// The only value.
@@ -960,7 +852,7 @@ pub enum SessionStartEventName {
 
 /// The `SessionEnd` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum SessionEndEventName {
     /// The only value.
@@ -970,7 +862,7 @@ pub enum SessionEndEventName {
 
 /// The `Stop` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum StopEventName {
     /// The only value.
@@ -980,7 +872,7 @@ pub enum StopEventName {
 
 /// The `StopFailure` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum StopFailureEventName {
     /// The only value.
@@ -990,7 +882,7 @@ pub enum StopFailureEventName {
 
 /// The `SubagentStart` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum SubagentStartEventName {
     /// The only value.
@@ -1000,7 +892,7 @@ pub enum SubagentStartEventName {
 
 /// The `SubagentStop` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum SubagentStopEventName {
     /// The only value.
@@ -1010,7 +902,7 @@ pub enum SubagentStopEventName {
 
 /// The `PreCompact` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PreCompactEventName {
     /// The only value.
@@ -1020,7 +912,7 @@ pub enum PreCompactEventName {
 
 /// The `PostCompact` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PostCompactEventName {
     /// The only value.
@@ -1030,7 +922,7 @@ pub enum PostCompactEventName {
 
 /// The `PermissionRequest` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PermissionRequestEventName {
     /// The only value.
@@ -1040,7 +932,7 @@ pub enum PermissionRequestEventName {
 
 /// The `Setup` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum SetupEventName {
     /// The only value.
@@ -1050,7 +942,7 @@ pub enum SetupEventName {
 
 /// The `TeammateIdle` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum TeammateIdleEventName {
     /// The only value.
@@ -1060,7 +952,7 @@ pub enum TeammateIdleEventName {
 
 /// The `TaskCreated` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum TaskCreatedEventName {
     /// The only value.
@@ -1070,7 +962,7 @@ pub enum TaskCreatedEventName {
 
 /// The `TaskCompleted` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum TaskCompletedEventName {
     /// The only value.
@@ -1080,7 +972,7 @@ pub enum TaskCompletedEventName {
 
 /// The `Elicitation` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum ElicitationEventName {
     /// The only value.
@@ -1090,7 +982,7 @@ pub enum ElicitationEventName {
 
 /// The `ElicitationResult` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum ElicitationResultEventName {
     /// The only value.
@@ -1100,7 +992,7 @@ pub enum ElicitationResultEventName {
 
 /// The `ConfigChange` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum ConfigChangeEventName {
     /// The only value.
@@ -1110,7 +1002,7 @@ pub enum ConfigChangeEventName {
 
 /// The `InstructionsLoaded` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum InstructionsLoadedEventName {
     /// The only value.
@@ -1120,7 +1012,7 @@ pub enum InstructionsLoadedEventName {
 
 /// The `WorktreeCreate` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum WorktreeCreateEventName {
     /// The only value.
@@ -1130,7 +1022,7 @@ pub enum WorktreeCreateEventName {
 
 /// The `WorktreeRemove` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum WorktreeRemoveEventName {
     /// The only value.
@@ -1140,7 +1032,7 @@ pub enum WorktreeRemoveEventName {
 
 /// The `CwdChanged` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum CwdChangedEventName {
     /// The only value.
@@ -1150,7 +1042,7 @@ pub enum CwdChangedEventName {
 
 /// The `FileChanged` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum FileChangedEventName {
     /// The only value.

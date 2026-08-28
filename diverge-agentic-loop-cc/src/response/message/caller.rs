@@ -1,6 +1,6 @@
 //! Who invoked a tool: the model directly, or a server-side tool.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// `BetaCaller`: the provenance of a tool call, discriminated by its
 /// `type` literal — `direct` for the model's own calls, or a
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// The versioned literals are the API's and will grow — a caller
 /// this crate does not know lands in [`Other`](Self::Other) with the
 /// object preserved verbatim rather than killing the block.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum Caller {
     /// The model called the tool itself.
@@ -38,7 +38,7 @@ pub enum Caller {
 
 /// The `direct` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum DirectType {
@@ -49,7 +49,7 @@ pub enum DirectType {
 
 /// The `code_execution_20250825` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum CodeExecution20250825Type {
     /// The only value.
@@ -60,7 +60,7 @@ pub enum CodeExecution20250825Type {
 
 /// The `code_execution_20260120` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum CodeExecution20260120Type {
     /// The only value.

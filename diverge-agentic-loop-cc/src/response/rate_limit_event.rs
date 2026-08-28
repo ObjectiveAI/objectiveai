@@ -1,10 +1,10 @@
 //! The `rate_limit_event` records: subscription limits moving.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// A `type: "rate_limit_event"` record, emitted when rate-limit
 /// information changes for a subscription-authenticated run.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct RateLimitEvent {
     /// Always `rate_limit_event`.
     pub r#type: RateLimitEventType,
@@ -17,53 +17,45 @@ pub struct RateLimitEvent {
 }
 
 /// Where the subscription's limits stand.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct RateLimitInfo {
     /// Whether requests pass.
     pub status: RateLimitStatus,
     /// When the limit resets, epoch seconds.
     #[serde(
-        rename = "resetsAt",
-        skip_serializing_if = "Option::is_none"
+        rename = "resetsAt"
     )]
     pub resets_at: Option<f64>,
     /// Which limit this is.
     #[serde(
-        rename = "rateLimitType",
-        skip_serializing_if = "Option::is_none"
+        rename = "rateLimitType"
     )]
     pub rate_limit_type: Option<RateLimitType>,
     /// How much of the limit is used, as a fraction.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub utilization: Option<f64>,
     /// Whether OVERAGE requests pass, when overage is in play.
     #[serde(
-        rename = "overageStatus",
-        skip_serializing_if = "Option::is_none"
+        rename = "overageStatus"
     )]
     pub overage_status: Option<RateLimitStatus>,
     /// When the overage window resets, epoch seconds.
     #[serde(
-        rename = "overageResetsAt",
-        skip_serializing_if = "Option::is_none"
+        rename = "overageResetsAt"
     )]
     pub overage_resets_at: Option<f64>,
     /// Why overage is unavailable, when it is.
     #[serde(
-        rename = "overageDisabledReason",
-        skip_serializing_if = "Option::is_none"
+        rename = "overageDisabledReason"
     )]
     pub overage_disabled_reason: Option<OverageDisabledReason>,
     /// Whether the run is currently billing overage.
     #[serde(
-        rename = "isUsingOverage",
-        skip_serializing_if = "Option::is_none"
+        rename = "isUsingOverage"
     )]
     pub is_using_overage: Option<bool>,
     /// The warning threshold that was crossed, when one was.
     #[serde(
-        rename = "surpassedThreshold",
-        skip_serializing_if = "Option::is_none"
+        rename = "surpassedThreshold"
     )]
     pub surpassed_threshold: Option<f64>,
 }
@@ -79,10 +71,10 @@ pub struct RateLimitInfo {
 /// plus the `queueing` pair the api crate's port attests — and
 /// catches anything newer in `Other`, the string preserved verbatim,
 /// the same way [`StopReason`](super::message::StopReason) does:
-/// serde goes through [`String`] both ways, which is what lets unit
-/// variants and a catch-all share one flat enum.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(from = "String", into = "String")]
+/// serde reads through [`String`], which is what lets unit variants
+/// and a catch-all share one flat enum.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
+#[serde(from = "String")]
 pub enum RateLimitStatus {
     /// Under the limit.
     Allowed,
@@ -111,22 +103,6 @@ impl From<String> for RateLimitStatus {
     }
 }
 
-impl From<RateLimitStatus> for String {
-    fn from(value: RateLimitStatus) -> Self {
-        match value {
-            RateLimitStatus::Allowed => "allowed".to_string(),
-            RateLimitStatus::AllowedWarning => {
-                "allowed_warning".to_string()
-            }
-            RateLimitStatus::Queueing => "queueing".to_string(),
-            RateLimitStatus::QueueingSoft => {
-                "queueing_soft".to_string()
-            }
-            RateLimitStatus::Rejected => "rejected".to_string(),
-            RateLimitStatus::Other(value) => value,
-        }
-    }
-}
 
 /// Which limit a [`RateLimitInfo`] describes.
 ///
@@ -135,8 +111,8 @@ impl From<RateLimitStatus> for String {
 /// "representative claim" header whose vocabulary elsewhere in the
 /// same file uses abbreviations (`5h`, `7d`) that never pass through
 /// the long-form mapping.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(from = "String", into = "String")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
+#[serde(from = "String")]
 pub enum RateLimitType {
     /// The rolling five-hour window.
     FiveHour,
@@ -165,28 +141,14 @@ impl From<String> for RateLimitType {
     }
 }
 
-impl From<RateLimitType> for String {
-    fn from(value: RateLimitType) -> Self {
-        match value {
-            RateLimitType::FiveHour => "five_hour".to_string(),
-            RateLimitType::SevenDay => "seven_day".to_string(),
-            RateLimitType::SevenDayOpus => "seven_day_opus".to_string(),
-            RateLimitType::SevenDaySonnet => {
-                "seven_day_sonnet".to_string()
-            }
-            RateLimitType::Overage => "overage".to_string(),
-            RateLimitType::Other(value) => value,
-        }
-    }
-}
 
 /// Why overage is unavailable — the schema's thirteen reasons, and
 /// the open tail [`RateLimitStatus`] explains. The schema's own
 /// `unknown` is kept as a NAMED variant: the server saying "unknown"
 /// and the server saying something this crate does not know are
 /// different facts.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(from = "String", into = "String")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
+#[serde(from = "String")]
 pub enum OverageDisabledReason {
     /// Overage was never provisioned.
     OverageNotProvisioned,
@@ -261,54 +223,10 @@ impl From<String> for OverageDisabledReason {
     }
 }
 
-impl From<OverageDisabledReason> for String {
-    fn from(value: OverageDisabledReason) -> Self {
-        match value {
-            OverageDisabledReason::OverageNotProvisioned => {
-                "overage_not_provisioned".to_string()
-            }
-            OverageDisabledReason::OrgLevelDisabled => {
-                "org_level_disabled".to_string()
-            }
-            OverageDisabledReason::OrgLevelDisabledUntil => {
-                "org_level_disabled_until".to_string()
-            }
-            OverageDisabledReason::OutOfCredits => {
-                "out_of_credits".to_string()
-            }
-            OverageDisabledReason::SeatTierLevelDisabled => {
-                "seat_tier_level_disabled".to_string()
-            }
-            OverageDisabledReason::MemberLevelDisabled => {
-                "member_level_disabled".to_string()
-            }
-            OverageDisabledReason::SeatTierZeroCreditLimit => {
-                "seat_tier_zero_credit_limit".to_string()
-            }
-            OverageDisabledReason::GroupZeroCreditLimit => {
-                "group_zero_credit_limit".to_string()
-            }
-            OverageDisabledReason::MemberZeroCreditLimit => {
-                "member_zero_credit_limit".to_string()
-            }
-            OverageDisabledReason::OrgServiceLevelDisabled => {
-                "org_service_level_disabled".to_string()
-            }
-            OverageDisabledReason::OrgServiceZeroCreditLimit => {
-                "org_service_zero_credit_limit".to_string()
-            }
-            OverageDisabledReason::NoLimitsConfigured => {
-                "no_limits_configured".to_string()
-            }
-            OverageDisabledReason::Unknown => "unknown".to_string(),
-            OverageDisabledReason::Other(value) => value,
-        }
-    }
-}
 
 /// The `rate_limit_event` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RateLimitEventType {

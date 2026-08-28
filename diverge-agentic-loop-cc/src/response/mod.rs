@@ -42,7 +42,7 @@ pub mod tool_progress;
 pub mod tool_use_summary;
 pub mod user;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// One line of stdout, whichever record it is — the source's
 /// `StdoutMessage` union, whole.
@@ -54,7 +54,7 @@ use serde::{Deserialize, Serialize};
 /// only the right variant can accept a given literal. What a tagged
 /// parent would have hoisted out of the child stays on the child,
 /// which is where the source's schemas put it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum StdoutMessage {
     /// The run narrating itself; see [`system::System`] for the subtypes.

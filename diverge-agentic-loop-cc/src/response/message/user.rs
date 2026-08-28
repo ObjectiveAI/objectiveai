@@ -1,6 +1,6 @@
 //! The request-side message the `user` records replay.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::content_block::{
     BashCodeExecutionToolResultType, CodeExecutionToolResultType,
@@ -23,7 +23,7 @@ use super::tool_results::{
 /// The content vocabulary is the REQUEST one, wider than the
 /// response's four blocks: a user turn can carry images, documents,
 /// and — the case the loop lives on — tool results.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct UserMessage {
     /// Always `user`.
     pub role: UserRole,
@@ -33,7 +33,7 @@ pub struct UserMessage {
 
 /// [`UserMessage`]'s role literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum UserRole {
@@ -47,7 +47,7 @@ pub enum UserRole {
 /// normalization wraps strings into text blocks for SPLITTING, but
 /// what lands on the wire is one block per record either way, and
 /// synthetic records can still say a string.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum UserContent {
     /// The whole content as one string.
@@ -60,7 +60,7 @@ pub enum UserContent {
 /// kinds in `@anthropic-ai/sdk@0.39.0`. Untagged with literal
 /// markers, like every union here — the markers are shared with the
 /// response blocks where the literals coincide.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ContentBlockParam {
     /// Text.
@@ -69,9 +69,8 @@ pub enum ContentBlockParam {
         r#type: TextType,
         /// The text itself.
         text: String,
-        /// Cache-control marker, if any. Optional AND nullable in
-        /// the SDK, so an absent value re-serializes as `null` rather
-        /// than dropping the key.
+        /// Cache-control marker, if any — optional AND nullable in
+        /// the SDK, both spellings landing as `None`.
         cache_control: Option<CacheControl>,
         /// Citations attached to the text, if any. The param
         /// locations carry the same fields as the response ones, so
@@ -85,9 +84,8 @@ pub enum ContentBlockParam {
         r#type: ImageType,
         /// Where the image comes from.
         source: ImageSource,
-        /// Cache-control marker, if any. Optional AND nullable in
-        /// the SDK, so an absent value re-serializes as `null` rather
-        /// than dropping the key.
+        /// Cache-control marker, if any — optional AND nullable in
+        /// the SDK, both spellings landing as `None`.
         cache_control: Option<CacheControl>,
     },
     /// A tool call quoted back — a user turn can restate one.
@@ -100,9 +98,8 @@ pub enum ContentBlockParam {
         name: String,
         /// The arguments, whatever the tool says they are.
         input: serde_json::Value,
-        /// Cache-control marker, if any. Optional AND nullable in
-        /// the SDK, so an absent value re-serializes as `null` rather
-        /// than dropping the key.
+        /// Cache-control marker, if any — optional AND nullable in
+        /// the SDK, both spellings landing as `None`.
         cache_control: Option<CacheControl>,
     },
     /// A tool's answer — what the loop's tool results ride in.
@@ -113,14 +110,11 @@ pub enum ContentBlockParam {
         tool_use_id: String,
         /// What the tool said: absent, bare text, or blocks — the
         /// five kinds a tool result may quote.
-        #[serde(skip_serializing_if = "Option::is_none")]
         content: Option<ToolResultParamContent>,
         /// Whether the tool considers itself to have failed.
-        #[serde(skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
-        /// Cache-control marker, if any. Optional AND nullable in
-        /// the SDK, so an absent value re-serializes as `null` rather
-        /// than dropping the key.
+        /// Cache-control marker, if any — optional AND nullable in
+        /// the SDK, both spellings landing as `None`.
         cache_control: Option<CacheControl>,
     },
     /// A server-side tool call quoted back.
@@ -136,7 +130,6 @@ pub enum ContentBlockParam {
         /// Cache-control marker, if any.
         cache_control: Option<CacheControl>,
         /// Who made the call, when a server-side tool did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A web search's answer quoted back — the same content union
@@ -151,7 +144,6 @@ pub enum ContentBlockParam {
         /// Cache-control marker, if any.
         cache_control: Option<CacheControl>,
         /// Who made the call, when a server-side tool did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A web fetch's answer quoted back — its document is the
@@ -167,7 +159,6 @@ pub enum ContentBlockParam {
         /// Cache-control marker, if any.
         cache_control: Option<CacheControl>,
         /// Who made the call, when a server-side tool did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A code execution's answer quoted back.
@@ -247,7 +238,7 @@ pub enum ContentBlockParam {
 
 /// The `image` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ImageType {
@@ -258,7 +249,7 @@ pub enum ImageType {
 
 /// The `tool_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ToolResultType {
@@ -269,7 +260,7 @@ pub enum ToolResultType {
 
 /// The `document` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum DocumentType {
@@ -279,7 +270,7 @@ pub enum DocumentType {
 }
 
 /// Where an image's bytes come from. Untagged with literal markers.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ImageSource {
     /// Inline, base64.
@@ -302,7 +293,7 @@ pub enum ImageSource {
 
 /// The `base64` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum Base64Type {
@@ -313,7 +304,7 @@ pub enum Base64Type {
 
 /// The `url` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum UrlType {
@@ -324,7 +315,7 @@ pub enum UrlType {
 
 /// The `content` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ContentType {
@@ -335,7 +326,7 @@ pub enum ContentType {
 
 /// The image formats the API accepts inline.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum ImageMediaType {
     /// JPEG.
@@ -357,7 +348,7 @@ pub enum ImageMediaType {
 /// custom blocks, `url` is fetched. Untagged with literal markers;
 /// `text` shares the text blocks' marker because it is the same
 /// literal.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum DocumentSource {
     /// A PDF's bytes, base64.
@@ -396,7 +387,7 @@ pub enum DocumentSource {
 
 /// The one media type a base64 document can be.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PdfMediaType {
     /// The only value.
@@ -407,7 +398,7 @@ pub enum PdfMediaType {
 
 /// The one media type a plain-text document can be.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PlainTextMediaType {
     /// The only value.
@@ -418,7 +409,7 @@ pub enum PlainTextMediaType {
 
 /// What a `content`-sourced document holds: a bare string, or text
 /// and image blocks.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum DocumentSourceContent {
     /// The whole content as one string.
@@ -429,7 +420,7 @@ pub enum DocumentSourceContent {
 
 /// What a tool result says: a bare string, or blocks of the five
 /// kinds the current SDK admits there.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ToolResultParamContent {
     /// The whole content as one string.
@@ -440,7 +431,7 @@ pub enum ToolResultParamContent {
 
 /// One block inside a tool result's content — the current SDK's
 /// five kinds.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ToolResultContentBlock {
     /// Text.
@@ -474,18 +465,16 @@ pub enum ToolResultContentBlock {
 /// A request-side document, standalone — the [`ContentBlockParam`]
 /// variant's body, named so a web fetch's quoted answer and a tool
 /// result's content can carry one too.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DocumentBlockParam {
     /// Always `document`.
     pub r#type: DocumentType,
     /// Where the document comes from.
     pub source: DocumentSource,
-    /// Cache-control marker, if any. Optional AND nullable in
-    /// the SDK, so an absent value re-serializes as `null` rather
-    /// than dropping the key.
+    /// Cache-control marker, if any — optional AND nullable in
+    /// the SDK, both spellings landing as `None`.
     pub cache_control: Option<CacheControl>,
     /// Whether citations are enabled for it.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub citations: Option<CitationsConfig>,
     /// Context about the document, kept out of the cited text.
     /// Optional AND nullable in the SDK, like `cache_control`.
@@ -495,7 +484,7 @@ pub struct DocumentBlockParam {
 }
 
 /// A search result quoted into the conversation, citable.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct SearchResultBlockParam {
     /// Always `search_result`.
     pub r#type: SearchResultType,
@@ -509,13 +498,12 @@ pub struct SearchResultBlockParam {
     /// Cache-control marker, if any.
     pub cache_control: Option<CacheControl>,
     /// Whether citations are enabled for it.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub citations: Option<CitationsConfig>,
 }
 
 /// The `search_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SearchResultType {
@@ -525,7 +513,7 @@ pub enum SearchResultType {
 }
 
 /// A reference to a tool, quoted back with cache control.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ToolReferenceBlockParam {
     /// Always `tool_reference`.
     pub r#type: ToolReferenceType,
@@ -538,7 +526,7 @@ pub struct ToolReferenceBlockParam {
 /// A quoted web fetch's content: the document or the error — the
 /// request side's twin of the response union, differing exactly in
 /// which document rides inside.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum WebFetchToolResultParamContent {
     /// The fetch failed.
@@ -548,7 +536,7 @@ pub enum WebFetchToolResultParamContent {
 }
 
 /// The fetched page, request-side: a request document and its URL.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct WebFetchBlockParam {
     /// Always `web_fetch_result`.
     pub r#type: WebFetchResultType,
@@ -563,7 +551,7 @@ pub struct WebFetchBlockParam {
 /// The narrow block union inside a [`DocumentSourceContent`]: text
 /// or an image, with the same fields those blocks have anywhere
 /// else. Untagged with the shared literal markers.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum TextOrImageParam {
     /// Text.
@@ -572,9 +560,8 @@ pub enum TextOrImageParam {
         r#type: TextType,
         /// The text itself.
         text: String,
-        /// Cache-control marker, if any. Optional AND nullable in
-        /// the SDK, so an absent value re-serializes as `null` rather
-        /// than dropping the key.
+        /// Cache-control marker, if any — optional AND nullable in
+        /// the SDK, both spellings landing as `None`.
         cache_control: Option<CacheControl>,
         /// Citations attached to the text, if any. Optional AND
         /// nullable in the SDK, like `cache_control`.
@@ -586,31 +573,29 @@ pub enum TextOrImageParam {
         r#type: ImageType,
         /// Where the image comes from.
         source: ImageSource,
-        /// Cache-control marker, if any. Optional AND nullable in
-        /// the SDK, so an absent value re-serializes as `null` rather
-        /// than dropping the key.
+        /// Cache-control marker, if any — optional AND nullable in
+        /// the SDK, both spellings landing as `None`.
         cache_control: Option<CacheControl>,
     },
 }
 
 /// `CacheControlEphemeral`: the cache marker — the pinned SDK's bare
 /// `{type}` and the current SDK's `{type, ttl}` in one shape. With
-/// no [`ttl`](Self::ttl) it serializes exactly as the old form did,
-/// so both vintages of the wire read and write correctly.
+/// no [`ttl`](Self::ttl) it is exactly the old form, so both
+/// vintages of the wire read correctly.
 #[derive(
-    Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub struct CacheControl {
     /// Always `ephemeral`.
     pub r#type: CacheControlType,
     /// How long to cache for, when said.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ttl: Option<CacheControlTtl>,
 }
 
 /// The `ephemeral` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CacheControlType {
@@ -621,10 +606,10 @@ pub enum CacheControlType {
 
 /// A cache lifetime — `5m` and `1h` today, and an API-owned
 /// vocabulary, so anything newer is preserved verbatim in
-/// [`Other`](Self::Other). Serde goes through [`String`] both ways,
-/// the flat-open-enum treatment.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(from = "String", into = "String")]
+/// [`Other`](Self::Other). Serde reads it through [`String`], the
+/// flat-open-enum treatment.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
+#[serde(from = "String")]
 pub enum CacheControlTtl {
     /// Five minutes.
     FiveMinutes,
@@ -644,22 +629,12 @@ impl From<String> for CacheControlTtl {
     }
 }
 
-impl From<CacheControlTtl> for String {
-    fn from(value: CacheControlTtl) -> Self {
-        match value {
-            CacheControlTtl::FiveMinutes => "5m".to_string(),
-            CacheControlTtl::OneHour => "1h".to_string(),
-            CacheControlTtl::Other(value) => value,
-        }
-    }
-}
 
 /// `CitationsConfigParam`: whether a document's citations are on.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub struct CitationsConfig {
     /// Whether citations are enabled.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
 }

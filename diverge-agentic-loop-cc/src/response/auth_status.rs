@@ -1,10 +1,10 @@
 //! The `auth_status` records: authentication, narrated.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// A `type: "auth_status"` record, emitted only when the run was
 /// started with `--enable-auth-status`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct AuthStatus {
     /// Always `auth_status`.
     pub r#type: AuthStatusType,
@@ -14,7 +14,6 @@ pub struct AuthStatus {
     /// The flow's output lines so far.
     pub output: Vec<String>,
     /// What went wrong, when something did.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     /// The record's own id.
     pub uuid: String,
@@ -24,7 +23,7 @@ pub struct AuthStatus {
 
 /// The `auth_status` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum AuthStatusType {

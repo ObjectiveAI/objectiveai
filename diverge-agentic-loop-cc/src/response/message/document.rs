@@ -5,14 +5,14 @@
 //! Narrower than the request-side document: two sources, no URL, no
 //! custom content.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::{
     Base64Type, DocumentType, PdfMediaType, PlainTextMediaType, TextType,
 };
 
 /// A fetched document: source, title, and whether citations are on.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DocumentBlock {
     /// Always `document`.
     pub r#type: DocumentType,
@@ -26,7 +26,7 @@ pub struct DocumentBlock {
 
 /// A fetched document's source: a PDF's bytes or plain text — the
 /// response side's two, against the request side's four.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ResponseDocumentSource {
     /// A PDF's bytes, base64.
@@ -52,7 +52,7 @@ pub enum ResponseDocumentSource {
 /// Whether a fetched document's citations are on — the response
 /// side's config, whose `enabled` the API always says.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 pub struct CitationConfig {
     /// Whether citations are enabled.

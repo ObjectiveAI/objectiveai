@@ -1,6 +1,6 @@
 //! What the model produced, one block at a time.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::{
     BashCodeExecutionToolResultContent, Caller,
@@ -19,7 +19,7 @@ use super::{
 /// is self-describing wherever it travels, and only the right
 /// variant can accept a given literal. A block newer than the
 /// fifteen still fails the parse — deliberately.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ContentBlock {
     /// Text, with whatever citations support it.
@@ -44,7 +44,6 @@ pub enum ContentBlock {
         /// `unknown` in the SDK, and kept that way.
         input: serde_json::Value,
         /// Who made the call, when a server-side tool did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// The model's reasoning, with the signature that lets it be
@@ -77,7 +76,6 @@ pub enum ContentBlock {
         /// way every other tool input here is.
         input: serde_json::Value,
         /// Who made the call, when a server-side tool did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A web search's answer.
@@ -89,7 +87,6 @@ pub enum ContentBlock {
         /// The call being answered.
         tool_use_id: String,
         /// Who made the call, when a server-side tool did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A web fetch's answer.
@@ -101,7 +98,6 @@ pub enum ContentBlock {
         /// The call being answered.
         tool_use_id: String,
         /// Who made the call, when a server-side tool did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A code execution's answer.
@@ -182,7 +178,7 @@ pub enum ContentBlock {
 }
 
 /// An MCP connector tool result's content: a bare string, or blocks.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum McpToolResultContent {
     /// The whole content as one string.
@@ -193,7 +189,7 @@ pub enum McpToolResultContent {
 
 /// The `text` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TextType {
@@ -204,7 +200,7 @@ pub enum TextType {
 
 /// The `tool_use` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ToolUseType {
@@ -215,7 +211,7 @@ pub enum ToolUseType {
 
 /// The `thinking` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ThinkingType {
@@ -226,7 +222,7 @@ pub enum ThinkingType {
 
 /// The `redacted_thinking` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RedactedThinkingType {
@@ -237,7 +233,7 @@ pub enum RedactedThinkingType {
 
 /// The `server_tool_use` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ServerToolUseType {
@@ -248,7 +244,7 @@ pub enum ServerToolUseType {
 
 /// The `web_search_tool_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WebSearchToolResultType {
@@ -259,7 +255,7 @@ pub enum WebSearchToolResultType {
 
 /// The `web_fetch_tool_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WebFetchToolResultType {
@@ -270,7 +266,7 @@ pub enum WebFetchToolResultType {
 
 /// The `code_execution_tool_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CodeExecutionToolResultType {
@@ -281,7 +277,7 @@ pub enum CodeExecutionToolResultType {
 
 /// The `bash_code_execution_tool_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum BashCodeExecutionToolResultType {
@@ -292,7 +288,7 @@ pub enum BashCodeExecutionToolResultType {
 
 /// The `text_editor_code_execution_tool_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TextEditorCodeExecutionToolResultType {
@@ -303,7 +299,7 @@ pub enum TextEditorCodeExecutionToolResultType {
 
 /// The `tool_search_tool_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ToolSearchToolResultType {
@@ -314,7 +310,7 @@ pub enum ToolSearchToolResultType {
 
 /// The `mcp_tool_use` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum McpToolUseType {
@@ -325,7 +321,7 @@ pub enum McpToolUseType {
 
 /// The `mcp_tool_result` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum McpToolResultType {
@@ -336,7 +332,7 @@ pub enum McpToolResultType {
 
 /// The `container_upload` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ContainerUploadType {
@@ -347,7 +343,7 @@ pub enum ContainerUploadType {
 
 /// The `compaction` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CompactionType {
@@ -364,7 +360,7 @@ pub enum CompactionType {
 /// unions on the request side carry the same fields (minus
 /// `file_id`), so these serve both directions. Untagged with literal
 /// markers, like every union here.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum TextCitation {
     /// A span of characters in a plain-text document.
@@ -380,7 +376,6 @@ pub enum TextCitation {
         /// The cited file's id, when citations point into uploaded
         /// files. Response-side only; the request-side params never
         /// carry it, which is why it skips when absent.
-        #[serde(skip_serializing_if = "Option::is_none")]
         file_id: Option<String>,
         /// First cited character.
         start_char_index: u64,
@@ -400,7 +395,6 @@ pub enum TextCitation {
         /// The cited file's id, when citations point into uploaded
         /// files. Response-side only; the request-side params never
         /// carry it, which is why it skips when absent.
-        #[serde(skip_serializing_if = "Option::is_none")]
         file_id: Option<String>,
         /// First cited page.
         start_page_number: u64,
@@ -420,7 +414,6 @@ pub enum TextCitation {
         /// The cited file's id, when citations point into uploaded
         /// files. Response-side only; the request-side params never
         /// carry it, which is why it skips when absent.
-        #[serde(skip_serializing_if = "Option::is_none")]
         file_id: Option<String>,
         /// First cited block.
         start_block_index: u64,
@@ -461,7 +454,7 @@ pub enum TextCitation {
 
 /// The `char_location` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CharLocationType {
@@ -472,7 +465,7 @@ pub enum CharLocationType {
 
 /// The `page_location` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum PageLocationType {
@@ -483,7 +476,7 @@ pub enum PageLocationType {
 
 /// The `content_block_location` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ContentBlockLocationType {
@@ -494,7 +487,7 @@ pub enum ContentBlockLocationType {
 
 /// The `web_search_result_location` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WebSearchResultLocationType {
@@ -505,7 +498,7 @@ pub enum WebSearchResultLocationType {
 
 /// The `search_result_location` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SearchResultLocationType {

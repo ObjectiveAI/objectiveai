@@ -1,6 +1,6 @@
 //! The `stream_event` records: the API's stream, relayed raw.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::message;
 
@@ -15,7 +15,7 @@ use super::message;
 /// `null` at the source — a subagent's stream events are not
 /// distinguishable here — and [`uuid`](Self::uuid) is freshly minted
 /// per event, related to nothing.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct StreamEvent {
     /// Always `stream_event`.
     pub r#type: StreamEventType,
@@ -31,7 +31,7 @@ pub struct StreamEvent {
 
 /// The `stream_event` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum StreamEventType {

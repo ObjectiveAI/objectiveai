@@ -1,6 +1,6 @@
 //! The API's assistant message, whole.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::{ContentBlock, Usage};
 
@@ -13,7 +13,7 @@ use super::{ContentBlock, Usage};
 /// one-element array on the wire, and reassembling the original
 /// message means grouping records by [`id`](Self::id), not by record
 /// uuid (those are derived per block).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Message {
     /// The message's id — the grouping key for its split-out blocks.
     pub id: String,
@@ -40,12 +40,11 @@ pub struct Message {
     pub container: Option<Container>,
     /// Context-management state, injected by Claude Code's own
     /// normalization as `null` when absent.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub context_management: Option<ContextManagementResponse>,
 }
 
 /// The code-execution container a message ran against.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Container {
     /// The container's id.
     pub id: String,
@@ -56,7 +55,7 @@ pub struct Container {
 }
 
 /// One skill loaded into a code-execution container.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct ContainerSkill {
     /// The skill, by id.
     pub skill_id: String,
@@ -68,7 +67,7 @@ pub struct ContainerSkill {
 }
 
 /// What context management did to the conversation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ContextManagementResponse {
     /// The edits applied, in order.
     pub applied_edits: Vec<ContextManagementEdit>,
@@ -77,7 +76,7 @@ pub struct ContextManagementResponse {
 /// One context-management edit, discriminated by its dated `type`
 /// literal — a vocabulary that grows by design, so an edit newer
 /// than this crate lands in [`Other`](Self::Other) verbatim.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum ContextManagementEdit {
     /// Tool uses cleared.
@@ -104,7 +103,7 @@ pub enum ContextManagementEdit {
 
 /// The `clear_tool_uses_20250919` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum ClearToolUsesEditType {
     /// The only value.
@@ -115,7 +114,7 @@ pub enum ClearToolUsesEditType {
 
 /// The `clear_thinking_20251015` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum ClearThinkingEditType {
     /// The only value.
@@ -127,7 +126,7 @@ pub enum ClearThinkingEditType {
 /// [`Message`]'s object-type literal. One variant, because the API
 /// says `"message"` and anything else is not this type.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum MessageType {
@@ -138,7 +137,7 @@ pub enum MessageType {
 
 /// [`Message`]'s role literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum AssistantRole {
@@ -161,12 +160,11 @@ pub enum AssistantRole {
 /// verbatim — a future value degrades to an unrecognized reason
 /// instead of an unparseable line.
 ///
-/// Serde goes through [`String`] both ways (`from`/`into`), which is
-/// what lets the enum stay flat: unit variants and a catch-all
-/// cannot share an untagged enum, but a string conversion can name
-/// both.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(from = "String", into = "String")]
+/// Serde reads it through [`String`] (`from`), which is what lets
+/// the enum stay flat: unit variants and a catch-all cannot share an
+/// untagged enum, but a string conversion can name both.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
+#[serde(from = "String")]
 pub enum StopReason {
     /// A natural stopping point.
     EndTurn,
@@ -206,20 +204,3 @@ impl From<String> for StopReason {
     }
 }
 
-impl From<StopReason> for String {
-    fn from(value: StopReason) -> Self {
-        match value {
-            StopReason::EndTurn => "end_turn".to_string(),
-            StopReason::MaxTokens => "max_tokens".to_string(),
-            StopReason::StopSequence => "stop_sequence".to_string(),
-            StopReason::ToolUse => "tool_use".to_string(),
-            StopReason::PauseTurn => "pause_turn".to_string(),
-            StopReason::Compaction => "compaction".to_string(),
-            StopReason::Refusal => "refusal".to_string(),
-            StopReason::ModelContextWindowExceeded => {
-                "model_context_window_exceeded".to_string()
-            }
-            StopReason::Other(value) => value,
-        }
-    }
-}

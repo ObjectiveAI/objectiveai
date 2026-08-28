@@ -1,12 +1,12 @@
 //! The `tool_progress` records: a long tool run, still running.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// A `type: "tool_progress"` record: a heartbeat for a tool call
 /// that is taking a while. Emitted only on remote/container builds
 /// (the source gates it on its remote environment markers), and
 /// throttled to one per interval per spawning call.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ToolProgress {
     /// Always `tool_progress`.
     pub r#type: ToolProgressType,
@@ -20,7 +20,6 @@ pub struct ToolProgress {
     /// How long it has been running.
     pub elapsed_time_seconds: f64,
     /// The background task it belongs to, if any.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
     /// The record's own id.
     pub uuid: String,
@@ -30,7 +29,7 @@ pub struct ToolProgress {
 
 /// The `tool_progress` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ToolProgressType {

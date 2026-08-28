@@ -1,6 +1,6 @@
 //! The `system` records: everything Claude Code says about itself.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::assistant::AssistantMessageError;
 
@@ -15,7 +15,7 @@ use super::assistant::AssistantMessageError;
 /// define and nothing currently sends, and
 /// [`BridgeState`](Self::BridgeState), which is sent and never made
 /// it into the schemas at all.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum System {
     /// The turn beginning: the session introduced. Emitted once per
@@ -26,13 +26,11 @@ pub enum System {
         /// Always `init`.
         subtype: InitSubtype,
         /// The subagent roster, by name.
-        #[serde(skip_serializing_if = "Option::is_none")]
         agents: Option<Vec<String>>,
         /// Where the credential came from.
         #[serde(rename = "apiKeySource")]
         api_key_source: ApiKeySource,
         /// API beta flags in force.
-        #[serde(skip_serializing_if = "Option::is_none")]
         betas: Option<Vec<String>>,
         /// Claude Code's own version.
         claude_code_version: String,
@@ -56,11 +54,9 @@ pub enum System {
         /// The plugins loaded.
         plugins: Vec<Plugin>,
         /// Fast mode's state, when the feature is in play.
-        #[serde(skip_serializing_if = "Option::is_none")]
         fast_mode_state: Option<FastModeState>,
         /// Internal-only: the UDS inbox socket path, present only on
         /// internal builds with that feature.
-        #[serde(skip_serializing_if = "Option::is_none")]
         messaging_socket_path: Option<String>,
         /// The record's own id.
         uuid: String,
@@ -91,8 +87,7 @@ pub enum System {
         status: Option<Status>,
         /// The new permission mode, when that is what changed.
         #[serde(
-            rename = "permissionMode",
-            skip_serializing_if = "Option::is_none"
+            rename = "permissionMode"
         )]
         permission_mode: Option<PermissionMode>,
         /// The record's own id.
@@ -229,7 +224,6 @@ pub enum System {
         /// Standard error.
         stderr: String,
         /// The exit code, when the hook ran far enough to have one.
-        #[serde(skip_serializing_if = "Option::is_none")]
         exit_code: Option<i64>,
         /// How it ended.
         outcome: HookOutcome,
@@ -247,18 +241,14 @@ pub enum System {
         /// The task's id.
         task_id: String,
         /// The tool call that spawned it, if one did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_use_id: Option<String>,
         /// What the task is.
         description: String,
         /// The task's kind.
-        #[serde(skip_serializing_if = "Option::is_none")]
         task_type: Option<String>,
         /// The workflow's name, for workflow tasks.
-        #[serde(skip_serializing_if = "Option::is_none")]
         workflow_name: Option<String>,
         /// The prompt it was given.
-        #[serde(skip_serializing_if = "Option::is_none")]
         prompt: Option<String>,
         /// The record's own id.
         uuid: String,
@@ -274,22 +264,18 @@ pub enum System {
         /// The task's id.
         task_id: String,
         /// The tool call that spawned it, if one did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_use_id: Option<String>,
         /// What the task is.
         description: String,
         /// What it has spent.
         usage: TaskUsage,
         /// The last tool it ran.
-        #[serde(skip_serializing_if = "Option::is_none")]
         last_tool_name: Option<String>,
         /// A summary of where it stands.
-        #[serde(skip_serializing_if = "Option::is_none")]
         summary: Option<String>,
         /// Workflow state deltas. Sent by the source but absent from
         /// its schemas, and its element type lives in a file the
         /// clone does not carry — so the elements stay unread.
-        #[serde(skip_serializing_if = "Option::is_none")]
         workflow_progress: Option<Vec<serde_json::Value>>,
         /// The record's own id.
         uuid: String,
@@ -305,7 +291,6 @@ pub enum System {
         /// The task's id.
         task_id: String,
         /// The tool call that spawned it, if one did.
-        #[serde(skip_serializing_if = "Option::is_none")]
         tool_use_id: Option<String>,
         /// How it ended.
         status: TaskStatus,
@@ -314,7 +299,6 @@ pub enum System {
         /// What it did, in words.
         summary: String,
         /// What it spent.
-        #[serde(skip_serializing_if = "Option::is_none")]
         usage: Option<TaskUsage>,
         /// The record's own id.
         uuid: String,
@@ -380,7 +364,6 @@ pub enum System {
         /// The bridge's new state.
         state: BridgeState,
         /// Detail, when the state has any — a failure's reason.
-        #[serde(skip_serializing_if = "Option::is_none")]
         detail: Option<String>,
         /// The record's own id.
         uuid: String,
@@ -391,7 +374,7 @@ pub enum System {
 
 /// One MCP server's connection status in an
 /// [`Init`](System::Init) record.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct McpServerStatus {
     /// The server's configured name.
     pub name: String,
@@ -400,7 +383,7 @@ pub struct McpServerStatus {
 }
 
 /// One loaded plugin in an [`Init`](System::Init) record.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct Plugin {
     /// The plugin's name.
     pub name: String,
@@ -408,7 +391,6 @@ pub struct Plugin {
     pub path: String,
     /// Its source identifier, `name@marketplace` — with `name@inline`
     /// for `--plugin-dir` plugins and `name@builtin` for built-ins.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 }
 
@@ -422,7 +404,7 @@ pub struct Plugin {
 /// case a later version fixes the producer to match its schema.
 /// Either way a record deserializes.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum ApiKeySource {
     // The zod schema's five.
@@ -467,7 +449,7 @@ pub enum ApiKeySource {
 /// was never demonstrated, but the cast admits it and refusing it
 /// buys nothing.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 pub enum PermissionMode {
     /// Standard behavior: prompts for dangerous operations.
@@ -495,7 +477,7 @@ pub enum PermissionMode {
 
 /// Fast mode's state.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum FastModeState {
@@ -508,7 +490,7 @@ pub enum FastModeState {
 }
 
 /// What a [`CompactBoundary`](System::CompactBoundary) did.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct CompactMetadata {
     /// Who asked for it.
     pub trigger: CompactTrigger,
@@ -516,13 +498,12 @@ pub struct CompactMetadata {
     pub pre_tokens: u64,
     /// Relink info for a partial compact that preserved a segment;
     /// unset when everything was summarized.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub preserved_segment: Option<PreservedSegment>,
 }
 
 /// Who asked for a compaction.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CompactTrigger {
@@ -534,7 +515,7 @@ pub enum CompactTrigger {
 
 /// The segment a partial compact preserved, by the uuids a loader
 /// splices at.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct PreservedSegment {
     /// The segment's first message.
     pub head_uuid: String,
@@ -547,7 +528,7 @@ pub struct PreservedSegment {
 /// The one non-null status a [`Status`](System::Status) record can
 /// carry.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
@@ -558,7 +539,7 @@ pub enum Status {
 /// Where a [`PostTurnSummary`](System::PostTurnSummary) puts the
 /// work.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum PostTurnStatusCategory {
@@ -576,7 +557,7 @@ pub enum PostTurnStatusCategory {
 
 /// How a hook ended.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum HookOutcome {
@@ -589,7 +570,7 @@ pub enum HookOutcome {
 }
 
 /// What a background task has spent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 pub struct TaskUsage {
     /// Tokens, all kinds.
     pub total_tokens: u64,
@@ -601,7 +582,7 @@ pub struct TaskUsage {
 
 /// How a background task ended.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TaskStatus {
@@ -615,7 +596,7 @@ pub enum TaskStatus {
 
 /// The session's state.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SessionState {
@@ -629,7 +610,7 @@ pub enum SessionState {
 
 /// One file a [`FilesPersisted`](System::FilesPersisted) batch
 /// landed.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct PersistedFile {
     /// The file's name.
     pub filename: String,
@@ -638,7 +619,7 @@ pub struct PersistedFile {
 }
 
 /// One file a [`FilesPersisted`](System::FilesPersisted) batch lost.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct FailedFile {
     /// The file's name.
     pub filename: String,
@@ -648,7 +629,7 @@ pub struct FailedFile {
 
 /// The remote-control bridge's states.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum BridgeState {
@@ -664,7 +645,7 @@ pub enum BridgeState {
 
 /// The `system` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SystemType {
@@ -675,7 +656,7 @@ pub enum SystemType {
 
 /// The `init` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum InitSubtype {
@@ -686,7 +667,7 @@ pub enum InitSubtype {
 
 /// The `compact_boundary` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CompactBoundarySubtype {
@@ -697,7 +678,7 @@ pub enum CompactBoundarySubtype {
 
 /// The `status` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum StatusSubtype {
@@ -708,7 +689,7 @@ pub enum StatusSubtype {
 
 /// The `post_turn_summary` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum PostTurnSummarySubtype {
@@ -719,7 +700,7 @@ pub enum PostTurnSummarySubtype {
 
 /// The `api_retry` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ApiRetrySubtype {
@@ -730,7 +711,7 @@ pub enum ApiRetrySubtype {
 
 /// The `local_command_output` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum LocalCommandOutputSubtype {
@@ -741,7 +722,7 @@ pub enum LocalCommandOutputSubtype {
 
 /// The `hook_started` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum HookStartedSubtype {
@@ -752,7 +733,7 @@ pub enum HookStartedSubtype {
 
 /// The `hook_progress` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum HookProgressSubtype {
@@ -763,7 +744,7 @@ pub enum HookProgressSubtype {
 
 /// The `hook_response` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum HookResponseSubtype {
@@ -774,7 +755,7 @@ pub enum HookResponseSubtype {
 
 /// The `task_started` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TaskStartedSubtype {
@@ -785,7 +766,7 @@ pub enum TaskStartedSubtype {
 
 /// The `task_progress` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TaskProgressSubtype {
@@ -796,7 +777,7 @@ pub enum TaskProgressSubtype {
 
 /// The `task_notification` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum TaskNotificationSubtype {
@@ -807,7 +788,7 @@ pub enum TaskNotificationSubtype {
 
 /// The `session_state_changed` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SessionStateChangedSubtype {
@@ -818,7 +799,7 @@ pub enum SessionStateChangedSubtype {
 
 /// The `files_persisted` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum FilesPersistedSubtype {
@@ -829,7 +810,7 @@ pub enum FilesPersistedSubtype {
 
 /// The `elicitation_complete` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ElicitationCompleteSubtype {
@@ -840,7 +821,7 @@ pub enum ElicitationCompleteSubtype {
 
 /// The `bridge_state` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum BridgeStateSubtype {

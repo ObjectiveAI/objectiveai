@@ -1,6 +1,6 @@
 //! The `assistant` records: what the model said.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::message;
 
@@ -20,7 +20,7 @@ use super::message;
 /// is non-null came from a subagent, keyed to the tool call that
 /// spawned it. There is no other marker — the transcript's
 /// `isSidechain` never reaches stdout.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Assistant {
     /// Always `assistant`.
     pub r#type: AssistantType,
@@ -31,7 +31,6 @@ pub struct Assistant {
     pub parent_tool_use_id: Option<String>,
     /// Set when the message is an API failure standing in for an
     /// answer.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<AssistantMessageError>,
     /// The record's own id — per BLOCK, see the type doc.
     pub uuid: String,
@@ -43,7 +42,7 @@ pub struct Assistant {
 /// same vocabulary an
 /// [`api_retry`](super::system::System::ApiRetry) record uses.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum AssistantMessageError {
@@ -65,7 +64,7 @@ pub enum AssistantMessageError {
 
 /// The `assistant` literal.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum AssistantType {

@@ -1,6 +1,6 @@
 //! What the API billed.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// Token counts for one API message.
 ///
@@ -12,14 +12,14 @@ use serde::{Deserialize, Serialize};
 /// messages reach stdout by verbatim spread, so whatever the API
 /// said rides along. The six are optional AND nullable (the
 /// synthetic constructors write explicit `null`s), so they are plain
-/// `Option`s: absent parses to `None`, and `None` re-emits as `null`
-/// the way the emitters spell it. Every count that can be absent is
-/// an `Option` too — absent and zero are different facts.
+/// `Option`s, both spellings landing as `None`. Every count that can
+/// be absent is an `Option` too — absent and zero are different
+/// facts, and a reader that invents zeros is editorializing.
 ///
 /// The cache counts are nullable in the SDK — a model or tier that
 /// does not report caching sends `null`, not `0`, and the difference
 /// is kept.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Usage {
     /// Input tokens billed, not counting cache reads or writes.
     pub input_tokens: u64,
@@ -51,7 +51,7 @@ pub struct Usage {
 ///
 /// The two known kinds carry identical counts; the literal says
 /// which kind of pass spent them.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum IterationUsage {
     /// A model pass.
@@ -90,7 +90,7 @@ pub enum IterationUsage {
 
 /// Server-side tool counts inside [`Usage`].
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Default,
 )]
 pub struct ServerToolUse {
     /// Web searches run.
@@ -101,7 +101,7 @@ pub struct ServerToolUse {
 
 /// Cache writes by lifetime inside [`Usage`].
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Default,
 )]
 pub struct CacheCreation {
     /// Tokens cached for an hour.
@@ -115,7 +115,7 @@ pub struct CacheCreation {
 ///
 /// The pinned SDK knew only `output_tokens`; the current API sends
 /// the whole running bill, everything but the output count nullable.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DeltaUsage {
     /// The cumulative number of output tokens so far.
     pub output_tokens: u64,
