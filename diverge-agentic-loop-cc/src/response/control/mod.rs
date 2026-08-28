@@ -7,19 +7,31 @@
 //! responses to whatever arrived on stdin, and cancellations. All of
 //! it is in the stdout union, so all of it is here.
 //!
-//! # The subtype fields are typed; the config vocabularies ride raw
+//! # Typed all the way down
 //!
 //! Each of the twenty-one request subtypes carries its own fields,
-//! typed. Five of those fields are whole configuration vocabularies
-//! of their own — hook inputs, agent definitions, permission
-//! updates, MCP server configs, and a JSON-RPC message the source
-//! itself types as `unknown`. Those ride as [`serde_json::Value`]:
-//! they are the SDK-integration surface, not the stream's, and this
-//! harness never opens them.
+//! and the configuration vocabularies those fields open onto are
+//! typed too: [`hook_input`]'s twenty-seven event inputs, and
+//! [`config`]'s permission updates, hook registrations, agent
+//! definitions, and MCP server configs. What remains
+//! [`serde_json::Value`] is only what the source itself types
+//! `unknown`: tool inputs (the tool's schema, not the stream's),
+//! JSON schemas, settings blobs, the JSON-RPC message of
+//! `mcp_message`, and the per-request `control_response` body, whose
+//! shape depends on request correlation no line-at-a-time reader
+//! has.
+
+pub mod config;
+pub mod hook_input;
 
 use serde::{Deserialize, Serialize};
 
 use super::system::PermissionMode;
+use config::{
+    AgentDefinition, HookCallbackMatcher, HookEvent, McpServerConfig,
+    PermissionUpdate,
+};
+use hook_input::HookInput;
 
 /// A `type: "control_request"` record: one ask, to be answered by a
 /// `control_response` quoting its [`request_id`](Self::request_id).
@@ -45,10 +57,9 @@ pub enum ControlRequestInner {
         tool_name: String,
         /// What it would run with.
         input: indexmap::IndexMap<String, serde_json::Value>,
-        /// Permission rules that would allow it, ready to apply —
-        /// a vocabulary of its own, unopened here.
+        /// Permission rules that would allow it, ready to apply.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        permission_suggestions: Option<Vec<serde_json::Value>>,
+        permission_suggestions: Option<Vec<PermissionUpdate>>,
         /// The path a rule blocked, when one did.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         blocked_path: Option<String>,
@@ -72,10 +83,11 @@ pub enum ControlRequestInner {
     },
     /// Configure the SDK session.
     Initialize {
-        /// Hook registrations by event — a vocabulary of its own,
-        /// unopened here.
+        /// Hook registrations by event.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        hooks: Option<indexmap::IndexMap<String, serde_json::Value>>,
+        hooks: Option<
+            indexmap::IndexMap<HookEvent, Vec<HookCallbackMatcher>>,
+        >,
         /// SDK-hosted MCP servers, by name.
         #[serde(
             rename = "sdkMcpServers",
@@ -104,10 +116,9 @@ pub enum ControlRequestInner {
             skip_serializing_if = "Option::is_none"
         )]
         append_system_prompt: Option<String>,
-        /// Agent definitions by name — a vocabulary of its own,
-        /// unopened here.
+        /// Agent definitions by name.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        agents: Option<indexmap::IndexMap<String, serde_json::Value>>,
+        agents: Option<indexmap::IndexMap<String, AgentDefinition>>,
         /// Whether to emit prompt suggestions.
         #[serde(
             rename = "promptSuggestions",
@@ -150,9 +161,8 @@ pub enum ControlRequestInner {
     HookCallback {
         /// Which registered callback.
         callback_id: String,
-        /// The hook's input — a vocabulary of its own, unopened
-        /// here.
-        input: serde_json::Value,
+        /// The hook's input, typed per lifecycle event.
+        input: HookInput,
         /// The tool call involved, when one is.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         tool_use_id: Option<String>,
@@ -186,9 +196,8 @@ pub enum ControlRequestInner {
     },
     /// Replace the dynamically managed MCP servers.
     McpSetServers {
-        /// The new set, by name — configs are a vocabulary of their
-        /// own, unopened here.
-        servers: indexmap::IndexMap<String, serde_json::Value>,
+        /// The new set, name to config.
+        servers: indexmap::IndexMap<String, McpServerConfig>,
     },
     /// Reload plugins from disk.
     ReloadPlugins,
