@@ -81,7 +81,6 @@ pub struct PermissionRuleValue {
     /// The rule's content — the pattern after the tool's name.
     #[serde(
         rename = "ruleContent",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub rule_content: Option<String>,
@@ -190,13 +189,13 @@ pub enum HookEvent {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HookCallbackMatcher {
     /// The matcher pattern, when the event takes one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub matcher: Option<String>,
     /// The callbacks to deliver to.
     #[serde(rename = "hookCallbackIds")]
     pub hook_callback_ids: Vec<String>,
     /// The callback timeout, seconds.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout: Option<f64>,
 }
 
@@ -207,65 +206,59 @@ pub struct AgentDefinition {
     /// When to use this agent, in words.
     pub description: String,
     /// Allowed tools; absent inherits the parent's.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<String>>,
     /// Tools explicitly denied.
     #[serde(
         rename = "disallowedTools",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub disallowed_tools: Option<Vec<String>>,
     /// The agent's system prompt.
     pub prompt: String,
     /// A model alias or id; absent or `inherit` uses the main model.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     /// MCP servers of the agent's own.
     #[serde(
         rename = "mcpServers",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub mcp_servers: Option<Vec<AgentMcpServerSpec>>,
     /// Experimental: a reminder re-injected into the system prompt.
     #[serde(
         rename = "criticalSystemReminder_EXPERIMENTAL",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub critical_system_reminder: Option<String>,
     /// Skills preloaded into the agent's context.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub skills: Option<Vec<String>>,
     /// Auto-submitted as the first user turn when this agent is the
     /// main-thread agent.
     #[serde(
         rename = "initialPrompt",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub initial_prompt: Option<String>,
     /// Turn cap.
     #[serde(
         rename = "maxTurns",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub max_turns: Option<u64>,
     /// Run as a background task when invoked.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub background: Option<bool>,
     /// Where the agent's persistent memory lives.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub memory: Option<AgentMemoryScope>,
     /// Reasoning effort: a named level or an integer.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
     /// The agent's permission mode.
     #[serde(
         rename = "permissionMode",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub permission_mode: Option<PermissionMode>,
@@ -340,7 +333,7 @@ pub enum McpServerConfig {
         /// The server's URL.
         url: String,
         /// Headers to send it.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         headers: Option<indexmap::IndexMap<String, String>>,
     },
     /// Streamable HTTP.
@@ -350,7 +343,7 @@ pub enum McpServerConfig {
         /// The server's URL.
         url: String,
         /// Headers to send it.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         headers: Option<indexmap::IndexMap<String, String>>,
     },
     /// Hosted by the SDK consumer itself.
@@ -364,15 +357,15 @@ pub enum McpServerConfig {
     /// backwards compatibility, which is why this union is untagged.
     Stdio {
         /// Always `stdio`, when present at all.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         r#type: Option<StdioType>,
         /// The command to spawn.
         command: String,
         /// Its arguments.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         args: Option<Vec<String>>,
         /// Its environment.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         env: Option<indexmap::IndexMap<String, String>>,
     },
 }

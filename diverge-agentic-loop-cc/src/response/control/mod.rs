@@ -66,27 +66,27 @@ pub enum ControlRequestInner {
         /// What it would run with.
         input: indexmap::IndexMap<String, serde_json::Value>,
         /// Permission rules that would allow it, ready to apply.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         permission_suggestions: Option<Vec<PermissionUpdate>>,
         /// The path a rule blocked, when one did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         blocked_path: Option<String>,
         /// Why the decision is being asked.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         decision_reason: Option<String>,
         /// A title for the prompt.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         title: Option<String>,
         /// A display name for the tool.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         display_name: Option<String>,
         /// The call awaiting the verdict.
         tool_use_id: String,
         /// The agent asking, when a subagent is.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         agent_id: Option<String>,
         /// What the call would do, in words.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
     },
     /// Configure the SDK session.
@@ -94,52 +94,46 @@ pub enum ControlRequestInner {
         /// Always `initialize`.
         subtype: InitializeSubtype,
         /// Hook registrations by event.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         hooks: Option<
             indexmap::IndexMap<HookEvent, Vec<HookCallbackMatcher>>,
         >,
         /// SDK-hosted MCP servers, by name.
         #[serde(
             rename = "sdkMcpServers",
-            default,
             skip_serializing_if = "Option::is_none"
         )]
         sdk_mcp_servers: Option<Vec<String>>,
         /// A JSON schema for structured output.
         #[serde(
             rename = "jsonSchema",
-            default,
             skip_serializing_if = "Option::is_none"
         )]
         json_schema: Option<indexmap::IndexMap<String, serde_json::Value>>,
         /// A replacement system prompt.
         #[serde(
             rename = "systemPrompt",
-            default,
             skip_serializing_if = "Option::is_none"
         )]
         system_prompt: Option<String>,
         /// An addition to the system prompt.
         #[serde(
             rename = "appendSystemPrompt",
-            default,
             skip_serializing_if = "Option::is_none"
         )]
         append_system_prompt: Option<String>,
         /// Agent definitions by name.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         agents: Option<indexmap::IndexMap<String, AgentDefinition>>,
         /// Whether to emit prompt suggestions.
         #[serde(
             rename = "promptSuggestions",
-            default,
             skip_serializing_if = "Option::is_none"
         )]
         prompt_suggestions: Option<bool>,
         /// Whether to emit agent progress summaries.
         #[serde(
             rename = "agentProgressSummaries",
-            default,
             skip_serializing_if = "Option::is_none"
         )]
         agent_progress_summaries: Option<bool>,
@@ -151,7 +145,7 @@ pub enum ControlRequestInner {
         /// The new mode.
         mode: PermissionMode,
         /// Internal remote-session marker.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         ultraplan: Option<bool>,
     },
     /// Change the model.
@@ -159,7 +153,7 @@ pub enum ControlRequestInner {
         /// Always `set_model`.
         subtype: SetModelSubtype,
         /// The new model; absent means the default.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         model: Option<String>,
     },
     /// Change the thinking budget.
@@ -188,7 +182,7 @@ pub enum ControlRequestInner {
         /// The hook's input, typed per lifecycle event.
         input: HookInput,
         /// The tool call involved, when one is.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         tool_use_id: Option<String>,
     },
     /// Relay a JSON-RPC message to an MCP server.
@@ -200,7 +194,7 @@ pub enum ControlRequestInner {
         /// The message — `unknown` in the source's own schema, and
         /// optional the way every bare `z.unknown()` is: the key may
         /// be absent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         message: Option<serde_json::Value>,
     },
     /// Rewind file changes to a user message.
@@ -210,7 +204,7 @@ pub enum ControlRequestInner {
         /// The message to rewind to.
         user_message_id: String,
         /// Whether to only report what would change.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         dry_run: Option<bool>,
     },
     /// Drop a queued async message.
@@ -287,16 +281,16 @@ pub enum ControlRequestInner {
         /// What it wants to say.
         message: String,
         /// Form or URL mode.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         mode: Option<ElicitationMode>,
         /// The URL, in URL mode.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         url: Option<String>,
         /// The elicitation's id.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         elicitation_id: Option<String>,
         /// The schema the answer should satisfy.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         requested_schema:
             Option<indexmap::IndexMap<String, serde_json::Value>>,
     },
@@ -337,7 +331,7 @@ pub enum ControlResponseInner {
         request_id: String,
         /// The response body, shaped per request subtype — a record
         /// the source types per subtype and wraps as a plain map.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         response: Option<indexmap::IndexMap<String, serde_json::Value>>,
     },
     /// The request failed.
@@ -349,7 +343,7 @@ pub enum ControlResponseInner {
         /// What went wrong.
         error: String,
         /// Permission asks still open when the failure happened.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         pending_permission_requests: Option<Vec<ControlRequest>>,
     },
 }

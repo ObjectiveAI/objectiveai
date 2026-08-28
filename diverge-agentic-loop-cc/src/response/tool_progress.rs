@@ -20,7 +20,7 @@ pub struct ToolProgress {
     /// How long it has been running.
     pub elapsed_time_seconds: f64,
     /// The background task it belongs to, if any.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
     /// The record's own id.
     pub uuid: String,

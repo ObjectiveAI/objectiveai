@@ -52,10 +52,10 @@ pub enum Result {
         permission_denials: Vec<PermissionDenial>,
         /// The structured output, when one was requested — whatever
         /// shape the caller's schema gave it.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         structured_output: Option<serde_json::Value>,
         /// Fast mode's state, when the feature is in play.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         fast_mode_state: Option<FastModeState>,
         /// The record's own id.
         uuid: String,
@@ -121,7 +121,7 @@ pub struct ResultError {
     /// the error log held.
     pub errors: Vec<String>,
     /// Fast mode's state, when the feature is in play.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fast_mode_state: Option<FastModeState>,
     /// The record's own id.
     pub uuid: String,
@@ -150,39 +150,37 @@ pub enum ResultErrorSubtype {
 ///
 /// The schema says `unknown`; the shape here is the source's own
 /// zero-value (`EMPTY_USAGE`), which is the API's usage widened with
-/// Claude Code's additions. The four token counts are always
-/// present; everything past them defaults, because a shape the
+/// Claude Code's additions. Only the input and output counts are
+/// demanded; everything else is an `Option`, because a shape the
 /// schema does not promise is a shape a reader should not demand.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct Usage {
     /// Input tokens billed, not counting cache reads or writes.
     pub input_tokens: u64,
     /// Tokens written to the prompt cache.
-    #[serde(default)]
-    pub cache_creation_input_tokens: u64,
+    pub cache_creation_input_tokens: Option<u64>,
     /// Tokens read from the prompt cache.
-    #[serde(default)]
-    pub cache_read_input_tokens: u64,
+    pub cache_read_input_tokens: Option<u64>,
     /// Output tokens billed.
     pub output_tokens: u64,
     /// Server-side tool spend.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub server_tool_use: Option<ServerToolUse>,
     /// The service tier that served it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub service_tier: Option<String>,
     /// Cache writes, by lifetime.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_creation: Option<CacheCreation>,
     /// Where inference ran.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inference_geo: Option<String>,
     /// Per-iteration detail, shape unpromised — the clone types it
     /// in a file it does not carry.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub iterations: Option<Vec<serde_json::Value>>,
     /// The speed tier that served it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub speed: Option<String>,
 }
 

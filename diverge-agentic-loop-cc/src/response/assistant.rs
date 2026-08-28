@@ -31,7 +31,7 @@ pub struct Assistant {
     pub parent_tool_use_id: Option<String>,
     /// Set when the message is an API failure standing in for an
     /// answer.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<AssistantMessageError>,
     /// The record's own id — per BLOCK, see the type doc.
     pub uuid: String,

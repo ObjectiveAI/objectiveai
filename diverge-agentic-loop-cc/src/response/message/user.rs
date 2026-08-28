@@ -72,13 +72,11 @@ pub enum ContentBlockParam {
         /// Cache-control marker, if any. Optional AND nullable in
         /// the SDK, so an absent value re-serializes as `null` rather
         /// than dropping the key.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
         /// Citations attached to the text, if any. The param
         /// locations carry the same fields as the response ones, so
         /// one type serves both. Optional AND nullable in the SDK,
         /// like `cache_control`.
-        #[serde(default)]
         citations: Option<Vec<TextCitation>>,
     },
     /// An image, by bytes or by URL.
@@ -90,7 +88,6 @@ pub enum ContentBlockParam {
         /// Cache-control marker, if any. Optional AND nullable in
         /// the SDK, so an absent value re-serializes as `null` rather
         /// than dropping the key.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     /// A tool call quoted back — a user turn can restate one.
@@ -106,7 +103,6 @@ pub enum ContentBlockParam {
         /// Cache-control marker, if any. Optional AND nullable in
         /// the SDK, so an absent value re-serializes as `null` rather
         /// than dropping the key.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     /// A tool's answer — what the loop's tool results ride in.
@@ -117,15 +113,14 @@ pub enum ContentBlockParam {
         tool_use_id: String,
         /// What the tool said: absent, bare text, or blocks — the
         /// five kinds a tool result may quote.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         content: Option<ToolResultParamContent>,
         /// Whether the tool considers itself to have failed.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
         /// Cache-control marker, if any. Optional AND nullable in
         /// the SDK, so an absent value re-serializes as `null` rather
         /// than dropping the key.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     /// A server-side tool call quoted back.
@@ -139,10 +134,9 @@ pub enum ContentBlockParam {
         /// The arguments, whatever the tool's schema says.
         input: serde_json::Value,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
         /// Who made the call, when a server-side tool did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A web search's answer quoted back — the same content union
@@ -155,10 +149,9 @@ pub enum ContentBlockParam {
         /// The call being answered.
         tool_use_id: String,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
         /// Who made the call, when a server-side tool did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A web fetch's answer quoted back — its document is the
@@ -172,10 +165,9 @@ pub enum ContentBlockParam {
         /// The call being answered.
         tool_use_id: String,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
         /// Who made the call, when a server-side tool did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A code execution's answer quoted back.
@@ -187,7 +179,6 @@ pub enum ContentBlockParam {
         /// The call being answered.
         tool_use_id: String,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     /// A bash execution's answer quoted back.
@@ -199,7 +190,6 @@ pub enum ContentBlockParam {
         /// The call being answered.
         tool_use_id: String,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     /// A text-editor execution's answer quoted back.
@@ -211,7 +201,6 @@ pub enum ContentBlockParam {
         /// The call being answered.
         tool_use_id: String,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     /// A tool search's answer quoted back.
@@ -223,7 +212,6 @@ pub enum ContentBlockParam {
         /// The call being answered.
         tool_use_id: String,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     /// A container upload quoted back.
@@ -233,7 +221,6 @@ pub enum ContentBlockParam {
         /// The file, by id.
         file_id: String,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     /// A document, by bytes, text, content, or URL.
@@ -463,10 +450,8 @@ pub enum ToolResultContentBlock {
         /// The text itself.
         text: String,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
         /// Citations attached to the text, if any.
-        #[serde(default)]
         citations: Option<Vec<TextCitation>>,
     },
     /// An image.
@@ -476,7 +461,6 @@ pub enum ToolResultContentBlock {
         /// Where the image comes from.
         source: ImageSource,
         /// Cache-control marker, if any.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     /// A search result.
@@ -499,17 +483,14 @@ pub struct DocumentBlockParam {
     /// Cache-control marker, if any. Optional AND nullable in
     /// the SDK, so an absent value re-serializes as `null` rather
     /// than dropping the key.
-    #[serde(default)]
     pub cache_control: Option<CacheControl>,
     /// Whether citations are enabled for it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub citations: Option<CitationsConfig>,
     /// Context about the document, kept out of the cited text.
     /// Optional AND nullable in the SDK, like `cache_control`.
-    #[serde(default)]
     pub context: Option<String>,
     /// The document's title. Optional AND nullable, likewise.
-    #[serde(default)]
     pub title: Option<String>,
 }
 
@@ -526,10 +507,9 @@ pub struct SearchResultBlockParam {
     /// The result's title.
     pub title: String,
     /// Cache-control marker, if any.
-    #[serde(default)]
     pub cache_control: Option<CacheControl>,
     /// Whether citations are enabled for it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub citations: Option<CitationsConfig>,
 }
 
@@ -552,7 +532,6 @@ pub struct ToolReferenceBlockParam {
     /// The tool's name.
     pub tool_name: String,
     /// Cache-control marker, if any.
-    #[serde(default)]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -596,11 +575,9 @@ pub enum TextOrImageParam {
         /// Cache-control marker, if any. Optional AND nullable in
         /// the SDK, so an absent value re-serializes as `null` rather
         /// than dropping the key.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
         /// Citations attached to the text, if any. Optional AND
         /// nullable in the SDK, like `cache_control`.
-        #[serde(default)]
         citations: Option<Vec<TextCitation>>,
     },
     /// An image.
@@ -612,7 +589,6 @@ pub enum TextOrImageParam {
         /// Cache-control marker, if any. Optional AND nullable in
         /// the SDK, so an absent value re-serializes as `null` rather
         /// than dropping the key.
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
 }
@@ -628,7 +604,7 @@ pub struct CacheControl {
     /// Always `ephemeral`.
     pub r#type: CacheControlType,
     /// How long to cache for, when said.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ttl: Option<CacheControlTtl>,
 }
 
@@ -684,6 +660,6 @@ impl From<CacheControlTtl> for String {
 )]
 pub struct CitationsConfig {
     /// Whether citations are enabled.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
 }

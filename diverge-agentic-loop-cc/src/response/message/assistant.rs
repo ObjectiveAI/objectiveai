@@ -37,11 +37,10 @@ pub struct Message {
     /// The container the message ran against, when code execution is
     /// in play — written as `null` by every synthetic constructor and
     /// passed through verbatim from the API otherwise.
-    #[serde(default)]
     pub container: Option<Container>,
     /// Context-management state, injected by Claude Code's own
     /// normalization as `null` when absent.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub context_management: Option<ContextManagementResponse>,
 }
 

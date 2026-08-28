@@ -28,34 +28,32 @@ pub struct User {
     /// transcript-only annotations.
     #[serde(
         rename = "isSynthetic",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub is_synthetic: Option<bool>,
     /// The tool's result in Claude Code's own richer form, beside
     /// the API-shaped block. `unknown` in the schema, and kept so.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_use_result: Option<serde_json::Value>,
     /// Queueing priority, when the message was queued.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<Priority>,
     /// When the message was created on the originating process, ISO
     /// 8601; older emitters omit it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<String>,
     /// Marks an echo of something already said — a resumed history
     /// replay or an acknowledgement — rather than a new turn.
     #[serde(
         rename = "isReplay",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub is_replay: Option<bool>,
     /// The record's own id; optional on the plain arm.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub uuid: Option<String>,
     /// The session; optional on the plain arm.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
 }
 

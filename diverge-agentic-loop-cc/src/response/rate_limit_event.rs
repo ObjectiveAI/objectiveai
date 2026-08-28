@@ -24,52 +24,45 @@ pub struct RateLimitInfo {
     /// When the limit resets, epoch seconds.
     #[serde(
         rename = "resetsAt",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub resets_at: Option<f64>,
     /// Which limit this is.
     #[serde(
         rename = "rateLimitType",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub rate_limit_type: Option<RateLimitType>,
     /// How much of the limit is used, as a fraction.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub utilization: Option<f64>,
     /// Whether OVERAGE requests pass, when overage is in play.
     #[serde(
         rename = "overageStatus",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub overage_status: Option<RateLimitStatus>,
     /// When the overage window resets, epoch seconds.
     #[serde(
         rename = "overageResetsAt",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub overage_resets_at: Option<f64>,
     /// Why overage is unavailable, when it is.
     #[serde(
         rename = "overageDisabledReason",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub overage_disabled_reason: Option<OverageDisabledReason>,
     /// Whether the run is currently billing overage.
     #[serde(
         rename = "isUsingOverage",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub is_using_overage: Option<bool>,
     /// The warning threshold that was crossed, when one was.
     #[serde(
         rename = "surpassedThreshold",
-        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub surpassed_threshold: Option<f64>,

@@ -32,7 +32,6 @@ pub enum StreamEvent {
         /// The cumulative usage so far.
         usage: DeltaUsage,
         /// Context-management state, when an edit landed mid-stream.
-        #[serde(default)]
         context_management: Option<ContextManagementResponse>,
     },
     /// The message is over.
@@ -143,7 +142,6 @@ pub struct MessageDelta {
     /// Which custom stop sequence fired, if one did.
     pub stop_sequence: Option<String>,
     /// The code-execution container, when its state changed.
-    #[serde(default)]
     pub container: Option<Container>,
 }
 

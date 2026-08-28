@@ -14,7 +14,7 @@ pub struct AuthStatus {
     /// The flow's output lines so far.
     pub output: Vec<String>,
     /// What went wrong, when something did.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     /// The record's own id.
     pub uuid: String,

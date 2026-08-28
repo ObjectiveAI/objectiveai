@@ -44,7 +44,7 @@ pub enum ContentBlock {
         /// `unknown` in the SDK, and kept that way.
         input: serde_json::Value,
         /// Who made the call, when a server-side tool did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// The model's reasoning, with the signature that lets it be
@@ -77,7 +77,7 @@ pub enum ContentBlock {
         /// way every other tool input here is.
         input: serde_json::Value,
         /// Who made the call, when a server-side tool did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A web search's answer.
@@ -89,7 +89,7 @@ pub enum ContentBlock {
         /// The call being answered.
         tool_use_id: String,
         /// Who made the call, when a server-side tool did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A web fetch's answer.
@@ -101,7 +101,7 @@ pub enum ContentBlock {
         /// The call being answered.
         tool_use_id: String,
         /// Who made the call, when a server-side tool did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         caller: Option<Caller>,
     },
     /// A code execution's answer.
@@ -380,7 +380,7 @@ pub enum TextCitation {
         /// The cited file's id, when citations point into uploaded
         /// files. Response-side only; the request-side params never
         /// carry it, which is why it skips when absent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         file_id: Option<String>,
         /// First cited character.
         start_char_index: u64,
@@ -400,7 +400,7 @@ pub enum TextCitation {
         /// The cited file's id, when citations point into uploaded
         /// files. Response-side only; the request-side params never
         /// carry it, which is why it skips when absent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         file_id: Option<String>,
         /// First cited page.
         start_page_number: u64,
@@ -420,7 +420,7 @@ pub enum TextCitation {
         /// The cited file's id, when citations point into uploaded
         /// files. Response-side only; the request-side params never
         /// carry it, which is why it skips when absent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         file_id: Option<String>,
         /// First cited block.
         start_block_index: u64,

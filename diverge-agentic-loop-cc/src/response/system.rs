@@ -26,13 +26,13 @@ pub enum System {
         /// Always `init`.
         subtype: InitSubtype,
         /// The subagent roster, by name.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         agents: Option<Vec<String>>,
         /// Where the credential came from.
         #[serde(rename = "apiKeySource")]
         api_key_source: ApiKeySource,
         /// API beta flags in force.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         betas: Option<Vec<String>>,
         /// Claude Code's own version.
         claude_code_version: String,
@@ -56,11 +56,11 @@ pub enum System {
         /// The plugins loaded.
         plugins: Vec<Plugin>,
         /// Fast mode's state, when the feature is in play.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         fast_mode_state: Option<FastModeState>,
         /// Internal-only: the UDS inbox socket path, present only on
         /// internal builds with that feature.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         messaging_socket_path: Option<String>,
         /// The record's own id.
         uuid: String,
@@ -92,7 +92,6 @@ pub enum System {
         /// The new permission mode, when that is what changed.
         #[serde(
             rename = "permissionMode",
-            default,
             skip_serializing_if = "Option::is_none"
         )]
         permission_mode: Option<PermissionMode>,
@@ -230,7 +229,7 @@ pub enum System {
         /// Standard error.
         stderr: String,
         /// The exit code, when the hook ran far enough to have one.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         exit_code: Option<i64>,
         /// How it ended.
         outcome: HookOutcome,
@@ -248,18 +247,18 @@ pub enum System {
         /// The task's id.
         task_id: String,
         /// The tool call that spawned it, if one did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         tool_use_id: Option<String>,
         /// What the task is.
         description: String,
         /// The task's kind.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         task_type: Option<String>,
         /// The workflow's name, for workflow tasks.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         workflow_name: Option<String>,
         /// The prompt it was given.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         prompt: Option<String>,
         /// The record's own id.
         uuid: String,
@@ -275,22 +274,22 @@ pub enum System {
         /// The task's id.
         task_id: String,
         /// The tool call that spawned it, if one did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         tool_use_id: Option<String>,
         /// What the task is.
         description: String,
         /// What it has spent.
         usage: TaskUsage,
         /// The last tool it ran.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         last_tool_name: Option<String>,
         /// A summary of where it stands.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         summary: Option<String>,
         /// Workflow state deltas. Sent by the source but absent from
         /// its schemas, and its element type lives in a file the
         /// clone does not carry — so the elements stay unread.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         workflow_progress: Option<Vec<serde_json::Value>>,
         /// The record's own id.
         uuid: String,
@@ -306,7 +305,7 @@ pub enum System {
         /// The task's id.
         task_id: String,
         /// The tool call that spawned it, if one did.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         tool_use_id: Option<String>,
         /// How it ended.
         status: TaskStatus,
@@ -315,7 +314,7 @@ pub enum System {
         /// What it did, in words.
         summary: String,
         /// What it spent.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         usage: Option<TaskUsage>,
         /// The record's own id.
         uuid: String,
@@ -381,7 +380,7 @@ pub enum System {
         /// The bridge's new state.
         state: BridgeState,
         /// Detail, when the state has any — a failure's reason.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         detail: Option<String>,
         /// The record's own id.
         uuid: String,
@@ -409,7 +408,7 @@ pub struct Plugin {
     pub path: String,
     /// Its source identifier, `name@marketplace` — with `name@inline`
     /// for `--plugin-dir` plugins and `name@builtin` for built-ins.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 }
 
@@ -517,7 +516,7 @@ pub struct CompactMetadata {
     pub pre_tokens: u64,
     /// Relink info for a partial compact that preserved a segment;
     /// unset when everything was summarized.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub preserved_segment: Option<PreservedSegment>,
 }
 

@@ -11,9 +11,10 @@ use serde::{Deserialize, Serialize};
 /// geography, per-iteration detail, and speed — and real API
 /// messages reach stdout by verbatim spread, so whatever the API
 /// said rides along. The six are optional AND nullable (the
-/// synthetic constructors write explicit `null`s), so they carry
-/// `default` without `skip_serializing_if`: absent parses, and an
-/// empty value re-emits as `null` the way the emitters spell it.
+/// synthetic constructors write explicit `null`s), so they are plain
+/// `Option`s: absent parses to `None`, and `None` re-emits as `null`
+/// the way the emitters spell it. Every count that can be absent is
+/// an `Option` too — absent and zero are different facts.
 ///
 /// The cache counts are nullable in the SDK — a model or tier that
 /// does not report caching sends `null`, not `0`, and the difference
@@ -29,24 +30,18 @@ pub struct Usage {
     /// Tokens read from the prompt cache, if reported.
     pub cache_read_input_tokens: Option<u64>,
     /// Server-side tool spend.
-    #[serde(default)]
     pub server_tool_use: Option<ServerToolUse>,
     /// The service tier that served it. A string, because the
     /// vocabulary is the API's.
-    #[serde(default)]
     pub service_tier: Option<String>,
     /// Cache writes, by lifetime.
-    #[serde(default)]
     pub cache_creation: Option<CacheCreation>,
     /// Where inference ran.
-    #[serde(default)]
     pub inference_geo: Option<String>,
     /// Per-iteration detail: what each pass of an adaptive turn
     /// spent, message passes and compaction passes alike.
-    #[serde(default)]
     pub iterations: Option<Vec<IterationUsage>>,
     /// The speed tier that served it.
-    #[serde(default)]
     pub speed: Option<String>,
 }
 
@@ -66,17 +61,13 @@ pub enum IterationUsage {
         /// Cache writes, by lifetime.
         cache_creation: Option<CacheCreation>,
         /// Tokens written to the prompt cache.
-        #[serde(default)]
-        cache_creation_input_tokens: u64,
+        cache_creation_input_tokens: Option<u64>,
         /// Tokens read from the prompt cache.
-        #[serde(default)]
-        cache_read_input_tokens: u64,
+        cache_read_input_tokens: Option<u64>,
         /// Input tokens billed.
-        #[serde(default)]
-        input_tokens: u64,
+        input_tokens: Option<u64>,
         /// Output tokens billed.
-        #[serde(default)]
-        output_tokens: u64,
+        output_tokens: Option<u64>,
     },
     /// A compaction pass.
     Compaction {
@@ -85,17 +76,13 @@ pub enum IterationUsage {
         /// Cache writes, by lifetime.
         cache_creation: Option<CacheCreation>,
         /// Tokens written to the prompt cache.
-        #[serde(default)]
-        cache_creation_input_tokens: u64,
+        cache_creation_input_tokens: Option<u64>,
         /// Tokens read from the prompt cache.
-        #[serde(default)]
-        cache_read_input_tokens: u64,
+        cache_read_input_tokens: Option<u64>,
         /// Input tokens billed.
-        #[serde(default)]
-        input_tokens: u64,
+        input_tokens: Option<u64>,
         /// Output tokens billed.
-        #[serde(default)]
-        output_tokens: u64,
+        output_tokens: Option<u64>,
     },
     /// An iteration newer than this crate, preserved verbatim.
     Other(serde_json::Value),
@@ -107,11 +94,9 @@ pub enum IterationUsage {
 )]
 pub struct ServerToolUse {
     /// Web searches run.
-    #[serde(default)]
-    pub web_search_requests: u64,
+    pub web_search_requests: Option<u64>,
     /// Web fetches run.
-    #[serde(default)]
-    pub web_fetch_requests: u64,
+    pub web_fetch_requests: Option<u64>,
 }
 
 /// Cache writes by lifetime inside [`Usage`].
@@ -120,11 +105,9 @@ pub struct ServerToolUse {
 )]
 pub struct CacheCreation {
     /// Tokens cached for an hour.
-    #[serde(default)]
-    pub ephemeral_1h_input_tokens: u64,
+    pub ephemeral_1h_input_tokens: Option<u64>,
     /// Tokens cached for five minutes.
-    #[serde(default)]
-    pub ephemeral_5m_input_tokens: u64,
+    pub ephemeral_5m_input_tokens: Option<u64>,
 }
 
 /// The cumulative usage a
@@ -137,18 +120,13 @@ pub struct DeltaUsage {
     /// The cumulative number of output tokens so far.
     pub output_tokens: u64,
     /// Cumulative input tokens, when reported.
-    #[serde(default)]
     pub input_tokens: Option<u64>,
     /// Cumulative cache writes, when reported.
-    #[serde(default)]
     pub cache_creation_input_tokens: Option<u64>,
     /// Cumulative cache reads, when reported.
-    #[serde(default)]
     pub cache_read_input_tokens: Option<u64>,
     /// Server-side tool spend so far, when reported.
-    #[serde(default)]
     pub server_tool_use: Option<ServerToolUse>,
     /// Per-iteration detail so far, when reported.
-    #[serde(default)]
     pub iterations: Option<Vec<IterationUsage>>,
 }
