@@ -3,9 +3,10 @@
 //! [`QUEUE`] is what the two sides share: the `/enqueue` and
 //! `/dequeue` handlers put messages in and clear them, the loop
 //! takes them at its seams, and every message's HTTP response waits
-//! on the [`Fate`] whoever acted sends. A true global, because the
-//! container is one run — the door already enforces that — and one
-//! run has one queue.
+//! on the fate whoever acted sends — the SDK's own
+//! [`Response`], because the fate IS the response. A true global,
+//! because the container is one run — the door already enforces
+//! that — and one run has one queue.
 
 use diverge_provider_sdk::agentic_loop_container::enqueue::Response;
 use tokio::sync::Mutex;
