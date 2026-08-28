@@ -15,15 +15,20 @@ use super::writer;
 /// Withdraw everything still queued.
 ///
 /// BOTH locks are taken up front — joined, acquired in parallel, the
-/// only place in the module that ever holds the two at once — and
-/// held from the first look to the answer, across the cancel writes
-/// AND the reply reads. That hold is the whole correctness: no
-/// enqueue can interleave (writing and registering both need the
-/// writer lock), so the pending map's keys are the complete queue,
-/// and the replies read are answers to the cancels written. No
-/// timeout; the wait is as long as Claude Code takes, and a run that
-/// ends under the wait closes the reply channel, which resolves it
-/// too.
+/// only place in the module that ever holds the two at once — but
+/// each is held exactly as long as its job: the WRITER from the
+/// pending-map snapshot through the cancel writes, dropped the
+/// moment the write is through, so enqueues flow again during the
+/// wait; the REPLIES through the reply reads, dropped when the last
+/// reply is in. The writer's span is the correctness of the
+/// snapshot — no enqueue can interleave between the look and the
+/// cancels, so every message written before the cancels is
+/// snapshotted and cancelled. Messages enqueued during the reply
+/// wait are after the withdrawal, and none of its business: they
+/// write no control responses, so the replies read stay answers to
+/// the cancels written. No timeout; the wait is as long as Claude
+/// Code takes, and a run that ends under the wait closes the reply
+/// channel, which resolves it too.
 ///
 /// Each reply decides the fate of the message it answers for,
 /// strictly: `cancelled: true` means the cancel reached it —
@@ -93,6 +98,10 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
             r#type: Default::default(),
         };
     }
+    // The write is through: the writer's job here is done, and every
+    // message a cancel could reach is in the snapshot. Enqueues flow
+    // again from here — anything they queue is after the withdrawal.
+    drop(writer);
 
     // Every cancel written gets its reply read, matched by request
     // id. A reply quoting an unknown id is stale — a prior dequeue
@@ -155,10 +164,10 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
                 }
             },
             // The reader dropped the sender: the run is over, and a
-            // dead queue holds nothing. The pending fates stay for
-            // the reader's end-of-stream to miss.
+            // dead queue holds nothing. The writer, released above,
+            // is the reader's end-of-stream to clear — along with
+            // missing the pending fates.
             None => {
-                *writer = None;
                 *replies = None;
                 return agentic_loop_container::dequeue::Response::Empty {
                     r#type: Default::default(),
@@ -167,6 +176,8 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
         }
     }
 
+    // The last reply is in: the receiver's job here is done too.
+    drop(replies);
     agentic_loop_container::dequeue::Response::Dequeued {
         r#type: Default::default(),
     }

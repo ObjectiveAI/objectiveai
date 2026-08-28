@@ -12,10 +12,12 @@
 //! Fates are STRICT: an enqueue answers delivered, dequeued or
 //! missed when that is truly known, not when its write lands. A
 //! dequeue takes BOTH locks up front — joined, in parallel, the only
-//! holder of the two at once — and keeps them across its cancel
-//! writes and reply reads: nothing can enqueue while it waits, so
-//! the pending map is the complete queue and the replies read are
-//! answers to the cancels written.
+//! holder of the two at once — then holds each exactly as long as
+//! its job: the writer through the cancel writes, so the pending map
+//! it snapshots is the complete queue when the cancels land; the
+//! replies through the reply reads, which stay answers to the
+//! cancels written even as released enqueues flow — new messages
+//! write no control responses.
 //!
 //! Deadlock audit: the reader never touches a lock while reading —
 //! only at end of stream, AFTER dropping the reply sender, and then
