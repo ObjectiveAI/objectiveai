@@ -3,7 +3,7 @@
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 use serde::Serialize;
 
-use super::super::RichContent;
+use super::super::{RichContent, RichContentPart};
 
 /// A tool message containing the result of a tool call.
 #[derive(
@@ -36,6 +36,43 @@ impl ToolMessage {
                 chunk.inner.content.into_iter().map(Into::into).collect(),
             ),
             tool_call_id: chunk.id,
+        }
+    }
+
+    /// Fold steered messages into this tool response.
+    ///
+    /// Messages enqueued while the tools ran enter the conversation
+    /// right behind the tool answers, and this is how the model
+    /// sees them: one section spliced AHEAD of the tool's own
+    /// content — the position the old proxy's queue notifications
+    /// used — the texts joined by a blank line, the whole wrapped in
+    /// a `system-reminder` pair. Tokenless, unlike the old form:
+    /// delivery is confirmed by the container's own fates now, and
+    /// nothing downstream scans for a token anymore.
+    ///
+    /// Derived here and ONLY here: the continuation stores the
+    /// delivered prompts as bare `Prompt` items, and this section is
+    /// what the request builder makes of them each time, not a thing
+    /// the history remembers.
+    pub fn fold_steer(&mut self, texts: &[String]) {
+        let section = format!(
+            "<system-reminder>
+The user sent a new message while you              were working:
+{}
+</system-reminder>
+
+",
+            texts.join("
+
+"),
+        );
+        match &mut self.content {
+            RichContent::Parts(parts) => {
+                parts.insert(0, RichContentPart::Text { text: section });
+            }
+            RichContent::Text(text) => {
+                *text = format!("{section}{text}");
+            }
         }
     }
 }
