@@ -17,7 +17,9 @@
 //! it snapshots is the complete queue when the cancels land; the
 //! replies through the reply reads, which stay answers to the
 //! cancels written even as released enqueues flow — new messages
-//! write no control responses.
+//! write no control responses. Ahead of it all, [`pending::GATE`]:
+//! the FIFO boundary both verbs take first, so a message enqueued
+//! after a withdrawal arrived is never the one withdrawn.
 //!
 //! Deadlock audit: the reader never touches a lock while reading —
 //! only at end of stream, AFTER dropping the reply sender, and then

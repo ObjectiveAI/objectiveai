@@ -38,6 +38,12 @@ use super::writer;
 /// skipped — the main loop will be racing this same map once the
 /// conversion work lands.
 pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
+    // The gate, before anything: this acquisition IS "the cancel
+    // came in". Enqueues queued ahead register before the snapshot
+    // below and are withdrawn; enqueues queued behind are excluded
+    // and never cancelled. The early returns release it on their way
+    // out.
+    let gate = pending::GATE.lock().await;
     let (mut writer, mut replies) =
         tokio::join!(writer::WRITER.lock(), replies::REPLIES.lock());
     let Some(child_stdin) = writer.as_mut() else {
@@ -62,6 +68,9 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
         .iter()
         .map(|entry| entry.key().clone())
         .collect();
+    // The snapshot is taken: the boundary is drawn, and enqueues may
+    // queue again — behind the withdrawal, out of its reach.
+    drop(gate);
     if uuids.is_empty() {
         return agentic_loop_container::dequeue::Response::Empty {
             r#type: Default::default(),
