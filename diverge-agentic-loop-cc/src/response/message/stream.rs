@@ -2,7 +2,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{ContentBlock, DeltaUsage, Message, StopReason, TextCitation};
+use super::{
+    Container, ContentBlock, ContextManagementResponse, DeltaUsage, Message,
+    StopReason, TextCitation,
+};
 
 /// `BetaRawMessageStreamEvent`: one event of a streamed API message.
 /// Six kinds, and the pairing is the API's own: a message starts,
@@ -26,8 +29,11 @@ pub enum StreamEvent {
         r#type: MessageDeltaType,
         /// What became known.
         delta: MessageDelta,
-        /// Cumulative output tokens so far.
+        /// The cumulative usage so far.
         usage: DeltaUsage,
+        /// Context-management state, when an edit landed mid-stream.
+        #[serde(default)]
+        context_management: Option<ContextManagementResponse>,
     },
     /// The message is over.
     MessageStop {
@@ -128,13 +134,17 @@ pub enum ContentBlockStopType {
 }
 
 /// What a `message_delta` learned: the stop fields, in the same
-/// vocabulary the whole message uses.
+/// vocabulary the whole message uses — and the container, whose
+/// expiry can move mid-stream.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MessageDelta {
     /// Why generation stopped.
     pub stop_reason: Option<StopReason>,
     /// Which custom stop sequence fired, if one did.
     pub stop_sequence: Option<String>,
+    /// The code-execution container, when its state changed.
+    #[serde(default)]
+    pub container: Option<Container>,
 }
 
 /// `content_block_delta`'s growth. Five kinds in the pinned SDK —

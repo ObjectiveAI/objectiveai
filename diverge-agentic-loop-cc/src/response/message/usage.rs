@@ -127,10 +127,28 @@ pub struct CacheCreation {
     pub ephemeral_5m_input_tokens: u64,
 }
 
-/// `BetaMessageDeltaUsage`: the one cumulative count a
+/// The cumulative usage a
 /// [`message_delta`](super::StreamEvent::MessageDelta) carries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+///
+/// The pinned SDK knew only `output_tokens`; the current API sends
+/// the whole running bill, everything but the output count nullable.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeltaUsage {
     /// The cumulative number of output tokens so far.
     pub output_tokens: u64,
+    /// Cumulative input tokens, when reported.
+    #[serde(default)]
+    pub input_tokens: Option<u64>,
+    /// Cumulative cache writes, when reported.
+    #[serde(default)]
+    pub cache_creation_input_tokens: Option<u64>,
+    /// Cumulative cache reads, when reported.
+    #[serde(default)]
+    pub cache_read_input_tokens: Option<u64>,
+    /// Server-side tool spend so far, when reported.
+    #[serde(default)]
+    pub server_tool_use: Option<ServerToolUse>,
+    /// Per-iteration detail so far, when reported.
+    #[serde(default)]
+    pub iterations: Option<Vec<IterationUsage>>,
 }
