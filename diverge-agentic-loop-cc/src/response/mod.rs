@@ -27,35 +27,20 @@
 //! `system/session_state_changed { state: idle }`. Each type's docs
 //! carry the details.
 
+pub mod assistant;
+pub mod auth_status;
+pub mod control;
+pub mod keep_alive;
 pub mod message;
-
-mod assistant;
-mod auth_status;
-mod control;
-mod keep_alive;
-mod prompt_suggestion;
-mod rate_limit_event;
-mod result;
-mod stream_event;
-mod streamlined;
-mod system;
-mod tool_progress;
-mod tool_use_summary;
-mod user;
-
-pub use assistant::*;
-pub use auth_status::*;
-pub use control::*;
-pub use keep_alive::*;
-pub use prompt_suggestion::*;
-pub use rate_limit_event::*;
-pub use result::*;
-pub use stream_event::*;
-pub use streamlined::*;
-pub use system::*;
-pub use tool_progress::*;
-pub use tool_use_summary::*;
-pub use user::*;
+pub mod prompt_suggestion;
+pub mod rate_limit_event;
+pub mod result;
+pub mod stream_event;
+pub mod streamlined;
+pub mod system;
+pub mod tool_progress;
+pub mod tool_use_summary;
+pub mod user;
 
 use serde::{Deserialize, Serialize};
 
@@ -72,36 +57,36 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum StdoutMessage {
-    /// The run narrating itself; see [`System`] for the subtypes.
-    System(System),
+    /// The run narrating itself; see [`system::System`] for the subtypes.
+    System(system::System),
     /// One block of what the model said.
-    Assistant(Assistant),
+    Assistant(assistant::Assistant),
     /// One block of what went back to it.
-    User(User),
-    /// How the turn ended; see [`Result`] for the subtypes.
-    Result(Result),
+    User(user::User),
+    /// How the turn ended; see [`result::Result`] for the subtypes.
+    Result(result::Result),
     /// A raw API streaming event, with `--include-partial-messages`.
-    StreamEvent(StreamEvent),
+    StreamEvent(stream_event::StreamEvent),
     /// A long tool run's heartbeat, on remote builds.
-    ToolProgress(ToolProgress),
+    ToolProgress(tool_progress::ToolProgress),
     /// Tool calls, summarized after the fact.
-    ToolUseSummary(ToolUseSummary),
+    ToolUseSummary(tool_use_summary::ToolUseSummary),
     /// Subscription rate limits moving.
-    RateLimitEvent(RateLimitEvent),
+    RateLimitEvent(rate_limit_event::RateLimitEvent),
     /// Authentication narrated, with `--enable-auth-status`.
-    AuthStatus(AuthStatus),
+    AuthStatus(auth_status::AuthStatus),
     /// A suggested follow-up, when suggestions are on.
-    PromptSuggestion(PromptSuggestion),
+    PromptSuggestion(prompt_suggestion::PromptSuggestion),
     /// An ask travelling outward — a permission or sandbox prompt.
-    ControlRequest(ControlRequest),
+    ControlRequest(control::ControlRequest),
     /// The answer to an ask that arrived on stdin.
-    ControlResponse(ControlResponse),
+    ControlResponse(control::ControlResponse),
     /// An open ask, withdrawn.
-    ControlCancelRequest(ControlCancelRequest),
+    ControlCancelRequest(control::ControlCancelRequest),
     /// A transport heartbeat carrying nothing.
-    KeepAlive(KeepAlive),
+    KeepAlive(keep_alive::KeepAlive),
     /// The internal terse mode's text record.
-    StreamlinedText(StreamlinedText),
+    StreamlinedText(streamlined::StreamlinedText),
     /// The internal terse mode's tool summary record.
-    StreamlinedToolUseSummary(StreamlinedToolUseSummary),
+    StreamlinedToolUseSummary(streamlined::StreamlinedToolUseSummary),
 }

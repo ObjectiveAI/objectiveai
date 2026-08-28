@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::AssistantMessageError;
+use super::assistant::AssistantMessageError;
 
 /// A `type: "system"` record: one of sixteen subtypes, each
 /// self-describing — untagged, with the `type` and `subtype`
