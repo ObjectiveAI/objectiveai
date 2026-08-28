@@ -56,15 +56,9 @@ impl ToolMessage {
     /// the history remembers.
     pub fn fold_steer(&mut self, texts: &[String]) {
         let section = format!(
-            "<system-reminder>
-The user sent a new message while you              were working:
-{}
-</system-reminder>
-
-",
-            texts.join("
-
-"),
+            "<system-reminder>\nThe user sent a new message while you \
+             were working:\n{}\n</system-reminder>\n\n",
+            texts.join("\n\n"),
         );
         match &mut self.content {
             RichContent::Parts(parts) => {

@@ -122,9 +122,7 @@ pub fn messages(
                         messages.push(Message::User(
                             super::UserMessage::new(vec![
                                 rmcp::model::ContentBlock::text(
-                                    texts.join("
-
-"),
+                                    texts.join("\n\n"),
                                 ),
                             ]),
                         ));
@@ -189,9 +187,7 @@ fn prompt_texts(
         for block in blocks {
             parts.push(block.as_text()?.text.clone());
         }
-        texts.push(parts.join("
-
-"));
+        texts.push(parts.join("\n\n"));
     }
     Some(texts)
 }
