@@ -8,8 +8,8 @@
 //! /enqueue` and `POST /dequeue`, per the SDK's
 //! `agentic_loop_container` module — the caller's way into the
 //! conversation already running, backed by the [`spawn`] module's
-//! writer task rather than a queue of its own: Claude Code holds the
-//! queue, and this container holds the fates.
+//! one session lock rather than a queue of its own: Claude Code
+//! holds the queue, and this container holds the writer.
 
 // The harness that consumes them comes later; the allows leave with it.
 #[allow(dead_code)]
@@ -75,39 +75,22 @@ async fn serve(
 
 /// A message for the running conversation's queue.
 ///
-/// The response IS the fate, and it arrives when the fate is known —
-/// taken into the conversation (the replay echo says so), withdrawn
-/// by a dequeue, or outlived by the run. That can be long after the
-/// ask; nothing here times anything out. The one failure with no
-/// fate to report — the fate channel dying, which the writer's own
-/// close handling exists to prevent — answers as HTTP does, with a
-/// status.
+/// The write landing is the answer: from there Claude Code holds the
+/// queue, and short of a dequeue the message enters the
+/// conversation. A container with no run to write to — never
+/// started, or already over — answers missed. Nothing here can fail
+/// as HTTP.
 async fn enqueue(
     Json(request): Json<agentic_loop_container::enqueue::Request>,
-) -> Result<
-    Json<agentic_loop_container::enqueue::Response>,
-    (StatusCode, Json<serde_json::Value>),
-> {
-    let fate = spawn::enqueue(request.prompt).await;
-    match fate.await {
-        // The writer speaks the SDK's own response type, so the fate
-        // forwards as itself.
-        Ok(response) => Ok(Json(response)),
-        Err(_) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "kind": "fate_lost",
-                "error": "the message's fate was never decided",
-            })),
-        )),
-    }
+) -> Json<agentic_loop_container::enqueue::Response> {
+    Json(spawn::enqueue(request.prompt).await)
 }
 
 /// Clear the running conversation's queue.
 ///
-/// Naive, deliberately: whatever is pending is withdrawn — each
-/// message's own `/enqueue` answers `dequeued` — and a queue with
-/// nothing pending, closed, or never opened answers `empty`.
+/// The answer arrives once Claude Code has replied to every cancel —
+/// however long that takes — and a queue with nothing left to
+/// withdraw, or no run at all, answers `empty`.
 async fn dequeue(
     Json(_request): Json<agentic_loop_container::dequeue::Request>,
 ) -> Json<agentic_loop_container::dequeue::Response> {

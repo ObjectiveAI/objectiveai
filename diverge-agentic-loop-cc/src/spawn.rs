@@ -1,71 +1,76 @@
-//! The Claude Code subprocess, and the tasks that speak to it.
+//! The Claude Code subprocess, and the two globals around it.
 //!
-//! One run is one subprocess, and everything the harness says to it
-//! goes through ONE writer task that owns stdin and the pending-fate
-//! map outright. Enqueues, dequeues, the drain's replay sightings and
-//! the end-of-stream close all arrive as [`Command`]s on a single
-//! channel, each carrying its reply wire where it needs one — so a
-//! single consumer serializes every write and every fate, and no lock
-//! is ever held across an await.
+//! One run is one subprocess, and one global mutex holds everything a
+//! writer needs: [`SESSION`] is stdin, the queued uuids, and the
+//! RECEIVER for cancel replies, together under one lock. The reader
+//! task permanently holds the matching sender — so the lock's hold IS
+//! the protocol's atomicity. An enqueue locks, writes, answers well.
+//! A dequeue locks and KEEPS the lock across its cancel writes and
+//! its reply reads: nothing can enqueue while it waits, so merely
+//! receiving the replies means the withdrawal resolved.
 //!
-//! The drain task owns the other direction: it reads stdout line by
-//! line, forwards every parse result to the caller's sender, and taps
-//! the replay echoes — a `user` record with `isReplay: true` — which
-//! are how Claude Code says an enqueued message entered the
-//! conversation. The tap only REPORTS the uuid; resolving the fate is
-//! the writer's, like every other pending-map touch.
+//! Beside the lock, [`DELIVERED`]: uuids known to have entered the
+//! conversation, which lets a dequeue clean the queued vector before
+//! writing cancels for messages that are already gone. The reader
+//! will populate it from the replay echoes later; today it only
+//! exists to be consulted.
+//!
+//! Deadlock audit: the reader never touches [`SESSION`] while
+//! reading — only once, at end of stream, AFTER dropping the reply
+//! sender — so a dequeue mid-wait always wakes (on `None` if the run
+//! ends under it), and stdout always drains while an enqueue blocks
+//! on a full stdin pipe.
 
-use std::collections::HashMap;
 use std::io;
 use std::process::Stdio;
+use std::sync::LazyLock;
 
+use dashmap::DashSet;
 use diverge_provider_sdk::agentic_loop_container;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process;
-use tokio::sync::{Mutex, mpsc, oneshot};
+use tokio::sync::{Mutex, mpsc};
 use uuid::Uuid;
 
 use crate::continuation;
 use crate::response;
 use crate::stdin;
 
-/// The way in: the writer task's channel, set once by [`spawn`].
-///
-/// `None` until a run starts — an enqueue before that is missed, a
-/// dequeue finds nothing — and never taken back out: after the
-/// subprocess ends, the writer itself answers with the closed-queue
-/// fates, which keeps the close atomic with the map that proves it.
-static COMMANDS: Mutex<Option<mpsc::UnboundedSender<Command>>> =
-    Mutex::const_new(None);
+/// The running session, or `None` before the run starts and after it
+/// ends. Set by [`spawn`], taken out by whoever finds the process
+/// dead first — a failed write, a dequeue waking on a closed reply
+/// channel, or the reader at end of stream.
+static SESSION: Mutex<Option<Session>> = Mutex::const_new(None);
 
-/// Everything the writer task can be told, each entry carrying its
-/// reply wire where one is owed.
-enum Command {
-    /// Queue a message for the running session.
-    Enqueue {
-        /// The message's text.
-        prompt: String,
-        /// Where its fate goes.
-        fate: oneshot::Sender<agentic_loop_container::enqueue::Response>,
-    },
-    /// Withdraw everything still queued.
-    Dequeue {
-        /// Where the clearing's summary goes.
-        reply: oneshot::Sender<agentic_loop_container::dequeue::Response>,
-    },
-    /// The drain saw a replay echo: the message with this uuid
-    /// entered the conversation.
-    Replayed {
-        /// The echoed uuid.
-        uuid: String,
-    },
-    /// The drain saw stdout end: the run is over.
-    Closed,
+/// Uuids of messages known to have entered the conversation.
+///
+/// Not populated yet — the reader will mark replay echoes here when
+/// the conversion work lands — but already consulted:
+/// [`dequeue`] drops these from the queued vector before writing
+/// cancels, so a queue whose every message already landed is
+/// honestly empty.
+static DELIVERED: LazyLock<DashSet<String>> = LazyLock::new(DashSet::new);
+
+/// What the one lock protects: the writer and everything whose
+/// consistency rides on write order.
+struct Session {
+    /// The subprocess's stdin: the only way in.
+    stdin: process::ChildStdin,
+    /// Uuids of enqueued messages, in write order. Never pruned on
+    /// delivery — only a dequeue's pre-clean does that, via
+    /// [`DELIVERED`] — so entries may name messages already landed;
+    /// cancelling those is Claude Code's documented no-op.
+    queued: Vec<String>,
+    /// Where the reader's forwarded cancel replies arrive. The
+    /// receiver lives INSIDE the lock so that reading it is a right
+    /// only the lock holder has — which is what lets a dequeue treat
+    /// the replies it reads as answers to the cancels it wrote.
+    replies: mpsc::UnboundedReceiver<response::control::ControlResponse>,
 }
 
 /// Start the run: write the continuation's files if resuming, launch
-/// Claude Code, hand it the prompt, and leave the writer and drain
-/// tasks running.
+/// Claude Code, hand it the prompt, and leave the reader task
+/// running.
 ///
 /// The caller ensures there is one run per container lifetime — the
 /// same door guard the root handler owns — so this never contends
@@ -73,8 +78,7 @@ enum Command {
 ///
 /// Every line Claude Code writes reaches `sender` as its parse
 /// result, strict per the [`response`] module's contract; the
-/// receiver's death stops nothing, because the drain's other duty —
-/// reporting replays — outlives any listener.
+/// receiver's death stops nothing.
 pub async fn spawn(
     continuation: Option<continuation::Continuation>,
     prompt: String,
@@ -115,259 +119,173 @@ pub async fn spawn(
     let child_stdout = child.stdout.take().expect("stdout piped above");
 
     // The run's prompt: stream-json input mode's way of delivering
-    // the print prompt is the same line an enqueue writes. No pending
-    // fate — its replay taps nothing, harmlessly.
-    write_line(
+    // the print prompt is the same line an enqueue writes. Its uuid
+    // is NOT queued — the run's prompt is not steerable, so no
+    // dequeue may cancel it.
+    write_lines(
         &mut child_stdin,
-        &serde_json::to_string(&stdin::UserMessage {
-            r#type: Default::default(),
-            message: stdin::UserMessageBody {
-                role: Default::default(),
-                content: prompt,
-            },
-            uuid: Uuid::new_v4().to_string(),
-        })
-        .expect("a stdin line is plain structs and serializes"),
+        &user_message_line(prompt, Uuid::new_v4().to_string()),
     )
     .await?;
 
-    let (commands, receiver) = mpsc::unbounded_channel();
-    *COMMANDS.lock().await = Some(commands.clone());
-    tokio::spawn(writer(child_stdin, receiver));
-    tokio::spawn(drain(child_stdout, child, commands, sender));
+    let (reply_sender, replies) = mpsc::unbounded_channel();
+    *SESSION.lock().await = Some(Session {
+        stdin: child_stdin,
+        queued: Vec::new(),
+        replies,
+    });
+    tokio::spawn(read(child_stdout, child, reply_sender, sender));
     Ok(())
 }
 
-/// Queue a message for the running session, and get the wire its
-/// fate will arrive on.
+/// Queue a message for the running session.
 ///
-/// No run yet, or no run anymore: the fate is already known — the
-/// message is missed — and the returned receiver resolves
-/// immediately.
+/// The write landing is the good answer: Claude Code holds the queue
+/// from here, and short of a dequeue withdrawing it the message will
+/// enter the conversation. No run to write to — never started, or
+/// already over — is the expected failure, and the message is
+/// missed.
 pub async fn enqueue(
     prompt: String,
-) -> oneshot::Receiver<agentic_loop_container::enqueue::Response> {
-    let (fate, receiver) = oneshot::channel();
-    match COMMANDS.lock().await.as_ref() {
-        Some(commands) => {
-            // The writer outlives every sender COMMANDS holds, so
-            // this send cannot fail; if it somehow did, the fate
-            // rides back inside the error and is missed honestly.
-            if let Err(mpsc::error::SendError(Command::Enqueue {
-                fate,
-                ..
-            })) = commands.send(Command::Enqueue { prompt, fate })
-            {
-                let _ = fate.send(
-                    agentic_loop_container::enqueue::Response::Missed {
-                        r#type: Default::default(),
-                    },
-                );
+) -> agentic_loop_container::enqueue::Response {
+    let mut session = SESSION.lock().await;
+    let Some(inner) = session.as_mut() else {
+        return agentic_loop_container::enqueue::Response::Missed {
+            r#type: Default::default(),
+        };
+    };
+    let uuid = Uuid::new_v4().to_string();
+    match write_lines(
+        &mut inner.stdin,
+        &user_message_line(prompt, uuid.clone()),
+    )
+    .await
+    {
+        Ok(()) => {
+            inner.queued.push(uuid);
+            agentic_loop_container::enqueue::Response::Delivered {
+                r#type: Default::default(),
             }
         }
-        None => {
-            let _ = fate.send(
-                agentic_loop_container::enqueue::Response::Missed {
-                    r#type: Default::default(),
-                },
-            );
+        // A broken stdin is the process dying: the session is over.
+        Err(_) => {
+            *session = None;
+            agentic_loop_container::enqueue::Response::Missed {
+                r#type: Default::default(),
+            }
         }
     }
-    receiver
 }
 
 /// Withdraw everything still queued.
 ///
-/// No run, no queue: the naive answer is empty, and it is also the
-/// honest one — a session that never started or already ended holds
-/// nothing to withdraw.
+/// The lock is held from the first look to the answer — across the
+/// cancel writes AND the reply reads — and that hold is the whole
+/// correctness: no enqueue can interleave, so the replies read are
+/// answers to the cancels written, and receiving them means the
+/// withdrawal resolved. No timeout; the wait is as long as Claude
+/// Code takes, and a run that ends under the wait closes the reply
+/// channel, which resolves it too.
 pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
-    let (reply, receiver) = oneshot::channel();
-    {
-        // Scoped: the reply is awaited OUTSIDE the lock, so enqueues
-        // keep flowing while the writer works.
-        match COMMANDS.lock().await.as_ref() {
-            Some(commands) => {
-                if commands.send(Command::Dequeue { reply }).is_err() {
-                    return agentic_loop_container::dequeue::Response::Empty {
-                        r#type: Default::default(),
-                    };
+    let mut session = SESSION.lock().await;
+    let Some(inner) = session.as_mut() else {
+        return agentic_loop_container::dequeue::Response::Empty {
+            r#type: Default::default(),
+        };
+    };
+
+    // Pre-clean: a message known delivered is not in the queue, and
+    // writing a cancel for it would be asking about the past.
+    inner.queued.retain(|uuid| !DELIVERED.contains(uuid));
+    if inner.queued.is_empty() {
+        return agentic_loop_container::dequeue::Response::Empty {
+            r#type: Default::default(),
+        };
+    }
+
+    // One buffered write for all the withdrawals, each under a fresh
+    // request id; the replies quote the ids back.
+    let mut request_ids = std::collections::HashSet::new();
+    let mut lines = String::new();
+    for uuid in &inner.queued {
+        let request_id = Uuid::new_v4().to_string();
+        lines.push_str(
+            &serde_json::to_string(&stdin::ControlRequest {
+                r#type: Default::default(),
+                request_id: request_id.clone(),
+                request: stdin::CancelAsyncMessage {
+                    subtype: Default::default(),
+                    message_uuid: uuid.clone(),
+                },
+            })
+            .expect("a stdin line is plain structs and serializes"),
+        );
+        lines.push('\n');
+        request_ids.insert(request_id);
+    }
+    if write_lines(&mut inner.stdin, &lines).await.is_err() {
+        // A broken stdin is the process dying: the session is over,
+        // and a dead queue holds nothing.
+        *session = None;
+        return agentic_loop_container::dequeue::Response::Empty {
+            r#type: Default::default(),
+        };
+    }
+
+    // Every cancel written gets its reply read, matched by request
+    // id. A reply quoting an unknown id is stale — a prior dequeue
+    // whose HTTP caller vanished mid-wait left it unread — and is
+    // skipped, not counted.
+    while !request_ids.is_empty() {
+        match inner.replies.recv().await {
+            Some(reply) => {
+                let (response::control::ControlResponseInner::Success {
+                    request_id,
+                    ..
                 }
+                | response::control::ControlResponseInner::Error {
+                    request_id,
+                    ..
+                }) = &reply.response;
+                request_ids.remove(request_id);
             }
+            // The reader dropped the sender: the run is over, and a
+            // dead queue holds nothing.
             None => {
+                *session = None;
                 return agentic_loop_container::dequeue::Response::Empty {
                     r#type: Default::default(),
                 };
             }
         }
     }
-    receiver.await.unwrap_or(
-        agentic_loop_container::dequeue::Response::Empty {
-            r#type: Default::default(),
-        },
-    )
-}
 
-/// The writer task: the one owner of stdin and the pending map.
-///
-/// `pending.len()` is the queue ticker — it rises as enqueues land,
-/// drops as replays resolve them, and zeroes on a dequeue or the
-/// close. Commands are processed strictly in arrival order, which is
-/// what makes the ordering free: a [`Command::Replayed`] can only
-/// exist after this task itself wrote the message it echoes, so the
-/// tap always finds its entry — unless a dequeue withdrew it first,
-/// in which case ignoring the echo is the accepted design.
-async fn writer(
-    mut child_stdin: process::ChildStdin,
-    mut commands: mpsc::UnboundedReceiver<Command>,
-) {
-    let mut pending: HashMap<
-        String,
-        oneshot::Sender<agentic_loop_container::enqueue::Response>,
-    > = HashMap::new();
-    let mut open = true;
-    while let Some(command) = commands.recv().await {
-        match command {
-            Command::Enqueue { prompt, fate } => {
-                if !open {
-                    let _ = fate.send(
-                        agentic_loop_container::enqueue::Response::Missed {
-                            r#type: Default::default(),
-                        },
-                    );
-                    continue;
-                }
-                let uuid = Uuid::new_v4().to_string();
-                let line = serde_json::to_string(&stdin::UserMessage {
-                    r#type: Default::default(),
-                    message: stdin::UserMessageBody {
-                        role: Default::default(),
-                        content: prompt,
-                    },
-                    uuid: uuid.clone(),
-                })
-                .expect("a stdin line is plain structs and serializes");
-                match write_line(&mut child_stdin, &line).await {
-                    Ok(()) => {
-                        pending.insert(uuid, fate);
-                    }
-                    // A broken stdin is the process dying: everything
-                    // waiting, this message included, is missed.
-                    Err(_) => {
-                        open = false;
-                        let _ = fate.send(
-                            agentic_loop_container::enqueue::Response::Missed {
-                                r#type: Default::default(),
-                            },
-                        );
-                        for (_, fate) in pending.drain() {
-                            let _ = fate.send(
-                                agentic_loop_container::enqueue::Response::Missed {
-                                    r#type: Default::default(),
-                                },
-                            );
-                        }
-                    }
-                }
-            }
-            Command::Dequeue { reply } => {
-                // Covers the closed writer too: closing drained the
-                // map, and an empty queue is what empty means.
-                if pending.is_empty() {
-                    let _ = reply.send(
-                        agentic_loop_container::dequeue::Response::Empty {
-                            r#type: Default::default(),
-                        },
-                    );
-                    continue;
-                }
-                // One buffered write for all the withdrawals; the
-                // command going through IS the success, per design —
-                // no waiting on control responses.
-                let mut lines = String::new();
-                for uuid in pending.keys() {
-                    lines.push_str(
-                        &serde_json::to_string(&stdin::ControlRequest {
-                            r#type: Default::default(),
-                            request_id: Uuid::new_v4().to_string(),
-                            request: stdin::CancelAsyncMessage {
-                                subtype: Default::default(),
-                                message_uuid: uuid.clone(),
-                            },
-                        })
-                        .expect(
-                            "a stdin line is plain structs and serializes",
-                        ),
-                    );
-                    lines.push('\n');
-                }
-                match write_all(&mut child_stdin, &lines).await {
-                    Ok(()) => {
-                        for (_, fate) in pending.drain() {
-                            let _ = fate.send(
-                                agentic_loop_container::enqueue::Response::Dequeued {
-                                    r#type: Default::default(),
-                                },
-                            );
-                        }
-                        let _ = reply.send(
-                            agentic_loop_container::dequeue::Response::Dequeued {
-                                r#type: Default::default(),
-                            },
-                        );
-                    }
-                    Err(_) => {
-                        open = false;
-                        for (_, fate) in pending.drain() {
-                            let _ = fate.send(
-                                agentic_loop_container::enqueue::Response::Missed {
-                                    r#type: Default::default(),
-                                },
-                            );
-                        }
-                        let _ = reply.send(
-                            agentic_loop_container::dequeue::Response::Empty {
-                                r#type: Default::default(),
-                            },
-                        );
-                    }
-                }
-            }
-            Command::Replayed { uuid } => {
-                // Absence is a message dequeued mid-delivery, echoing
-                // anyway — answered already, ignored by design.
-                if let Some(fate) = pending.remove(&uuid) {
-                    let _ = fate.send(
-                        agentic_loop_container::enqueue::Response::Delivered {
-                            r#type: Default::default(),
-                        },
-                    );
-                }
-            }
-            Command::Closed => {
-                open = false;
-                for (_, fate) in pending.drain() {
-                    let _ = fate.send(
-                        agentic_loop_container::enqueue::Response::Missed {
-                            r#type: Default::default(),
-                        },
-                    );
-                }
-            }
-        }
+    inner.queued.clear();
+    agentic_loop_container::dequeue::Response::Dequeued {
+        r#type: Default::default(),
     }
 }
 
-/// The drain task: the one reader of stdout, and the child's reaper.
+/// The reader task: the one reader of stdout, and the child's reaper.
 ///
-/// Reads until the stream ends — an IO error on the pipe ends the
-/// same way EOF does — then tells the writer the run is over and
-/// waits the child to reap it. Dropping `sender` at the end is the
-/// caller's end-of-stream.
-async fn drain(
+/// Per line: parse strictly; a `control_response` record additionally
+/// goes, cloned, through the reply sender — the receiver half sits
+/// inside [`SESSION`], so only a lock holder reads it — and every
+/// parse result forwards through the caller's sender regardless.
+///
+/// When the stream ends — EOF, or an IO error ends the same way —
+/// the ORDER is load-bearing: the reply sender drops FIRST, so a
+/// dequeue holding the session lock mid-wait wakes on the closed
+/// channel and resolves; only then is the lock taken to clear the
+/// session (idempotent with that dequeue's own clearing). Then the
+/// child is reaped, and dropping the caller's sender is the
+/// end-of-stream.
+async fn read(
     child_stdout: process::ChildStdout,
     mut child: process::Child,
-    commands: mpsc::UnboundedSender<Command>,
+    reply_sender: mpsc::UnboundedSender<
+        response::control::ControlResponse,
+    >,
     sender: mpsc::UnboundedSender<
         Result<response::StdoutMessage, serde_json::Error>,
     >,
@@ -376,36 +294,35 @@ async fn drain(
     while let Ok(Some(line)) = lines.next_line().await {
         let parsed =
             serde_json::from_str::<response::StdoutMessage>(&line);
-        // The fate tap: a replay echo means the enqueued message with
-        // that uuid entered the conversation. Report it; the writer
-        // resolves it.
-        if let Ok(response::StdoutMessage::User(user)) = &parsed {
-            if user.is_replay == Some(true) {
-                if let Some(uuid) = &user.uuid {
-                    let _ = commands.send(Command::Replayed {
-                        uuid: uuid.clone(),
-                    });
-                }
-            }
+        if let Ok(response::StdoutMessage::ControlResponse(reply)) =
+            &parsed
+        {
+            let _ = reply_sender.send(reply.clone());
         }
         let _ = sender.send(parsed);
     }
-    let _ = commands.send(Command::Closed);
+    drop(reply_sender);
+    *SESSION.lock().await = None;
     let _ = child.wait().await;
 }
 
-/// Write one NDJSON line: the serialized record, a newline, a flush.
-async fn write_line(
-    child_stdin: &mut process::ChildStdin,
-    line: &str,
-) -> io::Result<()> {
-    child_stdin.write_all(line.as_bytes()).await?;
-    child_stdin.write_all(b"\n").await?;
-    child_stdin.flush().await
+/// One enqueued (or initial) prompt, as its NDJSON line.
+fn user_message_line(prompt: String, uuid: String) -> String {
+    let mut line = serde_json::to_string(&stdin::UserMessage {
+        r#type: Default::default(),
+        message: stdin::UserMessageBody {
+            role: Default::default(),
+            content: prompt,
+        },
+        uuid,
+    })
+    .expect("a stdin line is plain structs and serializes");
+    line.push('\n');
+    line
 }
 
-/// Write an already-newline-terminated batch, then flush once.
-async fn write_all(
+/// Write already-newline-terminated lines, then flush once.
+async fn write_lines(
     child_stdin: &mut process::ChildStdin,
     lines: &str,
 ) -> io::Result<()> {

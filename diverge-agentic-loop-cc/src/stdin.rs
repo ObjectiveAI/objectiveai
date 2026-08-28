@@ -66,10 +66,9 @@ pub enum UserRole {
 pub struct ControlRequest {
     /// Always `control_request`.
     pub r#type: ControlRequestType,
-    /// The ask's id. Claude Code answers on stdout quoting it; this
-    /// container does not wait for the answer — the dequeue trusts
-    /// the write — so the id exists to be a well-formed request, not
-    /// to be awaited.
+    /// The ask's id. Claude Code answers on stdout quoting it, and
+    /// the dequeue that wrote this waits for that answer — the id is
+    /// how the reply and the ask find each other.
     pub request_id: String,
     /// The ask itself.
     pub request: CancelAsyncMessage,
