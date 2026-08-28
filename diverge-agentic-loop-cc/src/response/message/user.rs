@@ -617,17 +617,65 @@ pub enum TextOrImageParam {
     },
 }
 
-/// `CacheControlEphemeral`: the cache marker, an object whose only
-/// field is its own `type` literal — already self-describing, so it
-/// needs no untagging.
+/// `CacheControlEphemeral`: the cache marker — the pinned SDK's bare
+/// `{type}` and the current SDK's `{type, ttl}` in one shape. With
+/// no [`ttl`](Self::ttl) it serializes exactly as the old form did,
+/// so both vintages of the wire read and write correctly.
+#[derive(
+    Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub struct CacheControl {
+    /// Always `ephemeral`.
+    pub r#type: CacheControlType,
+    /// How long to cache for, when said.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ttl: Option<CacheControlTtl>,
+}
+
+/// The `ephemeral` literal.
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum CacheControl {
-    /// The only kind.
+#[serde(rename_all = "snake_case")]
+pub enum CacheControlType {
+    /// The only value.
     #[default]
     Ephemeral,
+}
+
+/// A cache lifetime — `5m` and `1h` today, and an API-owned
+/// vocabulary, so anything newer is preserved verbatim in
+/// [`Other`](Self::Other). Serde goes through [`String`] both ways,
+/// the flat-open-enum treatment.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(from = "String", into = "String")]
+pub enum CacheControlTtl {
+    /// Five minutes.
+    FiveMinutes,
+    /// One hour.
+    OneHour,
+    /// A lifetime newer than this crate, preserved verbatim.
+    Other(String),
+}
+
+impl From<String> for CacheControlTtl {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "5m" => CacheControlTtl::FiveMinutes,
+            "1h" => CacheControlTtl::OneHour,
+            _ => CacheControlTtl::Other(value),
+        }
+    }
+}
+
+impl From<CacheControlTtl> for String {
+    fn from(value: CacheControlTtl) -> Self {
+        match value {
+            CacheControlTtl::FiveMinutes => "5m".to_string(),
+            CacheControlTtl::OneHour => "1h".to_string(),
+            CacheControlTtl::Other(value) => value,
+        }
+    }
 }
 
 /// `CitationsConfigParam`: whether a document's citations are on.
