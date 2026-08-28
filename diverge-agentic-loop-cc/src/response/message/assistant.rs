@@ -36,16 +36,93 @@ pub struct Message {
     pub usage: Usage,
     /// The container the message ran against, when code execution is
     /// in play — written as `null` by every synthetic constructor and
-    /// passed through verbatim from the API otherwise. Its shape
-    /// belongs to an API newer than the pinned SDK, so it stays
-    /// unread, like its sibling below.
+    /// passed through verbatim from the API otherwise.
     #[serde(default)]
-    pub container: Option<serde_json::Value>,
+    pub container: Option<Container>,
     /// Context-management state, injected by Claude Code's own
-    /// normalization as `null` when absent. Its shape belongs to an
-    /// API newer than the pinned SDK, so it stays unread.
+    /// normalization as `null` when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub context_management: Option<serde_json::Value>,
+    pub context_management: Option<ContextManagementResponse>,
+}
+
+/// The code-execution container a message ran against.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Container {
+    /// The container's id.
+    pub id: String,
+    /// When it expires, ISO 8601.
+    pub expires_at: String,
+    /// The skills loaded into it, when any.
+    pub skills: Option<Vec<ContainerSkill>>,
+}
+
+/// One skill loaded into a code-execution container.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ContainerSkill {
+    /// The skill, by id.
+    pub skill_id: String,
+    /// Whose skill it is — `anthropic` or `custom` today, and an
+    /// API-owned vocabulary, so open.
+    pub r#type: String,
+    /// The skill's version.
+    pub version: String,
+}
+
+/// What context management did to the conversation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContextManagementResponse {
+    /// The edits applied, in order.
+    pub applied_edits: Vec<ContextManagementEdit>,
+}
+
+/// One context-management edit, discriminated by its dated `type`
+/// literal — a vocabulary that grows by design, so an edit newer
+/// than this crate lands in [`Other`](Self::Other) verbatim.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ContextManagementEdit {
+    /// Tool uses cleared.
+    ClearToolUses {
+        /// Always `clear_tool_uses_20250919`.
+        r#type: ClearToolUsesEditType,
+        /// Input tokens freed.
+        cleared_input_tokens: u64,
+        /// Tool uses removed.
+        cleared_tool_uses: u64,
+    },
+    /// Thinking cleared.
+    ClearThinking {
+        /// Always `clear_thinking_20251015`.
+        r#type: ClearThinkingEditType,
+        /// Input tokens freed.
+        cleared_input_tokens: u64,
+        /// Thinking turns removed.
+        cleared_thinking_turns: u64,
+    },
+    /// An edit newer than this crate, preserved verbatim.
+    Other(serde_json::Value),
+}
+
+/// The `clear_tool_uses_20250919` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum ClearToolUsesEditType {
+    /// The only value.
+    #[default]
+    #[serde(rename = "clear_tool_uses_20250919")]
+    ClearToolUses20250919,
+}
+
+/// The `clear_thinking_20251015` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+pub enum ClearThinkingEditType {
+    /// The only value.
+    #[default]
+    #[serde(rename = "clear_thinking_20251015")]
+    ClearThinking20251015,
 }
 
 /// [`Message`]'s object-type literal. One variant, because the API

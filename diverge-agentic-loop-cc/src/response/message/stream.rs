@@ -180,6 +180,24 @@ pub enum ContentBlockDelta {
         /// The signature, whole.
         signature: String,
     },
+    /// More of a compaction block's summary.
+    CompactionDelta {
+        /// Always `compaction_delta`.
+        r#type: CompactionDeltaType,
+        /// The fragment, when carried.
+        content: Option<String>,
+    },
+}
+
+/// The `compaction_delta` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CompactionDeltaType {
+    /// The only value.
+    #[default]
+    CompactionDelta,
 }
 
 /// The `text_delta` literal.

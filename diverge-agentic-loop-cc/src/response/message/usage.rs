@@ -41,13 +41,64 @@ pub struct Usage {
     /// Where inference ran.
     #[serde(default)]
     pub inference_geo: Option<String>,
-    /// Per-iteration detail, shape unpromised — the clone types it
-    /// in a file it does not carry.
+    /// Per-iteration detail: what each pass of an adaptive turn
+    /// spent, message passes and compaction passes alike.
     #[serde(default)]
-    pub iterations: Option<Vec<serde_json::Value>>,
+    pub iterations: Option<Vec<IterationUsage>>,
     /// The speed tier that served it.
     #[serde(default)]
     pub speed: Option<String>,
+}
+
+/// One iteration's usage, discriminated by its `type` literal —
+/// `message` and `compaction` today, and anything newer preserved in
+/// [`Other`](Self::Other) rather than failing the whole usage.
+///
+/// The two known kinds carry identical counts; the literal says
+/// which kind of pass spent them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum IterationUsage {
+    /// A model pass.
+    Message {
+        /// Always `message`.
+        r#type: super::MessageType,
+        /// Cache writes, by lifetime.
+        cache_creation: Option<CacheCreation>,
+        /// Tokens written to the prompt cache.
+        #[serde(default)]
+        cache_creation_input_tokens: u64,
+        /// Tokens read from the prompt cache.
+        #[serde(default)]
+        cache_read_input_tokens: u64,
+        /// Input tokens billed.
+        #[serde(default)]
+        input_tokens: u64,
+        /// Output tokens billed.
+        #[serde(default)]
+        output_tokens: u64,
+    },
+    /// A compaction pass.
+    Compaction {
+        /// Always `compaction`.
+        r#type: super::CompactionType,
+        /// Cache writes, by lifetime.
+        cache_creation: Option<CacheCreation>,
+        /// Tokens written to the prompt cache.
+        #[serde(default)]
+        cache_creation_input_tokens: u64,
+        /// Tokens read from the prompt cache.
+        #[serde(default)]
+        cache_read_input_tokens: u64,
+        /// Input tokens billed.
+        #[serde(default)]
+        input_tokens: u64,
+        /// Output tokens billed.
+        #[serde(default)]
+        output_tokens: u64,
+    },
+    /// An iteration newer than this crate, preserved verbatim.
+    Other(serde_json::Value),
 }
 
 /// Server-side tool counts inside [`Usage`].
