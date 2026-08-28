@@ -13,7 +13,7 @@ use crate::shared;
 /// [`Error`](Self::Error) carries anything after it. The messages
 /// themselves are not restated here — each withdrawn message's own
 /// enqueue channel says
-/// [`Dequeued`](super::enqueue::Frame::Dequeued), and this answer is
+/// [`Dequeued`](super::super::enqueue::Frame::Dequeued), and this answer is
 /// only the clearing's summary.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
