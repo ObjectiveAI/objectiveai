@@ -1,23 +1,13 @@
-//! The dequeue verb, and the delivered-uuid set it consults.
+//! The dequeue verb.
 
-use std::sync::LazyLock;
-
-use dashmap::DashSet;
 use diverge_provider_sdk::agentic_loop_container;
 use uuid::Uuid;
 
 use crate::response;
 
+use super::delivered;
 use super::session;
 use super::stdin;
-
-/// Uuids of messages known to have entered the conversation.
-///
-/// Not populated yet — the reader will mark replay echoes here when
-/// the conversion work lands — but already consulted: [`dequeue`]
-/// drops these from the queued vector before writing cancels, so a
-/// queue whose every message already landed is honestly empty.
-static DELIVERED: LazyLock<DashSet<String>> = LazyLock::new(DashSet::new);
 
 /// Withdraw everything still queued.
 ///
@@ -38,7 +28,7 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
 
     // Pre-clean: a message known delivered is not in the queue, and
     // writing a cancel for it would be asking about the past.
-    inner.queued.retain(|uuid| !DELIVERED.contains(uuid));
+    inner.queued.retain(|uuid| !delivered::DELIVERED.contains(uuid));
     if inner.queued.is_empty() {
         return agentic_loop_container::dequeue::Response::Empty {
             r#type: Default::default(),

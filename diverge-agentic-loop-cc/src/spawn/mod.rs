@@ -17,6 +17,7 @@
 //! run ends under it), and stdout always drains while an enqueue
 //! blocks on a full stdin pipe.
 
+mod delivered;
 mod dequeue;
 mod enqueue;
 mod session;
