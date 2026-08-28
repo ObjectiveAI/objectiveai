@@ -162,16 +162,21 @@ pub async fn r#loop(
             items.extend(turn.into_iter().map(ContinuationItem::Chunk));
 
             // No calls: the model may be done — but the queue gets
-            // the last look, and the look is atomic: an empty queue
-            // is CLOSED in the same lock hold that proved it empty,
-            // so no enqueue can land between this decision and the
-            // end. Only then is the loop's last word the
-            // continuation — the whole history, tokenized, so a
-            // later request can pick up exactly here.
+            // the last look, and the look comes LAST. The token is
+            // built first, speculatively, while the queue is still
+            // open: tokenizing a long history takes real time, and
+            // an enqueue landing during it deserves delivery, not a
+            // miss. Only then the atomic look — an empty queue is
+            // CLOSED in the same lock hold that proved it empty, and
+            // the already-built token is the loop's very next word;
+            // a non-empty one discards the token unspoken and opens
+            // another turn. Between the closing and the yield there
+            // is nothing left but the yield itself.
             if calls.is_empty() {
+                let token = Continuation(items.clone()).tokenize();
                 let taken = QUEUE.take_or_close().await;
                 if taken.is_empty() {
-                    match Continuation(items).tokenize() {
+                    match token {
                         Ok(token) => {
                             yield Ok(AgenticLoopChunk::Continuation(
                                 ContinuationChunk {
