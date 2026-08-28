@@ -8,8 +8,8 @@ use serde::Deserialize;
 
 /// A delta (incremental update) in a streaming response.
 ///
-/// Each field contains only the new content since the last delta.
-/// Deltas can be accumulated using the [`push`](Self::push) method.
+/// Each field contains only the new content since the last delta;
+/// accumulation happens downstream, in the SDK's own chunk vocabulary.
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct Delta {
     /// New content text since the last delta.
