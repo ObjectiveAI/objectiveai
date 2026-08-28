@@ -2,8 +2,9 @@
 //!
 //! [`channel_request`] is what it opens channels of its own to ask
 //! for. [`response`] is its answer to the client, on channel `0`.
-//! [`channel_response`] answers the one channel a client opens — the
-//! enqueue, with the message's fate. All of it happens inside the
+//! [`channel_response`] answers the channels a client opens — an
+//! enqueue with the message's fate, a dequeue with whether the queue
+//! held anything. All of it happens inside the
 //! scope the client's request opened — a server never initiates one.
 //!
 //! There is no `request` here. Only a client opens a scope.

@@ -3,7 +3,7 @@
 use std::error;
 use std::fmt;
 
-use super::Enqueue;
+use super::{Dequeue, Enqueue};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
@@ -17,16 +17,14 @@ use crate::encode::{Encode, Writer};
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Enqueue`](Self::Enqueue) |
+/// | `1` | [`Dequeue`](Self::Dequeue) |
 ///
-/// # A tag with one variant, and why it is spent anyway
+/// # Two verbs, one queue
 ///
-/// This crate's habit is not to spend a discriminant on nothing to
-/// discriminate — the server's own channel request went years as a
-/// struct for exactly that reason. The byte is spent here because the
-/// second variant is already designed: withdrawing an enqueued
-/// message is a request of its own, and retrofitting a tag under a
-/// deployed tagless frame is a breaking change this endpoint has paid
-/// for once already.
+/// Everything a client can do to a running conversation is done to
+/// its QUEUE: put a message in, or clear what has not yet been
+/// taken. Neither touches the turn in flight — the loop itself is
+/// the server's to run and the scope's to end.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// A message for the running conversation's queue. Tag `0`.
@@ -35,10 +33,21 @@ pub enum Frame {
     /// [`enqueue::Frame`](crate::endpoints::agentic_loop::run::server::channel_response::enqueue::Frame)
     /// naming the message's fate — and then the finish.
     Enqueue(Enqueue),
+    /// Withdraw every message still waiting in the queue. Tag `1`.
+    ///
+    /// Answered once — by a
+    /// [`dequeue::Frame`](crate::endpoints::agentic_loop::run::server::channel_response::dequeue::Frame)
+    /// saying whether the queue held anything — and then the finish.
+    /// Each message it withdraws is ALSO answered, on its own
+    /// enqueue channel.
+    Dequeue(Dequeue),
 }
 
 /// Tag for [`Frame::Enqueue`].
 const ENQUEUE: u8 = 0;
+
+/// Tag for [`Frame::Dequeue`].
+const DEQUEUE: u8 = 1;
 
 /// A tag, then that variant's own JSON.
 impl Encode for Frame {
@@ -51,6 +60,12 @@ impl Encode for Frame {
             Frame::Enqueue(request) => {
                 out.extend_from_slice(&[ENQUEUE]);
                 request.encode(out)
+            }
+            Frame::Dequeue(request) => {
+                out.extend_from_slice(&[DEQUEUE]);
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                request.encode(out).map_err(|error| match error {})
             }
         }
     }
@@ -66,6 +81,10 @@ impl Decode<'_> for Frame {
             ENQUEUE => Enqueue::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Body),
+            DEQUEUE => Ok(Frame::Dequeue(
+                Dequeue::decode(rest)
+                    .unwrap_or_else(|error| match error {}),
+            )),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -76,7 +95,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is not this frame's one.
+    /// A tag that is neither of this frame's two.
     ///
     /// What a client newer than its provider produces, which is the
     /// case the tag exists to make survivable: a reader that does not

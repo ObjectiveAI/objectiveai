@@ -2,9 +2,10 @@
 //!
 //! [`request`] opens the scope. [`channel_response`] is what it sends
 //! back on the channels the server opens inside that scope.
-//! [`channel_request`] is the one channel it opens itself: an
-//! [`enqueue`](channel_request::Frame::Enqueue), a message for the
-//! conversation already running.
+//! [`channel_request`] is the channels it opens itself, both about
+//! the running conversation's queue: an
+//! [`enqueue`](channel_request::Frame::Enqueue) puts a message in,
+//! a [`dequeue`](channel_request::Frame::Dequeue) clears it.
 //!
 //! There is no `response` here. A client does not answer its own
 //! request — the chunks come back from the server.
