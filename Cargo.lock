@@ -1672,10 +1672,12 @@ name = "diverge-agentic-loop-cc"
 version = "2.3.0"
 dependencies = [
  "base64 0.22.1",
+ "diverge-provider-sdk",
  "indexmap 2.14.0",
  "serde",
  "serde_json",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
