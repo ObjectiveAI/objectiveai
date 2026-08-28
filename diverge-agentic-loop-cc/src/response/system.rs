@@ -459,10 +459,14 @@ pub enum ApiKeySource {
 
 /// The permission mode in force.
 ///
-/// The schema's five, plus [`Auto`](Self::Auto): the source's
-/// permission-mode-change emitter can say `auto` even though its own
-/// schema does not admit it, and a reader that refused the value
-/// would be stricter than the writer.
+/// The schema's five, plus the internal union's two: the source's
+/// own `InternalPermissionMode` is the schema's set widened with
+/// `auto` and `bubble`, its permission-mode-change emitter can say
+/// `auto`, and the `system/init` builder casts the internal mode
+/// through unguarded — so a reader that refused either value would
+/// be stricter than the writer. `bubble`'s reachability to stdout
+/// was never demonstrated, but the cast admits it and refusing it
+/// buys nothing.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
@@ -485,6 +489,9 @@ pub enum PermissionMode {
     /// The schema-escaping sixth, see the type doc.
     #[serde(rename = "auto")]
     Auto,
+    /// The internal union's seventh, latent — see the type doc.
+    #[serde(rename = "bubble")]
+    Bubble,
 }
 
 /// Fast mode's state.
