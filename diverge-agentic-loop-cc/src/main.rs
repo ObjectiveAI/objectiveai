@@ -73,11 +73,11 @@ async fn serve(
 
 /// A message for the running conversation's queue.
 ///
-/// The write landing is the answer: from there Claude Code holds the
-/// queue, and short of a dequeue the message enters the
-/// conversation. A container with no run to write to — never
-/// started, or already over — answers missed. Nothing here can fail
-/// as HTTP.
+/// The response IS the fate, and it arrives when the fate is known —
+/// taken into the conversation, withdrawn by a dequeue, or outlived
+/// by the run. That can be long after the ask; nothing here times
+/// anything out. Nothing here can fail as HTTP: even a fate wire
+/// dying undecided answers missed.
 async fn enqueue(
     Json(request): Json<agentic_loop_container::enqueue::Request>,
 ) -> Json<agentic_loop_container::enqueue::Response> {

@@ -3,6 +3,7 @@
 use std::io;
 use std::process::Stdio;
 
+use diverge_provider_sdk::agentic_loop_container;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process;
 use tokio::sync::mpsc;
@@ -11,6 +12,7 @@ use uuid::Uuid;
 use crate::continuation;
 use crate::response;
 
+use super::pending;
 use super::session;
 use super::stdin;
 
@@ -77,7 +79,6 @@ pub async fn spawn(
     let (reply_sender, replies) = mpsc::unbounded_channel();
     *session::SESSION.lock().await = Some(session::Session {
         stdin: child_stdin,
-        queued: Vec::new(),
         replies,
     });
     tokio::spawn(read(child_stdout, child, reply_sender, sender));
@@ -95,10 +96,12 @@ pub async fn spawn(
 /// When the stream ends — EOF, or an IO error ends the same way —
 /// the ORDER is load-bearing: the reply sender drops FIRST, so a
 /// dequeue holding the session lock mid-wait wakes on the closed
-/// channel and resolves; only then is the lock taken to clear the
-/// session (idempotent with that dequeue's own clearing). Then the
-/// child is reaped, and dropping the caller's sender is the
-/// end-of-stream.
+/// channel and resolves; then the lock is taken to clear the
+/// session (idempotent with that dequeue's own clearing); and only
+/// AFTER the session is `None` are the pending fates missed — no
+/// enqueue can register a fate once the session is gone, so nothing
+/// slips in behind the drain. Then the child is reaped, and dropping
+/// the caller's sender is the end-of-stream.
 async fn read(
     child_stdout: process::ChildStdout,
     mut child: process::Child,
@@ -122,5 +125,19 @@ async fn read(
     }
     drop(reply_sender);
     *session::SESSION.lock().await = None;
+    // The run is over: every fate still undecided is now decided.
+    let uuids: Vec<String> = pending::PENDING
+        .iter()
+        .map(|entry| entry.key().clone())
+        .collect();
+    for uuid in uuids {
+        if let Some((_, fate)) = pending::PENDING.remove(&uuid) {
+            let _ = fate.send(
+                agentic_loop_container::enqueue::Response::Missed {
+                    r#type: Default::default(),
+                },
+            );
+        }
+    }
     let _ = child.wait().await;
 }

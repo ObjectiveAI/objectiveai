@@ -13,8 +13,8 @@ publish = false
 axum = { version = "0.8.9" }
 # The continuation token's outer coat: JSON, base64-ified.
 base64 = { version = "0.22.1" }
-# The delivered-uuid set: shared with the reader without riding the
-# session lock.
+# The pending-fate map: resolved beside the session lock, not under
+# it.
 dashmap = { version = "6.1.0" }
 diverge-provider-sdk = { path = "../diverge-provider-sdk" }
 # Response records carry order-bearing maps (per-model usage, tool

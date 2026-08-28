@@ -3,44 +3,61 @@
 use diverge_provider_sdk::agentic_loop_container;
 use uuid::Uuid;
 
+use super::pending;
 use super::session;
 use super::stdin;
 
-/// Queue a message for the running session.
+/// Queue a message for the running session, and answer its fate —
+/// STRICT: the response leaves when the fate is known, not when the
+/// write lands.
 ///
-/// The write landing is the good answer: Claude Code holds the queue
-/// from here, and short of a dequeue withdrawing it the message will
-/// enter the conversation. No run to write to — never started, or
-/// already over — is the expected failure, and the message is
-/// missed.
+/// The write and the fate's registration happen under the session
+/// lock, together — so a dequeue, which holds the lock throughout,
+/// always sees every message written before it in the pending map.
+/// Then the lock drops and the wait begins: whoever decides the fate
+/// — a dequeue's cancel, the reader at end of stream, the main loop
+/// on a replay echo — sends it here. No run to write to, a failed
+/// write, or a fate wire dying undecided all answer missed.
 pub async fn enqueue(
     prompt: String,
 ) -> agentic_loop_container::enqueue::Response {
-    let mut session = session::SESSION.lock().await;
-    let Some(inner) = session.as_mut() else {
-        return agentic_loop_container::enqueue::Response::Missed {
-            r#type: Default::default(),
-        };
-    };
+    let (fate, receiver) = tokio::sync::oneshot::channel();
     let uuid = Uuid::new_v4().to_string();
-    match stdin::write_lines(
-        &mut inner.stdin,
-        &stdin::user_message_line(prompt, uuid.clone()),
-    )
-    .await
     {
-        Ok(()) => {
-            inner.queued.push(uuid);
-            agentic_loop_container::enqueue::Response::Delivered {
+        let mut session = session::SESSION.lock().await;
+        let Some(inner) = session.as_mut() else {
+            return agentic_loop_container::enqueue::Response::Missed {
                 r#type: Default::default(),
+            };
+        };
+        match stdin::write_lines(
+            &mut inner.stdin,
+            &stdin::user_message_line(prompt, uuid.clone()),
+        )
+        .await
+        {
+            Ok(()) => {
+                pending::PENDING.insert(uuid.clone(), fate);
             }
-        }
-        // A broken stdin is the process dying: the session is over.
-        Err(_) => {
-            *session = None;
-            agentic_loop_container::enqueue::Response::Missed {
-                r#type: Default::default(),
+            // A broken stdin is the process dying: the session is
+            // over.
+            Err(_) => {
+                *session = None;
+                return agentic_loop_container::enqueue::Response::Missed {
+                    r#type: Default::default(),
+                };
             }
         }
     }
+    let response = receiver.await.unwrap_or(
+        // The wire died undecided — the run's machinery is gone, and
+        // a message nobody will take is missed.
+        agentic_loop_container::enqueue::Response::Missed {
+            r#type: Default::default(),
+        },
+    );
+    // Whoever decided the fate already removed the entry; this tidies
+    // up the cases nobody else covers, and is a no-op otherwise.
+    pending::PENDING.remove(&uuid);
+    response
 }

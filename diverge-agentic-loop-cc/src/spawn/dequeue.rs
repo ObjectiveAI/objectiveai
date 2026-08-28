@@ -1,11 +1,13 @@
 //! The dequeue verb.
 
+use std::collections::HashMap;
+
 use diverge_provider_sdk::agentic_loop_container;
 use uuid::Uuid;
 
 use crate::response;
 
-use super::delivered;
+use super::pending;
 use super::session;
 use super::stdin;
 
@@ -13,11 +15,20 @@ use super::stdin;
 ///
 /// The lock is held from the first look to the answer — across the
 /// cancel writes AND the reply reads — and that hold is the whole
-/// correctness: no enqueue can interleave, so the replies read are
-/// answers to the cancels written, and receiving them means the
-/// withdrawal resolved. No timeout; the wait is as long as Claude
-/// Code takes, and a run that ends under the wait closes the reply
-/// channel, which resolves it too.
+/// correctness: no enqueue can interleave (writing and registering
+/// both happen under the lock), so the pending map's keys are the
+/// complete queue, and the replies read are answers to the cancels
+/// written. No timeout; the wait is as long as Claude Code takes,
+/// and a run that ends under the wait closes the reply channel,
+/// which resolves it too.
+///
+/// Each reply decides the fate of the message it answers for,
+/// strictly: `cancelled: true` means the cancel reached it —
+/// dequeued; `cancelled: false` means the queue no longer held it —
+/// it was already taken, and its fate is delivered. A fate already
+/// decided by someone faster, or one nobody is listening to, is
+/// skipped — the main loop will be racing this same map once the
+/// conversion work lands.
 pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
     let mut session = session::SESSION.lock().await;
     let Some(inner) = session.as_mut() else {
@@ -26,10 +37,15 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
         };
     };
 
-    // Pre-clean: a message known delivered is not in the queue, and
-    // writing a cancel for it would be asking about the past.
-    inner.queued.retain(|uuid| !delivered::DELIVERED.contains(uuid));
-    if inner.queued.is_empty() {
+    // The pending map's keys ARE the queue: entries leave as fates
+    // are decided, so what remains is what a cancel can still speak
+    // to. Complete under the lock — nothing can be inserted while
+    // this holds it.
+    let uuids: Vec<String> = pending::PENDING
+        .iter()
+        .map(|entry| entry.key().clone())
+        .collect();
+    if uuids.is_empty() {
         return agentic_loop_container::dequeue::Response::Empty {
             r#type: Default::default(),
         };
@@ -37,9 +53,9 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
 
     // One buffered write for all the withdrawals, each under a fresh
     // request id; the replies quote the ids back.
-    let mut request_ids = std::collections::HashSet::new();
+    let mut cancels: HashMap<String, String> = HashMap::new();
     let mut lines = String::new();
-    for uuid in &inner.queued {
+    for uuid in uuids {
         let request_id = Uuid::new_v4().to_string();
         lines.push_str(
             &serde_json::to_string(&stdin::ControlRequest {
@@ -53,11 +69,12 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
             .expect("a stdin line is plain structs and serializes"),
         );
         lines.push('\n');
-        request_ids.insert(request_id);
+        cancels.insert(request_id, uuid);
     }
     if stdin::write_lines(&mut inner.stdin, &lines).await.is_err() {
         // A broken stdin is the process dying: the session is over,
-        // and a dead queue holds nothing.
+        // and a dead queue holds nothing. The pending fates stay for
+        // the reader's end-of-stream to miss.
         *session = None;
         return agentic_loop_container::dequeue::Response::Empty {
             r#type: Default::default(),
@@ -68,21 +85,65 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
     // id. A reply quoting an unknown id is stale — a prior dequeue
     // whose HTTP caller vanished mid-wait left it unread — and is
     // skipped, not counted.
-    while !request_ids.is_empty() {
+    while !cancels.is_empty() {
         match inner.replies.recv().await {
-            Some(reply) => {
-                let (response::control::ControlResponseInner::Success {
+            Some(reply) => match &reply.response {
+                response::control::ControlResponseInner::Success {
                     request_id,
+                    response,
                     ..
+                } => {
+                    let Some(uuid) = cancels.remove(request_id) else {
+                        continue;
+                    };
+                    // The verdict rides the reply's `cancelled` flag,
+                    // typed by the source as a plain boolean in the
+                    // per-subtype payload map. Absent — schema drift
+                    // the pinned image cannot produce — the fate is
+                    // left for the end of stream to miss, visibly.
+                    match response
+                        .as_ref()
+                        .and_then(|response| response.get("cancelled"))
+                        .and_then(serde_json::Value::as_bool)
+                    {
+                        Some(true) => {
+                            if let Some((_, fate)) =
+                                pending::PENDING.remove(&uuid)
+                            {
+                                let _ = fate.send(
+                                    agentic_loop_container::enqueue::Response::Dequeued {
+                                        r#type: Default::default(),
+                                    },
+                                );
+                            }
+                        }
+                        Some(false) => {
+                            if let Some((_, fate)) =
+                                pending::PENDING.remove(&uuid)
+                            {
+                                let _ = fate.send(
+                                    agentic_loop_container::enqueue::Response::Delivered {
+                                        r#type: Default::default(),
+                                    },
+                                );
+                            }
+                        }
+                        None => {}
+                    }
                 }
-                | response::control::ControlResponseInner::Error {
+                // The source cannot answer a cancel with an error;
+                // if one arrives anyway, the reply is counted and
+                // the fate left undecided, for the end of stream.
+                response::control::ControlResponseInner::Error {
                     request_id,
                     ..
-                }) = &reply.response;
-                request_ids.remove(request_id);
-            }
+                } => {
+                    cancels.remove(request_id);
+                }
+            },
             // The reader dropped the sender: the run is over, and a
-            // dead queue holds nothing.
+            // dead queue holds nothing. The pending fates stay for
+            // the reader's end-of-stream to miss.
             None => {
                 *session = None;
                 return agentic_loop_container::dequeue::Response::Empty {
@@ -92,7 +153,6 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
         }
     }
 
-    inner.queued.clear();
     agentic_loop_container::dequeue::Response::Dequeued {
         r#type: Default::default(),
     }
