@@ -1,4 +1,5 @@
-//! What the harness writes to Claude Code's stdin.
+//! What the harness writes to Claude Code's stdin — the shapes, and
+//! how a line gets written.
 //!
 //! The mirror of [`response`](crate::response), pointed the other
 //! way and holding only what this container actually says — the
@@ -8,7 +9,11 @@
 //! deserialize-only: each type becomes one NDJSON line and nothing
 //! here ever reads one back.
 
+use std::io;
+
 use serde::Serialize;
+use tokio::io::AsyncWriteExt;
+use tokio::process;
 
 /// A user message for the running session: an enqueued prompt, or
 /// the run's first one — stream-json input mode's way of delivering
@@ -102,4 +107,28 @@ pub enum CancelAsyncMessageSubtype {
     /// The only value.
     #[default]
     CancelAsyncMessage,
+}
+
+/// One enqueued (or initial) prompt, as its NDJSON line.
+pub fn user_message_line(prompt: String, uuid: String) -> String {
+    let mut line = serde_json::to_string(&UserMessage {
+        r#type: Default::default(),
+        message: UserMessageBody {
+            role: Default::default(),
+            content: prompt,
+        },
+        uuid,
+    })
+    .expect("a stdin line is plain structs and serializes");
+    line.push('\n');
+    line
+}
+
+/// Write already-newline-terminated lines, then flush once.
+pub async fn write_lines(
+    child_stdin: &mut process::ChildStdin,
+    lines: &str,
+) -> io::Result<()> {
+    child_stdin.write_all(lines.as_bytes()).await?;
+    child_stdin.flush().await
 }
