@@ -1,7 +1,7 @@
 //! Provider routing options: quantization.
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Model quantization levels for provider filtering.
 ///
@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
     Clone,
     Copy,
     Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     Hash,

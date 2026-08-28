@@ -2,13 +2,13 @@
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Chat completion request parameters formatted for the OpenRouter API.
 ///
 /// Combines parameters from both the Agent configuration and the
 /// incoming request to create a complete request for OpenRouter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ChatCompletionCreateParams {
     /// Messages for the conversation: the agent's system prompt (if any) as the
     /// leading entry, followed by the conversation (including any prefix/suffix

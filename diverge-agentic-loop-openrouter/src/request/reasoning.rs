@@ -1,7 +1,7 @@
 //! Reasoning/thinking configuration.
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Configuration for model reasoning/thinking capabilities.
 ///
@@ -17,7 +17,6 @@ use serde::{Deserialize, Serialize};
     Copy,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 pub struct Reasoning {
     /// Whether reasoning is enabled. Defaults to `true` if other fields are set.
@@ -49,7 +48,6 @@ pub struct Reasoning {
     Copy,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ReasoningEffort {
@@ -76,7 +74,6 @@ pub enum ReasoningEffort {
     Copy,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ReasoningSummaryVerbosity {

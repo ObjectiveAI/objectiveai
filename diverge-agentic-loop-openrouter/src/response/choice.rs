@@ -4,10 +4,10 @@ use std::collections::HashMap;
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// A choice in a streaming agent completion chunk.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct Choice {
     /// The content delta for this choice.
     pub delta: super::Delta,
@@ -16,7 +16,6 @@ pub struct Choice {
     /// The index of this choice.
     pub index: u64,
     /// Log probabilities for tokens, if requested.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<super::Logprobs>,
 }
 

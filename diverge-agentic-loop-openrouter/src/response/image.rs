@@ -1,12 +1,12 @@
 //! Image types for completion responses.
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// An image in a agent completion response.
 ///
 /// Used when models generate images as part of their response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Image {
     /// Image provided as a URL.
@@ -17,7 +17,7 @@ pub enum Image {
 }
 
 /// URL reference to an image.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct ImageUrl {
     /// URL where the image can be accessed.
     pub url: String,

@@ -1,10 +1,10 @@
 //! System messages.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A system message — the agent's system prompt under the `system`
 /// role.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SystemMessage {
     /// The prompt's text content.
     pub content: String,

@@ -1,14 +1,13 @@
 //! Log probabilities.
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// Log probabilities for generated tokens.
 #[derive(
     Debug,
     Clone,
     PartialEq,
-    Serialize,
     Deserialize,
     Default,
 )]
@@ -24,7 +23,6 @@ pub struct Logprobs {
     Debug,
     Clone,
     PartialEq,
-    Serialize,
     Deserialize,
     Default,
 )]
@@ -45,7 +43,6 @@ pub struct Logprob {
     Debug,
     Clone,
     PartialEq,
-    Serialize,
     Deserialize,
     Default,
 )]

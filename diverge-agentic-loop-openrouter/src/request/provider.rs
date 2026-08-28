@@ -1,10 +1,10 @@
 //! Provider preferences for OpenRouter requests.
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Provider preferences from the Agent configuration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Provider {
     /// Whether to allow fallback to other providers. From Agent.
     #[serde(skip_serializing_if = "Option::is_none")]

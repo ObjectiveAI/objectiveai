@@ -1,10 +1,10 @@
 //! Tool/function definitions for chat completions.
 
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A tool that can be called by the model.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Tool {
     /// A function tool.
@@ -12,7 +12,7 @@ pub enum Tool {
 }
 
 /// A function tool definition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FunctionTool {
     /// The name of the function.
     pub name: String,

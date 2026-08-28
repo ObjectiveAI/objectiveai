@@ -1,9 +1,9 @@
 //! Usage reporting options for OpenRouter requests.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Configuration for usage reporting in the response.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct Usage {
     /// Whether to include usage statistics in the response.
     pub include: bool,

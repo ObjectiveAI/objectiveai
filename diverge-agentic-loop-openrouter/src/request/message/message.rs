@@ -1,7 +1,7 @@
 //! A message in an OpenRouter request body.
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::continuation::{Continuation, ContinuationItem};
 
@@ -17,7 +17,7 @@ use super::{
 /// The agent's system prompt is the leading `system` or `developer`
 /// entry; the conversation follows as `user`, `assistant` and `tool`
 /// messages.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "role")]
 pub enum Message {
     /// The agent's system prompt, as a system message.

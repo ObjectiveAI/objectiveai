@@ -12,7 +12,14 @@
 mod continuation;
 mod fetch;
 mod r#loop;
+// The wire modules carry OpenRouter's COMPLETE shapes, which is more
+// than this container constructs or reads — a role never built, a
+// field parsed and never consumed. The derives used to count as use;
+// now that each module keeps only its own direction's derive, the
+// completeness reads as dead code, and is not.
+#[allow(dead_code)]
 mod request;
+#[allow(dead_code)]
 mod response;
 mod serde_util;
 mod stream_once;

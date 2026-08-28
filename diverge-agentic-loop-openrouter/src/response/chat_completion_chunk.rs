@@ -4,12 +4,12 @@ use std::collections::HashMap;
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// A streaming chat completion chunk from OpenRouter.
 ///
 /// Contains partial response data that arrives incrementally during streaming.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct ChatCompletionChunk {
     /// Unique identifier for this completion from OpenRouter.
     pub id: String,
@@ -22,16 +22,12 @@ pub struct ChatCompletionChunk {
     /// Object type indicator.
     pub object: super::Object,
     /// The service tier used for this request.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub service_tier: Option<String>,
     /// System fingerprint for reproducibility.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
     /// Token usage statistics (typically in the final chunk).
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<super::Usage>,
     /// The upstream provider that served this request.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
 }
 

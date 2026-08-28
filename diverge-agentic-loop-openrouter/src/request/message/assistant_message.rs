@@ -14,7 +14,6 @@ use super::super::{RichContent, RichContentPart};
     Clone,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 pub struct AssistantMessage {
     /// The message content, if any.
@@ -37,7 +36,6 @@ pub struct AssistantMessage {
     Clone,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AssistantToolCall {
@@ -56,7 +54,6 @@ pub enum AssistantToolCall {
     Clone,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 pub struct AssistantToolCallFunction {
     /// The name of the function to call.

@@ -1,7 +1,7 @@
 //! Tool messages.
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::super::RichContent;
 
@@ -11,7 +11,6 @@ use super::super::RichContent;
     Clone,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 pub struct ToolMessage {
     /// The content of the tool response.

@@ -1,7 +1,7 @@
 //! Rich (multimodal) message content.
 
 use rmcp::model;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Rich content for user/assistant messages (supports multimodal input).
 #[derive(
@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
     Clone,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 #[serde(untagged)]
 pub enum RichContent {
@@ -27,7 +26,6 @@ pub enum RichContent {
     PartialEq,
     Eq,
     Serialize,
-    Deserialize,
 )]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RichContentPart {
@@ -53,7 +51,6 @@ pub enum RichContentPart {
     PartialEq,
     Eq,
     Serialize,
-    Deserialize,
 )]
 pub struct ImageUrl {
     /// The URL of the image (can be a data URL or HTTP URL).
@@ -72,7 +69,6 @@ pub struct ImageUrl {
     PartialEq,
     Eq,
     Serialize,
-    Deserialize,
 )]
 pub enum ImageUrlDetail {
     /// Let the model decide the detail level.
@@ -94,7 +90,6 @@ pub enum ImageUrlDetail {
     PartialEq,
     Eq,
     Serialize,
-    Deserialize,
 )]
 pub struct InputAudio {
     /// Base64-encoded audio data.
@@ -111,7 +106,6 @@ pub struct InputAudio {
     PartialEq,
     Eq,
     Serialize,
-    Deserialize,
 )]
 pub struct VideoUrl {
     /// The URL of the video.
@@ -126,7 +120,6 @@ pub struct VideoUrl {
     PartialEq,
     Eq,
     Serialize,
-    Deserialize,
 )]
 pub struct File {
     /// Base64-encoded file data.

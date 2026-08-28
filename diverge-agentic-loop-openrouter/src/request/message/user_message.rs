@@ -1,7 +1,7 @@
 //! User messages.
 
 use super::super::RichContent;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A user message from the end user.
 #[derive(
@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
     Clone,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 pub struct UserMessage {
     /// The message content (supports text, images, audio, video, files).

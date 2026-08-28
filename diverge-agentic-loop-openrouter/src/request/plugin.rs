@@ -1,13 +1,13 @@
 //! The request-body `plugins` array.
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// One entry in OpenRouter's request-body `plugins` array. Today the
 /// only producer is `context-compression` (see the agent's
 /// `context_compression` field), but the shape is OpenRouter-defined
 /// — any future plugin id slots in here.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Plugin {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]

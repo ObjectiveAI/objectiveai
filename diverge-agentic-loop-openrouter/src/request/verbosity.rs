@@ -1,7 +1,7 @@
 //! Output verbosity.
 
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// The verbosity level for model output.
 ///
@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
     Copy,
     PartialEq,
     Serialize,
-    Deserialize,
 )]
 pub enum Verbosity {
     /// Minimal output, concise responses.
