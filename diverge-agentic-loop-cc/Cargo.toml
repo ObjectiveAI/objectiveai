@@ -23,11 +23,13 @@ indexmap = { version = "2.14.0", features = ["serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 # `fs` for the continuation's files; `process`, `io-util` and `sync`
-# for the subprocess and the tasks around it; `net` and
-# `rt-multi-thread` for the server.
+# for the subprocess and the tasks around it; `macros` for the
+# dequeue's joined lock acquisition; `net` and `rt-multi-thread` for
+# the server.
 tokio = { version = "1.53.1", default-features = false, features = [
     "fs",
     "io-util",
+    "macros",
     "net",
     "process",
     "rt-multi-thread",

@@ -13,8 +13,9 @@ use crate::continuation;
 use crate::response;
 
 use super::pending;
-use super::session;
+use super::replies;
 use super::stdin;
+use super::writer;
 
 /// Start the run: write the continuation's files if resuming, launch
 /// Claude Code, hand it the prompt, and leave the reader task
@@ -76,11 +77,12 @@ pub async fn spawn(
     )
     .await?;
 
-    let (reply_sender, replies) = mpsc::unbounded_channel();
-    *session::SESSION.lock().await = Some(session::Session {
-        stdin: child_stdin,
-        replies,
-    });
+    let (reply_sender, reply_receiver) = mpsc::unbounded_channel();
+    // Replies first, writer second: enqueue and dequeue gate on the
+    // writer, so a writer seen must imply the replies are already in
+    // place.
+    *replies::REPLIES.lock().await = Some(reply_receiver);
+    *writer::WRITER.lock().await = Some(child_stdin);
     tokio::spawn(read(child_stdout, child, reply_sender, sender));
     Ok(())
 }
@@ -89,19 +91,20 @@ pub async fn spawn(
 ///
 /// Per line: parse strictly; a `control_response` record additionally
 /// goes, cloned, through the reply sender — the receiver half sits
-/// inside [`session::SESSION`], so only a lock holder reads it — and
-/// every parse result forwards through the caller's sender
+/// behind [`replies::REPLIES`], so only that lock's holder reads it —
+/// and every parse result forwards through the caller's sender
 /// regardless.
 ///
 /// When the stream ends — EOF, or an IO error ends the same way —
 /// the ORDER is load-bearing: the reply sender drops FIRST, so a
-/// dequeue holding the session lock mid-wait wakes on the closed
-/// channel and resolves; then the lock is taken to clear the
-/// session (idempotent with that dequeue's own clearing); and only
-/// AFTER the session is `None` are the pending fates missed — no
-/// enqueue can register a fate once the session is gone, so nothing
-/// slips in behind the drain. Then the child is reaped, and dropping
-/// the caller's sender is the end-of-stream.
+/// dequeue holding the locks mid-wait wakes on the closed channel
+/// and resolves; then the writer and replies locks are taken ONE AT
+/// A TIME — never nested, so no cycle with the dequeue's joined
+/// hold — and cleared (idempotent with that dequeue's own clearing);
+/// and only AFTER the writer is `None` are the pending fates missed —
+/// no enqueue can register a fate once the writer is gone, so
+/// nothing slips in behind the drain. Then the child is reaped, and
+/// dropping the caller's sender is the end-of-stream.
 async fn read(
     child_stdout: process::ChildStdout,
     mut child: process::Child,
@@ -124,7 +127,8 @@ async fn read(
         let _ = sender.send(parsed);
     }
     drop(reply_sender);
-    *session::SESSION.lock().await = None;
+    *writer::WRITER.lock().await = None;
+    *replies::REPLIES.lock().await = None;
     // The run is over: every fate still undecided is now decided.
     let uuids: Vec<String> = pending::PENDING
         .iter()

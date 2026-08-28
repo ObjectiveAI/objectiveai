@@ -8,19 +8,22 @@ use uuid::Uuid;
 use crate::response;
 
 use super::pending;
-use super::session;
+use super::replies;
 use super::stdin;
+use super::writer;
 
 /// Withdraw everything still queued.
 ///
-/// The lock is held from the first look to the answer — across the
-/// cancel writes AND the reply reads — and that hold is the whole
-/// correctness: no enqueue can interleave (writing and registering
-/// both happen under the lock), so the pending map's keys are the
-/// complete queue, and the replies read are answers to the cancels
-/// written. No timeout; the wait is as long as Claude Code takes,
-/// and a run that ends under the wait closes the reply channel,
-/// which resolves it too.
+/// BOTH locks are taken up front — joined, acquired in parallel, the
+/// only place in the module that ever holds the two at once — and
+/// held from the first look to the answer, across the cancel writes
+/// AND the reply reads. That hold is the whole correctness: no
+/// enqueue can interleave (writing and registering both need the
+/// writer lock), so the pending map's keys are the complete queue,
+/// and the replies read are answers to the cancels written. No
+/// timeout; the wait is as long as Claude Code takes, and a run that
+/// ends under the wait closes the reply channel, which resolves it
+/// too.
 ///
 /// Each reply decides the fate of the message it answers for,
 /// strictly: `cancelled: true` means the cancel reached it —
@@ -30,8 +33,17 @@ use super::stdin;
 /// skipped — the main loop will be racing this same map once the
 /// conversion work lands.
 pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
-    let mut session = session::SESSION.lock().await;
-    let Some(inner) = session.as_mut() else {
+    let (mut writer, mut replies) =
+        tokio::join!(writer::WRITER.lock(), replies::REPLIES.lock());
+    let Some(child_stdin) = writer.as_mut() else {
+        return agentic_loop_container::dequeue::Response::Empty {
+            r#type: Default::default(),
+        };
+    };
+    let Some(receiver) = replies.as_mut() else {
+        // Unreachable in practice — the replies are set before the
+        // writer — but a missing receiver reads as no run all the
+        // same.
         return agentic_loop_container::dequeue::Response::Empty {
             r#type: Default::default(),
         };
@@ -39,8 +51,8 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
 
     // The pending map's keys ARE the queue: entries leave as fates
     // are decided, so what remains is what a cancel can still speak
-    // to. Complete under the lock — nothing can be inserted while
-    // this holds it.
+    // to. Complete under the writer lock — nothing can be inserted
+    // while this holds it.
     let uuids: Vec<String> = pending::PENDING
         .iter()
         .map(|entry| entry.key().clone())
@@ -71,11 +83,12 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
         lines.push('\n');
         cancels.insert(request_id, uuid);
     }
-    if stdin::write_lines(&mut inner.stdin, &lines).await.is_err() {
-        // A broken stdin is the process dying: the session is over,
-        // and a dead queue holds nothing. The pending fates stay for
-        // the reader's end-of-stream to miss.
-        *session = None;
+    if stdin::write_lines(child_stdin, &lines).await.is_err() {
+        // A broken stdin is the process dying: the run is over, and
+        // a dead queue holds nothing. The pending fates stay for the
+        // reader's end-of-stream to miss.
+        *writer = None;
+        *replies = None;
         return agentic_loop_container::dequeue::Response::Empty {
             r#type: Default::default(),
         };
@@ -86,7 +99,7 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
     // whose HTTP caller vanished mid-wait left it unread — and is
     // skipped, not counted.
     while !cancels.is_empty() {
-        match inner.replies.recv().await {
+        match receiver.recv().await {
             Some(reply) => match &reply.response {
                 response::control::ControlResponseInner::Success {
                     request_id,
@@ -145,7 +158,8 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
             // dead queue holds nothing. The pending fates stay for
             // the reader's end-of-stream to miss.
             None => {
-                *session = None;
+                *writer = None;
+                *replies = None;
                 return agentic_loop_container::dequeue::Response::Empty {
                     r#type: Default::default(),
                 };

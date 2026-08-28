@@ -1,32 +1,36 @@
 //! The Claude Code subprocess: spawning it, and the queue verbs
 //! against it.
 //!
-//! One run is one subprocess, and one global lock —
-//! [`session::SESSION`] — holds everything a writer needs: stdin and
-//! the RECEIVER for cancel replies, together. The reader task
-//! permanently holds the matching sender, so the lock's hold IS the
-//! protocol's atomicity. Beside the lock, [`pending::PENDING`]: each
-//! enqueued message's fate wire, inserted under the lock, resolved —
-//! remove-and-send, lock-free — by whoever decides the fate. Fates
-//! are STRICT: an enqueue answers delivered, dequeued or missed when
-//! that is truly known, not when its write lands. A dequeue locks
-//! and KEEPS the lock across its cancel writes and its reply reads:
-//! nothing can enqueue while it waits, so the pending map is the
-//! complete queue and the replies read are answers to the cancels
-//! written.
+//! One run is one subprocess, behind two locks and a map:
+//! [`writer::WRITER`] is stdin — holding it is the sole right to
+//! write, and to register a fate; [`replies::REPLIES`] is the
+//! RECEIVER for cancel replies, whose matching sender the reader
+//! task permanently holds; and [`pending::PENDING`] is each enqueued
+//! message's fate wire, inserted under the writer lock, resolved —
+//! remove-and-send, lock-free — by whoever decides the fate.
 //!
-//! Deadlock audit: the reader never touches the session lock while
-//! reading — only once, at end of stream, AFTER dropping the reply
-//! sender — so a dequeue mid-wait always wakes (on `None` if the
-//! run ends under it), and stdout always drains while an enqueue
-//! blocks on a full stdin pipe.
+//! Fates are STRICT: an enqueue answers delivered, dequeued or
+//! missed when that is truly known, not when its write lands. A
+//! dequeue takes BOTH locks up front — joined, in parallel, the only
+//! holder of the two at once — and keeps them across its cancel
+//! writes and reply reads: nothing can enqueue while it waits, so
+//! the pending map is the complete queue and the replies read are
+//! answers to the cancels written.
+//!
+//! Deadlock audit: the reader never touches a lock while reading —
+//! only at end of stream, AFTER dropping the reply sender, and then
+//! one lock at a time — so a dequeue mid-wait always wakes (on
+//! `None` if the run ends under it), no lock-order cycle exists
+//! against the dequeue's joined hold, and stdout always drains while
+//! an enqueue blocks on a full stdin pipe.
 
 mod dequeue;
 mod enqueue;
 mod pending;
-mod session;
+mod replies;
 mod spawn;
 mod stdin;
+mod writer;
 
 pub use dequeue::dequeue;
 pub use enqueue::enqueue;

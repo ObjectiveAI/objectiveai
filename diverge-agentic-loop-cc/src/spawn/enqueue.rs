@@ -4,15 +4,15 @@ use diverge_provider_sdk::agentic_loop_container;
 use uuid::Uuid;
 
 use super::pending;
-use super::session;
 use super::stdin;
+use super::writer;
 
 /// Queue a message for the running session, and answer its fate —
 /// STRICT: the response leaves when the fate is known, not when the
 /// write lands.
 ///
-/// The write and the fate's registration happen under the session
-/// lock, together — so a dequeue, which holds the lock throughout,
+/// The write and the fate's registration happen under the writer
+/// lock, together — so a dequeue, which holds that lock throughout,
 /// always sees every message written before it in the pending map.
 /// Then the lock drops and the wait begins: whoever decides the fate
 /// — a dequeue's cancel, the reader at end of stream, the main loop
@@ -24,14 +24,14 @@ pub async fn enqueue(
     let (fate, receiver) = tokio::sync::oneshot::channel();
     let uuid = Uuid::new_v4().to_string();
     {
-        let mut session = session::SESSION.lock().await;
-        let Some(inner) = session.as_mut() else {
+        let mut writer = writer::WRITER.lock().await;
+        let Some(child_stdin) = writer.as_mut() else {
             return agentic_loop_container::enqueue::Response::Missed {
                 r#type: Default::default(),
             };
         };
         match stdin::write_lines(
-            &mut inner.stdin,
+            child_stdin,
             &stdin::user_message_line(prompt, uuid.clone()),
         )
         .await
@@ -39,10 +39,9 @@ pub async fn enqueue(
             Ok(()) => {
                 pending::PENDING.insert(uuid.clone(), fate);
             }
-            // A broken stdin is the process dying: the session is
-            // over.
+            // A broken stdin is the process dying: the run is over.
             Err(_) => {
-                *session = None;
+                *writer = None;
                 return agentic_loop_container::enqueue::Response::Missed {
                     r#type: Default::default(),
                 };
