@@ -17,7 +17,7 @@ use super::system::FastModeState;
 /// flushed after later records; and even an unheld one is followed by
 /// `session_state_changed`, late task notifications, and prompt
 /// suggestions. The authoritative turn-over signal is
-/// [`session_state_changed { state: idle }`](super::System::SessionStateChanged),
+/// [`session_state_changed { state: idle }`](super::system::System::SessionStateChanged),
 /// not this record's arrival.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]

@@ -1,8 +1,8 @@
 //! The Anthropic API shapes inside Claude Code's records.
 //!
-//! An [`assistant`](super::Assistant) record wraps the API's own
-//! message; a [`stream_event`](super::StreamEvent) record wraps the
-//! API's own streaming event; a [`user`](super::User) record wraps
+//! An [`assistant`](super::assistant::Assistant) record wraps the API's own
+//! message; a [`stream_event`](super::stream_event::StreamEvent) record wraps the
+//! API's own streaming event; a [`user`](super::user::User) record wraps
 //! the request-side message params. These are those shapes, ported
 //! from `@anthropic-ai/sdk@0.39.0` — the version Claude Code's source
 //! pins — with nothing invented: every union here is that version's

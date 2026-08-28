@@ -41,7 +41,7 @@ pub struct Assistant {
 
 /// The kinds of API failure an assistant record can stand for — the
 /// same vocabulary an
-/// [`api_retry`](super::System::ApiRetry) record uses.
+/// [`api_retry`](super::system::System::ApiRetry) record uses.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
