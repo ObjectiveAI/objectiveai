@@ -10,5 +10,7 @@
 mod continuation;
 #[allow(dead_code)]
 mod response;
+#[allow(dead_code)]
+mod stdin;
 
 fn main() {}
