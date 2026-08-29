@@ -21,6 +21,13 @@
 //! answers to the cancels written even as released enqueues flow —
 //! new messages write no control responses.
 //!
+//! Error-typed records — a rejected rate limit, a failed auth
+//! status, an error result — are POSITIONAL: before the first
+//! assistant message they are the request's own failure and travel
+//! as the stream's [`error::Error`]; after it they are news inside
+//! a working run — the rate limit non-fatal (Claude Code retries
+//! through it itself), the others fatal.
+//!
 //! Deadlock audit: the reader never touches a lock while reading —
 //! only at end of stream, AFTER dropping the reply sender, and then
 //! one lock at a time — so a dequeue mid-wait always wakes (on
@@ -30,6 +37,7 @@
 
 mod dequeue;
 mod enqueue;
+mod error;
 mod pending;
 mod replies;
 mod spawn;
@@ -38,7 +46,9 @@ mod writer;
 
 pub use dequeue::dequeue;
 pub use enqueue::enqueue;
-// `spawn` itself has no caller until the root handler lands; the
-// allow leaves with it.
+// `spawn` itself and the stream's `Error` have no caller until the
+// root handler lands; the allows leave with it.
+#[allow(unused_imports)]
+pub use error::Error;
 #[allow(unused_imports)]
 pub use spawn::spawn;

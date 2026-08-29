@@ -1,5 +1,6 @@
 //! The `rate_limit_event` records: subscription limits moving.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::Deserialize;
 
 /// A `type: "rate_limit_event"` record, emitted when rate-limit
@@ -233,4 +234,78 @@ pub enum RateLimitEventType {
     /// The only value.
     #[default]
     RateLimitEvent,
+}
+
+impl RateLimitEvent {
+    /// Whether this event says requests are being REFUSED — the
+    /// info's verdict.
+    pub fn rejected(&self) -> bool {
+        self.rate_limit_info.rejected()
+    }
+
+    /// The event as the notification it becomes inside a working
+    /// run: non-fatal, because Claude Code queues and retries
+    /// through a rate limit on its own — the run is coping, not
+    /// over. (Before the first assistant message it is the
+    /// request's failure instead; the reader's docs carry the
+    /// positional rule.)
+    pub fn into_notification(self) -> response::NotificationChunk {
+        response::NotificationChunk {
+            r#type: Default::default(),
+            is_fatal: false,
+            message: self.rate_limit_info.message(),
+            meta: None,
+        }
+    }
+}
+
+impl RateLimitInfo {
+    /// Whether requests are being refused. Only
+    /// [`Rejected`](RateLimitStatus::Rejected) is an error: allowed,
+    /// warnings and the queueing pair are the limiter coping.
+    pub fn rejected(&self) -> bool {
+        matches!(self.status, RateLimitStatus::Rejected)
+    }
+
+    /// The info as a notification's message body.
+    pub fn message(&self) -> serde_json::Value {
+        serde_json::json!({
+            "kind": "rate_limit",
+            "status": self.status.as_str(),
+            "rateLimitType": self
+                .rate_limit_type
+                .as_ref()
+                .map(RateLimitType::as_str),
+            "resetsAt": self.resets_at,
+            "utilization": self.utilization,
+        })
+    }
+}
+
+impl RateLimitStatus {
+    /// The wire literal, the open tail verbatim.
+    pub fn as_str(&self) -> &str {
+        match self {
+            RateLimitStatus::Allowed => "allowed",
+            RateLimitStatus::AllowedWarning => "allowed_warning",
+            RateLimitStatus::Queueing => "queueing",
+            RateLimitStatus::QueueingSoft => "queueing_soft",
+            RateLimitStatus::Rejected => "rejected",
+            RateLimitStatus::Other(value) => value,
+        }
+    }
+}
+
+impl RateLimitType {
+    /// The wire literal, the open tail verbatim.
+    pub fn as_str(&self) -> &str {
+        match self {
+            RateLimitType::FiveHour => "five_hour",
+            RateLimitType::SevenDay => "seven_day",
+            RateLimitType::SevenDayOpus => "seven_day_opus",
+            RateLimitType::SevenDaySonnet => "seven_day_sonnet",
+            RateLimitType::Overage => "overage",
+            RateLimitType::Other(value) => value,
+        }
+    }
 }

@@ -15,6 +15,7 @@ use uuid::Uuid;
 use crate::continuation;
 use crate::response;
 
+use super::error;
 use super::pending;
 use super::replies;
 use super::stdin;
@@ -30,14 +31,14 @@ use super::writer;
 ///
 /// What Claude Code writes reaches `sender` CONVERTED: each line
 /// parses strictly per the [`response`] module's contract and
-/// becomes the chunks it means — most records mean none — with a
-/// parse failure travelling as the `Err` it is, for the consumer to
-/// judge. The receiver's death stops nothing.
+/// becomes the chunks it means — most records mean none — with
+/// failures travelling as the [`error::Error`] they are, for the
+/// consumer to judge. The receiver's death stops nothing.
 pub async fn spawn(
     continuation: Option<continuation::Continuation>,
     prompt: String,
     sender: mpsc::UnboundedSender<
-        Result<AgenticLoopChunk, serde_json::Error>,
+        Result<AgenticLoopChunk, error::Error>,
     >,
 ) -> io::Result<()> {
     // Resuming is the files existing before Claude Code starts.
@@ -58,6 +59,7 @@ pub async fn spawn(
         .arg("--input-format")
         .arg("stream-json")
         .arg("--replay-user-messages")
+        .arg("--enable-auth-status")
         .arg("--dangerously-skip-permissions")
         .arg("--mcp-config")
         .arg(
@@ -109,6 +111,27 @@ pub async fn spawn(
 /// through the caller's sender; a line that failed to parse
 /// forwards as its error.
 ///
+/// # Error-typed records are POSITIONAL
+///
+/// A rejected rate limit, a failed auth status, or an error result
+/// arriving BEFORE the first assistant message is the request's own
+/// failure: it travels as an `Err` the moment it is seen, and — as
+/// with openrouter's pre-stream failures — no chunks accompany it
+/// (an early error result forfeits its usage chunk with the failed
+/// request). The same records AFTER an assistant message are news
+/// inside a working run: the rate limit becomes a non-fatal
+/// notification, because Claude Code queues and retries through it
+/// on its own; the failed auth a fatal one; the error result its
+/// conversion's fatal notification and bill. The flag flips on an
+/// assistant record with no error marker — a synthetic failure
+/// stand-in is not the model speaking, and its transient kin
+/// (`api_retry` narration, the assistant `error` markers) are
+/// deliberately NOT error-typed here: they are Claude Code's retry
+/// in flight, and their terminal verdict arrives as the result
+/// record. Sending an `Err` ends nothing on this side — the drain,
+/// the fates and the reaping continue; aborting is the consumer's
+/// choice.
+///
 /// When the stream ends — EOF, or an IO error ends the same way —
 /// the ORDER is load-bearing: the reply sender drops FIRST, so a
 /// dequeue holding the locks mid-wait wakes on the closed channel
@@ -126,20 +149,22 @@ async fn read(
         response::control::ControlResponse,
     >,
     sender: mpsc::UnboundedSender<
-        Result<AgenticLoopChunk, serde_json::Error>,
+        Result<AgenticLoopChunk, error::Error>,
     >,
 ) {
     let mut lines = BufReader::new(child_stdout).lines();
     // One buffer for the whole stream: each record's chunks land
     // here, drain to the sender, and the allocation stays.
     let mut chunks: Vec<AgenticLoopChunk> = Vec::new();
+    // Whether the model has spoken — the positional rule's pivot.
+    let mut assistant_seen = false;
     while let Ok(Some(line)) = lines.next_line().await {
         let record =
             match serde_json::from_str::<response::StdoutMessage>(&line)
             {
                 Ok(record) => record,
-                Err(error) => {
-                    let _ = sender.send(Err(error));
+                Err(parse) => {
+                    let _ = sender.send(Err(error::Error::Parse(parse)));
                     continue;
                 }
             };
@@ -173,6 +198,49 @@ async fn read(
             }
             _ => {}
         }
+        // The positional rule for error-typed records — the flag's
+        // flip rides the same match. The error arms send directly:
+        // no conversion follows them, and the buffer is the
+        // conversion's.
+        let record = match record {
+            response::StdoutMessage::Assistant(assistant) => {
+                if assistant.error.is_none() {
+                    assistant_seen = true;
+                }
+                response::StdoutMessage::Assistant(assistant)
+            }
+            response::StdoutMessage::RateLimitEvent(event)
+                if event.rejected() =>
+            {
+                let _ = sender.send(if assistant_seen {
+                    Ok(AgenticLoopChunk::Notification(
+                        event.into_notification(),
+                    ))
+                } else {
+                    Err(error::Error::RateLimit(event))
+                });
+                continue;
+            }
+            response::StdoutMessage::AuthStatus(status)
+                if status.failed() =>
+            {
+                let _ = sender.send(if assistant_seen {
+                    Ok(AgenticLoopChunk::Notification(
+                        status.into_notification(),
+                    ))
+                } else {
+                    Err(error::Error::Auth(status))
+                });
+                continue;
+            }
+            response::StdoutMessage::Result(
+                response::result::Result::Error(result),
+            ) if !assistant_seen => {
+                let _ = sender.send(Err(error::Error::Result(result)));
+                continue;
+            }
+            record => record,
+        };
         record.into_chunks(&mut chunks);
         for chunk in chunks.drain(..) {
             let _ = sender.send(Ok(chunk));
