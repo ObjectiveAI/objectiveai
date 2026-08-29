@@ -6,14 +6,19 @@
 #
 #     podman build -f diverge-agentic-loop-cc/Containerfile .
 #
-# Digests pinned from Docker Hub on 2026-08-26; the Claude Code
-# version pinned from the npm registry the same day. Bump deliberately.
+# Debian, deliberately: skills carry scripts, and scripts want a real
+# distro underneath — apt, glibc, and a first-class Python — not
+# musl's approximation of one. The runner is Debian UNSTABLE (sid),
+# pinned by digest: the newest userland for skill scripts, frozen at
+# a known image. The builder is the stock Debian-based rust image —
+# any of them works, because sid's glibc is always at least as new as
+# the builder's.
+#
+# Digests pinned from Docker Hub on 2026-08-29; the Claude Code
+# version pinned from the npm registry 2026-08-26; sid shipped
+# nodejs 24.19 and python3 3.14.7 on the pin date. Bump deliberately.
 
-# rust:1.98.0-alpine3.24 — the musl toolchain is the image's default
-# target, so what it builds runs on the Alpine below.
-FROM docker.io/library/rust:1.98.0-alpine3.24@sha256:a10e64dd139b7387337c7fbe8aca31b959b57b2fd4c8ae20a02cf1d6ea424dce AS build
-
-RUN apk add --no-cache build-base
+FROM docker.io/library/rust:1.98.0@sha256:271849e998ffce5776454bbf98c5dc21baafc854ff8e566197908d3aca9a81e8 AS build
 
 WORKDIR /build
 
@@ -27,26 +32,50 @@ COPY diverge-agentic-loop-cc diverge-agentic-loop-cc
 COPY Cargo.lock diverge-agentic-loop-cc/Cargo.lock
 COPY Cargo.lock diverge-agentic-loop-mcp-proxy/Cargo.lock
 
-RUN cargo build --release     --manifest-path diverge-agentic-loop-cc/Cargo.toml
-RUN cargo build --release     --manifest-path diverge-agentic-loop-mcp-proxy/Cargo.toml
+RUN cargo build --release \
+    --manifest-path diverge-agentic-loop-cc/Cargo.toml
+RUN cargo build --release \
+    --manifest-path diverge-agentic-loop-mcp-proxy/Cargo.toml
 
-# alpine:latest (3.24.1), by digest.
-FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+# debian:sid, by digest.
+FROM docker.io/library/debian:sid@sha256:c1acdb109bacb5adf0f2078892ac177ee2e2ce6f88e96c5b743998b5489d36a9
 
-# Claude Code requires node >= 22 (its engines field); it ships
-# linux-x64-musl platform binaries, so Alpine is a supported host.
-RUN apk add --no-cache nodejs npm     && npm install -g @anthropic-ai/claude-code@2.1.246     && npm cache clean --force
+# The agent's world: node for Claude Code itself (sid's is 24.x,
+# past the >=22 engines floor), Python with pip and venv for skill
+# scripts, git and curl because agentic work reaches for both, and
+# CA certificates so TLS works at all.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        nodejs \
+        npm \
+        python3 \
+        python3-pip \
+        python3-venv \
+    && npm install -g @anthropic-ai/claude-code@2.1.246 \
+    && npm cache clean --force \
+    && rm -rf /var/lib/apt/lists/*
 
+# Debian's PEP 668 guard refuses bare `pip install` into the system
+# interpreter. This container IS the disposable environment that
+# guard exists to protect elsewhere — skills installing their own
+# dependencies inline is the point — so the guard stands down.
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
-COPY --from=build     /build/diverge-agentic-loop-cc/target/release/diverge-agentic-loop-cc     /usr/local/bin/diverge-agentic-loop-cc
-COPY --from=build     /build/diverge-agentic-loop-mcp-proxy/target/release/diverge-agentic-loop-mcp-proxy     /usr/local/bin/diverge-agentic-loop-mcp-proxy
+COPY --from=build \
+    /build/diverge-agentic-loop-cc/target/release/diverge-agentic-loop-cc \
+    /usr/local/bin/diverge-agentic-loop-cc
+COPY --from=build \
+    /build/diverge-agentic-loop-mcp-proxy/target/release/diverge-agentic-loop-mcp-proxy \
+    /usr/local/bin/diverge-agentic-loop-mcp-proxy
 
 # Two programs, one container: the proxy in the background, the
 # harness in the foreground as the container's own life.
-RUN printf '#!/bin/sh
-/usr/local/bin/diverge-agentic-loop-mcp-proxy &
-exec /usr/local/bin/diverge-agentic-loop-cc
-'     > /usr/local/bin/entrypoint     && chmod +x /usr/local/bin/entrypoint
+RUN printf '#!/bin/sh\n/usr/local/bin/diverge-agentic-loop-mcp-proxy &\nexec /usr/local/bin/diverge-agentic-loop-cc\n' \
+    > /usr/local/bin/entrypoint \
+    && chmod +x /usr/local/bin/entrypoint
 
 # The Container specification's ports: 8080 the loop, 8081 MCP.
 EXPOSE 8080 8081
