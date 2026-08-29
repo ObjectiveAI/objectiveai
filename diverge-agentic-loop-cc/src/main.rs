@@ -12,7 +12,6 @@
 //! conversation already running: Claude Code holds the queue, and
 //! this container holds the writer.
 
-#[allow(dead_code)]
 mod continuation;
 // The wire module carries Claude Code's COMPLETE stdout vocabulary,
 // which is more than the conversion consumes — a field parsed and
