@@ -2,6 +2,11 @@
 # proxy on 8081, Claude Code itself spawned per run — everything as
 # root.
 #
+# The image ships NO Claude Code, for licensing reasons: the harness
+# installs the pinned version itself the moment it starts (the pin
+# lives in src/spawn/install.rs), so a starting container needs the
+# npm registry reachable.
+#
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
 #     podman build -f diverge-agentic-loop-cc/Containerfile .
@@ -14,8 +19,7 @@
 # any of them works, because sid's glibc is always at least as new as
 # the builder's.
 #
-# Digests pinned from Docker Hub on 2026-08-29; the Claude Code
-# version pinned from the npm registry 2026-08-26; sid shipped
+# Digests pinned from Docker Hub on 2026-08-29; sid shipped
 # nodejs 24.19 and python3 3.14.7 on the pin date. Bump deliberately.
 
 FROM docker.io/library/rust:1.98.0@sha256:271849e998ffce5776454bbf98c5dc21baafc854ff8e566197908d3aca9a81e8 AS build
@@ -40,10 +44,11 @@ RUN cargo build --release \
 # debian:sid, by digest.
 FROM docker.io/library/debian:sid@sha256:c1acdb109bacb5adf0f2078892ac177ee2e2ce6f88e96c5b743998b5489d36a9
 
-# The agent's world: node for Claude Code itself (sid's is 24.x,
-# past the >=22 engines floor), Python with pip and venv for skill
-# scripts, git and curl because agentic work reaches for both, and
-# CA certificates so TLS works at all.
+# The agent's world: node and npm for the Claude Code the harness
+# installs at startup (sid's node is 24.x, past the >=22 engines
+# floor), Python with pip and venv for skill scripts, git and curl
+# because agentic work reaches for both, and CA certificates so TLS
+# works at all.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -54,8 +59,6 @@ RUN apt-get update \
         python3 \
         python3-pip \
         python3-venv \
-    && npm install -g @anthropic-ai/claude-code@2.1.246 \
-    && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 
 # Debian's PEP 668 guard refuses bare `pip install` into the system
