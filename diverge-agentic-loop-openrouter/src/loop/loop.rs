@@ -200,6 +200,11 @@ pub async fn r#loop(
             // another turn. Between the closing and the yield there
             // is nothing left but the yield itself.
             if calls.is_empty() {
+                // A turn that ends call-less is at rest too: if the
+                // queue reopens the loop below and a LATER turn dies,
+                // this completed answer is progress the salvage
+                // keeps.
+                saved = items.len();
                 let token = Continuation(items.clone()).tokenize();
                 let taken = QUEUE.take_or_close().await;
                 if taken.is_empty() {
