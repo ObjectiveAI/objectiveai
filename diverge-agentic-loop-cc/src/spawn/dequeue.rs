@@ -39,8 +39,7 @@ use super::writer;
 /// dequeued; `cancelled: false` means the queue no longer held it —
 /// it was already taken, and its fate is delivered. A fate already
 /// decided by someone faster, or one nobody is listening to, is
-/// skipped — the main loop will be racing this same map once the
-/// conversion work lands.
+/// skipped — the reader races this same map on every replay echo.
 pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
     // Joined, in parallel; the writer's fair queue makes this very
     // acquisition the withdrawal boundary.

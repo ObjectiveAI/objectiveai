@@ -4,6 +4,9 @@ use std::io;
 use std::process::Stdio;
 
 use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
+    AgenticLoopChunk, UserChunk,
+};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process;
 use tokio::sync::mpsc;
@@ -25,14 +28,16 @@ use super::writer;
 /// same door guard the root handler owns — so this never contends
 /// with an earlier subprocess.
 ///
-/// Every line Claude Code writes reaches `sender` as its parse
-/// result, strict per the [`response`] module's contract; the
-/// receiver's death stops nothing.
+/// What Claude Code writes reaches `sender` CONVERTED: each line
+/// parses strictly per the [`response`] module's contract and
+/// becomes the chunks it means — most records mean none — with a
+/// parse failure travelling as the `Err` it is, for the consumer to
+/// judge. The receiver's death stops nothing.
 pub async fn spawn(
     continuation: Option<continuation::Continuation>,
     prompt: String,
     sender: mpsc::UnboundedSender<
-        Result<response::StdoutMessage, serde_json::Error>,
+        Result<AgenticLoopChunk, serde_json::Error>,
     >,
 ) -> io::Result<()> {
     // Resuming is the files existing before Claude Code starts.
@@ -89,11 +94,20 @@ pub async fn spawn(
 
 /// The reader task: the one reader of stdout, and the child's reaper.
 ///
-/// Per line: parse strictly; a `control_response` record additionally
-/// goes, cloned, through the reply sender — the receiver half sits
-/// behind [`replies::REPLIES`], so only that lock's holder reads it —
-/// and every parse result forwards through the caller's sender
-/// regardless.
+/// Per line: parse strictly, then two taps before conversion. A
+/// `control_response` record goes, cloned, through the reply
+/// sender — the receiver half sits behind [`replies::REPLIES`], so
+/// only that lock's holder reads it. A replay echo whose uuid is in
+/// [`pending::PENDING`] is a delivery: the fate resolves
+/// `delivered` — strict fates' third arm — and the `user` chunk
+/// carrying the prompt is pushed at exactly this position, which is
+/// the protocol's: Claude Code yields the tool-response records
+/// BEFORE the replay, so the mark lands behind the answers it
+/// followed. A replay with no pending entry — the initial prompt's
+/// echo, resumed history, a message dequeued mid-delivery — taps
+/// nothing. Then the record converts, and every chunk forwards
+/// through the caller's sender; a line that failed to parse
+/// forwards as its error.
 ///
 /// When the stream ends — EOF, or an IO error ends the same way —
 /// the ORDER is load-bearing: the reply sender drops FIRST, so a
@@ -112,19 +126,57 @@ async fn read(
         response::control::ControlResponse,
     >,
     sender: mpsc::UnboundedSender<
-        Result<response::StdoutMessage, serde_json::Error>,
+        Result<AgenticLoopChunk, serde_json::Error>,
     >,
 ) {
     let mut lines = BufReader::new(child_stdout).lines();
+    // One buffer for the whole stream: each record's chunks land
+    // here, drain to the sender, and the allocation stays.
+    let mut chunks: Vec<AgenticLoopChunk> = Vec::new();
     while let Ok(Some(line)) = lines.next_line().await {
-        let parsed =
-            serde_json::from_str::<response::StdoutMessage>(&line);
-        if let Ok(response::StdoutMessage::ControlResponse(reply)) =
-            &parsed
-        {
-            let _ = reply_sender.send(reply.clone());
+        let record =
+            match serde_json::from_str::<response::StdoutMessage>(&line)
+            {
+                Ok(record) => record,
+                Err(error) => {
+                    let _ = sender.send(Err(error));
+                    continue;
+                }
+            };
+        match &record {
+            // The cancel-reply tap.
+            response::StdoutMessage::ControlResponse(reply) => {
+                let _ = reply_sender.send(reply.clone());
+            }
+            // The delivery tap.
+            response::StdoutMessage::User(user)
+                if user.is_replay == Some(true) =>
+            {
+                if let Some(uuid) = &user.uuid {
+                    if let Some((_, fate)) =
+                        pending::PENDING.remove(uuid)
+                    {
+                        let _ = fate.send(
+                            agentic_loop_container::enqueue::Response::Delivered {
+                                r#type: Default::default(),
+                            },
+                        );
+                        chunks.push(AgenticLoopChunk::User(
+                            UserChunk {
+                                r#type: Default::default(),
+                                prompt: user.message.plain_text(),
+                                meta: None,
+                            },
+                        ));
+                    }
+                }
+            }
+            _ => {}
         }
-        let _ = sender.send(parsed);
+        record.into_chunks(&mut chunks);
+        for chunk in chunks.drain(..) {
+            let _ = sender.send(Ok(chunk));
+        }
     }
     drop(reply_sender);
     *writer::WRITER.lock().await = None;

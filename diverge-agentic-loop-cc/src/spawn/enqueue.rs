@@ -15,9 +15,9 @@ use super::writer;
 /// lock, together — so a dequeue, which holds that lock throughout,
 /// always sees every message written before it in the pending map.
 /// Then the lock drops and the wait begins: whoever decides the fate
-/// — a dequeue's cancel, the reader at end of stream, the main loop
-/// on a replay echo — sends it here. No run to write to, a failed
-/// write, or a fate wire dying undecided all answer missed.
+/// — the reader on a replay echo, a dequeue's cancel, the end of
+/// stream — sends it here. No run to write to, a failed write, or a
+/// fate wire dying undecided all answer missed.
 pub async fn enqueue(
     prompt: String,
 ) -> agentic_loop_container::enqueue::Response {

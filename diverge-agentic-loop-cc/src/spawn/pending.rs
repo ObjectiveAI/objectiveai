@@ -16,11 +16,10 @@ use tokio::sync::oneshot;
 /// snapshot complete, since the dequeue holds the lock throughout —
 /// and removed by whoever decides the fate: the dequeue whose cancel
 /// reached it (dequeued) or found it already taken (delivered), the
-/// reader at end of stream (missed), the main loop on a replay echo
-/// (delivered — when the conversion work lands), or the enqueue
-/// itself tidying up after hearing back. A removal that finds
-/// nothing, or a send nobody hears, is always skipped: the fate was
-/// already decided, or the caller stopped listening.
+/// reader on a replay echo (delivered) or at end of stream (missed),
+/// or the enqueue itself tidying up after hearing back. A removal
+/// that finds nothing, or a send nobody hears, is always skipped:
+/// the fate was already decided, or the caller stopped listening.
 pub static PENDING: LazyLock<
     DashMap<
         String,
