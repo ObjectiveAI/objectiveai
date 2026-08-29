@@ -40,6 +40,7 @@
 mod dequeue;
 mod enqueue;
 mod error;
+mod install;
 mod pending;
 mod replies;
 mod session_id;
@@ -49,5 +50,6 @@ mod writer;
 
 pub use dequeue::dequeue;
 pub use enqueue::enqueue;
+pub use install::installed;
 pub use session_id::session_id;
 pub use spawn::spawn;

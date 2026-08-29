@@ -62,6 +62,12 @@ fn main() {
 }
 
 async fn run() {
+    // The install begins the moment the process does — requests or
+    // none. Endpoints await the same memoized outcome.
+    tokio::spawn(async {
+        let _ = spawn::installed().await;
+    });
+
     let app = axum::Router::new()
         .route("/", axum::routing::post(serve))
         .route("/enqueue", axum::routing::post(enqueue))
@@ -83,6 +89,12 @@ async fn run() {
 ///
 /// - A request after the first is the CALLER's error, and the first
 ///   error checked: `409`, the container is [`CLAIMED`].
+/// - Claude Code failing to INSTALL — the harness fetches it at
+///   startup; see [`spawn::installed`] — is the server's own,
+///   checked right after the claim (arrival still spends the
+///   container): `500`, and the same on every other endpoint,
+///   forever. A request during the install simply waits for the
+///   outcome.
 /// - An agent of another kind, a prompt this container cannot yet
 ///   speak (anything richer than text, or nothing at all — Claude
 ///   Code cannot open a turn without a prompt), or a continuation
@@ -127,6 +139,8 @@ async fn serve(
             })),
         ));
     }
+
+    installed().await?;
 
     let Agent::ClaudeCode(agent) = request.agent else {
         return Err((
@@ -354,26 +368,53 @@ fn event(chunk: AgenticLoopChunk) -> Result<Event, axum::Error> {
     Event::default().json_data(&chunk)
 }
 
+/// The install gate every endpoint stands behind: waits out an
+/// in-flight install — no answer is knowable before the outcome
+/// is — and turns a failed one into the one shared error body.
+async fn installed() -> Result<(), (StatusCode, Json<serde_json::Value>)>
+{
+    match spawn::installed().await {
+        Ok(()) => Ok(()),
+        Err(error) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "kind": "install",
+                "error": error,
+            })),
+        )),
+    }
+}
+
 /// A message for the running conversation's queue.
 ///
 /// The response IS the fate, and it arrives when the fate is known —
 /// taken into the conversation, withdrawn by a dequeue, or outlived
 /// by the run. That can be long after the ask; nothing here times
-/// anything out. Nothing here can fail as HTTP: even a fate wire
-/// dying undecided answers missed.
+/// anything out. The one HTTP failure is the install's — everything
+/// else answers as a fate, even a fate wire dying undecided
+/// (missed).
 async fn enqueue(
     Json(request): Json<agentic_loop_container::enqueue::Request>,
-) -> Json<agentic_loop_container::enqueue::Response> {
-    Json(spawn::enqueue(request.prompt).await)
+) -> Result<
+    Json<agentic_loop_container::enqueue::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    installed().await?;
+    Ok(Json(spawn::enqueue(request.prompt).await))
 }
 
 /// Clear the running conversation's queue.
 ///
 /// The answer arrives once Claude Code has replied to every cancel —
 /// however long that takes — and a queue with nothing left to
-/// withdraw, or no run at all, answers `empty`.
+/// withdraw, or no run at all, answers `empty`. The one HTTP failure
+/// is the install's.
 async fn dequeue(
     Json(_request): Json<agentic_loop_container::dequeue::Request>,
-) -> Json<agentic_loop_container::dequeue::Response> {
-    Json(spawn::dequeue().await)
+) -> Result<
+    Json<agentic_loop_container::dequeue::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    installed().await?;
+    Ok(Json(spawn::dequeue().await))
 }

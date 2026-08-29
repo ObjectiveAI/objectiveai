@@ -18,6 +18,7 @@ use crate::continuation;
 use crate::response;
 
 use super::error;
+use super::install;
 use super::pending;
 use super::replies;
 use super::session_id;
@@ -51,6 +52,14 @@ pub async fn spawn(
 ) -> io::Result<
     impl Stream<Item = Result<AgenticLoopChunk, error::Error>> + Send,
 > {
+    // Before anything: Claude Code must EXIST. The root handler has
+    // already checked with its own error body — this arm makes
+    // spawning uninstalled impossible by construction, not by
+    // call-site discipline.
+    if let Err(error) = install::installed().await {
+        return Err(io::Error::other(error.clone()));
+    }
+
     // Resuming is the files existing before Claude Code starts.
     let session_id = match &continuation {
         Some(continuation) => {
