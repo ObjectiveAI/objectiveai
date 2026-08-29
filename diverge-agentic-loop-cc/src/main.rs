@@ -99,9 +99,13 @@ async fn run() {
 ///   proves the run outlived it, and it flushes as a NON-fatal
 ///   `notification` ahead of that chunk, in arrival order; when the
 ///   stream ends with errors still held, the LAST of them is the
-///   run's death — the final chunk, fatal — and the ones before it
-///   flush non-fatal ahead of it. No continuation follows a run
-///   that died.
+///   run's death — fatal — and the ones before it flush non-fatal
+///   ahead of it. Then the estate: if the model had already spoken
+///   (any assistant chunk), the harvest follows even the fatal last
+///   word, salvaging the progress into a continuation; a run that
+///   died before the model spoke saved nothing beyond what the
+///   caller brought — even a resumed transcript's new prompt line
+///   is not progress — and yields none.
 ///
 /// A stream that ends cleanly — no held error as its last word —
 /// closes with THE HARVEST: the session's files swept into a
@@ -210,12 +214,13 @@ async fn serve(
     };
 
     Ok(Sse::new(async_stream::stream! {
+        // Whether the model has spoken — the salvage criterion.
+        let mut progressed = assistant_chunk(&first);
         yield event(first);
         // Fatality is finality: an error is HELD, not yielded — a
         // later chunk proves the run outlived it and flushes it
         // non-fatal, in arrival order; at the stream's end, only
-        // the LAST held error is the death itself. No continuation
-        // follows a run that died.
+        // the LAST held error is the death itself.
         let mut held: Vec<serde_json::Value> = Vec::new();
         while let Some(item) = stream.next().await {
             match item {
@@ -223,6 +228,7 @@ async fn serve(
                     for message in held.drain(..) {
                         yield event(notification(message, false));
                     }
+                    progressed |= assistant_chunk(&chunk);
                     yield event(chunk);
                 }
                 Err(error) => held.push(error.message()),
@@ -230,14 +236,22 @@ async fn serve(
         }
         match held.pop() {
             None => yield event(harvest(resumed_session_id).await),
-            // Only the LAST error is the stream's death — the final
-            // chunk, fatal; the ones before it flush non-fatal, as
-            // they would have had anything else followed them.
+            // Only the LAST error is the stream's death — fatal; the
+            // ones before it flush non-fatal, as they would have had
+            // anything else followed them. Then the estate: a run
+            // the model had spoken in left progress worth resuming,
+            // and the harvest salvages it even past the fatal last
+            // word. A run that died unspoken saved nothing beyond
+            // what the caller brought — a resumed transcript's new
+            // prompt line is not progress — and yields none.
             Some(last) => {
                 for message in held.drain(..) {
                     yield event(notification(message, false));
                 }
                 yield event(notification(last, true));
+                if progressed {
+                    yield event(harvest(resumed_session_id).await);
+                }
             }
         }
     }))
@@ -304,6 +318,20 @@ async fn harvest(
             true,
         ),
     }
+}
+
+/// Whether a chunk is the model speaking — the salvage criterion:
+/// any of the six assistant kinds.
+fn assistant_chunk(chunk: &AgenticLoopChunk) -> bool {
+    matches!(
+        chunk,
+        AgenticLoopChunk::AssistantReasoning(_)
+            | AgenticLoopChunk::AssistantTextContent(_)
+            | AgenticLoopChunk::AssistantImageContent(_)
+            | AgenticLoopChunk::AssistantAudioContent(_)
+            | AgenticLoopChunk::AssistantToolCall(_)
+            | AgenticLoopChunk::AssistantRefusal(_)
+    )
 }
 
 /// A notification chunk, its fatality the caller's verdict.
