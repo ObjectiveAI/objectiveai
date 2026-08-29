@@ -10,7 +10,11 @@ homepage = "https://diverge.network"
 publish = false
 
 [dependencies]
+# The run and the SSE response, as generators.
+async-stream = { version = "0.3.6" }
 axum = { version = "0.8.9" }
+# The Stream trait the generators implement and Sse consumes.
+futures-util = { version = "0.3.33", default-features = false }
 # The continuation token's outer coat: JSON, base64-ified.
 base64 = { version = "0.22.1" }
 # The pending-fate map: resolved beside the session lock, not under

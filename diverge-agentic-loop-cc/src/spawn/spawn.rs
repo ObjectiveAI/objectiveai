@@ -1,12 +1,14 @@
-//! Launching the subprocess, and the reader task beside it.
+//! Launching the subprocess, and the chunk stream it becomes.
 
 use std::io;
 use std::process::Stdio;
 
 use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::claude_code;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
     AgenticLoopChunk, UserChunk,
 };
+use futures_util::Stream;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process;
 use tokio::sync::mpsc;
@@ -18,29 +20,37 @@ use crate::response;
 use super::error;
 use super::pending;
 use super::replies;
+use super::session_id;
 use super::stdin;
 use super::writer;
 
 /// Start the run: write the continuation's files if resuming, launch
-/// Claude Code, hand it the prompt, and leave the reader task
-/// running.
+/// Claude Code, hand it the prompt, and return the RUN AS A STREAM —
+/// the reader is not a spawned task; whoever consumes the stream
+/// drives it.
 ///
 /// The caller ensures there is one run per container lifetime — the
 /// same door guard the root handler owns — so this never contends
 /// with an earlier subprocess.
 ///
-/// What Claude Code writes reaches `sender` CONVERTED: each line
-/// parses strictly per the [`response`] module's contract and
-/// becomes the chunks it means — most records mean none — with
-/// failures travelling as the [`error::Error`] they are, for the
-/// consumer to judge. The receiver's death stops nothing.
+/// The agent's knobs ride the argv: the model verbatim, thinking
+/// on/off, effort 1:1 (all five of the SDK's tiers exist in current
+/// Claude Code). The agent's `skills` and `claude_code_agents` are
+/// deliberately NOT consulted: mounting them is the SERVER's
+/// protocol obligation, discharged before this container was even
+/// deployed — the run simply finds them on disk.
+///
+/// Each stdout line parses strictly per the [`response`] module's
+/// contract and becomes the chunks it means — most records mean
+/// none — with failures travelling as the [`error::Error`] they
+/// are, for the consumer to judge.
 pub async fn spawn(
+    agent: claude_code::Agent,
     continuation: Option<continuation::Continuation>,
     prompt: String,
-    sender: mpsc::UnboundedSender<
-        Result<AgenticLoopChunk, error::Error>,
-    >,
-) -> io::Result<()> {
+) -> io::Result<
+    impl Stream<Item = Result<AgenticLoopChunk, error::Error>> + Send,
+> {
     // Resuming is the files existing before Claude Code starts.
     let session_id = match &continuation {
         Some(continuation) => {
@@ -65,8 +75,27 @@ pub async fn spawn(
         .arg(
             r#"{"mcpServers":{"diverge":{"type":"http","url":"http://localhost:8081/mcp"}}}"#,
         )
+        .arg("--model")
+        .arg(&agent.model)
         .stdin(Stdio::piped())
-        .stdout(Stdio::piped());
+        .stdout(Stdio::piped())
+        // A dropped stream is an abandoned run: the runtime kills the
+        // child, and the Teardown guard settles the rest.
+        .kill_on_drop(true);
+    match agent.thinking {
+        // No flag when unsaid: Claude Code's own default is thinking
+        // on, adaptive.
+        None => {}
+        Some(true) => {
+            command.arg("--thinking").arg("enabled");
+        }
+        Some(false) => {
+            command.arg("--thinking").arg("disabled");
+        }
+    }
+    if let Some(effort) = agent.effort {
+        command.arg("--effort").arg(effort_flag(effort));
+    }
     if let Some(session_id) = &session_id {
         command.arg("--resume").arg(session_id);
     }
@@ -90,11 +119,28 @@ pub async fn spawn(
     // place.
     *replies::REPLIES.lock().await = Some(reply_receiver);
     *writer::WRITER.lock().await = Some(child_stdin);
-    tokio::spawn(read(child_stdout, child, reply_sender, sender));
-    Ok(())
+    Ok(read(child_stdout, child, reply_sender))
 }
 
-/// The reader task: the one reader of stdout, and the child's reaper.
+/// The `--effort` value for an SDK tier, 1:1.
+fn effort_flag(effort: claude_code::Effort) -> &'static str {
+    match effort {
+        claude_code::Effort::Low => "low",
+        claude_code::Effort::Medium => "medium",
+        claude_code::Effort::High => "high",
+        claude_code::Effort::Xhigh => "xhigh",
+        claude_code::Effort::Max => "max",
+    }
+}
+
+/// The run, as a stream: the one reader of stdout, and the child's
+/// reaper — driven by whoever polls it, not a task of its own.
+/// Progress therefore rides the consumer: a caller that stops
+/// reading stalls the drain, and with it Claude Code (a full stdout
+/// pipe blocks it) and the queue's fate resolution. That is the
+/// caller stalling its own run; the module's deadlock audit is about
+/// TASKS, and still holds — the consumer is the SSE response task,
+/// independent of the queue verbs' handler tasks.
 ///
 /// Per line: parse strictly, then two taps before conversion. A
 /// `control_response` record goes, cloned, through the reply
@@ -102,21 +148,22 @@ pub async fn spawn(
 /// only that lock's holder reads it. A replay echo whose uuid is in
 /// [`pending::PENDING`] is a delivery: the fate resolves
 /// `delivered` — strict fates' third arm — and the `user` chunk
-/// carrying the prompt is pushed at exactly this position, which is
+/// carrying the prompt is yielded at exactly this position, which is
 /// the protocol's: Claude Code yields the tool-response records
 /// BEFORE the replay, so the mark lands behind the answers it
 /// followed. A replay with no pending entry — the initial prompt's
 /// echo, resumed history, a message dequeued mid-delivery — taps
-/// nothing. Then the record converts, and every chunk forwards
-/// through the caller's sender; a line that failed to parse
-/// forwards as its error.
+/// nothing. The first record naming the session is also captured
+/// into [`session_id::SESSION_ID`], the harvest's key. Then the
+/// record converts, and every chunk is yielded; a line that failed
+/// to parse is yielded as its error.
 ///
 /// # Error-typed records are POSITIONAL
 ///
 /// A rejected rate limit, a failed auth status, or an error result
 /// arriving BEFORE the first assistant message is the request's own
-/// failure: it travels as an `Err` the moment it is seen, and — as
-/// with openrouter's pre-stream failures — no chunks accompany it
+/// failure: it is yielded as an `Err` the moment it is seen, and —
+/// as with openrouter's pre-stream failures — no chunks accompany it
 /// (an early error result forfeits its usage chunk with the failed
 /// request). The same records AFTER an assistant message are news
 /// inside a working run: the rate limit becomes a non-fatal
@@ -128,128 +175,177 @@ pub async fn spawn(
 /// (`api_retry` narration, the assistant `error` markers) are
 /// deliberately NOT error-typed here: they are Claude Code's retry
 /// in flight, and their terminal verdict arrives as the result
-/// record. Sending an `Err` ends nothing on this side — the drain,
+/// record. Yielding an `Err` ends nothing on this side — the drain,
 /// the fates and the reaping continue; aborting is the consumer's
 /// choice.
 ///
-/// When the stream ends — EOF, or an IO error ends the same way —
-/// the ORDER is load-bearing: the reply sender drops FIRST, so a
-/// dequeue holding the locks mid-wait wakes on the closed channel
-/// and resolves; then the writer and replies locks are taken ONE AT
-/// A TIME — never nested, so no cycle with the dequeue's joined
-/// hold — and cleared (idempotent with that dequeue's own clearing);
-/// and only AFTER the writer is `None` are the pending fates missed —
-/// no enqueue can register a fate once the writer is gone, so
-/// nothing slips in behind the drain. Then the child is reaped, and
-/// dropping the caller's sender is the end-of-stream.
-async fn read(
+/// # The end, graceful or not
+///
+/// When stdout ends — EOF, or an IO error ends the same way — the
+/// ORDER is load-bearing: the reply sender drops FIRST, so a dequeue
+/// holding the locks mid-wait wakes on the closed channel and
+/// resolves; then [`close`] clears the locks ONE AT A TIME — never
+/// nested, so no cycle against the dequeue's joined hold — and
+/// misses every fate still pending, which nothing can slip behind
+/// (no writer, no registration); then the child is reaped, and the
+/// stream's end is the caller's end-of-stream. A stream DROPPED
+/// instead of drained gets the same settlement: the reply sender
+/// dies with the generator's state, the runtime kills the child
+/// (`kill_on_drop`), and the [`Teardown`] guard — constructed
+/// OUTSIDE the generator, so even a never-polled stream carries
+/// it — spawns [`close`] to settle the locks and the fates.
+fn read(
     child_stdout: process::ChildStdout,
-    mut child: process::Child,
+    child: process::Child,
     reply_sender: mpsc::UnboundedSender<
         response::control::ControlResponse,
     >,
-    sender: mpsc::UnboundedSender<
-        Result<AgenticLoopChunk, error::Error>,
-    >,
-) {
-    let mut lines = BufReader::new(child_stdout).lines();
-    // One buffer for the whole stream: each record's chunks land
-    // here, drain to the sender, and the allocation stays.
-    let mut chunks: Vec<AgenticLoopChunk> = Vec::new();
-    // Whether the model has spoken — the positional rule's pivot.
-    let mut assistant_seen = false;
-    while let Ok(Some(line)) = lines.next_line().await {
-        let record =
-            match serde_json::from_str::<response::StdoutMessage>(&line)
+) -> impl Stream<Item = Result<AgenticLoopChunk, error::Error>> + Send {
+    // Outside the generator, deliberately: a stream dropped before
+    // its first poll never runs a line of the body, but its captured
+    // locals still drop.
+    let teardown = Teardown;
+    async_stream::stream! {
+        let _teardown = teardown;
+        let mut child = child;
+        let reply_sender = reply_sender;
+        let mut lines = BufReader::new(child_stdout).lines();
+        // One buffer for the whole stream: each record's chunks land
+        // here, drain as yields, and the allocation stays.
+        let mut chunks: Vec<AgenticLoopChunk> = Vec::new();
+        // Whether the model has spoken — the positional rule's pivot.
+        let mut assistant_seen = false;
+        // Whether the session has been named — the capture's latch.
+        let mut session_seen = false;
+        while let Ok(Some(line)) = lines.next_line().await {
+            let record = match serde_json::from_str::<
+                response::StdoutMessage,
+            >(&line)
             {
                 Ok(record) => record,
                 Err(parse) => {
-                    let _ = sender.send(Err(error::Error::Parse(parse)));
+                    yield Err(error::Error::Parse(parse));
                     continue;
                 }
             };
-        match &record {
-            // The cancel-reply tap.
-            response::StdoutMessage::ControlResponse(reply) => {
-                let _ = reply_sender.send(reply.clone());
-            }
-            // The delivery tap.
-            response::StdoutMessage::User(user)
-                if user.is_replay == Some(true) =>
-            {
-                if let Some(uuid) = &user.uuid {
-                    if let Some((_, fate)) =
-                        pending::PENDING.remove(uuid)
-                    {
-                        let _ = fate.send(
-                            agentic_loop_container::enqueue::Response::Delivered {
-                                r#type: Default::default(),
-                            },
-                        );
-                        chunks.push(AgenticLoopChunk::User(
-                            UserChunk {
-                                r#type: Default::default(),
-                                prompt: user.message.plain_text(),
-                                meta: None,
-                            },
-                        ));
+            match &record {
+                // The cancel-reply tap.
+                response::StdoutMessage::ControlResponse(reply) => {
+                    let _ = reply_sender.send(reply.clone());
+                }
+                // The delivery tap.
+                response::StdoutMessage::User(user)
+                    if user.is_replay == Some(true) =>
+                {
+                    if let Some(uuid) = &user.uuid {
+                        if let Some((_, fate)) =
+                            pending::PENDING.remove(uuid)
+                        {
+                            let _ = fate.send(
+                                agentic_loop_container::enqueue::Response::Delivered {
+                                    r#type: Default::default(),
+                                },
+                            );
+                            chunks.push(AgenticLoopChunk::User(
+                                UserChunk {
+                                    r#type: Default::default(),
+                                    prompt: user.message.plain_text(),
+                                    meta: None,
+                                },
+                            ));
+                        }
                     }
                 }
+                _ => {}
             }
-            _ => {}
-        }
-        // The positional rule for error-typed records — the flag's
-        // flip rides the same match. The error arms send directly:
-        // no conversion follows them, and the buffer is the
-        // conversion's.
-        let record = match record {
-            response::StdoutMessage::Assistant(assistant) => {
-                if assistant.error.is_none() {
-                    assistant_seen = true;
+            // The harvest's key: the first record naming the session.
+            if !session_seen {
+                let observed = match &record {
+                    response::StdoutMessage::Assistant(assistant) => {
+                        Some(assistant.session_id.as_str())
+                    }
+                    response::StdoutMessage::User(user) => {
+                        user.session_id.as_deref()
+                    }
+                    response::StdoutMessage::Result(
+                        response::result::Result::Success {
+                            session_id,
+                            ..
+                        },
+                    ) => Some(session_id.as_str()),
+                    response::StdoutMessage::Result(
+                        response::result::Result::Error(error),
+                    ) => Some(error.session_id.as_str()),
+                    _ => None,
+                };
+                if let Some(observed) = observed {
+                    *session_id::SESSION_ID.lock().await =
+                        Some(observed.to_string());
+                    session_seen = true;
                 }
-                response::StdoutMessage::Assistant(assistant)
             }
-            response::StdoutMessage::RateLimitEvent(event)
-                if event.rejected() =>
-            {
-                let _ = sender.send(if assistant_seen {
-                    Ok(AgenticLoopChunk::Notification(
-                        event.into_notification(),
-                    ))
-                } else {
-                    Err(error::Error::RateLimit(event))
-                });
-                continue;
+            // The positional rule for error-typed records — the
+            // flag's flip rides the same match. The error arms yield
+            // directly: no conversion follows them, and the buffer
+            // is the conversion's.
+            let record = match record {
+                response::StdoutMessage::Assistant(assistant) => {
+                    if assistant.error.is_none() {
+                        assistant_seen = true;
+                    }
+                    response::StdoutMessage::Assistant(assistant)
+                }
+                response::StdoutMessage::RateLimitEvent(event)
+                    if event.rejected() =>
+                {
+                    yield if assistant_seen {
+                        Ok(AgenticLoopChunk::Notification(
+                            event.into_notification(),
+                        ))
+                    } else {
+                        Err(error::Error::RateLimit(event))
+                    };
+                    continue;
+                }
+                response::StdoutMessage::AuthStatus(status)
+                    if status.failed() =>
+                {
+                    yield if assistant_seen {
+                        Ok(AgenticLoopChunk::Notification(
+                            status.into_notification(),
+                        ))
+                    } else {
+                        Err(error::Error::Auth(status))
+                    };
+                    continue;
+                }
+                response::StdoutMessage::Result(
+                    response::result::Result::Error(result),
+                ) if !assistant_seen => {
+                    yield Err(error::Error::Result(result));
+                    continue;
+                }
+                record => record,
+            };
+            record.into_chunks(&mut chunks);
+            for chunk in chunks.drain(..) {
+                yield Ok(chunk);
             }
-            response::StdoutMessage::AuthStatus(status)
-                if status.failed() =>
-            {
-                let _ = sender.send(if assistant_seen {
-                    Ok(AgenticLoopChunk::Notification(
-                        status.into_notification(),
-                    ))
-                } else {
-                    Err(error::Error::Auth(status))
-                });
-                continue;
-            }
-            response::StdoutMessage::Result(
-                response::result::Result::Error(result),
-            ) if !assistant_seen => {
-                let _ = sender.send(Err(error::Error::Result(result)));
-                continue;
-            }
-            record => record,
-        };
-        record.into_chunks(&mut chunks);
-        for chunk in chunks.drain(..) {
-            let _ = sender.send(Ok(chunk));
         }
+        drop(reply_sender);
+        close().await;
+        let _ = child.wait().await;
     }
-    drop(reply_sender);
+}
+
+/// The settlement: locks cleared one at a time, every fate still
+/// pending missed. Idempotent — the graceful end runs it inline and
+/// [`Teardown`] runs it again.
+async fn close() {
     *writer::WRITER.lock().await = None;
     *replies::REPLIES.lock().await = None;
     // The run is over: every fate still undecided is now decided.
+    // Nothing registers behind this — registration needs the writer.
     let uuids: Vec<String> = pending::PENDING
         .iter()
         .map(|entry| entry.key().clone())
@@ -263,5 +359,18 @@ async fn read(
             );
         }
     }
-    let _ = child.wait().await;
+}
+
+/// Settles the run when the stream drops, however it drops.
+///
+/// [`Drop`] cannot await, so the closing rides a spawned task; the
+/// graceful path makes it a no-op. Constructed before the generator
+/// and captured into it, so even a stream dropped unpolled — whose
+/// body never ran a line — still settles.
+struct Teardown;
+
+impl Drop for Teardown {
+    fn drop(&mut self) {
+        tokio::spawn(close());
+    }
 }

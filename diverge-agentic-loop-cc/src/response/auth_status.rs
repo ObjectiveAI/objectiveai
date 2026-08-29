@@ -40,6 +40,16 @@ impl AuthStatus {
         self.error.is_some()
     }
 
+    /// The failure as a notification's (or an HTTP error's) message
+    /// body.
+    pub fn message(&self) -> serde_json::Value {
+        serde_json::json!({
+            "kind": "auth",
+            "error": self.error,
+            "output": self.output,
+        })
+    }
+
     /// The failure as the notification it becomes inside a working
     /// run: fatal — a run whose credential died is over, and unlike
     /// a rate limit there is nothing for Claude Code to wait out.
@@ -50,11 +60,7 @@ impl AuthStatus {
         response::NotificationChunk {
             r#type: Default::default(),
             is_fatal: true,
-            message: serde_json::json!({
-                "kind": "auth",
-                "error": self.error,
-                "output": self.output,
-            }),
+            message: self.message(),
             meta: None,
         }
     }

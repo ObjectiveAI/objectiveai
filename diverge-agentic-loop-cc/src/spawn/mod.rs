@@ -40,15 +40,12 @@ mod enqueue;
 mod error;
 mod pending;
 mod replies;
+mod session_id;
 mod spawn;
 mod stdin;
 mod writer;
 
 pub use dequeue::dequeue;
 pub use enqueue::enqueue;
-// `spawn` itself and the stream's `Error` have no caller until the
-// root handler lands; the allows leave with it.
-#[allow(unused_imports)]
-pub use error::Error;
-#[allow(unused_imports)]
+pub use session_id::session_id;
 pub use spawn::spawn;

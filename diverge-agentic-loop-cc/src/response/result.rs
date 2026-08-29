@@ -236,6 +236,15 @@ impl Result {
 }
 
 impl ResultError {
+    /// The failure as a notification's (or an HTTP error's) message
+    /// body.
+    pub fn message(&self) -> serde_json::Value {
+        serde_json::json!({
+            "kind": self.subtype.as_str(),
+            "errors": self.errors,
+        })
+    }
+
     /// The failure as a fatal notification, then the bill — an error
     /// result still spent the tokens, so it still bills (the api
     /// crate's choice, kept).
@@ -247,10 +256,7 @@ impl ResultError {
             response::NotificationChunk {
                 r#type: Default::default(),
                 is_fatal: true,
-                message: serde_json::json!({
-                    "kind": self.subtype.as_str(),
-                    "errors": self.errors,
-                }),
+                message: self.message(),
                 meta: None,
             },
         ));

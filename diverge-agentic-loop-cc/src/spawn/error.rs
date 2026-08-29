@@ -52,6 +52,35 @@ impl std::fmt::Display for Error {
     }
 }
 
+impl Error {
+    /// The HTTP status this failure deserves, when it is the
+    /// request's own (the first-item contract): the rate limit is
+    /// the one caller-visible upstream verdict; everything else —
+    /// wire drift, the container's own credential dying, the run
+    /// failing before it spoke — is the server's `500`.
+    pub fn status(&self) -> u16 {
+        match self {
+            Error::RateLimit(_) => 429,
+            Error::Parse(_) | Error::Auth(_) | Error::Result(_) => 500,
+        }
+    }
+
+    /// The failure as an HTTP error body (or a fatal notification's
+    /// message, when it arrives mid-stream) — each record's own
+    /// rendering where one exists.
+    pub fn message(&self) -> serde_json::Value {
+        match self {
+            Error::Parse(error) => serde_json::json!({
+                "kind": "parse",
+                "error": error.to_string(),
+            }),
+            Error::RateLimit(event) => event.rate_limit_info.message(),
+            Error::Auth(status) => status.message(),
+            Error::Result(error) => error.message(),
+        }
+    }
+}
+
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {

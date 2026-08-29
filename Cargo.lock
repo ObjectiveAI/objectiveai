@@ -1671,10 +1671,12 @@ dependencies = [
 name = "diverge-agentic-loop-cc"
 version = "2.3.0"
 dependencies = [
+ "async-stream",
  "axum",
  "base64 0.22.1",
  "dashmap",
  "diverge-provider-sdk",
+ "futures-util",
  "indexmap 2.14.0",
  "rmcp 3.1.2",
  "serde",
