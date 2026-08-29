@@ -62,9 +62,11 @@ const MCP_PROXY: &str = "http://localhost:8081/mcp";
 /// If at least one whole turn completed since the caller's own
 /// continuation, the completed part of the history follows the error
 /// as a final continuation chunk: the estate of a run that died. The
-/// watermark that measures it advances only when a turn's tool
-/// answers have ALL landed, so the salvage never contains an
-/// unanswered call, never ends on a prompt, and is never identical
+/// watermark that measures it advances only at rest — a turn's tool
+/// answers all landed (and the seam's deliveries with them), or a
+/// call-less answer completed — so the salvage never contains an
+/// unanswered call or a partial response, never ends on a prompt
+/// that would not fold onto a tool response, and is never identical
 /// to what the caller already had — in that case nothing is yielded
 /// at all. See [`salvage`].
 ///
@@ -203,7 +205,10 @@ pub async fn r#loop(
                 // A turn that ends call-less is at rest too: if the
                 // queue reopens the loop below and a LATER turn dies,
                 // this completed answer is progress the salvage
-                // keeps.
+                // keeps. The advance sits BEFORE this seam's
+                // deliveries, unlike the tool seam's: a prompt here
+                // would trail the assistant's answer with nothing to
+                // fold onto, so it stays above the watermark.
                 saved = items.len();
                 let token = Continuation(items.clone()).tokenize();
                 let taken = QUEUE.take_or_close().await;
@@ -281,12 +286,6 @@ pub async fn r#loop(
                         }
                     }
                 }
-                // Every answer is in: the history is at rest, and
-                // this is the one place the watermark advances —
-                // BEFORE the seam's deliveries, so a salvage never
-                // ends on a prompt.
-                saved = items.len();
-
                 // The tool seam: everything enqueued while the tools
                 // ran is delivered here, after the answers and before
                 // the model speaks again — the position Claude Code
@@ -305,6 +304,13 @@ pub async fn r#loop(
                     ]));
                     message.deliver();
                 }
+                // Every answer is in and the seam's deliveries with
+                // them: the history is at rest. A salvage ending
+                // here ends on the responses — or on prompts that
+                // FOLD ONTO them at request-building time, which is
+                // a valid resume and keeps the delivered messages
+                // delivered.
+                saved = items.len();
             }
 
             // The next turn: fresh tools, fresh request, no new
@@ -365,14 +371,16 @@ async fn list(
 ///
 /// Truncating to the watermark is the WHOLE rule-keeping, because
 /// the watermark only ever marks at-rest lengths: an unfinished
-/// turn's chunks, its unanswered calls, and any seam-delivered
-/// prompts all sit above it and are simply never included. (Dropped
-/// prompts were answered `delivered` — the no-trailing-prompt rule
-/// costs them their place in the salvage, accepted.) `saved` still
-/// at `provided` means only the caller's own history is at rest —
-/// a salvage identical to what they sent, so nothing is said. A
-/// token that cannot be minted stays unspoken too: the error
-/// already ended the run.
+/// turn's chunks, its unanswered calls, and its partial responses
+/// all sit above it and are simply never included. Tool-seam
+/// prompts sit BELOW it — trailing prompts that fold onto the tool
+/// responses at request-building time are a valid resume — while
+/// the final-look seam's prompts sit above, having nothing to fold
+/// onto (those were answered `delivered` and lose their place in
+/// the salvage, accepted). `saved` still at `provided` means only
+/// the caller's own history is at rest — a salvage identical to
+/// what they sent, so nothing is said. A token that cannot be
+/// minted stays unspoken too: the error already ended the run.
 fn salvage(
     items: &mut Vec<ContinuationItem>,
     saved: usize,
