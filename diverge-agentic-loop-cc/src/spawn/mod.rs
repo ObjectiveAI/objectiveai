@@ -22,11 +22,13 @@
 //! new messages write no control responses.
 //!
 //! Error-typed records — a rejected rate limit, a failed auth
-//! status, an error result — are POSITIONAL: before the first
-//! assistant message they are the request's own failure and travel
-//! as the stream's [`error::Error`]; after it they are news inside
-//! a working run — the rate limit non-fatal (Claude Code retries
-//! through it itself), the others fatal.
+//! status, an error result, a line that failed the parse — always
+//! travel as the stream's [`error::Error`], verdict unattached:
+//! FATALITY IS FINALITY, the consumer's to decide by what follows.
+//! An error before the run's first chunk is the request's own
+//! failure (HTTP); one the run outlives was survivable news (a
+//! non-fatal notification); one the stream ends behind was the
+//! run's death (the fatal last words).
 //!
 //! Deadlock audit: the reader never touches a lock while reading —
 //! only at end of stream, AFTER dropping the reply sender, and then

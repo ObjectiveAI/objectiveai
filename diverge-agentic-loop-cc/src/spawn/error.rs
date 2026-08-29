@@ -2,23 +2,28 @@
 
 use crate::response;
 
-/// An error on the chunk stream — either the wire misbehaving, or an
-/// error-typed record arriving BEFORE the first assistant message,
-/// which makes it the request's own failure rather than news inside
-/// a working run (those become notifications instead; the reader's
-/// docs carry the rule).
+/// An error on the chunk stream: the wire misbehaving, or an
+/// error-typed record — yielded wherever it falls, with NO verdict
+/// attached. Fatality is finality, and it is the CONSUMER's call:
+/// an error before the run's first chunk is the request's own
+/// failure (HTTP, by [`status`](Self::status) and
+/// [`message`](Self::message)); an error the run outlives was
+/// survivable news (a non-fatal notification); an error the stream
+/// ends behind was the run's death (a fatal one, the last words).
 ///
-/// The records ride whole: the root handler picks its HTTP status
-/// and body from the record itself when it lands.
+/// The records ride whole: the consumer picks what it needs from
+/// the record itself.
 #[derive(Debug)]
 pub enum Error {
     /// A stdout line failed the strict parse.
     Parse(serde_json::Error),
-    /// Rate-limited before the first assistant message.
+    /// Requests are being refused by a rate limit.
     RateLimit(response::rate_limit_event::RateLimitEvent),
-    /// Authentication failed before the first assistant message.
+    /// Authentication failed.
     Auth(response::auth_status::AuthStatus),
-    /// The run ended in error before the first assistant message.
+    /// The run ended in error. Its bill follows it on the stream —
+    /// the reader yields this first and the usage chunk right
+    /// behind, so a billed failure is never the stream's last word.
     Result(response::result::ResultError),
 }
 
@@ -29,23 +34,17 @@ impl std::fmt::Display for Error {
                 write!(f, "a stdout line did not parse: {error}")
             }
             Error::RateLimit(_) => {
-                write!(f, "rate limited before the run produced anything")
+                write!(f, "requests are being refused by a rate limit")
             }
             Error::Auth(status) => match &status.error {
-                Some(error) => write!(
-                    f,
-                    "authentication failed before the run produced \
-                     anything: {error}"
-                ),
-                None => write!(
-                    f,
-                    "authentication failed before the run produced \
-                     anything"
-                ),
+                Some(error) => {
+                    write!(f, "authentication failed: {error}")
+                }
+                None => write!(f, "authentication failed"),
             },
             Error::Result(error) => write!(
                 f,
-                "the run ended in error before producing anything: {}",
+                "the run ended in error: {}",
                 error.errors.join("; ")
             ),
         }

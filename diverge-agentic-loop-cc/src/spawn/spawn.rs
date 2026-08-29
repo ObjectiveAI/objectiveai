@@ -158,26 +158,23 @@ fn effort_flag(effort: claude_code::Effort) -> &'static str {
 /// record converts, and every chunk is yielded; a line that failed
 /// to parse is yielded as its error.
 ///
-/// # Error-typed records are POSITIONAL
+/// # Error-typed records travel as errors; FATALITY IS FINALITY
 ///
-/// A rejected rate limit, a failed auth status, or an error result
-/// arriving BEFORE the first assistant message is the request's own
-/// failure: it is yielded as an `Err` the moment it is seen, and —
-/// as with openrouter's pre-stream failures — no chunks accompany it
-/// (an early error result forfeits its usage chunk with the failed
-/// request). The same records AFTER an assistant message are news
-/// inside a working run: the rate limit becomes a non-fatal
-/// notification, because Claude Code queues and retries through it
-/// on its own; the failed auth a fatal one; the error result its
-/// conversion's fatal notification and bill. The flag flips on an
-/// assistant record with no error marker — a synthetic failure
-/// stand-in is not the model speaking, and its transient kin
-/// (`api_retry` narration, the assistant `error` markers) are
-/// deliberately NOT error-typed here: they are Claude Code's retry
-/// in flight, and their terminal verdict arrives as the result
-/// record. Yielding an `Err` ends nothing on this side — the drain,
-/// the fates and the reaping continue; aborting is the consumer's
-/// choice.
+/// A rejected rate limit, a failed auth status, an error result, or
+/// a line that failed the parse is yielded as an `Err` — always,
+/// wherever it falls. This side never judges how bad it is, because
+/// it cannot know yet: the CONSUMER decides by what follows. An
+/// error before the run's first chunk is the request's own failure
+/// (HTTP, the root handler's first-item contract); an error the run
+/// outlives — a later chunk arrives — was survivable news; an error
+/// the stream ends behind was the run's death. The error result
+/// still bills: its `Err` is yielded first and its conversion
+/// yields the usage chunk right behind it, so a billed failure is
+/// never the stream's last word by construction. Deliberately NOT
+/// error-typed: `api_retry` narration and the assistant `error`
+/// markers — Claude Code's retry in flight, whose terminal verdict
+/// arrives as the result record. Yielding an `Err` ends nothing on
+/// this side — the drain, the fates and the reaping continue.
 ///
 /// # The end, graceful or not
 ///
@@ -213,8 +210,6 @@ fn read(
         // One buffer for the whole stream: each record's chunks land
         // here, drain as yields, and the allocation stays.
         let mut chunks: Vec<AgenticLoopChunk> = Vec::new();
-        // Whether the model has spoken — the positional rule's pivot.
-        let mut assistant_seen = false;
         // Whether the session has been named — the capture's latch.
         let mut session_seen = false;
         while let Ok(Some(line)) = lines.next_line().await {
@@ -284,46 +279,30 @@ fn read(
                     session_seen = true;
                 }
             }
-            // The positional rule for error-typed records — the
-            // flag's flip rides the same match. The error arms yield
-            // directly: no conversion follows them, and the buffer
-            // is the conversion's.
+            // Error-typed records travel as errors, wherever they
+            // fall — fatality is the consumer's, decided by what
+            // follows. The error result alone falls through to
+            // conversion too: its bill rides right behind its error.
             let record = match record {
-                response::StdoutMessage::Assistant(assistant) => {
-                    if assistant.error.is_none() {
-                        assistant_seen = true;
-                    }
-                    response::StdoutMessage::Assistant(assistant)
-                }
                 response::StdoutMessage::RateLimitEvent(event)
                     if event.rejected() =>
                 {
-                    yield if assistant_seen {
-                        Ok(AgenticLoopChunk::Notification(
-                            event.into_notification(),
-                        ))
-                    } else {
-                        Err(error::Error::RateLimit(event))
-                    };
+                    yield Err(error::Error::RateLimit(event));
                     continue;
                 }
                 response::StdoutMessage::AuthStatus(status)
                     if status.failed() =>
                 {
-                    yield if assistant_seen {
-                        Ok(AgenticLoopChunk::Notification(
-                            status.into_notification(),
-                        ))
-                    } else {
-                        Err(error::Error::Auth(status))
-                    };
+                    yield Err(error::Error::Auth(status));
                     continue;
                 }
                 response::StdoutMessage::Result(
                     response::result::Result::Error(result),
-                ) if !assistant_seen => {
-                    yield Err(error::Error::Result(result));
-                    continue;
+                ) => {
+                    yield Err(error::Error::Result(result.clone()));
+                    response::StdoutMessage::Result(
+                        response::result::Result::Error(result),
+                    )
                 }
                 record => record,
             };

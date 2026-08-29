@@ -1,6 +1,5 @@
 //! The `rate_limit_event` records: subscription limits moving.
 
-use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::Deserialize;
 
 /// A `type: "rate_limit_event"` record, emitted when rate-limit
@@ -241,21 +240,6 @@ impl RateLimitEvent {
     /// info's verdict.
     pub fn rejected(&self) -> bool {
         self.rate_limit_info.rejected()
-    }
-
-    /// The event as the notification it becomes inside a working
-    /// run: non-fatal, because Claude Code queues and retries
-    /// through a rate limit on its own — the run is coping, not
-    /// over. (Before the first assistant message it is the
-    /// request's failure instead; the reader's docs carry the
-    /// positional rule.)
-    pub fn into_notification(self) -> response::NotificationChunk {
-        response::NotificationChunk {
-            r#type: Default::default(),
-            is_fatal: false,
-            message: self.rate_limit_info.message(),
-            meta: None,
-        }
     }
 }
 

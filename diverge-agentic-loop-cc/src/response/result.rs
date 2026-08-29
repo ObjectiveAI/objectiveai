@@ -217,20 +217,23 @@ pub struct PermissionDenial {
 }
 
 impl Result {
-    /// This record's chunks: the bill — and, on the error arm, the
-    /// failure first.
+    /// This record's chunks: the bill, on BOTH arms — an error
+    /// result still spent the tokens, so it still bills (the api
+    /// crate's choice, kept). The failure itself does not convert:
+    /// it travels as the stream's error, yielded by the reader
+    /// before this runs, and its fatality is the consumer's to
+    /// decide by what follows.
     ///
-    /// The success arm's verdict fields (the final text, the stop
-    /// reason, the durations, the per-model breakdown) have no chunk
-    /// home and say nothing here; the usage is the record's one
-    /// utterance.
+    /// The verdict fields (the final text, the stop reason, the
+    /// durations, the per-model breakdown) have no chunk home and
+    /// say nothing here; the usage is the record's one utterance.
     pub fn into_chunks(
         self,
         chunks: &mut Vec<response::AgenticLoopChunk>,
     ) {
         match self {
             Result::Success { usage, .. } => usage.into_chunks(chunks),
-            Result::Error(error) => error.into_chunks(chunks),
+            Result::Error(error) => error.usage.into_chunks(chunks),
         }
     }
 }
@@ -245,23 +248,6 @@ impl ResultError {
         })
     }
 
-    /// The failure as a fatal notification, then the bill — an error
-    /// result still spent the tokens, so it still bills (the api
-    /// crate's choice, kept).
-    pub fn into_chunks(
-        self,
-        chunks: &mut Vec<response::AgenticLoopChunk>,
-    ) {
-        chunks.push(response::AgenticLoopChunk::Notification(
-            response::NotificationChunk {
-                r#type: Default::default(),
-                is_fatal: true,
-                message: self.message(),
-                meta: None,
-            },
-        ));
-        self.usage.into_chunks(chunks);
-    }
 }
 
 impl ResultErrorSubtype {

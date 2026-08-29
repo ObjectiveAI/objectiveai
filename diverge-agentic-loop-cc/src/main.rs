@@ -94,16 +94,19 @@ async fn run() {
 ///   so does a run that dies producing nothing at all, since every
 ///   healthy run says at least its bill.
 /// - An error after the stream began cannot change the status that
-///   already left; it arrives IN the stream, as a `notification`
-///   chunk with `is_fatal` set, and is the stream's last word — no
-///   continuation follows it, because wire drift means the state is
-///   not trustworthy.
+///   already left — and its severity is not knowable on arrival, so
+///   it is HELD, not yielded: fatality is finality. A later chunk
+///   proves the run outlived it, and it flushes as a NON-fatal
+///   `notification` ahead of that chunk, in arrival order; the
+///   stream ending behind it proves the run died of it, and it
+///   flushes as a FATAL notification — the stream's last words,
+///   with no continuation after them.
 ///
-/// A stream that ends cleanly closes with THE HARVEST: the session's
-/// files swept into a continuation token —
-/// [`Continuation::read`] keyed by the session id the stream
-/// captured (falling back to the resumed token's own) — yielded as
-/// the final `continuation` chunk.
+/// A stream that ends cleanly — no held error as its last word —
+/// closes with THE HARVEST: the session's files swept into a
+/// continuation token — [`Continuation::read`] keyed by the session
+/// id the stream captured (falling back to the resumed token's
+/// own) — yielded as the final `continuation` chunk.
 async fn serve(
     Json(request): Json<agentic_loop_container::request::Request>,
 ) -> Result<
@@ -207,27 +210,30 @@ async fn serve(
 
     Ok(Sse::new(async_stream::stream! {
         yield event(first);
+        // Fatality is finality: an error is HELD, not yielded — a
+        // later chunk proves the run outlived it and flushes it
+        // non-fatal, in arrival order; the stream ending behind it
+        // proves the run died of it and flushes it fatal, the last
+        // words. No continuation follows a run that died.
+        let mut held: Vec<serde_json::Value> = Vec::new();
         while let Some(item) = stream.next().await {
             match item {
-                Ok(chunk) => yield event(chunk),
-                // The stream has already begun; there is no status
-                // left to change. The failure travels IN the stream,
-                // fatally, as its last word — and no harvest follows
-                // it: wire drift means the state is not trustworthy.
-                Err(error) => {
-                    yield event(AgenticLoopChunk::Notification(
-                        NotificationChunk {
-                            r#type: Default::default(),
-                            is_fatal: true,
-                            message: error.message(),
-                            meta: None,
-                        },
-                    ));
-                    return;
+                Ok(chunk) => {
+                    for message in held.drain(..) {
+                        yield event(notification(message, false));
+                    }
+                    yield event(chunk);
                 }
+                Err(error) => held.push(error.message()),
             }
         }
-        yield event(harvest(resumed_session_id).await);
+        if held.is_empty() {
+            yield event(harvest(resumed_session_id).await);
+        } else {
+            for message in held.drain(..) {
+                yield event(notification(message, true));
+            }
+        }
     }))
 }
 
@@ -257,29 +263,25 @@ async fn harvest(
     {
         Some(session_id) => session_id,
         None => {
-            return AgenticLoopChunk::Notification(NotificationChunk {
-                r#type: Default::default(),
-                is_fatal: true,
-                message: serde_json::json!({
+            return notification(
+                serde_json::json!({
                     "kind": "harvest",
                     "error": "no record ever named the session",
                 }),
-                meta: None,
-            });
+                true,
+            );
         }
     };
     let continuation = match Continuation::read(session_id).await {
         Ok(continuation) => continuation,
         Err(error) => {
-            return AgenticLoopChunk::Notification(NotificationChunk {
-                r#type: Default::default(),
-                is_fatal: true,
-                message: serde_json::json!({
+            return notification(
+                serde_json::json!({
                     "kind": "harvest",
                     "error": error.to_string(),
                 }),
-                meta: None,
-            });
+                true,
+            );
         }
     };
     match continuation.tokenize() {
@@ -288,18 +290,27 @@ async fn harvest(
             continuation: token,
             meta: None,
         }),
-        Err(error) => {
-            AgenticLoopChunk::Notification(NotificationChunk {
-                r#type: Default::default(),
-                is_fatal: true,
-                message: serde_json::json!({
-                    "kind": "harvest",
-                    "error": error.to_string(),
-                }),
-                meta: None,
-            })
-        }
+        Err(error) => notification(
+            serde_json::json!({
+                "kind": "harvest",
+                "error": error.to_string(),
+            }),
+            true,
+        ),
     }
+}
+
+/// A notification chunk, its fatality the caller's verdict.
+fn notification(
+    message: serde_json::Value,
+    is_fatal: bool,
+) -> AgenticLoopChunk {
+    AgenticLoopChunk::Notification(NotificationChunk {
+        r#type: Default::default(),
+        is_fatal,
+        message,
+        meta: None,
+    })
 }
 
 /// One chunk as one SSE event, carrying the chunk's JSON. The
