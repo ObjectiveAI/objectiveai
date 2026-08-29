@@ -3,31 +3,56 @@
 //! The program an `agentic_loop::run` server deploys for an agent
 //! whose `upstream` is `claude_code`, per the Container section of the
 //! provider specification: one POST at `/` on port 8080 carries the
-//! caller's request JSON in, MCP is asked on port 8081, Postgres
-//! opened to port 8082. Beside the run, the queue's two verbs: `POST
-//! /enqueue` and `POST /dequeue`, per the SDK's
-//! `agentic_loop_container` module — the caller's way into the
-//! conversation already running, backed by the [`spawn`] module's
-//! one session lock rather than a queue of its own: Claude Code
-//! holds the queue, and this container holds the writer.
+//! caller's request JSON in, and the answer is a server-sent event
+//! stream, each event one chunk of the response vocabulary — the run
+//! itself a Claude Code subprocess behind [`spawn`]. MCP is asked on
+//! port 8081, Postgres opened to port 8082. Beside the run, the
+//! queue's two verbs: `POST /enqueue` and `POST /dequeue`, per the
+//! SDK's `agentic_loop_container` module — the caller's way into the
+//! conversation already running: Claude Code holds the queue, and
+//! this container holds the writer.
 
-// The harness that consumes them comes later; the allows leave with it.
 #[allow(dead_code)]
 mod continuation;
+// The wire module carries Claude Code's COMPLETE stdout vocabulary,
+// which is more than the conversion consumes — a field parsed and
+// never read is the completeness, not dead code.
 #[allow(dead_code)]
 mod response;
-// Only `spawn`'s run itself is unconsumed — the queue verbs below are
-// live; the allow leaves with the root handler.
-#[allow(dead_code)]
 mod spawn;
+
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::Json;
 use axum::http::StatusCode;
+use axum::response::sse::{Event, Sse};
 use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::Agent;
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
+    AgenticLoopChunk, ContinuationChunk, NotificationChunk,
+};
+use futures_util::{Stream, StreamExt as _};
+
+use crate::continuation::Continuation;
 
 /// The loop port of the Container section of the provider
 /// specification: where the server POSTs the request in.
 const PORT: u16 = 8080;
+
+/// Whether the container's one request has arrived.
+///
+/// A container is one run: its queue, its MCP session, its
+/// filesystem are all one conversation's, and a second request would
+/// share all of them with the first. So the FIRST request claims the
+/// container for good — an atomic swap, so two arrivals a nanosecond
+/// apart resolve to exactly one winner — and everything after it,
+/// concurrent or later, is refused with `409` before anything else
+/// is judged: a first request that fails every later check has still
+/// spent the container, because "one request" is a fact about
+/// arrivals, not about merit. (A body that never parsed as the
+/// request type never arrived as one — the extractor's `400` comes
+/// first and claims nothing.)
+static CLAIMED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -51,24 +76,238 @@ async fn run() {
         .expect("the server stopped unexpectedly");
 }
 
-/// The run itself — not yet.
+/// One request, one stream.
 ///
-/// The root handling needs the StdoutMessage→chunk conversion, the
-/// one-request claim, and the continuation read-back at exit; until
-/// those land, the door answers honestly that it is not built. The
-/// queue endpoints below are already real: an enqueue against a
-/// container whose run never starts is missed, which is [`spawn`]'s
-/// answer for a channel never opened.
+/// The caller's JSON arrives as the SDK's own request type, and
+/// every chunk the run produces leaves as one SSE event carrying
+/// that chunk's JSON. The failures divide by whose they are:
+///
+/// - A request after the first is the CALLER's error, and the first
+///   error checked: `409`, the container is [`CLAIMED`].
+/// - An agent of another kind, a prompt this container cannot yet
+///   speak (anything richer than text, or nothing at all — Claude
+///   Code cannot open a turn without a prompt), or a continuation
+///   token that will not open: the CALLER's error, `400`.
+/// - The subprocess failing to start is the server's own: `500`.
+/// - An error-typed record BEFORE the run's first chunk — the
+///   first-item contract below — answers as HTTP with the record's
+///   own status and body (the stream error's `status`/`message`);
+///   so does a run that dies producing nothing at all, since every
+///   healthy run says at least its bill.
+/// - An error after the stream began cannot change the status that
+///   already left; it arrives IN the stream, as a `notification`
+///   chunk with `is_fatal` set, and is the stream's last word — no
+///   continuation follows it, because wire drift means the state is
+///   not trustworthy.
+///
+/// A stream that ends cleanly closes with THE HARVEST: the session's
+/// files swept into a continuation token —
+/// [`Continuation::read`] keyed by the session id the stream
+/// captured (falling back to the resumed token's own) — yielded as
+/// the final `continuation` chunk.
 async fn serve(
-    Json(_request): Json<agentic_loop_container::request::Request>,
-) -> (StatusCode, Json<serde_json::Value>) {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "kind": "unimplemented",
-            "error": "the claude_code run is not implemented yet",
-        })),
-    )
+    Json(request): Json<agentic_loop_container::request::Request>,
+) -> Result<
+    Sse<impl Stream<Item = Result<Event, axum::Error>>>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    if CLAIMED.swap(true, Ordering::SeqCst) {
+        return Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "kind": "claimed",
+                "error": "this container serves one run, and it has already begun",
+            })),
+        ));
+    }
+
+    let Agent::ClaudeCode(agent) = request.agent else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "kind": "wrong_agent",
+                "error": "this container serves the claude_code agent kind",
+            })),
+        ));
+    };
+
+    // Text-only for now: every block must be text, and there must be
+    // at least one — stream-json input mode opens the turn with a
+    // user message, so an empty prompt would hang forever waiting.
+    let Some(prompt) = prompt_text(&request.prompt) else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "kind": "prompt",
+                "error": "this container speaks text prompts only, and needs one",
+            })),
+        ));
+    };
+
+    let continuation = match request
+        .continuation
+        .as_deref()
+        .map(Continuation::parse)
+        .transpose()
+    {
+        Ok(continuation) => continuation,
+        Err(error) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "kind": "continuation",
+                    "error": error.to_string(),
+                })),
+            ));
+        }
+    };
+    // The harvest's fallback key: a resumed run knows its session
+    // before the stream names it.
+    let resumed_session_id = continuation
+        .as_ref()
+        .map(|continuation| continuation.session_id.clone());
+
+    let stream = match spawn::spawn(agent, continuation, prompt).await {
+        Ok(stream) => stream,
+        Err(error) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "kind": "spawn",
+                    "error": error.to_string(),
+                })),
+            ));
+        }
+    };
+    let mut stream = Box::pin(stream);
+
+    // The first-item contract: the run's first word decides whether
+    // this answer is a stream at all. An error-typed record before
+    // the first chunk is the request's own failure, as HTTP; a run
+    // that ends before saying anything said nothing because it died —
+    // every healthy run says at least its bill.
+    let first = match stream.next().await {
+        Some(Ok(chunk)) => chunk,
+        Some(Err(error)) => {
+            return Err((
+                StatusCode::from_u16(error.status())
+                    .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(error.message()),
+            ));
+        }
+        None => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "kind": "empty_run",
+                    "error": "the run ended without producing anything",
+                })),
+            ));
+        }
+    };
+
+    Ok(Sse::new(async_stream::stream! {
+        yield event(first);
+        while let Some(item) = stream.next().await {
+            match item {
+                Ok(chunk) => yield event(chunk),
+                // The stream has already begun; there is no status
+                // left to change. The failure travels IN the stream,
+                // fatally, as its last word — and no harvest follows
+                // it: wire drift means the state is not trustworthy.
+                Err(error) => {
+                    yield event(AgenticLoopChunk::Notification(
+                        NotificationChunk {
+                            r#type: Default::default(),
+                            is_fatal: true,
+                            message: error.message(),
+                            meta: None,
+                        },
+                    ));
+                    return;
+                }
+            }
+        }
+        yield event(harvest(resumed_session_id).await);
+    }))
+}
+
+/// The whole prompt as text: every block's text, joined by blank
+/// lines — or [`None`] the moment any block is richer than text, or
+/// when there are no blocks at all.
+fn prompt_text(prompt: &[rmcp::model::ContentBlock]) -> Option<String> {
+    if prompt.is_empty() {
+        return None;
+    }
+    let mut texts = Vec::with_capacity(prompt.len());
+    for block in prompt {
+        texts.push(block.as_text()?.text.as_str());
+    }
+    Some(texts.join("\n\n"))
+}
+
+/// The run's last word on success: the session's files swept into a
+/// continuation token. A harvest that cannot happen — no record ever
+/// named the session and the request resumed nothing, or the sweep
+/// or the tokenizing failed — is a fatal notification instead: the
+/// conversation ran, but cannot be resumed.
+async fn harvest(
+    resumed_session_id: Option<String>,
+) -> AgenticLoopChunk {
+    let session_id = match spawn::session_id().await.or(resumed_session_id)
+    {
+        Some(session_id) => session_id,
+        None => {
+            return AgenticLoopChunk::Notification(NotificationChunk {
+                r#type: Default::default(),
+                is_fatal: true,
+                message: serde_json::json!({
+                    "kind": "harvest",
+                    "error": "no record ever named the session",
+                }),
+                meta: None,
+            });
+        }
+    };
+    let continuation = match Continuation::read(session_id).await {
+        Ok(continuation) => continuation,
+        Err(error) => {
+            return AgenticLoopChunk::Notification(NotificationChunk {
+                r#type: Default::default(),
+                is_fatal: true,
+                message: serde_json::json!({
+                    "kind": "harvest",
+                    "error": error.to_string(),
+                }),
+                meta: None,
+            });
+        }
+    };
+    match continuation.tokenize() {
+        Ok(token) => AgenticLoopChunk::Continuation(ContinuationChunk {
+            r#type: Default::default(),
+            continuation: token,
+            meta: None,
+        }),
+        Err(error) => {
+            AgenticLoopChunk::Notification(NotificationChunk {
+                r#type: Default::default(),
+                is_fatal: true,
+                message: serde_json::json!({
+                    "kind": "harvest",
+                    "error": error.to_string(),
+                }),
+                meta: None,
+            })
+        }
+    }
+}
+
+/// One chunk as one SSE event, carrying the chunk's JSON. The
+/// chunk IS the SDK's `agentic_loop_container` response item — the
+/// alias points here.
+fn event(chunk: AgenticLoopChunk) -> Result<Event, axum::Error> {
+    Event::default().json_data(&chunk)
 }
 
 /// A message for the running conversation's queue.
