@@ -188,6 +188,11 @@ pub async fn r#loop(
                     }
                 }
             }
+            // Whether the model actually said anything the history
+            // keeps — an empty turn leaves its opening prompt
+            // unanswered, and an unanswered prompt is no resting
+            // place.
+            let spoke = !turn.is_empty();
             items.extend(turn.into_iter().map(ContinuationItem::Chunk));
 
             // No calls: the model may be done — but the queue gets
@@ -202,14 +207,18 @@ pub async fn r#loop(
             // another turn. Between the closing and the yield there
             // is nothing left but the yield itself.
             if calls.is_empty() {
-                // A turn that ends call-less is at rest too: if the
-                // queue reopens the loop below and a LATER turn dies,
-                // this completed answer is progress the salvage
-                // keeps. The advance sits BEFORE this seam's
-                // deliveries, unlike the tool seam's: a prompt here
-                // would trail the assistant's answer with nothing to
-                // fold onto, so it stays above the watermark.
-                saved = items.len();
+                // A turn that ends call-less AND said something is at
+                // rest too: if the queue reopens the loop below and a
+                // LATER turn dies, this completed answer is progress
+                // the salvage keeps. An EMPTY turn is not — its
+                // opening prompt hangs unanswered. The advance sits
+                // BEFORE this seam's deliveries, unlike the tool
+                // seam's: a prompt here would trail the assistant's
+                // answer with nothing to fold onto, so it stays above
+                // the watermark.
+                if spoke {
+                    saved = items.len();
+                }
                 let token = Continuation(items.clone()).tokenize();
                 let taken = QUEUE.take_or_close().await;
                 if taken.is_empty() {
