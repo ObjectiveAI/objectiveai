@@ -7,9 +7,9 @@ use crate::response;
 /// attached. Fatality is finality, and it is the CONSUMER's call:
 /// an error before the run's first chunk is the request's own
 /// failure (HTTP, by [`status`](Self::status) and
-/// [`message`](Self::message)); an error the run outlives was
-/// survivable news (a non-fatal notification); an error the stream
-/// ends behind was the run's death (a fatal one, the last words).
+/// [`message`](Self::message)); an error that anything at all
+/// follows was survivable news (a non-fatal notification); the one
+/// the stream ends ON is the run's death (the fatal final chunk).
 ///
 /// The records ride whole: the consumer picks what it needs from
 /// the record itself.

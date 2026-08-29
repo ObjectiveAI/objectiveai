@@ -97,10 +97,11 @@ async fn run() {
 ///   already left — and its severity is not knowable on arrival, so
 ///   it is HELD, not yielded: fatality is finality. A later chunk
 ///   proves the run outlived it, and it flushes as a NON-fatal
-///   `notification` ahead of that chunk, in arrival order; the
-///   stream ending behind it proves the run died of it, and it
-///   flushes as a FATAL notification — the stream's last words,
-///   with no continuation after them.
+///   `notification` ahead of that chunk, in arrival order; when the
+///   stream ends with errors still held, the LAST of them is the
+///   run's death — the final chunk, fatal — and the ones before it
+///   flush non-fatal ahead of it. No continuation follows a run
+///   that died.
 ///
 /// A stream that ends cleanly — no held error as its last word —
 /// closes with THE HARVEST: the session's files swept into a
@@ -212,9 +213,9 @@ async fn serve(
         yield event(first);
         // Fatality is finality: an error is HELD, not yielded — a
         // later chunk proves the run outlived it and flushes it
-        // non-fatal, in arrival order; the stream ending behind it
-        // proves the run died of it and flushes it fatal, the last
-        // words. No continuation follows a run that died.
+        // non-fatal, in arrival order; at the stream's end, only
+        // the LAST held error is the death itself. No continuation
+        // follows a run that died.
         let mut held: Vec<serde_json::Value> = Vec::new();
         while let Some(item) = stream.next().await {
             match item {
@@ -227,11 +228,16 @@ async fn serve(
                 Err(error) => held.push(error.message()),
             }
         }
-        if held.is_empty() {
-            yield event(harvest(resumed_session_id).await);
-        } else {
-            for message in held.drain(..) {
-                yield event(notification(message, true));
+        match held.pop() {
+            None => yield event(harvest(resumed_session_id).await),
+            // Only the LAST error is the stream's death — the final
+            // chunk, fatal; the ones before it flush non-fatal, as
+            // they would have had anything else followed them.
+            Some(last) => {
+                for message in held.drain(..) {
+                    yield event(notification(message, false));
+                }
+                yield event(notification(last, true));
             }
         }
     }))

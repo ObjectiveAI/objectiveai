@@ -26,9 +26,9 @@
 //! travel as the stream's [`error::Error`], verdict unattached:
 //! FATALITY IS FINALITY, the consumer's to decide by what follows.
 //! An error before the run's first chunk is the request's own
-//! failure (HTTP); one the run outlives was survivable news (a
-//! non-fatal notification); one the stream ends behind was the
-//! run's death (the fatal last words).
+//! failure (HTTP); one that anything at all follows was survivable
+//! news (a non-fatal notification); the one the stream ends ON is
+//! the run's death (the fatal final chunk).
 //!
 //! Deadlock audit: the reader never touches a lock while reading —
 //! only at end of stream, AFTER dropping the reply sender, and then
