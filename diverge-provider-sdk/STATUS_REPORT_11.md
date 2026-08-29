@@ -20,15 +20,17 @@ directory hash, the golang module-hash lineage) is the identity of a
 skill or agent directory: content-addressed, so a server can know
 what it already has.
 
-For what it does not have, the SDK gained **`fetch`** — a
-server-sent channel exchange asking the client for a directory by
-`(kind, dirhash)`. The answer is one file per frame —
+Mounting them is a PROTOCOL obligation, not an implementation
+choice: a server MUST mount every skill and agent the request
+names — the request naming a dirhash is the requirement that the
+directory be present in the container. For directories a server
+does not already hold, the SDK gained **`fetch`** — a server-sent
+channel exchange asking the client for one by `(kind, dirhash)`.
+The answer is one file per frame —
 `[u32 length][JSON path array][raw bytes]` — and a bare finish with
 no frames means the client does not have it either: absence is an
 answer, not an error. The exchange is endpoint-local, not shared —
-nothing else speaks it. The client side (`fetch_proxy`) is wired;
-the server-side fetch-and-mount flow (materialize the directories,
-mount them into the container) is still ahead.
+nothing else speaks it. The client side (`fetch_proxy`) is wired.
 
 ## Everything Claude Code can say, typed
 
@@ -174,8 +176,6 @@ records for the root handler to turn into status and body.
   `Error` → HTTP mapping, and at exit the `Continuation::read`
   harvest → tokenize → continuation chunk. Everything it needs now
   exists.
-- **Skills/agents server-side flow** — fetch the missing dirhashes,
-  materialize, mount.
 - **SDK wiring** — the client executor for the queue and fetch
   channels; the server handle's registration for the same.
 - **Images, live** — neither Containerfile has been built and run;
