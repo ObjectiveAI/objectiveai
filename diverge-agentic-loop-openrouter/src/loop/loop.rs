@@ -56,6 +56,18 @@ const MCP_PROXY: &str = "http://localhost:8081/mcp";
 /// the tool set is the caller's and may have changed while the tools
 /// ran.
 ///
+/// # The salvage
+///
+/// A mid-stream error ends the stream — but not always empty-handed.
+/// If at least one whole turn completed since the caller's own
+/// continuation, the completed part of the history follows the error
+/// as a final continuation chunk: the estate of a run that died. The
+/// watermark that measures it advances only when a turn's tool
+/// answers have ALL landed, so the salvage never contains an
+/// unanswered call, never ends on a prompt, and is never identical
+/// to what the caller already had — in that case nothing is yielded
+/// at all. See [`salvage`].
+///
 /// # The queue is consulted at the seams
 ///
 /// The same two seams Claude Code uses. After a turn's tool calls
@@ -95,6 +107,15 @@ pub async fn r#loop(
 
     let mut items: Vec<ContinuationItem> =
         continuation.map(|history| history.0).unwrap_or_default();
+    // The salvage bookkeeping, both plain lengths — `items` only
+    // ever appends, so a length IS a moment in the history.
+    // `provided` is what the caller brought; `saved` is the
+    // watermark, the largest length at which the history is AT
+    // REST — every call answered, nothing mid-turn, no trailing
+    // prompt — advanced in exactly one place: a turn's tool answers
+    // all landing.
+    let provided = items.len();
+    let saved = provided;
 
     // Turn one, started here so a failure to start is this function's
     // `Err` and never a stream's leading item.
@@ -122,6 +143,7 @@ pub async fn r#loop(
         let mcp = mcp;
         let mut stream = stream;
         let mut items = items;
+        let mut saved = saved;
 
         loop {
             // Drain the turn: yield everything immediately, keep what
@@ -135,6 +157,11 @@ pub async fn r#loop(
                     }
                     Err(error) => {
                         yield Err(Error::Fetch(error));
+                        if let Some(chunk) =
+                            salvage(&mut items, saved, provided)
+                        {
+                            yield Ok(chunk);
+                        }
                         return;
                     }
                 }
@@ -240,10 +267,20 @@ pub async fn r#loop(
                         }
                         Err(error) => {
                             yield Err(Error::CallTool(error));
+                            if let Some(chunk) =
+                                salvage(&mut items, saved, provided)
+                            {
+                                yield Ok(chunk);
+                            }
                             return;
                         }
                     }
                 }
+                // Every answer is in: the history is at rest, and
+                // this is the one place the watermark advances —
+                // BEFORE the seam's deliveries, so a salvage never
+                // ends on a prompt.
+                saved = items.len();
 
                 // The tool seam: everything enqueued while the tools
                 // ran is delivered here, after the answers and before
@@ -271,6 +308,11 @@ pub async fn r#loop(
                 Ok(tools) => tools,
                 Err(error) => {
                     yield Err(error);
+                    if let Some(chunk) =
+                        salvage(&mut items, saved, provided)
+                    {
+                        yield Ok(chunk);
+                    }
                     return;
                 }
             };
@@ -286,6 +328,11 @@ pub async fn r#loop(
                 Ok(stream) => stream,
                 Err(error) => {
                     yield Err(Error::Fetch(error));
+                    if let Some(chunk) =
+                        salvage(&mut items, saved, provided)
+                    {
+                        yield Ok(chunk);
+                    }
                     return;
                 }
             };
@@ -306,6 +353,36 @@ async fn list(
         .into_iter()
         .map(Tool::new)
         .collect())
+}
+
+/// The estate: the completed part of the history, when the death
+/// left more of it than the caller brought.
+///
+/// Truncating to the watermark is the WHOLE rule-keeping, because
+/// the watermark only ever marks at-rest lengths: an unfinished
+/// turn's chunks, its unanswered calls, and any seam-delivered
+/// prompts all sit above it and are simply never included. (Dropped
+/// prompts were answered `delivered` — the no-trailing-prompt rule
+/// costs them their place in the salvage, accepted.) `saved` still
+/// at `provided` means only the caller's own history is at rest —
+/// a salvage identical to what they sent, so nothing is said. A
+/// token that cannot be minted stays unspoken too: the error
+/// already ended the run.
+fn salvage(
+    items: &mut Vec<ContinuationItem>,
+    saved: usize,
+    provided: usize,
+) -> Option<AgenticLoopChunk> {
+    if saved <= provided {
+        return None;
+    }
+    items.truncate(saved);
+    let token = Continuation(std::mem::take(items)).tokenize().ok()?;
+    Some(AgenticLoopChunk::Continuation(ContinuationChunk {
+        r#type: Default::default(),
+        continuation: token,
+        meta: None,
+    }))
 }
 
 /// Keep what the history keeps.
