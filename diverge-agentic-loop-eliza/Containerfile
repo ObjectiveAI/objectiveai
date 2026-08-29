@@ -1,0 +1,56 @@
+# The eliza agentic_loop image: the loop on 8080, the MCP proxy
+# on 8081, both musl binaries on Alpine.
+#
+# Build from the WORKSPACE ROOT — the crates ride path dependencies:
+#
+#     podman build -f diverge-agentic-loop-eliza/Containerfile .
+#
+# Digests pinned from Docker Hub on 2026-08-26; bump deliberately.
+
+# rust:1.98.0-alpine3.24 — the musl toolchain is the image's default
+# target, so what it builds runs on the Alpine below.
+FROM docker.io/library/rust:1.98.0-alpine3.24@sha256:a10e64dd139b7387337c7fbe8aca31b959b57b2fd4c8ae20a02cf1d6ea424dce AS build
+
+# `ring` (rustls' crypto) compiles C; build-base is the whole musl C
+# toolchain.
+RUN apk add --no-cache build-base
+
+WORKDIR /build
+
+# Only the crates this image needs, in their workspace layout — the
+# workspace manifest itself is NOT copied, so each crate builds as its
+# own root and the absent sibling members are never asked for. The
+# workspace lockfile rides into each crate so the resolved versions
+# hold; cargo prunes the entries the crate does not use, which is why
+# the build does not pass --locked.
+COPY diverge-provider-sdk diverge-provider-sdk
+COPY diverge-agentic-loop-mcp-proxy diverge-agentic-loop-mcp-proxy
+COPY diverge-agentic-loop-eliza diverge-agentic-loop-eliza
+COPY Cargo.lock diverge-agentic-loop-eliza/Cargo.lock
+COPY Cargo.lock diverge-agentic-loop-mcp-proxy/Cargo.lock
+
+RUN cargo build --release \
+    --manifest-path diverge-agentic-loop-eliza/Cargo.toml
+RUN cargo build --release \
+    --manifest-path diverge-agentic-loop-mcp-proxy/Cargo.toml
+
+# alpine:latest, by digest.
+FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+
+COPY --from=build \
+    /build/diverge-agentic-loop-eliza/target/release/diverge-agentic-loop-eliza \
+    /usr/local/bin/diverge-agentic-loop-eliza
+COPY --from=build \
+    /build/diverge-agentic-loop-mcp-proxy/target/release/diverge-agentic-loop-mcp-proxy \
+    /usr/local/bin/diverge-agentic-loop-mcp-proxy
+
+# Two programs, one container: the proxy in the background, the loop
+# in the foreground as the container's own life.
+RUN printf '#!/bin/sh\n/usr/local/bin/diverge-agentic-loop-mcp-proxy &\nexec /usr/local/bin/diverge-agentic-loop-eliza\n' \
+    > /usr/local/bin/entrypoint \
+    && chmod +x /usr/local/bin/entrypoint
+
+# The Container specification's ports: 8080 the loop, 8081 MCP.
+EXPOSE 8080 8081
+
+ENTRYPOINT ["/usr/local/bin/entrypoint"]
