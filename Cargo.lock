@@ -1733,6 +1733,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-agentic-loop-pi"
+version = "2.3.0"
+dependencies = [
+ "axum",
+ "diverge-provider-sdk",
+ "futures-util",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "diverge-broker-sdk"
 version = "2.3.0"
 dependencies = [
