@@ -42,6 +42,7 @@ pub mod tool_progress;
 pub mod tool_use_summary;
 pub mod user;
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::Deserialize;
 
 /// One line of stdout, whichever record it is — the source's
@@ -89,4 +90,46 @@ pub enum StdoutMessage {
     StreamlinedText(streamlined::StreamlinedText),
     /// The internal terse mode's tool summary record.
     StreamlinedToolUseSummary(streamlined::StreamlinedToolUseSummary),
+}
+
+impl StdoutMessage {
+    /// This record, as the chunks it means — pure dispatch, the
+    /// silent kinds enumerated.
+    ///
+    /// Only three records speak chunks: the assistant's content, the
+    /// user's tool results, and the result's bill. Everything else
+    /// is narration, transport, or machinery the harness already
+    /// consumed — `system` (all subtypes), stream events (never
+    /// requested: no `--include-partial-messages`), tool progress
+    /// and summaries, rate-limit and auth narration, prompt
+    /// suggestions, the control records (the reader taps
+    /// `control_response` before conversion runs), keepalives, and
+    /// the terse mode's records. Replays are the reader's too: its
+    /// tap resolves and marks them first, and
+    /// [`user::User::into_chunks`] skips them.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        match self {
+            StdoutMessage::Assistant(record) => {
+                record.into_chunks(chunks);
+            }
+            StdoutMessage::User(record) => record.into_chunks(chunks),
+            StdoutMessage::Result(record) => record.into_chunks(chunks),
+            StdoutMessage::System(_)
+            | StdoutMessage::StreamEvent(_)
+            | StdoutMessage::ToolProgress(_)
+            | StdoutMessage::ToolUseSummary(_)
+            | StdoutMessage::RateLimitEvent(_)
+            | StdoutMessage::AuthStatus(_)
+            | StdoutMessage::PromptSuggestion(_)
+            | StdoutMessage::ControlRequest(_)
+            | StdoutMessage::ControlResponse(_)
+            | StdoutMessage::ControlCancelRequest(_)
+            | StdoutMessage::KeepAlive(_)
+            | StdoutMessage::StreamlinedText(_)
+            | StdoutMessage::StreamlinedToolUseSummary(_) => {}
+        }
+    }
 }

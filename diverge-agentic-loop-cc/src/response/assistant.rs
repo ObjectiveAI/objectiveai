@@ -1,5 +1,6 @@
 //! The `assistant` records: what the model said.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::Deserialize;
 
 use super::message;
@@ -71,4 +72,26 @@ pub enum AssistantType {
     /// The only value.
     #[default]
     Assistant,
+}
+
+impl Assistant {
+    /// This record's chunks: the message's — unless a subagent said
+    /// it.
+    ///
+    /// The subagent check is this record's own field: a non-null
+    /// [`parent_tool_use_id`](Self::parent_tool_use_id) marks a
+    /// sidechain's narration, which is the spawning tool call's
+    /// business, not the main thread's story — the sidechain's
+    /// outcome arrives as that call's own tool result. The error
+    /// marker and the record's ids say nothing extra here; the
+    /// content is the message's to convert.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        if self.parent_tool_use_id.is_some() {
+            return;
+        }
+        self.message.into_chunks(chunks);
+    }
 }

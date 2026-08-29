@@ -1,5 +1,6 @@
 //! The request-side message the `user` records replay.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::Deserialize;
 
 use super::content_block::{
@@ -637,4 +638,278 @@ impl From<String> for CacheControlTtl {
 pub struct CitationsConfig {
     /// Whether citations are enabled.
     pub enabled: Option<bool>,
+}
+
+impl UserMessage {
+    /// This message's chunks: its content's.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        self.content.into_chunks(chunks);
+    }
+
+    /// The message's text, plain: the bare string verbatim, or the
+    /// blocks' text joined by blank lines. The reader's replay tap
+    /// uses this for the `user` chunk's prompt — the enqueue wrote a
+    /// plain string, and this is how the echo gives it back.
+    pub fn plain_text(&self) -> String {
+        match &self.content {
+            UserContent::Text(text) => text.clone(),
+            UserContent::Blocks(blocks) => blocks
+                .iter()
+                .filter_map(|block| match block {
+                    ContentBlockParam::Text { text, .. } => {
+                        Some(text.as_str())
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n"),
+        }
+    }
+}
+
+impl UserContent {
+    /// The content's chunks: the blocks', in order.
+    ///
+    /// A bare string is a user turn's own prose — the prompt, not a
+    /// chunk — and converts to nothing.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        match self {
+            UserContent::Text(_) => {}
+            UserContent::Blocks(blocks) => {
+                for block in blocks {
+                    block.into_chunks(chunks);
+                }
+            }
+        }
+    }
+}
+
+impl ContentBlockParam {
+    /// This block, as the chunk it is — the user-side leaf.
+    ///
+    /// Only a tool result speaks: it becomes the tool-response
+    /// chunk, its content rendered by
+    /// [`ToolResultParamContent::into_content`] and its error flag
+    /// choosing between MCP's two result arms. Everything else is
+    /// silent, deliberately: a user turn's own prose, images and
+    /// documents ARE the prompt, not chunks; quoted thinking is the
+    /// history's; and the quoted server-tool traffic is the API's
+    /// own loop, dropped for the same reason the assistant side
+    /// drops it.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        match self {
+            ContentBlockParam::ToolResult {
+                tool_use_id,
+                content,
+                is_error,
+                ..
+            } => {
+                let content = content
+                    .map(ToolResultParamContent::into_content)
+                    .unwrap_or_default();
+                let inner = if is_error == Some(true) {
+                    rmcp::model::CallToolResult::error(content)
+                } else {
+                    rmcp::model::CallToolResult::success(content)
+                };
+                chunks.push(response::AgenticLoopChunk::ToolResponse(
+                    response::ToolResponseChunk {
+                        r#type: Default::default(),
+                        id: tool_use_id,
+                        inner,
+                    },
+                ));
+            }
+            ContentBlockParam::Text { .. }
+            | ContentBlockParam::Image { .. }
+            | ContentBlockParam::ToolUse { .. }
+            | ContentBlockParam::ServerToolUse { .. }
+            | ContentBlockParam::WebSearchToolResult { .. }
+            | ContentBlockParam::WebFetchToolResult { .. }
+            | ContentBlockParam::CodeExecutionToolResult { .. }
+            | ContentBlockParam::BashCodeExecutionToolResult { .. }
+            | ContentBlockParam::TextEditorCodeExecutionToolResult {
+                ..
+            }
+            | ContentBlockParam::ToolSearchToolResult { .. }
+            | ContentBlockParam::ContainerUpload { .. }
+            | ContentBlockParam::Document(_)
+            | ContentBlockParam::SearchResult(_)
+            | ContentBlockParam::Thinking { .. }
+            | ContentBlockParam::RedactedThinking { .. } => {}
+        }
+    }
+}
+
+impl ToolResultParamContent {
+    /// The result's content, as MCP content blocks: a bare string
+    /// becomes one text block; blocks convert one for one.
+    pub fn into_content(self) -> Vec<rmcp::model::ContentBlock> {
+        match self {
+            ToolResultParamContent::Text(text) => {
+                vec![rmcp::model::ContentBlock::text(text)]
+            }
+            ToolResultParamContent::Blocks(blocks) => blocks
+                .into_iter()
+                .map(ToolResultContentBlock::into_content)
+                .collect(),
+        }
+    }
+}
+
+impl ToolResultContentBlock {
+    /// This block, as one MCP content block — the five kinds, each
+    /// by its own hand.
+    pub fn into_content(self) -> rmcp::model::ContentBlock {
+        match self {
+            ToolResultContentBlock::Text { text, .. } => {
+                rmcp::model::ContentBlock::text(text)
+            }
+            ToolResultContentBlock::Image { source, .. } => {
+                source.into_content()
+            }
+            ToolResultContentBlock::SearchResult(result) => {
+                result.into_content()
+            }
+            ToolResultContentBlock::Document(document) => {
+                document.into_content()
+            }
+            ToolResultContentBlock::ToolReference(reference) => {
+                reference.into_content()
+            }
+        }
+    }
+}
+
+impl ImageSource {
+    /// The image, as MCP content: inline bytes become an MCP image;
+    /// a URL becomes its address as text — MCP images carry bytes,
+    /// not links.
+    pub fn into_content(self) -> rmcp::model::ContentBlock {
+        match self {
+            ImageSource::Base64 {
+                data, media_type, ..
+            } => rmcp::model::ContentBlock::image(
+                data,
+                media_type.as_str(),
+            ),
+            ImageSource::Url { url, .. } => {
+                rmcp::model::ContentBlock::text(url)
+            }
+        }
+    }
+}
+
+impl ImageMediaType {
+    /// The wire literal, as the MIME string MCP wants.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ImageMediaType::Jpeg => "image/jpeg",
+            ImageMediaType::Png => "image/png",
+            ImageMediaType::Gif => "image/gif",
+            ImageMediaType::Webp => "image/webp",
+        }
+    }
+}
+
+impl SearchResultBlockParam {
+    /// The result as one text block, in the api crate's synthesized
+    /// element form: source and title as attributes, the text
+    /// content inside. Images inside a search result have no
+    /// textual rendering and are dropped.
+    pub fn into_content(self) -> rmcp::model::ContentBlock {
+        rmcp::model::ContentBlock::text(format!(
+            "<search_result source=\"{}\" title=\"{}\">\n{}\n</search_result>",
+            self.source,
+            self.title,
+            self.content
+                .into_iter()
+                .filter_map(TextOrImageParam::into_text)
+                .collect::<Vec<_>>()
+                .join("\n"),
+        ))
+    }
+}
+
+impl TextOrImageParam {
+    /// The block's text, when it has one.
+    pub fn into_text(self) -> Option<String> {
+        match self {
+            TextOrImageParam::Text { text, .. } => Some(text),
+            TextOrImageParam::Image { .. } => None,
+        }
+    }
+}
+
+impl DocumentBlockParam {
+    /// The document as one text block: its source's rendering.
+    pub fn into_content(self) -> rmcp::model::ContentBlock {
+        self.source.into_content()
+    }
+}
+
+impl DocumentSource {
+    /// The text-bearing sources speak their text; a PDF's bytes have
+    /// no textual rendering and become a marker element; a URL
+    /// becomes its address.
+    pub fn into_content(self) -> rmcp::model::ContentBlock {
+        match self {
+            DocumentSource::Text { data, .. } => {
+                rmcp::model::ContentBlock::text(data)
+            }
+            DocumentSource::Content { content, .. } => {
+                content.into_content()
+            }
+            DocumentSource::Base64 { .. } => {
+                rmcp::model::ContentBlock::text(
+                    "<document media_type=\"application/pdf\"/>",
+                )
+            }
+            DocumentSource::Url { url, .. } => {
+                rmcp::model::ContentBlock::text(url)
+            }
+        }
+    }
+}
+
+impl DocumentSourceContent {
+    /// The custom content as one text block: the string verbatim, or
+    /// the blocks' text joined; images dropped, as in search
+    /// results.
+    pub fn into_content(self) -> rmcp::model::ContentBlock {
+        match self {
+            DocumentSourceContent::Text(text) => {
+                rmcp::model::ContentBlock::text(text)
+            }
+            DocumentSourceContent::Blocks(blocks) => {
+                rmcp::model::ContentBlock::text(
+                    blocks
+                        .into_iter()
+                        .filter_map(TextOrImageParam::into_text)
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                )
+            }
+        }
+    }
+}
+
+impl ToolReferenceBlockParam {
+    /// The reference as one text block, in the api crate's
+    /// synthesized element form.
+    pub fn into_content(self) -> rmcp::model::ContentBlock {
+        rmcp::model::ContentBlock::text(format!(
+            "<tool_reference name=\"{}\"/>",
+            self.tool_name,
+        ))
+    }
 }

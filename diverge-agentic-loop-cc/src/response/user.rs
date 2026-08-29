@@ -1,5 +1,6 @@
 //! The `user` records: what went back to the model.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::Deserialize;
 
 use super::message;
@@ -73,4 +74,46 @@ pub enum UserType {
     /// The only value.
     #[default]
     User,
+}
+
+impl User {
+    /// This record's chunks: its tool results.
+    ///
+    /// Own fields first. A replay — [`is_replay`](Self::is_replay)
+    /// true — is the reader's: its tap has already resolved the
+    /// fate and pushed the `user` chunk before conversion runs, so
+    /// here it converts to nothing. Everything else delegates to
+    /// the message; and when the message yields nothing but the
+    /// record carries a subagent's outcome —
+    /// [`tool_use_result`](Self::tool_use_result) beside
+    /// [`parent_tool_use_id`](Self::parent_tool_use_id) — the api
+    /// crate's fallback applies: the outcome's JSON answers the
+    /// spawning call, as one text block.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        if self.is_replay == Some(true) {
+            return;
+        }
+        let start = chunks.len();
+        self.message.into_chunks(chunks);
+        if chunks.len() == start {
+            if let (Some(result), Some(id)) =
+                (self.tool_use_result, self.parent_tool_use_id)
+            {
+                chunks.push(response::AgenticLoopChunk::ToolResponse(
+                    response::ToolResponseChunk {
+                        r#type: Default::default(),
+                        id,
+                        inner: rmcp::model::CallToolResult::success(vec![
+                            rmcp::model::ContentBlock::text(
+                                result.to_string(),
+                            ),
+                        ]),
+                    },
+                ));
+            }
+        }
+    }
 }

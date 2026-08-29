@@ -1,5 +1,6 @@
 //! What the model produced, one block at a time.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::Deserialize;
 
 use super::{
@@ -505,4 +506,83 @@ pub enum SearchResultLocationType {
     /// The only value.
     #[default]
     SearchResultLocation,
+}
+
+impl ContentBlock {
+    /// This block, as the chunk it is — the assistant-side leaf.
+    ///
+    /// What speaks, and what stays silent, deliberately:
+    ///
+    /// - text becomes the text chunk, its citations dropped — the
+    ///   chunk vocabulary has no citation home;
+    /// - thinking becomes the reasoning chunk, its signature
+    ///   dropped — same reason, and the api crate's choice too;
+    /// - the three tool-use kinds — client, server, MCP connector —
+    ///   become tool-call chunks, the arguments as the JSON they
+    ///   already are (the api crate emits all three as calls);
+    /// - redacted thinking is opaque by construction; the
+    ///   server-tool RESULT kinds, container uploads and compaction
+    ///   markers are the API's own loop narrating itself — not the
+    ///   container's tool story — and the api crate drops every one
+    ///   of them.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        match self {
+            ContentBlock::Text { text, .. } => {
+                chunks.push(
+                    response::AgenticLoopChunk::AssistantTextContent(
+                        response::AssistantTextContentChunk {
+                            r#type: Default::default(),
+                            logprobs: None,
+                            inner: rmcp::model::TextContent::new(text),
+                        },
+                    ),
+                );
+            }
+            ContentBlock::Thinking { thinking, .. } => {
+                chunks.push(
+                    response::AgenticLoopChunk::AssistantReasoning(
+                        response::AssistantReasoningChunk {
+                            r#type: Default::default(),
+                            logprobs: None,
+                            inner: rmcp::model::TextContent::new(thinking),
+                        },
+                    ),
+                );
+            }
+            ContentBlock::ToolUse {
+                id, name, input, ..
+            }
+            | ContentBlock::ServerToolUse {
+                id, name, input, ..
+            }
+            | ContentBlock::McpToolUse {
+                id, name, input, ..
+            } => {
+                chunks.push(
+                    response::AgenticLoopChunk::AssistantToolCall(
+                        response::AssistantToolCallChunk {
+                            r#type: Default::default(),
+                            id,
+                            meta: None,
+                            name,
+                            arguments: Some(input.to_string()),
+                        },
+                    ),
+                );
+            }
+            ContentBlock::RedactedThinking { .. }
+            | ContentBlock::WebSearchToolResult { .. }
+            | ContentBlock::WebFetchToolResult { .. }
+            | ContentBlock::CodeExecutionToolResult { .. }
+            | ContentBlock::BashCodeExecutionToolResult { .. }
+            | ContentBlock::TextEditorCodeExecutionToolResult { .. }
+            | ContentBlock::ToolSearchToolResult { .. }
+            | ContentBlock::McpToolResult { .. }
+            | ContentBlock::ContainerUpload { .. }
+            | ContentBlock::Compaction { .. } => {}
+        }
+    }
 }

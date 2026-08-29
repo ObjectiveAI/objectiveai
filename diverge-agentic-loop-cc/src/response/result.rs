@@ -1,5 +1,6 @@
 //! The `result` records: how a turn ended.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::Deserialize;
 
 use super::message::{CacheCreation, ServerToolUse};
@@ -213,4 +214,95 @@ pub struct PermissionDenial {
     pub tool_use_id: String,
     /// What it was called with.
     pub tool_input: indexmap::IndexMap<String, serde_json::Value>,
+}
+
+impl Result {
+    /// This record's chunks: the bill — and, on the error arm, the
+    /// failure first.
+    ///
+    /// The success arm's verdict fields (the final text, the stop
+    /// reason, the durations, the per-model breakdown) have no chunk
+    /// home and say nothing here; the usage is the record's one
+    /// utterance.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        match self {
+            Result::Success { usage, .. } => usage.into_chunks(chunks),
+            Result::Error(error) => error.into_chunks(chunks),
+        }
+    }
+}
+
+impl ResultError {
+    /// The failure as a fatal notification, then the bill — an error
+    /// result still spent the tokens, so it still bills (the api
+    /// crate's choice, kept).
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        chunks.push(response::AgenticLoopChunk::Notification(
+            response::NotificationChunk {
+                r#type: Default::default(),
+                is_fatal: true,
+                message: serde_json::json!({
+                    "kind": self.subtype.as_str(),
+                    "errors": self.errors,
+                }),
+                meta: None,
+            },
+        ));
+        self.usage.into_chunks(chunks);
+    }
+}
+
+impl ResultErrorSubtype {
+    /// The wire literal.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ResultErrorSubtype::ErrorDuringExecution => {
+                "error_during_execution"
+            }
+            ResultErrorSubtype::ErrorMaxTurns => "error_max_turns",
+            ResultErrorSubtype::ErrorMaxBudgetUsd => {
+                "error_max_budget_usd"
+            }
+            ResultErrorSubtype::ErrorMaxStructuredOutputRetries => {
+                "error_max_structured_output_retries"
+            }
+        }
+    }
+}
+
+impl Usage {
+    /// The one usage chunk of the whole run — the api crate's
+    /// doctrine: per-message usage is never read, nothing
+    /// accumulates, and the `result` record's summed usage is the
+    /// bill.
+    ///
+    /// Prompt tokens are the billed input PLUS both cache sides —
+    /// writes and reads — exactly as the api crate counts them;
+    /// absent cache counts count zero. The detail breakdowns, the
+    /// per-model shares and the dollar cost have no home in the
+    /// chunk's three flat counters and are dropped.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        let prompt_tokens = self.input_tokens
+            + self.cache_creation_input_tokens.unwrap_or(0)
+            + self.cache_read_input_tokens.unwrap_or(0);
+        let completion_tokens = self.output_tokens;
+        chunks.push(response::AgenticLoopChunk::Usage(
+            response::UsageChunk {
+                r#type: Default::default(),
+                completion_tokens,
+                prompt_tokens,
+                total_tokens: prompt_tokens + completion_tokens,
+                meta: None,
+            },
+        ));
+    }
 }

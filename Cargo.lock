@@ -1676,6 +1676,7 @@ dependencies = [
  "dashmap",
  "diverge-provider-sdk",
  "indexmap 2.14.0",
+ "rmcp 3.1.2",
  "serde",
  "serde_json",
  "tokio",

@@ -1,5 +1,6 @@
 //! The API's assistant message, whole.
 
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use serde::Deserialize;
 
 use super::{ContentBlock, Usage};
@@ -200,6 +201,24 @@ impl From<String> for StopReason {
                 StopReason::ModelContextWindowExceeded
             }
             _ => StopReason::Other(value),
+        }
+    }
+}
+
+impl Message {
+    /// This message's chunks: its blocks', in order.
+    ///
+    /// The [`usage`](Self::usage) here is deliberately NOT read:
+    /// usage reaches the caller exactly once, from the `result`
+    /// record — the api crate's doctrine, kept — so a per-message
+    /// bill never double-counts. The stop reason, model and
+    /// container say nothing the chunk vocabulary can carry.
+    pub fn into_chunks(
+        self,
+        chunks: &mut Vec<response::AgenticLoopChunk>,
+    ) {
+        for block in self.content {
+            block.into_chunks(chunks);
         }
     }
 }
