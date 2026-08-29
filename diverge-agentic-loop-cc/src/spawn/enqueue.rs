@@ -23,12 +23,11 @@ pub async fn enqueue(
 ) -> agentic_loop_container::enqueue::Response {
     let (fate, receiver) = tokio::sync::oneshot::channel();
     let uuid = Uuid::new_v4().to_string();
-    // The gate, before anything: a dequeue queued behind this waits
-    // for the registration below, so this message is in its snapshot
-    // and withdrawn; one queued ahead has already excluded it. The
-    // early returns release it on their way out.
-    let gate = pending::GATE.lock().await;
     {
+        // The writer, before anything: its FIFO queue is the
+        // withdrawal boundary. A dequeue queued behind this enqueue
+        // snapshots after the registration below and withdraws it; a
+        // dequeue queued ahead has already excluded it.
         let mut writer = writer::WRITER.lock().await;
         let Some(child_stdin) = writer.as_mut() else {
             return agentic_loop_container::enqueue::Response::Missed {
@@ -43,9 +42,6 @@ pub async fn enqueue(
         {
             Ok(()) => {
                 pending::PENDING.insert(uuid.clone(), fate);
-                // Registered: the message is now any dequeue's to
-                // see, and the gate's job is done.
-                drop(gate);
             }
             // A broken stdin is the process dying: the run is over.
             Err(_) => {

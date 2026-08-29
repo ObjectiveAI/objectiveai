@@ -15,8 +15,12 @@ use super::writer;
 /// Withdraw everything still queued.
 ///
 /// BOTH locks are taken up front — joined, acquired in parallel, the
-/// only place in the module that ever holds the two at once — but
-/// each is held exactly as long as its job: the WRITER from the
+/// only place in the module that ever holds the two at once — and
+/// the writer's FIFO queue position IS the withdrawal boundary: the
+/// cancel "came in" the moment this joined that queue. Enqueues
+/// ahead of it register before the snapshot and are withdrawn;
+/// enqueues behind it register after and are never cancelled. Each
+/// lock is held exactly as long as its job: the WRITER from the
 /// pending-map snapshot through the cancel writes, dropped the
 /// moment the write is through, so enqueues flow again during the
 /// wait; the REPLIES through the reply reads, dropped when the last
@@ -38,12 +42,8 @@ use super::writer;
 /// skipped — the main loop will be racing this same map once the
 /// conversion work lands.
 pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
-    // The gate, before anything: this acquisition IS "the cancel
-    // came in". Enqueues queued ahead register before the snapshot
-    // below and are withdrawn; enqueues queued behind are excluded
-    // and never cancelled. The early returns release it on their way
-    // out.
-    let gate = pending::GATE.lock().await;
+    // Joined, in parallel; the writer's fair queue makes this very
+    // acquisition the withdrawal boundary.
     let (mut writer, mut replies) =
         tokio::join!(writer::WRITER.lock(), replies::REPLIES.lock());
     let Some(child_stdin) = writer.as_mut() else {
@@ -68,9 +68,6 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
         .iter()
         .map(|entry| entry.key().clone())
         .collect();
-    // The snapshot is taken: the boundary is drawn, and enqueues may
-    // queue again — behind the withdrawal, out of its reach.
-    drop(gate);
     if uuids.is_empty() {
         return agentic_loop_container::dequeue::Response::Empty {
             r#type: Default::default(),

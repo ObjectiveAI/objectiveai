@@ -12,14 +12,14 @@
 //! Fates are STRICT: an enqueue answers delivered, dequeued or
 //! missed when that is truly known, not when its write lands. A
 //! dequeue takes BOTH locks up front — joined, in parallel, the only
-//! holder of the two at once — then holds each exactly as long as
-//! its job: the writer through the cancel writes, so the pending map
-//! it snapshots is the complete queue when the cancels land; the
-//! replies through the reply reads, which stay answers to the
-//! cancels written even as released enqueues flow — new messages
-//! write no control responses. Ahead of it all, [`pending::GATE`]:
-//! the FIFO boundary both verbs take first, so a message enqueued
-//! after a withdrawal arrived is never the one withdrawn.
+//! holder of the two at once — and the writer's own FIFO queue is
+//! the withdrawal boundary: a message enqueued after a withdrawal
+//! joined that queue is never the one withdrawn. Each lock is held
+//! exactly as long as its job: the writer through the cancel writes,
+//! so the pending map it snapshots is the complete queue when the
+//! cancels land; the replies through the reply reads, which stay
+//! answers to the cancels written even as released enqueues flow —
+//! new messages write no control responses.
 //!
 //! Deadlock audit: the reader never touches a lock while reading —
 //! only at end of stream, AFTER dropping the reply sender, and then
