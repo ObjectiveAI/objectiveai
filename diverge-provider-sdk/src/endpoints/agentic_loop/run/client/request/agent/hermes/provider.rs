@@ -2,10 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
-/// One of Hermes's bundled provider profiles, plus
-/// [`auto`](Self::Auto) — the registry shipped at the pinned Hermes
-/// version (`plugins/model-providers/`), which is the vocabulary its
-/// configuration accepts.
+/// One of Hermes's bundled provider profiles — the registry shipped
+/// at the pinned Hermes version (`plugins/model-providers/`), which
+/// is the vocabulary its configuration accepts.
 ///
 /// CLOSED at the pin, deliberately: user plugins can extend Hermes's
 /// registry, but the container runs stock Hermes, so the bundled set
@@ -16,26 +15,20 @@ use serde::{Deserialize, Serialize};
 /// provider without workable ones fails as Hermes's own error, not
 /// as protocol.
 ///
+/// Hermes's own `auto` — provider detection from whatever
+/// credentials happen to be present — is deliberately NOT here: a
+/// request says what it means, and a vocabulary whose meaning
+/// depends on the environment it lands in is not a vocabulary.
+///
 /// Local runtimes — ollama, vllm, llama.cpp — are
 /// [`custom`](Self::Custom) plus a
 /// [`base_url`](super::Agent::base_url), exactly as Hermes itself
 /// aliases them.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum Provider {
-    /// Hermes detects the provider from the credentials it finds, in
-    /// its own fixed priority: an OpenRouter/OpenAI key means
-    /// openrouter; else the first provider-specific key present
-    /// (GLM, Kimi, MiniMax, …) means that provider; else a
-    /// logged-in OAuth session; else AWS credentials mean bedrock;
-    /// else the run fails as unconfigured. In this protocol that
-    /// means THE REQUEST'S ENVIRONMENT DECIDES — ship
-    /// `OPENROUTER_API_KEY` and auto is openrouter, ship only
-    /// `GLM_API_KEY` and auto is zai.
-    #[default]
-    Auto,
     /// Actual Computer.
     Actual,
     /// Vercel AI Gateway.

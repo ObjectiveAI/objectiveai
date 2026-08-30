@@ -15,7 +15,7 @@ use super::{ApiMode, Effort, Provider, Toolset, Upstream};
 /// main-agent sampling key), no thinking-token budget (the
 /// [`effort`](Self::effort) ladder is the whole reasoning
 /// vocabulary).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Agent {
     /// The discriminator. Always `hermes`.
     pub upstream: Upstream,
