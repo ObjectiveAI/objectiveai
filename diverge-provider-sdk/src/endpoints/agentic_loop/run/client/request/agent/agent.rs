@@ -25,6 +25,8 @@ pub enum Agent {
     ClaudeCode(super::claude_code::Agent),
     /// See [`codex::Agent`](super::codex::Agent).
     Codex(super::codex::Agent),
+    /// See [`hermes::Agent`](super::hermes::Agent).
+    Hermes(super::hermes::Agent),
     /// See [`python::Agent`](super::python::Agent).
     Python(super::python::Agent),
 }

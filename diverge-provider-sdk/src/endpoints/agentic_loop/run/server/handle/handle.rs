@@ -128,6 +128,7 @@ fn image(agent: &Agent) -> &'static str {
         Agent::Openrouter(_) => "TODO",
         Agent::ClaudeCode(_) => "TODO",
         Agent::Codex(_) => "TODO",
+        Agent::Hermes(_) => "TODO",
         Agent::Python(_) => "TODO",
     }
 }
@@ -160,6 +161,7 @@ fn memory(agent: &Agent) -> u64 {
         Agent::Openrouter(_) => 512 * 1024 * 1024,
         Agent::ClaudeCode(_) => 2 * 1024 * 1024 * 1024,
         Agent::Codex(_) => 2 * 1024 * 1024 * 1024,
+        Agent::Hermes(_) => 2 * 1024 * 1024 * 1024,
         Agent::Python(agent) => agent.memory,
     }
 }
@@ -176,6 +178,7 @@ fn disk(agent: &Agent) -> u64 {
         Agent::Openrouter(_) => 256 * 1024 * 1024,
         Agent::ClaudeCode(_) => 4 * 1024 * 1024 * 1024,
         Agent::Codex(_) => 4 * 1024 * 1024 * 1024,
+        Agent::Hermes(_) => 4 * 1024 * 1024 * 1024,
         Agent::Python(agent) => agent.disk,
     }
 }

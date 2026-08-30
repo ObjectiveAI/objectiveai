@@ -13,6 +13,7 @@
 
 pub mod claude_code;
 pub mod codex;
+pub mod hermes;
 pub mod openrouter;
 pub mod python;
 
