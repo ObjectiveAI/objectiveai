@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 /// Per-toolset switches over Hermes's configurable checklist — the
 /// list its own configuration wizard manages, closed at the pin,
 /// and narrowed to what a REQUEST can actually make work: every
-/// switch here names a capability that file mounts and environment
-/// variables can enable (credentials in `.env` or `auth.json`,
-/// plugins under the config home's `plugins/`).
+/// switch here names a capability the request's own provisioning
+/// can enable — tool credentials in the environment, skills and
+/// data as mounts.
 ///
 /// Every switch is a tri-state: absent means Hermes's own default
 /// for that toolset, `true` turns it on, `false` turns it off — so
@@ -33,14 +33,14 @@ use serde::{Deserialize, Serialize};
 /// container does not have; and `spotify`, whose ONLY auth is
 /// rotating OAuth — the container's first token refresh would
 /// consume the caller's single-use rotation and burn their local
-/// login, a harm no mount semantics can fix.
+/// login, a harm no provisioning can fix.
 ///
 /// Some members reach for credentials or services the container may
 /// not have (homeassistant, x_search, yuanbao); enabling one
 /// without its prerequisites is not a protocol error — the tools
 /// simply fail as themselves when used. Where a member has both a
 /// key path and an OAuth path (x_search), only the key path is
-/// container-safe: rotating OAuth state should never be mounted.
+/// container-safe: rotating OAuth state is not an argument.
 #[derive(
     Debug,
     Clone,

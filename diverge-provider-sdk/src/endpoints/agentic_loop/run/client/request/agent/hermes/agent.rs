@@ -19,8 +19,9 @@ use super::{Effort, Provider, Toolsets, Upstream};
 pub struct Agent {
     /// The discriminator. Always `hermes`.
     pub upstream: Upstream,
-    /// The inference source — Hermes is multi-provider by design,
-    /// and this picks which. See [`Provider`].
+    /// The inference source, credentials and all — Hermes is
+    /// multi-provider by design, this picks which, and the pick
+    /// carries its own auth as arguments. See [`Provider`].
     pub provider: Provider,
     /// The model to run, in the provider's own naming.
     pub model: String,

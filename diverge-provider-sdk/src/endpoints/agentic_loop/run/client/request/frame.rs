@@ -98,9 +98,11 @@ pub struct Frame {
     /// way. Which names are reserved is a provider's to state.
     ///
     /// Beside the mounts, this is the caller's other way of
-    /// provisioning a run — an upstream credential rides naturally as
-    /// the env var its harness already reads, without touching any
-    /// filesystem the server might retain.
+    /// provisioning a run — the channel for TOOL credentials and
+    /// harness knobs. Inference auth is NOT provisioned here: where
+    /// an agent's provider needs credentials, they are arguments on
+    /// the agent itself (hermes's provider structures), so a
+    /// provider-reserved name never has to carry them.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub environment: IndexMap<String, String>,
 }
