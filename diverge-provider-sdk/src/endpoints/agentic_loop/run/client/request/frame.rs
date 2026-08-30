@@ -1,5 +1,6 @@
 //! What a client's request frame carries for an agentic loop.
 
+use indexmap::IndexMap;
 use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +50,42 @@ pub struct Frame {
     /// nothing into its contents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub continuation: Option<String>,
+    /// Files the caller wants present in the container's filesystem,
+    /// keyed by absolute container path. Each value is the file's
+    /// size-bearing identity:
+    /// `f1:<size>:<base64url sha256 of the bytes>`.
+    ///
+    /// The server MUST mount every entry — read-only — before the
+    /// container starts: the request naming an identity IS the
+    /// requirement. What the server does not hold it MAY fetch from
+    /// the client over the
+    /// [`FetchFile`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchFile)
+    /// exchange — and because the size rides the identity, it can
+    /// refuse an oversized request up front, as a request error,
+    /// with nothing fetched.
+    ///
+    /// Paths are absolute and `/`-separated, with no `.`, `..` or
+    /// empty segments; no mount path — file or directory — may be a
+    /// prefix of another. Mounting INTO a directory the image owns
+    /// is the point; mounts stacking on each other is not.
+    ///
+    /// An `IndexMap` rather than a `HashMap`: insertion order is
+    /// preserved, so the same mount set serializes identically every
+    /// time instead of shuffling between runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_mounts: Option<IndexMap<String, String>>,
+    /// Directories likewise, keyed by absolute container path. Each
+    /// value is the directory's size-bearing identity:
+    /// `d1:<total size>:<base64url sha256 of the manifest>` — the
+    /// manifest one `<hash> <size> <path>` line per file, paths
+    /// relative and `/`-separated, sorted bytewise.
+    ///
+    /// Everything [`file_mounts`](Self::file_mounts) says holds here
+    /// too, the fetch riding the
+    /// [`FetchDirectory`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchDirectory)
+    /// exchange instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub directory_mounts: Option<IndexMap<String, String>>,
 }
 
 /// This frame's tag among the scope-opening requests.
