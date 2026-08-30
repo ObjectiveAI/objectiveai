@@ -26,9 +26,12 @@ use serde::{Deserialize, Serialize};
 /// Deliberately ABSENT, because no mount can make them work here:
 /// `computer_use` (a running display server, not a file), `stt`
 /// (not a model toolset at all), `clarify` (needs wiring Hermes's
-/// wire does not have), and `discord`/`discord_admin` (Hermes
+/// wire does not have), `discord`/`discord_admin` (Hermes
 /// hard-restricts them to its Discord platform, which is not the
-/// surface a container run speaks).
+/// surface a container run speaks) — and `cronjob`, whose whole
+/// purpose is execution at a future time, a thing an ephemeral
+/// one-run container does not have: a job would either never fire
+/// or fire as a run nobody requested.
 ///
 /// Some members reach for credentials or services the container may
 /// not have (spotify, homeassistant, x_search, yuanbao); enabling
@@ -94,9 +97,6 @@ pub struct Toolsets {
     /// Task delegation to child agents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delegation: Option<bool>,
-    /// Cron jobs.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cronjob: Option<bool>,
     /// Home Assistant control.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub homeassistant: Option<bool>,
