@@ -86,6 +86,23 @@ pub struct Frame {
     /// exchange instead.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub directory_mounts: Option<IndexMap<String, String>>,
+    /// The environment, name to value — set on the container before
+    /// it starts, the same shape a laboratory run takes.
+    ///
+    /// A map rather than a list of `KEY=VALUE` strings, so one name
+    /// cannot appear twice with values that contradict each other.
+    /// Ordered, so the same environment always serializes identically.
+    ///
+    /// A provider may reserve names and will win any collision — it
+    /// has to, since some of what a container needs is delivered this
+    /// way. Which names are reserved is a provider's to state.
+    ///
+    /// Beside the mounts, this is the caller's other way of
+    /// provisioning a run — an upstream credential rides naturally as
+    /// the env var its harness already reads, without touching any
+    /// filesystem the server might retain.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub environment: IndexMap<String, String>,
 }
 
 /// This frame's tag among the scope-opening requests.
