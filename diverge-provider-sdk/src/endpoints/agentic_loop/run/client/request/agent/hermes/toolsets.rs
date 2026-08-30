@@ -28,15 +28,19 @@ use serde::{Deserialize, Serialize};
 /// (not a model toolset at all), `clarify` (needs wiring Hermes's
 /// wire does not have), `discord`/`discord_admin` (Hermes
 /// hard-restricts them to its Discord platform, which is not the
-/// surface a container run speaks) — and `cronjob`, whose whole
-/// purpose is execution at a future time, a thing an ephemeral
-/// one-run container does not have: a job would either never fire
-/// or fire as a run nobody requested.
+/// surface a container run speaks); `cronjob`, whose whole purpose
+/// is execution at a future time, a thing an ephemeral one-run
+/// container does not have; and `spotify`, whose ONLY auth is
+/// rotating OAuth — the container's first token refresh would
+/// consume the caller's single-use rotation and burn their local
+/// login, a harm no mount semantics can fix.
 ///
 /// Some members reach for credentials or services the container may
-/// not have (spotify, homeassistant, x_search, yuanbao); enabling
-/// one without its prerequisites is not a protocol error — the
-/// tools simply fail as themselves when used.
+/// not have (homeassistant, x_search, yuanbao); enabling one
+/// without its prerequisites is not a protocol error — the tools
+/// simply fail as themselves when used. Where a member has both a
+/// key path and an OAuth path (x_search), only the key path is
+/// container-safe: rotating OAuth state should never be mounted.
 #[derive(
     Debug,
     Clone,
@@ -100,9 +104,6 @@ pub struct Toolsets {
     /// Home Assistant control.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub homeassistant: Option<bool>,
-    /// Spotify.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub spotify: Option<bool>,
     /// Yuanbao.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub yuanbao: Option<bool>,
