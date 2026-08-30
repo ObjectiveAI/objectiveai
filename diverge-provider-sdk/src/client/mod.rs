@@ -68,19 +68,20 @@
 //! [`unbrokered_authorizer`] above is a seventh supplied trait, but it
 //! answers the connection rather than anything asked on it.
 //! [`mcp_proxy`] forwards an exchange to a server the provider cannot
-//! see. [`fetch_proxy`] hands over a skill or an agent definition the
-//! provider is missing, out of the caller's own folders, by dirhash.
+//! see. [`fetch_proxy`] hands over a mounted file or directory the
+//! provider is missing, out of the caller's own store, by its
+//! size-bearing identity.
 //! [`oci_proxy`] serves an image, for a plugin run and a
 //! laboratory run alike. [`command_proxy`] runs a command a plugin has
 //! no binary for. [`postgres_proxy`] splices a connection onto the
 //! caller's database, and is handed the request that started the
 //! plugin so that a caller can decide what that connection may reach.
 //!
-//! Which is one of the three things here that name a type from
-//! [`endpoints`](crate::endpoints) — [`fetch_proxy`] is another. All
-//! do it for the same reason: what they have to decide is that
-//! endpoint's question, and no [`shared`](crate::shared) type says it.
-//! See each trait for the whole of that argument.
+//! Which is one of the things here that name a type from
+//! [`endpoints`](crate::endpoints). All do it for the same reason:
+//! what they have to decide is that endpoint's question, and no
+//! [`shared`](crate::shared) type says it. See each trait for the
+//! whole of that argument.
 //!
 //! They are traits rather than callbacks because each has its own
 //! shape, and the shapes really are different: one request one answer,

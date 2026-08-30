@@ -36,10 +36,12 @@ use super::writer;
 ///
 /// The agent's knobs ride the argv: the model verbatim, thinking
 /// on/off, effort 1:1 (all five of the SDK's tiers exist in current
-/// Claude Code). The agent's `skills` and `claude_code_agents` are
-/// deliberately NOT consulted: mounting them is the SERVER's
-/// protocol obligation, discharged before this container was even
-/// deployed — the run simply finds them on disk.
+/// Claude Code). The request's MOUNTS never reach this container at
+/// all: mounting them is the SERVER's protocol obligation,
+/// discharged before this container was even deployed — the run
+/// simply finds them on disk (skills under the config dir's
+/// `skills/`, agent definitions under `agents/`, wherever the
+/// caller pointed them).
 ///
 /// Each stdout line parses strictly per the [`response`] module's
 /// contract and becomes the chunks it means — most records mean
