@@ -2,9 +2,12 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Per-toolset switches over Hermes's 26-name configurable
-/// checklist — the list its own configuration wizard manages,
-/// closed at the pin.
+/// Per-toolset switches over Hermes's configurable checklist — the
+/// list its own configuration wizard manages, closed at the pin,
+/// and narrowed to what a REQUEST can actually make work: every
+/// switch here names a capability that file mounts and environment
+/// variables can enable (credentials in `.env` or `auth.json`,
+/// plugins under the config home's `plugins/`).
 ///
 /// Every switch is a tri-state: absent means Hermes's own default
 /// for that toolset, `true` turns it on, `false` turns it off — so
@@ -20,10 +23,17 @@ use serde::{Deserialize, Serialize};
 /// follows from whether the request mounted any, not from a switch
 /// that could contradict that fact.
 ///
-/// Some members reach for credentials or hardware the container may
-/// not have (spotify, homeassistant, computer_use, x_search);
-/// enabling one without its prerequisites is not a protocol error —
-/// the tools simply fail as themselves when used.
+/// Deliberately ABSENT, because no mount can make them work here:
+/// `computer_use` (a running display server, not a file), `stt`
+/// (not a model toolset at all), `clarify` (needs wiring Hermes's
+/// wire does not have), and `discord`/`discord_admin` (Hermes
+/// hard-restricts them to its Discord platform, which is not the
+/// surface a container run speaks).
+///
+/// Some members reach for credentials or services the container may
+/// not have (spotify, homeassistant, x_search, yuanbao); enabling
+/// one without its prerequisites is not a protocol error — the
+/// tools simply fail as themselves when used.
 #[derive(
     Debug,
     Clone,
@@ -69,9 +79,6 @@ pub struct Toolsets {
     /// Text-to-speech.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tts: Option<bool>,
-    /// Speech-to-text.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub stt: Option<bool>,
     /// Task planning (todo).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub todo: Option<bool>,
@@ -84,9 +91,6 @@ pub struct Toolsets {
     /// Searching past conversations.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_search: Option<bool>,
-    /// Clarifying questions.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub clarify: Option<bool>,
     /// Task delegation to child agents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delegation: Option<bool>,
@@ -99,18 +103,9 @@ pub struct Toolsets {
     /// Spotify.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spotify: Option<bool>,
-    /// Discord, read and participate.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub discord: Option<bool>,
-    /// Discord server administration.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub discord_admin: Option<bool>,
     /// Yuanbao.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub yuanbao: Option<bool>,
-    /// Desktop control via a driver.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub computer_use: Option<bool>,
 }
 
 impl Toolsets {
