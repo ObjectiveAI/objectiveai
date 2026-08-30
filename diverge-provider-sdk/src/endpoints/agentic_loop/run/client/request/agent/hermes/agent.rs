@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Effort, Provider, Toolset, Upstream};
+use super::{Effort, Provider, Toolsets, Upstream};
 
 /// An agent running against Hermes (Nous Research's agent harness).
 ///
@@ -33,12 +33,11 @@ pub struct Agent {
     /// different facts. See [`Effort`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
-    /// Hermes's LOCAL capabilities. Absent = Hermes's defaults;
-    /// present = exactly these — and empty means none, an agent
-    /// whose only tools are the caller's own, arriving over MCP.
-    /// (The caller's MCP tools ride beside this selection
-    /// regardless; they are not part of this vocabulary.) See
-    /// [`Toolset`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub toolsets: Option<Vec<Toolset>>,
+    /// Hermes's LOCAL capabilities, one tri-state switch each:
+    /// unsaid tracks Hermes's default for that toolset, `true`
+    /// turns it on, `false` off. (The caller's MCP tools ride
+    /// beside these regardless; they are not in this vocabulary.)
+    /// See [`Toolsets`].
+    #[serde(default, skip_serializing_if = "Toolsets::unsaid")]
+    pub toolsets: Toolsets,
 }
