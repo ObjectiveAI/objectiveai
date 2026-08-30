@@ -16,7 +16,7 @@
 //! responses on its own wire, hashes their text the same way, and
 //! the match is the delivery position — no token invented, no id
 //! smuggled through renderers that would launder it. See
-//! [`fold`] for the canonical hash definition.
+//! [`Queue::fold`] for the canonical hash definition.
 //!
 //! # Every enqueue is answered
 //!
