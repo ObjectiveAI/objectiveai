@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{ApiMode, Effort, Provider, Toolset, Upstream};
+use super::{Effort, Provider, Toolset, Upstream};
 
 /// An agent running against Hermes (Nous Research's agent harness).
 ///
@@ -40,10 +40,6 @@ pub struct Agent {
     /// llama.cpp.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_url: Option<String>,
-    /// Which API dialect the endpoint speaks; absent = the provider
-    /// profile's own. See [`ApiMode`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub api_mode: Option<ApiMode>,
     /// Hermes's LOCAL capabilities. Absent = Hermes's defaults;
     /// present = exactly these — and empty means none, an agent
     /// whose only tools are the caller's own, arriving over MCP.
