@@ -25,7 +25,15 @@ use serde::{Deserialize, Serialize};
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum Provider {
-    /// Hermes chooses, by whatever credentials are configured.
+    /// Hermes detects the provider from the credentials it finds, in
+    /// its own fixed priority: an OpenRouter/OpenAI key means
+    /// openrouter; else the first provider-specific key present
+    /// (GLM, Kimi, MiniMax, …) means that provider; else a
+    /// logged-in OAuth session; else AWS credentials mean bedrock;
+    /// else the run fails as unconfigured. In this protocol that
+    /// means THE REQUEST'S ENVIRONMENT DECIDES — ship
+    /// `OPENROUTER_API_KEY` and auto is openrouter, ship only
+    /// `GLM_API_KEY` and auto is zai.
     #[default]
     Auto,
     /// Actual Computer.
