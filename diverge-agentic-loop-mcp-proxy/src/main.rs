@@ -12,9 +12,14 @@ mod handler;
 mod notifications;
 mod peers;
 mod proxy;
+mod queue;
 mod ws;
 
 use std::sync::Arc;
+
+use axum::Json;
+use axum::http::StatusCode;
+use diverge_provider_sdk::agentic_loop_container;
 
 use rmcp::transport::streamable_http_server::StreamableHttpService;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
@@ -58,6 +63,8 @@ async fn run() {
 
     let app = axum::Router::new()
         .route("/", axum::routing::any(ws::accept))
+        .route("/enqueue", axum::routing::post(enqueue))
+        .route("/dequeue", axum::routing::post(dequeue))
         .nest_service("/mcp", mcp)
         .with_state(Arc::clone(&proxy));
 
@@ -67,4 +74,46 @@ async fn run() {
     axum::serve(listener, app)
         .await
         .expect("the server stopped unexpectedly");
+}
+
+/// A message for the agent's conversation, folded onto the next tool
+/// response the proxy relays.
+///
+/// Container-INTERNAL: the harness beside this proxy calls it over
+/// loopback and maps the answer onto the protocol's own fate
+/// vocabulary. The answer arrives when the fate is known — the next
+/// fold names the response it rode in (the SHA-256 of that
+/// response's raw text, the harness's correlation key), a dequeue
+/// says it was withdrawn — and nothing here times anything out. The
+/// request body is the SDK's own enqueue request; the answer is the
+/// proxy's, because `attached` is not a protocol fate.
+///
+/// A dead answer wire cannot happen — every pending message is
+/// answered by a fold or a dequeue, and the queue lives as long as
+/// the proxy — but if it somehow did, it answers as HTTP: `500`.
+async fn enqueue(
+    Json(request): Json<agentic_loop_container::enqueue::Request>,
+) -> Result<
+    Json<queue::Enqueued>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    match queue::QUEUE.enqueue(request.prompt).await.await {
+        Ok(answer) => Ok(Json(answer)),
+        Err(_) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "kind": "fate_lost",
+                "error": "the message's answer was never decided",
+            })),
+        )),
+    }
+}
+
+/// Clear the queue: every pending message is answered dequeued, and
+/// the reply says how many were.
+async fn dequeue(
+    Json(_request): Json<agentic_loop_container::dequeue::Request>,
+) -> Json<serde_json::Value> {
+    let cancelled = queue::QUEUE.dequeue().await;
+    Json(serde_json::json!({ "cancelled": cancelled }))
 }

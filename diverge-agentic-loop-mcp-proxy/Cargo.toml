@@ -26,9 +26,13 @@ futures-util = { version = "0.3.33", default-features = false }
 # The MCP server the agent talks to: a compliant Streamable HTTP
 # server whose handler is this crate's relay.
 rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
+# The queue's answer types serialize; the derive is the whole need.
+serde = { version = "1.0.229", features = ["derive"] }
 # Named for the encode failure `open` reports; the JSON itself is the
 # SDK's business.
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# The correlation key: the folded tool response's text, hashed.
+sha2 = { version = "0.10.9" }
 # The runtime under the listener. No `macros` — the runtime is built in
 # main, not attributed onto it.
 tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }

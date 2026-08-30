@@ -124,7 +124,7 @@ impl ServerHandler for ProxyHandler {
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
-        let result = match self
+        let mut result = match self
             .exchange(channel_request::Frame::McpCallTool(
                 mcp::call_tool::request::Request(request),
             ))
@@ -136,6 +136,13 @@ impl ServerHandler for ProxyHandler {
             }
             Err(error) => failed(error),
         };
+        // The queue's seam: everything enqueued since the last tool
+        // response rides in front of this one — error results
+        // included, because the model reads those too. Downstream of
+        // the retry law above, so a call re-asked across connection
+        // deaths folds exactly once, at the moment the answer
+        // actually goes to the agent.
+        crate::queue::QUEUE.fold(&mut result).await;
         Ok(result.into())
     }
 
