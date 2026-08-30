@@ -1,25 +1,25 @@
-//! Asking for content by its identity.
+//! Asking for a directory by its identity.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
 
-use super::Kind;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// The kind and the hash, and deliberately nothing else.
+/// The identity, and deliberately nothing else.
 ///
-/// Not the name: a name is the caller's label and may point at
-/// different content tomorrow, where the dirhash is the content. The
-/// client answers with the directory's files — one
-/// [`fetch::Frame`](crate::endpoints::agentic_loop::run::client::channel_response::fetch::Frame)
-/// each — or, if it does not hold the hash, with the empty finish.
+/// Not the mount path: a path is the caller's placement and may
+/// point at different content tomorrow, where the identity IS the
+/// content. The client answers with the directory's files — one
+/// [`fetch_directory::Frame`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_directory::Frame)
+/// per file, chunked adjacently where a file is large — or, if it
+/// does not hold the identity, with the empty finish.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Request {
-    /// What the content is, which is which folder it lives in.
-    pub kind: Kind,
-    /// The content's deterministic identity.
-    pub dirhash: String,
+    /// The directory's size-bearing identity:
+    /// `d1:<total size>:<base64url sha256 of the manifest>` — the
+    /// manifest one sorted `<hash> <size> <path>` line per file.
+    pub identity: String,
 }
 
 /// Its JSON, and nothing in front of it. The tag that says which

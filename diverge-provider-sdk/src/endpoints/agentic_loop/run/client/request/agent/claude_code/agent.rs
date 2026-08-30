@@ -1,6 +1,5 @@
 //! The Claude Code agent.
 
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{Effort, Upstream};
@@ -23,34 +22,4 @@ pub struct Agent {
     /// [`thinking`](Self::thinking) on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
-    /// The skills the agent runs with, keyed by skill name — the
-    /// directory name Claude Code treats as the skill's identity.
-    /// Each value is the skill directory's dirhash: the deterministic
-    /// content identity of its files, by which the provider knows
-    /// WHICH skill without carrying the skill itself in the request.
-    ///
-    /// An `IndexMap` rather than a `HashMap`: insertion order is
-    /// preserved, so the same skill set serializes identically every
-    /// time instead of shuffling between runs.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub skills: Option<IndexMap<String, String>>,
-    /// The subagents the agent runs with, each named by its
-    /// definition's dirhash — the same deterministic content identity
-    /// [`skills`](Self::skills) uses.
-    ///
-    /// A list where skills are a map, because the two features keep
-    /// their identity in opposite places: a skill's name is its
-    /// directory name, OUTSIDE the content, so the caller must say it
-    /// here — but a subagent's name is its frontmatter `name` field,
-    /// inside the hashed bytes, and a key here could only agree with
-    /// it or lie.
-    ///
-    /// Named for the definition FORMAT, not the field's address:
-    /// skills share one client-side folder because their format is
-    /// harness-agnostic, but agent definitions do not — Claude Code's
-    /// markdown-with-frontmatter files and Codex's TOML cannot share
-    /// a directory, so the folder and the field carry the format's
-    /// name.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub claude_code_agents: Option<Vec<String>>,
 }

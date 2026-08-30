@@ -14,10 +14,14 @@
 //! and a module called `call_tool` would only read as MCP's to somebody
 //! who already knew.
 //!
-//! [`fetch`] is the sixth and not MCP at all: content the provider is
-//! missing, asked for by dirhash and answered out of the client's own
-//! folders — one frame per file until the finish says the directory is
-//! whole, zero frames saying the client does not hold the hash.
+//! [`fetch_file`] and [`fetch_directory`] are the other two and not
+//! MCP at all: mounted content the provider is missing, asked for by
+//! its size-bearing identity and answered out of the client's own
+//! store — bytes until the finish says the content is whole, zero
+//! frames saying the client does not hold the identity. Both chunk
+//! at [`CHUNK_SIZE`], and the receiver never has to know: a file's
+//! chunks are adjacent frames, and appending is the whole of
+//! reassembly.
 //!
 //! There was another once, and it was the older way: a whole HTTP
 //! exchange tunneled, head and body and all. The five replaced
@@ -25,8 +29,8 @@
 //! on this endpoint is HTTP any more.
 //!
 //! Each stays a module in the path rather than being re-exported
-//! upward. It is what tells six types called `Frame` apart, which was
-//! the reason to keep the shape when there was only one of them.
+//! upward. It is what tells seven types called `Frame` apart, which
+//! was the reason to keep the shape when there was only one of them.
 //!
 //! Note what is NOT here. The chunks of the loop itself are a response
 //! too, but the SERVER sends those, so they live in
@@ -34,9 +38,16 @@
 //! module is the other direction — a client answering what it was
 //! asked for.
 
-pub mod fetch;
+pub mod fetch_directory;
+pub mod fetch_file;
 pub mod mcp_call_tool;
 pub mod mcp_list_resources;
 pub mod mcp_list_tools;
 pub mod mcp_notifications;
 pub mod mcp_read_resource;
+
+/// The most bytes one fetched frame's body carries — the SENDER's
+/// rule alone: a file larger than this leaves as adjacent frames,
+/// and receivers are chunk-naive (same file, next frame, append)
+/// and never measure.
+pub const CHUNK_SIZE: usize = 4 * 1024 * 1024;

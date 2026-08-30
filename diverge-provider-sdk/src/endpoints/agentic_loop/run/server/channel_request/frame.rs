@@ -3,24 +3,26 @@
 use std::error;
 use std::fmt;
 
-use super::fetch;
+use super::{fetch_directory, fetch_file};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::mcp;
 
 /// The payload of a [`ServerFrame::ChannelRequest`](crate::frame::server::ServerFrame::ChannelRequest).
 ///
-/// One ask toward the client — an MCP exchange toward its proxy, or a
-/// [`Fetch`](Self::Fetch) of content the provider is missing. Complete
-/// in this frame; the answer comes back as client response frames.
+/// One ask toward the client — an MCP exchange toward its proxy, or
+/// a fetch ([`FetchFile`](Self::FetchFile) /
+/// [`FetchDirectory`](Self::FetchDirectory)) of mounted content the
+/// provider is missing. Complete in this frame; the answer comes
+/// back as client response frames.
 ///
 /// A payload leads with one byte and the rest is the request.
 ///
 /// What they share is that each is something the server cannot reach
 /// itself: the agent runs beside the provider, and the MCP servers —
-/// and the folders the skills and agent definitions live in — live
-/// with the client. So the provider opens a channel, and the client
-/// splices the far end into the real thing.
+/// and the store the request's mounts live in — live with the
+/// client. So the provider opens a channel, and the client splices
+/// the far end into the real thing.
 ///
 /// # MCP is carried as exchanges, not as a socket
 ///
@@ -51,17 +53,21 @@ use crate::shared::mcp;
 /// The five are prefixed `Mcp`, because a channel a container opens is
 /// not necessarily MCP's — a plugin's are a database and a command —
 /// and a variant called `CallTool` would only read as MCP's to someone
-/// who already knew. [`Fetch`](Self::Fetch) carries no prefix for the
-/// same reason from the other side: it is not an MCP exchange, and a
-/// name that suggested one would be the same confusion in reverse.
+/// who already knew. The two fetches carry no prefix for the same
+/// reason from the other side: they are not MCP exchanges, and names
+/// that suggested one would be the same confusion in reverse.
 ///
 /// # The tag is the GET and the POST
 ///
-/// Which is what makes six the right number rather than an accident.
-/// An MCP server has ONE url; a client POSTs a JSON-RPC message to it
-/// for the four, and opens a stream with a bare `GET` on the same url
-/// for the fifth. The verb is the whole of the distinction there, and
-/// the tag byte is the whole of it here.
+/// Which is what makes the MCP five the right five rather than an
+/// accident. An MCP server has ONE url; a client POSTs a JSON-RPC
+/// message to it for the four, and opens a stream with a bare `GET`
+/// on the same url for the fifth. The verb is the whole of the
+/// distinction there, and the tag byte is the whole of it here. The
+/// fetches split by KIND for the same economy: a file and a
+/// directory answer with different frame shapes, and the tag saying
+/// which up front is what spares every frame after it a
+/// discriminator.
 ///
 /// The frame's own `type` could have carried the discrimination — it
 /// is right there in the header — and deliberately does not. A frame
@@ -144,21 +150,29 @@ pub enum Frame {
     /// here a channel can only die with the scope and a scope only with
     /// the connection, so there is nothing left to resume onto.
     McpNotifications(mcp::notifications::request::Request),
-    /// Content the provider is missing, by identity. Tag `5`.
+    /// A mounted FILE the provider is missing, by identity. Tag `5`.
     ///
-    /// A skill or an agent definition the request named by dirhash and
-    /// the provider does not hold. The kind and the hash, as
-    /// [`fetch`] defines them — not the name, because the hash is the
-    /// content and the name is only the caller's label for it.
+    /// A file the request's `file_mounts` named and the provider does
+    /// not hold. The identity alone, as [`fetch_file`] defines it —
+    /// not the mount path, because the identity is the content and
+    /// the path is only the caller's placement of it.
     ///
-    /// The one variant here that is not MCP, which is why it carries
-    /// no `Mcp` prefix: what answers it is not a server the client
-    /// proxies but the client's own folders. The answer is one file
-    /// per frame — see
-    /// [`fetch`](crate::endpoints::agentic_loop::run::client::channel_response::fetch)
+    /// Not MCP, which is why it carries no `Mcp` prefix: what answers
+    /// it is not a server the client proxies but the client's own
+    /// store. The answer is the bytes, verbatim and chunked by
+    /// adjacency — see
+    /// [`fetch_file`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_file)
     /// — and the empty finish is the client saying it does not hold
-    /// the hash.
-    Fetch(fetch::Request),
+    /// the identity.
+    FetchFile(fetch_file::Request),
+    /// A mounted DIRECTORY the provider is missing, by identity.
+    /// Tag `6`.
+    ///
+    /// The same ask for a `directory_mounts` entry, answered with the
+    /// directory's files — one frame per file, adjacent frames per
+    /// file where a file is large — see
+    /// [`fetch_directory`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_directory).
+    FetchDirectory(fetch_directory::Request),
 }
 
 /// Tag for [`Frame::McpListTools`].
@@ -176,8 +190,11 @@ const MCP_READ_RESOURCE: u8 = 3;
 /// Tag for [`Frame::McpNotifications`].
 const MCP_NOTIFICATIONS: u8 = 4;
 
-/// Tag for [`Frame::Fetch`].
-const FETCH: u8 = 5;
+/// Tag for [`Frame::FetchFile`].
+const FETCH_FILE: u8 = 5;
+
+/// Tag for [`Frame::FetchDirectory`].
+const FETCH_DIRECTORY: u8 = 6;
 
 /// A tag, then that variant's own JSON.
 impl Encode for Frame {
@@ -209,8 +226,12 @@ impl Encode for Frame {
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::Fetch(request) => {
-                out.extend_from_slice(&[FETCH]);
+            Frame::FetchFile(request) => {
+                out.extend_from_slice(&[FETCH_FILE]);
+                request.encode(out)
+            }
+            Frame::FetchDirectory(request) => {
+                out.extend_from_slice(&[FETCH_DIRECTORY]);
                 request.encode(out)
             }
         }
@@ -244,8 +265,11 @@ impl Decode<'_> for Frame {
                 mcp::notifications::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
-            FETCH => fetch::Request::decode(rest)
-                .map(Frame::Fetch)
+            FETCH_FILE => fetch_file::Request::decode(rest)
+                .map(Frame::FetchFile)
+                .map_err(FrameError::Body),
+            FETCH_DIRECTORY => fetch_directory::Request::decode(rest)
+                .map(Frame::FetchDirectory)
                 .map_err(FrameError::Body),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -257,7 +281,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's six.
+    /// A tag that is none of this frame's seven.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not

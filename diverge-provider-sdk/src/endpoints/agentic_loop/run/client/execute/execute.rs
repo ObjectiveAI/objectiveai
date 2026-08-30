@@ -10,8 +10,8 @@ use futures_util::StreamExt as _;
 
 use super::execute_stream::ExecuteStream;
 use super::super::channel_response::{
-    mcp_call_tool, mcp_list_resources, mcp_list_tools, mcp_notifications,
-    mcp_read_resource,
+    fetch_directory, fetch_file, mcp_call_tool, mcp_list_resources,
+    mcp_list_tools, mcp_notifications, mcp_read_resource,
 };
 use super::super::request;
 use crate::client::fetch_proxy::FetchProxy;
@@ -207,8 +207,19 @@ async fn proxy_one<P, F>(
         channel_request::Frame::McpNotifications(_) => {
             notify(&handle, scope, channel, &*mcp_proxy).await
         }
-        channel_request::Frame::Fetch(request) => {
-            fetched(&handle, scope, channel, &*fetch_proxy, request).await
+        channel_request::Frame::FetchFile(request) => {
+            fetched_file(&handle, scope, channel, &*fetch_proxy, request)
+                .await
+        }
+        channel_request::Frame::FetchDirectory(request) => {
+            fetched_directory(
+                &handle,
+                scope,
+                channel,
+                &*fetch_proxy,
+                request,
+            )
+            .await
         }
     };
 
@@ -257,27 +268,57 @@ where
     true
 }
 
-/// Send a fetched directory, one file per frame.
+/// Send a fetched file, one chunk per frame.
 ///
-/// The stream ending is the whole of "the directory is complete", and
-/// an empty stream sends nothing at all — the finish the caller sends
-/// afterwards is then the empty finish, which is how a client says it
-/// does not hold the hash. Nothing here can tell those apart, and
-/// nothing needs to: both are the stream being over.
-async fn fetched<F>(
+/// The proxy yields owned bytes; each borrows into the exchange's
+/// frame as it is written, so nothing is copied on the way out. The
+/// stream ending is the whole of "the file is complete", and an
+/// empty stream sends nothing at all — the finish the caller sends
+/// afterwards is then the empty finish, which is how a client says
+/// it does not hold the identity. Nothing here can tell those apart,
+/// and nothing needs to: both are the stream being over.
+async fn fetched_file<F>(
     handle: &Handle,
     scope: u32,
     channel: u32,
     fetch_proxy: &F,
-    request: channel_request::fetch::Request,
+    request: channel_request::fetch_file::Request,
 ) -> bool
 where
     F: FetchProxy,
 {
-    let mut files =
-        fetch_proxy.fetch(request.kind, request.dirhash).await;
-    while let Some(file) = files.next().await {
-        if !answer_with(handle, scope, channel, &file).await {
+    let mut chunks = fetch_proxy.fetch_file(request.identity).await;
+    while let Some(chunk) = chunks.next().await {
+        let frame = fetch_file::Frame { body: &chunk };
+        if !answer_with(handle, scope, channel, &frame).await {
+            return false;
+        }
+    }
+    true
+}
+
+/// Send a fetched directory, one file — or one chunk of one — per
+/// frame.
+///
+/// The proxy yields owned paths and bytes; each borrows into the
+/// exchange's frame as it is written. The stream ending is the whole
+/// of "the directory is complete", and an empty stream sends nothing
+/// at all — the empty finish, the client saying it does not hold the
+/// identity.
+async fn fetched_directory<F>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    fetch_proxy: &F,
+    request: channel_request::fetch_directory::Request,
+) -> bool
+where
+    F: FetchProxy,
+{
+    let mut files = fetch_proxy.fetch_directory(request.identity).await;
+    while let Some((path, body)) = files.next().await {
+        let frame = fetch_directory::Frame { path, body: &body };
+        if !answer_with(handle, scope, channel, &frame).await {
             return false;
         }
     }
