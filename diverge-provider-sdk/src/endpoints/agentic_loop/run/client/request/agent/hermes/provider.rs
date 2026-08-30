@@ -20,10 +20,11 @@ use serde::{Deserialize, Serialize};
 /// request says what it means, and a vocabulary whose meaning
 /// depends on the environment it lands in is not a vocabulary.
 ///
-/// Local runtimes — ollama, vllm, llama.cpp — are
-/// [`custom`](Self::Custom) plus a
-/// [`base_url`](super::Agent::base_url), exactly as Hermes itself
-/// aliases them.
+/// Local runtimes — ollama, vllm, llama.cpp — alias onto
+/// [`custom`](Self::Custom) in Hermes itself; note the agent
+/// carries no endpoint field, so `custom` is only reachable where
+/// the endpoint arrives some other way (Hermes's own configuration
+/// defaults).
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]

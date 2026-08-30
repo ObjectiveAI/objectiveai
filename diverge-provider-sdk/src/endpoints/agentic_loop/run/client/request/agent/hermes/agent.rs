@@ -33,13 +33,6 @@ pub struct Agent {
     /// different facts. See [`Effort`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
-    /// A custom OpenAI-compatible endpoint, for the providers that
-    /// take one ([`custom`](Provider::Custom),
-    /// [`azure-foundry`](Provider::AzureFoundry), …) — including
-    /// anything local Hermes aliases onto `custom`: ollama, vllm,
-    /// llama.cpp.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub base_url: Option<String>,
     /// Hermes's LOCAL capabilities. Absent = Hermes's defaults;
     /// present = exactly these — and empty means none, an agent
     /// whose only tools are the caller's own, arriving over MCP.
@@ -48,12 +41,4 @@ pub struct Agent {
     /// [`Toolset`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub toolsets: Option<Vec<Toolset>>,
-    /// The turn cap; absent = unlimited.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_turns: Option<u64>,
-    /// The wall-clock budget, in seconds; absent = none. Hermes
-    /// itself injects a wrap-up notice into the conversation at 80%
-    /// of it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub run_budget_seconds: Option<f64>,
 }
