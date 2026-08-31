@@ -2,27 +2,14 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The `tts` switch.
-///
-/// Untagged: a bool is the bare switch, an object is the switch
-/// thrown on with arguments. The field being absent from
+/// Text-to-speech, with its arguments. The field being absent from
 /// [`Toolsets`](super::Toolsets) is Hermes's own default for this
-/// toolset.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Toolset {
-    /// `false` = explicitly off; `true` = on with nothing supplied.
-    Switch(bool),
-    /// On, with arguments. See [`Config`].
-    Config(Config),
-}
-
-/// Text-to-speech. Keyless by default — Hermes's edge-tts path
-/// needs nothing — with one keyed upgrade.
+/// toolset; present is the switch thrown on. Keyless by default —
+/// Hermes's edge-tts path needs nothing — with one keyed upgrade.
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
-pub struct Config {
+pub struct Toolset {
     /// ElevenLabs, applied as `ELEVENLABS_API_KEY` in the
     /// gateway's process environment; when present the harness
     /// also selects the provider (`tts.provider: elevenlabs` in

@@ -2,30 +2,19 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The `browser` switch.
+/// Browser automation, with its arguments. The field being absent
+/// from [`Toolsets`](super::Toolsets) is Hermes's own default for
+/// this toolset; present is the switch thrown on.
 ///
-/// Untagged: a bool is the bare switch, an object is the switch
-/// thrown on with arguments. The field being absent from
-/// [`Toolsets`](super::Toolsets) is Hermes's own default for this
-/// toolset.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Toolset {
-    /// `false` = explicitly off; `true` = on with nothing supplied.
-    Switch(bool),
-    /// On, with arguments. See [`Config`].
-    Config(Config),
-}
-
-/// Browser automation. Every argument is optional because the
-/// default backend is the container's own headless Chromium, which
-/// needs nothing; the arguments point the toolset at a browser
-/// somewhere else instead. Applied by the harness as env vars in
-/// the gateway's process environment.
+/// Every argument is optional because the default backend is the
+/// container's own headless Chromium, which needs nothing; the
+/// arguments point the toolset at a browser somewhere else
+/// instead. Applied by the harness as env vars in the gateway's
+/// process environment.
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
-pub struct Config {
+pub struct Toolset {
     /// A remote browser's CDP endpoint, applied as
     /// `BROWSER_CDP_URL`.
     #[serde(default, skip_serializing_if = "Option::is_none")]

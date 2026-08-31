@@ -34,12 +34,12 @@ pub struct Agent {
     /// different facts. See [`Effort`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
-    /// Hermes's LOCAL capabilities, one switch each — and the
-    /// switch carries the tool's own auth: absent tracks Hermes's
-    /// default, `false` turns it off, `true` turns it on bare, an
-    /// object turns it on with that tool's arguments. (The
-    /// caller's MCP tools ride beside these regardless; they are
-    /// not in this vocabulary.) See [`Toolsets`].
+    /// Hermes's LOCAL capabilities, one switch each: a tri-state
+    /// bool where a tool takes nothing, that tool's own argument
+    /// structure where it does — absent always tracks Hermes's
+    /// default. (The caller's MCP tools ride beside these
+    /// regardless; they are not in this vocabulary.) See
+    /// [`Toolsets`].
     #[serde(default, skip_serializing_if = "Toolsets::unsaid")]
     pub toolsets: Toolsets,
 }

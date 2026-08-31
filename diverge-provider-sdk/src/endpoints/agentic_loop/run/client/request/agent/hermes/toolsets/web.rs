@@ -2,30 +2,18 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The `web` switch.
+/// Web search and page extraction, with its arguments. The field
+/// being absent from [`Toolsets`](super::Toolsets) is Hermes's own
+/// default for this toolset; present is the switch thrown on.
 ///
-/// Untagged: a bool is the bare switch, an object is the switch
-/// thrown on with arguments. The field being absent from
-/// [`Toolsets`](super::Toolsets) is Hermes's own default for this
-/// toolset.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Toolset {
-    /// `false` = explicitly off; `true` = on with nothing supplied.
-    Switch(bool),
-    /// On, with arguments. See [`Config`].
-    Config(Config),
-}
-
-/// Web search and page extraction. Every argument is optional
-/// because Hermes's keyless ring works with zero credentials — the
-/// keys buy quality and quota, not existence. Each is applied by
-/// the harness as its same-named env var in the gateway's process
-/// environment.
+/// Every argument is optional because Hermes's keyless ring works
+/// with zero credentials — the keys buy quality and quota, not
+/// existence. Each is applied by the harness as its same-named env
+/// var in the gateway's process environment.
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
-pub struct Config {
+pub struct Toolset {
     /// Tavily search, applied as `TAVILY_API_KEY`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tavily_api_key: Option<String>,

@@ -2,29 +2,17 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The `image_gen` switch.
-///
-/// Untagged: a bool is the bare switch, an object is the switch
-/// thrown on with arguments. The field being absent from
+/// Image generation over FAL, the built-in path, with its
+/// arguments. The field being absent from
 /// [`Toolsets`](super::Toolsets) is Hermes's own default for this
-/// toolset.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Toolset {
-    /// `false` = explicitly off; `true` = on with nothing supplied.
-    Switch(bool),
-    /// On, with arguments. See [`Config`].
-    Config(Config),
-}
-
-/// Image generation over FAL, the built-in path. Hermes's other
-/// image providers (openai, krea, deepinfra, xai) are deliberately
+/// toolset; present is the switch thrown on. Hermes's other image
+/// providers (openai, krea, deepinfra, xai) are deliberately
 /// absent at this pin — one keyed path is enough until asked for
 /// more.
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
-pub struct Config {
+pub struct Toolset {
     /// The FAL key, applied as `FAL_KEY` in the gateway's process
     /// environment. [`video_gen`](super::video_gen) names the same
     /// variable; a request supplying both MUST agree with itself.

@@ -2,26 +2,14 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The `spotify` switch.
-///
-/// Untagged: a bool is the bare switch, an object is the switch
-/// thrown on with arguments. The field being absent from
+/// Spotify control, with its arguments — back in the vocabulary,
+/// because its only blocker was rotation and rotation is what
+/// resources exist for: Hermes refreshes the PKCE state on
+/// effectively every Spotify tool call and rewrites the store each
+/// time, so the caller's state must flow in as a resource and its
+/// rotated form flow back. The field being absent from
 /// [`Toolsets`](super::Toolsets) is Hermes's own default for this
-/// toolset.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Toolset {
-    /// `false` = explicitly off; `true` = on with nothing supplied.
-    Switch(bool),
-    /// On, with arguments. See [`Config`].
-    Config(Config),
-}
-
-/// Spotify control — back in the vocabulary, because its only
-/// blocker was rotation and rotation is what resources exist for:
-/// Hermes refreshes the PKCE state on effectively every Spotify
-/// tool call and rewrites the store each time, so the caller's
-/// state must flow in as a resource and its rotated form flow back.
+/// toolset; present is the switch thrown on.
 ///
 /// APPLICATION: the harness sets `HERMES_SPOTIFY_CLIENT_ID` to
 /// [`client_id`](Self::client_id) in the gateway's process
@@ -30,7 +18,7 @@ pub enum Toolset {
 /// `$HERMES_HOME/auth.json` (Hermes keeps this entry inert for
 /// provider selection by its own design).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Config {
+pub struct Toolset {
     /// The caller's own Spotify app (PKCE — there is no secret,
     /// and Hermes ships no default app). Static, so a plain
     /// argument.
