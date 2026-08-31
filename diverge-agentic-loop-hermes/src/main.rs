@@ -21,6 +21,7 @@
 //! land in the store, where the run will collect them.
 
 mod resource;
+mod resource_fetcher;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
