@@ -98,11 +98,12 @@ pub struct Frame {
     /// way. Which names are reserved is a provider's to state.
     ///
     /// Beside the mounts, this is the caller's other way of
-    /// provisioning a run — the channel for TOOL credentials and
-    /// harness knobs. Inference auth is NOT provisioned here: where
-    /// an agent's provider needs credentials, they are arguments on
-    /// the agent itself (hermes's provider structures), so a
-    /// provider-reserved name never has to carry them.
+    /// provisioning a run — the channel for what nothing else
+    /// names. Credentials are NOT provisioned here: inference auth
+    /// is an argument on the agent's provider, and tool auth an
+    /// argument on its toolsets (hermes's provider and toolset
+    /// structures), so a provider-reserved name never has to carry
+    /// either.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub environment: IndexMap<String, String>,
 }
