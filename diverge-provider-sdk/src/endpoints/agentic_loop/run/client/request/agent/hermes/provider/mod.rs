@@ -23,9 +23,14 @@
 //! that, so their credential fields are RESOURCES (named
 //! `*_resource`): caller-provided state the run MUTATES, whose
 //! rotated form is surfaced back to the caller so their next
-//! request carries current credentials. How a resource travels
-//! back is the protocol's resource mechanism, not this module's
-//! concern; what this module fixes is which documents are
+//! request carries current credentials. A resource field carries
+//! the state's size-bearing IDENTITY — the file grammar,
+//! `f1:<size>:<base64url sha256 of the bytes>` — never the bytes:
+//! those live with the client and arrive over the
+//! [`FetchResource`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchResource)
+//! exchange, the way mounted content does. How a rotated resource
+//! travels back is the protocol's resource mechanism, not this
+//! module's concern; what this module fixes is which documents are
 //! resources and how the harness seeds them. (These providers'
 //! advertised key env vars — `NOUS_API_KEY`, `QWEN_API_KEY` — are
 //! vestigial; no resolution path reads them, so the state document

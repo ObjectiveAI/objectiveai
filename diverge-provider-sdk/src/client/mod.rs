@@ -68,9 +68,9 @@
 //! [`unbrokered_authorizer`] above is a seventh supplied trait, but it
 //! answers the connection rather than anything asked on it.
 //! [`mcp_proxy`] forwards an exchange to a server the provider cannot
-//! see. [`fetch_proxy`] hands over a mounted file or directory the
-//! provider is missing, out of the caller's own store, by its
-//! size-bearing identity.
+//! see. [`fetch_proxy`] hands over a mounted file, a mounted
+//! directory or a resource the provider is missing, out of the
+//! caller's own store, by its size-bearing identity.
 //! [`oci_proxy`] serves an image, for a plugin run and a
 //! laboratory run alike. [`command_proxy`] runs a command a plugin has
 //! no binary for. [`postgres_proxy`] splices a connection onto the

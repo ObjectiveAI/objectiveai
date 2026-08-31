@@ -10,8 +10,9 @@ use futures_util::StreamExt as _;
 
 use super::execute_stream::ExecuteStream;
 use super::super::channel_response::{
-    fetch_directory, fetch_file, mcp_call_tool, mcp_list_resources,
-    mcp_list_tools, mcp_notifications, mcp_read_resource,
+    fetch_directory, fetch_file, fetch_resource, mcp_call_tool,
+    mcp_list_resources, mcp_list_tools, mcp_notifications,
+    mcp_read_resource,
 };
 use super::super::request;
 use crate::client::fetch_proxy::FetchProxy;
@@ -221,6 +222,10 @@ async fn proxy_one<P, F>(
             )
             .await
         }
+        channel_request::Frame::FetchResource(request) => {
+            fetched_resource(&handle, scope, channel, &*fetch_proxy, request)
+                .await
+        }
     };
 
     let _ = handle.send_channel_response_finish(scope, channel).await;
@@ -325,11 +330,37 @@ where
     true
 }
 
+/// Send a fetched resource, one chunk per frame.
+///
+/// [`fetched_file`]'s shape exactly, because a resource IS bytes
+/// under the file identity — the stream ending says the resource is
+/// complete, and an empty stream leaves the empty finish, the
+/// client saying it does not hold the identity.
+async fn fetched_resource<F>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    fetch_proxy: &F,
+    request: channel_request::fetch_resource::Request,
+) -> bool
+where
+    F: FetchProxy,
+{
+    let mut chunks = fetch_proxy.fetch_resource(request.identity).await;
+    while let Some(chunk) = chunks.next().await {
+        let frame = fetch_resource::Frame { body: &chunk };
+        if !answer_with(handle, scope, channel, &frame).await {
+            return false;
+        }
+    }
+    true
+}
+
 /// Encode one answer and write it.
 ///
-/// Generic over the frame because the six exchanges answer with six
-/// types, and what happens to each of them here is identical: build it,
-/// write it, stop if it did not go.
+/// Generic over the frame because the seven exchanges answer with
+/// seven types, and what happens to each of them here is identical:
+/// build it, write it, stop if it did not go.
 ///
 /// Answers whether to carry on, so the caller knows whether a finish is
 /// still worth sending.

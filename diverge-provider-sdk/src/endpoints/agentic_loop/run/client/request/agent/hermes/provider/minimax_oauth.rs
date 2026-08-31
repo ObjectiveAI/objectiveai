@@ -9,10 +9,9 @@ use serde::{Deserialize, Serialize};
 /// MiniMax is [`minimax`](super::minimax::Provider) /
 /// [`minimax_cn`](super::minimax_cn::Provider).)
 ///
-/// APPLICATION: the harness writes
-/// [`auth_resource`](Self::auth_resource) as the
-/// `providers.minimax-oauth` entry of `$HERMES_HOME/auth.json`
-/// before Hermes starts — provider selection rides the config the
+/// APPLICATION: the harness fetches the resource's bytes and writes
+/// them as the `providers.minimax-oauth` entry of
+/// `$HERMES_HOME/auth.json` before Hermes starts — provider selection rides the config the
 /// harness already owns, never the file's `active_provider`. On
 /// token refresh Hermes rewrites the entry in place; the rewritten
 /// document is the resource's next state.
@@ -20,13 +19,18 @@ use serde::{Deserialize, Serialize};
 pub struct Provider {
     /// The discriminator. Always `minimax-oauth`.
     pub provider: MinimaxOauth,
-    /// The MiniMax OAuth state, verbatim JSON — the
+    /// The OAuth state's size-bearing identity — the FILE grammar,
+    /// `f1:<size>:<base64url sha256 of the bytes>` — never the
+    /// bytes themselves. The bytes are the
     /// `providers.minimax-oauth` entry exactly as the caller's own
-    /// Hermes stores it. This one must arrive COMPLETE:
-    /// `access_token`, `refresh_token`, `portal_base_url`,
-    /// `inference_base_url`, `client_id` and `expires_at` are all
-    /// indexed unconditionally once a refresh fires — and Hermes
-    /// attempts one on first use.
+    /// Hermes stores it, JSON; they live with the client and arrive
+    /// over the
+    /// [`FetchResource`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchResource)
+    /// exchange when the provider does not hold them. The document
+    /// must be COMPLETE: `access_token`, `refresh_token`,
+    /// `portal_base_url`, `inference_base_url`, `client_id` and
+    /// `expires_at` are all indexed unconditionally once a refresh
+    /// fires — and Hermes attempts one on first use.
     pub auth_resource: String,
 }
 

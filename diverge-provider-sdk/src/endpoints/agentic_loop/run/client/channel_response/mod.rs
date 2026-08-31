@@ -14,14 +14,15 @@
 //! and a module called `call_tool` would only read as MCP's to somebody
 //! who already knew.
 //!
-//! [`fetch_file`] and [`fetch_directory`] are the other two and not
-//! MCP at all: mounted content the provider is missing, asked for by
-//! its size-bearing identity and answered out of the client's own
-//! store — bytes until the finish says the content is whole, zero
-//! frames saying the client does not hold the identity. Both chunk
-//! at [`CHUNK_SIZE`], and the receiver never has to know: a file's
-//! chunks are adjacent frames, and appending is the whole of
-//! reassembly.
+//! [`fetch_file`], [`fetch_directory`] and [`fetch_resource`] are
+//! the other three and not MCP at all: content the provider is
+//! missing — a mounted file, a mounted directory, a resource's
+//! bytes — asked for by its size-bearing identity and answered out
+//! of the client's own store — bytes until the finish says the
+//! content is whole, zero frames saying the client does not hold
+//! the identity. All three chunk at [`CHUNK_SIZE`], and the
+//! receiver never has to know: a file's chunks are adjacent frames,
+//! and appending is the whole of reassembly.
 //!
 //! There was another once, and it was the older way: a whole HTTP
 //! exchange tunneled, head and body and all. The five replaced
@@ -29,7 +30,7 @@
 //! on this endpoint is HTTP any more.
 //!
 //! Each stays a module in the path rather than being re-exported
-//! upward. It is what tells seven types called `Frame` apart, which
+//! upward. It is what tells eight types called `Frame` apart, which
 //! was the reason to keep the shape when there was only one of them.
 //!
 //! Note what is NOT here. The chunks of the loop itself are a response
@@ -40,6 +41,7 @@
 
 pub mod fetch_directory;
 pub mod fetch_file;
+pub mod fetch_resource;
 pub mod mcp_call_tool;
 pub mod mcp_list_resources;
 pub mod mcp_list_tools;

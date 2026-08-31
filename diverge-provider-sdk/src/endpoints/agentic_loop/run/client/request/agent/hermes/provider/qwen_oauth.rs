@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// APPLICATION: unlike the other OAuth providers this state is not
 /// Hermes's own — it is the Qwen CLI's token file. The harness
-/// writes [`oauth_creds_resource`](Self::oauth_creds_resource) to
+/// fetches the resource's bytes and writes them to
 /// `~/.qwen/oauth_creds.json` at the REAL home directory (Hermes
 /// hardcodes that path; it ignores `$HERMES_HOME`), and itself adds
 /// the minimal `providers.qwen-oauth` selection marker to
@@ -21,7 +21,13 @@ use serde::{Deserialize, Serialize};
 pub struct Provider {
     /// The discriminator. Always `qwen-oauth`.
     pub provider: QwenOauth,
-    /// The Qwen CLI's `oauth_creds.json` document, verbatim JSON:
+    /// The OAuth state's size-bearing identity — the FILE grammar,
+    /// `f1:<size>:<base64url sha256 of the bytes>` — never the
+    /// bytes themselves. The bytes are the Qwen CLI's
+    /// `oauth_creds.json` document, JSON; they live with the client
+    /// and arrive over the
+    /// [`FetchResource`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchResource)
+    /// exchange when the provider does not hold them. The document:
     /// `access_token`, `refresh_token`, `token_type`,
     /// `resource_url` and `expiry_date` (epoch MILLISECONDS — a
     /// missing or stale value forces a refresh on first use).

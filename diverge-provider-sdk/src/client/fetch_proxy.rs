@@ -6,26 +6,28 @@ use std::pin::Pin;
 use bytes::Bytes;
 use futures_util::Stream;
 
-/// What answers a provider asking for mounted content it does not
-/// hold.
+/// What answers a provider asking for content it does not hold.
 ///
-/// An agent's request names its mounts by identity — files in
-/// `file_mounts`, directories in `directory_mounts` — and the
-/// content lives in the caller's own store. When a provider is
-/// missing one, the ask comes out as a
-/// [`FetchFile`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchFile)
-/// or
+/// An agent's request names content by identity — files in
+/// `file_mounts`, directories in `directory_mounts`, resources on
+/// the agent's own `*_resource` fields — and the bytes live in the
+/// caller's own store. When a provider is missing one, the ask
+/// comes out as a
+/// [`FetchFile`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchFile),
 /// [`FetchDirectory`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchDirectory)
+/// or
+/// [`FetchResource`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchResource)
 /// channel request, and this is what a caller implements to answer
 /// them.
 ///
-/// # Two methods, because there are two exchanges
+/// # Three methods, because there are three exchanges
 ///
-/// The identity says which content — not the mount path, which is
-/// the caller's placement and which the provider never asks by. The
-/// items are OWNED ([`Bytes`], and a path beside it for a
-/// directory's files); the executor borrows each into the exchange's
-/// frame as it writes, so nothing is copied on the way out.
+/// The identity says which content — not the mount path or the
+/// field, which are the caller's placement and which the provider
+/// never asks by. The items are OWNED ([`Bytes`], and a path beside
+/// it for a directory's files); the executor borrows each into the
+/// exchange's frame as it writes, so nothing is copied on the way
+/// out.
 ///
 /// # The sender chunks; the receiver never has to know
 ///
@@ -91,5 +93,21 @@ pub trait FetchProxy: Send + Sync {
         Output = Pin<
             Box<dyn Stream<Item = (Vec<String>, Bytes)> + Send + 'static>,
         >,
+    > + Send;
+
+    /// The resource behind one identity, as its bytes — one item per
+    /// chunk, appended in order by the far side. The identity is the
+    /// FILE grammar (`f1:…`); whether an identity names a mounted
+    /// file or a resource is the store's business, not the wire's —
+    /// content-addressing does not care what the bytes are for.
+    ///
+    /// # The future is [`Send`]
+    ///
+    /// For the reason [`fetch_file`](Self::fetch_file) gives.
+    fn fetch_resource(
+        &self,
+        identity: String,
+    ) -> impl Future<
+        Output = Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>,
     > + Send;
 }
