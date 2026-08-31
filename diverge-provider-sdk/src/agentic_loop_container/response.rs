@@ -39,8 +39,8 @@ pub enum Response {
 /// the content (its own
 /// [`FetchResource`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchResource)
 /// exchange toward the client, or its own store), then POSTs the
-/// bytes into the container at `/resource` — chunks, then the
-/// completion; see [`resource`](super::resource).
+/// bytes into the container at `/resource/{identity}` — chunks,
+/// then the completion; see [`resource`](super::resource).
 ///
 /// It is not a chunk and never reaches the client: the client is
 /// what the bytes come FROM. A server relaying the stream forwards

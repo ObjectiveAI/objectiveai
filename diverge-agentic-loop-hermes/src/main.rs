@@ -7,8 +7,8 @@
 //! stream, each event one item of the container response vocabulary
 //! — the loop's chunks, and the container's own `fetch_resource`
 //! asks for the agent's `*_resource` identities, answered by the
-//! server at `POST /resource`: chunks into [`resource`]'s store,
-//! completion last. Beside the run, the queue's two verbs: `POST
+//! server at `POST /resource/{identity}`: chunks into
+//! [`resource`]'s store, completion last. Beside the run, the queue's two verbs: `POST
 //! /enqueue` and `POST /dequeue`, per the SDK's
 //! `agentic_loop_container` module — the caller's way into the
 //! conversation already running.
@@ -63,7 +63,10 @@ async fn run() {
         .route("/", axum::routing::post(serve))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
-        .route("/resource", axum::routing::post(resource_delivery));
+        .route(
+            "/resource/{identity}",
+            axum::routing::post(resource_delivery),
+        );
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", PORT))
         .await
@@ -130,6 +133,7 @@ async fn enqueue(
 /// server posts only in answer to the stream's asks, and an unasked
 /// delivery is inert.
 async fn resource_delivery(
+    axum::extract::Path(identity): axum::extract::Path<String>,
     body: axum::body::Bytes,
 ) -> Result<
     Json<agentic_loop_container::resource::Response>,
@@ -149,11 +153,10 @@ async fn resource_delivery(
             }
         };
     let taken = match request {
-        agentic_loop_container::resource::Request::Chunk {
-            identity,
-            body,
-        } => resource::STORE.chunk(&identity, body),
-        agentic_loop_container::resource::Request::Complete { identity } => {
+        agentic_loop_container::resource::Request::Chunk { body } => {
+            resource::STORE.chunk(&identity, body)
+        }
+        agentic_loop_container::resource::Request::Complete => {
             resource::STORE.complete(&identity)
         }
     };

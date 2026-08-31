@@ -10,9 +10,10 @@
 //! in-container proxy on port 8081. Beside the run, the queue's two
 //! verbs: `POST /enqueue` and `POST /dequeue`, per the SDK's
 //! `agentic_loop_container` module — the caller's way into the
-//! conversation already running. `POST /resource` is served because
-//! the surface has it, and answers honestly: an `openrouter` agent
-//! names no resources, so every delivery is unrequested.
+//! conversation already running. `POST /resource/{identity}` is
+//! served because the surface has it, and answers honestly: an
+//! `openrouter` agent names no resources, so every delivery is
+//! unrequested.
 
 mod continuation;
 mod fetch;
@@ -78,7 +79,7 @@ async fn run() {
         .route("/", axum::routing::post(serve))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
-        .route("/resource", axum::routing::post(resource));
+        .route("/resource/{identity}", axum::routing::post(resource));
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", PORT))
         .await
@@ -245,6 +246,7 @@ async fn enqueue(
 /// one: `409` — after the body itself is judged, so a malformed
 /// POST is still its sender's first problem (`400`).
 async fn resource(
+    axum::extract::Path(_identity): axum::extract::Path<String>,
     body: axum::body::Bytes,
 ) -> Result<
     Json<agentic_loop_container::resource::Response>,

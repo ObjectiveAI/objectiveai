@@ -5,8 +5,19 @@
 //! the container asked for an identity's bytes, the server obtained
 //! them (from the client over the wire's own FetchResource
 //! exchange, or from its own store), and this route is how they
-//! arrive — `POST /resource` on the loop port, one POST per chunk,
-//! then one more saying the resource is whole.
+//! arrive — `POST /resource/{identity}` on the loop port, one POST
+//! per chunk, then one more saying the resource is whole.
+//!
+//! # The identity is the path
+//!
+//! `{identity}` is one path segment carrying the resource's
+//! size-bearing identity verbatim — the FILE grammar,
+//! `f1:<size>:<base64url sha256 of the bytes>`, every character of
+//! which is legal in a path segment as-is, so nothing needs
+//! percent-encoding (a framework that decodes anyway changes
+//! nothing). Stated HERE because it can only be stated: a type can
+//! carry a body, and [`Request`] does, but a route's path is
+//! convention, and this paragraph is that convention's one home.
 //!
 //! # One route, a tag says which
 //!
@@ -18,9 +29,10 @@
 //!
 //! # Chunks append; the completion says whole
 //!
-//! Chunks of one identity arrive in POST order — the server posts
-//! one at a time, each answered before the next — and the receiver
-//! appends, never measures: the sender's chunking (at most
+//! Chunks of one identity — one path — arrive in POST order: the
+//! server posts one at a time, each answered before the next, and
+//! the receiver appends, never measures: the sender's chunking (at
+//! most
 //! [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
 //! per POST) is the sender's business. The completion POST is what
 //! says every chunk is in; a lone completion with no chunks before
