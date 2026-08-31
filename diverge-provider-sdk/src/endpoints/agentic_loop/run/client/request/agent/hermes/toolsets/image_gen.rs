@@ -9,13 +9,13 @@ use serde::{Deserialize, Serialize};
 /// providers (openai, krea, deepinfra, xai) are deliberately
 /// absent at this pin — one keyed path is enough until asked for
 /// more.
-#[derive(
-    Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
-)]
+///
+/// The key is REQUIRED: generation has no keyless path, so a
+/// switch thrown on without one could only mean a dead toolset.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Toolset {
     /// The FAL key, applied as `FAL_KEY` in the gateway's process
     /// environment. [`video_gen`](super::video_gen) names the same
     /// variable; a request supplying both MUST agree with itself.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fal_key: Option<String>,
+    pub fal_key: String,
 }
