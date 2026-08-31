@@ -4,8 +4,12 @@ use serde::{Deserialize, Serialize};
 
 /// Text-to-speech, with its arguments. The field being absent from
 /// [`Toolsets`](super::Toolsets) is Hermes's own default for this
-/// toolset; present is the switch thrown on. Keyless by default —
-/// Hermes's edge-tts path needs nothing — with one keyed upgrade.
+/// toolset; present is the switch thrown on.
+///
+/// The key is OPTIONAL by the keyless-floor rule: Hermes's default
+/// voice is edge-tts, which needs nothing — the empty object is
+/// speech on the free voice, coherently. The key is the upgrade,
+/// not the existence.
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
