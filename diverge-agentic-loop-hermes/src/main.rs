@@ -7,8 +7,9 @@
 //! stream, each event one item of the container response vocabulary
 //! — the loop's chunks, and the container's own `fetch_resource`
 //! asks for the agent's `*_resource` identities, answered by the
-//! server at `POST /resource/{identity}`: chunks into
-//! [`resource`]'s store, completion last. Beside the run, the queue's two verbs: `POST
+//! server on the `/resource/{identity}` routes: chunks into
+//! [`resource`]'s store, settled by `/complete` — or by `/error`,
+//! when the bytes can never come. Beside the run, the queue's two verbs: `POST
 //! /enqueue` and `POST /dequeue`, per the SDK's
 //! `agentic_loop_container` module — the caller's way into the
 //! conversation already running.
@@ -29,7 +30,6 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_provider_sdk::agentic_loop_container;
-use diverge_provider_sdk::decode::Decode as _;
 
 /// The loop port of the Container section of the provider
 /// specification: where the server POSTs the request in.
@@ -65,7 +65,15 @@ async fn run() {
         .route("/dequeue", axum::routing::post(dequeue))
         .route(
             "/resource/{identity}",
-            axum::routing::post(resource_delivery),
+            axum::routing::post(resource_chunk),
+        )
+        .route(
+            "/resource/{identity}/complete",
+            axum::routing::post(resource_complete),
+        )
+        .route(
+            "/resource/{identity}/error",
+            axum::routing::post(resource_error),
         );
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", PORT))
@@ -123,43 +131,55 @@ async fn enqueue(
     })
 }
 
-/// A resource delivery into the store the run will read.
+/// One chunk into the store the run will read.
 ///
-/// Chunks append and the completion seals — [`resource::Store`] is
-/// the whole of the behavior. A body that does not parse is its
-/// sender's problem (`400`); a delivery for a sealed identity is
-/// refused (`409`), because bytes after "whole" are somebody's bug.
-/// Whether the delivery was ever asked for is not judged: the
-/// server posts only in answer to the stream's asks, and an unasked
-/// delivery is inert.
-async fn resource_delivery(
+/// The body is the bytes verbatim, so nothing can be malformed —
+/// the one refusal is a delivery for a settled identity (`409`),
+/// because anything after a settlement is somebody's bug. Whether
+/// the delivery was ever asked for is not judged: the server posts
+/// only in answer to the stream's asks, and an unasked delivery is
+/// inert.
+async fn resource_chunk(
     axum::extract::Path(identity): axum::extract::Path<String>,
     body: axum::body::Bytes,
 ) -> Result<
     Json<agentic_loop_container::resource::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    let request =
-        match agentic_loop_container::resource::Request::decode(&body) {
-            Ok(request) => request,
-            Err(error) => {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(serde_json::json!({
-                        "kind": "malformed",
-                        "error": error.to_string(),
-                    })),
-                ));
-            }
-        };
-    let taken = match request {
-        agentic_loop_container::resource::Request::Chunk { body } => {
-            resource::STORE.chunk(&identity, body)
-        }
-        agentic_loop_container::resource::Request::Complete => {
-            resource::STORE.complete(&identity)
-        }
-    };
+    settled(resource::STORE.chunk(&identity, &body))
+}
+
+/// The completion: every chunk is in, the run may collect.
+async fn resource_complete(
+    axum::extract::Path(identity): axum::extract::Path<String>,
+    Json(_request): Json<agentic_loop_container::resource::complete::Request>,
+) -> Result<
+    Json<agentic_loop_container::resource::complete::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    settled(resource::STORE.complete(&identity))
+}
+
+/// The failure: the bytes can never come, and the waiting fetch
+/// completes with the server's error instead.
+async fn resource_error(
+    axum::extract::Path(identity): axum::extract::Path<String>,
+    Json(request): Json<agentic_loop_container::resource::error::Request>,
+) -> Result<
+    Json<agentic_loop_container::resource::error::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    settled(resource::STORE.error(&identity, request.error))
+}
+
+/// The three routes' one verdict: taken (`received`), or refused
+/// because the identity was already settled (`409`).
+fn settled(
+    taken: bool,
+) -> Result<
+    Json<agentic_loop_container::resource::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
     if taken {
         Ok(Json(agentic_loop_container::resource::Response {
             r#type: Default::default(),
@@ -168,8 +188,8 @@ async fn resource_delivery(
         Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
-                "kind": "complete",
-                "error": "the resource is already complete",
+                "kind": "settled",
+                "error": "the resource is already settled",
             })),
         ))
     }

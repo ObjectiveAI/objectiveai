@@ -37,7 +37,6 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_provider_sdk::agentic_loop_container;
-use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::Agent;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
     AgenticLoopChunk, NotificationChunk,
@@ -79,7 +78,15 @@ async fn run() {
         .route("/", axum::routing::post(serve))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
-        .route("/resource/{identity}", axum::routing::post(resource));
+        .route("/resource/{identity}", axum::routing::post(resource))
+        .route(
+            "/resource/{identity}/complete",
+            axum::routing::post(resource_complete),
+        )
+        .route(
+            "/resource/{identity}/error",
+            axum::routing::post(resource_error),
+        );
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", PORT))
         .await
@@ -238,38 +245,55 @@ async fn enqueue(
     }
 }
 
-/// A resource delivery, for a container that never asks for one.
+/// A resource chunk, for a container that never asks for one.
 ///
-/// The route is the surface's, so it is served; the answer is
+/// The routes are the surface's, so they are served; the answer is
 /// honest. An `openrouter` agent names no resources, so no ask ever
 /// rides this container's stream and no delivery can be answering
-/// one: `409` — after the body itself is judged, so a malformed
-/// POST is still its sender's first problem (`400`).
+/// one: `409`, on all three routes alike (a chunk cannot be
+/// malformed — any bytes are one; the endings' JSON is judged by
+/// the extractor).
 async fn resource(
     axum::extract::Path(_identity): axum::extract::Path<String>,
-    body: axum::body::Bytes,
+    _body: axum::body::Bytes,
 ) -> Result<
     Json<agentic_loop_container::resource::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    if let Err(error) =
-        agentic_loop_container::resource::Request::decode(&body)
-    {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "kind": "malformed",
-                "error": error.to_string(),
-            })),
-        ));
-    }
-    Err((
+    Err(unrequested())
+}
+
+/// A resource completion — unrequested, as [`resource`] says.
+async fn resource_complete(
+    axum::extract::Path(_identity): axum::extract::Path<String>,
+    Json(_request): Json<agentic_loop_container::resource::complete::Request>,
+) -> Result<
+    Json<agentic_loop_container::resource::complete::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    Err(unrequested())
+}
+
+/// A resource failure — unrequested, as [`resource`] says.
+async fn resource_error(
+    axum::extract::Path(_identity): axum::extract::Path<String>,
+    Json(_request): Json<agentic_loop_container::resource::error::Request>,
+) -> Result<
+    Json<agentic_loop_container::resource::error::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    Err(unrequested())
+}
+
+/// The resource routes' one honest answer here.
+fn unrequested() -> (StatusCode, Json<serde_json::Value>) {
+    (
         StatusCode::CONFLICT,
         Json(serde_json::json!({
             "kind": "unrequested",
             "error": "this container never asks for resources",
         })),
-    ))
+    )
 }
 
 /// Clear the running conversation's queue.
