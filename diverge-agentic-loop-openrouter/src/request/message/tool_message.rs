@@ -43,12 +43,12 @@ impl ToolMessage {
     ///
     /// Messages enqueued while the tools ran enter the conversation
     /// right behind the tool answers, and this is how the model
-    /// sees them: one section spliced AHEAD of the tool's own
-    /// content — the position the old proxy's queue notifications
-    /// used — the texts joined by a blank line, the whole wrapped in
-    /// a `system-reminder` pair. Tokenless, unlike the old form:
-    /// delivery is confirmed by the container's own fates now, and
-    /// nothing downstream scans for a token anymore.
+    /// sees them: one section spliced AFTER the tool's own content,
+    /// preceded by a blank line — the tail, reached last and read
+    /// freshest — the texts joined by a blank line, the whole
+    /// wrapped in a `system-reminder` pair. Tokenless, unlike the
+    /// old form: delivery is confirmed by the container's own fates
+    /// now, and nothing downstream scans for a token anymore.
     ///
     /// Derived here and ONLY here: the continuation stores the
     /// delivered prompts as bare `Prompt` items, and this section is
@@ -56,15 +56,15 @@ impl ToolMessage {
     /// the history remembers.
     pub fn fold_steer(&mut self, texts: &[String]) {
         let section = format!(
-            "<system-reminder>\nThe user sent a new message while you were working:\n{}\n</system-reminder>\n\n",
+            "\n\n<system-reminder>\nThe user sent a new message while you were working:\n{}\n</system-reminder>",
             texts.join("\n\n"),
         );
         match &mut self.content {
             RichContent::Parts(parts) => {
-                parts.insert(0, RichContentPart::Text { text: section });
+                parts.push(RichContentPart::Text { text: section });
             }
             RichContent::Text(text) => {
-                *text = format!("{section}{text}");
+                text.push_str(&section);
             }
         }
     }
