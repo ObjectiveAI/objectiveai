@@ -8,8 +8,9 @@
 //! when the request named resources — the container's own
 //! [`fetch_resource`](response::FetchResource) asks, which the
 //! server consumes and answers by POSTing the bytes back in at
-//! `POST /resource/{identity}` ([`resource`]), chunked, completion
-//! last.
+//! `POST /resource/{identity}` ([`resource`]), chunked, settled by
+//! the completion — or by the error, when the bytes can never
+//! come.
 //! Beside it, the running conversation's queue has exactly two
 //! verbs: [`enqueue`] puts a message in at `POST /enqueue`,
 //! [`dequeue`] clears whatever has not yet been taken at
