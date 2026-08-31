@@ -4,13 +4,16 @@
 //! whose `upstream` is `claude_code`, per the Container section of the
 //! provider specification: one POST at `/` on port 8080 carries the
 //! caller's request JSON in, and the answer is a server-sent event
-//! stream, each event one chunk of the response vocabulary — the run
-//! itself a Claude Code subprocess behind [`spawn`]. MCP is asked on
-//! port 8081, Postgres opened to port 8082. Beside the run, the
-//! queue's two verbs: `POST /enqueue` and `POST /dequeue`, per the
-//! SDK's `agentic_loop_container` module — the caller's way into the
-//! conversation already running: Claude Code holds the queue, and
-//! this container holds the writer.
+//! stream, each event one item of the container response vocabulary
+//! — the run itself a Claude Code subprocess behind [`spawn`]. MCP
+//! is asked on port 8081, Postgres opened to port 8082. Beside the
+//! run, the queue's two verbs: `POST /enqueue` and `POST /dequeue`,
+//! per the SDK's `agentic_loop_container` module — the caller's way
+//! into the conversation already running: Claude Code holds the
+//! queue, and this container holds the writer. `POST /resource` is
+//! served because the surface has it, and answers honestly: a
+//! `claude_code` agent names no resources, so every delivery is
+//! unrequested.
 
 mod continuation;
 // The wire module carries Claude Code's COMPLETE stdout vocabulary,
@@ -26,6 +29,7 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::Agent;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
     AgenticLoopChunk, ContinuationChunk, NotificationChunk,
@@ -71,7 +75,8 @@ async fn run() {
     let app = axum::Router::new()
         .route("/", axum::routing::post(serve))
         .route("/enqueue", axum::routing::post(enqueue))
-        .route("/dequeue", axum::routing::post(dequeue));
+        .route("/dequeue", axum::routing::post(dequeue))
+        .route("/resource", axum::routing::post(resource));
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", PORT))
         .await
@@ -361,11 +366,14 @@ fn notification(
     })
 }
 
-/// One chunk as one SSE event, carrying the chunk's JSON. The
-/// chunk IS the SDK's `agentic_loop_container` response item — the
-/// alias points here.
+/// One chunk as one SSE event, carrying the chunk's JSON — the
+/// [`Chunk`](agentic_loop_container::response::Response::Chunk) arm
+/// of the container response item, which serializes as the bare
+/// chunk. (The union's other arm is the resource ask, which this
+/// container never sends.)
 fn event(chunk: AgenticLoopChunk) -> Result<Event, axum::Error> {
-    Event::default().json_data(&chunk)
+    Event::default()
+        .json_data(agentic_loop_container::response::Response::Chunk(chunk))
 }
 
 /// The install gate every endpoint stands behind: waits out an
@@ -401,6 +409,41 @@ async fn enqueue(
 > {
     installed().await?;
     Ok(Json(spawn::enqueue(request.prompt).await))
+}
+
+/// A resource delivery, for a container that never asks for one.
+///
+/// The route is the surface's, so it is served; the answer is
+/// honest. A `claude_code` agent names no resources, so no ask ever
+/// rides this container's stream and no delivery can be answering
+/// one: `409` — after the body itself is judged, so a malformed
+/// POST is still its sender's first problem (`400`). The one other
+/// HTTP failure is the install's.
+async fn resource(
+    body: axum::body::Bytes,
+) -> Result<
+    Json<agentic_loop_container::resource::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    installed().await?;
+    if let Err(error) =
+        agentic_loop_container::resource::Request::decode(&body)
+    {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "kind": "malformed",
+                "error": error.to_string(),
+            })),
+        ));
+    }
+    Err((
+        StatusCode::CONFLICT,
+        Json(serde_json::json!({
+            "kind": "unrequested",
+            "error": "this container never asks for resources",
+        })),
+    ))
 }
 
 /// Clear the running conversation's queue.

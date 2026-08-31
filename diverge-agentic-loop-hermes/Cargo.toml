@@ -21,6 +21,7 @@ diverge-provider-sdk = { path = "../diverge-provider-sdk" }
 # `Stream` and its combinators, for the chunk stream the response is.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
-# The runtime under the listener. No `macros` — the runtime is built in
-# main, not attributed onto it.
-tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread"] }
+# The runtime under the listener, plus `sync` for the Notify the
+# resource store wakes its collector with. No `macros` — the runtime
+# is built in main, not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }

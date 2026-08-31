@@ -4,13 +4,15 @@
 //! whose `upstream` is `openrouter`, per the Container section of the
 //! provider specification: one POST at `/` on port 8080 carries the
 //! caller's request JSON in, and the answer is a server-sent event
-//! stream, each event one chunk of the response vocabulary — the
-//! turns behind it run by [`r#loop`](r#loop::r#loop). The agent's
-//! tool calls go out as an MCP client against the in-container proxy
-//! on port 8081. Beside the run, the queue's two verbs: `POST
-//! /enqueue` and `POST /dequeue`, per the SDK's
+//! stream, each event one item of the container response vocabulary
+//! — the turns behind it run by [`r#loop`](r#loop::r#loop). The
+//! agent's tool calls go out as an MCP client against the
+//! in-container proxy on port 8081. Beside the run, the queue's two
+//! verbs: `POST /enqueue` and `POST /dequeue`, per the SDK's
 //! `agentic_loop_container` module — the caller's way into the
-//! conversation already running.
+//! conversation already running. `POST /resource` is served because
+//! the surface has it, and answers honestly: an `openrouter` agent
+//! names no resources, so every delivery is unrequested.
 
 mod continuation;
 mod fetch;
@@ -34,8 +36,11 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::Agent;
-use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::NotificationChunk;
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
+    AgenticLoopChunk, NotificationChunk,
+};
 use futures_util::{Stream, StreamExt as _};
 
 use crate::continuation::Continuation;
@@ -72,7 +77,8 @@ async fn run() {
     let app = axum::Router::new()
         .route("/", axum::routing::post(serve))
         .route("/enqueue", axum::routing::post(enqueue))
-        .route("/dequeue", axum::routing::post(dequeue));
+        .route("/dequeue", axum::routing::post(dequeue))
+        .route("/resource", axum::routing::post(resource));
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", PORT))
         .await
@@ -189,16 +195,16 @@ async fn serve(
             // The stream has already begun; there is no status left to
             // change. The failure travels IN the stream, fatally, and
             // fetch ends the stream right after it.
-            Err(error) => agentic_loop_container::response::Response::Notification(
-                NotificationChunk {
-                    r#type: Default::default(),
-                    is_fatal: true,
-                    message: error.message(),
-                    meta: None,
-                },
-            ),
+            Err(error) => AgenticLoopChunk::Notification(NotificationChunk {
+                r#type: Default::default(),
+                is_fatal: true,
+                message: error.message(),
+                meta: None,
+            }),
         };
-        Event::default().json_data(&chunk)
+        Event::default().json_data(
+            agentic_loop_container::response::Response::Chunk(chunk),
+        )
     })))
 }
 
@@ -229,6 +235,39 @@ async fn enqueue(
             })),
         )),
     }
+}
+
+/// A resource delivery, for a container that never asks for one.
+///
+/// The route is the surface's, so it is served; the answer is
+/// honest. An `openrouter` agent names no resources, so no ask ever
+/// rides this container's stream and no delivery can be answering
+/// one: `409` — after the body itself is judged, so a malformed
+/// POST is still its sender's first problem (`400`).
+async fn resource(
+    body: axum::body::Bytes,
+) -> Result<
+    Json<agentic_loop_container::resource::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    if let Err(error) =
+        agentic_loop_container::resource::Request::decode(&body)
+    {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "kind": "malformed",
+                "error": error.to_string(),
+            })),
+        ));
+    }
+    Err((
+        StatusCode::CONFLICT,
+        Json(serde_json::json!({
+            "kind": "unrequested",
+            "error": "this container never asks for resources",
+        })),
+    ))
 }
 
 /// Clear the running conversation's queue.
