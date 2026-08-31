@@ -1,6 +1,17 @@
 # The hermes agentic_loop image: the loop on 8080, the MCP proxy
 # on 8081, both musl binaries on Alpine.
 #
+# BOOTSTRAP: this image carries only the harness binaries; the
+# runtime pieces land when the run does. The runtime image MUST
+# also carry, beside `hermes-agent` itself:
+#   - `ddgs` (pip): the keyless web-search fallback is
+#     presence-detected (web_tools.py:416-428) — without the
+#     package, zero-credential web search loses its last resort;
+#   - python3, node + chromium (browser toolset), the
+#     edge-tts/fal extras;
+#   - NO ~/.hermes/.env file — it would shadow the process env the
+#     harness provisions (reports/10.md).
+#
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
 #     podman build -f diverge-agentic-loop-hermes/Containerfile .
