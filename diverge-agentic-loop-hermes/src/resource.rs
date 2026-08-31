@@ -1,19 +1,26 @@
 //! Where delivered resources land, and where the run collects them.
 
-use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
+use std::sync::LazyLock;
 
+use dashmap::DashMap;
 use tokio::sync::Notify;
 
 /// The one store, alive as long as the container: deliveries arrive
 /// on the `/resource/{identity}` routes whenever the server sends
 /// them, and the run reads them whenever it is ready — neither side
 /// waits on the other's schedule, so the meeting place is a static.
-/// Lazy because a `HashMap` cannot be built in a const.
+/// Lazy because a `DashMap` cannot be built in a const.
 pub static STORE: LazyLock<Store> = LazyLock::new(Store::new);
 
 /// Resources by identity: chunks appended as they arrive, settled
 /// by the completion or the error, collected once by the run.
+///
+/// A [`DashMap`], not a map behind one mutex: the map shards by
+/// key, so concurrent deliveries of DIFFERENT identities append in
+/// parallel instead of queuing on a single lock — same-identity
+/// POSTs are sequential by the server's own one-at-a-time rule
+/// anyway. No shard guard is ever held across an await; the one
+/// wait, [`take`](Self::take)'s, sits outside the map.
 ///
 /// Whether a delivery was ever ASKED for is not judged here — the
 /// server posts only in answer to the stream's asks, and an unasked
@@ -21,9 +28,8 @@ pub static STORE: LazyLock<Store> = LazyLock::new(Store::new);
 /// identity takes nothing more, because anything after a settlement
 /// is somebody's bug.
 pub struct Store {
-    /// A std mutex, not tokio's: every hold is a few appends long
-    /// and nothing awaits inside one.
-    entries: Mutex<HashMap<String, Entry>>,
+    /// The resources, sharded by identity.
+    entries: DashMap<String, Entry>,
     /// Woken on every settlement, so a run waiting in
     /// [`take`](Self::take) re-checks.
     settled: Notify,
@@ -45,7 +51,7 @@ enum Entry {
 impl Store {
     fn new() -> Self {
         Store {
-            entries: Mutex::new(HashMap::new()),
+            entries: DashMap::new(),
             settled: Notify::new(),
         }
     }
@@ -53,11 +59,11 @@ impl Store {
     /// Append one chunk. Answers whether it was taken — `false`
     /// means the identity was already settled.
     pub fn chunk(&self, identity: &str, body: &[u8]) -> bool {
-        let mut entries = self.entries.lock().expect("the store is poisoned");
-        let entry = entries
+        let mut entry = self
+            .entries
             .entry(identity.to_string())
             .or_insert_with(|| Entry::Assembling(Vec::new()));
-        match entry {
+        match entry.value_mut() {
             Entry::Assembling(bytes) => {
                 bytes.extend_from_slice(body);
                 true
@@ -83,26 +89,32 @@ impl Store {
     }
 
     /// The one settlement, twice worn: swap an assembling (or
-    /// absent) entry for its ending and wake the waiters. A settled
-    /// entry refuses.
+    /// absent) entry for its ending and wake the waiters — after
+    /// the shard guard drops, so a woken waiter reaching for the
+    /// map never meets it.
     fn settle(
         &self,
         identity: &str,
         ending: impl FnOnce(Vec<u8>) -> Entry,
     ) -> bool {
-        let mut entries = self.entries.lock().expect("the store is poisoned");
-        let entry = entries
-            .entry(identity.to_string())
-            .or_insert_with(|| Entry::Assembling(Vec::new()));
-        match entry {
-            Entry::Assembling(bytes) => {
-                *entry = ending(std::mem::take(bytes));
-                drop(entries);
-                self.settled.notify_waiters();
-                true
+        let taken = {
+            let mut entry = self
+                .entries
+                .entry(identity.to_string())
+                .or_insert_with(|| Entry::Assembling(Vec::new()));
+            let value = entry.value_mut();
+            match value {
+                Entry::Assembling(bytes) => {
+                    *value = ending(std::mem::take(bytes));
+                    true
+                }
+                Entry::Complete(_) | Entry::Failed(_) => false,
             }
-            Entry::Complete(_) | Entry::Failed(_) => false,
+        };
+        if taken {
+            self.settled.notify_waiters();
         }
+        taken
     }
 
     /// The resource behind one identity, settled — waiting for the
@@ -122,24 +134,20 @@ impl Store {
             // between the check and the wait is a wakeup, not a
             // lost one.
             let settled = self.settled.notified();
+            // Removal only if settled, atomically — an assembling
+            // entry stays where the next chunk expects it.
+            if let Some((_, entry)) =
+                self.entries.remove_if(identity, |_, entry| {
+                    matches!(entry, Entry::Complete(_) | Entry::Failed(_))
+                })
             {
-                let mut entries =
-                    self.entries.lock().expect("the store is poisoned");
-                match entries.get(identity) {
-                    Some(Entry::Complete(_) | Entry::Failed(_)) => {
-                        return match entries
-                            .remove(identity)
-                            .expect("checked present above")
-                        {
-                            Entry::Complete(bytes) => Ok(bytes),
-                            Entry::Failed(error) => Err(error),
-                            Entry::Assembling(_) => {
-                                unreachable!("checked settled above")
-                            }
-                        };
+                return match entry {
+                    Entry::Complete(bytes) => Ok(bytes),
+                    Entry::Failed(error) => Err(error),
+                    Entry::Assembling(_) => {
+                        unreachable!("remove_if took only settled entries")
                     }
-                    Some(Entry::Assembling(_)) | None => {}
-                }
+                };
             }
             settled.await;
         }

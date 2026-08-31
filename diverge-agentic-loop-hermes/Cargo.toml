@@ -14,6 +14,10 @@ publish = false
 # the Container specification names. Default features carry the JSON
 # extractor and the HTTP/1 server.
 axum = { version = "0.8.9" }
+# The resource store's map: sharded by key, so concurrent deliveries
+# of different identities append in parallel instead of queuing on
+# one mutex.
+dashmap = { version = "6.2.1" }
 # Path-only: this crate rides the workspace and is never published, so
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.
