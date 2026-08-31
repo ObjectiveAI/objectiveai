@@ -15,8 +15,10 @@ use serde::{Deserialize, Serialize};
 ///
 /// CLOSED at the pin, deliberately: user plugins can extend Hermes's
 /// registry, but the container runs stock Hermes, so the bundled set
-/// is the whole vocabulary — minus the providers whose auth cannot
-/// be an argument at all (see [the module](super)).
+/// is the whole vocabulary — minus `copilot-acp`, whose auth is not
+/// Hermes's to hold (see [the module](super)). Rotating-OAuth
+/// providers carry their state as RESOURCES rather than plain
+/// values; the module doc says what that means.
 ///
 /// Hermes's own `auto` — provider detection from whatever
 /// credentials happen to be present — is deliberately NOT here, and
@@ -74,14 +76,20 @@ pub enum Provider {
     Minimax(super::minimax::Provider),
     /// See [`minimax_cn::Provider`](super::minimax_cn::Provider).
     MinimaxCn(super::minimax_cn::Provider),
+    /// See [`minimax_oauth::Provider`](super::minimax_oauth::Provider).
+    MinimaxOauth(super::minimax_oauth::Provider),
     /// See [`nebius_token_factory::Provider`](super::nebius_token_factory::Provider).
     NebiusTokenFactory(super::nebius_token_factory::Provider),
+    /// See [`nous::Provider`](super::nous::Provider).
+    Nous(super::nous::Provider),
     /// See [`novita::Provider`](super::novita::Provider).
     Novita(super::novita::Provider),
     /// See [`nvidia::Provider`](super::nvidia::Provider).
     Nvidia(super::nvidia::Provider),
     /// See [`ollama_cloud::Provider`](super::ollama_cloud::Provider).
     OllamaCloud(super::ollama_cloud::Provider),
+    /// See [`openai_codex::Provider`](super::openai_codex::Provider).
+    OpenaiCodex(super::openai_codex::Provider),
     /// See [`opencode_free::Provider`](super::opencode_free::Provider).
     OpencodeFree(super::opencode_free::Provider),
     /// See [`opencode_go::Provider`](super::opencode_go::Provider).
@@ -90,6 +98,8 @@ pub enum Provider {
     OpencodeZen(super::opencode_zen::Provider),
     /// See [`openrouter::Provider`](super::openrouter::Provider).
     Openrouter(super::openrouter::Provider),
+    /// See [`qwen_oauth::Provider`](super::qwen_oauth::Provider).
+    QwenOauth(super::qwen_oauth::Provider),
     /// See [`router::Provider`](super::router::Provider).
     Router(super::router::Provider),
     /// See [`stepfun::Provider`](super::stepfun::Provider).
