@@ -24,10 +24,8 @@
 mod resource;
 mod resource_fetcher;
 // The response module carries the gateway's COMPLETE run-event
-// vocabulary, which is more than the conversion will consume — a
-// field parsed and never read is the completeness, not dead code.
-// (unused_imports rides along until the run exists to read them.)
-#[allow(dead_code, unused_imports)]
+// vocabulary. Until the run exists to read it, its dead-code
+// warnings stand as the honest reminder of exactly that.
 mod response;
 
 use std::sync::atomic::{AtomicBool, Ordering};

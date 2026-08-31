@@ -30,9 +30,6 @@ use crate::resource;
 /// conflicting with nothing. Once per identity per run, though — collecting a
 /// resource removes it — which is the natural shape: the run asks
 /// once per resource field.
-// The run that calls this is not implemented yet; the fetcher is
-// the round-trip's client half, not dead weight.
-#[allow(dead_code)]
 pub struct ResourceFetcher {
     /// The ask half. Everything sent here must surface on the SSE
     /// stream as a `fetch_resource` event — the receiver rides with
@@ -40,7 +37,6 @@ pub struct ResourceFetcher {
     asks: UnboundedSender<FetchResource>,
 }
 
-#[allow(dead_code)]
 impl ResourceFetcher {
     /// The fetcher and the ask stream it feeds, a pair: the main
     /// endpoint constructs both, keeps the receiver for the

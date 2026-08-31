@@ -122,9 +122,6 @@ impl Store {
     /// long that takes (nothing in this protocol times anything
     /// out). The whole bytes, or the server's error. Removes the
     /// entry: a resource is collected once, by the one run.
-    // The run that calls this is not implemented yet; the collector
-    // is the store's other half, not dead weight.
-    #[allow(dead_code)]
     pub async fn take(
         &self,
         identity: &str,
