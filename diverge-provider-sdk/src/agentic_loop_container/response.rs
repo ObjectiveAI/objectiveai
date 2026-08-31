@@ -1,15 +1,66 @@
 //! What a container streams back.
 
+use serde::{Deserialize, Serialize};
+
+use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
+
 /// One event of a container's response stream.
 ///
-/// An alias, because what a container streams is the protocol's own
-/// chunk vocabulary, one chunk per server-sent event — see
-/// [`AgenticLoopChunk`](crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk)
-/// for what it is.
+/// **Untagged, discriminated by payload**, the way this crate's JSON
+/// unions are: an [`AgenticLoopChunk`] pins one of the chunk
+/// vocabulary's own `type` constants, and [`FetchResource`] pins
+/// `fetch_resource`, which is none of them.
 ///
-/// An alias rather than a re-export because this module is real. The
-/// path says the container's response lives here, and it does,
-/// rather than naming somewhere else and hoping a reader follows.
-/// What the alias points at is right there in the signature.
-pub type Response =
-    crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
+/// Almost everything a container streams is the protocol's own
+/// chunk vocabulary, one chunk per server-sent event, relayed to
+/// the client unchanged. The second variant is the exception that
+/// made this a union: an ask that rides the only stream the
+/// container has, addressed to the SERVER rather than the client —
+/// see [`FetchResource`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Response {
+    /// One chunk of the loop — the client's to receive, relayed
+    /// verbatim. See
+    /// [`AgenticLoopChunk`].
+    Chunk(AgenticLoopChunk),
+    /// The container asking for a resource's bytes. The server's to
+    /// consume, never the client's to see. See [`FetchResource`].
+    FetchResource(FetchResource),
+}
+
+/// The container asking the server for a resource it only knows by
+/// identity.
+///
+/// A request names resources as size-bearing identities — the FILE
+/// grammar, `f1:<size>:<base64url sha256 of the bytes>` — and the
+/// bytes live with the client, behind the server. When the
+/// container needs them, this event is the ask: the server fetches
+/// the content (its own
+/// [`FetchResource`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchResource)
+/// exchange toward the client, or its own store), then POSTs the
+/// bytes into the container at `/resource` — chunks, then the
+/// completion; see [`resource`](super::resource).
+///
+/// It is not a chunk and never reaches the client: the client is
+/// what the bytes come FROM. A server relaying the stream forwards
+/// [`Chunk`](Response::Chunk) events and consumes these.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FetchResource {
+    /// Always `fetch_resource`.
+    pub r#type: FetchResourceType,
+    /// The resource's size-bearing identity, the FILE grammar:
+    /// `f1:<size>:<base64url sha256 of the bytes>`.
+    pub identity: String,
+}
+
+/// The `fetch_resource` literal.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum FetchResourceType {
+    /// The only value.
+    #[default]
+    FetchResource,
+}

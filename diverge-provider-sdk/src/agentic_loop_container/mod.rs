@@ -4,11 +4,16 @@
 //! takes THE request ([`request::Request`]) at `POST /` on the loop
 //! port — `8080`, per the Container section of the provider
 //! specification — and answers with a server-sent event stream whose
-//! events are [`response::Response`] chunks. Beside it, the running
-//! conversation's queue has exactly two verbs: [`enqueue`] puts a
-//! message in at `POST /enqueue`, [`dequeue`] clears whatever has
-//! not yet been taken at `POST /dequeue`. Every container speaks all
-//! of it identically, which is what lets a provider relay a caller's
+//! events are [`response::Response`] items: the loop's chunks, and —
+//! when the request named resources — the container's own
+//! [`fetch_resource`](response::FetchResource) asks, which the
+//! server consumes and answers by POSTing the bytes back in at
+//! `POST /resource` ([`resource`]), chunked, completion last.
+//! Beside it, the running conversation's queue has exactly two
+//! verbs: [`enqueue`] puts a message in at `POST /enqueue`,
+//! [`dequeue`] clears whatever has not yet been taken at
+//! `POST /dequeue`. Every container speaks all of it identically,
+//! which is what lets a provider relay a caller's
 //! [`Enqueue`](crate::endpoints::agentic_loop::run::client::channel_request::Frame::Enqueue)
 //! or
 //! [`Dequeue`](crate::endpoints::agentic_loop::run::client::channel_request::Frame::Dequeue)
@@ -47,4 +52,5 @@
 pub mod dequeue;
 pub mod enqueue;
 pub mod request;
+pub mod resource;
 pub mod response;
