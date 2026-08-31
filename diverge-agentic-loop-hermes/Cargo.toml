@@ -24,6 +24,9 @@ dashmap = { version = "6.2.1" }
 diverge-provider-sdk = { path = "../diverge-provider-sdk" }
 # `Stream` and its combinators, for the chunk stream the response is.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The derives under the response module — the gateway's run-event
+# vocabulary is read with them.
+serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 # The runtime under the listener, plus `sync` for the Notify the
 # resource store wakes its collector with. No `macros` — the runtime
