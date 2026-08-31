@@ -1,14 +1,14 @@
 //! Hermes agent parameters.
 
 pub mod provider;
+pub mod toolsets;
 
 mod agent;
 mod effort;
-mod toolsets;
 mod upstream;
 
 pub use agent::*;
 pub use effort::*;
 pub use provider::Provider;
-pub use toolsets::*;
+pub use toolsets::Toolsets;
 pub use upstream::*;
