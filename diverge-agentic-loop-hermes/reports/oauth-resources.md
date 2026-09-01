@@ -2,14 +2,14 @@
 
 From the pinned source (`sources/hermes-agent`, v0.20.6). The
 provider-auth report initially dropped the four rotating-OAuth
-providers; that was wrong-way-round. The POINT of auth-as-arguments
-is that rotation becomes supportable: the caller hands the current
-OAuth state in as a RESOURCE (`*_resource` fields on the provider
-structures), the run rotates it, and the rotated state is surfaced back so the
-caller's next request carries current credentials. This report records the
-exact documents, where the harness seeds them, and the gates around them.
-(`copilot-acp` stays dropped — its auth lives in a spawned external CLI, not
-in Hermes.)
+providers; that was wrong-way-round. The POINT of auth-as-arguments is
+that rotation becomes supportable: the caller hands the current OAuth
+state in as a RESOURCE (`*_resource` fields on the provider
+structures), the run rotates it, and the rotated state is surfaced
+back so the caller's next request carries current credentials. This
+report records the exact documents, where the harness seeds them, and
+the gates around them. (`copilot-acp` stays dropped — its auth lives
+in a spawned external CLI, not in Hermes.)
 
 ## auth.json fundamentals
 
