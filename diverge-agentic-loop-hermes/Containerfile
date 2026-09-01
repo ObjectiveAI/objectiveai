@@ -10,7 +10,7 @@
 #   - python3, node + chromium (browser toolset), the
 #     edge-tts/fal extras;
 #   - NO ~/.hermes/.env file — it would shadow the process env the
-#     harness provisions (reports/10.md).
+#     harness provisions (reports/provider-auth.md).
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #

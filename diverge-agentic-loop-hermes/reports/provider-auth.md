@@ -1,4 +1,4 @@
-# Report 10 — provider auth as arguments: the application table
+# Provider auth as arguments: the application table
 
 From the pinned source (`sources/hermes-agent`, v0.20.6). This is
 the record behind the SDK's `hermes/provider/` module: for every
@@ -122,7 +122,7 @@ env vars are VESTIGIAL — `NOUS_API_KEY` has
 state document is the only credential there is. They ride the
 vocabulary as RESOURCES: caller-provided state the run rotates,
 surfaced back to the caller afterward. The full seeding and
-rotation record is report 11.
+rotation record is `oauth-resources.md`.
 
 ## Dropped from the vocabulary (1)
 

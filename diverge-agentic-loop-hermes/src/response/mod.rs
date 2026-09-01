@@ -2,8 +2,8 @@
 //!
 //! Everything `GET /v1/runs/{run_id}/events` can send, as types —
 //! verified against the pinned Hermes source, recorded in
-//! `reports/14.md`. Deserialize-only: this is the direction the
-//! harness reads, and it never writes these.
+//! `reports/run-event-stream.md`. Deserialize-only: this is the
+//! direction the harness reads, and it never writes these.
 //!
 //! The stream's contract, in brief:
 //!

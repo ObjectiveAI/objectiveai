@@ -1,4 +1,4 @@
-# Report 13 — toolset auth: the per-tool table
+# Toolset auth: the per-tool table
 
 From the pinned source (`sources/hermes-agent`, v0.20.6). The
 record behind the SDK's `hermes/toolsets/` module: what credentials

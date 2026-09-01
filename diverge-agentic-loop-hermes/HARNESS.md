@@ -23,7 +23,7 @@ carries them as arguments (provider structures, toolset structures,
 - vertex's service-account JSON to a file + `VERTEX_CREDENTIALS_PATH`;
 - `model.api_key` in config.yaml for `custom`.
 
-Rules that make this work (reports 10, 11):
+Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
 
 - The image ships NO `~/.hermes/.env` — that file SHADOWS the
   process environment when present.
@@ -66,16 +66,17 @@ fail-closed stall it otherwise costs.
 ## The wire is /v1/runs, and the stream is not the tool channel
 
 - Drive the gateway API server: `POST /v1/runs`, events at
-  `GET /v1/runs/{id}/events`. The stream's full contract is report
-  14 and the `response` module: 12 event types discriminated by the
-  payload's own `event` key; `: keepalive` and `: stream closed`
-  are SSE COMMENTS; EOF must always terminate (a mid-stream failure
-  closes the socket with no sentinel); the queue buffers from POST
-  time but serves exactly ONE subscriber, destructively, with a
-  300s unsubscribed TTL.
-- Tool responses are NEVER on that stream (report 12) — the
-  container emits its `tool_response` chunks from its own MCP
-  proxy's view, the only byte-faithful one. The gateway events
+  `GET /v1/runs/{id}/events`. The stream's full contract is
+  `run-event-stream.md` and the `response` module: 12 event types
+  discriminated by the payload's own `event` key; `: keepalive`
+  and `: stream closed` are SSE COMMENTS; EOF must always terminate
+  (a mid-stream failure closes the socket with no sentinel); the
+  queue buffers from POST time but serves exactly ONE subscriber,
+  destructively, with a 300s unsubscribed TTL.
+- Tool responses are NEVER on that stream
+  (`gateway-tool-response.md`) — the container emits its
+  `tool_response` chunks from its own MCP proxy's view, the only
+  byte-faithful one. The gateway events
   supply timing, reasoning glimpses, deltas and the bill.
 - The enqueue/dequeue queue lives in the proxy; pending prompts
   fold onto the next tool response AT ITS TAIL (`\n\n` + one

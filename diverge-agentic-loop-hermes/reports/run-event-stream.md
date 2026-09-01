@@ -1,4 +1,4 @@
-# Report 14 — the /v1/runs event stream, whole
+# The /v1/runs event stream, whole
 
 From the pinned source (`sources/hermes-agent`, v0.20.6). The
 complete contract of `GET /v1/runs/{run_id}/events`
@@ -38,7 +38,7 @@ is the comment above.
 | event | beyond `event`/`run_id`/`timestamp` | producer |
 |---|---|---|
 | `tool.started` | `tool` (string OR null), `preview` (string OR null — the ARGS preview, unlimited by default) | `:7518-7525` |
-| `tool.completed` | `tool` (string OR null), `duration` (number — `round(x,3)`, a bare int `0` when unset), `error` (bool, `is_error` passthrough) | `:7526-7534`; the `result=` kwarg is dropped (report 12) |
+| `tool.completed` | `tool` (string OR null), `duration` (number — `round(x,3)`, a bare int `0` when unset), `error` (bool, `is_error` passthrough) | `:7526-7534`; the `result=` kwarg is dropped (`gateway-tool-response.md`) |
 | `reasoning.available` | `text` (string, ≤500 chars — `_think_text[:500]` at `agent/conversation_loop.py:6920`) | `:7535-7541` |
 | `subagent.start` | allowlisted optionals, see below | `:7542-7585` |
 | `subagent.complete` | same allowlist | same branch |

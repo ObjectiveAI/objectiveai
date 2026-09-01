@@ -1,4 +1,4 @@
-# Report 12 — the gateway and the tool response: never truncated, never emitted, and modified before the model sees it
+# The gateway and the tool response: never truncated, never emitted, and modified before the model sees it
 
 From the pinned source (`sources/hermes-agent`, v0.20.6). Two
 questions, answered as fact: does the `/v1/runs` SSE stream ever
