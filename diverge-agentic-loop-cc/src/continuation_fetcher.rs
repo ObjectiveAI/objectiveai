@@ -4,8 +4,14 @@
 //! continuation, so there is one slot and nothing to name. The
 //! server delivers it on the `/continuation` routes — chunks, then
 //! the completion or the error — and the run's handler collects the
-//! settled whole with [`Store::fetch`], having first sent the ask
+//! settled sequence with [`Store::fetch`], having first sent the ask
 //! itself, on the socket it owns.
+//!
+//! Unlike a resource, a continuation is KEPT AS CHUNKS: the protocol
+//! preserves the pieces an earlier run closed with, boundaries and
+//! order intact, and a container may have put meaning in those
+//! boundaries. So the slot holds a sequence, one entry per POST,
+//! and hands the sequence back — it never joins.
 
 use std::error;
 use std::fmt;
@@ -21,9 +27,9 @@ pub static STORE: Store = Store {
     settled: Notify::const_new(),
 };
 
-/// The continuation being delivered: chunks appended as they
-/// arrive, settled by the completion or the error, collected once
-/// by the run.
+/// The continuation being delivered: chunks kept as they arrive,
+/// one entry each, settled by the completion or the error, collected
+/// once by the run.
 ///
 /// Whether a delivery was ever ASKED for is not judged here — the
 /// server posts only in answer to the socket's ask, and an unasked
@@ -31,8 +37,8 @@ pub static STORE: Store = Store {
 /// nothing more, because anything after a settlement is somebody's
 /// bug.
 pub struct Store {
-    /// The slot. A tokio mutex, held for a few appends and never
-    /// across an await.
+    /// The slot. A tokio mutex, held for a push and never across an
+    /// await.
     slot: Mutex<Entry>,
     /// Woken on the settlement, so a run waiting in
     /// [`fetch`](Self::fetch) re-checks.
@@ -42,10 +48,10 @@ pub struct Store {
 /// The delivery, in whichever state it has reached.
 enum Entry {
     /// Chunks are landing; more may follow.
-    Assembling(Vec<u8>),
-    /// The completion came: the bytes are the whole continuation —
+    Assembling(Vec<Vec<u8>>),
+    /// The completion came: the chunks are the whole continuation —
     /// or none at all, which is the fresh start.
-    Complete(Vec<u8>),
+    Complete(Vec<Vec<u8>>),
     /// The error came: the bytes will never be whole, and this is
     /// the server's word on why. Whatever chunks preceded it went
     /// with it.
@@ -55,13 +61,13 @@ enum Entry {
 }
 
 impl Store {
-    /// Append one chunk. Answers whether it was taken — `false`
-    /// means the delivery was already settled.
+    /// Keep one chunk, as its own entry. Answers whether it was taken
+    /// — `false` means the delivery was already settled.
     pub async fn chunk(&self, body: &[u8]) -> bool {
         let mut slot = self.slot.lock().await;
         match &mut *slot {
-            Entry::Assembling(bytes) => {
-                bytes.extend_from_slice(body);
+            Entry::Assembling(chunks) => {
+                chunks.push(body.to_vec());
                 true
             }
             Entry::Complete(_) | Entry::Failed(_) | Entry::Taken => false,
@@ -84,12 +90,15 @@ impl Store {
 
     /// The one settlement, twice worn: swap the assembling slot for
     /// its ending and wake the waiter — after the lock drops.
-    async fn settle(&self, ending: impl FnOnce(Vec<u8>) -> Entry) -> bool {
+    async fn settle(
+        &self,
+        ending: impl FnOnce(Vec<Vec<u8>>) -> Entry,
+    ) -> bool {
         let taken = {
             let mut slot = self.slot.lock().await;
             match &mut *slot {
-                Entry::Assembling(bytes) => {
-                    *slot = ending(std::mem::take(bytes));
+                Entry::Assembling(chunks) => {
+                    *slot = ending(std::mem::take(chunks));
                     true
                 }
                 Entry::Complete(_) | Entry::Failed(_) | Entry::Taken => false,
@@ -101,12 +110,13 @@ impl Store {
         taken
     }
 
-    /// The continuation, settled — waiting for the completion or the
-    /// error if neither has come yet, however long that takes
-    /// (nothing in this protocol times anything out). `None` is the
-    /// fresh start: the completion came with no bytes before it.
-    /// Collected once; a second call is a bug, and says so.
-    pub async fn fetch(&self) -> Result<Option<Vec<u8>>, FetchError> {
+    /// The continuation, settled — its chunks in delivery order,
+    /// waiting for the completion or the error if neither has come
+    /// yet, however long that takes (nothing in this protocol times
+    /// anything out). `None` is the fresh start: the completion came
+    /// with no chunks before it. Collected once; a second call is a
+    /// bug, and says so.
+    pub async fn fetch(&self) -> Result<Option<Vec<Vec<u8>>>, FetchError> {
         loop {
             // Armed before the check, so a settlement landing between
             // the check and the wait is a wakeup, not a lost one.
@@ -117,8 +127,8 @@ impl Store {
                     Entry::Assembling(_) => {}
                     Entry::Complete(_) | Entry::Failed(_) => {
                         return match std::mem::replace(&mut *slot, Entry::Taken) {
-                            Entry::Complete(bytes) => {
-                                Ok((!bytes.is_empty()).then_some(bytes))
+                            Entry::Complete(chunks) => {
+                                Ok((!chunks.is_empty()).then_some(chunks))
                             }
                             Entry::Failed(error) => Err(FetchError::Failed(error)),
                             Entry::Assembling(_) | Entry::Taken => {

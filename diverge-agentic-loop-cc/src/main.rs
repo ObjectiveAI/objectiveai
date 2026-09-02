@@ -248,7 +248,7 @@ async fn drive(socket: &mut WebSocket) {
     }
     let continuation = match continuation_fetcher::STORE.fetch().await {
         Ok(None) => None,
-        Ok(Some(bytes)) => match Continuation::parse(&bytes) {
+        Ok(Some(chunks)) => match Continuation::parse(&chunks) {
             Ok(continuation) => Some(continuation),
             Err(error) => {
                 fail(
