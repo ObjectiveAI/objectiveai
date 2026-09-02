@@ -9,11 +9,16 @@
 //! spotify, the Qwen CLI's token file at the real home, vertex's
 //! service-account file — and, when the caller holds one, the
 //! session's own state: `state.db` and the two memory files, which
-//! is the [`continuation`]. [`prepare`] does all of it in one pass
-//! and hands back [`Prepared`]: the environment the spawner sets on
-//! the gateway process, the API server key the run driver will
-//! present, and whether a session was resumed. After the gateway
-//! exits, [`continuation::stream`] is the way back up.
+//! is the [`continuation`]. After the gateway exits, what it changed
+//! has to go back to the caller: every resource as the run left it,
+//! then the continuation.
+//!
+//! Two entry points, one each way. [`prepare`] lays it all down in
+//! one pass and hands back [`Prepared`]: the environment the spawner
+//! sets on the gateway process, the API server key the run driver
+//! will present, and whether a session was resumed. [`finish`]
+//! streams it all back up as [`Export`] items — the resources first,
+//! the continuation last, since the closer closes.
 //!
 //! # What is and is not here
 //!
@@ -50,6 +55,8 @@
 mod ask;
 mod config;
 mod error;
+mod export;
+mod finish_error;
 mod plan;
 mod prepared;
 mod provider;
@@ -59,6 +66,8 @@ pub mod continuation;
 
 pub use ask::*;
 pub use error::*;
+pub use export::*;
+pub use finish_error::*;
 pub use plan::*;
 pub use prepared::*;
 
@@ -66,7 +75,8 @@ use std::path::Path;
 
 use diverge_provider_sdk::agentic_loop_container::request::Request;
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::Agent;
-use futures_util::TryFutureExt as _;
+use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::hermes;
+use futures_util::{Stream, StreamExt as _, TryFutureExt as _};
 use futures_util::future;
 use uuid::Uuid;
 
@@ -131,13 +141,7 @@ pub async fn prepare(
     request: &Request,
     fetcher: Fetcher,
 ) -> Result<Prepared, PrepareError> {
-    let Agent::Hermes(agent) = &request.agent else {
-        return Err(PrepareError::WrongAgent);
-    };
-
-    let mut plan = Plan::new(agent.model.clone());
-    provider::apply(&agent.provider, &mut plan)?;
-    toolsets::apply(&agent.toolsets, &mut plan)?;
+    let mut plan = plan(request)?;
     // The geometry, pinned: the home the continuation and the
     // credential files were laid down under, whatever the
     // container's `HOME` says.
@@ -218,4 +222,79 @@ pub async fn prepare(
         env: plan.env,
         api_server_key,
     })
+}
+
+/// The request's agent, read into a [`Plan`]: what both entry points
+/// start from. The wrong agent kind is refused here.
+fn plan(request: &Request) -> Result<Plan, PrepareError> {
+    let Agent::Hermes(agent) = &request.agent else {
+        return Err(PrepareError::WrongAgent);
+    };
+    let agent: &hermes::Agent = agent;
+    let mut plan = Plan::new(agent.model.clone());
+    provider::apply(&agent.provider, &mut plan)?;
+    toolsets::apply(&agent.toolsets, &mut plan)?;
+    Ok(plan)
+}
+
+/// Stream the filesystem back out, after the gateway has exited:
+/// every resource the request named, as the run left it, then the
+/// continuation as the closer.
+///
+/// The request is read into the same [`Plan`] [`prepare`] built, for
+/// the one thing it says here: which resources were named and which
+/// file each landed in. Then, in that order, each is read back —
+/// `auth.json` once, its `providers.<name>` entry re-serialized; the
+/// Qwen file verbatim — and yielded whole under the request field's
+/// dotted path. A resource that is no longer there yields nothing:
+/// Hermes quarantines an entry whose refresh failed for good, and
+/// the caller keeping what it had is the honest answer, not a lost
+/// continuation. Last, the continuation: the database folded, then
+/// the files streamed a piece at a time, one alive at once.
+///
+/// Every failure is an item, and ends the stream.
+pub fn finish(request: &Request) -> impl Stream<Item = Result<Export, FinishError>> {
+    let plan = plan(request);
+    async_stream::try_stream! {
+        let plan = plan?;
+        let home = Path::new(HERMES_HOME);
+
+        // The resources, as the run left them.
+        let mut store: Option<serde_json::Value> = None;
+        for ask in &plan.asks {
+            let body = match ask.target {
+                Target::AuthEntry(name) => {
+                    if store.is_none() {
+                        let bytes = tokio::fs::read(home.join(AUTH_FILE)).await?;
+                        store = Some(serde_json::from_slice(&bytes)?);
+                    }
+                    let entry = store
+                        .as_ref()
+                        .and_then(|store| store.get("providers"))
+                        .and_then(|providers| providers.get(name));
+                    match entry {
+                        Some(entry) => serde_json::to_vec(entry)?,
+                        None => continue,
+                    }
+                }
+                Target::QwenCreds => match tokio::fs::read(QWEN_CREDS).await {
+                    Ok(bytes) => bytes,
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                        continue;
+                    }
+                    Err(error) => Err(FinishError::Io(error))?,
+                },
+            };
+            yield Export::Resource {
+                name: ask.field,
+                body,
+            };
+        }
+
+        // The continuation, last.
+        let mut pieces = Box::pin(continuation::stream().await?);
+        while let Some(piece) = pieces.next().await {
+            yield Export::Continuation(piece?);
+        }
+    }
 }

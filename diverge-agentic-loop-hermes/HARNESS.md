@@ -44,7 +44,15 @@ Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
   path, `provider.auth_resource` / `toolsets.spotify.auth_resource`),
   then the whole new document. Not terminal; the last one wins.
 
-## The `filesystem` module lays all of it down, once
+## The `filesystem` module lays all of it down, once — and streams it back
+
+Two entry points: `filesystem::prepare` before the gateway,
+`filesystem::finish` after it has exited. `finish` streams every
+resource the request named, as the run left it (the `auth.json`
+entry re-serialized, the Qwen file verbatim — a resource no longer
+there yields nothing, since Hermes quarantines a terminally-failed
+entry and the caller keeping its copy beats a lost run), and THEN
+the continuation, the closer, a piece at a time.
 
 `filesystem::prepare` turns the request's agent into the gateway's
 process environment (returned to the spawner — the request's own
