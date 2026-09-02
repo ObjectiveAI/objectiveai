@@ -4,7 +4,7 @@ use serde::Serialize;
 
 /// The body of `POST /v1/runs`, the fields this container uses of
 /// the ones the gateway reads (`api_server.py`, `_handle_runs`) —
-/// less the history, which [`run`](super::run) reads for the session
+/// less the history, which [`run`](fn@super::run) reads for the session
 /// itself.
 ///
 /// Deliberately absent: `provider` (the run's provider is
@@ -22,7 +22,7 @@ pub struct Request {
     pub instructions: Option<String>,
     /// The session the run records into — the lineage's tip when
     /// resuming, or absent for a fresh session the gateway names.
-    /// Naming one also makes [`run`](super::run) read its transcript
+    /// Naming one also makes [`run`](fn@super::run) read its transcript
     /// and send it as the history: `/v1/runs` loads none itself.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,

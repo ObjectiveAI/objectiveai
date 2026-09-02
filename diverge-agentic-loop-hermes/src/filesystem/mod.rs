@@ -19,7 +19,7 @@
 //! will present, and the session to resume if one landed. [`finish`]
 //! streams it all back up as [`Export`] items — the resources first,
 //! the continuation last, since the closer closes. Between them,
-//! [`history`] reads a session's transcript out of the landed
+//! [`history()`] reads a session's transcript out of the landed
 //! database for the run to resume from.
 //!
 //! # What is and is not here
@@ -119,7 +119,7 @@ pub const API_SERVER_PORT: u16 = 8642;
 pub const QWEN_CREDS: &str = "/root/.qwen/oauth_creds.json";
 
 /// The session store, at the home's root — the continuation's, and
-/// [`history`]'s to read.
+/// [`history()`]'s to read.
 const STATE_DB: &str = "state.db";
 
 /// Hermes's configuration file, under the home.

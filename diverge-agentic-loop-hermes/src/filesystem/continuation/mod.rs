@@ -35,11 +35,11 @@
 //! The container is fresh. The continuation lands ([`Ingest`])
 //! before `hermes gateway` ever starts, so there is nothing stale to
 //! clear and nothing else touching the files; the gateway runs; it
-//! exits; the harvest ([`stream`]) folds the database and reads the
+//! exits; the harvest ([`stream()`]) folds the database and reads the
 //! files. Nothing is validated that the flow already guarantees: a
 //! chunk goes to the file its tag names, in whatever order chunks
 //! come, and the one thing judged before the gateway starts is that
-//! a delivered `state.db` opens ([`check`]).
+//! a delivered `state.db` opens ([`check()`]).
 //!
 //! # Never whole in memory
 //!
@@ -47,7 +47,7 @@
 //! with it, and both will be large. So nothing here holds a
 //! continuation: on the way IN, [`Ingest`] appends each chunk to
 //! its file the moment it lands and keeps only the open handle; on
-//! the way OUT, [`stream`] reads each file [`PIECE`] bytes at a
+//! the way OUT, [`stream()`] reads each file [`PIECE`] bytes at a
 //! time and yields each piece as it is read, one alive at once.
 //!
 //! # Two standing rules

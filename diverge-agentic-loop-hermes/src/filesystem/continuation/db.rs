@@ -9,7 +9,7 @@ use sqlx::{ConnectOptions as _, Connection as _, Row as _};
 use super::ReadError;
 
 /// Fold the write-ahead log into `state.db`: see
-/// [`stream`](super::stream).
+/// [`stream`](fn@super::stream).
 pub(super) async fn fold(db: &Path) -> Result<(), ReadError> {
     let mut connection = open(db).await?;
     // Autocommit: nothing here opened a transaction, and VACUUM
