@@ -6,72 +6,43 @@ use std::path::Path;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt as _;
 
-use super::fs::{remove_if_present, sidecar};
-use super::{HERMES_HOME, IngestError, Landed, MEMORIES, STATE_DB, TAGS, path_for};
+use super::{HERMES_HOME, IngestError, MEMORIES, STATE_DB_TAG, path_for};
 
 /// A continuation being written to disk as it arrives.
 ///
 /// Started on the first chunk, fed one chunk at a time, finished
 /// once. Each chunk's payload is appended to the file its tag names
 /// the moment it lands; between chunks nothing is held but the open
-/// handle of the file currently being written. The rules a delivery
-/// must keep, each with its refusal: a chunk with no bytes at all
-/// has no tag ([`IngestError::Empty`]); a tag that is none of the
-/// three ([`UnknownTag`](IngestError::UnknownTag)); a file's chunks
-/// must be contiguous and the files in ascending tag order, so a tag
-/// lower than the last seen is a sequence reordered or interleaved
-/// ([`Order`](IngestError::Order)); and a continuation with no
-/// `state.db` is no continuation
-/// ([`MissingStateDb`](IngestError::MissingStateDb), judged at the
-/// finish).
+/// handle of the file currently being written. Two refusals: a chunk
+/// with no bytes at all has no tag ([`IngestError::Empty`]), and a
+/// tag that is none of the three
+/// ([`UnknownTag`](IngestError::UnknownTag)); and one judged at the
+/// finish — a continuation with no `state.db` is no continuation
+/// ([`MissingStateDb`](IngestError::MissingStateDb)).
 pub struct Ingest {
-    /// The tag before this one, for the order rule.
-    last: Option<u8>,
-    /// The file the current tag appends to, and which tag it is.
+    /// The file the current tag appends to, and which tag it is —
+    /// kept open across same-tag chunks, reopened on a change.
     open: Option<(u8, File)>,
-    /// Which files exist so far.
-    landed: Landed,
+    /// Whether any `state.db` chunk has landed.
+    state_db: bool,
 }
 
 impl Ingest {
-    /// Make room: the memory directory created, and anything stale
-    /// removed — all three files, since every one is APPENDED to and
-    /// a leftover would be prepended to the delivery, and the
-    /// `state.db` sidecars, since a leftover write-ahead log beside a
-    /// fresh copy would be replayed INTO it. Called by the store on
-    /// the first chunk, so a fresh start (no chunks) touches nothing.
+    /// Make room: the memory directory, which Hermes has not created
+    /// yet. The container is fresh — nothing stale exists to clear.
     pub async fn start() -> io::Result<Self> {
-        let home = Path::new(HERMES_HOME);
-        tokio::fs::create_dir_all(home.join(MEMORIES)).await?;
-        for tag in TAGS {
-            remove_if_present(&path_for(tag).expect("one of the three"))
-                .await?;
-        }
-        let db = home.join(STATE_DB);
-        for suffix in ["-wal", "-shm", "-journal"] {
-            remove_if_present(&sidecar(&db, suffix)).await?;
-        }
+        tokio::fs::create_dir_all(Path::new(HERMES_HOME).join(MEMORIES))
+            .await?;
         Ok(Ingest {
-            last: None,
             open: None,
-            landed: Landed::NONE,
+            state_db: false,
         })
     }
 
-    /// Land one chunk: judge its tag, append its payload to the
-    /// tag's file. A new tag closes the file before it and opens
-    /// its own — created even when this chunk is tag-only, so an
-    /// empty file round-trips as present.
+    /// Land one chunk: append its payload to the file its tag names.
     pub async fn push(&mut self, chunk: &[u8]) -> Result<(), IngestError> {
         let (tag, payload) = chunk.split_first().ok_or(IngestError::Empty)?;
         let path = path_for(*tag).ok_or(IngestError::UnknownTag(*tag))?;
-        if let Some(after) = self.last
-            && *tag < after
-        {
-            return Err(IngestError::Order { tag: *tag, after });
-        }
-        self.last = Some(*tag);
-
         if self.open.as_ref().is_none_or(|(open, _)| *open != *tag) {
             self.close_open().await?;
             let file = OpenOptions::new()
@@ -80,22 +51,22 @@ impl Ingest {
                 .open(&path)
                 .await?;
             self.open = Some((*tag, file));
-            self.landed.mark(*tag);
+            self.state_db |= *tag == STATE_DB_TAG;
         }
         let (_, file) = self.open.as_mut().expect("opened just above");
         file.write_all(payload).await?;
         Ok(())
     }
 
-    /// The delivery is complete: flush and close the last file, and
-    /// say what landed. A delivery that never carried `state.db`
-    /// fails here — there is nothing to resume from.
-    pub async fn finish(mut self) -> Result<Landed, IngestError> {
+    /// The delivery is complete: flush and close the last file. A
+    /// delivery that never carried `state.db` fails here — there is
+    /// nothing to resume from.
+    pub async fn finish(mut self) -> Result<(), IngestError> {
         self.close_open().await?;
-        if !self.landed.state_db {
+        if !self.state_db {
             return Err(IngestError::MissingStateDb);
         }
-        Ok(self.landed)
+        Ok(())
     }
 
     /// Flush and sync the open file, if any, and let it go.

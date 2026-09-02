@@ -26,11 +26,20 @@
 //! order intact, from this container's closer to the caller and
 //! back. So each chunk leads with one tag byte naming its file —
 //! `0` state.db, `1` MEMORY.md, `2` USER.md — and carries a piece of
-//! that file. A file longer than a piece spans several consecutive
-//! chunks with the same tag; a present-but-empty file is one
-//! tag-only chunk; the files come in ascending tag order. No
-//! lengths, no envelope: the boundaries the protocol preserves are
-//! the framing.
+//! that file; a file longer than a piece is several chunks with the
+//! same tag. No lengths, no envelope: the boundaries the protocol
+//! preserves are the framing.
+//!
+//! # The flow, and what it spares
+//!
+//! The container is fresh. The continuation lands ([`Ingest`])
+//! before `hermes gateway` ever starts, so there is nothing stale to
+//! clear and nothing else touching the files; the gateway runs; it
+//! exits; the harvest ([`stream`]) folds the database and reads the
+//! files. Nothing is validated that the flow already guarantees: a
+//! chunk goes to the file its tag names, in whatever order chunks
+//! come, and the one thing judged before the gateway starts is that
+//! a delivered `state.db` opens ([`check`]).
 //!
 //! # Never whole in memory
 //!
@@ -39,9 +48,7 @@
 //! continuation: on the way IN, [`Ingest`] appends each chunk to
 //! its file the moment it lands and keeps only the open handle; on
 //! the way OUT, [`stream`] reads each file [`PIECE`] bytes at a
-//! time and yields each piece as it is read, one alive at once. The
-//! ingest's order rule — files ascending, each contiguous — is
-//! exactly the order the stream sends them in.
+//! time and yields each piece as it is read, one alive at once.
 //!
 //! # Two standing rules
 //!
@@ -56,10 +63,8 @@
 mod check;
 mod check_error;
 mod db;
-mod fs;
 mod ingest;
 mod ingest_error;
-mod landed;
 mod read_error;
 mod stream;
 
@@ -67,7 +72,6 @@ pub use check::*;
 pub use check_error::*;
 pub use ingest::*;
 pub use ingest_error::*;
-pub use landed::*;
 pub use read_error::*;
 pub use stream::*;
 
@@ -101,7 +105,7 @@ const MEMORY_TAG: u8 = 1;
 /// Tag for chunks of `memories/USER.md`.
 const USER_TAG: u8 = 2;
 
-/// The three, in the order they are sent and must arrive.
+/// The three, in the order the harvest sends them.
 const TAGS: [u8; 3] = [STATE_DB_TAG, MEMORY_TAG, USER_TAG];
 
 /// How much of a file one outbound chunk carries — the most of the

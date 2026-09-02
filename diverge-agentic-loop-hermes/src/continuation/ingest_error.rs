@@ -11,15 +11,6 @@ pub enum IngestError {
     Empty,
     /// A tag that names none of the three files.
     UnknownTag(u8),
-    /// A tag lower than the one before it: the files come in
-    /// ascending order, each contiguous, and this sequence was
-    /// reordered or interleaved.
-    Order {
-        /// The tag that arrived.
-        tag: u8,
-        /// The tag it arrived after.
-        after: u8,
-    },
     /// The delivery finished without a `state.db` chunk.
     MissingStateDb,
     /// A file could not be prepared, appended to, or closed.
@@ -35,10 +26,6 @@ impl fmt::Display for IngestError {
             IngestError::UnknownTag(tag) => {
                 write!(f, "unknown continuation chunk tag {tag}")
             }
-            IngestError::Order { tag, after } => write!(
-                f,
-                "continuation chunk tag {tag} arrived after tag {after}"
-            ),
             IngestError::MissingStateDb => {
                 f.write_str("the continuation carries no state.db")
             }
@@ -55,7 +42,6 @@ impl error::Error for IngestError {
             IngestError::Io(error) => Some(error),
             IngestError::Empty
             | IngestError::UnknownTag(_)
-            | IngestError::Order { .. }
             | IngestError::MissingStateDb => None,
         }
     }

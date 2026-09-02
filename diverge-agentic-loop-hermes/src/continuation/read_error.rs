@@ -7,7 +7,7 @@ use std::io;
 /// A harvest that could not happen.
 #[derive(Debug)]
 pub enum ReadError {
-    /// A file could not be read, or a sidecar inspected or removed.
+    /// A file could not be read.
     Io(io::Error),
     /// The database could not be opened, vacuumed, checkpointed or
     /// closed.
@@ -15,10 +15,6 @@ pub enum ReadError {
     /// The checkpoint was blocked: something still holds the
     /// database, and the gateway was supposed to be gone.
     Busy,
-    /// The write-ahead log still carries this many bytes after the
-    /// close: the fold did not happen, and the main file alone would
-    /// lose committed transactions.
-    WalRemains(u64),
 }
 
 impl fmt::Display for ReadError {
@@ -33,10 +29,6 @@ impl fmt::Display for ReadError {
             ReadError::Busy => f.write_str(
                 "the state.db checkpoint was blocked: something still holds the database",
             ),
-            ReadError::WalRemains(len) => write!(
-                f,
-                "the state.db write-ahead log still holds {len} bytes after the fold"
-            ),
         }
     }
 }
@@ -46,7 +38,7 @@ impl error::Error for ReadError {
         match self {
             ReadError::Io(error) => Some(error),
             ReadError::Sqlite(error) => Some(error),
-            ReadError::Busy | ReadError::WalRemains(_) => None,
+            ReadError::Busy => None,
         }
     }
 }

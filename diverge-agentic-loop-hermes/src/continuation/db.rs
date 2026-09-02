@@ -1,17 +1,15 @@
 //! The SQLite side: one connection, and the fold that leaves a lone
 //! file.
 
-use std::io;
 use std::path::Path;
 
 use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
 use sqlx::{ConnectOptions as _, Connection as _, Row as _};
 
 use super::ReadError;
-use super::fs::{remove_if_present, sidecar};
 
-/// Fold the write-ahead log into `state.db` and leave a lone file:
-/// see [`stream`](super::stream).
+/// Fold the write-ahead log into `state.db`: see
+/// [`stream`](super::stream).
 pub(super) async fn fold(db: &Path) -> Result<(), ReadError> {
     let mut connection = open(db).await?;
     // Autocommit: nothing here opened a transaction, and VACUUM
@@ -33,17 +31,6 @@ pub(super) async fn fold(db: &Path) -> Result<(), ReadError> {
         return Err(ReadError::Busy);
     }
     connection.close().await?;
-
-    let wal = sidecar(db, "-wal");
-    match tokio::fs::metadata(&wal).await {
-        Ok(meta) if meta.len() > 0 => {
-            return Err(ReadError::WalRemains(meta.len()));
-        }
-        Ok(_) => tokio::fs::remove_file(&wal).await?,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error.into()),
-    }
-    remove_if_present(&sidecar(db, "-shm")).await?;
     Ok(())
 }
 

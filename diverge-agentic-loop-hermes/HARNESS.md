@@ -139,9 +139,10 @@ resources, caches regenerate, skill writing is unsupported. The
   rows record `cwd` and the git root.
 - On the wire the protocol KEEPS chunk boundaries (nobody joins or
   splits a continuation's pieces), so each chunk leads with one tag
-  byte naming its file — `0` state.db, `1` MEMORY.md, `2` USER.md —
-  files in ascending order, a file's chunks contiguous, an empty
-  file one tag-only chunk.
+  byte naming its file — `0` state.db, `1` MEMORY.md, `2` USER.md.
+  The ingest appends each chunk to its tag's file and judges nothing
+  else: the container is fresh and the delivery lands before the
+  gateway starts, so there is nothing stale and no order to police.
 - Follow-up: the built-in `memory` toolset is worth re-enabling now
   that the continuation is where its writes persist.
 

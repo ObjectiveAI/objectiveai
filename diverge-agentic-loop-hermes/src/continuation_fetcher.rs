@@ -13,8 +13,8 @@
 //! memories — and is never held in memory. Each chunk goes to disk
 //! the moment it lands, appended to the file its tag names by the
 //! [`Ingest`] the slot keeps open; what the slot remembers is only
-//! the ingest itself and, once settled, which files landed. The run
-//! then finds its state on the filesystem, where Hermes reads it.
+//! the ingest itself and, once settled, whether anything landed. The
+//! run then finds its state on the filesystem, where Hermes reads it.
 
 use std::error;
 use std::fmt;
@@ -22,7 +22,7 @@ use std::fmt;
 use tokio::sync::{Mutex, Notify};
 
 use crate::continuation;
-use crate::continuation::{CheckError, Ingest, IngestError, Landed};
+use crate::continuation::{CheckError, Ingest, IngestError};
 
 /// The one slot, alive as long as the container: deliveries arrive
 /// whenever the server sends them, and the run reads whenever it is
@@ -56,9 +56,9 @@ enum Entry {
     /// Chunks may land; more may follow. `None` until the first one
     /// starts the ingest — so a fresh start touches no file.
     Assembling(Option<Ingest>),
-    /// The completion came: the files are on disk, and these are
-    /// they — or none at all, which is the fresh start.
-    Complete(Landed),
+    /// The completion came: `true`, the files are on disk; `false`,
+    /// nothing landed — the fresh start.
+    Complete(bool),
     /// The delivery failed, one way or the other.
     Failed(Failure),
     /// The run collected it. A continuation is collected once.
@@ -110,9 +110,9 @@ impl Store {
             return false;
         };
         *slot = match ingest.take() {
-            None => Entry::Complete(Landed::NONE),
+            None => Entry::Complete(false),
             Some(ingest) => match ingest.finish().await {
-                Ok(landed) => Entry::Complete(landed),
+                Ok(()) => Entry::Complete(true),
                 Err(error) => Entry::Failed(Failure::Ingest(error)),
             },
         };
@@ -137,14 +137,14 @@ impl Store {
         true
     }
 
-    /// The continuation, settled and on disk — waiting for the
-    /// completion or the error if neither has come yet, however long
-    /// that takes (nothing in this protocol times anything out).
-    /// `None` is the fresh start: the completion came with no chunks
-    /// before it. A delivered database is proved to open
-    /// ([`continuation::check`]) before it is handed over. Collected
-    /// once; a second call is a bug, and says so.
-    pub async fn fetch(&self) -> Result<Option<Landed>, FetchError> {
+    /// Whether a continuation is on disk — waiting for the completion
+    /// or the error if neither has come yet, however long that takes
+    /// (nothing in this protocol times anything out). `false` is the
+    /// fresh start: the completion came with no chunks before it. A
+    /// delivered database is proved to open ([`continuation::check`])
+    /// before `true` is answered. Collected once; a second call is a
+    /// bug, and says so.
+    pub async fn fetch(&self) -> Result<bool, FetchError> {
         loop {
             // Armed before the check, so a settlement landing between
             // the check and the wait is a wakeup, not a lost one.
@@ -161,12 +161,11 @@ impl Store {
             };
             match taken {
                 None => settled.await,
-                Some(Entry::Complete(landed)) => {
-                    if !landed.state_db {
-                        return Ok(None);
+                Some(Entry::Complete(resumed)) => {
+                    if resumed {
+                        continuation::check().await?;
                     }
-                    continuation::check().await?;
-                    return Ok(Some(landed));
+                    return Ok(resumed);
                 }
                 Some(Entry::Failed(Failure::Server(error))) => {
                     return Err(FetchError::Failed(error));
