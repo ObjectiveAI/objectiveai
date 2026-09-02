@@ -16,7 +16,7 @@
 //! Two entry points, one each way. [`prepare`] lays it all down in
 //! one pass and hands back [`Prepared`]: the environment the spawner
 //! sets on the gateway process, the API server key the run driver
-//! will present, and whether a session was resumed. [`finish`]
+//! will present, and the session to resume if one landed. [`finish`]
 //! streams it all back up as [`Export`] items — the resources first,
 //! the continuation last, since the closer closes.
 //!
@@ -170,7 +170,7 @@ pub async fn prepare(
             })?;
         Ok::<_, PrepareError>((ask.target, document))
     }));
-    let (documents, resumed) = future::try_join(
+    let (documents, session) = future::try_join(
         documents,
         fetcher.fetch_continuation().map_err(PrepareError::Continuation),
     )
@@ -218,7 +218,7 @@ pub async fn prepare(
     }
 
     Ok(Prepared {
-        resumed,
+        session,
         env: plan.env,
         api_server_key,
     })

@@ -18,8 +18,8 @@
 //! that goes to disk as it lands, so [`store::continuation`] is a
 //! single slot writing files, and
 //! [`fetch_continuation`](Fetcher::fetch_continuation) hands back
-//! only whether a session landed. Everything else — the ask, the
-//! wait, the errors' shape — is the same.
+//! the session to resume, if one landed. Everything else — the ask,
+//! the wait, the errors' shape — is the same.
 
 mod ask;
 mod continuation_error;
@@ -87,14 +87,17 @@ impl Fetcher {
         String::from_utf8(bytes).map_err(ResourceError::Utf8)
     }
 
-    /// The continuation, landed: `true` a session on disk to resume,
-    /// `false` the fresh start.
+    /// The continuation, landed: the id of the session to resume —
+    /// the lineage's tip in the delivered database — or `None`, the
+    /// fresh start.
     ///
     /// Sends the ask, waits for the delivery to settle — its chunks
     /// went to disk as they came — and for the delivered database to
-    /// check out. Once per run: a second call is answered as the bug
-    /// it is.
-    pub async fn fetch_continuation(&self) -> Result<bool, ContinuationError> {
+    /// check out and name its session. Once per run: a second call
+    /// is answered as the bug it is.
+    pub async fn fetch_continuation(
+        &self,
+    ) -> Result<Option<String>, ContinuationError> {
         if self.asks.send(Ask::Continuation).is_err() {
             return Err(ContinuationError::Closed);
         }

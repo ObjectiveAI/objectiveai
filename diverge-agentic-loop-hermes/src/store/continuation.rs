@@ -138,14 +138,15 @@ impl Store {
         true
     }
 
-    /// Whether a continuation is on disk — waiting for the completion
-    /// or the error if neither has come yet, however long that takes
-    /// (nothing in this protocol times anything out). `false` is the
-    /// fresh start: the completion came with no chunks before it. A
-    /// delivered database is proved to open ([`continuation::check`])
-    /// before `true` is answered. Collected once; a second call is a
-    /// bug, and says so.
-    pub async fn take(&self) -> Result<bool, ContinuationError> {
+    /// The session to resume, once the continuation is on disk —
+    /// waiting for the completion or the error if neither has come
+    /// yet, however long that takes (nothing in this protocol times
+    /// anything out). `None` is the fresh start: the completion came
+    /// with no chunks before it. Otherwise the delivered database is
+    /// proved to open and asked for its most recently active session
+    /// ([`continuation::check`]), and that id is the answer.
+    /// Collected once; a second call is a bug, and says so.
+    pub async fn take(&self) -> Result<Option<String>, ContinuationError> {
         loop {
             // Armed before the check, so a settlement landing between
             // the check and the wait is a wakeup, not a lost one.
@@ -162,11 +163,12 @@ impl Store {
             };
             match taken {
                 None => settled.await,
-                Some(Entry::Complete(resumed)) => {
-                    if resumed {
-                        continuation::check().await?;
-                    }
-                    return Ok(resumed);
+                Some(Entry::Complete(landed)) => {
+                    return if landed {
+                        Ok(Some(continuation::check().await?))
+                    } else {
+                        Ok(None)
+                    };
                 }
                 Some(Entry::Failed(Failure::Server(error))) => {
                     return Err(ContinuationError::Failed(error));

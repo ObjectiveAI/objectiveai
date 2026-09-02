@@ -189,6 +189,12 @@ resources, caches regenerate, skill writing is unsupported. The
   gateway starts: Hermes heals a database it cannot open by
   quarantining it and starting fresh, which would harvest an
   amnesiac continuation over the lineage.
+- The continuation fetch answers the SESSION ID to resume, read
+  from the database on that same connection — the most recently
+  active row of `sessions` (`last_activity_at`, else `started_at`).
+  The database is the only authority: compaction splits a session
+  into a child row, so the id a run started with is not necessarily
+  the lineage's tip when it ends. `None` is the fresh start.
 - Never enable session retention pruning in the config the harness
   writes; it would delete the older part of a lineage from inside
   the continuation.
