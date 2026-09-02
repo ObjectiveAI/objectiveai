@@ -7,7 +7,7 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt as _;
 
 use super::fs::{remove_if_present, sidecar};
-use super::{HERMES_HOME, IngestError, Landed, MEMORIES, STATE_DB, path_for};
+use super::{HERMES_HOME, IngestError, Landed, MEMORIES, STATE_DB, TAGS, path_for};
 
 /// A continuation being written to disk as it arrives.
 ///
@@ -34,15 +34,20 @@ pub struct Ingest {
 }
 
 impl Ingest {
-    /// Make room: the memory directory created, and any stale
-    /// `state.db` family removed — a leftover write-ahead log beside
-    /// a fresh copy would be replayed INTO it. Called by the store on
+    /// Make room: the memory directory created, and anything stale
+    /// removed — all three files, since every one is APPENDED to and
+    /// a leftover would be prepended to the delivery, and the
+    /// `state.db` sidecars, since a leftover write-ahead log beside a
+    /// fresh copy would be replayed INTO it. Called by the store on
     /// the first chunk, so a fresh start (no chunks) touches nothing.
     pub async fn start() -> io::Result<Self> {
         let home = Path::new(HERMES_HOME);
         tokio::fs::create_dir_all(home.join(MEMORIES)).await?;
+        for tag in TAGS {
+            remove_if_present(&path_for(tag).expect("one of the three"))
+                .await?;
+        }
         let db = home.join(STATE_DB);
-        remove_if_present(&db).await?;
         for suffix in ["-wal", "-shm", "-journal"] {
             remove_if_present(&sidecar(&db, suffix)).await?;
         }

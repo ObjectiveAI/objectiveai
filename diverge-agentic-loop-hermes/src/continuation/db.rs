@@ -5,7 +5,7 @@ use std::io;
 use std::path::Path;
 
 use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
-use sqlx::{ConnectOptions as _, Connection as _, Executor as _, Row as _};
+use sqlx::{ConnectOptions as _, Connection as _, Row as _};
 
 use super::ReadError;
 use super::fs::{remove_if_present, sidecar};
@@ -15,8 +15,12 @@ use super::fs::{remove_if_present, sidecar};
 pub(super) async fn fold(db: &Path) -> Result<(), ReadError> {
     let mut connection = open(db).await?;
     // Autocommit: nothing here opened a transaction, and VACUUM
-    // refuses to run inside one.
-    connection.execute("VACUUM").await?;
+    // refuses to run inside one. Not persistent: a cached prepared
+    // statement would outlive this call in the connection's cache.
+    sqlx::query("VACUUM")
+        .persistent(false)
+        .execute(&mut connection)
+        .await?;
     let row = sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
         .persistent(false)
         .fetch_one(&mut connection)
