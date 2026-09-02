@@ -77,12 +77,7 @@ pub use stream::*;
 
 use std::path::{Path, PathBuf};
 
-/// Where Hermes keeps its state, fixed for the container's life: the
-/// default home for the container's root user, with no
-/// `HERMES_HOME` override — so what [`Ingest`] lays down is what the
-/// gateway finds, and what the gateway leaves is what [`stream`]
-/// sweeps up.
-pub const HERMES_HOME: &str = "/root/.hermes";
+use super::HERMES_HOME;
 
 /// The session store, at the home's root.
 const STATE_DB: &str = "state.db";

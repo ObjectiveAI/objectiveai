@@ -6,6 +6,9 @@ use std::collections::BTreeMap;
 /// carry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Prepared {
+    /// Whether a continuation landed: `true`, the run resumes the
+    /// session on disk; `false`, the fresh start.
+    pub resumed: bool,
     /// The environment to set on the `hermes gateway` process — the
     /// harness's variables, and only those.
     pub env: BTreeMap<String, String>,

@@ -4,6 +4,7 @@ use std::error;
 use std::fmt;
 use std::io;
 
+use crate::continuation_fetcher;
 use crate::resource_fetcher::FetchError;
 
 /// Why the filesystem could not be prepared. No variant carries a
@@ -31,6 +32,8 @@ pub enum PrepareError {
         /// The request field that named it.
         field: &'static str,
     },
+    /// The continuation could not be had, or did not check out.
+    Continuation(continuation_fetcher::FetchError),
     /// A file or directory could not be written.
     Io(io::Error),
     /// A document would not serialize — which plain data never
@@ -54,6 +57,7 @@ impl fmt::Display for PrepareError {
             PrepareError::ResourceNotObject { field } => {
                 write!(f, "the resource {field} is not a JSON object")
             }
+            PrepareError::Continuation(error) => write!(f, "{error}"),
             PrepareError::Io(error) => {
                 write!(f, "the filesystem could not be prepared: {error}")
             }
@@ -68,6 +72,7 @@ impl error::Error for PrepareError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
             PrepareError::Resource { error, .. } => Some(error),
+            PrepareError::Continuation(error) => Some(error),
             PrepareError::Io(error) => Some(error),
             PrepareError::Json(error) => Some(error),
             PrepareError::WrongAgent

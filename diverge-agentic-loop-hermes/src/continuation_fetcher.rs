@@ -3,9 +3,11 @@
 //! The keyless twin of a resource store: a run resumes from ONE
 //! continuation, so there is one slot and nothing to name. The
 //! server delivers it on the `/continuation` routes — chunks, then
-//! the completion or the error — and the run's handler waits out the
-//! settlement with [`Store::fetch`], having first sent the ask
-//! itself, on the socket it owns.
+//! the completion or the error — and the run waits out the
+//! settlement through a [`ContinuationFetcher`], which sends the one
+//! ask (the driver carries it onto the socket) and then waits on the
+//! slot — the resource fetcher's shape, for the same reason: one
+//! pattern for the driver to serve.
 //!
 //! # The slot holds none of it
 //!
@@ -19,10 +21,45 @@
 use std::error;
 use std::fmt;
 
+use tokio::sync::oneshot::{self, Receiver, Sender};
 use tokio::sync::{Mutex, Notify};
 
-use crate::continuation;
-use crate::continuation::{CheckError, Ingest, IngestError};
+use crate::filesystem::continuation;
+use crate::filesystem::continuation::{CheckError, Ingest, IngestError};
+
+/// The round-trip a continuation is: the ask onto the socket, the
+/// wait on the slot's settlement, the verdict handed back — once.
+///
+/// Built by the main endpoint beside the resource fetcher, handed to
+/// the filesystem preparation: [`fetch`](Self::fetch) sends the ask
+/// through the oneshot [`new`](Self::new) returns, and the driver
+/// sends `Response::FetchContinuation` on the socket when it fires.
+pub struct ContinuationFetcher {
+    /// The ask half: fires once, when the fetch begins.
+    ask: Sender<()>,
+}
+
+impl ContinuationFetcher {
+    /// The fetcher and the ask it will send, a pair: the main
+    /// endpoint constructs both, keeps the receiver for the socket,
+    /// and hands the fetcher to the filesystem preparation.
+    pub fn new() -> (Self, Receiver<()>) {
+        let (ask, receiver) = oneshot::channel();
+        (ContinuationFetcher { ask }, receiver)
+    }
+
+    /// Send the ask, then wait for the delivery to settle — however
+    /// long that takes; nothing in this protocol times anything out
+    /// — and for the delivered database to check out. `true` is a
+    /// session on disk to resume; `false` is the fresh start.
+    /// Consumes the fetcher: one ask, one fetch.
+    pub async fn fetch(self) -> Result<bool, FetchError> {
+        if self.ask.send(()).is_err() {
+            return Err(FetchError::Closed);
+        }
+        STORE.fetch().await
+    }
+}
 
 /// The one slot, alive as long as the container: deliveries arrive
 /// whenever the server sends them, and the run reads whenever it is
@@ -184,6 +221,9 @@ impl Store {
 /// A fetch that cannot answer.
 #[derive(Debug)]
 pub enum FetchError {
+    /// The ask's receiver is gone — the socket driver died, so no
+    /// delivery can come and waiting would be forever.
+    Closed,
     /// The server failed the delivery — the bytes can never come
     /// (the client vanished mid-fetch, refused, …) — and this is its
     /// full error, verbatim off the error route.
@@ -199,6 +239,9 @@ pub enum FetchError {
 impl fmt::Display for FetchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            FetchError::Closed => {
+                f.write_str("the continuation ask channel is closed")
+            }
             FetchError::Failed(error) => {
                 write!(f, "the server failed the continuation: {error}")
             }
@@ -218,7 +261,7 @@ impl error::Error for FetchError {
         match self {
             FetchError::Ingest(error) => Some(error),
             FetchError::Check(error) => Some(error),
-            FetchError::Failed(_) | FetchError::Taken => None,
+            FetchError::Closed | FetchError::Failed(_) | FetchError::Taken => None,
         }
     }
 }

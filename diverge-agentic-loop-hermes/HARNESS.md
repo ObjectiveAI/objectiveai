@@ -44,12 +44,15 @@ Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
   path, `provider.auth_resource` / `toolsets.spotify.auth_resource`),
   then the whole new document. Not terminal; the last one wins.
 
-## `prepare` renders all of it, once
+## The `filesystem` module lays all of it down, once
 
-The `prepare` module turns the request's agent into the gateway's
+`filesystem::prepare` turns the request's agent into the gateway's
 process environment (returned to the spawner — the request's own
 `environment` is the server's business and is never repeated),
-`config.yaml`, and the credential files, in one pass:
+`config.yaml`, and the credential files, in one pass — and awaits
+the continuation's settlement (its chunks having landed on disk as
+they came, `filesystem::continuation`) IN PARALLEL with the resource
+fetches, since the two halves write disjoint files:
 
 - `config.yaml` is written as JSON (JSON is YAML): `model.provider`
   (the SDK marker's id IS Hermes's) + `model.default`,
@@ -77,7 +80,10 @@ process environment (returned to the spawner — the request's own
   per run (64 hex), `API_SERVER_HOST=127.0.0.1`,
   `API_SERVER_PORT=8642`; `API_SERVER_ENABLED` is inert and unset.
 - Resources (a provider's OAuth state, spotify's) are fetched ALL AT
-  ONCE and parsed as JSON objects; only then is each file written,
+  ONCE and parsed as JSON objects, the continuation fetched beside
+  them (both asks reach the socket through the driver: resource asks
+  on the resource fetcher's channel, the continuation ask on the
+  continuation fetcher's oneshot); only then is each file written,
   exactly once — `auth.json` as `{"version": 1, "providers": {...}}`
   with the documents verbatim, the Qwen file, the vertex file
   (`VERTEX_CREDENTIALS_PATH` names it).
@@ -159,7 +165,7 @@ moving, its gateway-only tables empty here — plus
 `memories/MEMORY.md` and `memories/USER.md`. Nothing else travels:
 configuration is rendered from the request, `auth.json` entries are
 resources, caches regenerate, skill writing is unsupported. The
-`continuation` module is the shape; its rules:
+`filesystem::continuation` module is the shape; its rules:
 
 - The continuation is NEVER held whole in memory: a delivered chunk
   is appended to the file its tag names the moment it lands (the

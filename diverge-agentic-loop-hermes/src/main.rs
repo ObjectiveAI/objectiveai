@@ -24,13 +24,12 @@
 //! resources and the continuation land in their stores, where the
 //! run will collect them.
 
-// The continuation module is complete and unwired: the run driver
-// that checks it before the gateway and streams it out after does
-// not exist yet, and its dead-code warnings are the reminder.
-mod continuation;
 mod continuation_fetcher;
-// The prepare module is complete and unwired for the same reason.
-mod prepare;
+// The filesystem module is complete and unwired: the run driver that
+// lays it down before the gateway and streams the continuation out
+// after does not exist yet, and its dead-code warnings are the
+// reminder.
+mod filesystem;
 mod resource;
 mod resource_fetcher;
 // The response module carries the gateway's COMPLETE run-event

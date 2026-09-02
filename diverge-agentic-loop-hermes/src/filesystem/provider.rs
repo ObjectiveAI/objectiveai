@@ -5,7 +5,7 @@ use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::hermes::provider::bedrock;
 
 use super::{Ask, Plan, PrepareError, Target, VERTEX_FILE};
-use crate::continuation::HERMES_HOME;
+use super::HERMES_HOME;
 
 /// Add the provider to the plan.
 ///

@@ -1,15 +1,19 @@
-//! The pre-gateway filesystem, rendered from the request.
+//! The filesystem under the Hermes home: what goes down before
+//! `hermes gateway` starts, and what comes back up after it exits.
 //!
-//! Before `hermes gateway` starts, everything the request's agent
-//! says has to be where Hermes reads it: credentials and switches in
-//! the gateway's PROCESS ENVIRONMENT, selection and membership in
-//! `config.yaml`, and the OAuth state documents in the credential
-//! files — `auth.json` entries for the state-carrying providers and
+//! Before the gateway starts, everything the request's agent says
+//! has to be where Hermes reads it: credentials and switches in the
+//! gateway's PROCESS ENVIRONMENT, selection and membership in
+//! `config.yaml`, the OAuth state documents in the credential files
+//! — `auth.json` entries for the state-carrying providers and
 //! spotify, the Qwen CLI's token file at the real home, vertex's
-//! service-account file. [`prepare`] does all of it in one pass and
-//! hands back [`Prepared`]: the environment the spawner sets on the
-//! gateway process, and the API server key the run driver will
-//! present.
+//! service-account file — and, when the caller holds one, the
+//! session's own state: `state.db` and the two memory files, which
+//! is the [`continuation`]. [`prepare`] does all of it in one pass
+//! and hands back [`Prepared`]: the environment the spawner sets on
+//! the gateway process, the API server key the run driver will
+//! present, and whether a session was resumed. After the gateway
+//! exits, [`continuation::stream`] is the way back up.
 //!
 //! # What is and is not here
 //!
@@ -21,15 +25,20 @@
 //! of the run the driver POSTs, not filesystem. Mounts landed before
 //! the container started.
 //!
-//! # Resources, concurrently; files, once each
+//! # Resources and the continuation, concurrently; files, once each
 //!
 //! A request may name several resources (one provider's OAuth state
 //! and spotify's), each fetched from the caller over the container
-//! surface. They are fetched TOGETHER — every ask goes out at once
-//! and all are awaited — and only then is anything written: each
-//! file is assembled whole from what it needs and written exactly
-//! once, so two resources bound for the same file (`auth.json`)
-//! never contend for it.
+//! surface, and the continuation is fetched the same way. All of it
+//! is awaited TOGETHER — every resource ask goes out at once, and the
+//! continuation's settlement (its chunks having landed on disk as
+//! they came, its database checked) is awaited beside them — and
+//! only then is anything written: each file is assembled whole from
+//! what it needs and written exactly once, so two resources bound for
+//! the same file (`auth.json`) never contend for it. The two halves
+//! cannot contend either: resources land in `config.yaml`,
+//! `auth.json` and the credential files; the continuation lands in
+//! `state.db` and `memories/`.
 //!
 //! # `config.yaml` is JSON
 //!
@@ -46,6 +55,8 @@ mod prepared;
 mod provider;
 mod toolsets;
 
+pub mod continuation;
+
 pub use ask::*;
 pub use error::*;
 pub use plan::*;
@@ -55,11 +66,19 @@ use std::path::Path;
 
 use diverge_provider_sdk::agentic_loop_container::request::Request;
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::Agent;
+use futures_util::TryFutureExt as _;
 use futures_util::future;
 use uuid::Uuid;
 
-use crate::continuation::HERMES_HOME;
+use crate::continuation_fetcher::ContinuationFetcher;
 use crate::resource_fetcher::ResourceFetcher;
+
+/// Where Hermes keeps its state, fixed for the container's life: the
+/// default home for the container's root user, pinned into the
+/// gateway's environment as `HERMES_HOME` — so what this module lays
+/// down is what the gateway finds, and what the gateway leaves is
+/// what [`continuation::stream`] sweeps up.
+pub const HERMES_HOME: &str = "/root/.hermes";
 
 /// The name of the container's own MCP proxy in Hermes's server
 /// list — the one server the agent's tool calls go to.
@@ -90,21 +109,29 @@ const AUTH_FILE: &str = "auth.json";
 /// home; `VERTEX_CREDENTIALS_PATH` names it.
 const VERTEX_FILE: &str = "vertex-service-account.json";
 
-/// Render the request's agent onto the filesystem and answer with
-/// the gateway's environment.
+/// Lay the filesystem down from the request and answer with what
+/// the run still needs to carry.
 ///
 /// The agent must be a `hermes` one ([`PrepareError::WrongAgent`]
 /// otherwise — the caller has usually judged this already). Then,
 /// in order: the provider's and the toolsets' contributions are
 /// gathered into a [`Plan`]; the harness's own variables join them
-/// (`HERMES_HOME`, `HERMES_YOLO_MODE`, the API server's key/host/port — the key
-/// freshly generated, 64 hex characters, for this run alone); every
-/// resource is fetched at once and parsed as a JSON object; and the
-/// files are written, each once: `config.yaml`, `auth.json` when any
-/// entry needs it, the Qwen token file, the vertex file.
+/// (`HERMES_HOME`, `HERMES_YOLO_MODE`, the API server's
+/// key/host/port — the key freshly generated, 64 hex characters, for
+/// this run alone); every resource is fetched and parsed as a JSON
+/// object WHILE the continuation is fetched and settled, the two
+/// awaited together; and the files are written, each once:
+/// `config.yaml`, `auth.json` when any entry needs it, the Qwen token
+/// file, the vertex file. The continuation's own files are already
+/// on disk by then — its chunks landed as they arrived.
+///
+/// Both asks reach the socket through the driver: the resource asks
+/// on the resource fetcher's channel, the continuation ask on the
+/// continuation fetcher's oneshot.
 pub async fn prepare(
     request: &Request,
-    fetcher: &ResourceFetcher,
+    resources: &ResourceFetcher,
+    continuation: ContinuationFetcher,
 ) -> Result<Prepared, PrepareError> {
     let Agent::Hermes(agent) = &request.agent else {
         return Err(PrepareError::WrongAgent);
@@ -124,9 +151,10 @@ pub async fn prepare(
     plan.set("API_SERVER_HOST", API_SERVER_HOST.to_string())?;
     plan.set("API_SERVER_PORT", API_SERVER_PORT.to_string())?;
 
-    // Every resource at once; nothing is written until all are in.
+    // Every resource at once, and the continuation beside them;
+    // nothing is written until all are in.
     let documents = future::try_join_all(plan.asks.iter().map(|ask| async move {
-        let text = fetcher
+        let text = resources
             .fetch(ask.identity.clone())
             .await
             .map_err(|error| PrepareError::Resource {
@@ -138,7 +166,11 @@ pub async fn prepare(
                 PrepareError::ResourceNotObject { field: ask.field }
             })?;
         Ok::<_, PrepareError>((ask.target, document))
-    }))
+    }));
+    let (documents, resumed) = future::try_join(
+        documents,
+        continuation.fetch().map_err(PrepareError::Continuation),
+    )
     .await?;
 
     // Then the files, each assembled whole and written once.
@@ -183,6 +215,7 @@ pub async fn prepare(
     }
 
     Ok(Prepared {
+        resumed,
         env: plan.env,
         api_server_key,
     })
