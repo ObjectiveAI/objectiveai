@@ -2,10 +2,10 @@
 
 use serde::Serialize;
 
-use super::Message;
-
 /// The body of `POST /v1/runs`, the fields this container uses of
-/// the ones the gateway reads (`api_server.py`, `_handle_runs`).
+/// the ones the gateway reads (`api_server.py`, `_handle_runs`) —
+/// less the history, which [`run`](super::run) reads for the session
+/// itself.
 ///
 /// Deliberately absent: `provider` (the run's provider is
 /// `config.yaml`'s, written before the gateway started) and
@@ -22,13 +22,10 @@ pub struct Request {
     pub instructions: Option<String>,
     /// The session the run records into — the lineage's tip when
     /// resuming, or absent for a fresh session the gateway names.
+    /// Naming one also makes [`run`](super::run) read its transcript
+    /// and send it as the history: `/v1/runs` loads none itself.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
-    /// The conversation so far, as the gateway takes it: role and
-    /// content, strings only. `/v1/runs` loads no history on its
-    /// own, so a resumed run supplies it here.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub conversation_history: Option<Vec<Message>>,
     /// The model, in the gateway's naming; absent for the gateway's
     /// default.
     #[serde(skip_serializing_if = "Option::is_none")]

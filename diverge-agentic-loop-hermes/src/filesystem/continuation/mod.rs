@@ -62,7 +62,7 @@
 
 mod check;
 mod check_error;
-mod db;
+pub(super) mod db;
 mod ingest;
 mod ingest_error;
 mod read_error;

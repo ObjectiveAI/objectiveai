@@ -129,7 +129,17 @@ fail-closed stall it otherwise costs.
   `GET /v1/runs/{id}/events` — `run::raw::run` is that transport,
   yielding each data frame as the `response::Event` it parses to;
   keepalives and the closing sentinel are SSE comments the parser
-  drops, and the subscription is single and never retried. The stream's full contract is
+  drops, and the subscription is single and never retried.
+  `/v1/runs` LOADS NO HISTORY: `session_id` only names the row the
+  turn records into, and `conversation_history` is role + content
+  TEXT, nothing richer (the chat-completions handler does the load
+  itself; the runs handler leaves it to the caller). So
+  `filesystem::history` mirrors Hermes's loader reduced to that —
+  the session's `user`/`assistant` rows, `active = 1`, in insertion
+  order, JSON-sentinel content flattened to its text parts — and
+  `run::raw::run` reads it for the named session and sends it. A
+  resumed run sees what was said, not what was called; tool rows
+  sent as text would be dropped by the loop's repair anyway. The stream's full contract is
   `run-event-stream.md` and the `response` module: 12 event types
   discriminated by the payload's own `event` key; `: keepalive`
   and `: stream closed` are SSE COMMENTS; EOF must always terminate

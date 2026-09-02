@@ -30,23 +30,32 @@
 //! gone (`404`), the concurrency cap (`429`) — are plain JSON with a
 //! status, and arrive as [`Error::Status`] before any stream exists.
 
+mod body;
 mod error;
-mod message;
 mod request;
 mod started;
 
 pub use error::*;
-pub use message::*;
 pub use request::*;
 pub use started::*;
 
 use eventsource_stream::Eventsource as _;
 use futures_util::{Stream, StreamExt as _};
 
+use crate::filesystem;
 use crate::filesystem::{API_SERVER_HOST, API_SERVER_PORT};
 use crate::response::Event;
 
 /// Start a run and stream its events.
+///
+/// A resume is two things, both from the database
+/// [`prepare`](crate::filesystem::prepare) landed: the `session_id`
+/// the request names (where the turn records), and that session's
+/// transcript (what the model sees), which `/v1/runs` never loads
+/// itself — so this reads it through
+/// [`filesystem::history`] and sends it
+/// as the body's `conversation_history`. A request naming no session
+/// sends none.
 ///
 /// The `202` and the subscription both happen before this returns,
 /// so a run that cannot start is an `Err` and never a stream's
@@ -58,6 +67,15 @@ pub async fn run(
     api_server_key: &str,
     request: &Request,
 ) -> Result<impl Stream<Item = Result<Event, Error>>, Error> {
+    let conversation_history = match &request.session_id {
+        Some(session_id) => Some(filesystem::history(session_id).await?),
+        None => None,
+    };
+    let body = body::Body {
+        request,
+        conversation_history,
+    };
+
     let client = reqwest::Client::new();
     let bearer = format!("Bearer {api_server_key}");
     let base = format!("http://{API_SERVER_HOST}:{API_SERVER_PORT}/v1/runs");
@@ -65,7 +83,7 @@ pub async fn run(
     let response = client
         .post(&base)
         .header("authorization", &bearer)
-        .json(request)
+        .json(&body)
         .send()
         .await?;
     let response = status(response).await?;

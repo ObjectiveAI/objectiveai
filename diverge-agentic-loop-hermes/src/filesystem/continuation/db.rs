@@ -40,7 +40,9 @@ pub(super) async fn fold(db: &Path) -> Result<(), ReadError> {
 /// ever firing. Nothing else is set: no journal mode (the file's
 /// own stays), no optimize-on-close (that would write through the
 /// log after the fold).
-pub(super) async fn open(db: &Path) -> Result<SqliteConnection, sqlx::Error> {
+pub(in crate::filesystem) async fn open(
+    db: &Path,
+) -> Result<SqliteConnection, sqlx::Error> {
     SqliteConnectOptions::new()
         .filename(db)
         .create_if_missing(false)

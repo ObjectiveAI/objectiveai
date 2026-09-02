@@ -3,9 +3,14 @@
 use std::error;
 use std::fmt;
 
+use crate::filesystem::HistoryError;
+
 /// Why a run could not be started or its stream read.
 #[derive(Debug)]
 pub enum Error {
+    /// The named session's transcript could not be read out of the
+    /// database, so there was no history to resume with.
+    History(HistoryError),
     /// The HTTP exchange itself failed: the gateway is not listening,
     /// the connection dropped mid-body.
     Http(reqwest::Error),
@@ -32,6 +37,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Error::History(error) => write!(f, "{error}"),
             Error::Http(error) => {
                 write!(f, "the gateway could not be reached: {error}")
             }
@@ -54,6 +60,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
+            Error::History(error) => Some(error),
             Error::Http(error) => Some(error),
             Error::Started(error) | Error::Frame(error) => Some(error),
             Error::Stream(error) => Some(error),
@@ -65,5 +72,11 @@ impl error::Error for Error {
 impl From<reqwest::Error> for Error {
     fn from(error: reqwest::Error) -> Self {
         Error::Http(error)
+    }
+}
+
+impl From<HistoryError> for Error {
+    fn from(error: HistoryError) -> Self {
+        Error::History(error)
     }
 }
