@@ -21,6 +21,11 @@ use serde::{Deserialize, Serialize};
 pub struct AssistantToolCallChunk {
     /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
     pub r#type: AssistantToolCallChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     /// This call's id, which its
     /// [`ToolResponseChunk`](super::ToolResponseChunk) echoes back.
     ///

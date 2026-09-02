@@ -26,6 +26,18 @@ use super::{
 /// That also means variant order here is not load-bearing. Untagged
 /// deserialization takes the first variant that matches, and with
 /// distinct `type` constants at most one ever can.
+///
+/// # Sub-agents
+///
+/// An upstream that delegates to sub-agents produces chunks on more
+/// than one thread. The six assistant chunks and the tool response
+/// carry `parent_tool_call_id` for that: absent, the chunk is the
+/// main thread's; present, it is the id of the tool call whose
+/// sub-agent produced it, so a caller sees a sub-agent's work as
+/// children of the call that made it — its own calls answered by
+/// its own responses, attributed alike. A nested sub-agent names
+/// its IMMEDIATE spawner, so depth is a chain of ids. The other
+/// chunks are the run's, not any thread's, and carry nothing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AgenticLoopChunk {

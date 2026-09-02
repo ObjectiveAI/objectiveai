@@ -16,6 +16,11 @@ use serde::{Deserialize, Serialize};
 pub struct AssistantImageContentChunk {
     /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
     pub r#type: AssistantImageContentChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     /// The content itself.
     #[serde(flatten)]
     pub inner: ImageContent,

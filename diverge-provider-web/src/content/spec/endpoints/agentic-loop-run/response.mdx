@@ -64,6 +64,11 @@ Reasoning text the agent produced.
 pub struct AssistantReasoningChunk {
     /// "assistant_reasoning"
     pub r#type: AssistantReasoningChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<Vec<Logprob>>,
     #[serde(flatten)]
@@ -99,6 +104,11 @@ Text the agent produced.
 pub struct AssistantTextContentChunk {
     /// "assistant_text_content"
     pub r#type: AssistantTextContentChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<Vec<Logprob>>,
     #[serde(flatten)]
@@ -121,6 +131,11 @@ An image the agent produced.
 pub struct AssistantImageContentChunk {
     /// "assistant_image_content"
     pub r#type: AssistantImageContentChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     #[serde(flatten)]
     pub inner: ImageContent,
 }
@@ -141,6 +156,11 @@ Audio the agent produced.
 pub struct AssistantAudioContentChunk {
     /// "assistant_audio_content"
     pub r#type: AssistantAudioContentChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     #[serde(flatten)]
     pub inner: AudioContent,
 }
@@ -164,6 +184,11 @@ text; a chunk with a new `id` is a new call.
 pub struct AssistantToolCallChunk {
     /// "assistant_tool_call"
     pub r#type: AssistantToolCallChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     /// Quoted by the answering tool_response chunk.
     pub id: String,
     #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
@@ -192,6 +217,11 @@ A refusal the agent issued.
 pub struct AssistantRefusalChunk {
     /// "assistant_refusal"
     pub r#type: AssistantRefusalChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<Vec<Logprob>>,
     #[serde(flatten)]
@@ -215,6 +245,11 @@ it answers.
 pub struct ToolResponseChunk {
     /// "tool_response"
     pub r#type: ToolResponseChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     /// The id of the assistant_tool_call this answers.
     pub id: String,
     #[serde(flatten)]

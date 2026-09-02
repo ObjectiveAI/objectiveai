@@ -23,6 +23,11 @@ use super::Logprob;
 pub struct AssistantReasoningChunk {
     /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
     pub r#type: AssistantReasoningChunkType,
+    /// The tool call whose sub-agent produced this chunk; absent on
+    /// the main thread. A nested sub-agent names its IMMEDIATE
+    /// spawning call, so depth is a chain of ids a caller can follow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_tool_call_id: Option<String>,
     /// Per-token log probabilities for this fragment, when requested.
     ///
     /// Scoped to THIS chunk's tokens, not the turn's — each delta

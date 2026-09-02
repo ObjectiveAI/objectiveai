@@ -18,20 +18,32 @@ use super::{AgenticLoopChunk, AssistantToolCallChunk};
 /// but a call never continues past a tool response, so the search
 /// stops there, and an id seen again beyond that boundary is a new
 /// call.
+///
+/// Nothing merges across threads: every merge also requires equal
+/// `parent_tool_call_id`, so a sub-agent's fragment never fuses onto
+/// the main thread's chunk (or another sub-agent's), whatever the
+/// adjacency. The boundary between threads is as real as any other
+/// kind's.
 pub fn push(chunks: &mut Vec<AgenticLoopChunk>, chunk: AgenticLoopChunk) {
     match (chunks.last_mut(), chunk) {
         (
             Some(AgenticLoopChunk::AssistantReasoning(last)),
             AgenticLoopChunk::AssistantReasoning(chunk),
-        ) => last.push(chunk),
+        ) if last.parent_tool_call_id == chunk.parent_tool_call_id => {
+            last.push(chunk)
+        }
         (
             Some(AgenticLoopChunk::AssistantTextContent(last)),
             AgenticLoopChunk::AssistantTextContent(chunk),
-        ) => last.push(chunk),
+        ) if last.parent_tool_call_id == chunk.parent_tool_call_id => {
+            last.push(chunk)
+        }
         (
             Some(AgenticLoopChunk::AssistantRefusal(last)),
             AgenticLoopChunk::AssistantRefusal(chunk),
-        ) => last.push(chunk),
+        ) if last.parent_tool_call_id == chunk.parent_tool_call_id => {
+            last.push(chunk)
+        }
         (_, AgenticLoopChunk::AssistantToolCall(chunk)) => {
             push_tool_call(chunks, chunk)
         }
@@ -40,7 +52,8 @@ pub fn push(chunks: &mut Vec<AgenticLoopChunk>, chunk: AgenticLoopChunk) {
 }
 
 /// The tool-call merge: backwards through the chain since the last
-/// tool response, onto the most recent fragment of the same call.
+/// tool response, onto the most recent fragment of the same call on
+/// the same thread.
 fn push_tool_call(
     chunks: &mut Vec<AgenticLoopChunk>,
     chunk: AssistantToolCallChunk,
@@ -49,7 +62,9 @@ fn push_tool_call(
         match existing {
             AgenticLoopChunk::ToolResponse(_) => break,
             AgenticLoopChunk::AssistantToolCall(existing)
-                if existing.id == chunk.id =>
+                if existing.id == chunk.id
+                    && existing.parent_tool_call_id
+                        == chunk.parent_tool_call_id =>
             {
                 existing.push(chunk);
                 return;
