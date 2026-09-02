@@ -49,6 +49,7 @@ impl Delta {
             chunks.push(response::AgenticLoopChunk::AssistantReasoning(
                 response::AssistantReasoningChunk {
                     r#type: Default::default(),
+                    parent_tool_call_id: None,
                     logprobs: None,
                     inner: rmcp::model::TextContent::new(reasoning),
                 },
@@ -58,6 +59,7 @@ impl Delta {
             chunks.push(response::AgenticLoopChunk::AssistantTextContent(
                 response::AssistantTextContentChunk {
                     r#type: Default::default(),
+                    parent_tool_call_id: None,
                     logprobs: super::logprobs::into_chunk_logprobs(content_logprobs),
                     inner: rmcp::model::TextContent::new(content),
                 },
@@ -70,6 +72,7 @@ impl Delta {
             chunks.push(response::AgenticLoopChunk::AssistantRefusal(
                 response::AssistantRefusalChunk {
                     r#type: Default::default(),
+                    parent_tool_call_id: None,
                     logprobs: super::logprobs::into_chunk_logprobs(refusal_logprobs),
                     inner: rmcp::model::TextContent::new(refusal),
                 },

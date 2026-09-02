@@ -275,6 +275,7 @@ pub async fn r#loop(
                         Ok(result) => {
                             let chunk = ToolResponseChunk {
                                 r#type: Default::default(),
+                                parent_tool_call_id: None,
                                 id,
                                 inner: result,
                             };
@@ -432,7 +433,9 @@ fn accumulate(turn: &mut Vec<AgenticLoopChunk>, chunk: &AgenticLoopChunk) {
 }
 
 /// Remove the `_meta` a chunk carries, wherever its kind keeps it.
-/// The history stores what was said, not where it came from.
+/// The history stores what was said, not where it came from. (A
+/// chunk's `parent_tool_call_id` is left alone: that is structure —
+/// which thread said it — not provenance; this loop never sets it.)
 fn strip(chunk: &mut AgenticLoopChunk) {
     match chunk {
         AgenticLoopChunk::AssistantReasoning(chunk) => {

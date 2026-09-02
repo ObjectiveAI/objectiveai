@@ -247,6 +247,7 @@ impl AssistantToolCallDelta {
         chunks.push(response::AgenticLoopChunk::AssistantToolCall(
             response::AssistantToolCallChunk {
                 r#type: Default::default(),
+                parent_tool_call_id: None,
                 id,
                 meta: None,
                 name,

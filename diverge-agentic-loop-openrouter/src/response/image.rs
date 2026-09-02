@@ -41,6 +41,7 @@ impl Image {
         chunks.push(response::AgenticLoopChunk::AssistantImageContent(
             response::AssistantImageContentChunk {
                 r#type: Default::default(),
+                parent_tool_call_id: None,
                 inner: rmcp::model::ImageContent::new(data, mime_type),
             },
         ));
