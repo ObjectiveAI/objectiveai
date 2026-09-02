@@ -11,7 +11,10 @@ use super::{Effort, Provider, Toolsets, Upstream};
 /// Hermes starts, or a per-request field on the run it drives — and
 /// nothing else made the cut. What Hermes cannot be told through its
 /// wire is not here: no skill preloading (skills arrive as mounts
-/// and Hermes indexes them itself), no temperature (Hermes has no
+/// under `/root/.hermes/external-skills/`, one directory per skill
+/// holding its `SKILL.md`, and Hermes indexes them itself — that
+/// path, not its own `skills/`, which it writes into), no
+/// temperature (Hermes has no
 /// main-agent sampling key), no thinking-token budget (the
 /// [`effort`](Self::effort) ladder is the whole reasoning
 /// vocabulary).

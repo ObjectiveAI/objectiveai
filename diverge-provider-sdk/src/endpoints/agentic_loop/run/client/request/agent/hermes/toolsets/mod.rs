@@ -31,7 +31,10 @@
 //!   throw.
 //!
 //! Still absent for their unchanged non-auth reasons: skills
-//! (mounts decide it), `computer_use` (a display server is not an
+//! (mounts decide it — directories under
+//! `/root/.hermes/external-skills/`, each holding a `SKILL.md`, which
+//! the harness names to Hermes read-only), `computer_use` (a display
+//! server is not an
 //! argument), `stt` (not a model toolset at all), `clarify` (needs
 //! wiring this wire does not have), `discord`/`discord_admin`
 //! (hard-restricted to Hermes's Discord platform), `cronjob` (an
