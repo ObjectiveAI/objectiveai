@@ -97,7 +97,7 @@ const VERTEX_FILE: &str = "vertex-service-account.json";
 /// otherwise — the caller has usually judged this already). Then,
 /// in order: the provider's and the toolsets' contributions are
 /// gathered into a [`Plan`]; the harness's own variables join them
-/// (`HERMES_YOLO_MODE`, the API server's key/host/port — the key
+/// (`HERMES_HOME`, `HERMES_YOLO_MODE`, the API server's key/host/port — the key
 /// freshly generated, 64 hex characters, for this run alone); every
 /// resource is fetched at once and parsed as a JSON object; and the
 /// files are written, each once: `config.yaml`, `auth.json` when any
@@ -113,6 +113,10 @@ pub async fn prepare(
     let mut plan = Plan::new(agent.model.clone());
     provider::apply(&agent.provider, &mut plan)?;
     toolsets::apply(&agent.toolsets, &mut plan)?;
+    // The geometry, pinned: the home the continuation and the
+    // credential files were laid down under, whatever the
+    // container's `HOME` says.
+    plan.set("HERMES_HOME", HERMES_HOME.to_string())?;
     plan.set("HERMES_YOLO_MODE", "1".to_string())?;
     let api_server_key =
         format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());

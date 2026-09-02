@@ -60,10 +60,14 @@ process environment (returned to the spawner — the request's own
   (the only deterministic form; there is no `disabled_toolsets`
   config key). Present → in, `false` → out, unsaid → Hermes's own
   API-server default: on for web, browser, terminal, file,
-  code_execution, vision, image_gen, todo, memory, session_search;
-  off for video, video_gen, x_search, tts, homeassistant, spotify.
+  code_execution, vision, todo, memory, session_search; off for
+  video, video_gen, x_search, tts, homeassistant, spotify, and
+  image_gen (Hermes hides it without a FAL key, and only the
+  structure brings one).
   `skills` always in; delegation, cronjob, clarify, computer_use,
   discord, yuanbao, context_engine, stt never.
+- `HERMES_HOME=/root/.hermes` is set explicitly, pinning the geometry
+  the files were laid down under.
 - The API server needs a usable bearer: `API_SERVER_KEY` is minted
   per run (64 hex), `API_SERVER_HOST=127.0.0.1`,
   `API_SERVER_PORT=8642`; `API_SERVER_ENABLED` is inert and unset.

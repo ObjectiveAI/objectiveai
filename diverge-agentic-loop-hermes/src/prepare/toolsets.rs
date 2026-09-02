@@ -18,9 +18,11 @@ use super::{Ask, Plan, PrepareError, Target};
 /// place in it is decided the same way: present in the request
 /// (`true`, or a structure) → in; `false` → out; unsaid → what
 /// Hermes's own API-server default would do, which is ON for web,
-/// browser, terminal, file, code_execution, vision, image_gen, todo,
-/// memory and session_search, and OFF for video, video_gen,
-/// x_search, tts, homeassistant and spotify. `skills` is always in:
+/// browser, terminal, file, code_execution, vision, todo, memory and
+/// session_search, and OFF for video, video_gen, x_search, tts,
+/// homeassistant and spotify — and for image_gen, which Hermes lists
+/// by default but hides without a FAL key, and only the structure
+/// brings one. `skills` is always in:
 /// the mounts decide whether there are any. Never in: delegation
 /// and cronjob (both in Hermes's default, both unsupportable here),
 /// clarify, computer_use, discord, yuanbao, context_engine, stt.
@@ -104,7 +106,7 @@ pub fn apply(toolsets: &Toolsets, plan: &mut Plan) -> Result<(), PrepareError> {
         plan.set("FAL_KEY", image_gen.fal_key.clone())?;
         plan.image_gen = true;
     }
-    switch(&mut on, "image_gen", toolsets.image_gen.is_some(), None, true);
+    switch(&mut on, "image_gen", toolsets.image_gen.is_some(), None, false);
 
     if let Some(video_gen) = &toolsets.video_gen {
         plan.set("FAL_KEY", video_gen.fal_key.clone())?;
