@@ -92,9 +92,8 @@ harness writes: enable/disable via Hermes's toolset config, backend
 pins where a slot names one (`web.search_backend`,
 `web.extract_backend`, `tts.provider: elevenlabs` when the key is
 present). Deliberately out of the vocabulary and to be LEFT at
-Hermes defaults or off: memory (the CONTINUATION is our cross-run
-memory), context_engine, yuanbao, skills-as-a-switch (mounts decide
-it), computer_use, stt, clarify, discord, cronjob, spotify's
+Hermes defaults or off: context_engine, yuanbao, skills-as-a-switch
+(mounts decide it), computer_use, stt, clarify, discord, cronjob, spotify's
 managed-gateway sibling (the rotating Nous tool gateway stays
 unsupported). DELEGATION IS DISABLED: the harness turns the
 `delegation` toolset off in Hermes's toolset config, and the
@@ -143,8 +142,9 @@ resources, caches regenerate, skill writing is unsupported. The
   The ingest appends each chunk to its tag's file and judges nothing
   else: the container is fresh and the delivery lands before the
   gateway starts, so there is nothing stale and no order to police.
-- Follow-up: the built-in `memory` toolset is worth re-enabling now
-  that the continuation is where its writes persist.
+- The `memory` toolset is in the vocabulary: its two files are the
+  continuation's, so what it writes is what the next run starts
+  with. External memory-provider plugins stay off.
 
 ## Resources ride the container surface
 
