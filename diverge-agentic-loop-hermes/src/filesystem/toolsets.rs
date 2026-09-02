@@ -22,8 +22,12 @@ use super::{Ask, Plan, PrepareError, Target};
 /// session_search, and OFF for video, video_gen, x_search, tts,
 /// homeassistant and spotify — and for image_gen, which Hermes lists
 /// by default but hides without a FAL key, and only the structure
-/// brings one. `skills` is always in:
-/// the mounts decide whether there are any. Never in: delegation
+/// brings one. `skills` is in exactly when the request mounted
+/// something under the external skills path — `skills` here is that
+/// fact, decided by the caller of this function from the mounts —
+/// and out otherwise: a skills catalogue with nothing of the
+/// caller's in it is only Hermes's bundle, which nobody asked for.
+/// Never in: delegation
 /// and cronjob (both in Hermes's default, both unsupportable here),
 /// clarify, computer_use, discord, yuanbao, context_engine, stt.
 ///
@@ -33,7 +37,11 @@ use super::{Ask, Plan, PrepareError, Target};
 /// toolset docs name; a web slot also pins its backend; an
 /// ElevenLabs key pins `tts.provider`; the generation toolsets pin
 /// `fal`; spotify's state is a resource bound for `auth.json`.
-pub fn apply(toolsets: &Toolsets, plan: &mut Plan) -> Result<(), PrepareError> {
+pub fn apply(
+    toolsets: &Toolsets,
+    skills: bool,
+    plan: &mut Plan,
+) -> Result<(), PrepareError> {
     let mut on: Vec<&'static str> = Vec::new();
 
     if let Some(web) = &toolsets.web {
@@ -128,7 +136,9 @@ pub fn apply(toolsets: &Toolsets, plan: &mut Plan) -> Result<(), PrepareError> {
     }
     switch(&mut on, "tts", toolsets.tts.is_some(), None, false);
 
-    on.push("skills");
+    if skills {
+        on.push("skills");
+    }
     switch(&mut on, "todo", false, toolsets.todo, true);
     switch(&mut on, "memory", false, toolsets.memory, true);
     switch(&mut on, "session_search", false, toolsets.session_search, true);

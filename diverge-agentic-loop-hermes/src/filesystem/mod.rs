@@ -262,8 +262,28 @@ fn plan(request: &Request) -> Result<Plan, PrepareError> {
     let agent: &hermes::Agent = agent;
     let mut plan = Plan::new(agent.model.clone());
     provider::apply(&agent.provider, &mut plan)?;
-    toolsets::apply(&agent.toolsets, &mut plan)?;
+    toolsets::apply(&agent.toolsets, skills_mounted(request), &mut plan)?;
     Ok(plan)
+}
+
+/// Whether the request mounts anything under [`EXTERNAL_SKILLS`] —
+/// a directory of skills, one skill, or a lone `SKILL.md` file. That
+/// is what turns the `skills` toolset on.
+fn skills_mounted(request: &Request) -> bool {
+    let under = |path: &String| {
+        path == EXTERNAL_SKILLS
+            || path.starts_with(&format!("{EXTERNAL_SKILLS}/"))
+    };
+    request
+        .directory_mounts
+        .iter()
+        .flatten()
+        .any(|(path, _)| under(path))
+        || request
+            .file_mounts
+            .iter()
+            .flatten()
+            .any(|(path, _)| under(path))
 }
 
 /// Stream the filesystem back out, after the gateway has exited:

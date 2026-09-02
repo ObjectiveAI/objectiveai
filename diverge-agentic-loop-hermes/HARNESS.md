@@ -80,7 +80,8 @@ fetches, since the two halves write disjoint files:
   video, video_gen, x_search, tts, homeassistant, spotify, and
   image_gen (Hermes hides it without a FAL key, and only the
   structure brings one).
-  `skills` always in — and skills come from MOUNTS at
+  `skills` in exactly when something is mounted under the external
+  skills path, out otherwise — and skills come from MOUNTS at
   `/root/.hermes/external-skills/` (one directory per skill, its
   `SKILL.md` inside), which the config names as `skills.external_dirs`:
   Hermes discovers them recursively and views them, never writes
