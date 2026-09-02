@@ -24,6 +24,10 @@
 //! resources and the continuation land in their stores, where the
 //! run will collect them.
 
+// The continuation module is complete and unwired: the run driver
+// that writes it before the gateway and harvests it after does not
+// exist yet, and its dead-code warnings are the reminder.
+mod continuation;
 mod continuation_fetcher;
 mod resource;
 mod resource_fetcher;

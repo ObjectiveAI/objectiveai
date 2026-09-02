@@ -28,7 +28,14 @@ futures-util = { version = "0.3.33", default-features = false, features = ["std"
 # vocabulary is read with them.
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
-# The runtime under the listener, plus `sync` for the Notify the
-# resource store wakes its collector with. No `macros` — the runtime
-# is built in main, not attributed onto it.
-tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }
+# The continuation's database harvest: fold the WAL, VACUUM, prove a
+# delivered `state.db` opens. The async SQLite driver on tokio with
+# the vendored libsqlite3 (`sqlite` = sqlx-sqlite/bundled — compiles
+# sqlite3.c with cc, no bindgen, no system library); no TLS, no
+# postgres, no macros. Version: the workspace lock's, confirmed by
+# `cargo info sqlx`.
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
+# The runtime under the listener, `sync` for the Notify the stores
+# wake their collectors with, `fs` for the continuation's files. No
+# `macros` — the runtime is built in main, not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "net", "rt-multi-thread", "sync"] }

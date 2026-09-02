@@ -105,6 +105,41 @@ their results wake the session as a turn no stream sees
 `reports/delegation-observability.md`). It could be supported
 through end-of-turn webhooks; the decision is not to.
 
+## The continuation is state.db and the two memory files
+
+Three files under the fixed home `/root/.hermes` (no `HERMES_HOME`
+override): `state.db` whole — the session store, schema v26 and
+moving, its gateway-only tables empty here — plus
+`memories/MEMORY.md` and `memories/USER.md`. Nothing else travels:
+configuration is rendered from the request, `auth.json` entries are
+resources, caches regenerate, skill writing is unsupported. The
+`continuation` module is the shape; its rules:
+
+- Harvest AFTER the gateway process has exited, and fold the
+  database yourself: Hermes's close runs only a PASSIVE checkpoint,
+  so a write-ahead log survives a clean exit and a database
+  separated from it loses committed transactions. The module runs
+  `VACUUM`, then `wal_checkpoint(TRUNCATE)`, then closes — and
+  refuses a blocked checkpoint or a surviving log.
+- Prove a delivered `state.db` opens (`quick_check`) before the
+  gateway starts: Hermes heals a database it cannot open by
+  quarantining it and starting fresh, which would harvest an
+  amnesiac continuation over the lineage.
+- Never enable session retention pruning in the config the harness
+  writes; it would delete the older part of a lineage from inside
+  the continuation.
+- The MCP schema cache under `cache/` must never travel: a stale
+  cache shows the model tools that no longer exist.
+- Mounts land at the same paths on every run of a lineage: session
+  rows record `cwd` and the git root.
+- On the wire the protocol KEEPS chunk boundaries (nobody joins or
+  splits a continuation's pieces), so each chunk leads with one tag
+  byte naming its file — `0` state.db, `1` MEMORY.md, `2` USER.md —
+  files in ascending order, a file's chunks contiguous, an empty
+  file one tag-only chunk.
+- Follow-up: the built-in `memory` toolset is worth re-enabling now
+  that the continuation is where its writes persist.
+
 ## Resources ride the container surface
 
 The run asks on its SSE stream (`fetch_resource` items), the server
