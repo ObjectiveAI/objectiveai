@@ -1701,8 +1701,10 @@ name = "diverge-agentic-loop-hermes"
 version = "2.3.0"
 dependencies = [
  "axum",
+ "dashmap",
  "diverge-provider-sdk",
  "futures-util",
+ "serde",
  "serde_json",
  "tokio",
 ]
