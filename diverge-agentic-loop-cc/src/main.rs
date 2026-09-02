@@ -2,20 +2,22 @@
 //!
 //! The program an `agentic_loop::run` server deploys for an agent
 //! whose `upstream` is `claude_code`, per the Container section of the
-//! provider specification: one POST at `/` on port 8080 carries the
-//! caller's request JSON in, and the answer is a server-sent event
-//! stream, each event one item of the container response vocabulary
-//! — the run itself a Claude Code subprocess behind [`spawn`]. MCP
-//! is asked on port 8081, Postgres opened to port 8082. Beside the
-//! run, the queue's two verbs: `POST /enqueue` and `POST /dequeue`,
-//! per the SDK's `agentic_loop_container` module — the caller's way
-//! into the conversation already running: Claude Code holds the
-//! queue, and this container holds the writer. `POST
-//! /resource/{identity}` is served because the surface has it, and
-//! answers honestly: a `claude_code` agent names no resources, so
-//! every delivery is unrequested.
+//! provider specification: a WebSocket at `/` on port 8080, the
+//! server's first message the caller's request, every message back
+//! one frame of the container response vocabulary — the run itself a
+//! Claude Code subprocess behind [`spawn`]. MCP is asked on port
+//! 8081, Postgres opened to port 8082. Beside the run, the queue's
+//! two verbs: `POST /enqueue` and `POST /dequeue`, per the SDK's
+//! `agentic_loop_container` module — the caller's way into the
+//! conversation already running: Claude Code holds the queue, and
+//! this container holds the writer. The continuation the run resumes
+//! from arrives on the `/continuation` routes, into
+//! [`continuation_fetcher`]'s slot; `/resource/{identity}` is served
+//! because the surface has it, and answers honestly: a `claude_code`
+//! agent names no resources, so every delivery is unrequested.
 
 mod continuation;
+mod continuation_fetcher;
 // The wire module carries Claude Code's COMPLETE stdout vocabulary,
 // which is more than the conversion consumes — a field parsed and
 // never read is the completeness, not dead code.
@@ -26,34 +28,37 @@ mod spawn;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::Json;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::http::StatusCode;
-use axum::response::sse::{Event, Sse};
 use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::agentic_loop_container::response::Response;
+use diverge_provider_sdk::decode::Decode as _;
+use diverge_provider_sdk::encode::{Encode as _, Writer};
+use diverge_provider_sdk::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE;
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::Agent;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
-    AgenticLoopChunk, ContinuationChunk, NotificationChunk,
+    AgenticLoopChunk, NotificationChunk,
 };
-use futures_util::{Stream, StreamExt as _};
+use futures_util::StreamExt as _;
 
 use crate::continuation::Continuation;
+use crate::continuation_fetcher::FetchError;
 
 /// The loop port of the Container section of the provider
-/// specification: where the server POSTs the request in.
+/// specification: where the server opens the run's socket.
 const PORT: u16 = 8080;
 
-/// Whether the container's one request has arrived.
+/// Whether the container's one run has arrived.
 ///
 /// A container is one run: its queue, its MCP session, its
-/// filesystem are all one conversation's, and a second request would
-/// share all of them with the first. So the FIRST request claims the
+/// filesystem are all one conversation's, and a second run would
+/// share all of them with the first. So the FIRST socket claims the
 /// container for good — an atomic swap, so two arrivals a nanosecond
 /// apart resolve to exactly one winner — and everything after it,
-/// concurrent or later, is refused with `409` before anything else
-/// is judged: a first request that fails every later check has still
-/// spent the container, because "one request" is a fact about
-/// arrivals, not about merit. (A body that never parsed as the
-/// request type never arrived as one — the extractor's `400` comes
-/// first and claims nothing.)
+/// concurrent or later, is refused with `409` before the upgrade: a
+/// first run that fails every later check has still spent the
+/// container, because "one run" is a fact about arrivals, not about
+/// merit.
 static CLAIMED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
@@ -72,9 +77,18 @@ async fn run() {
     });
 
     let app = axum::Router::new()
-        .route("/", axum::routing::post(serve))
+        .route("/", axum::routing::get(serve))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
+        .route("/continuation", axum::routing::post(continuation_chunk))
+        .route(
+            "/continuation/complete",
+            axum::routing::post(continuation_complete),
+        )
+        .route(
+            "/continuation/error",
+            axum::routing::post(continuation_error),
+        )
         .route("/resource/{identity}", axum::routing::post(resource))
         .route(
             "/resource/{identity}/complete",
@@ -93,13 +107,12 @@ async fn run() {
         .expect("the server stopped unexpectedly");
 }
 
-/// One request, one stream.
+/// One socket, one run.
 ///
-/// The caller's JSON arrives as the SDK's own request type, and
-/// every chunk the run produces leaves as one SSE event carrying
-/// that chunk's JSON. The failures divide by whose they are:
+/// The upgrade is refused for what is knowable before the request is
+/// read — and only that:
 ///
-/// - A request after the first is the CALLER's error, and the first
+/// - A run after the first is the CALLER's error, and the first
 ///   error checked: `409`, the container is [`CLAIMED`].
 /// - Claude Code failing to INSTALL — the harness fetches it at
 ///   startup; see [`spawn::installed`] — is the server's own,
@@ -107,41 +120,13 @@ async fn run() {
 ///   container): `500`, and the same on every other endpoint,
 ///   forever. A request during the install simply waits for the
 ///   outcome.
-/// - An agent of another kind, a prompt this container cannot yet
-///   speak (anything richer than text, or nothing at all — Claude
-///   Code cannot open a turn without a prompt), or a continuation
-///   token that will not open: the CALLER's error, `400`.
-/// - The subprocess failing to start is the server's own: `500`.
-/// - An error-typed record BEFORE the run's first chunk — the
-///   first-item contract below — answers as HTTP with the record's
-///   own status and body (the stream error's `status`/`message`);
-///   so does a run that dies producing nothing at all, since every
-///   healthy run says at least its bill.
-/// - An error after the stream began cannot change the status that
-///   already left — and its severity is not knowable on arrival, so
-///   it is HELD, not yielded: fatality is finality. A later chunk
-///   proves the run outlived it, and it flushes as a NON-fatal
-///   `notification` ahead of that chunk, in arrival order; when the
-///   stream ends with errors still held, the LAST of them is the
-///   run's death — fatal — and the ones before it flush non-fatal
-///   ahead of it. Then the estate: if the model had already spoken
-///   (any assistant chunk), the harvest follows even the fatal last
-///   word, salvaging the progress into a continuation; a run that
-///   died before the model spoke saved nothing beyond what the
-///   caller brought — even a resumed transcript's new prompt line
-///   is not progress — and yields none.
 ///
-/// A stream that ends cleanly — no held error as its last word —
-/// closes with THE HARVEST: the session's files swept into a
-/// continuation token — [`Continuation::read`] keyed by the session
-/// id the stream captured (falling back to the resumed token's
-/// own) — yielded as the final `continuation` chunk.
+/// Everything after the upgrade is the stream's: see [`drive`]. The
+/// socket closes when the drive returns, whatever it returned for.
 async fn serve(
-    Json(request): Json<agentic_loop_container::request::Request>,
-) -> Result<
-    Sse<impl Stream<Item = Result<Event, axum::Error>>>,
-    (StatusCode, Json<serde_json::Value>),
-> {
+    ws: WebSocketUpgrade,
+) -> Result<axum::response::Response, (StatusCode, Json<serde_json::Value>)>
+{
     if CLAIMED.swap(true, Ordering::SeqCst) {
         return Err((
             StatusCode::CONFLICT,
@@ -154,44 +139,150 @@ async fn serve(
 
     installed().await?;
 
+    Ok(ws.on_upgrade(|mut socket| async move {
+        drive(&mut socket).await;
+        // The close is a frame of its own; the socket is gone when
+        // the future is.
+        let _ = socket.send(Message::Close(None)).await;
+    }))
+}
+
+/// The run, on the socket: the request read, the continuation asked
+/// for and awaited, Claude Code launched, its chunks relayed, the
+/// closer sent.
+///
+/// Every failure past the upgrade has no status left to set and says
+/// so as a fatal `notification` — the loop's own vocabulary — after
+/// which the socket closes:
+///
+/// - the first message not being the request frame, an agent of
+///   another kind, or a prompt this container cannot yet speak
+///   (anything richer than text, or nothing at all — Claude Code
+///   cannot open a turn without a prompt): the CALLER's;
+/// - a continuation the server could not deliver — its own words,
+///   verbatim — or one that will not open;
+/// - the subprocess failing to start, or a run that ends without
+///   producing anything (every healthy run says at least its bill):
+///   the server's own.
+///
+/// An error the run reports mid-stream is HELD, not sent: fatality
+/// is finality. A later chunk proves the run outlived it, and it
+/// flushes as a NON-fatal `notification` ahead of that chunk, in
+/// arrival order; when the stream ends with errors still held, the
+/// LAST of them is the run's death — fatal — and the ones before it
+/// flush non-fatal ahead of it. Then the estate: if the model had
+/// already spoken (any assistant chunk), the harvest follows even the
+/// fatal last word, salvaging the progress into the closer; a run
+/// that died before the model spoke saved nothing beyond what the
+/// caller brought — even a resumed transcript's new prompt line is
+/// not progress — and closes with none.
+///
+/// A stream that ends cleanly — no held error as its last word —
+/// closes with THE HARVEST: the session's files swept into the
+/// continuation — [`Continuation::read`] keyed by the session id the
+/// stream captured (falling back to the resumed one's own) — sent as
+/// the closer: raw bytes, chunked.
+async fn drive(socket: &mut WebSocket) {
+    // The request: the first binary message, the wire's own frame.
+    let request = match socket.recv().await {
+        Some(Ok(Message::Binary(bytes))) => {
+            match agentic_loop_container::request::Request::decode(&bytes) {
+                Ok(request) => request,
+                Err(error) => {
+                    fail(
+                        socket,
+                        serde_json::json!({
+                            "kind": "request",
+                            "error": error.to_string(),
+                        }),
+                    )
+                    .await;
+                    return;
+                }
+            }
+        }
+        _ => {
+            fail(
+                socket,
+                serde_json::json!({
+                    "kind": "request",
+                    "error": "the first message was not the request frame",
+                }),
+            )
+            .await;
+            return;
+        }
+    };
+
     let Agent::ClaudeCode(agent) = request.agent else {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
+        fail(
+            socket,
+            serde_json::json!({
                 "kind": "wrong_agent",
                 "error": "this container serves the claude_code agent kind",
-            })),
-        ));
+            }),
+        )
+        .await;
+        return;
     };
 
     // Text-only for now: every block must be text, and there must be
     // at least one — stream-json input mode opens the turn with a
     // user message, so an empty prompt would hang forever waiting.
     let Some(prompt) = prompt_text(&request.prompt) else {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
+        fail(
+            socket,
+            serde_json::json!({
                 "kind": "prompt",
                 "error": "this container speaks text prompts only, and needs one",
-            })),
-        ));
+            }),
+        )
+        .await;
+        return;
     };
 
-    let continuation = match request
-        .continuation
-        .as_deref()
-        .map(Continuation::parse)
-        .transpose()
-    {
-        Ok(continuation) => continuation,
+    // The ask, then the wait: the server fetches the continuation
+    // from the caller and delivers it on the routes.
+    if !send(socket, &Response::FetchContinuation).await {
+        return;
+    }
+    let continuation = match continuation_fetcher::STORE.fetch().await {
+        Ok(None) => None,
+        Ok(Some(bytes)) => match Continuation::parse(&bytes) {
+            Ok(continuation) => Some(continuation),
+            Err(error) => {
+                fail(
+                    socket,
+                    serde_json::json!({
+                        "kind": "continuation",
+                        "error": error.to_string(),
+                    }),
+                )
+                .await;
+                return;
+            }
+        },
+        Err(FetchError::Failed(error)) => {
+            fail(
+                socket,
+                serde_json::json!({
+                    "kind": "continuation",
+                    "error": error,
+                }),
+            )
+            .await;
+            return;
+        }
         Err(error) => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
+            fail(
+                socket,
+                serde_json::json!({
                     "kind": "continuation",
                     "error": error.to_string(),
-                })),
-            ));
+                }),
+            )
+            .await;
+            return;
         }
     };
     // The harvest's fallback key: a resumed run knows its session
@@ -203,84 +294,85 @@ async fn serve(
     let stream = match spawn::spawn(agent, continuation, prompt).await {
         Ok(stream) => stream,
         Err(error) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({
+            fail(
+                socket,
+                serde_json::json!({
                     "kind": "spawn",
                     "error": error.to_string(),
-                })),
-            ));
+                }),
+            )
+            .await;
+            return;
         }
     };
     let mut stream = Box::pin(stream);
 
-    // The first-item contract: the run's first word decides whether
-    // this answer is a stream at all. An error-typed record before
-    // the first chunk is the request's own failure, as HTTP; a run
-    // that ends before saying anything said nothing because it died —
-    // every healthy run says at least its bill.
-    let first = match stream.next().await {
-        Some(Ok(chunk)) => chunk,
-        Some(Err(error)) => {
-            return Err((
-                StatusCode::from_u16(error.status())
-                    .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(error.message()),
-            ));
-        }
-        None => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({
-                    "kind": "empty_run",
-                    "error": "the run ended without producing anything",
-                })),
-            ));
-        }
-    };
-
-    Ok(Sse::new(async_stream::stream! {
-        // Whether the model has spoken — the salvage criterion.
-        let mut progressed = assistant_chunk(&first);
-        yield event(first);
-        // Fatality is finality: an error is HELD, not yielded — a
-        // later chunk proves the run outlived it and flushes it
-        // non-fatal, in arrival order; at the stream's end, only
-        // the LAST held error is the death itself.
-        let mut held: Vec<serde_json::Value> = Vec::new();
-        while let Some(item) = stream.next().await {
-            match item {
-                Ok(chunk) => {
-                    for message in held.drain(..) {
-                        yield event(notification(message, false));
-                    }
-                    progressed |= assistant_chunk(&chunk);
-                    yield event(chunk);
-                }
-                Err(error) => held.push(error.message()),
-            }
-        }
-        match held.pop() {
-            None => yield event(harvest(resumed_session_id).await),
-            // Only the LAST error is the stream's death — fatal; the
-            // ones before it flush non-fatal, as they would have had
-            // anything else followed them. Then the estate: a run
-            // the model had spoken in left progress worth resuming,
-            // and the harvest salvages it even past the fatal last
-            // word. A run that died unspoken saved nothing beyond
-            // what the caller brought — a resumed transcript's new
-            // prompt line is not progress — and yields none.
-            Some(last) => {
+    // Whether the run said anything at all, and whether the model
+    // spoke — the empty-run check and the salvage criterion.
+    let mut any = false;
+    let mut progressed = false;
+    // Fatality is finality: an error is HELD, not sent — a later
+    // chunk proves the run outlived it and flushes it non-fatal, in
+    // arrival order; at the stream's end, only the LAST held error
+    // is the death itself.
+    let mut held: Vec<serde_json::Value> = Vec::new();
+    while let Some(item) = stream.next().await {
+        any = true;
+        match item {
+            Ok(chunk) => {
                 for message in held.drain(..) {
-                    yield event(notification(message, false));
+                    let flushed = Response::Chunk(notification(message, false));
+                    if !send(socket, &flushed).await {
+                        return;
+                    }
                 }
-                yield event(notification(last, true));
-                if progressed {
-                    yield event(harvest(resumed_session_id).await);
+                progressed |= assistant_chunk(&chunk);
+                if !send(socket, &Response::Chunk(chunk)).await {
+                    return;
                 }
             }
+            Err(error) => held.push(error.message()),
         }
-    }))
+    }
+    if !any {
+        fail(
+            socket,
+            serde_json::json!({
+                "kind": "empty_run",
+                "error": "the run ended without producing anything",
+            }),
+        )
+        .await;
+        return;
+    }
+    match held.pop() {
+        None => {
+            closer(socket, resumed_session_id).await;
+        }
+        // Only the LAST error is the stream's death — fatal; the
+        // ones before it flush non-fatal, as they would have had
+        // anything else followed them. Then the estate: a run the
+        // model had spoken in left progress worth resuming, and the
+        // harvest salvages it even past the fatal last word. A run
+        // that died unspoken saved nothing beyond what the caller
+        // brought — a resumed transcript's new prompt line is not
+        // progress — and closes with none.
+        Some(last) => {
+            for message in held.drain(..) {
+                let flushed = Response::Chunk(notification(message, false));
+                if !send(socket, &flushed).await {
+                    return;
+                }
+            }
+            if !send(socket, &Response::Chunk(notification(last, true))).await
+            {
+                return;
+            }
+            if progressed {
+                closer(socket, resumed_session_id).await;
+            }
+        }
+    }
 }
 
 /// The whole prompt as text: every block's text, joined by blank
@@ -297,52 +389,67 @@ fn prompt_text(prompt: &[rmcp::model::ContentBlock]) -> Option<String> {
     Some(texts.join("\n\n"))
 }
 
-/// The run's last word on success: the session's files swept into a
-/// continuation token. A harvest that cannot happen — no record ever
-/// named the session and the request resumed nothing, or the sweep
-/// or the tokenizing failed — is a fatal notification instead: the
-/// conversation ran, but cannot be resumed.
+/// The run's last word on success: the session's files swept into
+/// the continuation's bytes. A harvest that cannot happen — no
+/// record ever named the session and the request resumed nothing,
+/// or the sweep or the serializing failed — is a fatal notification
+/// instead: the conversation ran, but cannot be resumed.
 async fn harvest(
     resumed_session_id: Option<String>,
-) -> AgenticLoopChunk {
+) -> Result<Vec<u8>, AgenticLoopChunk> {
     let session_id = match spawn::session_id().await.or(resumed_session_id)
     {
         Some(session_id) => session_id,
         None => {
-            return notification(
+            return Err(notification(
                 serde_json::json!({
                     "kind": "harvest",
                     "error": "no record ever named the session",
                 }),
                 true,
-            );
+            ));
         }
     };
     let continuation = match Continuation::read(session_id).await {
         Ok(continuation) => continuation,
         Err(error) => {
-            return notification(
+            return Err(notification(
                 serde_json::json!({
                     "kind": "harvest",
                     "error": error.to_string(),
                 }),
                 true,
-            );
+            ));
         }
     };
-    match continuation.tokenize() {
-        Ok(token) => AgenticLoopChunk::Continuation(ContinuationChunk {
-            r#type: Default::default(),
-            continuation: token,
-            meta: None,
-        }),
-        Err(error) => notification(
+    continuation.tokenize().map_err(|error| {
+        notification(
             serde_json::json!({
                 "kind": "harvest",
                 "error": error.to_string(),
             }),
             true,
-        ),
+        )
+    })
+}
+
+/// Send the closer: the harvest's bytes as continuation frames, split
+/// at [`CHUNK_SIZE`] — or, when the harvest could not happen, the
+/// fatal notification it degraded to. Whether the socket stayed up.
+async fn closer(
+    socket: &mut WebSocket,
+    resumed_session_id: Option<String>,
+) -> bool {
+    match harvest(resumed_session_id).await {
+        Ok(bytes) => {
+            for piece in bytes.chunks(CHUNK_SIZE) {
+                if !send(socket, &Response::Continuation(piece)).await {
+                    return false;
+                }
+            }
+            true
+        }
+        Err(chunk) => send(socket, &Response::Chunk(chunk)).await,
     }
 }
 
@@ -375,14 +482,21 @@ fn notification(
     })
 }
 
-/// One chunk as one SSE event, carrying the chunk's JSON — the
-/// [`Chunk`](agentic_loop_container::response::Response::Chunk) arm
-/// of the container response item, which serializes as the bare
-/// chunk. (The union's other arm is the resource ask, which this
-/// container never sends.)
-fn event(chunk: AgenticLoopChunk) -> Result<Event, axum::Error> {
-    Event::default()
-        .json_data(agentic_loop_container::response::Response::Chunk(chunk))
+/// Write one frame as one binary message. Whether it went — a frame
+/// that will not encode, or a socket that is gone, both end the run,
+/// and nothing here can tell those apart or needs to.
+async fn send(socket: &mut WebSocket, frame: &Response<'_>) -> bool {
+    let mut buffer = Vec::new();
+    if frame.encode(&mut Writer::new(&mut buffer)).is_err() {
+        return false;
+    }
+    socket.send(Message::Binary(buffer.into())).await.is_ok()
+}
+
+/// The run cannot go on: say so as the fatal notification. The
+/// socket closes when the drive returns.
+async fn fail(socket: &mut WebSocket, message: serde_json::Value) {
+    let _ = send(socket, &Response::Chunk(notification(message, true))).await;
 }
 
 /// The install gate every endpoint stands behind: waits out an
@@ -420,11 +534,74 @@ async fn enqueue(
     Ok(Json(spawn::enqueue(request.prompt).await))
 }
 
+/// One chunk of the continuation into the slot the run will read.
+///
+/// The body is the bytes verbatim, so nothing can be malformed — the
+/// one refusal is a delivery after the settlement (`409`), because
+/// anything after a settlement is somebody's bug. The one other HTTP
+/// failure is the install's.
+async fn continuation_chunk(
+    body: axum::body::Bytes,
+) -> Result<
+    Json<agentic_loop_container::continuation::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    installed().await?;
+    settled(continuation_fetcher::STORE.chunk(&body).await)
+}
+
+/// The completion: every chunk is in — or none at all, the fresh
+/// start — and the run may collect.
+async fn continuation_complete(
+    Json(_request): Json<agentic_loop_container::continuation::complete::Request>,
+) -> Result<
+    Json<agentic_loop_container::continuation::complete::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    installed().await?;
+    settled(continuation_fetcher::STORE.complete().await)
+}
+
+/// The failure: the bytes can never come, and the waiting run learns
+/// so in the server's own words.
+async fn continuation_error(
+    Json(request): Json<agentic_loop_container::continuation::error::Request>,
+) -> Result<
+    Json<agentic_loop_container::continuation::error::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    installed().await?;
+    settled(continuation_fetcher::STORE.error(request.error).await)
+}
+
+/// The continuation routes' one verdict: taken (`received`), or
+/// refused because the delivery was already settled (`409`).
+fn settled(
+    taken: bool,
+) -> Result<
+    Json<agentic_loop_container::continuation::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    if taken {
+        Ok(Json(agentic_loop_container::continuation::Response {
+            r#type: Default::default(),
+        }))
+    } else {
+        Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "kind": "settled",
+                "error": "the continuation is already settled",
+            })),
+        ))
+    }
+}
+
 /// A resource chunk, for a container that never asks for one.
 ///
 /// The routes are the surface's, so they are served; the answer is
 /// honest. A `claude_code` agent names no resources, so no ask ever
-/// rides this container's stream and no delivery can be answering
+/// rides this container's socket and no delivery can be answering
 /// one: `409`, on all three routes alike (a chunk cannot be
 /// malformed — any bytes are one; the endings' JSON is judged by
 /// the extractor). The one other HTTP failure is the install's.

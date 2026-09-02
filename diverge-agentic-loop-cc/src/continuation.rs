@@ -6,17 +6,18 @@
 //! `cc-source-findings/HISTORY.md`). Resuming is those files existing
 //! and `claude --resume <session id>` being launched with the same
 //! working directory. So this container's continuation IS the
-//! files: the token carries the session id and everything needed to
-//! make it resumable, and running a continuation means writing them
-//! back before Claude Code starts.
+//! files: the continuation carries the session id and everything
+//! needed to make it resumable, and running a continuation means
+//! writing them back before Claude Code starts. On the wire it is
+//! raw bytes — this JSON, uncoated: no base64, no envelope.
 //!
 //! The container fixes its geometry — one working directory, one
 //! config dir (the stock `~/.claude`, no environment overrides) — so
-//! every relative path in a token minted by one run resolves
-//! identically in the next. The harness's flow:
-//! fresh runs launch Claude Code and harvest `projects/**` into a
-//! token; resumed runs [`write`](Continuation::write) the token's
-//! files and launch with `--resume` and the token's session id.
+//! every relative path in a continuation minted by one run resolves
+//! identically in the next. The harness's flow: fresh runs launch
+//! Claude Code and harvest `projects/**` into a continuation;
+//! resumed runs [`write`](Continuation::write) its files and launch
+//! with `--resume` and its session id.
 
 use std::io;
 use std::path::{Component, Path};
@@ -27,10 +28,7 @@ use std::path::{Component, Path};
 /// what [`Continuation::write`] lays down is what Claude Code finds.
 pub const CONFIG_DIR: &str = "/root/.claude";
 
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD;
-
-/// A continuation token, opened.
+/// A continuation, opened.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Continuation {
     /// The session to hand to `claude --resume`.
@@ -55,18 +53,15 @@ pub struct ContinuationFile {
 }
 
 impl Continuation {
-    /// Open a raw continuation string: un-base64 it, deserialize it.
-    pub fn parse(token: &str) -> Result<Self, ContinuationError> {
-        let json = STANDARD
-            .decode(token)
-            .map_err(ContinuationError::Base64)?;
-        serde_json::from_slice(&json).map_err(ContinuationError::Json)
+    /// Open the bytes the server delivered: the state, as JSON.
+    pub fn parse(bytes: &[u8]) -> Result<Self, serde_json::Error> {
+        serde_json::from_slice(bytes)
     }
 
-    /// Close the coat back up: serialize the state, base64 it.
+    /// The state as the bytes the run closes with —
     /// [`parse`](Self::parse)'s exact inverse.
-    pub fn tokenize(&self) -> Result<String, serde_json::Error> {
-        serde_json::to_vec(self).map(|json| STANDARD.encode(json))
+    pub fn tokenize(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(self)
     }
 
     /// Write every file under [`CONFIG_DIR`], parents created as
@@ -76,8 +71,8 @@ impl Continuation {
     ///
     /// A path that is absolute, names a root, or contains a `..`
     /// component is refused with [`io::ErrorKind::InvalidInput`] —
-    /// the token names files inside the config directory, and does
-    /// not get to escape it.
+    /// the continuation names files inside the config directory,
+    /// and does not get to escape it.
     pub async fn write(&self) -> io::Result<()> {
         let config_dir = Path::new(CONFIG_DIR);
         for file in &self.files {
@@ -232,38 +227,4 @@ async fn collect_tree(
         }
     }
     Ok(())
-}
-
-/// A continuation token that could not be opened.
-///
-/// Two layers, two failures: the coat did not decode, or what was
-/// inside was not the state this container writes.
-#[derive(Debug)]
-pub enum ContinuationError {
-    /// The token is not base64.
-    Base64(base64::DecodeError),
-    /// The decoded bytes are not the session state.
-    Json(serde_json::Error),
-}
-
-impl std::fmt::Display for ContinuationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ContinuationError::Base64(error) => {
-                write!(f, "a continuation token is not base64: {error}")
-            }
-            ContinuationError::Json(error) => {
-                write!(f, "a continuation token did not parse: {error}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for ContinuationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ContinuationError::Base64(error) => Some(error),
-            ContinuationError::Json(error) => Some(error),
-        }
-    }
 }
