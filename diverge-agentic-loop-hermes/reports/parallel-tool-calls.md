@@ -134,7 +134,7 @@ pair.
 The FIFO carries its own consistency check: the popped head's
 `tool` must equal the completion's `tool`. Healthy operation always
 agrees. A mismatch, or a pop on an empty queue, is the signature of
-the degraded paths below (a call abandoned at the gate or timed out
+the degraded paths above (a call abandoned at the gate or timed out
 emits `completed` without ever emitting `started`) — the moment to
 stop trusting that batch's pairing rather than mislabel silently:
 flush the queue, and treat the rest of the batch's completions as
