@@ -13,8 +13,8 @@ use super::{MCP_PROXY_NAME, MCP_PROXY_URL, Plan};
 /// - `security.protected_instruction_files: false`: the second of
 ///   the yolo trio (the first is the environment's
 ///   `HERMES_YOLO_MODE`, the third is on the MCP entry below).
-/// - `web`, `tts`, `image_gen`, `video_gen`: the backend pins the
-///   toolsets asked for, and only those.
+/// - `web`, `browser`, `tts`, `image_gen`, `video_gen`: the backend
+///   pins the toolsets asked for, and only those.
 /// - `platform_toolsets.api_server`: the explicit membership list.
 /// - `mcp_servers`: the container's own proxy, trusted in full, with
 ///   elicitation AND sampling off — neither has anyone to answer it.
@@ -46,6 +46,12 @@ pub fn render(plan: &Plan) -> Value {
     }
     if !web.is_empty() {
         config.insert("web".to_string(), Value::Object(web));
+    }
+    if plan.browserbase {
+        config.insert(
+            "browser".to_string(),
+            json!({ "cloud_provider": "browserbase" }),
+        );
     }
     if plan.tts_elevenlabs {
         config.insert("tts".to_string(), json!({ "provider": "elevenlabs" }));

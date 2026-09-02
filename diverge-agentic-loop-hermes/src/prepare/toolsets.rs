@@ -90,6 +90,7 @@ pub fn apply(toolsets: &Toolsets, plan: &mut Plan) -> Result<(), PrepareError> {
                     "BROWSERBASE_PROJECT_ID",
                     browserbase_project_id.clone(),
                 )?;
+                plan.browserbase = true;
             }
             None => {}
         }

@@ -22,6 +22,10 @@ pub struct Plan {
     pub search_backend: Option<&'static str>,
     /// `web.extract_backend`, when the extract slot names one.
     pub extract_backend: Option<&'static str>,
+    /// `browser.cloud_provider: browserbase`, when the browser's remote
+    /// is Browserbase — pinned, so Hermes's auto-detect walk (Browser
+    /// Use first) never enters into it.
+    pub browserbase: bool,
     /// `tts.provider: elevenlabs`, when its key is present.
     pub tts_elevenlabs: bool,
     /// `image_gen.provider: fal`, when the toolset is present.
