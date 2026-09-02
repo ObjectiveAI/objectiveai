@@ -16,14 +16,16 @@
 //! - `POST /continuation/error` — no more are coming, ever
 //!   ([`error`]) — the delivery's other ending.
 //!
-//! # Chunks append; a settlement ends it
+//! # Chunks are kept, in order; a settlement ends it
 //!
 //! Chunks arrive in POST order — the server posts one at a time,
-//! each answered before the next — and the receiver appends, never
-//! measures: the sender's chunking (at most
-//! [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
-//! per POST) is the sender's business. The completion or the error
-//! settles the delivery — exactly one, and nothing lands after it.
+//! each answered before the next — and each POST is exactly one of
+//! the chunks the earlier run's closer sent, kept apart all the way
+//! from that container to the caller and back. The store keeps them
+//! apart too: a container reads its continuation as the sequence it
+//! minted, boundaries intact, and may have put meaning in them. The
+//! completion or the error settles the delivery — exactly one, and
+//! nothing lands after it.
 //!
 //! # A lone completion is a fresh start
 //!

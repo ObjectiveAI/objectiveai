@@ -42,8 +42,9 @@ use crate::shared::error::Error;
 /// # Zero or more chunks, the closer, then one ending
 ///
 /// It yields zero or more [`Ok`] — chunks, and then, if the provider
-/// issued one, the continuation in pieces that APPEND, the finish
-/// saying it is whole — and then either ends or yields exactly one
+/// issued one, the continuation in pieces the caller KEEPS APART, in
+/// order, the finish saying the sequence is whole — and then either
+/// ends or yields exactly one
 /// [`Err`] and ends. Every error is terminal, which is what makes the
 /// type explainable in one line and what [`FusedStream`] then reports
 /// honestly. The continuation is not terminal: only the finish is.

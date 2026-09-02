@@ -9,7 +9,8 @@
 //! [`fetch_continuation::Frame`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_continuation::Frame)s
 //! of at most
 //! [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
-//! each, every frame appending, then the finish.
+//! each — the same chunks the earlier run closed with, in the same
+//! order, one frame each — then the finish.
 //!
 //! # The empty finish is a fresh start
 //!

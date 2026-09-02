@@ -15,13 +15,14 @@ use crate::encode::{Encode, Writer};
 /// about to hand these bytes to a provider's own parser, and copying
 /// them first would double every chunk's memory for nothing.
 ///
-/// # Every frame appends
+/// # Every frame is one chunk, replayed
 ///
-/// The receiver is chunk-naive by design: each frame's bytes are
-/// concatenated onto what arrived before, and the channel's finish
-/// is what says the continuation is whole. The SENDER splits at
-/// [`CHUNK_SIZE`](super::super::CHUNK_SIZE); the receiver never
-/// measures.
+/// A continuation is a sequence of chunks whose boundaries are part
+/// of it: the client sends back the pieces the earlier run's closer
+/// delivered, one frame each, in the same order — never joined,
+/// never re-split — and the channel's finish says the sequence is
+/// whole. Each is at most [`CHUNK_SIZE`](super::super::CHUNK_SIZE),
+/// because the provider that minted it kept to that.
 ///
 /// # Zero frames is a fresh start
 ///

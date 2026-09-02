@@ -14,16 +14,18 @@ use crate::encode::{Encode, Writer};
 ///
 /// Borrowed from the request it arrived in, the
 /// [`oci`](crate::shared::oci::response::Frame) way: the receiver
-/// is about to append these bytes somewhere, and copying them first
-/// would double every chunk's memory for nothing.
+/// is about to store these bytes as one chunk, and copying them
+/// first would double every chunk's memory for nothing.
 ///
-/// # Every chunk appends
+/// # Every POST is one chunk, kept as such
 ///
-/// Onto what arrived before — chunk-naive by design: next POST,
-/// append. The sender splits at
-/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
-/// and only splits what exceeds it, so an empty chunk does not
-/// occur; a fresh start is a lone [`complete`](super::complete).
+/// The chunk the earlier run's closer sent, replayed with its
+/// boundaries intact — the store keeps the sequence, never joins
+/// it. Each is at most
+/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE),
+/// the minting container's rule. A chunk may be as short as its
+/// container made it (one tag byte, say); a fresh start is a lone
+/// [`complete`](super::complete) with no chunks at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Request<'a> {
     /// This chunk of the bytes, borrowed from the request they

@@ -41,11 +41,14 @@ use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 /// # The continuation closes the stream
 ///
 /// The continuation's frames are the last thing a container sends:
-/// one, or several when the bytes exceed
-/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
-/// (the sender's rule — the receiver appends, never measures), and
-/// then the socket closes. A run that closes without them issued
-/// none.
+/// one, or several, each at most
+/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE),
+/// and then the socket closes. A run that closes without them issued
+/// none. The chunks are KEPT as chunks all the way to the caller and
+/// back — nobody joins or splits them — so the next run's delivery at
+/// `/continuation` is the same pieces in the same order, and a
+/// container may put meaning in the boundaries (a tag byte leading
+/// each chunk, say).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Response<'a> {
     /// The container asking for the continuation it resumes from.
@@ -62,7 +65,7 @@ pub enum Response<'a> {
     /// One piece of the run's new continuation — the closer. Tag
     /// `3`. Borrowed from the frame it is written from or read out
     /// of, the fetch frames' way: copying every chunk in between
-    /// would double each for nothing.
+    /// would double each for nothing. Kept as one chunk end to end.
     Continuation(&'a [u8]),
 }
 

@@ -113,8 +113,9 @@ pub trait FetchProxy: Send + Sync {
         Output = Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>,
     > + Send;
 
-    /// The continuation the run resumes from, as its bytes — one
-    /// item per chunk, appended in order by the far side. No
+    /// The continuation the run resumes from, as its chunks — one
+    /// item per chunk, exactly as the earlier run's closer delivered
+    /// them and in that order; the far side keeps them apart. No
     /// identity: a run resumes from the one continuation its caller
     /// holds. An EMPTY stream is a fresh start, the ordinary first
     /// run — not a refusal.

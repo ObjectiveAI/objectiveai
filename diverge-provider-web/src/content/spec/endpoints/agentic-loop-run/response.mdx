@@ -31,12 +31,13 @@ pub struct Error(pub serde_json::Value);
   the order sent.
 - **The continuation closes the stream.** Responses bearing tag `2`
   carry the loop's continuation — the server's own opaque state, as
-  bytes — in one or more pieces the client appends in order; the
-  response finish says the whole is whole. Nothing but the finish
-  follows them. A loop that issues none is not resumable. The client
-  keeps the bytes and answers the next request's
+  bytes — in one or more pieces; the response finish says the
+  sequence is whole. Nothing but the finish follows them. A loop that
+  issues none is not resumable. The pieces are kept as pieces: the
+  client stores them in order, never joined or re-split, and answers
+  the next request's
   [continuation fetch](/endpoints/agentic-loop-run/channels/) with
-  them.
+  the same pieces, one frame each, in the same order.
 
 ## Chunks
 

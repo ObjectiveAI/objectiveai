@@ -46,15 +46,23 @@ use crate::shared::error::Error;
 /// The continuation used to be a chunk carrying a `String`, which
 /// meant base64 around whatever the provider actually kept. Now it
 /// is the bytes themselves, on the frame's own tag, and it CLOSES the
-/// response: a provider sends it last — one frame, or several when it
-/// exceeds
-/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE),
-/// the sender's rule — and nothing follows it but the finish. The
-/// receiver appends, never measures; the finish says it is whole. A
-/// run that closes with no continuation frames issued none. The
-/// caller keeps the bytes and answers the next run's
+/// response: a provider sends it last — one frame, or several, each
+/// at most
+/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
+/// — and nothing follows it but the finish. A run that closes with
+/// no continuation frames issued none.
+///
+/// # The chunks are kept, not joined
+///
+/// A continuation is a SEQUENCE of chunks, and the boundaries are
+/// part of it: the caller keeps the pieces as pieces, in order, and
+/// answers the next run's
 /// [`FetchContinuation`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchContinuation)
-/// with them.
+/// with the same pieces, one frame each, in the same order. No
+/// receiver on the way joins or splits them. So a provider may put
+/// meaning in the boundaries — a leading tag byte per chunk saying
+/// which of several files it belongs to, say — and rely on finding
+/// them exactly where it left them.
 ///
 /// # This is not [`NotificationChunk`](super::NotificationChunk)
 ///
@@ -86,7 +94,8 @@ pub enum Frame<'a> {
     /// Borrowed from the frame it arrived in, the fetch frames' way:
     /// a continuation is written out of a buffer and read into one,
     /// and copying every chunk in between would double each for
-    /// nothing. Every frame appends; the finish says whole.
+    /// nothing. Every frame is one chunk the caller keeps as such;
+    /// the finish says the sequence is whole.
     Continuation(&'a [u8]),
 }
 
