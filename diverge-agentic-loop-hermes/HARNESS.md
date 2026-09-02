@@ -95,9 +95,14 @@ Hermes defaults or off: memory (the CONTINUATION is our cross-run
 memory), context_engine, yuanbao, skills-as-a-switch (mounts decide
 it), computer_use, stt, clarify, discord, cronjob, spotify's
 managed-gateway sibling (the rotating Nous tool gateway stays
-unsupported). Delegation needs NO provisioning: children are ad hoc,
-inherit the parent's toolsets, credentials and our MCP proxy —
-`delegation.subagent_auto_approve` is moot under yolo.
+unsupported). DELEGATION IS DISABLED: the harness turns the
+`delegation` toolset off in Hermes's toolset config, and the
+vocabulary carries no switch for it. On the API server every
+delegation is background — the run ends before its children, and
+their results wake the session as a turn no stream sees
+(`reports/subagent-correlation.md`,
+`reports/delegation-observability.md`). It could be supported
+through end-of-turn webhooks; the decision is not to.
 
 ## Resources ride the container surface
 

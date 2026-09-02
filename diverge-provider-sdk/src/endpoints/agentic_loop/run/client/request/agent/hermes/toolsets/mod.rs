@@ -27,6 +27,13 @@
 //!   carry, so there is nothing to enable.
 //! - `yuanbao` — its tools call a live Yuanbao platform adapter
 //!   that an api_server-only gateway never creates.
+//! - `delegation` — sub-agents. On the API server every delegation
+//!   is BACKGROUND: the run ends before its children do, and their
+//!   results wake the session as a turn nobody drives, off every
+//!   stream a run has. Observable only through end-of-turn hooks,
+//!   which is a different product than a stream — so the harness
+//!   turns the toolset OFF, and it is not a switch a request can
+//!   throw.
 //!
 //! Still absent for their unchanged non-auth reasons: skills
 //! (mounts decide it), `computer_use` (a display server is not an

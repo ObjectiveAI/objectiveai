@@ -80,10 +80,6 @@ pub struct Toolsets {
     /// container the searchable past is this run's own.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_search: Option<bool>,
-    /// Task delegation to child agents. Nothing to configure —
-    /// children inherit the run's provider credentials.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub delegation: Option<bool>,
     /// Home Assistant control. See
     /// [`homeassistant`](super::homeassistant).
     #[serde(default, skip_serializing_if = "Option::is_none")]
