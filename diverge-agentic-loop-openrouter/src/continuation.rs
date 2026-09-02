@@ -28,9 +28,13 @@ pub enum ContinuationItem {
 }
 
 impl Continuation {
-    /// Open the bytes the server delivered: the history, as JSON.
-    pub fn parse(bytes: &[u8]) -> Result<Self, serde_json::Error> {
-        serde_json::from_slice(bytes).map(Continuation)
+    /// Open the chunks the server delivered: joined, they are the
+    /// history as JSON. The protocol keeps the chunks apart for
+    /// containers that put meaning in the boundaries; this one does
+    /// not — its closer is one document split at the chunk ceiling,
+    /// and joining is the whole of reading it back.
+    pub fn parse(chunks: &[Vec<u8>]) -> Result<Self, serde_json::Error> {
+        serde_json::from_slice(&chunks.concat()).map(Continuation)
     }
 
     /// The history as the bytes the run closes with —
