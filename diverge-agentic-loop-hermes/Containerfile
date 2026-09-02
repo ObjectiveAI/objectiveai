@@ -1,29 +1,44 @@
-# The hermes agentic_loop image: the loop on 8080, the MCP proxy
-# on 8081, both musl binaries on Alpine.
+# The hermes agentic_loop image: the loop on 8080, the MCP proxy on
+# 8081, both musl binaries laid into Hermes's OWN published image.
 #
-# BOOTSTRAP: this image carries only the harness binaries; the
-# runtime pieces land when the run does. The runtime image MUST
-# also carry, beside `hermes-agent` itself:
-#   - `ddgs` (pip): the keyless web-search fallback is
-#     presence-detected (web_tools.py:416-428) — without the
-#     package, zero-credential web search loses its last resort;
-#   - python3, node + chromium (browser toolset), the
-#     edge-tts/fal extras;
-#   - NO ~/.hermes/.env file — it would shadow the process env the
-#     harness provisions (reports/provider-auth.md).
+# The runtime is `nousresearch/hermes-agent`, pinned by tag AND digest
+# to the first release after the source this harness is written
+# against (v0.20.6, commit 4209d371 of 2026-08-29; digests fetched
+# from Docker Hub on 2026-09-02 — bump both deliberately, with the
+# source under sources/). It carries what Hermes needs: Python and
+# the uv venv on PATH, the API server's aiohttp, playwright's
+# chromium for the browser toolset, node, ripgrep, ffmpeg, git. The
+# build asserts the pinned version, so a tag that drifted fails here
+# rather than at a run.
+#
+# What this image adds, and why:
+#   - `ddgs`, `edge-tts`, `fal-client`: the keyless web fallback is
+#     presence-detected, the tts floor and the fal generators are
+#     lazy installs, and lazy installs are DISABLED in Hermes's image
+#     — so they are installed up front, into Hermes's venv;
+#   - our two binaries and our entrypoint, which REPLACES the image's
+#     s6 dispatcher: nothing auto-starts a gateway — `run::run` spawns
+#     it, with the environment the harness renders;
+#   - nothing else on disk: no ~/.hermes/.env (it would shadow the
+#     process env), no HERMES_HOME on the image (the harness sets it
+#     on the gateway, to /root/.hermes, the root user's home the Qwen
+#     file also resolves under). The image's HERMES_WRITE_SAFE_ROOT
+#     is overridden to empty by the harness for the same reason the
+#     workspace is the caller's.
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
 #     podman build -f diverge-agentic-loop-hermes/Containerfile .
 #
-# Digests pinned from Docker Hub on 2026-08-26; bump deliberately.
+# Digests pinned from Docker Hub on 2026-08-26 (rust) and 2026-09-02
+# (hermes-agent); bump deliberately.
 
 # rust:1.98.0-alpine3.24 — the musl toolchain is the image's default
 # target, so what it builds runs on the Alpine below.
 FROM docker.io/library/rust:1.98.0-alpine3.24@sha256:a10e64dd139b7387337c7fbe8aca31b959b57b2fd4c8ae20a02cf1d6ea424dce AS build
 
-# `ring` (rustls' crypto) compiles C; build-base is the whole musl C
-# toolchain.
+# The bundled SQLite (sqlx, the continuation's fold) and `ring`
+# compile C; build-base is the whole musl C toolchain.
 RUN apk add --no-cache build-base
 
 WORKDIR /build
@@ -45,8 +60,18 @@ RUN cargo build --release \
 RUN cargo build --release \
     --manifest-path diverge-agentic-loop-mcp-proxy/Cargo.toml
 
-# alpine:latest, by digest.
-FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+# nousresearch/hermes-agent:v2026.8.31, by digest (amd64 + arm64).
+FROM docker.io/nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
+
+# The harness is written against v0.20.6: a tag that carries anything
+# else fails the build.
+RUN hermes version | grep -F 0.20.6
+
+# The toolsets' lazy installs, done eagerly (the image forbids lazy
+# ones): ddgs's version from PyPI on 2026-09-02, the other two
+# Hermes's own extras pins (pyproject.toml: `edge-tts`, `fal`).
+RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache-dir \
+    ddgs==9.16.0 edge-tts==7.2.7 fal-client==0.13.1
 
 COPY --from=build \
     /build/diverge-agentic-loop-hermes/target/release/diverge-agentic-loop-hermes \
@@ -56,7 +81,8 @@ COPY --from=build \
     /usr/local/bin/diverge-agentic-loop-mcp-proxy
 
 # Two programs, one container: the proxy in the background, the loop
-# in the foreground as the container's own life.
+# in the foreground as the container's own life. This replaces the
+# image's s6 dispatcher entirely.
 RUN printf '#!/bin/sh\n/usr/local/bin/diverge-agentic-loop-mcp-proxy &\nexec /usr/local/bin/diverge-agentic-loop-hermes\n' \
     > /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
@@ -65,3 +91,4 @@ RUN printf '#!/bin/sh\n/usr/local/bin/diverge-agentic-loop-mcp-proxy &\nexec /us
 EXPOSE 8080 8081
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
+CMD []

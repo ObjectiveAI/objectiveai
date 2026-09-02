@@ -160,6 +160,10 @@ pub async fn prepare(
     // credential files were laid down under, whatever the
     // container's `HOME` says.
     plan.set("HERMES_HOME", HERMES_HOME.to_string())?;
+    // The image restricts write_file/patch to its own data root;
+    // empty lifts the restriction, and the workspace is the caller's
+    // mounts, wherever they are.
+    plan.set("HERMES_WRITE_SAFE_ROOT", String::new())?;
     plan.set("HERMES_YOLO_MODE", "1".to_string())?;
     let api_server_key =
         format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());

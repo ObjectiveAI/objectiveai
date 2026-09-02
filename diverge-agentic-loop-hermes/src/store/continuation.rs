@@ -16,9 +16,6 @@
 //! the ingest itself and, once settled, whether anything landed. The
 //! run then finds its state on the filesystem, where Hermes reads it.
 
-use std::error;
-use std::fmt;
-
 use tokio::sync::{Mutex, Notify};
 
 use crate::fetcher::ContinuationError;

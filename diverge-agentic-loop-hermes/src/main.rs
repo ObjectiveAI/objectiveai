@@ -9,46 +9,43 @@
 //! `*_resource` identities (answered by the server on the
 //! `/resource/{identity}` routes, into [`store::resource`]), the
 //! `fetch_continuation` ask every run opens with (answered on the
-//! `/continuation` routes, into [`store::continuation`]), and
-//! the run's new continuation as the closer. Beside the run, the
-//! queue's two verbs: `POST /enqueue` and `POST /dequeue`, per the
-//! SDK's `agentic_loop_container` module — the caller's way into the
-//! conversation already running.
+//! `/continuation` routes, into [`store::continuation`]), the
+//! resources the run rewrote, and the run's new continuation as the
+//! closer. Beside the run, the queue's two verbs: `POST /enqueue`
+//! and `POST /dequeue`, per the SDK's `agentic_loop_container`
+//! module — the caller's way into the conversation already running.
 //!
-//! BOOTSTRAP: the socket driver is not wired yet, so the skeleton
-//! serves the container's whole surface and refuses the run
-//! honestly: the socket at `/` reads the request and answers with
-//! one fatal `not_implemented` notification. Everything else is
-//! real — the delivery routes land in their stores, and the queue
-//! routes feed the runner's queue (which, with no run, answers
-//! `missed` once closed and holds otherwise).
+//! The run itself is [`run::run`]: the filesystem laid down from the
+//! request, `hermes gateway` spawned and driven over `/v1/runs`, the
+//! way back up. This file is the socket around it — the request
+//! read, the fetcher's asks and the run's items interleaved onto one
+//! socket, each as its frame.
 
-// The fetcher and filesystem modules are complete and unwired: the
-// run driver that lays the filesystem down before the gateway and
-// streams the continuation out after does not exist yet, and their
-// dead-code warnings are the reminder.
 mod fetcher;
 mod filesystem;
 // The response module carries the gateway's COMPLETE run-event
-// vocabulary. Until the run exists to read it, its dead-code
-// warnings stand as the honest reminder of exactly that.
+// vocabulary, which is more than the conversion consumes — a field
+// parsed and never read is the completeness, not dead code.
+#[allow(dead_code)]
 mod response;
-// The run module is complete; the socket driver that calls
-// `run::run` and maps its items onto frames is the next task.
 mod run;
 mod store;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::Json;
-use axum::extract::ws::{Message, WebSocketUpgrade};
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::http::StatusCode;
 use diverge_provider_sdk::agentic_loop_container;
 use diverge_provider_sdk::agentic_loop_container::response::Response;
+use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::encode::{Encode as _, Writer};
-use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
-    AgenticLoopChunk, NotificationChunk,
-};
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::Resource;
+use futures_util::StreamExt as _;
+use futures_util::stream;
+
+use crate::fetcher::{Ask, Fetcher};
+use crate::run::{Item, notification};
 
 /// The loop port of the Container section of the provider
 /// specification: where the server opens the run's socket.
@@ -72,10 +69,10 @@ fn main() {
         .enable_all()
         .build()
         .expect("the runtime could not be built");
-    runtime.block_on(run());
+    runtime.block_on(serve_forever());
 }
 
-async fn run() {
+async fn serve_forever() {
     let app = axum::Router::new()
         .route("/", axum::routing::get(serve))
         .route("/enqueue", axum::routing::post(enqueue))
@@ -110,14 +107,13 @@ async fn run() {
         .expect("the server stopped unexpectedly");
 }
 
-/// One socket, one run — once the loop exists.
+/// One socket, one run.
 ///
-/// The claim is judged first, exactly as it will be in the real
-/// container: a second run is the CALLER's error (`409`) even while
-/// the first can only be refused. Then the upgrade, and the refusal
-/// on the socket: the request is read — the surface is honored that
-/// far — and answered with one fatal `not_implemented` notification,
-/// after which the socket closes.
+/// The upgrade is refused for the one thing knowable before the
+/// request is read: a run after the first is the CALLER's error —
+/// `409`, the container is [`CLAIMED`]. Everything after the upgrade
+/// is the stream's: see [`drive`]. The socket closes when the drive
+/// returns, whatever it returned for.
 async fn serve(
     ws: WebSocketUpgrade,
 ) -> Result<axum::response::Response, (StatusCode, Json<serde_json::Value>)>
@@ -133,27 +129,132 @@ async fn serve(
     }
 
     Ok(ws.on_upgrade(|mut socket| async move {
-        // The request is read and, for now, not judged: the refusal
-        // is the same whatever it said.
-        let _ = socket.recv().await;
-        let refusal = AgenticLoopChunk::Notification(NotificationChunk {
-            r#type: Default::default(),
-            is_fatal: true,
-            message: serde_json::json!({
-                "kind": "not_implemented",
-                "error": "the hermes agentic loop is not implemented yet",
-            }),
-            meta: None,
-        });
-        let mut buffer = Vec::new();
-        if Response::Chunk(refusal)
-            .encode(&mut Writer::new(&mut buffer))
-            .is_ok()
-        {
-            let _ = socket.send(Message::Binary(buffer.into())).await;
-        }
+        drive(&mut socket).await;
+        // The close is a frame of its own; the socket is gone when
+        // the future is.
         let _ = socket.send(Message::Close(None)).await;
     }))
+}
+
+/// One of the two things that reach the socket.
+enum Outbound {
+    /// The fetcher asking the server for something.
+    Ask(Ask),
+    /// The run saying something.
+    Item(Result<Item, run::Error>),
+}
+
+/// The run, on the socket: the request read, the run started, and
+/// then everything that reaches the socket, interleaved as it comes
+/// — the fetcher's asks (the server's to consume) and the run's
+/// items (the client's to receive), each as its frame, the
+/// continuation's pieces last.
+///
+/// Every failure past the upgrade has no status left to set and says
+/// so as a fatal `notification` — the loop's own vocabulary — after
+/// which the socket closes: the first message not being the request
+/// frame, the CALLER's; anything the run could not begin from (the
+/// wrong agent kind, a prompt it cannot speak, a filesystem that
+/// would not lay down, a gateway that would not start), as the run's
+/// one [`Err`](run::Error). Failures once the gateway is up ride the
+/// stream as the run's own fatal notifications, and the run still
+/// closes with the continuation.
+///
+/// The two sources are merged into one stream: the ask channel ends
+/// when the fetcher — moved into the run — is dropped after the
+/// filesystem is prepared, and the items end when the run does. So
+/// while the run is still waiting on a delivery, the asks are what
+/// the socket carries; after that, only items.
+async fn drive(socket: &mut WebSocket) {
+    // The request: the first binary message, the wire's own frame.
+    let request = match socket.recv().await {
+        Some(Ok(Message::Binary(bytes))) => {
+            match agentic_loop_container::request::Request::decode(&bytes) {
+                Ok(request) => request,
+                Err(error) => {
+                    fail(
+                        socket,
+                        serde_json::json!({
+                            "kind": "request",
+                            "error": error.to_string(),
+                        }),
+                    )
+                    .await;
+                    return;
+                }
+            }
+        }
+        _ => {
+            fail(
+                socket,
+                serde_json::json!({
+                    "kind": "request",
+                    "error": "the first message was not the request frame",
+                }),
+            )
+            .await;
+            return;
+        }
+    };
+
+    let (fetcher, asks) = Fetcher::new();
+    let items = run::run(&request, fetcher).map(Outbound::Item);
+    let asks = stream::unfold(asks, |mut asks| async move {
+        asks.recv().await.map(|ask| (Outbound::Ask(ask), asks))
+    });
+    let mut outbound = Box::pin(stream::select(asks, items));
+
+    while let Some(outbound) = outbound.next().await {
+        let sent = match outbound {
+            Outbound::Ask(Ask::Resource(ask)) => {
+                send(socket, &Response::FetchResource(ask)).await
+            }
+            Outbound::Ask(Ask::Continuation) => {
+                send(socket, &Response::FetchContinuation).await
+            }
+            Outbound::Item(Ok(Item::Chunk(chunk))) => {
+                send(socket, &Response::Chunk(chunk)).await
+            }
+            Outbound::Item(Ok(Item::Resource { name, body })) => {
+                send(socket, &Response::Resource(Resource { name, body: &body }))
+                    .await
+            }
+            Outbound::Item(Ok(Item::Continuation(piece))) => {
+                send(socket, &Response::Continuation(&piece)).await
+            }
+            Outbound::Item(Err(error)) => {
+                fail(
+                    socket,
+                    serde_json::json!({
+                        "kind": "run",
+                        "error": error.to_string(),
+                    }),
+                )
+                .await;
+                return;
+            }
+        };
+        if !sent {
+            return;
+        }
+    }
+}
+
+/// Write one frame as one binary message. Whether it went — a frame
+/// that will not encode, or a socket that is gone, both end the run,
+/// and nothing here can tell those apart or needs to.
+async fn send(socket: &mut WebSocket, frame: &Response<'_>) -> bool {
+    let mut buffer = Vec::new();
+    if frame.encode(&mut Writer::new(&mut buffer)).is_err() {
+        return false;
+    }
+    socket.send(Message::Binary(buffer.into())).await.is_ok()
+}
+
+/// The run cannot go on: say so as the fatal notification. The
+/// socket closes when the drive returns.
+async fn fail(socket: &mut WebSocket, message: serde_json::Value) {
+    let _ = send(socket, &Response::Chunk(notification(message, true))).await;
 }
 
 /// A message for the running conversation's queue.

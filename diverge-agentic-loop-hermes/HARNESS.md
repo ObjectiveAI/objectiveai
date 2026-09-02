@@ -274,11 +274,30 @@ settled with it:
   after, every failure is a fatal notification and the run still
   stops the gateway and closes with the continuation.
 
+## The socket
+
+`main.rs` is the socket around `run::run`: the request frame read,
+one `Fetcher` built, the run started, and then ONE merged stream
+onto the socket — the fetcher's asks (`fetch_resource`,
+`fetch_continuation`; the server's to consume) and the run's items
+(chunks, rewritten resources, the continuation's pieces last), each
+as its frame, in the order they come. The ask channel ends when the
+fetcher is dropped after the filesystem is prepared; the items end
+when the run does. A failure before the gateway is up is the run's
+one `Err` and becomes a fatal notification; after, the run's own
+fatal notifications ride the stream and the closer still comes.
+
 ## The runtime image (see also the Containerfile header)
 
-python3 + `hermes-agent` at the pin, `ddgs` (the keyless web
-fallback is presence-detected), the edge-tts/fal extras, node +
-chromium for the browser toolset (verify Hermes's launcher passes
-container-appropriate flags — sandbox and /dev/shm), and no
-`~/.hermes/.env`. Never export `PYTEST_CURRENT_TEST` into the
-gateway environment (auth.json access hard-errors under it).
+`FROM nousresearch/hermes-agent`, pinned by tag AND digest to the
+first release after the pinned source (v2026.8.31 for v0.20.6 /
+4209d371); the build asserts `hermes version` is 0.20.6. The image
+brings Python, the uv venv on PATH, aiohttp, playwright's chromium,
+node, ripgrep, ffmpeg, git. We add `ddgs`, `edge-tts`, `fal-client`
+into its venv (lazy installs are disabled there), our two binaries,
+and our entrypoint in place of its s6 dispatcher, so no gateway
+auto-starts. The harness sets `HERMES_HOME=/root/.hermes` and
+`HERMES_WRITE_SAFE_ROOT=` (empty — the image's `/opt/data` root
+would deny writes to the caller's mounts) on the gateway process.
+Never export `PYTEST_CURRENT_TEST` into the gateway environment
+(auth.json access hard-errors under it).
