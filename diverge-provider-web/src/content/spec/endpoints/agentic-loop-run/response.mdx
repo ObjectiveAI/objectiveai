@@ -1,13 +1,14 @@
 ---
 title: 'Response'
-summary: 'Each response’s payload is one tag byte then its own payload: tag 0 a JSON chunk of the loop’s output, discriminated by its type member; tag 1 a JSON error, the scope’s final response; tag 2 raw bytes of the continuation, the loop’s closer.'
+summary: 'Each response’s payload is one tag byte then its own payload: tag 0 a JSON chunk of the loop’s output, discriminated by its type member; tag 1 a JSON error, the scope’s final response; tag 2 a rewritten resource, whole, under the request field’s name; tag 3 raw bytes of the continuation, the loop’s closer.'
 order: 3
 draft: false
 ---
 
 Each response's payload is a single tag byte followed by that
 variant's own payload — a JSON text for tags `0` and `1`, read under
-the layer's [notation](/endpoints/#notation); raw bytes for tag `2`.
+the layer's [notation](/endpoints/#notation); a named body for tag
+`2`; raw bytes for tag `3`.
 
 ```rust
 pub enum Response<'a> {
@@ -15,7 +16,10 @@ pub enum Response<'a> {
     Chunk(AgenticLoopChunk),
     /// Tag 1. The scope's final response.
     Error(Error),
-    /// Tag 2. One piece of the continuation: raw bytes, the loop's
+    /// Tag 2. A resource the run rewrote, whole:
+    /// `[u32 BE: name length][name, UTF-8][body]`.
+    Resource { name: &'a str, body: &'a [u8] },
+    /// Tag 3. One piece of the continuation: raw bytes, the loop's
     /// closer.
     Continuation(&'a [u8]),
 }
@@ -29,7 +33,14 @@ pub struct Error(pub serde_json::Value);
   final response; the response finish follows it.
 - **Chunks are ordered.** The chunks of one scope form one stream, in
   the order sent.
-- **The continuation closes the stream.** Responses bearing tag `2`
+- **A resource is the run handing state back.** A response bearing
+  tag `2` carries the whole new content of a resource the request
+  supplied by identity, under the dotted path of the request field
+  that supplied it (`provider.auth_resource`,
+  `toolsets.spotify.auth_resource`). The client replaces what it
+  holds and names the new content's identity next time. Not
+  terminal; it may repeat, and the last one wins.
+- **The continuation closes the stream.** Responses bearing tag `3`
   carry the loop's continuation — the server's own opaque state, as
   bytes — in one or more pieces; the response finish says the
   sequence is whole. Nothing but the finish follows them. A loop that

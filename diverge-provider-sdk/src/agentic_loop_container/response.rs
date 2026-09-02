@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
+use crate::endpoints::agentic_loop::run::server::response::{
+    AgenticLoopChunk, Resource, ResourceEncodeError, ResourceError,
+};
 
 /// One frame of a container's response — one binary WebSocket
 /// message, on the socket the run request opened.
@@ -24,19 +26,22 @@ use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 /// | `0` | [`FetchContinuation`](Self::FetchContinuation) | nothing |
 /// | `1` | [`FetchResource`](Self::FetchResource) | the ask's JSON |
 /// | `2` | [`Chunk`](Self::Chunk) | the chunk's JSON |
-/// | `3` | [`Continuation`](Self::Continuation) | the bytes, verbatim |
+/// | `3` | [`Resource`](Self::Resource) | name length, name, body |
+/// | `4` | [`Continuation`](Self::Continuation) | the bytes, verbatim |
 ///
 /// The order is the run's: the continuation ask opens it, resource
-/// asks come as the agent needs them, chunks are the body, and the
-/// continuation closes it.
+/// asks come as the agent needs them, chunks are the body, rewritten
+/// resources surface as the run changes them, and the continuation
+/// closes it.
 ///
 /// # Who reads which
 ///
 /// A server relaying the stream forwards tag `2` as the wire's chunk
-/// frame and tag `3` as the wire's continuation frame — re-tagging
-/// one byte, never re-encoding what follows it — and CONSUMES tags
-/// `0` and `1`: those are the container asking the server for
-/// something, and the client never sees them.
+/// frame, tag `3` as its resource frame and tag `4` as its
+/// continuation frame — re-tagging one byte, never re-encoding what
+/// follows it — and CONSUMES tags `0` and `1`: those are the
+/// container asking the server for something, and the client never
+/// sees them.
 ///
 /// # The continuation closes the stream
 ///
@@ -62,8 +67,12 @@ pub enum Response<'a> {
     /// One chunk of the loop — the client's to receive, relayed
     /// verbatim. Tag `2`. See [`AgenticLoopChunk`].
     Chunk(AgenticLoopChunk),
+    /// A resource the run rewrote, whole, under the name of the
+    /// request field that supplied it — the client's to receive,
+    /// relayed verbatim. Tag `3`. See [`Resource`].
+    Resource(Resource<'a>),
     /// One piece of the run's new continuation — the closer. Tag
-    /// `3`. Borrowed from the frame it is written from or read out
+    /// `4`. Borrowed from the frame it is written from or read out
     /// of, the fetch frames' way: copying every chunk in between
     /// would double each for nothing. Kept as one chunk end to end.
     Continuation(&'a [u8]),
@@ -78,16 +87,19 @@ const FETCH_RESOURCE: u8 = 1;
 /// Tag for [`Response::Chunk`].
 const CHUNK: u8 = 2;
 
+/// Tag for [`Response::Resource`].
+const RESOURCE: u8 = 3;
+
 /// Tag for [`Response::Continuation`].
-const CONTINUATION: u8 = 3;
+const CONTINUATION: u8 = 4;
 
 /// A tag, then the variant's own payload.
 impl Encode for Response<'_> {
-    /// The ordinary JSON failure, from the two variants that carry
-    /// JSON; the other two cannot fail.
-    type Error = serde_json::Error;
+    /// The JSON failure from the two variants that carry JSON, or the
+    /// resource's own; the other two cannot fail.
+    type Error = ResponseEncodeError;
 
-    fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), ResponseEncodeError> {
         match self {
             Response::FetchContinuation => {
                 out.extend_from_slice(&[FETCH_CONTINUATION]);
@@ -95,11 +107,15 @@ impl Encode for Response<'_> {
             }
             Response::FetchResource(ask) => {
                 out.extend_from_slice(&[FETCH_RESOURCE]);
-                serde_json::to_writer(out, ask)
+                serde_json::to_writer(out, ask).map_err(ResponseEncodeError::Json)
             }
             Response::Chunk(chunk) => {
                 out.extend_from_slice(&[CHUNK]);
-                serde_json::to_writer(out, chunk)
+                serde_json::to_writer(out, chunk).map_err(ResponseEncodeError::Json)
+            }
+            Response::Resource(resource) => {
+                out.extend_from_slice(&[RESOURCE]);
+                resource.encode(out).map_err(ResponseEncodeError::Resource)
             }
             Response::Continuation(bytes) => {
                 out.extend_from_slice(&[CONTINUATION]);
@@ -111,7 +127,7 @@ impl Encode for Response<'_> {
 }
 
 impl<'a> Decode<'a> for Response<'a> {
-    /// Four ways to fail, and each names which variant failed. The
+    /// Five ways to fail, and each names which variant failed. The
     /// continuation is not among them: bytes taken as bytes cannot.
     type Error = ResponseError;
 
@@ -128,8 +144,40 @@ impl<'a> Decode<'a> for Response<'a> {
             CHUNK => serde_json::from_slice(rest)
                 .map(Response::Chunk)
                 .map_err(ResponseError::Chunk),
+            RESOURCE => Resource::decode(rest)
+                .map(Response::Resource)
+                .map_err(ResponseError::Resource),
             CONTINUATION => Ok(Response::Continuation(rest)),
             tag => Err(ResponseError::UnknownTag(tag)),
+        }
+    }
+}
+
+/// A container response frame that could not be written.
+#[derive(Debug)]
+pub enum ResponseEncodeError {
+    /// A chunk or a resource ask would not serialize.
+    Json(serde_json::Error),
+    /// The resource would not encode.
+    Resource(ResourceEncodeError),
+}
+
+impl fmt::Display for ResponseEncodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ResponseEncodeError::Json(error) => {
+                write!(f, "container response did not serialize: {error}")
+            }
+            ResponseEncodeError::Resource(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+impl error::Error for ResponseEncodeError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            ResponseEncodeError::Json(error) => Some(error),
+            ResponseEncodeError::Resource(error) => Some(error),
         }
     }
 }
@@ -139,12 +187,14 @@ impl<'a> Decode<'a> for Response<'a> {
 pub enum ResponseError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The chunk did not parse.
     Chunk(serde_json::Error),
     /// The resource ask did not parse.
     FetchResource(serde_json::Error),
+    /// The resource did not read.
+    Resource(ResourceError),
 }
 
 impl fmt::Display for ResponseError {
@@ -162,6 +212,7 @@ impl fmt::Display for ResponseError {
             ResponseError::FetchResource(error) => {
                 write!(f, "container resource ask did not parse: {error}")
             }
+            ResponseError::Resource(error) => write!(f, "{error}"),
         }
     }
 }
@@ -172,6 +223,7 @@ impl error::Error for ResponseError {
             ResponseError::Chunk(error) | ResponseError::FetchResource(error) => {
                 Some(error)
             }
+            ResponseError::Resource(error) => Some(error),
             ResponseError::Empty | ResponseError::UnknownTag(_) => None,
         }
     }

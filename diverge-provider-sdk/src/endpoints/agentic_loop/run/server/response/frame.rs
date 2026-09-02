@@ -3,6 +3,7 @@
 use std::fmt;
 
 use super::AgenticLoopChunk;
+use super::{Resource, ResourceEncodeError, ResourceError};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
@@ -96,6 +97,17 @@ pub enum Frame<'a> {
     /// and copying every chunk in between would double each for
     /// nothing. Every frame is one chunk the caller keeps as such;
     /// the finish says the sequence is whole.
+    /// A resource the run rewrote, whole, under the name of the
+    /// request field that supplied it. Tag `2`. Not terminal, and
+    /// may repeat — the last one wins. See [`Resource`].
+    Resource(Resource<'a>),
+    /// One piece of the continuation — the run's closer. Tag `3`.
+    ///
+    /// Borrowed from the frame it arrived in, the fetch frames' way:
+    /// a continuation is written out of a buffer and read into one,
+    /// and copying every chunk in between would double each for
+    /// nothing. Every frame is one chunk the caller keeps as such;
+    /// the finish says the sequence is whole.
     Continuation(&'a [u8]),
 }
 
@@ -105,33 +117,36 @@ const CHUNK: u8 = 0;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 1;
 
+/// Tag for [`Frame::Resource`].
+const RESOURCE: u8 = 2;
+
 /// Tag for [`Frame::Continuation`].
-const CONTINUATION: u8 = 2;
+const CONTINUATION: u8 = 3;
 
 /// A tag, then the variant's own payload — JSON for a chunk or an
-/// error, the bytes verbatim for the continuation. The newtype around
-/// a chunk still leaves no trace — what a chunk encodes to is exactly
-/// what it encoded to before the tag existed.
+/// error, a named body for a resource, the bytes verbatim for the
+/// continuation. The newtype around a chunk still leaves no trace —
+/// what a chunk encodes to is exactly what it encoded to before the
+/// tag existed.
 impl Encode for Frame<'_> {
-    /// The ordinary JSON failure, from whichever half is present. A
-    /// chunk is entirely shapes: content, reasoning, tool calls,
-    /// usage. Nothing in it is a passthrough.
-    type Error = serde_json::Error;
+    /// The JSON failure from a chunk or an error, or the resource's
+    /// own. A chunk is entirely shapes: content, reasoning, tool
+    /// calls, usage. Nothing in it is a passthrough.
+    type Error = EncodeError;
 
-    // Spelled out rather than `Self::Error`: this enum has a variant
-    // called `Error`, so the associated type is ambiguous by that name.
-    fn encode(
-        &self,
-        out: &mut Writer<'_>,
-    ) -> Result<(), serde_json::Error> {
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), EncodeError> {
         match self {
             Frame::Chunk(chunk) => {
                 out.extend_from_slice(&[CHUNK]);
-                serde_json::to_writer(out, chunk)
+                serde_json::to_writer(out, chunk).map_err(EncodeError::Json)
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
-                error.encode(out)
+                error.encode(out).map_err(EncodeError::Json)
+            }
+            Frame::Resource(resource) => {
+                out.extend_from_slice(&[RESOURCE]);
+                resource.encode(out).map_err(EncodeError::Resource)
             }
             Frame::Continuation(bytes) => {
                 out.extend_from_slice(&[CONTINUATION]);
@@ -143,11 +158,12 @@ impl Encode for Frame<'_> {
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Four ways to fail, and each names which half failed. The
+    /// Five ways to fail, and each names which half failed. The
     /// continuation is not among them: bytes taken as bytes cannot.
     type Error = FrameError;
 
-    // Spelled out for the same reason as `encode` above.
+    // Spelled out rather than `Self::Error`: this enum has a variant
+    // called `Error`, so the associated type is ambiguous by that name.
     fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
@@ -157,8 +173,40 @@ impl<'a> Decode<'a> for Frame<'a> {
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
+            RESOURCE => Resource::decode(rest)
+                .map(Frame::Resource)
+                .map_err(FrameError::Resource),
             CONTINUATION => Ok(Frame::Continuation(rest)),
             tag => Err(FrameError::UnknownTag(tag)),
+        }
+    }
+}
+
+/// An agentic loop response frame that could not be written.
+#[derive(Debug)]
+pub enum EncodeError {
+    /// A chunk or an error would not serialize.
+    Json(serde_json::Error),
+    /// The resource would not encode.
+    Resource(ResourceEncodeError),
+}
+
+impl fmt::Display for EncodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EncodeError::Json(error) => {
+                write!(f, "agentic loop response did not serialize: {error}")
+            }
+            EncodeError::Resource(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+impl std::error::Error for EncodeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            EncodeError::Json(error) => Some(error),
+            EncodeError::Resource(error) => Some(error),
         }
     }
 }
@@ -168,8 +216,10 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
+    /// The resource did not read.
+    Resource(ResourceError),
     /// The chunk did not parse.
     Chunk(serde_json::Error),
     /// The error did not parse.
@@ -195,6 +245,7 @@ impl fmt::Display for FrameError {
             FrameError::Error(error) => {
                 write!(f, "agentic loop error did not parse: {error}")
             }
+            FrameError::Resource(error) => write!(f, "{error}"),
         }
     }
 }
@@ -203,6 +254,7 @@ impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             FrameError::Chunk(error) | FrameError::Error(error) => Some(error),
+            FrameError::Resource(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

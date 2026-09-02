@@ -125,16 +125,30 @@ impl ExecuteStream {
     }
 }
 
-/// One item of a running loop: a chunk, or a piece of its closer.
+/// One item of a running loop: a chunk, a rewritten resource, or a
+/// piece of its closer.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExecuteStreamItem {
     /// One event of the loop. See
     /// [`AgenticLoopChunk`](response::AgenticLoopChunk).
     Chunk(response::AgenticLoopChunk),
+    /// A resource the run rewrote, whole: the caller replaces what
+    /// it holds under this name — the dotted path of the request
+    /// field that supplied it — and names the new content's identity
+    /// next time. Not terminal; may repeat, and the last one wins.
+    /// See [`Resource`](response::Resource).
+    Resource {
+        /// The request field's dotted path.
+        name: String,
+        /// The new content, whole — a view onto the frame's own
+        /// buffer.
+        body: Bytes,
+    },
     /// One piece of the continuation, the run's closer: raw bytes,
-    /// the provider's own opaque state. Append every piece in order;
-    /// the stream ending says the whole is whole. A caller keeps it
-    /// and answers the next run's continuation fetch with it.
+    /// the provider's own opaque state. Keep every piece as it came,
+    /// in order; the stream ending says the sequence is whole. A
+    /// caller keeps them and answers the next run's continuation
+    /// fetch with the same pieces.
     ///
     /// Owned without a copy — a view onto the frame's own buffer.
     Continuation(Bytes),
@@ -190,6 +204,12 @@ impl Stream for ExecuteStream {
             // the buffer this frame arrived in.
             Ok(response::Frame::Continuation(body)) => {
                 Ok(ExecuteStreamItem::Continuation(bytes.slice_ref(body)))
+            }
+            Ok(response::Frame::Resource(resource)) => {
+                Ok(ExecuteStreamItem::Resource {
+                    name: resource.name.to_string(),
+                    body: bytes.slice_ref(resource.body),
+                })
             }
             Ok(response::Frame::Error(error)) => {
                 this.response_receiver = None;
