@@ -38,8 +38,11 @@ Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
   must agree; disagreement is the caller's contradiction.
 - Rotating OAuth state is a RESOURCE: fetched by identity over the
   container surface, written to the filesystem, rotated in place by
-  Hermes, and its rotated form surfaced back to the caller (the
-  emit-back mechanism is defined at the protocol level, not here).
+  Hermes, and its rotated form surfaced back to the caller as a
+  `resource` frame — tag `3` on the container surface, `2` on the
+  wire: a u32 name length, the name (the request field's dotted
+  path, `provider.auth_resource` / `toolsets.spotify.auth_resource`),
+  then the whole new document. Not terminal; the last one wins.
 
 ## `prepare` renders all of it, once
 
