@@ -21,17 +21,21 @@ use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 ///
 /// | tag | variant | payload |
 /// |---|---|---|
-/// | `0` | [`Chunk`](Self::Chunk) | the chunk's JSON |
+/// | `0` | [`FetchContinuation`](Self::FetchContinuation) | nothing |
 /// | `1` | [`FetchResource`](Self::FetchResource) | the ask's JSON |
-/// | `2` | [`FetchContinuation`](Self::FetchContinuation) | nothing |
+/// | `2` | [`Chunk`](Self::Chunk) | the chunk's JSON |
 /// | `3` | [`Continuation`](Self::Continuation) | the bytes, verbatim |
+///
+/// The order is the run's: the continuation ask opens it, resource
+/// asks come as the agent needs them, chunks are the body, and the
+/// continuation closes it.
 ///
 /// # Who reads which
 ///
-/// A server relaying the stream forwards tag `0` as the wire's chunk
+/// A server relaying the stream forwards tag `2` as the wire's chunk
 /// frame and tag `3` as the wire's continuation frame — re-tagging
 /// one byte, never re-encoding what follows it — and CONSUMES tags
-/// `1` and `2`: those are the container asking the server for
+/// `0` and `1`: those are the container asking the server for
 /// something, and the client never sees them.
 ///
 /// # The continuation closes the stream
@@ -44,17 +48,17 @@ use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 /// none.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Response<'a> {
-    /// One chunk of the loop — the client's to receive, relayed
-    /// verbatim. Tag `0`. See [`AgenticLoopChunk`].
-    Chunk(AgenticLoopChunk),
+    /// The container asking for the continuation it resumes from.
+    /// Tag `0`, and nothing after it — the tag is the whole ask;
+    /// see [`FetchContinuation`]. The server's to consume.
+    FetchContinuation,
     /// The container asking for a resource's bytes. Tag `1`. The
     /// server's to consume, never the client's to see. See
     /// [`FetchResource`].
     FetchResource(FetchResource),
-    /// The container asking for the continuation it resumes from.
-    /// Tag `2`, and nothing after it — the tag is the whole ask;
-    /// see [`FetchContinuation`]. The server's to consume.
-    FetchContinuation,
+    /// One chunk of the loop — the client's to receive, relayed
+    /// verbatim. Tag `2`. See [`AgenticLoopChunk`].
+    Chunk(AgenticLoopChunk),
     /// One piece of the run's new continuation — the closer. Tag
     /// `3`. Borrowed from the frame it is written from or read out
     /// of, the fetch frames' way: copying every chunk in between
@@ -62,14 +66,14 @@ pub enum Response<'a> {
     Continuation(&'a [u8]),
 }
 
-/// Tag for [`Response::Chunk`].
-const CHUNK: u8 = 0;
+/// Tag for [`Response::FetchContinuation`].
+const FETCH_CONTINUATION: u8 = 0;
 
 /// Tag for [`Response::FetchResource`].
 const FETCH_RESOURCE: u8 = 1;
 
-/// Tag for [`Response::FetchContinuation`].
-const FETCH_CONTINUATION: u8 = 2;
+/// Tag for [`Response::Chunk`].
+const CHUNK: u8 = 2;
 
 /// Tag for [`Response::Continuation`].
 const CONTINUATION: u8 = 3;
@@ -82,17 +86,17 @@ impl Encode for Response<'_> {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Response::Chunk(chunk) => {
-                out.extend_from_slice(&[CHUNK]);
-                serde_json::to_writer(out, chunk)
+            Response::FetchContinuation => {
+                out.extend_from_slice(&[FETCH_CONTINUATION]);
+                Ok(())
             }
             Response::FetchResource(ask) => {
                 out.extend_from_slice(&[FETCH_RESOURCE]);
                 serde_json::to_writer(out, ask)
             }
-            Response::FetchContinuation => {
-                out.extend_from_slice(&[FETCH_CONTINUATION]);
-                Ok(())
+            Response::Chunk(chunk) => {
+                out.extend_from_slice(&[CHUNK]);
+                serde_json::to_writer(out, chunk)
             }
             Response::Continuation(bytes) => {
                 out.extend_from_slice(&[CONTINUATION]);
@@ -111,16 +115,16 @@ impl<'a> Decode<'a> for Response<'a> {
     fn decode(bytes: &'a [u8]) -> Result<Self, ResponseError> {
         let (tag, rest) = bytes.split_first().ok_or(ResponseError::Empty)?;
         match *tag {
-            CHUNK => serde_json::from_slice(rest)
-                .map(Response::Chunk)
-                .map_err(ResponseError::Chunk),
-            FETCH_RESOURCE => serde_json::from_slice(rest)
-                .map(Response::FetchResource)
-                .map_err(ResponseError::FetchResource),
             // Whatever follows the tag is ignored rather than
             // rejected: there is nothing this could carry, and the
             // tag already said what was meant.
             FETCH_CONTINUATION => Ok(Response::FetchContinuation),
+            FETCH_RESOURCE => serde_json::from_slice(rest)
+                .map(Response::FetchResource)
+                .map_err(ResponseError::FetchResource),
+            CHUNK => serde_json::from_slice(rest)
+                .map(Response::Chunk)
+                .map_err(ResponseError::Chunk),
             CONTINUATION => Ok(Response::Continuation(rest)),
             tag => Err(ResponseError::UnknownTag(tag)),
         }
