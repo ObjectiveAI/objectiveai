@@ -1699,6 +1699,7 @@ dependencies = [
 name = "diverge-agentic-loop-hermes"
 version = "2.3.0"
 dependencies = [
+ "async-stream",
  "axum",
  "dashmap",
  "diverge-provider-sdk",
