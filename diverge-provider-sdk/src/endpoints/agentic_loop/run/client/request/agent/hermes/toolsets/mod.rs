@@ -17,11 +17,6 @@
 //! and the harness may refuse it.
 //!
 //! DROPPED from the previous vocabulary:
-//! - `memory` — Hermes's own cross-session file store. Our
-//!   cross-run memory is the CONTINUATION, and a second store that
-//!   evaporates with the container would fight it. (External
-//!   memory-provider plugins ride the same switch and leave with
-//!   it.)
 //! - `context_engine` — ships zero tools in stock Hermes; the
 //!   toolset is a socket for an engine plugin the image does not
 //!   carry, so there is nothing to enable.

@@ -76,10 +76,20 @@ pub struct Toolsets {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub todo: Option<bool>,
     /// Searching past conversations. Nothing to configure — the
-    /// local session database, credential-free; in a one-run
-    /// container the searchable past is this run's own.
+    /// local session database, credential-free. The database rides
+    /// the continuation whole, so the searchable past is the
+    /// lineage's, not just this run's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_search: Option<bool>,
+    /// Hermes's own memory: the two capped files, `MEMORY.md` (the
+    /// agent's notes) and `USER.md` (the user profile), injected into
+    /// the system prompt at session start and edited by the `memory`
+    /// tool. Nothing to configure — and the files ride the
+    /// continuation, so what the tool writes is what the next run
+    /// starts with. (External memory-provider plugins are a separate
+    /// config switch the harness leaves off.)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory: Option<bool>,
     /// Home Assistant control. See
     /// [`homeassistant`](super::homeassistant).
     #[serde(default, skip_serializing_if = "Option::is_none")]
