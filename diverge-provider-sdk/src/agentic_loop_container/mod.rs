@@ -1,19 +1,20 @@
 //! The HTTP surface every agentic-loop container serves.
 //!
 //! One definition, whatever the upstream behind it: a container
-//! takes THE request ([`request::Request`]) at `POST /` on the loop
-//! port — `8080`, per the Container section of the provider
-//! specification — and answers with a server-sent event stream whose
-//! events are [`response::Response`] items: the loop's chunks, and
-//! the container's own asks, which the server consumes and answers
-//! by POSTing bytes back in — a
-//! [`fetch_resource`](response::FetchResource) ask answered at
-//! `POST /resource/{identity}` ([`resource`]), and the one
-//! [`fetch_continuation`](response::FetchContinuation) ask every run
-//! opens with, answered at `POST /continuation` ([`continuation`]);
-//! both chunked, both settled by the completion — or by the error,
-//! when the bytes can never come — and a continuation delivered as
-//! a lone completion is the fresh start.
+//! serves a WebSocket at `/` on the loop port — `8080`, per the
+//! Container section of the provider specification. The server's
+//! first binary message is THE request ([`request::Request`]), and
+//! every message the container sends back is one
+//! [`response::Response`] frame: the loop's chunks; the container's
+//! own asks, which the server consumes and answers by POSTing bytes
+//! back in — a [`fetch_resource`](response::FetchResource) ask
+//! answered at `POST /resource/{identity}` ([`resource`]), and the
+//! one [`fetch_continuation`](response::FetchContinuation) ask every
+//! run opens with, answered at `POST /continuation`
+//! ([`continuation`]), both chunked, both settled by the completion
+//! or the error, a continuation delivered as a lone completion being
+//! the fresh start; and, last, the run's new continuation as raw
+//! bytes, the closer, after which the socket closes.
 //! Beside it, the running conversation's queue has exactly two
 //! verbs: [`enqueue`] puts a message in at `POST /enqueue`,
 //! [`dequeue`] clears whatever has not yet been taken at
@@ -24,13 +25,23 @@
 //! [`Dequeue`](crate::endpoints::agentic_loop::run::client::channel_request::Frame::Dequeue)
 //! without knowing which container is behind it.
 //!
-//! # Failures are HTTP's own
+//! # Failures are HTTP's own, where HTTP is still there
 //!
-//! A container that cannot serve an ask answers with a non-2xx
-//! status and a JSON body, the same form the run request already
-//! answers with — there is no error variant riding the response
-//! shapes, and no second error vocabulary. The 2xx responses say
-//! only what happened; the failures say so as failures.
+//! On the verbs and the delivery routes, a container that cannot
+//! serve an ask answers with a non-2xx status and a JSON body —
+//! there is no error variant riding the response shapes, and no
+//! second error vocabulary. The 2xx responses say only what
+//! happened; the failures say so as failures.
+//!
+//! The run itself has one HTTP moment, the upgrade: a container
+//! refuses it only for what it can know before reading the request
+//! — a second run on a container that serves one (`409`), an
+//! upstream that failed to install (`500`). After the upgrade there
+//! is no status left to set, so a run that cannot start — the wrong
+//! agent kind, a prompt it cannot speak, a continuation that will
+//! not open, an upstream that will not launch — says so in the
+//! loop's own vocabulary, a fatal `notification` chunk, and closes
+//! the socket. One failure vocabulary on the stream, not two.
 //!
 //! # The response is the fate, whenever it comes
 //!
