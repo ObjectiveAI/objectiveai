@@ -11,16 +11,18 @@ use futures_util::Stream;
 /// An agent's request names content by identity — files in
 /// `file_mounts`, directories in `directory_mounts`, resources on
 /// the agent's own `*_resource` fields — and the bytes live in the
-/// caller's own store. When a provider is missing one, the ask
-/// comes out as a
+/// caller's own store; the continuation a run resumes from lives
+/// there too, unnamed, because there is only ever one. When a
+/// provider needs any of them, the ask comes out as a
 /// [`FetchFile`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchFile),
-/// [`FetchDirectory`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchDirectory)
-/// or
+/// [`FetchDirectory`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchDirectory),
 /// [`FetchResource`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchResource)
+/// or
+/// [`FetchContinuation`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchContinuation)
 /// channel request, and this is what a caller implements to answer
 /// them.
 ///
-/// # Three methods, because there are three exchanges
+/// # Four methods, because there are four exchanges
 ///
 /// The identity says which content — not the mount path or the
 /// field, which are the caller's placement and which the provider
@@ -107,6 +109,21 @@ pub trait FetchProxy: Send + Sync {
     fn fetch_resource(
         &self,
         identity: String,
+    ) -> impl Future<
+        Output = Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>,
+    > + Send;
+
+    /// The continuation the run resumes from, as its bytes — one
+    /// item per chunk, appended in order by the far side. No
+    /// identity: a run resumes from the one continuation its caller
+    /// holds. An EMPTY stream is a fresh start, the ordinary first
+    /// run — not a refusal.
+    ///
+    /// # The future is [`Send`]
+    ///
+    /// For the reason [`fetch_file`](Self::fetch_file) gives.
+    fn fetch_continuation(
+        &self,
     ) -> impl Future<
         Output = Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>,
     > + Send;

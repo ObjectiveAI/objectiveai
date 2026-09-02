@@ -3,7 +3,7 @@
 use std::error;
 use std::fmt;
 
-use super::{fetch_directory, fetch_file, fetch_resource};
+use super::{fetch_continuation, fetch_directory, fetch_file, fetch_resource};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::mcp;
@@ -13,9 +13,10 @@ use crate::shared::mcp;
 /// One ask toward the client — an MCP exchange toward its proxy, or
 /// a fetch ([`FetchFile`](Self::FetchFile) /
 /// [`FetchDirectory`](Self::FetchDirectory) /
-/// [`FetchResource`](Self::FetchResource)) of content the provider
-/// is missing. Complete in this frame; the answer comes back as
-/// client response frames.
+/// [`FetchResource`](Self::FetchResource) /
+/// [`FetchContinuation`](Self::FetchContinuation)) of content the
+/// provider is missing. Complete in this frame; the answer comes
+/// back as client response frames.
 ///
 /// A payload leads with one byte and the rest is the request.
 ///
@@ -54,7 +55,7 @@ use crate::shared::mcp;
 /// The five are prefixed `Mcp`, because a channel a container opens is
 /// not necessarily MCP's — a plugin's are a database and a command —
 /// and a variant called `CallTool` would only read as MCP's to someone
-/// who already knew. The three fetches carry no prefix for the same
+/// who already knew. The four fetches carry no prefix for the same
 /// reason from the other side: they are not MCP exchanges, and names
 /// that suggested one would be the same confusion in reverse.
 ///
@@ -65,10 +66,10 @@ use crate::shared::mcp;
 /// message to it for the four, and opens a stream with a bare `GET`
 /// on the same url for the fifth. The verb is the whole of the
 /// distinction there, and the tag byte is the whole of it here. The
-/// fetches split by KIND for the same economy: a file, a directory
-/// and a resource answer with their own frame shapes, and the tag
-/// saying which up front is what spares every frame after it a
-/// discriminator.
+/// fetches split by KIND for the same economy: a file, a directory,
+/// a resource and the continuation answer with their own frame
+/// shapes, and the tag saying which up front is what spares every
+/// frame after it a discriminator.
 ///
 /// The frame's own `type` could have carried the discrimination — it
 /// is right there in the header — and deliberately does not. A frame
@@ -186,6 +187,15 @@ pub enum Frame {
     /// — and the empty finish is the client saying it does not hold
     /// the identity.
     FetchResource(fetch_resource::Request),
+    /// The continuation the run resumes from. Tag `8`.
+    ///
+    /// The fetch with nothing to name — a run resumes from the one
+    /// continuation its caller holds — so the request carries
+    /// nothing, as [`fetch_continuation`] says. The answer is the
+    /// bytes, verbatim and chunked by adjacency — see
+    /// [`fetch_continuation`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_continuation)
+    /// — and the empty finish is a FRESH START, not a refusal.
+    FetchContinuation(fetch_continuation::Request),
 }
 
 /// Tag for [`Frame::McpListTools`].
@@ -211,6 +221,9 @@ const FETCH_DIRECTORY: u8 = 6;
 
 /// Tag for [`Frame::FetchResource`].
 const FETCH_RESOURCE: u8 = 7;
+
+/// Tag for [`Frame::FetchContinuation`].
+const FETCH_CONTINUATION: u8 = 8;
 
 /// A tag, then that variant's own JSON.
 impl Encode for Frame {
@@ -254,6 +267,11 @@ impl Encode for Frame {
                 out.extend_from_slice(&[FETCH_RESOURCE]);
                 request.encode(out)
             }
+            Frame::FetchContinuation(request) => {
+                out.extend_from_slice(&[FETCH_CONTINUATION]);
+                // `Infallible`, as the notification stream's is.
+                request.encode(out).map_err(|error| match error {})
+            }
         }
     }
 }
@@ -294,6 +312,10 @@ impl Decode<'_> for Frame {
             FETCH_RESOURCE => fetch_resource::Request::decode(rest)
                 .map(Frame::FetchResource)
                 .map_err(FrameError::Body),
+            FETCH_CONTINUATION => Ok(Frame::FetchContinuation(
+                fetch_continuation::Request::decode(rest)
+                    .unwrap_or_else(|error| match error {}),
+            )),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -304,7 +326,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's eight.
+    /// A tag that is none of this frame's nine.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not

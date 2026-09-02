@@ -70,7 +70,8 @@
 //! [`mcp_proxy`] forwards an exchange to a server the provider cannot
 //! see. [`fetch_proxy`] hands over a mounted file, a mounted
 //! directory or a resource the provider is missing, out of the
-//! caller's own store, by its size-bearing identity.
+//! caller's own store, by its size-bearing identity — and the
+//! continuation a run resumes from, which needs no name.
 //! [`oci_proxy`] serves an image, for a plugin run and a
 //! laboratory run alike. [`command_proxy`] runs a command a plugin has
 //! no binary for. [`postgres_proxy`] splices a connection onto the

@@ -10,9 +10,9 @@ use futures_util::StreamExt as _;
 
 use super::execute_stream::ExecuteStream;
 use super::super::channel_response::{
-    fetch_directory, fetch_file, fetch_resource, mcp_call_tool,
-    mcp_list_resources, mcp_list_tools, mcp_notifications,
-    mcp_read_resource,
+    fetch_continuation, fetch_directory, fetch_file, fetch_resource,
+    mcp_call_tool, mcp_list_resources, mcp_list_tools,
+    mcp_notifications, mcp_read_resource,
 };
 use super::super::request;
 use crate::client::fetch_proxy::FetchProxy;
@@ -138,9 +138,9 @@ async fn proxy_channel_requests<P, F>(
 
 /// Answer one thing the server asked for.
 ///
-/// Six things it can be, and each is answered once — except the
+/// Nine things it can be, and each is answered once — except the
 /// notification stream, which is answered until it stops, and the
-/// fetch, which is answered once per file.
+/// four fetches, which are answered once per chunk or file.
 ///
 /// # A frame it cannot read is ENDED, not abandoned
 ///
@@ -224,6 +224,10 @@ async fn proxy_one<P, F>(
         }
         channel_request::Frame::FetchResource(request) => {
             fetched_resource(&handle, scope, channel, &*fetch_proxy, request)
+                .await
+        }
+        channel_request::Frame::FetchContinuation(_) => {
+            fetched_continuation(&handle, scope, channel, &*fetch_proxy)
                 .await
         }
     };
@@ -356,10 +360,35 @@ where
     true
 }
 
+/// Send the continuation, one chunk per frame.
+///
+/// [`fetched_file`]'s shape with nothing to name: the proxy yields
+/// the bytes the caller holds, and an empty stream sends nothing —
+/// the finish the caller sends afterwards is then the empty finish,
+/// which here means a fresh start rather than a refusal.
+async fn fetched_continuation<F>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    fetch_proxy: &F,
+) -> bool
+where
+    F: FetchProxy,
+{
+    let mut chunks = fetch_proxy.fetch_continuation().await;
+    while let Some(chunk) = chunks.next().await {
+        let frame = fetch_continuation::Frame { body: &chunk };
+        if !answer_with(handle, scope, channel, &frame).await {
+            return false;
+        }
+    }
+    true
+}
+
 /// Encode one answer and write it.
 ///
-/// Generic over the frame because the seven exchanges answer with
-/// seven types, and what happens to each of them here is identical:
+/// Generic over the frame because the nine exchanges answer with
+/// nine types, and what happens to each of them here is identical:
 /// build it, write it, stop if it did not go.
 ///
 /// Answers whether to carry on, so the caller knows whether a finish is
