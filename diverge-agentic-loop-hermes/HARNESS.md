@@ -115,6 +115,11 @@ configuration is rendered from the request, `auth.json` entries are
 resources, caches regenerate, skill writing is unsupported. The
 `continuation` module is the shape; its rules:
 
+- The continuation is NEVER held whole in memory: a delivered chunk
+  is appended to the file its tag names the moment it lands (the
+  slot keeps only the open handle), and the harvest streams each
+  file out in pieces of at most 2 MiB, one alive at a time. Large
+  databases and large memories are the normal case eventually.
 - Harvest AFTER the gateway process has exited, and fold the
   database yourself: Hermes's close runs only a PASSIVE checkpoint,
   so a write-ahead log survives a clean exit and a database

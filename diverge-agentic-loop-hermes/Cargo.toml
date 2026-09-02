@@ -22,6 +22,8 @@ dashmap = { version = "6.2.1" }
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.
 diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+# The continuation's outbound stream, as a generator.
+async-stream = { version = "0.3.6" }
 # `Stream` and its combinators, for the chunk stream the response is.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
 # The derives under the response module — the gateway's run-event
@@ -36,6 +38,7 @@ serde_json = { version = "1.0.151", features = ["preserve_order"] }
 # `cargo info sqlx`.
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
 # The runtime under the listener, `sync` for the Notify the stores
-# wake their collectors with, `fs` for the continuation's files. No
-# `macros` — the runtime is built in main, not attributed onto it.
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "net", "rt-multi-thread", "sync"] }
+# wake their collectors with, `fs` + `io-util` for the continuation's
+# files, read and appended a piece at a time. No `macros` — the
+# runtime is built in main, not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "rt-multi-thread", "sync"] }
