@@ -91,6 +91,55 @@ deliberate — `tool.output_risk` on the same callback DOES pass
   half the batch deadline) and then proceeds OUT OF ORDER with a
   warning (`:1283-1289`) — only under a wedged dispatch.
 
+## The correlation strategy: a FIFO of open starts
+
+The stream takes two shapes, by whether the batch was
+parallel-eligible:
+
+- SEQUENTIAL (one call, or any barrier tool, or an MCP tool at the
+  default config): strictly alternating —
+  `started, completed, started, completed`.
+- CONCURRENT (≥2 allowlisted calls): the batch shape — every
+  `started` first, in original call order, then every `completed`,
+  in that same order, after the whole batch has finished:
+  `started(0), started(1), started(2), completed(0), completed(1),
+  completed(2)`.
+- MIXED batches are segments of the two, concatenated in model
+  order: `[web_search, web_search, terminal]` reads
+  `started(ws0), started(ws1), completed(ws0), completed(ws1),
+  started(term), completed(term)`.
+
+On the healthy path a completion never precedes a start of its own
+batch, and completions never come out in a different order than
+their starts — both halves iterate the SAME `parsed_calls` list, in
+index order, which is why the ordinal is a key by construction and
+not by luck.
+
+ONE RULE covers both shapes: keep a FIFO queue of open `started`
+events; each `completed` pops the oldest. In the sequential shape
+the queue never holds more than one; in the batch shape it fills
+during the starts and drains in order during the completions. The
+pop is the pairing, and the pair is the synthetic tool-call id.
+
+Same tool, several times: `web_search("A")` and `web_search("B")`
+in one batch emit two starts and two completions, and the first
+completion is A's regardless of which finished first. The
+completion event carries no content of its own (name, duration,
+error flag — preview and args are hardcoded `None` at
+`tool_executor.py:1866`), so ORDER IS THE ONLY KEY; but because the
+pairing is positional, each completion inherits its start's
+identity — the start's args-derived `preview` (`"A"`) labels the
+pair.
+
+The FIFO carries its own consistency check: the popped head's
+`tool` must equal the completion's `tool`. Healthy operation always
+agrees. A mismatch, or a pop on an empty queue, is the signature of
+the degraded paths below (a call abandoned at the gate or timed out
+emits `completed` without ever emitting `started`) — the moment to
+stop trusting that batch's pairing rather than mislabel silently:
+flush the queue, and treat the rest of the batch's completions as
+unpaired.
+
 ## Consequence for the MCP proxy
 
 Within one call, `tool.started` always precedes that call's proxy
