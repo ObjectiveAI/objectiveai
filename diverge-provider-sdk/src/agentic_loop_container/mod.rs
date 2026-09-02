@@ -4,13 +4,16 @@
 //! takes THE request ([`request::Request`]) at `POST /` on the loop
 //! port — `8080`, per the Container section of the provider
 //! specification — and answers with a server-sent event stream whose
-//! events are [`response::Response`] items: the loop's chunks, and —
-//! when the request named resources — the container's own
-//! [`fetch_resource`](response::FetchResource) asks, which the
-//! server consumes and answers by POSTing the bytes back in at
-//! `POST /resource/{identity}` ([`resource`]), chunked, settled by
-//! the completion — or by the error, when the bytes can never
-//! come.
+//! events are [`response::Response`] items: the loop's chunks, and
+//! the container's own asks, which the server consumes and answers
+//! by POSTing bytes back in — a
+//! [`fetch_resource`](response::FetchResource) ask answered at
+//! `POST /resource/{identity}` ([`resource`]), and the one
+//! [`fetch_continuation`](response::FetchContinuation) ask every run
+//! opens with, answered at `POST /continuation` ([`continuation`]);
+//! both chunked, both settled by the completion — or by the error,
+//! when the bytes can never come — and a continuation delivered as
+//! a lone completion is the fresh start.
 //! Beside it, the running conversation's queue has exactly two
 //! verbs: [`enqueue`] puts a message in at `POST /enqueue`,
 //! [`dequeue`] clears whatever has not yet been taken at
@@ -51,6 +54,7 @@
 //! never undone; and a message the run outlives is missed, not
 //! errored.
 
+pub mod continuation;
 pub mod dequeue;
 pub mod enqueue;
 pub mod request;
