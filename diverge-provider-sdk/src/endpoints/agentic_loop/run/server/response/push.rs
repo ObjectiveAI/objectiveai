@@ -11,13 +11,12 @@ use super::{AgenticLoopChunk, AssistantToolCallChunk};
 /// it, so consecutive fragments become one chunk and a run broken by
 /// any other kind stays broken, as it was on the wire.
 ///
-/// Tool calls merge by ID, searched backwards, within the most recent
-/// chain — everything after the last tool response, or everything, if
-/// there is none. A model streaming several calls at once interleaves
-/// their fragments, so a fragment's home may not be the last element;
-/// but a call never continues past a tool response, so the search
-/// stops there, and an id seen again beyond that boundary is a new
-/// call.
+/// Tool calls merge by IDENTITY, searched backwards through the whole
+/// record: a fragment's home is the most recent chunk with the same
+/// `id` on the same thread, wherever it is. A model streaming several
+/// calls at once interleaves their fragments, so the home may not be
+/// the last element — and there is no boundary to stop at, because
+/// ids are unique across a run: an id seen again IS the same call.
 ///
 /// Nothing merges across threads: every merge also requires equal
 /// `parent_tool_call_id`, so a sub-agent's fragment never fuses onto
@@ -51,26 +50,25 @@ pub fn push(chunks: &mut Vec<AgenticLoopChunk>, chunk: AgenticLoopChunk) {
     }
 }
 
-/// The tool-call merge: backwards through the chain since the last
-/// tool response, onto the most recent fragment of the same call on
-/// the same thread.
+/// The tool-call merge: backwards through everything, onto the most
+/// recent fragment with the same `id` on the same thread; a new chunk
+/// if there is none.
 fn push_tool_call(
     chunks: &mut Vec<AgenticLoopChunk>,
     chunk: AssistantToolCallChunk,
 ) {
-    for existing in chunks.iter_mut().rev() {
-        match existing {
-            AgenticLoopChunk::ToolResponse(_) => break,
-            AgenticLoopChunk::AssistantToolCall(existing)
-                if existing.id == chunk.id
-                    && existing.parent_tool_call_id
-                        == chunk.parent_tool_call_id =>
-            {
-                existing.push(chunk);
-                return;
-            }
-            _ => {}
+    let home = chunks.iter_mut().rev().find_map(|existing| match existing {
+        AgenticLoopChunk::AssistantToolCall(existing)
+            if existing.id == chunk.id
+                && existing.parent_tool_call_id
+                    == chunk.parent_tool_call_id =>
+        {
+            Some(existing)
         }
+        _ => None,
+    });
+    match home {
+        Some(existing) => existing.push(chunk),
+        None => chunks.push(AgenticLoopChunk::AssistantToolCall(chunk)),
     }
-    chunks.push(AgenticLoopChunk::AssistantToolCall(chunk));
 }
