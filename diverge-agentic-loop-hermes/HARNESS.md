@@ -79,8 +79,9 @@ fail-closed stall it otherwise costs.
   byte-faithful one. The gateway events
   supply timing, reasoning glimpses, deltas and the bill.
 - The enqueue/dequeue queue lives in the proxy; pending prompts
-  fold onto the next tool response AT ITS TAIL (`\n\n` + one
-  `<system-reminder>` section), and the fold's SHA-256 (lowercase
+  fold onto the next tool response AT ITS HEAD (one
+  `<system-reminder>` section, then a blank line, then the tool's
+  own content), and the fold's SHA-256 (lowercase
   hex over the folded text blocks, concatenated, no separators) is
   the caller's correlation key.
 

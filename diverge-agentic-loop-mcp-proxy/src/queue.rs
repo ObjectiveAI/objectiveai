@@ -5,8 +5,8 @@
 //! still owns one seam every agent crosses: its tool calls transit
 //! THIS proxy. So the queue lives here — `POST /enqueue` puts a
 //! message in, and the next tool response relayed back to the agent
-//! carries everything pending, folded after the tool's own content
-//! as one `<system-reminder>` section, exactly the fold the
+//! carries everything pending, folded in front of the tool's own
+//! content as one `<system-reminder>` section, exactly the fold the
 //! openrouter harness performs locally.
 //!
 //! # The correlation is the content's own hash
@@ -105,12 +105,11 @@ impl Queue {
     /// and tell every folded message where it landed.
     ///
     /// The pending prompts — in enqueue order, joined by blank
-    /// lines, wrapped in one `<system-reminder>` section preceded by
-    /// a blank line — are APPENDED as a text block after the tool's
-    /// own content: the tail, which a head-truncating renderer is
-    /// likeliest to keep and a reader reaches last, freshest. A
-    /// response with no pending messages is left untouched, byte
-    /// for byte.
+    /// lines, wrapped in one `<system-reminder>` section — are
+    /// PREPENDED as a text block at position 0: the position Claude
+    /// Code's own folding uses, and the end a tail-truncating
+    /// renderer keeps. A response with no pending messages is left
+    /// untouched, byte for byte.
     ///
     /// # The canonical hash
     ///
@@ -126,14 +125,16 @@ impl Queue {
         }
 
         let section = format!(
-            "\n\n<system-reminder>\nThe user sent a new message while you were working:\n{}\n</system-reminder>",
+            "<system-reminder>\nThe user sent a new message while you were working:\n{}\n</system-reminder>\n\n",
             taken
                 .iter()
                 .map(|pending| pending.prompt.as_str())
                 .collect::<Vec<_>>()
                 .join("\n\n"),
         );
-        result.content.push(ContentBlock::text(section));
+        result
+            .content
+            .insert(0, ContentBlock::text(section));
 
         let mut hasher = Sha256::new();
         for block in &result.content {
