@@ -4,8 +4,7 @@ use std::error;
 use std::fmt;
 use std::io;
 
-use crate::continuation_fetcher;
-use crate::resource_fetcher::FetchError;
+use crate::fetcher::{ContinuationError, ResourceError};
 
 /// Why the filesystem could not be prepared. No variant carries a
 /// secret: a contradiction names the variable, not its values.
@@ -24,7 +23,7 @@ pub enum PrepareError {
         /// The request field that named it.
         field: &'static str,
         /// Why.
-        error: FetchError,
+        error: ResourceError,
     },
     /// A resource was fetched but is not a JSON object, which every
     /// state document here must be.
@@ -33,7 +32,7 @@ pub enum PrepareError {
         field: &'static str,
     },
     /// The continuation could not be had, or did not check out.
-    Continuation(continuation_fetcher::FetchError),
+    Continuation(ContinuationError),
     /// A file or directory could not be written.
     Io(io::Error),
     /// A document would not serialize — which plain data never

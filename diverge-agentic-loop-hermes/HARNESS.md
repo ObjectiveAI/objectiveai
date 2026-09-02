@@ -81,9 +81,8 @@ fetches, since the two halves write disjoint files:
   `API_SERVER_PORT=8642`; `API_SERVER_ENABLED` is inert and unset.
 - Resources (a provider's OAuth state, spotify's) are fetched ALL AT
   ONCE and parsed as JSON objects, the continuation fetched beside
-  them (both asks reach the socket through the driver: resource asks
-  on the resource fetcher's channel, the continuation ask on the
-  continuation fetcher's oneshot); only then is each file written,
+  them (every ask reaches the socket through the driver, on the one
+  `Fetcher`'s channel); only then is each file written,
   exactly once — `auth.json` as `{"version": 1, "providers": {...}}`
   with the documents verbatim, the Qwen file, the vertex file
   (`VERTEX_CREDENTIALS_PATH` names it).
@@ -201,11 +200,15 @@ resources, caches regenerate, skill writing is unsupported. The
 
 ## Resources ride the container surface
 
-The run asks on its SSE stream (`fetch_resource` items), the server
+The run asks on its socket (`fetch_resource` frames), the server
 delivers at `POST /resource/{identity}` (bytes verbatim, chunked) /
 `…/complete` / `…/error`, the store settles per identity, and
-`ResourceFetcher::fetch` hands the run the whole document as UTF-8
-text — decoded over the ASSEMBLED bytes only, never per chunk.
+`Fetcher::fetch_resource` hands the run the whole document as UTF-8
+text — decoded over the ASSEMBLED bytes only, never per chunk. The
+continuation is fetched the same way (`Fetcher::fetch_continuation`),
+by the same object, on the same ask channel; only the stores differ
+(`store::resource` in memory by identity, `store::continuation` one
+slot to disk).
 
 ## The runtime image (see also the Containerfile header)
 

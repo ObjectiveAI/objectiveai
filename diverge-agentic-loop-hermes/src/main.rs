@@ -7,9 +7,9 @@
 //! one frame of the container response vocabulary — the loop's
 //! chunks, the container's own `fetch_resource` asks for the agent's
 //! `*_resource` identities (answered by the server on the
-//! `/resource/{identity}` routes, into [`resource`]'s store), the
+//! `/resource/{identity}` routes, into [`store::resource`]), the
 //! `fetch_continuation` ask every run opens with (answered on the
-//! `/continuation` routes, into [`continuation_fetcher`]'s slot), and
+//! `/continuation` routes, into [`store::continuation`]), and
 //! the run's new continuation as the closer. Beside the run, the
 //! queue's two verbs: `POST /enqueue` and `POST /dequeue`, per the
 //! SDK's `agentic_loop_container` module — the caller's way into the
@@ -24,18 +24,17 @@
 //! resources and the continuation land in their stores, where the
 //! run will collect them.
 
-mod continuation_fetcher;
-// The filesystem module is complete and unwired: the run driver that
-// lays it down before the gateway and streams the continuation out
-// after does not exist yet, and its dead-code warnings are the
-// reminder.
+// The fetcher and filesystem modules are complete and unwired: the
+// run driver that lays the filesystem down before the gateway and
+// streams the continuation out after does not exist yet, and their
+// dead-code warnings are the reminder.
+mod fetcher;
 mod filesystem;
-mod resource;
-mod resource_fetcher;
 // The response module carries the gateway's COMPLETE run-event
 // vocabulary. Until the run exists to read it, its dead-code
 // warnings stand as the honest reminder of exactly that.
 mod response;
+mod store;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -180,7 +179,7 @@ async fn continuation_chunk(
     Json<agentic_loop_container::continuation::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    settled(continuation_fetcher::STORE.chunk(&body).await, "continuation")
+    settled(store::continuation::STORE.chunk(&body).await, "continuation")
 }
 
 /// The completion: every chunk is in — or none at all, the fresh
@@ -191,7 +190,7 @@ async fn continuation_complete(
     Json<agentic_loop_container::continuation::complete::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    settled(continuation_fetcher::STORE.complete().await, "continuation")
+    settled(store::continuation::STORE.complete().await, "continuation")
 }
 
 /// The failure: the bytes can never come, and the waiting run learns
@@ -203,7 +202,7 @@ async fn continuation_error(
     (StatusCode, Json<serde_json::Value>),
 > {
     settled(
-        continuation_fetcher::STORE.error(request.error).await,
+        store::continuation::STORE.error(request.error).await,
         "continuation",
     )
 }
@@ -223,7 +222,7 @@ async fn resource_chunk(
     Json<agentic_loop_container::resource::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    settled(resource::STORE.chunk(&identity, &body), "resource")
+    settled(store::resource::STORE.chunk(&identity, &body), "resource")
 }
 
 /// The completion: every chunk is in, the run may collect.
@@ -234,7 +233,7 @@ async fn resource_complete(
     Json<agentic_loop_container::resource::complete::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    settled(resource::STORE.complete(&identity), "resource")
+    settled(store::resource::STORE.complete(&identity), "resource")
 }
 
 /// The failure: the bytes can never come, and the waiting fetch
@@ -246,7 +245,7 @@ async fn resource_error(
     Json<agentic_loop_container::resource::error::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    settled(resource::STORE.error(&identity, request.error), "resource")
+    settled(store::resource::STORE.error(&identity, request.error), "resource")
 }
 
 /// The delivery routes' one verdict: taken (`received`), or refused

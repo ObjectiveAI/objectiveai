@@ -1,13 +1,11 @@
 //! Where the continuation lands, and where the run collects it.
 //!
-//! The keyless twin of a resource store: a run resumes from ONE
-//! continuation, so there is one slot and nothing to name. The
-//! server delivers it on the `/continuation` routes — chunks, then
-//! the completion or the error — and the run waits out the
-//! settlement through a [`ContinuationFetcher`], which sends the one
-//! ask (the driver carries it onto the socket) and then waits on the
-//! slot — the resource fetcher's shape, for the same reason: one
-//! pattern for the driver to serve.
+//! The keyless twin of the [resource store](super::resource): a run
+//! resumes from ONE continuation, so there is one slot and nothing
+//! to name. The server delivers it on the `/continuation` routes —
+//! chunks, then the completion or the error — and the
+//! [`Fetcher`](crate::fetcher::Fetcher) collects it with
+//! [`Store::take`], having sent the ask.
 //!
 //! # The slot holds none of it
 //!
@@ -21,45 +19,11 @@
 use std::error;
 use std::fmt;
 
-use tokio::sync::oneshot::{self, Receiver, Sender};
 use tokio::sync::{Mutex, Notify};
 
+use crate::fetcher::ContinuationError;
 use crate::filesystem::continuation;
-use crate::filesystem::continuation::{CheckError, Ingest, IngestError};
-
-/// The round-trip a continuation is: the ask onto the socket, the
-/// wait on the slot's settlement, the verdict handed back — once.
-///
-/// Built by the main endpoint beside the resource fetcher, handed to
-/// the filesystem preparation: [`fetch`](Self::fetch) sends the ask
-/// through the oneshot [`new`](Self::new) returns, and the driver
-/// sends `Response::FetchContinuation` on the socket when it fires.
-pub struct ContinuationFetcher {
-    /// The ask half: fires once, when the fetch begins.
-    ask: Sender<()>,
-}
-
-impl ContinuationFetcher {
-    /// The fetcher and the ask it will send, a pair: the main
-    /// endpoint constructs both, keeps the receiver for the socket,
-    /// and hands the fetcher to the filesystem preparation.
-    pub fn new() -> (Self, Receiver<()>) {
-        let (ask, receiver) = oneshot::channel();
-        (ContinuationFetcher { ask }, receiver)
-    }
-
-    /// Send the ask, then wait for the delivery to settle — however
-    /// long that takes; nothing in this protocol times anything out
-    /// — and for the delivered database to check out. `true` is a
-    /// session on disk to resume; `false` is the fresh start.
-    /// Consumes the fetcher: one ask, one fetch.
-    pub async fn fetch(self) -> Result<bool, FetchError> {
-        if self.ask.send(()).is_err() {
-            return Err(FetchError::Closed);
-        }
-        STORE.fetch().await
-    }
-}
+use crate::filesystem::continuation::{Ingest, IngestError};
 
 /// The one slot, alive as long as the container: deliveries arrive
 /// whenever the server sends them, and the run reads whenever it is
@@ -84,7 +48,7 @@ pub struct Store {
     /// writes each chunk costs.
     slot: Mutex<Entry>,
     /// Woken on the settlement, so a run waiting in
-    /// [`fetch`](Self::fetch) re-checks.
+    /// [`take`](Self::take) re-checks.
     settled: Notify,
 }
 
@@ -181,7 +145,7 @@ impl Store {
     /// delivered database is proved to open ([`continuation::check`])
     /// before `true` is answered. Collected once; a second call is a
     /// bug, and says so.
-    pub async fn fetch(&self) -> Result<bool, FetchError> {
+    pub async fn take(&self) -> Result<bool, ContinuationError> {
         loop {
             // Armed before the check, so a settlement landing between
             // the check and the wait is a wakeup, not a lost one.
@@ -190,7 +154,7 @@ impl Store {
                 let mut slot = self.slot.lock().await;
                 match &*slot {
                     Entry::Assembling(_) => None,
-                    Entry::Taken => return Err(FetchError::Taken),
+                    Entry::Taken => return Err(ContinuationError::Taken),
                     Entry::Complete(_) | Entry::Failed(_) => {
                         Some(std::mem::replace(&mut *slot, Entry::Taken))
                     }
@@ -205,69 +169,15 @@ impl Store {
                     return Ok(resumed);
                 }
                 Some(Entry::Failed(Failure::Server(error))) => {
-                    return Err(FetchError::Failed(error));
+                    return Err(ContinuationError::Failed(error));
                 }
                 Some(Entry::Failed(Failure::Ingest(error))) => {
-                    return Err(FetchError::Ingest(error));
+                    return Err(ContinuationError::Ingest(error));
                 }
                 Some(Entry::Assembling(_) | Entry::Taken) => {
                     unreachable!("only settled entries are taken")
                 }
             }
         }
-    }
-}
-
-/// A fetch that cannot answer.
-#[derive(Debug)]
-pub enum FetchError {
-    /// The ask's receiver is gone — the socket driver died, so no
-    /// delivery can come and waiting would be forever.
-    Closed,
-    /// The server failed the delivery — the bytes can never come
-    /// (the client vanished mid-fetch, refused, …) — and this is its
-    /// full error, verbatim off the error route.
-    Failed(serde_json::Value),
-    /// The bytes came but could not be landed.
-    Ingest(IngestError),
-    /// The bytes landed but the database did not check out.
-    Check(CheckError),
-    /// The continuation was already collected. One run, one fetch.
-    Taken,
-}
-
-impl fmt::Display for FetchError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FetchError::Closed => {
-                f.write_str("the continuation ask channel is closed")
-            }
-            FetchError::Failed(error) => {
-                write!(f, "the server failed the continuation: {error}")
-            }
-            FetchError::Ingest(error) => {
-                write!(f, "the continuation could not be landed: {error}")
-            }
-            FetchError::Check(error) => write!(f, "{error}"),
-            FetchError::Taken => {
-                f.write_str("the continuation was already collected")
-            }
-        }
-    }
-}
-
-impl error::Error for FetchError {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        match self {
-            FetchError::Ingest(error) => Some(error),
-            FetchError::Check(error) => Some(error),
-            FetchError::Closed | FetchError::Failed(_) | FetchError::Taken => None,
-        }
-    }
-}
-
-impl From<CheckError> for FetchError {
-    fn from(error: CheckError) -> Self {
-        FetchError::Check(error)
     }
 }

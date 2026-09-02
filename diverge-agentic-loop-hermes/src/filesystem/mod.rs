@@ -70,8 +70,7 @@ use futures_util::TryFutureExt as _;
 use futures_util::future;
 use uuid::Uuid;
 
-use crate::continuation_fetcher::ContinuationFetcher;
-use crate::resource_fetcher::ResourceFetcher;
+use crate::fetcher::Fetcher;
 
 /// Where Hermes keeps its state, fixed for the container's life: the
 /// default home for the container's root user, pinned into the
@@ -125,13 +124,12 @@ const VERTEX_FILE: &str = "vertex-service-account.json";
 /// file, the vertex file. The continuation's own files are already
 /// on disk by then — its chunks landed as they arrived.
 ///
-/// Both asks reach the socket through the driver: the resource asks
-/// on the resource fetcher's channel, the continuation ask on the
-/// continuation fetcher's oneshot.
+/// Every ask reaches the socket through the driver, on the fetcher's
+/// one channel. The fetcher is taken by value: this is where the
+/// run's asking happens, and nothing asks after it.
 pub async fn prepare(
     request: &Request,
-    resources: &ResourceFetcher,
-    continuation: ContinuationFetcher,
+    fetcher: Fetcher,
 ) -> Result<Prepared, PrepareError> {
     let Agent::Hermes(agent) = &request.agent else {
         return Err(PrepareError::WrongAgent);
@@ -153,9 +151,10 @@ pub async fn prepare(
 
     // Every resource at once, and the continuation beside them;
     // nothing is written until all are in.
+    let fetcher = &fetcher;
     let documents = future::try_join_all(plan.asks.iter().map(|ask| async move {
-        let text = resources
-            .fetch(ask.identity.clone())
+        let text = fetcher
+            .fetch_resource(ask.identity.clone())
             .await
             .map_err(|error| PrepareError::Resource {
                 field: ask.field,
@@ -169,7 +168,7 @@ pub async fn prepare(
     }));
     let (documents, resumed) = future::try_join(
         documents,
-        continuation.fetch().map_err(PrepareError::Continuation),
+        fetcher.fetch_continuation().map_err(PrepareError::Continuation),
     )
     .await?;
 
