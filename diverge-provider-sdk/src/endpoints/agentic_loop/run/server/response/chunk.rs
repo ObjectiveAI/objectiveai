@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     AssistantAudioContentChunk, AssistantImageContentChunk,
     AssistantReasoningChunk, AssistantRefusalChunk,
-    AssistantTextContentChunk, AssistantToolCallChunk, ContinuationChunk,
-    NotificationChunk,
+    AssistantTextContentChunk, AssistantToolCallChunk, NotificationChunk,
     ToolResponseChunk, UsageChunk, UserChunk,
 };
 
@@ -18,10 +17,18 @@ use super::{
 ///
 /// **Untagged, discriminated by payload.** serde adds no tag of its
 /// own; instead every variant's payload carries a `type` field whose
-/// value no other variant can produce. So the wire shape is the event
+/// value no other variant can produce — each `type` is its own
+/// single-variant enum, so a wrong value fails to deserialize instead
+/// of arriving as data nobody checks. So the wire shape is the event
 /// itself rather than a wrapper around one, and deserialization is
 /// still unambiguous — the `type` constants do the work a tag would,
 /// without a level of nesting.
+///
+/// The continuation is NOT a chunk. It closes the response as the
+/// frame's own third variant —
+/// [`Frame::Continuation`](super::Frame::Continuation) — raw bytes on
+/// a tag of their own, because a provider's opaque state is not an
+/// event and not JSON.
 ///
 /// That also means variant order here is not load-bearing. Untagged
 /// deserialization takes the first variant that matches, and with
@@ -62,6 +69,4 @@ pub enum AgenticLoopChunk {
     Usage(UsageChunk),
     /// Something about the run itself. See [`NotificationChunk`].
     Notification(NotificationChunk),
-    /// The resume token. See [`ContinuationChunk`].
-    Continuation(ContinuationChunk),
 }

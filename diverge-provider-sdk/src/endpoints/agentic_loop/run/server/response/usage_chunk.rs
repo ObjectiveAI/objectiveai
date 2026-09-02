@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// wants a running total sums them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct UsageChunk {
-    /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
+    /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: UsageChunkType,
     /// Tokens generated.
     pub completion_tokens: u64,

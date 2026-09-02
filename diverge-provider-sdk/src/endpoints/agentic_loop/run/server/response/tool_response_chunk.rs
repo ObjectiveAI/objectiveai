@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 /// being re-encoded into a shape of ours that would lose some of it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolResponseChunk {
-    /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
+    /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: ToolResponseChunkType,
     /// The tool call whose sub-agent produced this chunk; absent on
     /// the main thread. A nested sub-agent names its IMMEDIATE

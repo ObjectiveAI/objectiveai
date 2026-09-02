@@ -10,9 +10,13 @@ use crate::encode::{Encode, Writer};
 
 /// What a caller hands a provider to start or resume a loop.
 ///
-/// One shape for both. A resume is this same request with
-/// [`continuation`](Self::continuation) set — not a second request
-/// type — because everything else still applies: the agent's
+/// One shape for both. A resume is this same request — not a second
+/// request type — and the request itself carries nothing that says
+/// which: what came before is fetched, not sent. The server opens its
+/// [`FetchContinuation`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchContinuation)
+/// exchange as the run starts, and the caller answers with the bytes
+/// it kept from the last run's close, or with nothing, which is a
+/// fresh start. Everything else still applies: the agent's
 /// parameters can change between turns, and a resume that could not
 /// express that would force a caller to start over to alter them.
 ///
@@ -34,22 +38,14 @@ pub struct Frame {
     pub agent: Agent,
     /// The input for this turn.
     ///
-    /// A prompt, not a conversation. What came before lives in
-    /// [`continuation`](Self::continuation), which is the provider's
-    /// own state — so a caller sends what is NEW and never
-    /// reconstructs a history it would have to keep a parallel record
-    /// of.
+    /// A prompt, not a conversation. What came before lives in the
+    /// continuation the server fetches — the provider's own state —
+    /// so a caller sends what is NEW and never reconstructs a history
+    /// it would have to keep a parallel record of.
     ///
     /// Content blocks rather than a message, because the role is
     /// implied: a caller can only ever speak as itself.
     pub prompt: Vec<ContentBlock>,
-    /// Resume a loop, using the token from its
-    /// [`ContinuationChunk`](crate::endpoints::agentic_loop::run::server::response::ContinuationChunk).
-    ///
-    /// Opaque: a caller stores it and hands it back, and should read
-    /// nothing into its contents.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub continuation: Option<String>,
     /// Files the caller wants present in the container's filesystem,
     /// keyed by absolute container path. Each value is the file's
     /// size-bearing identity:

@@ -10,12 +10,14 @@ use crate::shared::error::Error;
 /// The payload of a [`ServerFrame::Response`](crate::frame::server::ServerFrame::Response).
 ///
 /// A server's response frames are always channel `0` — the answer to
-/// the client's own request — and there are two things that answer can
-/// be: a piece of the loop, or the news that there will not be one.
+/// the client's own request — and there are three things that answer
+/// can be: a piece of the loop, the news that there will not be one,
+/// or the loop's closer — the continuation, as raw bytes.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Chunk`](Self::Chunk), `1` for [`Error`](Self::Error) — and the
-/// rest is that variant's own JSON.
+/// [`Chunk`](Self::Chunk), `1` for [`Error`](Self::Error), `2` for
+/// [`Continuation`](Self::Continuation) — and the rest is that
+/// variant's own: JSON for the first two, bytes for the third.
 ///
 /// The tunnels do not appear here: their bytes travel the other
 /// direction as [`channel_request::Frame`](crate::endpoints::agentic_loop::run::server::channel_request::Frame),
@@ -35,6 +37,24 @@ use crate::shared::error::Error;
 /// legitimately, an object with a `type` field. Leaving the two to be
 /// distinguished by their JSON would mean a provider's error text
 /// could be read as a chunk, and the failure would look like output.
+/// And a continuation is not JSON at all: a provider's own opaque
+/// state, in whatever bytes it keeps it in. The tag is what keeps
+/// those bytes from ever being handed to a JSON parser.
+///
+/// # The closer is bytes, and it is chunked
+///
+/// The continuation used to be a chunk carrying a `String`, which
+/// meant base64 around whatever the provider actually kept. Now it
+/// is the bytes themselves, on the frame's own tag, and it CLOSES the
+/// response: a provider sends it last — one frame, or several when it
+/// exceeds
+/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE),
+/// the sender's rule — and nothing follows it but the finish. The
+/// receiver appends, never measures; the finish says it is whole. A
+/// run that closes with no continuation frames issued none. The
+/// caller keeps the bytes and answers the next run's
+/// [`FetchContinuation`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchContinuation)
+/// with them.
 ///
 /// # This is not [`NotificationChunk`](super::NotificationChunk)
 ///
@@ -53,7 +73,7 @@ use crate::shared::error::Error;
 /// bare JSON value because this specification does not describe what
 /// providers can go wrong with.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Frame {
+pub enum Frame<'a> {
     /// One chunk of the answer to the client's request. Tag `0`.
     Chunk(AgenticLoopChunk),
     /// A failure. Tag `1`.
@@ -61,6 +81,13 @@ pub enum Frame {
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
     Error(Error),
+    /// One piece of the continuation — the run's closer. Tag `2`.
+    ///
+    /// Borrowed from the frame it arrived in, the fetch frames' way:
+    /// a continuation is written out of a buffer and read into one,
+    /// and copying every chunk in between would double each for
+    /// nothing. Every frame appends; the finish says whole.
+    Continuation(&'a [u8]),
 }
 
 /// Tag for [`Frame::Chunk`].
@@ -69,10 +96,14 @@ const CHUNK: u8 = 0;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 1;
 
-/// A tag, then the variant's own JSON. The newtype around a chunk
-/// still leaves no trace — what a chunk encodes to is exactly what it
-/// encoded to before the tag existed.
-impl Encode for Frame {
+/// Tag for [`Frame::Continuation`].
+const CONTINUATION: u8 = 2;
+
+/// A tag, then the variant's own payload — JSON for a chunk or an
+/// error, the bytes verbatim for the continuation. The newtype around
+/// a chunk still leaves no trace — what a chunk encodes to is exactly
+/// what it encoded to before the tag existed.
+impl Encode for Frame<'_> {
     /// The ordinary JSON failure, from whichever half is present. A
     /// chunk is entirely shapes: content, reasoning, tool calls,
     /// usage. Nothing in it is a passthrough.
@@ -93,16 +124,22 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
             }
+            Frame::Continuation(bytes) => {
+                out.extend_from_slice(&[CONTINUATION]);
+                out.extend_from_slice(bytes);
+                Ok(())
+            }
         }
     }
 }
 
-impl Decode<'_> for Frame {
-    /// Four ways to fail, and each names which half failed.
+impl<'a> Decode<'a> for Frame<'a> {
+    /// Four ways to fail, and each names which half failed. The
+    /// continuation is not among them: bytes taken as bytes cannot.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
-    fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
+    fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             CHUNK => serde_json::from_slice(rest)
@@ -111,6 +148,7 @@ impl Decode<'_> for Frame {
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
+            CONTINUATION => Ok(Frame::Continuation(rest)),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -121,7 +159,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The chunk did not parse.
     Chunk(serde_json::Error),

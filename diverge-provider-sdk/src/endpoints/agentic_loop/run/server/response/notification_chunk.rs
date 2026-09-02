@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 /// different shapes to parse rather than different values in one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationChunk {
-    /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
+    /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: NotificationChunkType,
     /// Whether the run ends here.
     ///

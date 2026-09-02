@@ -646,7 +646,7 @@ async fn finish(scope: Arc<ScopeHandle>) {
 ///
 /// The one failure with nowhere to report it: the channel for saying so
 /// is the thing that would not serialize.
-async fn write(scope: &ScopeHandle, frame: &response::Frame) {
+async fn write(scope: &ScopeHandle, frame: &response::Frame<'_>) {
     let mut bytes = Vec::new();
     if frame.encode(&mut Writer::new(&mut bytes)).is_ok() {
         scope.send_response(&bytes).await;

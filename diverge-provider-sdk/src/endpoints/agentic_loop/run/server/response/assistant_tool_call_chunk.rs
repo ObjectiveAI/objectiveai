@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 /// but a fragment of a string is a string.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AssistantToolCallChunk {
-    /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
+    /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: AssistantToolCallChunkType,
     /// The tool call whose sub-agent produced this chunk; absent on
     /// the main thread. A nested sub-agent names its IMMEDIATE

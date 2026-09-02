@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'Tag byte 0, then a JSON object: the agent to run — one of four agent kinds, discriminated by its upstream member — the prompt, and an optional continuation token.'
+summary: 'Tag byte 0, then a JSON object: the agent to run — one of four agent kinds, discriminated by its upstream member — and the prompt. What came before is fetched from the client, not sent.'
 order: 1
 draft: false
 ---
@@ -16,9 +16,6 @@ pub struct Request {
     pub agent: Agent,
     /// The input for this turn: MCP content blocks.
     pub prompt: Vec<ContentBlock>,
-    /// Resume the loop this token names.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub continuation: Option<String>,
 }
 ```
 
@@ -26,12 +23,16 @@ Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP imp
 
 - **A prompt, not a conversation.** `prompt` is this turn's input,
   and the server does not rewrite it. What came before is the
-  server's state, reached through `continuation`.
-- **Resumption is the same request.** A resumption is this request
-  with `continuation` present — the token previously issued in a
-  [continuation chunk](/endpoints/agentic-loop-run/response/) — not a
-  distinct request form, and the agent's parameters may differ between
-  turns. The token is opaque to the client.
+  server's state — the continuation — which the server fetches from
+  the client as the run starts.
+- **Resumption is the same request.** The request carries nothing
+  that says whether it resumes: the server opens a continuation fetch
+  ([Channels](/endpoints/agentic-loop-run/channels/)) and the client
+  answers with the bytes it kept from a previous loop's close
+  ([Response](/endpoints/agentic-loop-run/response/)), or ends the
+  answer at once for a fresh start. Not a distinct request form, and
+  the agent's parameters may differ between turns. The bytes are
+  opaque to the client.
 
 ## The agent
 

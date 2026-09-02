@@ -21,7 +21,7 @@ use super::Logprob;
 /// coincide without becoming ambiguous.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AssistantReasoningChunk {
-    /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
+    /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: AssistantReasoningChunkType,
     /// The tool call whose sub-agent produced this chunk; absent on
     /// the main thread. A nested sub-agent names its IMMEDIATE

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 /// loop rather than one per direction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AssistantAudioContentChunk {
-    /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
+    /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: AssistantAudioContentChunkType,
     /// The tool call whose sub-agent produced this chunk; absent on
     /// the main thread. A nested sub-agent names its IMMEDIATE

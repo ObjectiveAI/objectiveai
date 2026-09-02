@@ -25,9 +25,10 @@ the agent.
   server; the client opens none. The channels are the five exchanges
   of the [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25), enumerated in
   [Channels](/endpoints/agentic-loop-run/channels/).
-- **Resumption.** A loop may be resumed: the server may issue a
-  continuation token among its responses, and a subsequent request
-  presenting that token continues the loop it names. The mechanics are
-  defined with the [request](/endpoints/agentic-loop-run/request/) and
-  the continuation chunk of the
-  [response](/endpoints/agentic-loop-run/response/).
+- **Resumption.** A loop may be resumed: the server may close its
+  responses with a continuation — its own state, as raw bytes — and
+  on a subsequent request it fetches that continuation back from the
+  client, which answers with the bytes it kept, or with nothing for a
+  fresh start. The mechanics are defined with the
+  [response](/endpoints/agentic-loop-run/response/) and the
+  [request](/endpoints/agentic-loop-run/request/).

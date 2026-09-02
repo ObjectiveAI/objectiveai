@@ -17,7 +17,7 @@ use super::Logprob;
 /// loop rather than one per direction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AssistantTextContentChunk {
-    /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
+    /// The discriminator. See [`AgenticLoopChunk`](super::AgenticLoopChunk).
     pub r#type: AssistantTextContentChunkType,
     /// The tool call whose sub-agent produced this chunk; absent on
     /// the main thread. A nested sub-agent names its IMMEDIATE

@@ -21,10 +21,11 @@ use crate::shared::error::Error;
 /// out and the router is already putting frames where this will find
 /// them.
 ///
-/// The item is [`AgenticLoopChunk`](response::AgenticLoopChunk) — one
-/// event at a time, rather than a partially-filled record of everything
-/// that could have happened. What the sequence means is
-/// [`response`]'s to say.
+/// The item is an [`ExecuteStreamItem`]: an
+/// [`AgenticLoopChunk`](response::AgenticLoopChunk) — one event at a
+/// time, rather than a partially-filled record of everything that
+/// could have happened — or, at the close, a piece of the
+/// continuation. What the sequence means is [`response`]'s to say.
 ///
 /// # It is not the only thing running
 ///
@@ -38,12 +39,14 @@ use crate::shared::error::Error;
 /// is the point. A caller that stops to think about a chunk would
 /// otherwise be a caller that has stopped answering the agent's tools.
 ///
-/// # Zero or more chunks, then one ending
+/// # Zero or more chunks, the closer, then one ending
 ///
-/// It yields zero or more [`Ok`], and then either ends or yields
-/// exactly one [`Err`] and ends. Every error is terminal, which is what
-/// makes the type explainable in one line and what [`FusedStream`] then
-/// reports honestly.
+/// It yields zero or more [`Ok`] — chunks, and then, if the provider
+/// issued one, the continuation in pieces that APPEND, the finish
+/// saying it is whole — and then either ends or yields exactly one
+/// [`Err`] and ends. Every error is terminal, which is what makes the
+/// type explainable in one line and what [`FusedStream`] then reports
+/// honestly. The continuation is not terminal: only the finish is.
 ///
 /// [`None`] is the loop finishing as it should.
 /// [`ExecuteStreamError::Closed`] is the connection going away
@@ -121,12 +124,27 @@ impl ExecuteStream {
     }
 }
 
-/// One chunk at a time, until there are no more.
+/// One item of a running loop: a chunk, or a piece of its closer.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExecuteStreamItem {
+    /// One event of the loop. See
+    /// [`AgenticLoopChunk`](response::AgenticLoopChunk).
+    Chunk(response::AgenticLoopChunk),
+    /// One piece of the continuation, the run's closer: raw bytes,
+    /// the provider's own opaque state. Append every piece in order;
+    /// the stream ending says the whole is whole. A caller keeps it
+    /// and answers the next run's continuation fetch with it.
+    ///
+    /// Owned without a copy — a view onto the frame's own buffer.
+    Continuation(Bytes),
+}
+
+/// One item at a time, until there are no more.
 ///
 /// See the type's own documentation for what ends it and what that
 /// means.
 impl Stream for ExecuteStream {
-    type Item = Result<response::AgenticLoopChunk, ExecuteStreamError>;
+    type Item = Result<ExecuteStreamItem, ExecuteStreamError>;
 
     fn poll_next(
         self: Pin<&mut Self>,
@@ -164,7 +182,14 @@ impl Stream for ExecuteStream {
             }
         };
         Poll::Ready(Some(match response::Frame::decode(payload) {
-            Ok(response::Frame::Chunk(chunk)) => Ok(chunk),
+            Ok(response::Frame::Chunk(chunk)) => {
+                Ok(ExecuteStreamItem::Chunk(chunk))
+            }
+            // A view onto `bytes`, not a copy: `body` is a slice of
+            // the buffer this frame arrived in.
+            Ok(response::Frame::Continuation(body)) => {
+                Ok(ExecuteStreamItem::Continuation(bytes.slice_ref(body)))
+            }
             Ok(response::Frame::Error(error)) => {
                 this.response_receiver = None;
                 Err(ExecuteStreamError::Provider(error))

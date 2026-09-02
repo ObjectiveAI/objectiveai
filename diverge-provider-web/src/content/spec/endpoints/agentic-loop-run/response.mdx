@@ -1,19 +1,23 @@
 ---
 title: 'Response'
-summary: 'Each response’s payload is one tag byte then JSON: tag 0 a chunk of the loop’s output, discriminated by its type member; tag 1 an error, which is the scope’s final response.'
+summary: 'Each response’s payload is one tag byte then its own payload: tag 0 a JSON chunk of the loop’s output, discriminated by its type member; tag 1 a JSON error, the scope’s final response; tag 2 raw bytes of the continuation, the loop’s closer.'
 order: 3
 draft: false
 ---
 
-Each response's payload is a single tag byte followed by a JSON text,
-read under the layer's [notation](/endpoints/#notation).
+Each response's payload is a single tag byte followed by that
+variant's own payload — a JSON text for tags `0` and `1`, read under
+the layer's [notation](/endpoints/#notation); raw bytes for tag `2`.
 
 ```rust
-pub enum Response {
+pub enum Response<'a> {
     /// Tag 0. One piece of the loop's output.
     Chunk(AgenticLoopChunk),
     /// Tag 1. The scope's final response.
     Error(Error),
+    /// Tag 2. One piece of the continuation: raw bytes, the loop's
+    /// closer.
+    Continuation(&'a [u8]),
 }
 
 /// An arbitrary JSON value, the server's to compose. This
@@ -25,10 +29,18 @@ pub struct Error(pub serde_json::Value);
   final response; the response finish follows it.
 - **Chunks are ordered.** The chunks of one scope form one stream, in
   the order sent.
+- **The continuation closes the stream.** Responses bearing tag `2`
+  carry the loop's continuation — the server's own opaque state, as
+  bytes — in one or more pieces the client appends in order; the
+  response finish says the whole is whole. Nothing but the finish
+  follows them. A loop that issues none is not resumable. The client
+  keeps the bytes and answers the next request's
+  [continuation fetch](/endpoints/agentic-loop-run/channels/) with
+  them.
 
 ## Chunks
 
-A chunk is one of ten kinds. The union is untagged: each kind is
+A chunk is one of nine kinds. The union is untagged: each kind is
 discriminated by its own constant `type` member, and goes on the wire
 as its members alone.
 
@@ -44,7 +56,6 @@ pub enum AgenticLoopChunk {
     ToolResponse(ToolResponseChunk),
     Usage(UsageChunk),
     Notification(NotificationChunk),
-    Continuation(ContinuationChunk),
 }
 ```
 
@@ -310,25 +321,3 @@ pub enum NotificationChunkType {
 
 Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::MetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.MetaObject.html).
 
-### `continuation`
-
-The token a subsequent
-[request](/endpoints/agentic-loop-run/request/) presents to resume
-this loop. Opaque to the client.
-
-```rust
-pub struct ContinuationChunk {
-    /// "continuation"
-    pub r#type: ContinuationChunkType,
-    pub continuation: String,
-    #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
-    pub meta: Option<MetaObject>,
-}
-
-pub enum ContinuationChunkType {
-    #[serde(rename = "continuation")]
-    Continuation,
-}
-```
-
-Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::MetaObject`](https://docs.rs/rmcp/3.1.2/rmcp/model/struct.MetaObject.html).

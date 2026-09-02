@@ -3,8 +3,10 @@
 //! [`Frame`] is what carries it; everything else here is what goes
 //! inside. A response is a **stream** of [`AgenticLoopChunk`]s. Each chunk is
 //! one event — content, reasoning, a tool call, a refusal, a tool
-//! result, usage, a notification, or the continuation — rather than a
-//! partially-filled record of everything that could have happened.
+//! result, usage, or a notification — rather than a partially-filled
+//! record of everything that could have happened. The continuation
+//! is not among them: it closes the stream as the frame's own
+//! variant, raw bytes on a tag of their own.
 //!
 //! Content, tool calls and tool results are MCP's own types, flattened
 //! — one content vocabulary across the whole loop, so what a model
@@ -19,7 +21,6 @@ mod assistant_tool_call_chunk;
 mod chunk;
 mod push;
 mod frame;
-mod continuation_chunk;
 mod notification_chunk;
 mod logprobs;
 mod tool_response_chunk;
@@ -35,7 +36,6 @@ pub use assistant_tool_call_chunk::*;
 pub use chunk::*;
 pub use push::*;
 pub use frame::*;
-pub use continuation_chunk::*;
 pub use notification_chunk::*;
 pub use logprobs::*;
 pub use tool_response_chunk::*;
