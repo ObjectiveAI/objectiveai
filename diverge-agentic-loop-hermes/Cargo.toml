@@ -37,6 +37,8 @@ serde_json = { version = "1.0.151", features = ["preserve_order"] }
 # postgres, no macros. Version: the workspace lock's, confirmed by
 # `cargo info sqlx`.
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
+# The API server key: two v4 uuids, minted per run.
+uuid = { version = "1.22.0", features = ["v4"] }
 # The runtime under the listener, `sync` for the Notify the stores
 # wake their collectors with, `fs` + `io-util` for the continuation's
 # files, read and appended a piece at a time. No `macros` — the

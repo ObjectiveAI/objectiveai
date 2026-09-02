@@ -18,8 +18,9 @@ carries them as arguments (provider structures, toolset structures,
   (nous, openai-codex, minimax-oauth) and spotify — the fetched
   resource bytes written verbatim as `providers.<name>`;
 - qwen-oauth's document at the REAL `$HOME`
-  (`~/.qwen/oauth_creds.json`) plus the harness's own token-free
-  `providers.qwen-oauth` marker;
+  (`~/.qwen/oauth_creds.json`) — and NO `providers.qwen-oauth`
+  marker: that entry serves the setup wizard's credential check
+  only; the gateway reads the CLI file directly;
 - vertex's service-account JSON to a file + `VERTEX_CREDENTIALS_PATH`;
 - `model.api_key` in config.yaml for `custom`.
 
@@ -37,6 +38,43 @@ Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
   container surface, written to the filesystem, rotated in place by
   Hermes, and its rotated form surfaced back to the caller (the
   emit-back mechanism is defined at the protocol level, not here).
+
+## `prepare` renders all of it, once
+
+The `prepare` module turns the request's agent into the gateway's
+process environment (returned to the spawner — the request's own
+`environment` is the server's business and is never repeated),
+`config.yaml`, and the credential files, in one pass:
+
+- `config.yaml` is written as JSON (JSON is YAML): `model.provider`
+  (the SDK marker's id IS Hermes's) + `model.default`, `model.api_key`
+  for `custom` only, `security.protected_instruction_files: false`,
+  the backend pins asked for (`web.search_backend` /
+  `web.extract_backend` by plugin name — `tavily`, `exa`, `parallel`,
+  `keenable`, `brave-free`, `searxng`, `firecrawl`; `tts.provider:
+  elevenlabs` when keyed; `image_gen.provider` / `video_gen.provider:
+  fal`), and the MCP proxy entry `diverge` →
+  `http://127.0.0.1:8081/mcp` with `trust: full`, elicitation AND
+  sampling disabled.
+- Toolset exposure is the explicit list `platform_toolsets.api_server`
+  (the only deterministic form; there is no `disabled_toolsets`
+  config key). Present → in, `false` → out, unsaid → Hermes's own
+  API-server default: on for web, browser, terminal, file,
+  code_execution, vision, image_gen, todo, memory, session_search;
+  off for video, video_gen, x_search, tts, homeassistant, spotify.
+  `skills` always in; delegation, cronjob, clarify, computer_use,
+  discord, yuanbao, context_engine, stt never.
+- The API server needs a usable bearer: `API_SERVER_KEY` is minted
+  per run (64 hex), `API_SERVER_HOST=127.0.0.1`,
+  `API_SERVER_PORT=8642`; `API_SERVER_ENABLED` is inert and unset.
+- Resources (a provider's OAuth state, spotify's) are fetched ALL AT
+  ONCE and parsed as JSON objects; only then is each file written,
+  exactly once — `auth.json` as `{"version": 1, "providers": {...}}`
+  with the documents verbatim, the Qwen file, the vertex file
+  (`VERTEX_CREDENTIALS_PATH` names it).
+- One variable, one value: `FAL_KEY` (image_gen vs video_gen) and
+  `XAI_API_KEY` (the xai provider vs x_search) must agree, or the
+  request contradicts itself and is refused.
 
 ## Use yolo mode — the container is the sandbox
 
