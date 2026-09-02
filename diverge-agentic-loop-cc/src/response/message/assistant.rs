@@ -216,9 +216,10 @@ impl Message {
     pub fn into_chunks(
         self,
         chunks: &mut Vec<response::AgenticLoopChunk>,
+        parent_tool_call_id: Option<&str>,
     ) {
         for block in self.content {
-            block.into_chunks(chunks);
+            block.into_chunks(chunks, parent_tool_call_id);
         }
     }
 }

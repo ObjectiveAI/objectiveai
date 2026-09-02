@@ -528,13 +528,16 @@ impl ContentBlock {
     pub fn into_chunks(
         self,
         chunks: &mut Vec<response::AgenticLoopChunk>,
+        parent_tool_call_id: Option<&str>,
     ) {
+        let parent_tool_call_id = parent_tool_call_id.map(str::to_string);
         match self {
             ContentBlock::Text { text, .. } => {
                 chunks.push(
                     response::AgenticLoopChunk::AssistantTextContent(
                         response::AssistantTextContentChunk {
                             r#type: Default::default(),
+                            parent_tool_call_id,
                             logprobs: None,
                             inner: rmcp::model::TextContent::new(text),
                         },
@@ -546,6 +549,7 @@ impl ContentBlock {
                     response::AgenticLoopChunk::AssistantReasoning(
                         response::AssistantReasoningChunk {
                             r#type: Default::default(),
+                            parent_tool_call_id,
                             logprobs: None,
                             inner: rmcp::model::TextContent::new(thinking),
                         },
@@ -565,6 +569,7 @@ impl ContentBlock {
                     response::AgenticLoopChunk::AssistantToolCall(
                         response::AssistantToolCallChunk {
                             r#type: Default::default(),
+                            parent_tool_call_id,
                             id,
                             meta: None,
                             name,

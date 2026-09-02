@@ -347,7 +347,9 @@ async fn harvest(
 }
 
 /// Whether a chunk is the model speaking — the salvage criterion:
-/// any of the six assistant kinds.
+/// any of the six assistant kinds, on ANY thread. A sub-agent
+/// speaking is progress the session's files hold, so it earns the
+/// harvest exactly as the main thread does.
 fn assistant_chunk(chunk: &AgenticLoopChunk) -> bool {
     matches!(
         chunk,

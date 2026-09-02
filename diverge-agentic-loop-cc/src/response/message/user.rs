@@ -641,12 +641,14 @@ pub struct CitationsConfig {
 }
 
 impl UserMessage {
-    /// This message's chunks: its content's.
+    /// This message's chunks: its content's, attributed to the
+    /// thread they belong to.
     pub fn into_chunks(
         self,
         chunks: &mut Vec<response::AgenticLoopChunk>,
+        parent_tool_call_id: Option<&str>,
     ) {
-        self.content.into_chunks(chunks);
+        self.content.into_chunks(chunks, parent_tool_call_id);
     }
 
     /// The message's text, plain: the bare string verbatim, or the
@@ -678,12 +680,13 @@ impl UserContent {
     pub fn into_chunks(
         self,
         chunks: &mut Vec<response::AgenticLoopChunk>,
+        parent_tool_call_id: Option<&str>,
     ) {
         match self {
             UserContent::Text(_) => {}
             UserContent::Blocks(blocks) => {
                 for block in blocks {
-                    block.into_chunks(chunks);
+                    block.into_chunks(chunks, parent_tool_call_id);
                 }
             }
         }
@@ -705,6 +708,7 @@ impl ContentBlockParam {
     pub fn into_chunks(
         self,
         chunks: &mut Vec<response::AgenticLoopChunk>,
+        parent_tool_call_id: Option<&str>,
     ) {
         match self {
             ContentBlockParam::ToolResult {
@@ -724,6 +728,8 @@ impl ContentBlockParam {
                 chunks.push(response::AgenticLoopChunk::ToolResponse(
                     response::ToolResponseChunk {
                         r#type: Default::default(),
+                        parent_tool_call_id: parent_tool_call_id
+                            .map(str::to_string),
                         id: tool_use_id,
                         inner,
                     },

@@ -75,23 +75,22 @@ pub enum AssistantType {
 }
 
 impl Assistant {
-    /// This record's chunks: the message's — unless a subagent said
-    /// it.
+    /// This record's chunks: the message's, attributed to the thread
+    /// that said them.
     ///
-    /// The subagent check is this record's own field: a non-null
-    /// [`parent_tool_use_id`](Self::parent_tool_use_id) marks a
-    /// sidechain's narration, which is the spawning tool call's
-    /// business, not the main thread's story — the sidechain's
-    /// outcome arrives as that call's own tool result. The error
-    /// marker and the record's ids say nothing extra here; the
-    /// content is the message's to convert.
+    /// A non-null [`parent_tool_use_id`](Self::parent_tool_use_id)
+    /// marks a sidechain's narration — a sub-agent speaking — and
+    /// becomes every chunk's `parent_tool_call_id`, so the caller
+    /// sees the sub-agent's work as children of the tool call that
+    /// spawned it rather than losing it (the old choice) or mistaking
+    /// it for the main thread's. The error marker and the record's
+    /// ids say nothing extra here; the content is the message's to
+    /// convert.
     pub fn into_chunks(
         self,
         chunks: &mut Vec<response::AgenticLoopChunk>,
     ) {
-        if self.parent_tool_use_id.is_some() {
-            return;
-        }
-        self.message.into_chunks(chunks);
+        self.message
+            .into_chunks(chunks, self.parent_tool_use_id.as_deref());
     }
 }

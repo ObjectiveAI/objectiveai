@@ -83,12 +83,16 @@ impl User {
     /// true — is the reader's: its tap has already resolved the
     /// fate and pushed the `user` chunk before conversion runs, so
     /// here it converts to nothing. Everything else delegates to
-    /// the message; and when the message yields nothing but the
-    /// record carries a subagent's outcome —
-    /// [`tool_use_result`](Self::tool_use_result) beside
-    /// [`parent_tool_use_id`](Self::parent_tool_use_id) — the api
-    /// crate's fallback applies: the outcome's JSON answers the
-    /// spawning call, as one text block.
+    /// the message, attributed: a record with a non-null
+    /// [`parent_tool_use_id`](Self::parent_tool_use_id) is a
+    /// sub-agent's, and its tool results carry that id as their
+    /// `parent_tool_call_id`. And when the message yields nothing
+    /// but the record carries a subagent's OUTCOME —
+    /// [`tool_use_result`](Self::tool_use_result) beside the parent
+    /// id — the api crate's fallback applies: the outcome's JSON
+    /// answers the spawning call, as one text block. That response
+    /// is the MAIN thread's, deliberately: its `id` IS the spawning
+    /// call, and it answers on the thread that made the call.
     pub fn into_chunks(
         self,
         chunks: &mut Vec<response::AgenticLoopChunk>,
@@ -97,7 +101,8 @@ impl User {
             return;
         }
         let start = chunks.len();
-        self.message.into_chunks(chunks);
+        self.message
+            .into_chunks(chunks, self.parent_tool_use_id.as_deref());
         if chunks.len() == start {
             if let (Some(result), Some(id)) =
                 (self.tool_use_result, self.parent_tool_use_id)
@@ -105,6 +110,7 @@ impl User {
                 chunks.push(response::AgenticLoopChunk::ToolResponse(
                     response::ToolResponseChunk {
                         r#type: Default::default(),
+                        parent_tool_call_id: None,
                         id,
                         inner: rmcp::model::CallToolResult::success(vec![
                             rmcp::model::ContentBlock::text(
