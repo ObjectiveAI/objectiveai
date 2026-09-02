@@ -32,6 +32,9 @@ eventsource-stream = { version = "0.2.3" }
 # The HTTP client for the gateway's API server, on loopback: no TLS,
 # `json` for the request and the 202, `stream` for the events body.
 reqwest = { version = "0.12.28", default-features = false, features = ["json", "stream"] }
+# The chunk vocabulary's content types (tool results, text content)
+# — model types only, no transport; Hermes is driven over HTTP.
+rmcp = { version = "3.1.2", default-features = false }
 # The derives under the response module — the gateway's run-event
 # vocabulary is read with them — and under run::raw's request.
 serde = { version = "1.0.229", features = ["derive"] }
@@ -49,4 +52,9 @@ uuid = { version = "1.22.0", features = ["v4"] }
 # wake their collectors with, `fs` + `io-util` for the continuation's
 # files, read and appended a piece at a time. No `macros` — the
 # runtime is built in main, not attributed onto it.
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "rt-multi-thread", "sync"] }
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync", "time"] }
+
+# SIGTERM for the gateway: a graceful stop before the fold. Unix
+# only — the container is; the check host is not.
+[target.'cfg(unix)'.dependencies]
+libc = { version = "0.2.186" }

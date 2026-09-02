@@ -4,7 +4,7 @@ use std::path::Path;
 
 use sqlx::{Connection as _, Row as _};
 
-use super::db::open;
+use super::db::{open, tip};
 use super::{CheckError, HERMES_HOME, STATE_DB};
 
 /// Prove the delivered database opens, and name the session to
@@ -42,15 +42,7 @@ pub async fn check() -> Result<String, CheckError> {
         let _ = connection.close().await;
         return Err(CheckError::Corrupt(verdict));
     }
-    let session = sqlx::query(
-        "SELECT id FROM sessions \
-         ORDER BY COALESCE(last_activity_at, started_at) DESC \
-         LIMIT 1",
-    )
-    .persistent(false)
-    .fetch_optional(&mut connection)
-    .await?
-    .map(|row| row.get::<String, _>(0));
+    let session = tip(&mut connection).await?;
     connection.close().await?;
     session.ok_or(CheckError::NoSession)
 }

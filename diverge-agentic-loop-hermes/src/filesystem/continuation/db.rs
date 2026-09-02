@@ -34,6 +34,24 @@ pub(super) async fn fold(db: &Path) -> Result<(), ReadError> {
     Ok(())
 }
 
+/// The session to resume: the most recently active row of
+/// `sessions` — `last_activity_at`, or `started_at` for a row that
+/// never recorded activity. The lineage's tip, across compaction
+/// splits. `None` for a database with no session.
+pub(in crate::filesystem) async fn tip(
+    connection: &mut SqliteConnection,
+) -> Result<Option<String>, sqlx::Error> {
+    Ok(sqlx::query(
+        "SELECT id FROM sessions \
+         ORDER BY COALESCE(last_activity_at, started_at) DESC \
+         LIMIT 1",
+    )
+    .persistent(false)
+    .fetch_optional(connection)
+    .await?
+    .map(|row| row.get::<String, _>(0)))
+}
+
 /// One connection to the database, read/write, never creating: a
 /// missing file is an error, not a fresh start. Never a pool — a
 /// pool's idle connections would keep the last-close cleanup from

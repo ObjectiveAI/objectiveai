@@ -15,14 +15,13 @@
 //! SDK's `agentic_loop_container` module — the caller's way into the
 //! conversation already running.
 //!
-//! BOOTSTRAP: the run itself is not implemented yet, so the skeleton
+//! BOOTSTRAP: the socket driver is not wired yet, so the skeleton
 //! serves the container's whole surface and refuses the run
 //! honestly: the socket at `/` reads the request and answers with
-//! one fatal `not_implemented` notification, the queue answers as a
-//! container whose run will never begin (`missed` on enqueue,
-//! `empty` on dequeue). The delivery routes are real already —
-//! resources and the continuation land in their stores, where the
-//! run will collect them.
+//! one fatal `not_implemented` notification. Everything else is
+//! real — the delivery routes land in their stores, and the queue
+//! routes feed the runner's queue (which, with no run, answers
+//! `missed` once closed and holds otherwise).
 
 // The fetcher and filesystem modules are complete and unwired: the
 // run driver that lays the filesystem down before the gateway and
@@ -34,7 +33,8 @@ mod filesystem;
 // vocabulary. Until the run exists to read it, its dead-code
 // warnings stand as the honest reminder of exactly that.
 mod response;
-// The run module is complete and unwired for the same reason.
+// The run module is complete; the socket driver that calls
+// `run::run` and maps its items onto frames is the next task.
 mod run;
 mod store;
 
@@ -156,18 +156,31 @@ async fn serve(
     }))
 }
 
-/// A message for the conversation's queue.
+/// A message for the running conversation's queue.
 ///
-/// No run will ever begin in this bootstrap, so every message meets
-/// the fate of outliving nothing: `missed` — the SDK's word for a
-/// message the conversation ended (here: never started) without
-/// taking.
+/// The response IS the fate, and it arrives when the fate is known —
+/// folded onto a tool response, withdrawn by a dequeue, taken as the
+/// next turn's prompt, or outlived by the run. That can be long
+/// after the ask; nothing here times out. The one failure with no
+/// fate to report — the fate channel dying, which the runner's close
+/// guard exists to prevent — answers as HTTP does, with a status.
 async fn enqueue(
-    Json(_request): Json<agentic_loop_container::enqueue::Request>,
-) -> Json<agentic_loop_container::enqueue::Response> {
-    Json(agentic_loop_container::enqueue::Response::Missed {
-        r#type: Default::default(),
-    })
+    Json(request): Json<agentic_loop_container::enqueue::Request>,
+) -> Result<
+    Json<agentic_loop_container::enqueue::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    let fate = run::QUEUE.enqueue(request.prompt).await;
+    match fate.await {
+        Ok(response) => Ok(Json(response)),
+        Err(_) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "kind": "fate_lost",
+                "error": "the message's fate was never decided",
+            })),
+        )),
+    }
 }
 
 /// One chunk of the continuation into the slot the run will read.
@@ -276,14 +289,21 @@ fn settled(
     }
 }
 
-/// Clear the conversation's queue.
+/// Clear the running conversation's queue.
 ///
-/// Nothing is ever held pending in this bootstrap, so the clearing
-/// always finds nothing: `empty`.
+/// Whatever is pending is withdrawn — here and at the proxy — and
+/// each message's own `/enqueue` answers `dequeued`; a queue with
+/// nothing pending answers `empty`.
 async fn dequeue(
     Json(_request): Json<agentic_loop_container::dequeue::Request>,
 ) -> Json<agentic_loop_container::dequeue::Response> {
-    Json(agentic_loop_container::dequeue::Response::Empty {
-        r#type: Default::default(),
-    })
+    if run::QUEUE.dequeue().await {
+        Json(agentic_loop_container::dequeue::Response::Dequeued {
+            r#type: Default::default(),
+        })
+    } else {
+        Json(agentic_loop_container::dequeue::Response::Empty {
+            r#type: Default::default(),
+        })
+    }
 }

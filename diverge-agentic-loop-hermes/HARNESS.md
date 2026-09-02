@@ -237,6 +237,43 @@ by the same object, on the same ask channel; only the stores differ
 (`store::resource` in memory by identity, `store::continuation` one
 slot to disk).
 
+## The runner (`run::run`)
+
+One stream for the whole lifetime: prepare → spawn `hermes gateway`
+(env from `prepare`, SIGTERM to stop, `/health` polled every 250ms
+with no timeout) → turns over `/v1/runs` → stop → `finish`. Rules
+settled with it:
+
+- The proxy tells us nothing but the RETURN of its `/enqueue`,
+  which happens at the fold. That return's moment is recorded and
+  the prompt is yielded as a `user` chunk after the tool response
+  whose `tool.completed` timestamp is the first at or after it
+  (proxied calls are sequential barriers, so it is the one). The
+  container keeps its own queue mirrored onto the proxy's; a fate
+  is decided by whoever takes it first — the fold (`delivered`), the
+  caller's dequeue (`dequeued`), or the turn's end (`delivered`: the
+  message opens the next turn as its prompt, the proxy told to fold
+  nothing stale first). An empty queue at a turn's end closes the
+  run; later enqueues are `missed`.
+- Tool chunks come from the gateway's events, which carry no ids
+  and no results: a FIFO of open calls pairs each `tool.completed`
+  with the oldest `tool.started`, and the pair's id is minted here
+  (random, base62, 22 chars). The call's `arguments` is the started
+  event's preview; the response is EMPTY (`is_error` from the
+  event) — for built-ins and proxied calls alike, until a byte-
+  faithful source exists. A mismatched or unmatched completion
+  flushes the FIFO and says so.
+- `run.completed.output` is spoken as text only when no
+  `message.delta` came (a provider that did not stream); otherwise
+  it repeats the deltas and is dropped. Its usage is the bill.
+- `approval.request` is answered `once` the instant it fires.
+- After each turn the session tip is re-read from the database
+  (compaction may have rotated it) and the next turn records into
+  it. Effort rides `model_options.reasoning`.
+- Before the gateway is up, a failure is the stream's one `Err`;
+  after, every failure is a fatal notification and the run still
+  stops the gateway and closes with the continuation.
+
 ## The runtime image (see also the Containerfile header)
 
 python3 + `hermes-agent` at the pin, `ddgs` (the keyless web

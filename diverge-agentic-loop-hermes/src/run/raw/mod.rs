@@ -33,10 +33,12 @@
 mod body;
 mod error;
 mod request;
+mod run;
 mod started;
 
 pub use error::*;
 pub use request::*;
+pub use run::*;
 pub use started::*;
 
 use eventsource_stream::Eventsource as _;
@@ -66,7 +68,7 @@ use crate::response::Event;
 pub async fn run(
     api_server_key: &str,
     request: &Request,
-) -> Result<impl Stream<Item = Result<Event, Error>>, Error> {
+) -> Result<Run<impl Stream<Item = Result<Event, Error>> + use<>>, Error> {
     let conversation_history = match &request.session_id {
         Some(session_id) => Some(filesystem::history(session_id).await?),
         None => None,
@@ -98,13 +100,16 @@ pub async fn run(
     let response = status(response).await?;
     let mut events = response.bytes_stream().eventsource();
 
-    Ok(async_stream::try_stream! {
-        while let Some(event) = events.next().await {
-            let event = event.map_err(Error::Stream)?;
-            let event: Event =
-                serde_json::from_str(&event.data).map_err(Error::Frame)?;
-            yield event;
-        }
+    Ok(Run {
+        run_id: started.run_id,
+        events: async_stream::try_stream! {
+            while let Some(event) = events.next().await {
+                let event = event.map_err(Error::Stream)?;
+                let event: Event =
+                    serde_json::from_str(&event.data).map_err(Error::Frame)?;
+                yield event;
+            }
+        },
     })
 }
 

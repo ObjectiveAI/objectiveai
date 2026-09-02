@@ -65,6 +65,7 @@ mod message;
 mod plan;
 mod prepared;
 mod provider;
+mod session;
 mod toolsets;
 
 pub mod continuation;
@@ -78,6 +79,7 @@ pub use history_error::*;
 pub use message::*;
 pub use plan::*;
 pub use prepared::*;
+pub use session::*;
 
 use std::path::Path;
 
