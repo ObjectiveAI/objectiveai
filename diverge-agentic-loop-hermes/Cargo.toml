@@ -26,8 +26,14 @@ diverge-provider-sdk = { path = "../diverge-provider-sdk" }
 async-stream = { version = "0.3.6" }
 # `Stream` and its combinators, for the chunk stream the response is.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The SSE parser over the gateway's event stream: comments dropped,
+# data frames surfaced, no reconnect of its own.
+eventsource-stream = { version = "0.2.3" }
+# The HTTP client for the gateway's API server, on loopback: no TLS,
+# `json` for the request and the 202, `stream` for the events body.
+reqwest = { version = "0.12.28", default-features = false, features = ["json", "stream"] }
 # The derives under the response module — the gateway's run-event
-# vocabulary is read with them.
+# vocabulary is read with them — and under run::raw's request.
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 # The continuation's database harvest: fold the WAL, VACUUM, prove a

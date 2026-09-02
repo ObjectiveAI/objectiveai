@@ -126,7 +126,10 @@ fail-closed stall it otherwise costs.
 ## The wire is /v1/runs, and the stream is not the tool channel
 
 - Drive the gateway API server: `POST /v1/runs`, events at
-  `GET /v1/runs/{id}/events`. The stream's full contract is
+  `GET /v1/runs/{id}/events` — `run::raw::run` is that transport,
+  yielding each data frame as the `response::Event` it parses to;
+  keepalives and the closing sentinel are SSE comments the parser
+  drops, and the subscription is single and never retried. The stream's full contract is
   `run-event-stream.md` and the `response` module: 12 event types
   discriminated by the payload's own `event` key; `: keepalive`
   and `: stream closed` are SSE COMMENTS; EOF must always terminate

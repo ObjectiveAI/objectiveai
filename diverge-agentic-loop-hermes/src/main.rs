@@ -34,6 +34,8 @@ mod filesystem;
 // vocabulary. Until the run exists to read it, its dead-code
 // warnings stand as the honest reminder of exactly that.
 mod response;
+// The run module is complete and unwired for the same reason.
+mod run;
 mod store;
 
 use std::sync::atomic::{AtomicBool, Ordering};
