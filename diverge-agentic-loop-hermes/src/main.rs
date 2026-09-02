@@ -2,25 +2,29 @@
 //!
 //! The program an `agentic_loop::run` server deploys for an agent
 //! whose `upstream` is `hermes`, per the Container section of the
-//! provider specification: one POST at `/` on port 8080 carries the
-//! caller's request JSON in, and the answer is a server-sent event
-//! stream, each event one item of the container response vocabulary
-//! — the loop's chunks, and the container's own `fetch_resource`
-//! asks for the agent's `*_resource` identities, answered by the
-//! server on the `/resource/{identity}` routes: chunks into
-//! [`resource`]'s store, settled by `/complete` — or by `/error`,
-//! when the bytes can never come. Beside the run, the queue's two verbs: `POST
-//! /enqueue` and `POST /dequeue`, per the SDK's
-//! `agentic_loop_container` module — the caller's way into the
+//! provider specification: a WebSocket at `/` on port 8080, the
+//! server's first message the caller's request, every message back
+//! one frame of the container response vocabulary — the loop's
+//! chunks, the container's own `fetch_resource` asks for the agent's
+//! `*_resource` identities (answered by the server on the
+//! `/resource/{identity}` routes, into [`resource`]'s store), the
+//! `fetch_continuation` ask every run opens with (answered on the
+//! `/continuation` routes, into [`continuation_fetcher`]'s slot), and
+//! the run's new continuation as the closer. Beside the run, the
+//! queue's two verbs: `POST /enqueue` and `POST /dequeue`, per the
+//! SDK's `agentic_loop_container` module — the caller's way into the
 //! conversation already running.
 //!
-//! BOOTSTRAP: the run itself is not implemented yet, so the
-//! skeleton serves the container's whole surface and refuses the
-//! run honestly: `/` answers `501`, and the queue answers as a
+//! BOOTSTRAP: the run itself is not implemented yet, so the skeleton
+//! serves the container's whole surface and refuses the run
+//! honestly: the socket at `/` reads the request and answers with
+//! one fatal `not_implemented` notification, the queue answers as a
 //! container whose run will never begin (`missed` on enqueue,
-//! `empty` on dequeue). `/resource` is real already — deliveries
-//! land in the store, where the run will collect them.
+//! `empty` on dequeue). The delivery routes are real already —
+//! resources and the continuation land in their stores, where the
+//! run will collect them.
 
+mod continuation_fetcher;
 mod resource;
 mod resource_fetcher;
 // The response module carries the gateway's COMPLETE run-event
@@ -31,27 +35,30 @@ mod response;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::Json;
+use axum::extract::ws::{Message, WebSocketUpgrade};
 use axum::http::StatusCode;
-use axum::response::sse::{Event, Sse};
 use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::agentic_loop_container::response::Response;
+use diverge_provider_sdk::encode::{Encode as _, Writer};
+use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
+    AgenticLoopChunk, NotificationChunk,
+};
 
 /// The loop port of the Container section of the provider
-/// specification: where the server POSTs the request in.
+/// specification: where the server opens the run's socket.
 const PORT: u16 = 8080;
 
-/// Whether the container's one request has arrived.
+/// Whether the container's one run has arrived.
 ///
 /// A container is one run: its queue, its MCP session, its
-/// filesystem are all one conversation's, and a second request would
-/// share all of them with the first. So the FIRST request claims the
+/// filesystem are all one conversation's, and a second run would
+/// share all of them with the first. So the FIRST socket claims the
 /// container for good — an atomic swap, so two arrivals a nanosecond
 /// apart resolve to exactly one winner — and everything after it,
-/// concurrent or later, is refused with `409` before anything else
-/// is judged: a first request that fails every later check has still
-/// spent the container, because "one request" is a fact about
-/// arrivals, not about merit. (A body that never parsed as the
-/// request type never arrived as one — the extractor's `400` comes
-/// first and claims nothing.)
+/// concurrent or later, is refused with `409` before the upgrade: a
+/// first run that fails every later check has still spent the
+/// container, because "one run" is a fact about arrivals, not about
+/// merit.
 static CLAIMED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
@@ -64,9 +71,18 @@ fn main() {
 
 async fn run() {
     let app = axum::Router::new()
-        .route("/", axum::routing::post(serve))
+        .route("/", axum::routing::get(serve))
         .route("/enqueue", axum::routing::post(enqueue))
         .route("/dequeue", axum::routing::post(dequeue))
+        .route("/continuation", axum::routing::post(continuation_chunk))
+        .route(
+            "/continuation/complete",
+            axum::routing::post(continuation_complete),
+        )
+        .route(
+            "/continuation/error",
+            axum::routing::post(continuation_error),
+        )
         .route(
             "/resource/{identity}",
             axum::routing::post(resource_chunk),
@@ -88,20 +104,18 @@ async fn run() {
         .expect("the server stopped unexpectedly");
 }
 
-/// One request, one stream — once the loop exists.
+/// One socket, one run — once the loop exists.
 ///
 /// The claim is judged first, exactly as it will be in the real
-/// container: a second request is the CALLER's error (`409`) even
-/// while the first can only be refused. Then the refusal: the Hermes
-/// loop is not implemented, `501`. The `Sse` arm of the signature is
-/// the shape the implementation will fill; no stream is ever built
-/// here, so its type is the empty stream's, concretely.
+/// container: a second run is the CALLER's error (`409`) even while
+/// the first can only be refused. Then the upgrade, and the refusal
+/// on the socket: the request is read — the surface is honored that
+/// far — and answered with one fatal `not_implemented` notification,
+/// after which the socket closes.
 async fn serve(
-    Json(_request): Json<agentic_loop_container::request::Request>,
-) -> Result<
-    Sse<futures_util::stream::Empty<Result<Event, axum::Error>>>,
-    (StatusCode, Json<serde_json::Value>),
-> {
+    ws: WebSocketUpgrade,
+) -> Result<axum::response::Response, (StatusCode, Json<serde_json::Value>)>
+{
     if CLAIMED.swap(true, Ordering::SeqCst) {
         return Err((
             StatusCode::CONFLICT,
@@ -112,13 +126,28 @@ async fn serve(
         ));
     }
 
-    Err((
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "kind": "not_implemented",
-            "error": "the hermes agentic loop is not implemented yet",
-        })),
-    ))
+    Ok(ws.on_upgrade(|mut socket| async move {
+        // The request is read and, for now, not judged: the refusal
+        // is the same whatever it said.
+        let _ = socket.recv().await;
+        let refusal = AgenticLoopChunk::Notification(NotificationChunk {
+            r#type: Default::default(),
+            is_fatal: true,
+            message: serde_json::json!({
+                "kind": "not_implemented",
+                "error": "the hermes agentic loop is not implemented yet",
+            }),
+            meta: None,
+        });
+        let mut buffer = Vec::new();
+        if Response::Chunk(refusal)
+            .encode(&mut Writer::new(&mut buffer))
+            .is_ok()
+        {
+            let _ = socket.send(Message::Binary(buffer.into())).await;
+        }
+        let _ = socket.send(Message::Close(None)).await;
+    }))
 }
 
 /// A message for the conversation's queue.
@@ -135,13 +164,52 @@ async fn enqueue(
     })
 }
 
+/// One chunk of the continuation into the slot the run will read.
+///
+/// The body is the bytes verbatim, so nothing can be malformed — the
+/// one refusal is a delivery after the settlement (`409`), because
+/// anything after a settlement is somebody's bug.
+async fn continuation_chunk(
+    body: axum::body::Bytes,
+) -> Result<
+    Json<agentic_loop_container::continuation::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    settled(continuation_fetcher::STORE.chunk(&body).await, "continuation")
+}
+
+/// The completion: every chunk is in — or none at all, the fresh
+/// start — and the run may collect.
+async fn continuation_complete(
+    Json(_request): Json<agentic_loop_container::continuation::complete::Request>,
+) -> Result<
+    Json<agentic_loop_container::continuation::complete::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    settled(continuation_fetcher::STORE.complete().await, "continuation")
+}
+
+/// The failure: the bytes can never come, and the waiting run learns
+/// so in the server's own words.
+async fn continuation_error(
+    Json(request): Json<agentic_loop_container::continuation::error::Request>,
+) -> Result<
+    Json<agentic_loop_container::continuation::error::Response>,
+    (StatusCode, Json<serde_json::Value>),
+> {
+    settled(
+        continuation_fetcher::STORE.error(request.error).await,
+        "continuation",
+    )
+}
+
 /// One chunk into the store the run will read.
 ///
 /// The body is the bytes verbatim, so nothing can be malformed —
 /// the one refusal is a delivery for a settled identity (`409`),
 /// because anything after a settlement is somebody's bug. Whether
 /// the delivery was ever asked for is not judged: the server posts
-/// only in answer to the stream's asks, and an unasked delivery is
+/// only in answer to the socket's asks, and an unasked delivery is
 /// inert.
 async fn resource_chunk(
     axum::extract::Path(identity): axum::extract::Path<String>,
@@ -150,7 +218,7 @@ async fn resource_chunk(
     Json<agentic_loop_container::resource::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    settled(resource::STORE.chunk(&identity, &body))
+    settled(resource::STORE.chunk(&identity, &body), "resource")
 }
 
 /// The completion: every chunk is in, the run may collect.
@@ -161,7 +229,7 @@ async fn resource_complete(
     Json<agentic_loop_container::resource::complete::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    settled(resource::STORE.complete(&identity))
+    settled(resource::STORE.complete(&identity), "resource")
 }
 
 /// The failure: the bytes can never come, and the waiting fetch
@@ -173,13 +241,16 @@ async fn resource_error(
     Json<agentic_loop_container::resource::error::Response>,
     (StatusCode, Json<serde_json::Value>),
 > {
-    settled(resource::STORE.error(&identity, request.error))
+    settled(resource::STORE.error(&identity, request.error), "resource")
 }
 
-/// The three routes' one verdict: taken (`received`), or refused
-/// because the identity was already settled (`409`).
+/// The delivery routes' one verdict: taken (`received`), or refused
+/// because the delivery was already settled (`409`). One helper for
+/// both deliveries: the continuation's response is an alias of the
+/// resource's.
 fn settled(
     taken: bool,
+    what: &str,
 ) -> Result<
     Json<agentic_loop_container::resource::Response>,
     (StatusCode, Json<serde_json::Value>),
@@ -193,7 +264,7 @@ fn settled(
             StatusCode::CONFLICT,
             Json(serde_json::json!({
                 "kind": "settled",
-                "error": "the resource is already settled",
+                "error": format!("the {what} is already settled"),
             })),
         ))
     }

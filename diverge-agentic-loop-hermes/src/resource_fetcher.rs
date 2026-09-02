@@ -15,9 +15,9 @@ use crate::resource;
 ///
 /// Built by the main endpoint, handed to the stream delegate: the
 /// delegate calls [`fetch`](Self::fetch) for each `*_resource`
-/// identity its agent carries, and the asks surface on the SSE
-/// stream through the receiver [`new`](Self::new) returns beside
-/// the fetcher.
+/// identity its agent carries, and the asks go out on the socket
+/// through the receiver [`new`](Self::new) returns beside the
+/// fetcher.
 ///
 /// # Parallel fetches are free
 ///
@@ -31,9 +31,9 @@ use crate::resource;
 /// resource removes it — which is the natural shape: the run asks
 /// once per resource field.
 pub struct ResourceFetcher {
-    /// The ask half. Everything sent here must surface on the SSE
-    /// stream as a `fetch_resource` event — the receiver rides with
-    /// whoever builds that stream.
+    /// The ask half. Everything sent here must go out on the socket
+    /// as a `fetch_resource` frame — the receiver rides with whoever
+    /// drives that socket.
     asks: UnboundedSender<FetchResource>,
 }
 
@@ -65,7 +65,6 @@ impl ResourceFetcher {
         identity: String,
     ) -> Result<String, FetchError> {
         let ask = FetchResource {
-            r#type: Default::default(),
             identity: identity.clone(),
         };
         if self.asks.send(ask).is_err() {

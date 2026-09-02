@@ -10,10 +10,10 @@ homepage = "https://diverge.network"
 publish = false
 
 [dependencies]
-# The loop's face: one POST at `/`, answered with the SSE stream
-# the Container specification names. Default features carry the JSON
-# extractor and the HTTP/1 server.
-axum = { version = "0.8.9" }
+# The loop's face: a WebSocket at `/`, the Container specification's
+# surface. Default features carry the JSON extractor and the HTTP/1
+# server; `ws` the socket.
+axum = { version = "0.8.9", features = ["ws"] }
 # The resource store's map: sharded by key, so concurrent deliveries
 # of different identities append in parallel instead of queuing on
 # one mutex.
