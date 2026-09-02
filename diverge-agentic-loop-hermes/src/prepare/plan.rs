@@ -16,6 +16,11 @@ pub struct Plan {
     pub provider: String,
     /// `model.default` — the model, in the provider's naming.
     pub model: String,
+    /// `model.base_url` — the `custom` provider's endpoint. Hermes
+    /// consults `model.api_key` ONLY when the config also carries the
+    /// base URL (and `model.provider` is `custom`), so the URL goes
+    /// here as well as into `CUSTOM_BASE_URL`.
+    pub base_url: Option<String>,
     /// `model.api_key` — the `custom` provider's, when it has one.
     pub api_key: Option<String>,
     /// `web.search_backend`, when a search slot names one.

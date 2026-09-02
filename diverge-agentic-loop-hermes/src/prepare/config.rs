@@ -7,8 +7,9 @@ use super::{MCP_PROXY_NAME, MCP_PROXY_URL, Plan};
 /// The whole configuration Hermes reads at startup, as one JSON
 /// document (JSON is YAML, and Hermes parses YAML).
 ///
-/// - `model`: the provider's id and the model; `api_key` for the
-///   `custom` provider alone. Selection is THIS key — never
+/// - `model`: the provider's id and the model; `base_url` and
+///   `api_key` for the `custom` provider alone (Hermes reads the key
+///   only beside a configured URL). Selection is THIS key — never
 ///   `auth.json`'s `active_provider`.
 /// - `security.protected_instruction_files: false`: the second of
 ///   the yolo trio (the first is the environment's
@@ -26,6 +27,9 @@ pub fn render(plan: &Plan) -> Value {
     let mut model = Map::new();
     model.insert("provider".to_string(), Value::String(plan.provider.clone()));
     model.insert("default".to_string(), Value::String(plan.model.clone()));
+    if let Some(base_url) = &plan.base_url {
+        model.insert("base_url".to_string(), Value::String(base_url.clone()));
+    }
     if let Some(api_key) = &plan.api_key {
         model.insert("api_key".to_string(), Value::String(api_key.clone()));
     }

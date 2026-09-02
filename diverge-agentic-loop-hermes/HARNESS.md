@@ -22,7 +22,9 @@ carries them as arguments (provider structures, toolset structures,
   marker: that entry serves the setup wizard's credential check
   only; the gateway reads the CLI file directly;
 - vertex's service-account JSON to a file + `VERTEX_CREDENTIALS_PATH`;
-- `model.api_key` in config.yaml for `custom`.
+- `model.base_url` + `model.api_key` in config.yaml for `custom`
+  (Hermes reads the key only beside a configured URL; the env var
+  `CUSTOM_BASE_URL` is set too, and is what it resolves first).
 
 Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
 
@@ -47,8 +49,8 @@ process environment (returned to the spawner — the request's own
 `config.yaml`, and the credential files, in one pass:
 
 - `config.yaml` is written as JSON (JSON is YAML): `model.provider`
-  (the SDK marker's id IS Hermes's) + `model.default`, `model.api_key`
-  for `custom` only, `security.protected_instruction_files: false`,
+  (the SDK marker's id IS Hermes's) + `model.default`,
+  `model.base_url` + `model.api_key` for `custom` only, `security.protected_instruction_files: false`,
   the backend pins asked for (`web.search_backend` /
   `web.extract_backend` by plugin name — `tavily`, `exa`, `parallel`,
   `keenable`, `brave-free`, `searxng`, `firecrawl`; `tts.provider:

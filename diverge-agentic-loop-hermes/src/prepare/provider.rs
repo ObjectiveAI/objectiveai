@@ -77,8 +77,12 @@ pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
         Provider::Copilot(p) => {
             plan.set("COPILOT_GITHUB_TOKEN", p.github_token.clone())
         }
+        // The URL twice: the env var is what Hermes resolves first,
+        // and the config key is what unlocks `model.api_key` — a key
+        // is only read beside a configured base URL.
         Provider::Custom(p) => {
             plan.set("CUSTOM_BASE_URL", p.base_url.clone())?;
+            plan.base_url = Some(p.base_url.clone());
             plan.api_key = p.api_key.clone();
             Ok(())
         }
