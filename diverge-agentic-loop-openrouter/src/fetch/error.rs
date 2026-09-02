@@ -62,33 +62,6 @@ pub struct ProviderErrorInner {
 }
 
 impl Error {
-    /// The HTTP status this failure answers with, inherited from
-    /// OpenRouter's own verdict wherever one exists.
-    pub fn status(&self) -> reqwest::StatusCode {
-        match self {
-            Error::Provider(error) => error
-                .error
-                .code
-                .and_then(|code| reqwest::StatusCode::from_u16(code).ok())
-                .unwrap_or(reqwest::StatusCode::INTERNAL_SERVER_ERROR),
-            Error::Deserialization(_) => {
-                reqwest::StatusCode::INTERNAL_SERVER_ERROR
-            }
-            Error::BadStatus { code, .. } => *code,
-            Error::Stream(reqwest_eventsource::Error::InvalidStatusCode(
-                code,
-                _,
-            )) => *code,
-            Error::Stream(reqwest_eventsource::Error::Transport(error)) => {
-                error
-                    .status()
-                    .unwrap_or(reqwest::StatusCode::INTERNAL_SERVER_ERROR)
-            }
-            Error::Stream(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-            Error::EmptyStream => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-
     /// The failure as JSON, in the shape the api crate reported it.
     pub fn message(&self) -> serde_json::Value {
         serde_json::json!({

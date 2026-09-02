@@ -113,9 +113,6 @@ fn stamp(
         AgenticLoopChunk::Notification(chunk) => {
             &mut chunk.meta.get_or_insert_with(Default::default).0
         }
-        AgenticLoopChunk::Continuation(chunk) => {
-            &mut chunk.meta.get_or_insert_with(Default::default).0
-        }
         AgenticLoopChunk::User(chunk) => {
             &mut chunk.meta.get_or_insert_with(Default::default).0
         }

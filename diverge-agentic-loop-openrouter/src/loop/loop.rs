@@ -3,7 +3,7 @@
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
-    AgenticLoopChunk, ContinuationChunk, ToolResponseChunk, UserChunk,
+    AgenticLoopChunk, ToolResponseChunk, UserChunk,
 };
 use futures_util::stream::FuturesUnordered;
 use futures_util::{Stream, StreamExt as _};
@@ -11,7 +11,7 @@ use rmcp::ServiceExt as _;
 use rmcp::model::CallToolRequestParams;
 use rmcp::transport::StreamableHttpClientTransport;
 
-use super::Error;
+use super::{Error, Item};
 use crate::continuation::{Continuation, ContinuationItem};
 use crate::fetch;
 use crate::queue::{CloseOnDrop, QUEUE};
@@ -35,10 +35,12 @@ const MCP_PROXY: &str = "http://localhost:8081/mcp";
 /// Every chunk a turn produces is yielded the moment it arrives —
 /// nothing waits on anything — and is ALSO accumulated into the
 /// running history: the six assistant kinds, with their `_meta`
-/// stripped and tool-call fragments coalesced by id; usage,
-/// notifications and continuations are yielded and not kept. The
-/// history is the original continuation's items, then the turn-one
-/// prompt, then everything each turn said and every tool's answer.
+/// stripped and tool-call fragments coalesced by id; usage and
+/// notifications are yielded and not kept. The history is the
+/// original continuation's items, then the turn-one prompt, then
+/// everything each turn said and every tool's answer. The stream's
+/// items are [`Item`]s: chunks, and — last — the continuation's
+/// bytes, the closer.
 ///
 /// # Tool calls run in parallel, and answers land as they finish
 ///
@@ -61,7 +63,8 @@ const MCP_PROXY: &str = "http://localhost:8081/mcp";
 /// A mid-stream error ends the stream — but not always empty-handed.
 /// If at least one whole turn completed since the caller's own
 /// continuation, the completed part of the history follows the error
-/// as a final continuation chunk: the estate of a run that died. The
+/// as the closer, the continuation's bytes: the estate of a run that
+/// died. The
 /// watermark that measures it advances only at rest — a turn's tool
 /// answers all landed (and the seam's deliveries with them), or a
 /// call-less answer completed — so the salvage never contains an
@@ -91,7 +94,7 @@ pub async fn r#loop(
     continuation: Option<Continuation>,
     prompt: Vec<rmcp::model::ContentBlock>,
 ) -> Result<
-    impl Stream<Item = Result<AgenticLoopChunk, Error>> + Send + Unpin + use<>,
+    impl Stream<Item = Result<Item, Error>> + Send + Unpin + use<>,
     Error,
 > {
     // First, before anything can fail or unwind: the guard that
@@ -155,14 +158,14 @@ pub async fn r#loop(
                 match item {
                     Ok(chunk) => {
                         accumulate(&mut turn, &chunk);
-                        yield Ok(chunk);
+                        yield Ok(Item::Chunk(chunk));
                     }
                     Err(error) => {
                         yield Err(Error::Fetch(error));
-                        if let Some(chunk) =
+                        if let Some(bytes) =
                             salvage(&mut items, saved, provided)
                         {
-                            yield Ok(chunk);
+                            yield Ok(Item::Continuation(bytes));
                         }
                         return;
                     }
@@ -196,16 +199,16 @@ pub async fn r#loop(
             items.extend(turn.into_iter().map(ContinuationItem::Chunk));
 
             // No calls: the model may be done — but the queue gets
-            // the last look, and the look comes LAST. The token is
+            // the last look, and the look comes LAST. The closer is
             // built first, speculatively, while the queue is still
-            // open: tokenizing a long history takes real time, and
+            // open: serializing a long history takes real time, and
             // an enqueue landing during it deserves delivery, not a
             // miss. Only then the atomic look — an empty queue is
             // CLOSED in the same lock hold that proved it empty, and
-            // the already-built token is the loop's very next word;
-            // a non-empty one discards the token unspoken and opens
-            // another turn. Between the closing and the yield there
-            // is nothing left but the yield itself.
+            // the already-built closer is the loop's very next word;
+            // a non-empty one discards it unspoken and opens another
+            // turn. Between the closing and the yield there is
+            // nothing left but the yield itself.
             if calls.is_empty() {
                 // A turn that ends call-less AND said something is at
                 // rest too: if the queue reopens the loop below and a
@@ -219,18 +222,12 @@ pub async fn r#loop(
                 if spoke {
                     saved = items.len();
                 }
-                let token = Continuation(items.clone()).tokenize();
+                let closer = Continuation(items.clone()).tokenize();
                 let taken = QUEUE.take_or_close().await;
                 if taken.is_empty() {
-                    match token {
-                        Ok(token) => {
-                            yield Ok(AgenticLoopChunk::Continuation(
-                                ContinuationChunk {
-                                    r#type: Default::default(),
-                                    continuation: token,
-                                    meta: None,
-                                },
-                            ));
+                    match closer {
+                        Ok(bytes) => {
+                            yield Ok(Item::Continuation(bytes));
                         }
                         Err(error) => {
                             yield Err(Error::Tokenize(error));
@@ -241,11 +238,11 @@ pub async fn r#loop(
                 // Messages pending: they open another turn, each its
                 // own user chunk and its own Prompt item.
                 for message in taken {
-                    yield Ok(AgenticLoopChunk::User(UserChunk {
+                    yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
                         r#type: Default::default(),
                         prompt: message.prompt.clone(),
                         meta: None,
-                    }));
+                    })));
                     items.push(ContinuationItem::Prompt(vec![
                         rmcp::model::ContentBlock::text(
                             message.prompt.clone(),
@@ -283,14 +280,16 @@ pub async fn r#loop(
                                 AgenticLoopChunk::ToolResponse(chunk.clone());
                             strip(&mut kept);
                             items.push(ContinuationItem::Chunk(kept));
-                            yield Ok(AgenticLoopChunk::ToolResponse(chunk));
+                            yield Ok(Item::Chunk(
+                                AgenticLoopChunk::ToolResponse(chunk),
+                            ));
                         }
                         Err(error) => {
                             yield Err(Error::CallTool(error));
-                            if let Some(chunk) =
+                            if let Some(bytes) =
                                 salvage(&mut items, saved, provided)
                             {
-                                yield Ok(chunk);
+                                yield Ok(Item::Continuation(bytes));
                             }
                             return;
                         }
@@ -302,11 +301,11 @@ pub async fn r#loop(
                 // gives it, and the position it truly enters the
                 // conversation.
                 for message in QUEUE.take().await {
-                    yield Ok(AgenticLoopChunk::User(UserChunk {
+                    yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
                         r#type: Default::default(),
                         prompt: message.prompt.clone(),
                         meta: None,
-                    }));
+                    })));
                     items.push(ContinuationItem::Prompt(vec![
                         rmcp::model::ContentBlock::text(
                             message.prompt.clone(),
@@ -329,10 +328,10 @@ pub async fn r#loop(
                 Ok(tools) => tools,
                 Err(error) => {
                     yield Err(error);
-                    if let Some(chunk) =
+                    if let Some(bytes) =
                         salvage(&mut items, saved, provided)
                     {
-                        yield Ok(chunk);
+                        yield Ok(Item::Continuation(bytes));
                     }
                     return;
                 }
@@ -349,10 +348,10 @@ pub async fn r#loop(
                 Ok(stream) => stream,
                 Err(error) => {
                     yield Err(Error::Fetch(error));
-                    if let Some(chunk) =
+                    if let Some(bytes) =
                         salvage(&mut items, saved, provided)
                     {
-                        yield Ok(chunk);
+                        yield Ok(Item::Continuation(bytes));
                     }
                     return;
                 }
@@ -389,23 +388,18 @@ async fn list(
 /// onto (those were answered `delivered` and lose their place in
 /// the salvage, accepted). `saved` still at `provided` means only
 /// the caller's own history is at rest — a salvage identical to
-/// what they sent, so nothing is said. A token that cannot be
-/// minted stays unspoken too: the error already ended the run.
+/// what they sent, so nothing is said. A history that will not
+/// serialize stays unspoken too: the error already ended the run.
 fn salvage(
     items: &mut Vec<ContinuationItem>,
     saved: usize,
     provided: usize,
-) -> Option<AgenticLoopChunk> {
+) -> Option<Vec<u8>> {
     if saved <= provided {
         return None;
     }
     items.truncate(saved);
-    let token = Continuation(std::mem::take(items)).tokenize().ok()?;
-    Some(AgenticLoopChunk::Continuation(ContinuationChunk {
-        r#type: Default::default(),
-        continuation: token,
-        meta: None,
-    }))
+    Continuation(std::mem::take(items)).tokenize().ok()
 }
 
 /// Keep what the history keeps.
@@ -413,16 +407,15 @@ fn salvage(
 /// The six assistant kinds accumulate, `_meta` stripped — the yielded
 /// chunk keeps its provenance, the recorded one does not — and the
 /// streamed kinds coalesce through the SDK's own [`response::push`]:
-/// the history keeps what was said, not how it was cut. Usage,
-/// notifications and continuations say nothing the conversation
-/// replays, and are not kept; user chunks are not either, because
-/// this upstream never produces one — the queue is unwired here.
+/// the history keeps what was said, not how it was cut. Usage and
+/// notifications say nothing the conversation replays, and are not
+/// kept; user chunks are not either, because this upstream never
+/// produces one — the queue is unwired here.
 fn accumulate(turn: &mut Vec<AgenticLoopChunk>, chunk: &AgenticLoopChunk) {
     if matches!(
         chunk,
         AgenticLoopChunk::Usage(_)
             | AgenticLoopChunk::Notification(_)
-            | AgenticLoopChunk::Continuation(_)
             | AgenticLoopChunk::User(_)
     ) {
         return;
@@ -466,9 +459,6 @@ fn strip(chunk: &mut AgenticLoopChunk) {
             chunk.meta = None;
         }
         AgenticLoopChunk::Notification(chunk) => {
-            chunk.meta = None;
-        }
-        AgenticLoopChunk::Continuation(chunk) => {
             chunk.meta = None;
         }
     }

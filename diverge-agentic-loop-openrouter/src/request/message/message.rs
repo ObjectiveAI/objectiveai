@@ -44,9 +44,9 @@ pub enum Message {
 ///
 /// Consecutive assistant chunks always merge into one assistant
 /// message; a tool response, or the next prompt, is what ends a run
-/// of them. Bookkeeping chunks — usage, notifications, continuation
-/// tokens, and the `user` chunks whose storage form is the `Prompt`
-/// item — say nothing extra here and are ignored.
+/// of them. Bookkeeping chunks — usage, notifications, and the
+/// `user` chunks whose storage form is the `Prompt` item — say
+/// nothing extra here and are ignored.
 ///
 /// # Where a prompt lands depends on what it follows
 ///
@@ -151,7 +151,6 @@ pub fn messages(
                 }
                 AgenticLoopChunk::Usage(_)
                 | AgenticLoopChunk::Notification(_)
-                | AgenticLoopChunk::Continuation(_)
                 | AgenticLoopChunk::User(_) => {}
                 chunk => match &mut current {
                     Some(assistant) => assistant.push(chunk),

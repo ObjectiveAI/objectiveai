@@ -34,22 +34,9 @@ pub enum Error {
 }
 
 impl Error {
-    /// The HTTP status this failure answers with. A fetch failure
-    /// inherits OpenRouter's verdict; everything else here is the
-    /// server's own machinery failing, which is a `500`.
-    pub fn status(&self) -> reqwest::StatusCode {
-        match self {
-            Error::Fetch(error) => error.status(),
-            Error::Connect(_)
-            | Error::ListTools(_)
-            | Error::Tokenize(_)
-            | Error::CallTool(_) => {
-                reqwest::StatusCode::INTERNAL_SERVER_ERROR
-            }
-        }
-    }
-
-    /// The failure as JSON, in the same shape fetch reports.
+    /// The failure as JSON, in the same shape fetch reports — a
+    /// notification's message, since the stream is the only place
+    /// a loop failure can be said.
     pub fn message(&self) -> serde_json::Value {
         match self {
             Error::Fetch(error) => error.message(),

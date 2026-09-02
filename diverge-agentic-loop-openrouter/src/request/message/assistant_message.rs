@@ -177,8 +177,7 @@ impl AssistantMessage {
             AgenticLoopChunk::ToolResponse(_)
             | AgenticLoopChunk::User(_)
             | AgenticLoopChunk::Usage(_)
-            | AgenticLoopChunk::Notification(_)
-            | AgenticLoopChunk::Continuation(_) => {
+            | AgenticLoopChunk::Notification(_) => {
                 unreachable!("only assistant chunks are pushed here")
             }
         }
