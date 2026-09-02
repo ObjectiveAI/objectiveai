@@ -28,10 +28,12 @@
 //! `f1:<size>:<base64url sha256 of the bytes>` — never the bytes:
 //! those live with the client and arrive over the
 //! [`FetchResource`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchResource)
-//! exchange, the way mounted content does. How a rotated resource
-//! travels back is the protocol's resource mechanism, not this
-//! module's concern; what this module fixes is which documents are
-//! resources and how the harness seeds them. (These providers'
+//! exchange, the way mounted content does. A rotated resource
+//! travels back as a
+//! [`Resource`](crate::endpoints::agentic_loop::run::server::response::Resource)
+//! frame — whole, under the field's dotted path — and what this
+//! module fixes is which documents are resources and how the
+//! harness seeds them. (These providers'
 //! advertised key env vars — `NOUS_API_KEY`, `QWEN_API_KEY` — are
 //! vestigial; no resolution path reads them, so the state document
 //! is the only credential there is.)
