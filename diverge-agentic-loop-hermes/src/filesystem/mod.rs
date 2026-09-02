@@ -118,6 +118,17 @@ pub const API_SERVER_PORT: u16 = 8642;
 /// `Path.home()` for it and ignores its own `HERMES_HOME`.
 pub const QWEN_CREDS: &str = "/root/.qwen/oauth_creds.json";
 
+/// Where callers mount skills: the whole set here, or one skill per
+/// `external-skills/<name>` directory, each holding its `SKILL.md`.
+/// Named to Hermes as `skills.external_dirs` — directories it
+/// discovers (recursively) and views but never writes, which is what
+/// a read-only mount needs. Its own `skills/` beside this is off
+/// limits for mounts: Hermes syncs its bundled skills into it at
+/// startup and keeps the curator's, the usage tracker's and the
+/// hub's bookkeeping there. A missing directory is silently
+/// skipped, so the config always names it.
+pub const EXTERNAL_SKILLS: &str = "/root/.hermes/external-skills";
+
 /// The session store, at the home's root — the continuation's, and
 /// [`history()`]'s to read.
 const STATE_DB: &str = "state.db";

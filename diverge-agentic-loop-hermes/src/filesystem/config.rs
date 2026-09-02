@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value, json};
 
-use super::{MCP_PROXY_NAME, MCP_PROXY_URL, Plan};
+use super::{EXTERNAL_SKILLS, MCP_PROXY_NAME, MCP_PROXY_URL, Plan};
 
 /// The whole configuration Hermes reads at startup, as one JSON
 /// document (JSON is YAML, and Hermes parses YAML).
@@ -16,6 +16,9 @@ use super::{MCP_PROXY_NAME, MCP_PROXY_URL, Plan};
 ///   `HERMES_YOLO_MODE`, the third is on the MCP entry below).
 /// - `web`, `browser`, `tts`, `image_gen`, `video_gen`: the backend
 ///   pins the toolsets asked for, and only those.
+/// - `skills.external_dirs`: the one mount path callers put skills
+///   under ([`EXTERNAL_SKILLS`]), always — read-only to Hermes, and
+///   skipped when nothing was mounted there.
 /// - `platform_toolsets.api_server`: the explicit membership list.
 /// - `mcp_servers`: the container's own proxy, trusted in full, with
 ///   elicitation AND sampling off — neither has anyone to answer it.
@@ -67,6 +70,10 @@ pub fn render(plan: &Plan) -> Value {
         config.insert("video_gen".to_string(), json!({ "provider": "fal" }));
     }
 
+    config.insert(
+        "skills".to_string(),
+        json!({ "external_dirs": [EXTERNAL_SKILLS] }),
+    );
     config.insert(
         "platform_toolsets".to_string(),
         json!({ "api_server": plan.toolsets }),

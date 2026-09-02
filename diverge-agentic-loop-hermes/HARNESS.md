@@ -80,7 +80,14 @@ fetches, since the two halves write disjoint files:
   video, video_gen, x_search, tts, homeassistant, spotify, and
   image_gen (Hermes hides it without a FAL key, and only the
   structure brings one).
-  `skills` always in; delegation, cronjob, clarify, computer_use,
+  `skills` always in — and skills come from MOUNTS at
+  `/root/.hermes/external-skills/` (one directory per skill, its
+  `SKILL.md` inside), which the config names as `skills.external_dirs`:
+  Hermes discovers them recursively and views them, never writes
+  (read-only to the curator, the usage tracker, the hub). Its own
+  `skills/` is off limits for mounts — bundled skills sync into it
+  at startup and the bookkeeping lives there. delegation, cronjob,
+  clarify, computer_use,
   discord, yuanbao, context_engine, stt never.
 - `HERMES_HOME=/root/.hermes` is set explicitly, pinning the geometry
   the files were laid down under.
