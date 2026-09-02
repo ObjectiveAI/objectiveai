@@ -69,6 +69,18 @@ including `toolsets`, which the producer sends — is dropped;
 `subagent.text`, `subagent.tool`, `subagent_progress` and
 `_thinking` are dropped wholesale (`:7586-7589`).
 
+CORRELATING start with complete is an equality match on
+`subagent_id`: each child gets `sa-<task_index>-<8 hex>` at spawn
+(`tools/delegate_tool.py:1658`), and the child's progress relay
+merges the identity block (`subagent_id`, `task_index`,
+`task_count`, `goal`, `parent_id`, `depth`, `model`,
+`child_session_id`) into EVERY event it forwards, the complete-side
+producers' own kwargs overriding only status/duration/summary
+(`delegate_tool.py:1438-1441`). No ordinal games — unlike the tool
+events, this id is deliberately on the wire. `child_session_id` is
+filled once the child exists, so it can be absent on the first
+`start` and present on `complete`.
+
 `approval.request` is the one open payload: the guard's dict goes
 to the wire whole (`event = dict(approval_data or {})`, `:7767`),
 with `event`/`run_id`/`timestamp`/`choices` overwritten. Known
