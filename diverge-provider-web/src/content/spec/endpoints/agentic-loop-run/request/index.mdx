@@ -14,12 +14,10 @@ under the layer's [notation](/endpoints/#notation).
 pub struct Request {
     /// What to run, and how to sample it.
     pub agent: Agent,
-    /// The input for this turn: MCP content blocks.
-    pub prompt: Vec<ContentBlock>,
+    /// The input for this turn, as text.
+    pub prompt: String,
 }
 ```
-
-Type definitions, in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2, the MCP implementation this revision builds against: [`rmcp::model::ContentBlock`](https://docs.rs/rmcp/3.1.2/rmcp/model/enum.ContentBlock.html).
 
 - **A prompt, not a conversation.** `prompt` is this turn's input,
   and the server does not rewrite it. What came before is the

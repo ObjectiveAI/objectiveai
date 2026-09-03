@@ -1,7 +1,6 @@
 //! What a client's request frame carries for an agentic loop.
 
 use indexmap::IndexMap;
-use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 
 use super::agent::Agent;
@@ -43,9 +42,12 @@ pub struct Frame {
     /// so a caller sends what is NEW and never reconstructs a history
     /// it would have to keep a parallel record of.
     ///
-    /// Content blocks rather than a message, because the role is
-    /// implied: a caller can only ever speak as itself.
-    pub prompt: Vec<ContentBlock>,
+    /// Text rather than a message, because the role is implied — a
+    /// caller can only ever speak as itself — and text rather than
+    /// content blocks, because every upstream this protocol drives
+    /// takes a turn as text; anything richer than text reaches an
+    /// agent as a mount, not as the prompt.
+    pub prompt: String,
     /// Files the caller wants present in the container's filesystem,
     /// keyed by absolute container path. Each value is the file's
     /// size-bearing identity:
