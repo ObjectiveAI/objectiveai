@@ -8,14 +8,24 @@ use serde::{Deserialize, Serialize};
 /// model may call, and this is that set: a switch per tool, none
 /// optional, so a request says what the model sees and nothing is
 /// on by omission. The harness renders the `true` switches as the
-/// flag's list, in this order. The `mcp__*` tools — the caller's own
-/// tools, served through the proxy — are not built-ins and are
-/// always present: the tool channel is what the protocol is built
-/// around. `ToolSearch`, by which the model loads deferred tools'
-/// schemas, is likewise always listed by the harness.
+/// flag's list, in this order, after the always-on names.
 ///
-/// No switch exists for what cannot work in the container, and the
-/// harness never lists it: `AskUserQuestion`, `EnterPlanMode`,
+/// Always on, no switch: the `mcp__*` tools — the caller's own
+/// tools, served through the proxy — are not built-ins and are
+/// present whatever `--tools` says: the tool channel is what the
+/// protocol is built around. Beside them the harness always lists
+/// the four MCP resource built-ins (`ListMcpResources`,
+/// `ReadMcpResource`, `ReadMcpResourceDir`, `RefreshMcpTools` — the
+/// caller's resources, through the same proxy), `Skill` (skills are
+/// the directories mounted under `~/.claude/skills`; the tool is
+/// offered whether or not any are, and a call names a skill that is
+/// not there fails as "unknown skill"), and `ToolSearch`, by which
+/// the model loads deferred tools' schemas.
+///
+/// Always off, no switch: `LSP` (nothing in the image installs a
+/// language server). Nor does a switch exist for what cannot work
+/// in the container, which the harness never lists:
+/// `AskUserQuestion`, `EnterPlanMode`,
 /// `ExitPlanMode`, `ProposeGoal` and `ProposeSkills` (a call waits
 /// on a user who is not there); `CronCreate`, `CronDelete`,
 /// `CronList` and `ScheduleWakeup` (the container does not outlive
@@ -91,34 +101,19 @@ pub struct Tools {
     /// `WebSearch`: searches the web, with domain allow and block
     /// lists. Needs outbound network from the container.
     pub web_search: bool,
-    /// `ListMcpResources`: lists resources across the MCP servers —
-    /// here, the caller's, through the proxy.
-    pub list_mcp_resources: bool,
-    /// `ReadMcpResource`: reads one MCP resource by server and URI.
-    pub read_mcp_resource: bool,
-    /// `ReadMcpResourceDir`: lists a directory resource.
-    pub read_mcp_resource_dir: bool,
-    /// `RefreshMcpTools`: re-lists tools from one or all MCP servers.
-    pub refresh_mcp_tools: bool,
     /// `EnterWorktree`: creates or switches into a git worktree. Needs
     /// the workspace to be a git repository.
     pub enter_worktree: bool,
     /// `ExitWorktree`: leaves the worktree, keeping or removing it.
     pub exit_worktree: bool,
-    /// `LSP`: language-server queries. Works only where a language
-    /// server is installed; the image installs none.
-    pub lsp: bool,
-    /// `Skill`: invokes a skill by name. Skills are the directories
-    /// mounted under `~/.claude/skills`.
-    pub skill: bool,
     /// `Sleep`: waits.
     pub sleep: bool,
 }
 
 impl Tools {
     /// The runtime names of the tools switched on, in declaration
-    /// order: the value of `--tools`, less the always-on
-    /// `ToolSearch` the harness appends.
+    /// order: the value of `--tools`, less the always-on names the
+    /// harness adds.
     pub fn names(&self) -> Vec<&'static str> {
         [
             (self.bash, "Bash"),
@@ -144,14 +139,8 @@ impl Tools {
             (self.repl, "REPL"),
             (self.web_fetch, "WebFetch"),
             (self.web_search, "WebSearch"),
-            (self.list_mcp_resources, "ListMcpResources"),
-            (self.read_mcp_resource, "ReadMcpResource"),
-            (self.read_mcp_resource_dir, "ReadMcpResourceDir"),
-            (self.refresh_mcp_tools, "RefreshMcpTools"),
             (self.enter_worktree, "EnterWorktree"),
             (self.exit_worktree, "ExitWorktree"),
-            (self.lsp, "LSP"),
-            (self.skill, "Skill"),
             (self.sleep, "Sleep"),
         ]
         .into_iter()
