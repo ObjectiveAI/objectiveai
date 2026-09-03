@@ -11,14 +11,23 @@ memory of the product.
 
 ## What our container does today
 
-Everything on. The argv in `spawn/spawn.rs` passes
-`--dangerously-skip-permissions` (no prompts), `--mcp-config`
-pointing at the proxy, `--model`, `--thinking`, `--effort`,
-`--resume` — and no tool flag at all, so every built-in the build
-enables by default is live inside the container, plus whatever the
-MCP proxy serves. The `claude_code` agent in the SDK carries `model`,
-`thinking`, `effort`; it has no toolset vocabulary, so a caller
-cannot turn anything off and the harness does not either.
+Exactly what the request says. The `claude_code` agent in the SDK
+carries `tools`, a struct of 32 non-optional booleans, one per
+built-in the container can honor (`claude_code/tools.rs`); the argv
+in `spawn/spawn.rs` passes `--tools` with the `true` switches'
+runtime names, comma-joined, plus `ToolSearch` always. Everything
+without a switch — the user-facing, scheduling, and account tools of
+groups 2 and 3 below — is never listed and so never offered. The
+`mcp__*` tools are not built-ins and are untouched: the proxy's
+tools are always live. Beside that the argv still passes
+`--dangerously-skip-permissions` (no prompts — a different switch
+from `--tools`, which removes tools), `--mcp-config` pointing at the
+proxy, `--model`, `--thinking`, `--effort`, `--resume`.
+
+Before 2026-09-03 the argv carried no tool flag at all, and every
+built-in the build enables by default was live by omission; the
+rest of this report was written against that state and stands as
+the survey the vocabulary was cut from.
 
 ## The selection flags
 
@@ -179,3 +188,19 @@ stream-json input is the one thing this report could not settle from
 the binary: the tool registry's per-mode gating is code, not
 strings. It is the first thing a live run should check, by listing
 what the model was given.
+
+## Decision (2026-09-03)
+
+Not `Option<bool>` and not `--disallowedTools`: every switch is a
+plain `bool`, none optional, and the harness passes `--tools` with
+the exact set. Group 1 and group 3 both became switches (a caller
+states all of them; the "harmless" ones are as much theirs to
+withhold as the shell), except the protocol's own machinery, which
+is not a switch: the `mcp__*` tools (never built-ins, so `--tools`
+does not touch them) and `ToolSearch` (always appended by the
+harness, which also keeps the list non-empty). Group 2 has no switch
+and is never listed, so its gating under `-p` no longer matters for
+what the model sees — only for whether `--tools` accepts every name
+in group 1 and 3, which the live run still checks. The vocabulary is
+`Tools` in the SDK's `claude_code` module; its prose in the spec
+joins the cc agent's existing field-doc debt.
