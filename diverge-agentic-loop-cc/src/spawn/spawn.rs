@@ -88,6 +88,15 @@ pub async fn spawn(
         )
         .arg("--model")
         .arg(&agent.model)
+        // The built-ins the model sees: exactly the agent's `true`
+        // switches, plus `ToolSearch` (how the model loads deferred
+        // tools' schemas — and never an empty list). The `mcp__*`
+        // tools are not built-ins and ride untouched. This is a
+        // different switch from `--dangerously-skip-permissions`
+        // above: that one removes the prompts, this one removes the
+        // tools.
+        .arg("--tools")
+        .arg(tools_flag(&agent.tools))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         // A dropped stream is an abandoned run: the runtime kills the
@@ -134,6 +143,14 @@ pub async fn spawn(
 }
 
 /// The `--effort` value for an SDK tier, 1:1.
+/// The `--tools` value: the switched-on names, comma-joined, with
+/// `ToolSearch` always last.
+fn tools_flag(tools: &claude_code::Tools) -> String {
+    let mut names = tools.names();
+    names.push("ToolSearch");
+    names.join(",")
+}
+
 fn effort_flag(effort: claude_code::Effort) -> &'static str {
     match effort {
         claude_code::Effort::Low => "low",
