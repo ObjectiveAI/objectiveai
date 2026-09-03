@@ -88,13 +88,12 @@ pub async fn spawn(
         )
         .arg("--model")
         .arg(&agent.model)
-        // The built-ins the model sees: exactly the agent's `true`
-        // switches, plus `ToolSearch` (how the model loads deferred
-        // tools' schemas — and never an empty list). The `mcp__*`
-        // tools are not built-ins and ride untouched. This is a
-        // different switch from `--dangerously-skip-permissions`
-        // above: that one removes the prompts, this one removes the
-        // tools.
+        // The built-ins the model sees: the always-on names (so the
+        // list is never empty) and then exactly the agent's `true`
+        // switches. The `mcp__*` tools are not built-ins and ride
+        // untouched. This is a different switch from
+        // `--dangerously-skip-permissions` above: that one removes
+        // the prompts, this one removes the tools.
         .arg("--tools")
         .arg(tools_flag(&agent.tools))
         .stdin(Stdio::piped())
@@ -143,12 +142,27 @@ pub async fn spawn(
 }
 
 /// The `--effort` value for an SDK tier, 1:1.
-/// The `--tools` value: the switched-on names, comma-joined, with
-/// `ToolSearch` always last.
+/// The built-ins with no switch that are always on: the MCP
+/// resource tools (the caller's resources, through the proxy),
+/// `Skill`, and `ToolSearch` (how the model loads deferred tools'
+/// schemas). `LSP` is the one always off.
+const ALWAYS_ON: [&str; 6] = [
+    "ListMcpResources",
+    "ReadMcpResource",
+    "ReadMcpResourceDir",
+    "RefreshMcpTools",
+    "Skill",
+    "ToolSearch",
+];
+
+/// The `--tools` value: [`ALWAYS_ON`] and then the switched-on
+/// names, comma-joined.
 fn tools_flag(tools: &claude_code::Tools) -> String {
-    let mut names = tools.names();
-    names.push("ToolSearch");
-    names.join(",")
+    ALWAYS_ON
+        .into_iter()
+        .chain(tools.names())
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn effort_flag(effort: claude_code::Effort) -> &'static str {

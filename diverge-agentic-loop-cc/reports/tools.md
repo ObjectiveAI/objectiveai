@@ -12,12 +12,14 @@ memory of the product.
 ## What our container does today
 
 Exactly what the request says. The `claude_code` agent in the SDK
-carries `tools`, a struct of 32 non-optional booleans, one per
-built-in the container can honor (`claude_code/tools.rs`); the argv
-in `spawn/spawn.rs` passes `--tools` with the `true` switches'
-runtime names, comma-joined, plus `ToolSearch` always. Everything
-without a switch — the user-facing, scheduling, and account tools of
-groups 2 and 3 below — is never listed and so never offered. The
+carries `tools`, a struct of 26 non-optional booleans, one per
+switchable built-in (`claude_code/tools.rs`); the argv in
+`spawn/spawn.rs` passes `--tools` with six always-on names
+(`ListMcpResources`, `ReadMcpResource`, `ReadMcpResourceDir`,
+`RefreshMcpTools`, `Skill`, `ToolSearch`) and then the `true`
+switches' runtime names, comma-joined. `LSP` is always off. Everything
+else without a switch — the user-facing, scheduling, and account
+tools of group 2 below — is never listed and so never offered. The
 `mcp__*` tools are not built-ins and are untouched: the proxy's
 tools are always live. Beside that the argv still passes
 `--dangerously-skip-permissions` (no prompts — a different switch
@@ -193,14 +195,19 @@ what the model was given.
 
 Not `Option<bool>` and not `--disallowedTools`: every switch is a
 plain `bool`, none optional, and the harness passes `--tools` with
-the exact set. Group 1 and group 3 both became switches (a caller
+the exact set. Group 1 and most of group 3 became switches (a caller
 states all of them; the "harmless" ones are as much theirs to
-withhold as the shell), except the protocol's own machinery, which
-is not a switch: the `mcp__*` tools (never built-ins, so `--tools`
-does not touch them) and `ToolSearch` (always appended by the
-harness, which also keeps the list non-empty). Group 2 has no switch
-and is never listed, so its gating under `-p` no longer matters for
-what the model sees — only for whether `--tools` accepts every name
-in group 1 and 3, which the live run still checks. The vocabulary is
-`Tools` in the SDK's `claude_code` module; its prose in the spec
-joins the cc agent's existing field-doc debt.
+withhold as the shell). Not switches, always on: the `mcp__*` tools
+(never built-ins, so `--tools` does not touch them), the four MCP
+resource tools and `Skill` (the caller's tools, resources and
+mounted skills are theirs by construction — and `Skill` is offered
+by Claude Code whether or not any skill exists; its `isEnabled` is
+just "not `--disable-slash-commands`", and a call naming a missing
+skill fails as "Unknown skill"), and `ToolSearch` (which also keeps
+the list non-empty). Not a switch, always off: `LSP`, since nothing
+in the image installs a language server. Group 2 has no switch and
+is never listed, so its gating under `-p` no longer matters for what
+the model sees — only for whether `--tools` accepts every listed
+name, which the live run still checks. The vocabulary is `Tools` in
+the SDK's `claude_code` module; its prose in the spec joins the cc
+agent's existing field-doc debt.
