@@ -156,9 +156,8 @@ async fn serve(
 /// which the socket closes:
 ///
 /// - the first message not being the request frame, an agent of
-///   another kind, or a prompt this container cannot yet speak
-///   (anything richer than text, or nothing at all — Claude Code
-///   cannot open a turn without a prompt): the CALLER's;
+///   another kind, or no prompt at all (Claude Code cannot open a
+///   turn without one): the CALLER's;
 /// - a continuation the server could not deliver — its own words,
 ///   verbatim — or one that will not open;
 /// - the subprocess failing to start, or a run that ends without
@@ -226,20 +225,21 @@ async fn drive(socket: &mut WebSocket) {
         return;
     };
 
-    // Text-only for now: every block must be text, and there must be
-    // at least one — stream-json input mode opens the turn with a
-    // user message, so an empty prompt would hang forever waiting.
-    let Some(prompt) = prompt_text(&request.prompt) else {
+    // There must be a prompt: stream-json input mode opens the turn
+    // with a user message, so an empty one would hang forever
+    // waiting.
+    if request.prompt.is_empty() {
         fail(
             socket,
             serde_json::json!({
                 "kind": "prompt",
-                "error": "this container speaks text prompts only, and needs one",
+                "error": "a turn needs a prompt",
             }),
         )
         .await;
         return;
-    };
+    }
+    let prompt = request.prompt.clone();
 
     // The ask, then the wait: the server fetches the continuation
     // from the caller and delivers it on the routes.
@@ -373,20 +373,6 @@ async fn drive(socket: &mut WebSocket) {
             }
         }
     }
-}
-
-/// The whole prompt as text: every block's text, joined by blank
-/// lines — or [`None`] the moment any block is richer than text, or
-/// when there are no blocks at all.
-fn prompt_text(prompt: &[rmcp::model::ContentBlock]) -> Option<String> {
-    if prompt.is_empty() {
-        return None;
-    }
-    let mut texts = Vec::with_capacity(prompt.len());
-    for block in prompt {
-        texts.push(block.as_text()?.text.as_str());
-    }
-    Some(texts.join("\n\n"))
 }
 
 /// The run's last word on success: the session's files swept into
