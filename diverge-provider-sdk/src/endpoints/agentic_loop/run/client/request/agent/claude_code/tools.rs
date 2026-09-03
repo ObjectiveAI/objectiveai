@@ -5,10 +5,11 @@ use serde::{Deserialize, Serialize};
 /// The built-in tools Claude Code is given, every one stated.
 ///
 /// Claude Code's `--tools` flag takes the exact set of built-ins the
-/// model may call, and this is that set: a switch per tool, none
-/// optional, so a request says what the model sees and nothing is
-/// on by omission. The harness renders the `true` switches as the
-/// flag's list, in this order, after the always-on names.
+/// model may call, and this is that set: a switch per tool, each an
+/// `Option<bool>` where ABSENT IS OFF — the same as `false` — so
+/// nothing is on by omission and a request names only what it
+/// turns on. The harness renders the `true` switches as the flag's
+/// list, in this order, after the always-on names.
 ///
 /// Always on, no switch: the `mcp__*` tools — the caller's own
 /// tools, served through the proxy — are not built-ins and are
@@ -45,69 +46,95 @@ use serde::{Deserialize, Serialize};
 pub struct Tools {
     /// `Bash`: runs a command, with an optional timeout and
     /// optionally in the background.
-    pub bash: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bash: Option<bool>,
     /// `Read`: reads a file by absolute path, with `offset` and `limit`
     /// for large files and `pages` for PDFs.
-    pub read: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read: Option<bool>,
     /// `Write`: writes a whole file, overwriting.
-    pub write: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub write: Option<bool>,
     /// `Edit`: exact-string replacement in a file.
-    pub edit: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edit: Option<bool>,
     /// `NotebookEdit`: replaces, inserts or deletes one Jupyter cell.
-    pub notebook_edit: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notebook_edit: Option<bool>,
     /// `Glob`: file pattern matching.
-    pub glob: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub glob: Option<bool>,
     /// `Grep`: ripgrep over the workspace (ripgrep ships with the
     /// binary).
-    pub grep: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grep: Option<bool>,
     /// `Task` (also spelled `Agent`): launches a sub-agent. Its chunks
     /// reach the run's stream attributed by `parent_tool_call_id`.
     /// Local sub-agents only: `isolation: remote` needs a cloud
     /// environment the container has no account for.
-    pub task: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task: Option<bool>,
     /// `SendMessage`: messages a running named agent.
-    pub send_message: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub send_message: Option<bool>,
     /// `ListAgents`: lists addressable agents.
-    pub list_agents: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub list_agents: Option<bool>,
     /// `TaskOutput`: reads the output of a background task, blocking
     /// or not.
-    pub task_output: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_output: Option<bool>,
     /// `TaskStop`: stops a background task by id.
-    pub task_stop: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_stop: Option<bool>,
     /// `Monitor`: watches a command's stdout lines or a WebSocket's
     /// frames as events.
-    pub monitor: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub monitor: Option<bool>,
     /// `Workflow`: runs a deterministic multi-agent orchestration
     /// script.
-    pub workflow: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow: Option<bool>,
     /// `TodoWrite`: the session's structured todo list.
-    pub todo_write: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub todo_write: Option<bool>,
     /// `TaskCreate`: creates an entry on the session's task board.
-    pub task_create: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_create: Option<bool>,
     /// `TaskGet`: reads one task board entry.
-    pub task_get: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_get: Option<bool>,
     /// `TaskUpdate`: updates one task board entry.
-    pub task_update: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_update: Option<bool>,
     /// `TaskList`: lists the task board.
-    pub task_list: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_list: Option<bool>,
     /// `ReportFindings`: reports code-review findings as a typed list.
-    pub report_findings: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_findings: Option<bool>,
     /// `REPL`: runs JavaScript with persistent state and top-level
     /// await.
-    pub repl: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repl: Option<bool>,
     /// `WebFetch`: fetches a URL and runs a prompt over the content.
     /// Needs outbound network from the container.
-    pub web_fetch: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub web_fetch: Option<bool>,
     /// `WebSearch`: searches the web, with domain allow and block
     /// lists. Needs outbound network from the container.
-    pub web_search: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub web_search: Option<bool>,
     /// `EnterWorktree`: creates or switches into a git worktree. Needs
     /// the workspace to be a git repository.
-    pub enter_worktree: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enter_worktree: Option<bool>,
     /// `ExitWorktree`: leaves the worktree, keeping or removing it.
-    pub exit_worktree: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit_worktree: Option<bool>,
     /// `Sleep`: waits.
-    pub sleep: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sleep: Option<bool>,
 }
 
 impl Tools {
@@ -144,7 +171,7 @@ impl Tools {
             (self.sleep, "Sleep"),
         ]
         .into_iter()
-        .filter_map(|(on, name)| on.then_some(name))
+        .filter_map(|(on, name)| on.unwrap_or(false).then_some(name))
         .collect()
     }
 }

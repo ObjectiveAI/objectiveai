@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 /// a character flag — that adds model calls to a turn and rows to
 /// the continuation; together they are what makes an Eliza agent an
 /// Eliza agent rather than a chat loop, which is why they are the
-/// caller's and not the harness's. All plain booleans, none
-/// optional: a request says what its turns cost.
+/// caller's and not the harness's. Each an `Option<bool>` where
+/// absent is off — the same as `false` — so a request names only
+/// what it pays for.
 ///
 /// Not a switch, because nothing switches it: the per-turn FACTS
 /// stage. The message handler's first pass extracts facts and
@@ -25,15 +26,19 @@ pub struct Memory {
     /// experience, personality and form providers and actions — one
     /// merged small-model call after each reply. Constructor option
     /// `advancedCapabilities`.
-    pub advanced_capabilities: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advanced_capabilities: Option<bool>,
     /// Long-term memory: distilled episodic, semantic and procedural
     /// memories in their own table, written by the advanced-memory
     /// evaluator. Character flag `advancedMemory`.
-    pub advanced_memory: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advanced_memory: Option<bool>,
     /// The relationships feature: the native entity graph, its
     /// service and provider. Constructor option `enableRelationships`.
-    pub relationships: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relationships: Option<bool>,
     /// Advanced planning: the multi-step planner over the simple
     /// reply path. Character flag `advancedPlanning`.
-    pub advanced_planning: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advanced_planning: Option<bool>,
 }
