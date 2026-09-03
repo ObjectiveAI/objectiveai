@@ -17,8 +17,7 @@ use crate::filesystem::{FinishError, PrepareError};
 /// closes with what the database holds.
 #[derive(Debug)]
 pub enum Error {
-    /// The prompt is not text, or is nothing: this container speaks
-    /// text prompts only, and a turn needs one.
+    /// The prompt is empty: a turn needs one.
     Prompt,
     /// The filesystem could not be laid down.
     Prepare(PrepareError),
@@ -34,9 +33,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Prompt => f.write_str(
-                "this container speaks text prompts only, and needs one",
-            ),
+            Error::Prompt => f.write_str("a turn needs a prompt"),
             Error::Prepare(error) => write!(f, "{error}"),
             Error::Gateway(error) => {
                 write!(f, "the gateway process failed: {error}")

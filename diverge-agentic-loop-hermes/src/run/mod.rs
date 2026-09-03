@@ -73,7 +73,11 @@ pub fn run(
         Agent::Hermes(agent) => Ok(agent.clone()),
         _ => Err(Error::Prepare(PrepareError::WrongAgent)),
     };
-    let prompt = prompt_text(&request.prompt).ok_or(Error::Prompt);
+    let prompt = if request.prompt.is_empty() {
+        Err(Error::Prompt)
+    } else {
+        Ok(request.prompt.clone())
+    };
     let request = request.clone();
 
     async_stream::stream! {
@@ -214,20 +218,6 @@ pub fn run(
             }
         }
     }
-}
-
-/// The whole prompt as text: every block's text, joined by blank
-/// lines — or [`None`] the moment any block is richer than text, or
-/// when there are no blocks at all.
-fn prompt_text(prompt: &[rmcp::model::ContentBlock]) -> Option<String> {
-    if prompt.is_empty() {
-        return None;
-    }
-    let mut texts = Vec::with_capacity(prompt.len());
-    for block in prompt {
-        texts.push(block.as_text()?.text.as_str());
-    }
-    Some(texts.join("\n\n"))
 }
 
 /// The per-request model options `/v1/runs` reads, from the agent's
