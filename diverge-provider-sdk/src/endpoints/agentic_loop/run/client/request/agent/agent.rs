@@ -27,6 +27,8 @@ pub enum Agent {
     Codex(super::codex::Agent),
     /// See [`hermes::Agent`](super::hermes::Agent).
     Hermes(super::hermes::Agent),
+    /// See [`eliza::Agent`](super::eliza::Agent).
+    Eliza(super::eliza::Agent),
     /// See [`python::Agent`](super::python::Agent).
     Python(super::python::Agent),
 }

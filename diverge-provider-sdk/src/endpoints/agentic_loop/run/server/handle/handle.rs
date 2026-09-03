@@ -129,13 +129,14 @@ fn image(agent: &Agent) -> &'static str {
         Agent::ClaudeCode(_) => "TODO",
         Agent::Codex(_) => "TODO",
         Agent::Hermes(_) => "TODO",
+        Agent::Eliza(_) => "TODO",
         Agent::Python(_) => "TODO",
     }
 }
 
 /// How much memory this agent's container may have, in bytes.
 ///
-/// # Three of them are the image's number and one is the caller's
+/// # Four of them are the image's number and one is the caller's
 ///
 /// Which is the asymmetry worth understanding. For a model-backed
 /// agent, the image is a known program doing a known job, and what it
@@ -150,7 +151,7 @@ fn image(agent: &Agent) -> &'static str {
 /// the source is opaque until it runs, and by then the number is
 /// already needed".
 ///
-/// So a limit belongs to whoever knows what is going to run. Three
+/// So a limit belongs to whoever knows what is going to run. Four
 /// times that is us and once it is the caller, and reading the caller's
 /// number is not a courtesy — ignoring it means the kernel kills a
 /// script that said what it needed.
@@ -162,13 +163,14 @@ fn memory(agent: &Agent) -> u64 {
         Agent::ClaudeCode(_) => 2 * 1024 * 1024 * 1024,
         Agent::Codex(_) => 2 * 1024 * 1024 * 1024,
         Agent::Hermes(_) => 2 * 1024 * 1024 * 1024,
+        Agent::Eliza(_) => 2 * 1024 * 1024 * 1024,
         Agent::Python(agent) => agent.memory,
     }
 }
 
 /// How much this agent's container may write, in bytes.
 ///
-/// The same split [`memory`] makes, for the same reason: three images
+/// The same split [`memory`] makes, for the same reason: four images
 /// whose appetite is a property of the image, and one whose is a
 /// property of what the caller sent. See
 /// [`python::Agent::disk`](crate::endpoints::agentic_loop::run::client::request::agent::python::Agent::disk).
@@ -179,6 +181,7 @@ fn disk(agent: &Agent) -> u64 {
         Agent::ClaudeCode(_) => 4 * 1024 * 1024 * 1024,
         Agent::Codex(_) => 4 * 1024 * 1024 * 1024,
         Agent::Hermes(_) => 4 * 1024 * 1024 * 1024,
+        Agent::Eliza(_) => 4 * 1024 * 1024 * 1024,
         Agent::Python(agent) => agent.disk,
     }
 }
