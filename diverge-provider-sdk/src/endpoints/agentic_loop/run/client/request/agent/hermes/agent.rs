@@ -37,11 +37,12 @@ pub struct Agent {
     /// different facts. See [`Effort`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
-    /// Hermes's LOCAL capabilities, one switch each: a plain bool
-    /// where a tool takes nothing, that tool's own argument
-    /// structure where it does — every switch stated, nothing on
-    /// by omission. (The caller's MCP tools ride beside these
-    /// regardless; they are not in this vocabulary.) See
-    /// [`Toolsets`].
+    /// Hermes's LOCAL capabilities, one switch each: an
+    /// `Option<bool>` where a tool takes nothing, that tool's own
+    /// argument structure where it does — absent is off either way,
+    /// and the whole structure absent is everything off. (The
+    /// caller's MCP tools ride beside these regardless; they are not
+    /// in this vocabulary.) See [`Toolsets`].
+    #[serde(default)]
     pub toolsets: Toolsets,
 }

@@ -3,7 +3,8 @@
 //! Each switch names a PLUGIN the image carries and the harness
 //! lists or skips when it constructs the runtime — the grain Eliza
 //! itself switches things at. A toolset with nothing to configure
-//! is a plain boolean on [`Toolsets`]; one that takes a credential
+//! is an `Option<bool>` on [`Toolsets`], absent meaning off; one
+//! that takes a credential
 //! is an `Option` of its own structure, AUTH AS AN ARGUMENT exactly
 //! as for the provider: absent is off, present is on with that
 //! tool's key. Nothing about a tool's auth rides the filesystem, a

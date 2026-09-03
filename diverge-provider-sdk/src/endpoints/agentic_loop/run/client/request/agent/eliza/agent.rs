@@ -35,12 +35,14 @@ pub struct Agent {
     pub embedding: Option<Embedding>,
     /// Eliza's LOCAL capabilities, one switch each — the plugins
     /// the image carries. (The caller's MCP tools ride beside these
-    /// regardless; they are not in this vocabulary.) See
-    /// [`Toolsets`].
+    /// regardless; they are not in this vocabulary.) Absent is
+    /// everything off. See [`Toolsets`].
+    #[serde(default)]
     pub toolsets: Toolsets,
     /// What a turn accumulates beyond the conversation itself —
     /// reflection, long-term memory, relationships, planning — each
-    /// a cost per turn and a growth of the continuation. See
-    /// [`Memory`].
+    /// a cost per turn and a growth of the continuation. Absent is
+    /// everything off. See [`Memory`].
+    #[serde(default)]
     pub memory: Memory,
 }

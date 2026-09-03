@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 /// and narrowed to what a REQUEST can actually make work.
 ///
 /// Two field shapes, by whether the toolset takes arguments. A
-/// toolset with nothing to configure is a plain `bool`, none
-/// optional: a request says what the agent can do, and nothing is
-/// on by omission — Hermes's own API-server defaults are never
+/// toolset with nothing to configure is an `Option<bool>` where
+/// ABSENT IS OFF — the same as `false` — so nothing is on by
+/// omission and Hermes's own API-server defaults are never
 /// consulted. A toolset with arguments is an `Option` of its own
 /// structure — absent is off, present is the switch thrown on WITH
 /// that tool's credentials and endpoint facts, each documented in
@@ -41,20 +41,25 @@ pub struct Toolsets {
     /// Terminal and process control. Nothing to configure — the
     /// container is the sandbox, and the local backend reads no
     /// credentials.
-    pub terminal: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal: Option<bool>,
     /// File operations: read, write, patch, search. Nothing to
     /// configure.
-    pub file: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file: Option<bool>,
     /// Code execution. Nothing of its own to configure — scripts
     /// call other tools over RPC, and each called tool's own
     /// arguments apply transitively.
-    pub code_execution: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code_execution: Option<bool>,
     /// Image analysis. Nothing to configure — analysis rides the
     /// run's own inference provider.
-    pub vision: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vision: Option<bool>,
     /// Video analysis. Nothing to configure — it rides the run's
     /// own inference provider, exactly as vision does.
-    pub video: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub video: Option<bool>,
     /// Image generation. See [`image_gen`](super::image_gen).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_gen: Option<super::image_gen::Toolset>,
@@ -69,12 +74,14 @@ pub struct Toolsets {
     pub tts: Option<super::tts::Toolset>,
     /// Task planning (todo). Nothing to configure — the store is
     /// in-memory and the run's own.
-    pub todo: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub todo: Option<bool>,
     /// Searching past conversations. Nothing to configure — the
     /// local session database, credential-free. The database rides
     /// the continuation whole, so the searchable past is the
     /// lineage's, not just this run's.
-    pub session_search: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_search: Option<bool>,
     /// Hermes's own memory: the two capped files, `MEMORY.md` (the
     /// agent's notes) and `USER.md` (the user profile), injected into
     /// the system prompt at session start and edited by the `memory`
@@ -82,7 +89,8 @@ pub struct Toolsets {
     /// continuation, so what the tool writes is what the next run
     /// starts with. (External memory-provider plugins are a separate
     /// config switch the harness leaves off.)
-    pub memory: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory: Option<bool>,
     /// Home Assistant control. See
     /// [`homeassistant`](super::homeassistant).
     #[serde(default, skip_serializing_if = "Option::is_none")]
