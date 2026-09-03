@@ -74,12 +74,13 @@ fetches, since the two halves write disjoint files:
   sampling disabled.
 - Toolset exposure is the explicit list `platform_toolsets.api_server`
   (the only deterministic form; there is no `disabled_toolsets`
-  config key). Present → in, `false` → out, unsaid → Hermes's own
-  API-server default: on for web, browser, terminal, file,
-  code_execution, vision, todo, memory, session_search; off for
-  video, video_gen, x_search, tts, homeassistant, spotify, and
-  image_gen (Hermes hides it without a FAL key, and only the
-  structure brings one).
+  config key). `true` or a structure present → in; `false` or a
+  structure absent → out. Every switch is stated (the plain ones are
+  required bools, the argument-taking ones `Option` structures) and
+  nothing is on by omission: Hermes's own API-server default — web,
+  browser, terminal, file, code_execution, vision, todo, memory,
+  session_search, and image_gen (hidden without a FAL key, which only
+  the structure brings) — is never consulted.
   `skills` in exactly when something is mounted under the external
   skills path, out otherwise — and skills come from MOUNTS at
   `/root/.hermes/external-skills/` (one directory per skill, its
