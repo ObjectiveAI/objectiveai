@@ -74,9 +74,9 @@ fetches, since the two halves write disjoint files:
   sampling disabled.
 - Toolset exposure is the explicit list `platform_toolsets.api_server`
   (the only deterministic form; there is no `disabled_toolsets`
-  config key). `true` or a structure present → in; `false` or a
-  structure absent → out. Every switch is stated (the plain ones are
-  required bools, the argument-taking ones `Option` structures) and
+  config key). `true` or a structure present → in; `false`, absent,
+  or a structure absent → out. The plain switches are `Option<bool>`
+  (absent = off), the argument-taking ones `Option` structures, and
   nothing is on by omission: Hermes's own API-server default — web,
   browser, terminal, file, code_execution, vision, todo, memory,
   session_search, and image_gen (hidden without a FAL key, which only

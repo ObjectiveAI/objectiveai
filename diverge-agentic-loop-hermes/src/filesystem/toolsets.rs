@@ -16,8 +16,8 @@ use super::{Ask, Plan, PrepareError, Target};
 /// names, in its own order — and an explicit list is the only
 /// deterministic form. So one is always written, and each toolset's
 /// place in it is decided the same way: `true`, or a structure
-/// present, → in; `false`, or a structure absent, → out. Every
-/// switch is stated and nothing is on by omission — Hermes's own
+/// present, → in; `false`, absent, or a structure absent, → out.
+/// Nothing is on by omission — Hermes's own
 /// API-server default (which would list web, browser, terminal,
 /// file, code_execution, vision, todo, memory, session_search and
 /// image_gen) is never consulted. `skills` is in exactly when the
@@ -103,11 +103,11 @@ pub fn apply(
     }
     switch(&mut on, "browser", toolsets.browser.is_some());
 
-    switch(&mut on, "terminal", toolsets.terminal);
-    switch(&mut on, "file", toolsets.file);
-    switch(&mut on, "code_execution", toolsets.code_execution);
-    switch(&mut on, "vision", toolsets.vision);
-    switch(&mut on, "video", toolsets.video);
+    switch(&mut on, "terminal", toolsets.terminal.unwrap_or(false));
+    switch(&mut on, "file", toolsets.file.unwrap_or(false));
+    switch(&mut on, "code_execution", toolsets.code_execution.unwrap_or(false));
+    switch(&mut on, "vision", toolsets.vision.unwrap_or(false));
+    switch(&mut on, "video", toolsets.video.unwrap_or(false));
 
     if let Some(image_gen) = &toolsets.image_gen {
         plan.set("FAL_KEY", image_gen.fal_key.clone())?;
@@ -137,9 +137,9 @@ pub fn apply(
     if skills {
         on.push("skills");
     }
-    switch(&mut on, "todo", toolsets.todo);
-    switch(&mut on, "memory", toolsets.memory);
-    switch(&mut on, "session_search", toolsets.session_search);
+    switch(&mut on, "todo", toolsets.todo.unwrap_or(false));
+    switch(&mut on, "memory", toolsets.memory.unwrap_or(false));
+    switch(&mut on, "session_search", toolsets.session_search.unwrap_or(false));
 
     if let Some(homeassistant) = &toolsets.homeassistant {
         plan.set("HASS_URL", homeassistant.url.clone())?;

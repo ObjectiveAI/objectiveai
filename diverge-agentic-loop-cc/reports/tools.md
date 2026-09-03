@@ -12,8 +12,8 @@ memory of the product.
 ## What our container does today
 
 Exactly what the request says. The `claude_code` agent in the SDK
-carries `tools`, a struct of 26 non-optional booleans, one per
-switchable built-in (`claude_code/tools.rs`); the argv in
+carries `tools`, a struct of 26 `Option<bool>` switches (absent =
+off), one per switchable built-in (`claude_code/tools.rs`); the argv in
 `spawn/spawn.rs` passes `--tools` with six always-on names
 (`ListMcpResources`, `ReadMcpResource`, `ReadMcpResourceDir`,
 `RefreshMcpTools`, `Skill`, `ToolSearch`) and then the `true`
@@ -193,9 +193,10 @@ what the model was given.
 
 ## Decision (2026-09-03)
 
-Not `Option<bool>` and not `--disallowedTools`: every switch is a
-plain `bool`, none optional, and the harness passes `--tools` with
-the exact set. Group 1 and most of group 3 became switches (a caller
+Not `--disallowedTools`: every switch is an `Option<bool>` where
+absent is off (the first cut was a required `bool`; the rule across
+every agent became absent = false on 2026-09-03), and the harness
+passes `--tools` with the exact set. Group 1 and most of group 3 became switches (a caller
 states all of them; the "harmless" ones are as much theirs to
 withhold as the shell). Not switches, always on: the `mcp__*` tools
 (never built-ins, so `--tools` does not touch them), the four MCP
