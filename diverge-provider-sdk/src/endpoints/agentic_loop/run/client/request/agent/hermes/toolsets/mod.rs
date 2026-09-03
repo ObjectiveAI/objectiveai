@@ -6,8 +6,8 @@
 //! and endpoint facts — STATIC values (api keys, tokens, urls) as
 //! plain fields, ROTATING state as `*_resource` identity fields
 //! the resource machinery serves. Toolsets with nothing to
-//! configure are plain tri-state booleans on [`Toolsets`] and get
-//! no file: a structure with no fields would only be ceremony.
+//! configure are plain booleans on [`Toolsets`], none optional, and
+//! get no file: a structure with no fields would only be ceremony.
 //! Nothing about a tool's auth
 //! rides the filesystem, a mount, or the request's `environment`.
 //!
