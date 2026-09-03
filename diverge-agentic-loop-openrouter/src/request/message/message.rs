@@ -55,20 +55,17 @@ pub enum Message {
 /// which is how steered messages take the position Claude Code
 /// gives them:
 ///
-/// - a run of all-text prompts directly behind a tool response
-///   folds INTO that tool message, joined by blank lines inside one
+/// - a run of prompts directly behind a tool response folds INTO
+///   that tool message, joined by blank lines inside one
 ///   `system-reminder` section — see
 ///   [`ToolMessage::fold_steer`](super::ToolMessage::fold_steer);
-/// - a run of all-text prompts anywhere else — behind an assistant
-///   message, or opening the conversation — becomes ONE user
-///   message, the texts joined by blank lines;
-/// - a run carrying anything richer than text (only a turn-opening
-///   prompt can, and it never follows a tool response) keeps one
-///   user message per item, untouched.
+/// - a run of prompts anywhere else — behind an assistant message,
+///   or opening the conversation — becomes ONE user message, the
+///   texts joined by blank lines.
 pub fn messages(
     system_prompt: Option<String>,
     continuation: Option<Continuation>,
-    prompt: Vec<rmcp::model::ContentBlock>,
+    prompt: String,
 ) -> Vec<Message> {
     let mut messages = Vec::new();
     let mut current: Option<super::AssistantMessage> = None;
@@ -83,62 +80,37 @@ pub fn messages(
         .peekable();
     while let Some(item) = items.next() {
         match item {
-            ContinuationItem::Prompt(blocks) => {
+            ContinuationItem::Prompt(text) => {
                 // The whole run of consecutive prompts, because what
                 // they become is decided together.
-                let mut run = vec![blocks];
+                let mut run = vec![text];
                 while matches!(
                     items.peek(),
                     Some(ContinuationItem::Prompt(_))
                 ) {
-                    let Some(ContinuationItem::Prompt(blocks)) =
-                        items.next()
+                    let Some(ContinuationItem::Prompt(text)) = items.next()
                     else {
                         unreachable!("peeked a prompt above");
                     };
-                    run.push(blocks);
+                    run.push(text);
                 }
-                match prompt_texts(&run) {
-                    // All text, directly behind a tool response:
-                    // steered messages, folded into it.
-                    Some(texts)
-                        if current.is_none()
-                            && matches!(
-                                messages.last(),
-                                Some(Message::Tool(_))
-                            ) =>
-                    {
-                        let Some(Message::Tool(tool)) = messages.last_mut()
-                        else {
-                            unreachable!("matched a tool message above");
-                        };
-                        tool.fold_steer(&texts);
+                // Directly behind a tool response: steered messages,
+                // folded into it. Anywhere else: one user message.
+                if current.is_none()
+                    && matches!(messages.last(), Some(Message::Tool(_)))
+                {
+                    let Some(Message::Tool(tool)) = messages.last_mut()
+                    else {
+                        unreachable!("matched a tool message above");
+                    };
+                    tool.fold_steer(&run);
+                } else {
+                    if let Some(assistant) = current.take() {
+                        messages.push(Message::Assistant(assistant));
                     }
-                    // All text anywhere else: one user message.
-                    Some(texts) => {
-                        if let Some(assistant) = current.take() {
-                            messages.push(Message::Assistant(assistant));
-                        }
-                        messages.push(Message::User(
-                            super::UserMessage::new(vec![
-                                rmcp::model::ContentBlock::text(
-                                    texts.join("\n\n"),
-                                ),
-                            ]),
-                        ));
-                    }
-                    // Richer than text: one user message per item,
-                    // untouched.
-                    None => {
-                        if let Some(assistant) = current.take() {
-                            messages.push(Message::Assistant(assistant));
-                        }
-                        for blocks in run {
-                            messages.push(Message::User(
-                                super::UserMessage::new(blocks),
-                            ));
-                        }
-                    }
+                    messages.push(Message::User(super::UserMessage::new(
+                        run.join("\n\n"),
+                    )));
                 }
             }
             ContinuationItem::Chunk(chunk) => match chunk {
@@ -173,20 +145,3 @@ pub fn messages(
     messages
 }
 
-/// Every text in a run of prompts, one string per item — or [`None`]
-/// the moment anything in the run is richer than text. An item's own
-/// several text blocks join by blank lines, the same seam the run
-/// itself joins on.
-fn prompt_texts(
-    run: &[Vec<rmcp::model::ContentBlock>],
-) -> Option<Vec<String>> {
-    let mut texts = Vec::with_capacity(run.len());
-    for blocks in run {
-        let mut parts = Vec::with_capacity(blocks.len());
-        for block in blocks {
-            parts.push(block.as_text()?.text.clone());
-        }
-        texts.push(parts.join("\n\n"));
-    }
-    Some(texts)
-}

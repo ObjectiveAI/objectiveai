@@ -92,7 +92,7 @@ pub async fn r#loop(
     api_key: &str,
     agent: openrouter::Agent,
     continuation: Option<Continuation>,
-    prompt: Vec<rmcp::model::ContentBlock>,
+    prompt: String,
 ) -> Result<
     impl Stream<Item = Result<Item, Error>> + Send + Unpin + use<>,
     Error,
@@ -243,11 +243,9 @@ pub async fn r#loop(
                         prompt: message.prompt.clone(),
                         meta: None,
                     })));
-                    items.push(ContinuationItem::Prompt(vec![
-                        rmcp::model::ContentBlock::text(
-                            message.prompt.clone(),
-                        ),
-                    ]));
+                    items.push(ContinuationItem::Prompt(
+                        message.prompt.clone(),
+                    ));
                     message.deliver();
                 }
             } else {
@@ -306,11 +304,9 @@ pub async fn r#loop(
                         prompt: message.prompt.clone(),
                         meta: None,
                     })));
-                    items.push(ContinuationItem::Prompt(vec![
-                        rmcp::model::ContentBlock::text(
-                            message.prompt.clone(),
-                        ),
-                    ]));
+                    items.push(ContinuationItem::Prompt(
+                        message.prompt.clone(),
+                    ));
                     message.deliver();
                 }
                 // Every answer is in and the seam's deliveries with
@@ -340,7 +336,7 @@ pub async fn r#loop(
                 &api_key,
                 agent.clone(),
                 Some(Continuation(items.clone())),
-                Vec::new(),
+                String::new(),
                 Some(tools),
             )
             .await

@@ -17,14 +17,14 @@ pub struct Continuation(pub Vec<ContinuationItem>);
 ///
 /// Untagged, and unambiguous without a tag: a chunk serializes as a
 /// JSON object — its `type` member inside — and a prompt as a JSON
-/// array of content blocks. An object and an array cannot collide.
+/// string. An object and a string cannot collide.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum ContinuationItem {
     /// One chunk the loop produced.
     Chunk(AgenticLoopChunk),
-    /// One turn's user prompt, as its content blocks.
-    Prompt(Vec<rmcp::model::ContentBlock>),
+    /// One turn's user prompt, as its text.
+    Prompt(String),
 }
 
 impl Continuation {

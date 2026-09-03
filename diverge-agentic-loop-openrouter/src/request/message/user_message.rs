@@ -16,12 +16,10 @@ pub struct UserMessage {
 }
 
 impl UserMessage {
-    /// One turn's prompt, each content block as the part it is.
-    pub fn new(prompt: Vec<rmcp::model::ContentBlock>) -> Self {
+    /// One turn's prompt, as its text.
+    pub fn new(prompt: String) -> Self {
         UserMessage {
-            content: RichContent::Parts(
-                prompt.into_iter().map(Into::into).collect(),
-            ),
+            content: RichContent::Text(prompt),
         }
     }
 }

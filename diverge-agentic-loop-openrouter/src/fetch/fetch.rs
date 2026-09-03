@@ -38,7 +38,7 @@ pub async fn fetch(
     api_key: &str,
     agent: openrouter::Agent,
     continuation: Option<Continuation>,
-    prompt: Vec<rmcp::model::ContentBlock>,
+    prompt: String,
     tools: Option<Vec<crate::request::Tool>>,
 ) -> Result<
     // `use<>`: the stream borrows nothing from the arguments — the

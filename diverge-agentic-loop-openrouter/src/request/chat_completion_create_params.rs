@@ -98,7 +98,7 @@ impl ChatCompletionCreateParams {
     pub fn new(
         agent: openrouter::Agent,
         continuation: Option<crate::continuation::Continuation>,
-        prompt: Vec<rmcp::model::ContentBlock>,
+        prompt: String,
         tools: Option<Vec<super::Tool>>,
     ) -> Self {
         // Log probabilities are reported only when the agent asked
