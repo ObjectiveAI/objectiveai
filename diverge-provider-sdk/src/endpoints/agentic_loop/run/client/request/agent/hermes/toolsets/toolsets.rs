@@ -7,14 +7,15 @@ use serde::{Deserialize, Serialize};
 /// and narrowed to what a REQUEST can actually make work.
 ///
 /// Two field shapes, by whether the toolset takes arguments. A
-/// toolset with nothing to configure is a tri-state `Option<bool>`:
-/// absent tracks Hermes's own default, `true` turns it on, `false`
-/// off. A toolset with arguments is an `Option` of its own
-/// structure — absent is Hermes's default, present is the switch
-/// thrown on WITH that tool's credentials and endpoint facts, each
-/// documented in its own file with the mechanism the harness
-/// applies. Enabling a tool without its prerequisites is not a
-/// protocol error — the tools simply fail as themselves when used.
+/// toolset with nothing to configure is a plain `bool`, none
+/// optional: a request says what the agent can do, and nothing is
+/// on by omission — Hermes's own API-server defaults are never
+/// consulted. A toolset with arguments is an `Option` of its own
+/// structure — absent is off, present is the switch thrown on WITH
+/// that tool's credentials and endpoint facts, each documented in
+/// its own file with the mechanism the harness applies. Enabling a
+/// tool without its prerequisites is not a protocol error — the
+/// tools simply fail as themselves when used.
 ///
 /// These are the agent's LOCAL capabilities: what Hermes itself can
 /// do beside the conversation. The caller's MCP tools are not in
@@ -40,25 +41,20 @@ pub struct Toolsets {
     /// Terminal and process control. Nothing to configure — the
     /// container is the sandbox, and the local backend reads no
     /// credentials.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub terminal: Option<bool>,
+    pub terminal: bool,
     /// File operations: read, write, patch, search. Nothing to
     /// configure.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub file: Option<bool>,
+    pub file: bool,
     /// Code execution. Nothing of its own to configure — scripts
     /// call other tools over RPC, and each called tool's own
     /// arguments apply transitively.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub code_execution: Option<bool>,
+    pub code_execution: bool,
     /// Image analysis. Nothing to configure — analysis rides the
     /// run's own inference provider.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub vision: Option<bool>,
+    pub vision: bool,
     /// Video analysis. Nothing to configure — it rides the run's
     /// own inference provider, exactly as vision does.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub video: Option<bool>,
+    pub video: bool,
     /// Image generation. See [`image_gen`](super::image_gen).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_gen: Option<super::image_gen::Toolset>,
@@ -73,14 +69,12 @@ pub struct Toolsets {
     pub tts: Option<super::tts::Toolset>,
     /// Task planning (todo). Nothing to configure — the store is
     /// in-memory and the run's own.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub todo: Option<bool>,
+    pub todo: bool,
     /// Searching past conversations. Nothing to configure — the
     /// local session database, credential-free. The database rides
     /// the continuation whole, so the searchable past is the
     /// lineage's, not just this run's.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session_search: Option<bool>,
+    pub session_search: bool,
     /// Hermes's own memory: the two capped files, `MEMORY.md` (the
     /// agent's notes) and `USER.md` (the user profile), injected into
     /// the system prompt at session start and edited by the `memory`
@@ -88,8 +82,7 @@ pub struct Toolsets {
     /// continuation, so what the tool writes is what the next run
     /// starts with. (External memory-provider plugins are a separate
     /// config switch the harness leaves off.)
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub memory: Option<bool>,
+    pub memory: bool,
     /// Home Assistant control. See
     /// [`homeassistant`](super::homeassistant).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -97,13 +90,4 @@ pub struct Toolsets {
     /// Spotify control. See [`spotify`](super::spotify).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spotify: Option<super::spotify::Toolset>,
-}
-
-impl Toolsets {
-    /// Whether nothing here says anything — every switch at its
-    /// absent tri-state. What lets the whole struct stay off the
-    /// wire when the caller changed nothing.
-    pub fn unsaid(&self) -> bool {
-        self == &Self::default()
-    }
 }
