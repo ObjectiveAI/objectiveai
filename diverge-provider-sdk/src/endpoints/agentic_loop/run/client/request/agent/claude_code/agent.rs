@@ -18,7 +18,8 @@ pub struct Agent {
     pub upstream: Upstream,
     /// The model to run.
     pub model: String,
-    /// The built-in tools the model may call, every one stated.
+    /// The switchable built-in tools, every one stated. The MCP
+    /// tools and `Skill` are on regardless; see [`Tools`].
     pub tools: Tools,
     /// Whether to think before answering.
     #[serde(default, skip_serializing_if = "Option::is_none")]
