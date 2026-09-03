@@ -15,15 +15,13 @@ use super::{Ask, Plan, PrepareError, Target};
 /// under `platform_toolsets.api_server` — by its own configurable-key
 /// names, in its own order — and an explicit list is the only
 /// deterministic form. So one is always written, and each toolset's
-/// place in it is decided the same way: present in the request
-/// (`true`, or a structure) → in; `false` → out; unsaid → what
-/// Hermes's own API-server default would do, which is ON for web,
-/// browser, terminal, file, code_execution, vision, todo, memory and
-/// session_search, and OFF for video, video_gen, x_search, tts,
-/// homeassistant and spotify — and for image_gen, which Hermes lists
-/// by default but hides without a FAL key, and only the structure
-/// brings one. `skills` is in exactly when the request mounted
-/// something under the external skills path — `skills` here is that
+/// place in it is decided the same way: `true`, or a structure
+/// present, → in; `false`, or a structure absent, → out. Every
+/// switch is stated and nothing is on by omission — Hermes's own
+/// API-server default (which would list web, browser, terminal,
+/// file, code_execution, vision, todo, memory, session_search and
+/// image_gen) is never consulted. `skills` is in exactly when the
+/// request mounted something under the external skills path — `skills` here is that
 /// fact, decided by the caller of this function from the mounts —
 /// and out otherwise: a skills catalogue with nothing of the
 /// caller's in it is only Hermes's bundle, which nobody asked for.
@@ -82,7 +80,7 @@ pub fn apply(
             plan.extract_backend = Some("firecrawl");
         }
     }
-    switch(&mut on, "web", toolsets.web.is_some(), None, true);
+    switch(&mut on, "web", toolsets.web.is_some());
 
     if let Some(browser) = &toolsets.browser {
         match &browser.remote {
@@ -103,30 +101,30 @@ pub fn apply(
             None => {}
         }
     }
-    switch(&mut on, "browser", toolsets.browser.is_some(), None, true);
+    switch(&mut on, "browser", toolsets.browser.is_some());
 
-    switch(&mut on, "terminal", false, toolsets.terminal, true);
-    switch(&mut on, "file", false, toolsets.file, true);
-    switch(&mut on, "code_execution", false, toolsets.code_execution, true);
-    switch(&mut on, "vision", false, toolsets.vision, true);
-    switch(&mut on, "video", false, toolsets.video, false);
+    switch(&mut on, "terminal", toolsets.terminal);
+    switch(&mut on, "file", toolsets.file);
+    switch(&mut on, "code_execution", toolsets.code_execution);
+    switch(&mut on, "vision", toolsets.vision);
+    switch(&mut on, "video", toolsets.video);
 
     if let Some(image_gen) = &toolsets.image_gen {
         plan.set("FAL_KEY", image_gen.fal_key.clone())?;
         plan.image_gen = true;
     }
-    switch(&mut on, "image_gen", toolsets.image_gen.is_some(), None, false);
+    switch(&mut on, "image_gen", toolsets.image_gen.is_some());
 
     if let Some(video_gen) = &toolsets.video_gen {
         plan.set("FAL_KEY", video_gen.fal_key.clone())?;
         plan.video_gen = true;
     }
-    switch(&mut on, "video_gen", toolsets.video_gen.is_some(), None, false);
+    switch(&mut on, "video_gen", toolsets.video_gen.is_some());
 
     if let Some(x_search) = &toolsets.x_search {
         plan.set("XAI_API_KEY", x_search.api_key.clone())?;
     }
-    switch(&mut on, "x_search", toolsets.x_search.is_some(), None, false);
+    switch(&mut on, "x_search", toolsets.x_search.is_some());
 
     if let Some(tts) = &toolsets.tts
         && let Some(elevenlabs_api_key) = &tts.elevenlabs_api_key
@@ -134,26 +132,20 @@ pub fn apply(
         plan.set("ELEVENLABS_API_KEY", elevenlabs_api_key.clone())?;
         plan.tts_elevenlabs = true;
     }
-    switch(&mut on, "tts", toolsets.tts.is_some(), None, false);
+    switch(&mut on, "tts", toolsets.tts.is_some());
 
     if skills {
         on.push("skills");
     }
-    switch(&mut on, "todo", false, toolsets.todo, true);
-    switch(&mut on, "memory", false, toolsets.memory, true);
-    switch(&mut on, "session_search", false, toolsets.session_search, true);
+    switch(&mut on, "todo", toolsets.todo);
+    switch(&mut on, "memory", toolsets.memory);
+    switch(&mut on, "session_search", toolsets.session_search);
 
     if let Some(homeassistant) = &toolsets.homeassistant {
         plan.set("HASS_URL", homeassistant.url.clone())?;
         plan.set("HASS_TOKEN", homeassistant.token.clone())?;
     }
-    switch(
-        &mut on,
-        "homeassistant",
-        toolsets.homeassistant.is_some(),
-        None,
-        false,
-    );
+    switch(&mut on, "homeassistant", toolsets.homeassistant.is_some());
 
     if let Some(spotify) = &toolsets.spotify {
         plan.set("HERMES_SPOTIFY_CLIENT_ID", spotify.client_id.clone())?;
@@ -163,22 +155,16 @@ pub fn apply(
             target: Target::AuthEntry("spotify"),
         });
     }
-    switch(&mut on, "spotify", toolsets.spotify.is_some(), None, false);
+    switch(&mut on, "spotify", toolsets.spotify.is_some());
 
     plan.toolsets = on;
     Ok(())
 }
 
-/// Decide one toolset's place in the list: a present structure is
-/// in; a boolean says so itself; unsaid takes Hermes's default.
-fn switch(
-    on: &mut Vec<&'static str>,
-    name: &'static str,
-    present: bool,
-    said: Option<bool>,
-    default: bool,
-) {
-    if present || said.unwrap_or(default) {
+/// Decide one toolset's place in the list: in when its switch is
+/// thrown — a `true`, or a structure present.
+fn switch(on: &mut Vec<&'static str>, name: &'static str, thrown: bool) {
+    if thrown {
         on.push(name);
     }
 }
