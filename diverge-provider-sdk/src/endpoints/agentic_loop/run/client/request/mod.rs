@@ -16,5 +16,7 @@
 pub mod agent;
 
 mod frame;
+mod mount;
 
 pub use frame::*;
+pub use mount::*;
