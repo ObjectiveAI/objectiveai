@@ -31,15 +31,15 @@ WORKDIR /build
 # own root. The workspace lockfile rides into each crate so resolved
 # versions hold; cargo prunes what the crate does not use.
 COPY diverge-provider-sdk diverge-provider-sdk
-COPY diverge-agentic-loop-mcp-proxy diverge-agentic-loop-mcp-proxy
+COPY diverge-container-mcp-proxy diverge-container-mcp-proxy
 COPY diverge-agentic-loop-cc diverge-agentic-loop-cc
 COPY Cargo.lock diverge-agentic-loop-cc/Cargo.lock
-COPY Cargo.lock diverge-agentic-loop-mcp-proxy/Cargo.lock
+COPY Cargo.lock diverge-container-mcp-proxy/Cargo.lock
 
 RUN cargo build --release \
     --manifest-path diverge-agentic-loop-cc/Cargo.toml
 RUN cargo build --release \
-    --manifest-path diverge-agentic-loop-mcp-proxy/Cargo.toml
+    --manifest-path diverge-container-mcp-proxy/Cargo.toml
 
 # debian:sid, by digest.
 FROM docker.io/library/debian:sid@sha256:c1acdb109bacb5adf0f2078892ac177ee2e2ce6f88e96c5b743998b5489d36a9
@@ -71,12 +71,12 @@ COPY --from=build \
     /build/diverge-agentic-loop-cc/target/release/diverge-agentic-loop-cc \
     /usr/local/bin/diverge-agentic-loop-cc
 COPY --from=build \
-    /build/diverge-agentic-loop-mcp-proxy/target/release/diverge-agentic-loop-mcp-proxy \
-    /usr/local/bin/diverge-agentic-loop-mcp-proxy
+    /build/diverge-container-mcp-proxy/target/release/diverge-container-mcp-proxy \
+    /usr/local/bin/diverge-container-mcp-proxy
 
 # Two programs, one container: the proxy in the background, the
 # harness in the foreground as the container's own life.
-RUN printf '#!/bin/sh\n/usr/local/bin/diverge-agentic-loop-mcp-proxy &\nexec /usr/local/bin/diverge-agentic-loop-cc\n' \
+RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\nexec /usr/local/bin/diverge-agentic-loop-cc\n' \
     > /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
 

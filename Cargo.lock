@@ -1716,21 +1716,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diverge-agentic-loop-mcp-proxy"
-version = "2.3.0"
-dependencies = [
- "axum",
- "bytes",
- "diverge-provider-sdk",
- "futures-util",
- "rmcp 3.1.2",
- "serde",
- "serde_json",
- "sha2",
- "tokio",
-]
-
-[[package]]
 name = "diverge-agentic-loop-openrouter"
 version = "2.3.0"
 dependencies = [
@@ -1769,6 +1754,21 @@ version = "2.3.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "diverge-container-mcp-proxy"
+version = "2.3.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "diverge-provider-sdk",
+ "futures-util",
+ "rmcp 3.1.2",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
 ]
 
 [[package]]
