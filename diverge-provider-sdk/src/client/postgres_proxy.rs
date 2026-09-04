@@ -11,7 +11,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 ///
 /// A provider opens a Postgres channel because something inside a
 /// container dialled the conduit it was given — a plugin its declared
-/// port, an agent its loop's port `8082`. The database lives with the
+/// port, an agent its loop's port `14980`. The database lives with the
 /// caller, so the bytes come out and this is what splices the far end
 /// onto the real thing.
 ///

@@ -10,9 +10,10 @@ use crate::encode::{Encode, Writer};
 ///
 /// The first half of a Postgres connection. A provider opens a channel
 /// with this because the agent's container opened a database
-/// connection — on its own loopback, port `8082`, per the Container
-/// section of the specification — and the database lives with the
-/// caller.
+/// connection — on its own loopback, port `14980`, the container's
+/// Postgres proxy, which announced it to the server over the
+/// [`postgres_proxy`](crate::postgres_proxy) wire — and the database
+/// lives with the caller.
 ///
 /// What comes back on this channel is everything the DATABASE says.
 /// What the container writes travels the other way, on a channel the
@@ -40,7 +41,7 @@ use crate::encode::{Encode, Writer};
 /// # It is opened, not offered
 ///
 /// Nothing in the request declares it. A container that never dials
-/// `8082` never has one of these at all, and an upstream that keeps
+/// `14980` never has one of these at all, and an upstream that keeps
 /// its state elsewhere costs nothing rather than costing an idle
 /// tunnel. The one that does — an agent whose memory is rows, which
 /// is what put this on the loop — opens one per connection its pool
@@ -57,7 +58,9 @@ use crate::encode::{Encode, Writer};
 /// result set from blocking its siblings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Postgres {
-    /// What this connection is called, chosen by the provider.
+    /// What this connection is called, chosen by the provider — in
+    /// practice the number the container's proxy minted when it
+    /// announced the connection, carried through.
     ///
     /// The caller quotes it back in the
     /// [`client::channel_request::Postgres`](crate::endpoints::agentic_loop::run::client::channel_request::Postgres)

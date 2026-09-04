@@ -27,16 +27,19 @@
 //!
 //! # The database is a port, not a frame
 //!
-//! The third of the Container section's ports is the caller's
-//! database: `127.0.0.1:8082`. Nothing here models it, because
-//! nothing needs to — a container that opens a TCP connection there
-//! speaks pgwire straight to whatever the caller routes it to, one
-//! connection one session, and the server relays the bytes unread
-//! in both directions. No credential of the container's own is
-//! involved: the caller's proxy is the authority on what the
-//! connection may reach. An upstream whose state is rows points its
-//! driver at that address; one whose state is files never dials it,
-//! and costs nothing for not doing so.
+//! The caller's database is `127.0.0.1:14980` inside the container.
+//! Nothing here models it, because nothing needs to — a container
+//! that opens a TCP connection there speaks pgwire straight to
+//! whatever the caller routes it to, one connection one session, and
+//! the bytes are relayed unread in both directions: the container's
+//! Postgres proxy accepts the connection and carries it to the server
+//! over its own WebSocket on `14981`, per the
+//! [`postgres_proxy`](crate::postgres_proxy) wire, and the server
+//! carries it to the caller as the loop's channel pair. No credential
+//! of the container's own is involved: the caller's proxy is the
+//! authority on what the connection may reach. An upstream whose
+//! state is rows points its driver at that address; one whose state
+//! is files never dials it, and costs nothing for not doing so.
 //!
 //! # Failures are HTTP's own, where HTTP is still there
 //!
