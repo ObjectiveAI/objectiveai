@@ -9,47 +9,46 @@ use crate::encode::{Encode, Writer};
 /// Connect to the database, and stream back what it says.
 ///
 /// The first half of a Postgres connection. A provider opens a channel
-/// with this because something inside the container opened a database
-/// connection, and the database lives with the caller.
+/// with this because the agent's container opened a database
+/// connection — on its own loopback, port `8082`, per the Container
+/// section of the specification — and the database lives with the
+/// caller.
 ///
 /// What comes back on this channel is everything the DATABASE says.
-/// What the plugin writes travels the other way, on a channel the
+/// What the container writes travels the other way, on a channel the
 /// CALLER opens — see
-/// [`client::channel_request::Postgres`](crate::endpoints::mcp_plugin::run::client::channel_request::Postgres).
-/// The [agentic loop](crate::endpoints::agentic_loop::run::server::channel_request::Postgres)
-/// carries the same exchange, written out as its own.
+/// [`client::channel_request::Postgres`](crate::endpoints::agentic_loop::run::client::channel_request::Postgres).
+///
+/// The same exchange the plugin endpoint carries, as
+/// [`mcp_plugin`'s](crate::endpoints::mcp_plugin::run::server::channel_request::Postgres):
+/// same four bytes, same pair, same finishes. It is written out
+/// here rather than shared because a connection id is this
+/// endpoint's own and means nothing outside it.
 ///
 /// # Why a connection is two channels
 ///
 /// Because only a responder can end a channel, and a connection has to
-/// be endable from both sides. A plugin that dies has to be sayable to
-/// the caller, or the caller's backend stays open with nothing left to
-/// serve; a database that drops has to be sayable to the provider, or
-/// the plugin waits on a reply that is not coming.
+/// be endable from both sides. An agent that dies has to be sayable
+/// to the caller, or the caller's backend stays open with nothing left
+/// to serve; a database that drops has to be sayable to the provider,
+/// or the agent waits on a reply that is not coming.
 ///
 /// One duplex channel could express neither. Two channels express
 /// both, with nothing added: each side finishes the one it is
 /// answering on, and that finish IS the close.
 ///
-/// It is the same inversion a
-/// [`write`](crate::shared::container::write_path) makes, for the same
-/// reason and at the same price — one round trip before the first
-/// byte.
-///
 /// # It is opened, not offered
 ///
-/// Twice over. A plugin that named no
-/// [`postgres_port`](crate::endpoints::mcp_plugin::run::client::request::Frame::postgres_port)
-/// never has one of these at all, because a provider has nothing to
-/// dial. And one that named a port but has no queries to send does not
-/// either, because nothing inside it opened a connection.
-///
-/// So an opted-out plugin costs nothing rather than costing an idle
-/// tunnel, and a quiet one costs nothing either.
+/// Nothing in the request declares it. A container that never dials
+/// `8082` never has one of these at all, and an upstream that keeps
+/// its state elsewhere costs nothing rather than costing an idle
+/// tunnel. The one that does — an agent whose memory is rows, which
+/// is what put this on the loop — opens one per connection its pool
+/// makes.
 ///
 /// # Several at once is the ordinary case
 ///
-/// A plugin holds a connection pool, so a provider opens a pair per
+/// A database client holds a pool, so a provider opens a pair per
 /// connection and they run in parallel. Nothing is shared between
 /// them: each pair has its own
 /// [`connection_id`](Self::connection_id), its own two channels, and
@@ -61,10 +60,10 @@ pub struct Postgres {
     /// What this connection is called, chosen by the provider.
     ///
     /// The caller quotes it back in the
-    /// [`client::channel_request::Postgres`](crate::endpoints::mcp_plugin::run::client::channel_request::Postgres)
-    /// that asks for the plugin's writes, and that is the whole of the
-    /// correlation: a caller with several connections in flight learns
-    /// which one it is being asked to feed.
+    /// [`client::channel_request::Postgres`](crate::endpoints::agentic_loop::run::client::channel_request::Postgres)
+    /// that asks for the container's writes, and that is the whole of
+    /// the correlation: a caller with several connections in flight
+    /// learns which one it is being asked to feed.
     ///
     /// # It is the provider's to choose and the provider's to keep
     /// unique
@@ -84,13 +83,9 @@ pub struct Postgres {
     /// this on a channel of its own, the caller asks for the writes on
     /// a channel of its own, and neither side's header can name the
     /// other's — so a payload quoting a channel number would be
-    /// quoting one out of a namespace its reader does not share.
-    ///
-    /// An id invented for the connection belongs to neither channel,
-    /// which is what makes it readable on both sides. The same
-    /// argument a
-    /// [`write_id`](crate::shared::container::write_path::request::Request::write_id)
-    /// makes.
+    /// quoting one out of a namespace its reader does not share. An
+    /// id invented for the connection belongs to neither channel,
+    /// which is what makes it readable on both sides.
     pub connection_id: u32,
 }
 

@@ -79,7 +79,7 @@ pub async fn execute<O, P, C>(
 ) -> Result<ExecuteHandle, ExecuteError>
 where
     O: OciProxy + 'static,
-    P: PostgresProxy + 'static,
+    P: PostgresProxy<request::Frame> + 'static,
     C: CommandProxy + 'static,
 {
     let mut payload = Vec::new();
@@ -132,7 +132,7 @@ async fn serve_channel_requests<O, P, C>(
     command_proxy: Arc<C>,
 ) where
     O: OciProxy + 'static,
-    P: PostgresProxy + 'static,
+    P: PostgresProxy<request::Frame> + 'static,
     C: CommandProxy + 'static,
 {
     while let Some(bytes) = request_receiver.recv().await {
@@ -168,7 +168,7 @@ async fn serve_one<O, P, C>(
     command_proxy: Arc<C>,
 ) where
     O: OciProxy,
-    P: PostgresProxy,
+    P: PostgresProxy<request::Frame>,
     C: CommandProxy,
 {
     let Ok(frame::server::ServerFrame::ChannelRequest {
@@ -371,7 +371,7 @@ async fn serve_postgres<P>(
     request: &request::Frame,
     postgres_proxy: &P,
 ) where
-    P: PostgresProxy,
+    P: PostgresProxy<request::Frame>,
 {
     // The encode cannot fail — a connection id is four known bytes —
     // but it shares an impl with a variant that can, so the failure is

@@ -80,12 +80,15 @@ pub enum Frame<'a> {
     /// channel, and what the plugin WRITES arrives on a second channel
     /// the caller opens quoting the same id — see [`Postgres`].
     ///
-    /// # Why a plugin, and not the agent
+    /// # The loop carries it too
     ///
-    /// Because a plugin is what needs a database. An agent talks to
-    /// its tools; a tool is what keeps something. So the tunnel ends
-    /// where the tool runs, and the loop that called it never sees a
-    /// connection it has no query to send down.
+    /// For a long time only a plugin did, on the grounds that a plugin
+    /// is what needs a database — an agent talks to its tools, and a
+    /// tool is what keeps something. An upstream whose own state is
+    /// rows ended that, and the
+    /// [agentic loop](crate::endpoints::agentic_loop::run::server::channel_request::Frame::Postgres)
+    /// now opens the same pair, at a fixed port instead of a declared
+    /// one.
     ///
     /// # Never parsed
     ///

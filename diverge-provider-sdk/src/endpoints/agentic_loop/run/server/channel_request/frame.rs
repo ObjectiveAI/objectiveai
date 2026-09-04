@@ -3,28 +3,32 @@
 use std::error;
 use std::fmt;
 
-use super::{fetch_continuation, fetch_directory, fetch_file, fetch_resource};
+use super::{
+    Postgres, fetch_continuation, fetch_directory, fetch_file,
+    fetch_resource,
+};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::mcp;
 
 /// The payload of a [`ServerFrame::ChannelRequest`](crate::frame::server::ServerFrame::ChannelRequest).
 ///
-/// One ask toward the client — an MCP exchange toward its proxy, or
-/// a fetch ([`FetchFile`](Self::FetchFile) /
+/// One ask toward the client — an MCP exchange toward its proxy, a
+/// fetch ([`FetchFile`](Self::FetchFile) /
 /// [`FetchDirectory`](Self::FetchDirectory) /
 /// [`FetchResource`](Self::FetchResource) /
 /// [`FetchContinuation`](Self::FetchContinuation)) of content the
-/// provider is missing. Complete in this frame; the answer comes
-/// back as client response frames.
+/// provider is missing, or half of a database connection
+/// ([`Postgres`](Self::Postgres)). Complete in this frame; the
+/// answer comes back as client response frames.
 ///
 /// A payload leads with one byte and the rest is the request.
 ///
 /// What they share is that each is something the server cannot reach
 /// itself: the agent runs beside the provider, and the MCP servers —
-/// and the store the request's mounts and resources live in — live
-/// with the client. So the provider opens a channel, and the client
-/// splices the far end into the real thing.
+/// and the store the request's mounts and resources live in, and the
+/// database — live with the client. So the provider opens a channel,
+/// and the client splices the far end into the real thing.
 ///
 /// # MCP is carried as exchanges, not as a socket
 ///
@@ -85,13 +89,23 @@ use crate::shared::mcp;
 /// else, because both ends already have `rmcp` and the JSON inside
 /// that envelope was always `rmcp`'s types.
 ///
-/// # Not the database
+/// # The database
 ///
-/// A [`plugin`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Postgres)
-/// gets that channel, because a plugin is what needs a database. An
-/// agent talks to its tools; a tool is what keeps something. So the
-/// tunnel ends where the tool runs, and this loop never sees a
-/// connection it has no query to send down.
+/// For a long time this loop had no database channel, on the
+/// grounds that an agent talks to its tools and a tool is what keeps
+/// something — so the tunnel ended where the tool ran, at a
+/// [`plugin`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Postgres).
+/// That held until an upstream whose own state IS a database: an
+/// Eliza agent's memory, facts, documents and relationships are
+/// Postgres rows, one adapter over one schema. Routing that to the
+/// caller makes the caller's database the agent's memory, and
+/// leaves nothing to ship as a continuation but an identity. So the
+/// loop carries the same pair the plugin endpoint does, and the
+/// Container section names the port: `8082`.
+///
+/// It is opened, never offered. A container that keeps its state on
+/// its filesystem never dials the port and never has one of these;
+/// nothing in the request declares it either way.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// What tools are there. Tag `0`.
@@ -196,6 +210,25 @@ pub enum Frame {
     /// [`fetch_continuation`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_continuation)
     /// — and the empty finish is a FRESH START, not a refusal.
     FetchContinuation(fetch_continuation::Request),
+    /// One database connection, opened toward the caller. Tag `9`.
+    ///
+    /// Carries no bytes but an id. It names a connection the
+    /// container opened and asks the caller to dial its database;
+    /// what the database SAYS comes back on this channel — see
+    /// [`postgres`](crate::endpoints::agentic_loop::run::client::channel_response::postgres)
+    /// — and what the container WRITES arrives on a second channel
+    /// the caller opens quoting the same id. See [`Postgres`] for why
+    /// a socket has to be two channels.
+    ///
+    /// # Never parsed
+    ///
+    /// Which is what lets TLS negotiation and every protocol extension
+    /// cross untouched. A conduit that understood pgwire would have to
+    /// keep up with it; one that does not is finished being written.
+    /// It is why the bytes are never framed as messages either: a
+    /// pgwire message larger than one frame simply spans several, and
+    /// both ends reassemble as they would from a socket.
+    Postgres(Postgres),
 }
 
 /// Tag for [`Frame::McpListTools`].
@@ -225,10 +258,14 @@ const FETCH_RESOURCE: u8 = 7;
 /// Tag for [`Frame::FetchContinuation`].
 const FETCH_CONTINUATION: u8 = 8;
 
-/// A tag, then that variant's own JSON.
+/// Tag for [`Frame::Postgres`].
+const POSTGRES: u8 = 9;
+
+/// A tag, then that variant's own bytes — JSON for all but the
+/// connection id, which is four bytes.
 impl Encode for Frame {
-    /// The ordinary JSON failure. Every variant is serialized, and the
-    /// tag cannot fail.
+    /// The ordinary JSON failure. Every JSON variant is serialized,
+    /// the tag cannot fail, and the connection id cannot either.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
@@ -272,12 +309,17 @@ impl Encode for Frame {
                 // `Infallible`, as the notification stream's is.
                 request.encode(out).map_err(|error| match error {})
             }
+            Frame::Postgres(postgres) => {
+                out.extend_from_slice(&[POSTGRES]);
+                // Four known bytes; `Infallible` likewise.
+                postgres.encode(out).map_err(|error| match error {})
+            }
         }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail, and only one of them is JSON.
+    /// Four ways to fail, and only one of them is JSON.
     type Error = FrameError;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
@@ -316,6 +358,9 @@ impl Decode<'_> for Frame {
                 fetch_continuation::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
+            POSTGRES => Postgres::decode(rest)
+                .map(Frame::Postgres)
+                .map_err(FrameError::Postgres),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -326,7 +371,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's nine.
+    /// A tag that is none of this frame's ten.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not
@@ -335,6 +380,8 @@ pub enum FrameError {
     UnknownTag(u8),
     /// The payload after the tag did not parse.
     Body(serde_json::Error),
+    /// The connection request was not a connection id.
+    Postgres(super::PostgresError),
 }
 
 impl fmt::Display for FrameError {
@@ -349,6 +396,9 @@ impl fmt::Display for FrameError {
             FrameError::Body(error) => {
                 write!(f, "channel request did not parse: {error}")
             }
+            FrameError::Postgres(error) => {
+                write!(f, "postgres connection request did not parse: {error}")
+            }
         }
     }
 }
@@ -357,6 +407,7 @@ impl error::Error for FrameError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
             FrameError::Body(error) => Some(error),
+            FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

@@ -1,4 +1,4 @@
-//! Splicing a plugin's database connection onto a real one.
+//! Splicing a container's database connection onto a real one.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -7,18 +7,18 @@ use bytes::Bytes;
 use futures_util::Stream;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::endpoints::mcp_plugin::run::client::request;
-
-/// What connects a plugin to the caller's database.
+/// What connects a container to the caller's database.
 ///
 /// A provider opens a Postgres channel because something inside a
-/// container dialled the conduit it was given. The database lives with
-/// the caller, so the bytes come out and this is what splices the far
-/// end onto the real thing.
+/// container dialled the conduit it was given — a plugin its declared
+/// port, an agent its loop's port `8082`. The database lives with the
+/// caller, so the bytes come out and this is what splices the far end
+/// onto the real thing.
 ///
-/// A plugin that asked for no database, or that asked and never
-/// connects, means the channel never exists — which is what makes an
-/// opted-out plugin cost nothing rather than cost an idle tunnel.
+/// A container that asked for no database, or that never connects,
+/// means the channel never exists — which is what makes an opted-out
+/// plugin, or an agent whose state is not rows, cost nothing rather
+/// than cost an idle tunnel.
 ///
 /// # It is the one that takes two channels
 ///
@@ -30,9 +30,10 @@ use crate::endpoints::mcp_plugin::run::client::request;
 ///
 /// The provider opens the first, asking the caller to dial its database
 /// and stream back what it says. The caller opens the second, quoting
-/// the same
-/// [`connection_id`](crate::endpoints::mcp_plugin::run::server::channel_request::Postgres::connection_id),
-/// asking for what the plugin writes. This is called once per
+/// the same connection id
+/// ([the plugin's](crate::endpoints::mcp_plugin::run::server::channel_request::Postgres::connection_id),
+/// [the loop's](crate::endpoints::agentic_loop::run::server::channel_request::Postgres::connection_id)),
+/// asking for what the container writes. This is called once per
 /// connection, after both exist.
 ///
 /// It is that way because only a responder can finish a channel, and a
@@ -44,9 +45,9 @@ use crate::endpoints::mcp_plugin::run::client::request;
 ///
 /// # Several at once, and none of them related
 ///
-/// A plugin holds a connection POOL, so this is called concurrently, on
-/// the same `&self`, once per connection — which is what the [`Send`] and
-/// [`Sync`] bounds above are for. An implementation must dial per call
+/// A database client holds a connection POOL, so this is called
+/// concurrently, on the same `&self`, once per connection — which is
+/// what the [`Send`] and [`Sync`] bounds above are for. An implementation must dial per call
 /// rather than hand back something it is holding; one reusable
 /// connection shared between calls would interleave two sessions onto
 /// one socket, and pgwire has no way to tell them apart.
@@ -68,7 +69,8 @@ use crate::endpoints::mcp_plugin::run::client::request;
 /// [`Option`], because pgwire already says how a connection goes wrong.
 /// A proxy that cannot reach the database sends an `ErrorResponse`
 /// (`'E'`) as its first item and ends the stream, which is precisely
-/// what the plugin's driver would see from a real server refusing it.
+/// what the container's driver would see from a real server refusing
+/// it.
 /// Ending the stream without saying anything is the other honest answer,
 /// and is what a socket that dropped looks like.
 ///
@@ -81,45 +83,53 @@ use crate::endpoints::mcp_plugin::run::client::request;
 /// statuses, [`CommandProxy`](super::command_proxy::CommandProxy) in the
 /// CLI's own, and this one in pgwire.
 ///
-/// # It names an endpoint's type, alone among these
+/// # It is generic in the request, alone among these
 ///
-/// The other three take a [`shared`](crate::shared) type or bytes, and
-/// nothing else in [`client`](crate::client) names anything from
-/// [`endpoints`](crate::endpoints). This one takes an MCP plugin's
-/// [`request::Frame`], and that is a deliberate exception rather than an
-/// oversight.
+/// The other proxies take a [`shared`](crate::shared) type or bytes,
+/// and nothing else in [`client`](crate::client) names anything from
+/// [`endpoints`](crate::endpoints). This one is handed THE REQUEST
+/// that started the run — an MCP plugin's
+/// [`request::Frame`](crate::endpoints::mcp_plugin::run::client::request::Frame)
+/// or an agentic loop's
+/// [`request::Frame`](crate::endpoints::agentic_loop::run::client::request::Frame)
+/// — and that is a deliberate exception rather than an oversight.
 ///
-/// A caller decides what a plugin's connection may REACH, and it decides
-/// that from who is asking and what is running. Neither is expressible
-/// in a shared type, because both are facts about this endpoint's
-/// request. A trait that could not say what a security decision rests on
-/// would be the worse violation of the two.
+/// A caller decides what a container's connection may REACH, and it
+/// decides that from who is asking and what is running. Neither is
+/// expressible in a shared type, because both are facts about the
+/// endpoint's request. A trait that could not say what a security
+/// decision rests on would be the worse violation of the two.
 ///
-/// It also makes explicit what was already true: this proxy answers one
-/// channel of one endpoint. [`OciProxy`](super::oci_proxy::OciProxy)
-/// serves two and [`McpProxy`](super::mcp_proxy::McpProxy) serves two,
-/// so their generality is real. This one's was only ever a fact about
-/// its imports.
-pub trait PostgresProxy: Send + Sync {
+/// Two endpoints carry the exchange, so the trait is generic in the
+/// request rather than naming one: a caller serving both implements
+/// it twice, once per request type, and a caller serving one
+/// implements it once. Nothing else about the exchange differs
+/// between them.
+pub trait PostgresProxy<Request>: Send + Sync {
     /// Open one connection, and splice it onto the pair of channels
     /// carrying it.
     ///
-    /// Everything the plugin writes arrives on `requests`; everything
-    /// the database says goes back on the returned stream. The
-    /// provider's channel finishes when that stream ends.
+    /// Everything the container writes arrives on `requests`;
+    /// everything the database says goes back on the returned stream.
+    /// The provider's channel finishes when that stream ends.
     ///
     /// # What `request` is for
     ///
     /// Deciding what this connection may reach.
     ///
-    /// A caller that puts its plugins in compartments — so that one
-    /// cannot read what another wrote — has to choose the compartment
-    /// from something, and the request is where that something is.
-    /// [`identity`](request::Frame::identity) says on whose behalf the
-    /// plugin runs; [`image`](request::Frame::image) says what is
-    /// running. Neither alone is enough: the same image on behalf of
-    /// two agents is two compartments, and two images on behalf of one
-    /// agent are also two.
+    /// A caller that puts its containers in compartments — so that
+    /// one cannot read what another wrote — has to choose the
+    /// compartment from something, and the request is where that
+    /// something is. For a plugin,
+    /// [`identity`](crate::endpoints::mcp_plugin::run::client::request::Frame::identity)
+    /// says on whose behalf it runs and
+    /// [`image`](crate::endpoints::mcp_plugin::run::client::request::Frame::image)
+    /// says what is running, and neither alone is enough: the same
+    /// image on behalf of two agents is two compartments, and two
+    /// images on behalf of one agent are also two. For a loop, the
+    /// [`agent`](crate::endpoints::agentic_loop::run::client::request::Frame::agent)
+    /// is what is running, and whose behalf is the caller's own
+    /// knowledge — it sent the request.
     ///
     /// Nothing in this specification performs that separation or
     /// requires it. What this argument does is make it POSSIBLE, which
@@ -130,13 +140,13 @@ pub trait PostgresProxy: Send + Sync {
     /// # Why the whole frame, and not the two fields
     ///
     /// Because the policy is the caller's and this specification
-    /// should not be the thing that bounds it. Narrowing to identity
-    /// and image would be a guess about what a compartment is derived
+    /// should not be the thing that bounds it. Narrowing to two
+    /// fields would be a guess about what a compartment is derived
     /// from, and a signature change the first time it is derived from
-    /// something else —
-    /// [`arguments`](request::Frame::arguments) being the obvious next
-    /// one, since a plugin's own configuration may name what it
-    /// expects to reach.
+    /// something else — a plugin's
+    /// [`arguments`](crate::endpoints::mcp_plugin::run::client::request::Frame::arguments)
+    /// being the obvious next one, since its own configuration may
+    /// name what it expects to reach.
     ///
     /// It costs nothing to hand over. This is the caller's own request
     /// coming back to it, already decoded, already held for the run's
@@ -144,12 +154,11 @@ pub trait PostgresProxy: Send + Sync {
     ///
     /// # It is the same every call
     ///
-    /// One plugin run is one scope is one request, and every
-    /// connection opened under it gets that request. So a proxy
-    /// deriving a compartment from it derives the same compartment
-    /// every time, which is the point — a plugin's own connections
-    /// belong together, and it is other plugins they are being kept
-    /// apart from.
+    /// One run is one scope is one request, and every connection
+    /// opened under it gets that request. So a proxy deriving a
+    /// compartment from it derives the same compartment every time,
+    /// which is the point — a run's own connections belong together,
+    /// and it is other runs they are being kept apart from.
     ///
     /// A borrow, because it belongs to the run rather than to any one
     /// connection and outlives all of them. An implementation that
@@ -166,15 +175,15 @@ pub trait PostgresProxy: Send + Sync {
     ///
     /// # What is on `requests`
     ///
-    /// Payload bytes, with the frame header off them — what the plugin
-    /// wrote and nothing else. Handing them on unmodified is the whole
-    /// job; anything prepended is nine bytes of garbage in front of a
-    /// startup message.
+    /// Payload bytes, with the frame header off them — what the
+    /// container wrote and nothing else. Handing them on unmodified is
+    /// the whole job; anything prepended is nine bytes of garbage in
+    /// front of a startup message.
     ///
     /// They arrive as the RESPONSES on the channel the caller opened for
     /// them, which is why they can end. Calling them requests is a claim
-    /// about pgwire — these are what the plugin asks the database — and
-    /// not about which frame carried them.
+    /// about pgwire — these are what the container asks the database —
+    /// and not about which frame carried them.
     ///
     /// They are not messages, which is the other thing the name is at
     /// risk of suggesting. A pgwire message may span several items and
@@ -251,39 +260,40 @@ pub trait PostgresProxy: Send + Sync {
     /// like a caller committing to a connection it has not got yet. It
     /// is the right way round.
     ///
-    /// The plugin wrote its startup message the instant it connected,
-    /// and the provider has been holding it since. Waiting for the dial
+    /// The container wrote its startup message the instant it
+    /// connected, and the provider has been holding it since. Waiting for the dial
     /// to succeed before asking for those bytes would put the round
     /// trip and the dial end to end instead of overlapping them, on
     /// every connection a pool opens.
     ///
     /// And declining costs nothing. A proxy that cannot dial returns a
     /// stream that ends; the caller finishes the provider's channel;
-    /// the provider closes the plugin's socket and finishes this one.
+    /// the provider closes the container's socket and finishes this
+    /// one.
     /// The exchange winds itself up, and what it cost was one channel
     /// that carried a few bytes nobody read.
     ///
-    /// # `None` means the plugin hung up
+    /// # `None` means the container hung up
     ///
     /// It is a real signal and the reason the exchange is shaped the way
     /// it is. `None` is the provider finishing the channel the caller
-    /// opened, which says the plugin's socket ended and no further byte
-    /// will ever be written by this connection.
+    /// opened, which says the container's socket ended and no further
+    /// byte will ever be written by this connection.
     ///
     /// Not "nothing right now" — a quiet channel is a channel still
     /// running, and nothing here times one out. The right response is to
     /// hang up on the database and let the returned stream end.
     ///
-    /// It matters most for the case the bytes cannot cover. A plugin
+    /// It matters most for the case the bytes cannot cover. A process
     /// that exits cleanly sends pgwire's `Terminate` (`'X'`) and the
-    /// database closes on its own; a plugin that CRASHES sends nothing,
-    /// and without this frame a caller would hold a backend for a client
+    /// database closes on its own; one that CRASHES sends nothing, and
+    /// without this frame a caller would hold a backend for a client
     /// that no longer exists.
     ///
-    /// The two directions are mirrors. This ending says the plugin is
-    /// gone; the returned stream ending says the database is, and
-    /// becomes a finish the provider acts on by shutting the plugin's
-    /// socket.
+    /// The two directions are mirrors. This ending says the container
+    /// is gone; the returned stream ending says the database is, and
+    /// becomes a finish the provider acts on by shutting the
+    /// container's socket.
     ///
     /// # Dropping the receiver is a real answer
     ///
@@ -294,7 +304,7 @@ pub trait PostgresProxy: Send + Sync {
     ///
     /// # The future is [`Send`]
     ///
-    /// Because a provider serves several plugins and a plugin may open
+    /// Because a provider serves several runs and a run may open
     /// several connections, so these overlap by design. It is spelled
     /// out rather than left to `async fn`, which promises nothing about
     /// the future it returns.
@@ -326,7 +336,7 @@ pub trait PostgresProxy: Send + Sync {
     /// signature a reader is checking theirs against.
     fn handle(
         &self,
-        request: &request::Frame,
+        request: &Request,
         request_receiver: UnboundedReceiver<Bytes>,
     ) -> impl Future<
         Output = Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>,
