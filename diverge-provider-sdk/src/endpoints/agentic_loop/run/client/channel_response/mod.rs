@@ -25,13 +25,20 @@
 //! and the receiver never has to know: a file's chunks are adjacent
 //! frames, and appending is the whole of reassembly.
 //!
+//! [`postgres`] is the tenth and the only one that is a SOCKET: what
+//! the caller's database says on one connection, as pgwire bytes
+//! never parsed, for as long as the connection lives — the finish
+//! being the database hanging up, and an empty finish the caller
+//! declining to dial. The container's writes travel the other way,
+//! on a channel the caller opens.
+//!
 //! There was another once, and it was the older way: a whole HTTP
 //! exchange tunneled, head and body and all. The five replaced
 //! everything it could do, so it is gone, and nothing a client sends
 //! on this endpoint is HTTP any more.
 //!
 //! Each stays a module in the path rather than being re-exported
-//! upward. It is what tells nine types called `Frame` apart, which
+//! upward. It is what tells ten types called `Frame` apart, which
 //! was the reason to keep the shape when there was only one of them.
 //!
 //! Note what is NOT here. The chunks of the loop itself are a response
@@ -49,6 +56,7 @@ pub mod mcp_list_resources;
 pub mod mcp_list_tools;
 pub mod mcp_notifications;
 pub mod mcp_read_resource;
+pub mod postgres;
 
 /// The most bytes one fetched frame's body carries — the SENDER's
 /// rule alone: a file larger than this leaves as adjacent frames,

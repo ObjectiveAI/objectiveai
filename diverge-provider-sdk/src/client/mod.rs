@@ -75,8 +75,9 @@
 //! [`oci_proxy`] serves an image, for a plugin run and a
 //! laboratory run alike. [`command_proxy`] runs a command a plugin has
 //! no binary for. [`postgres_proxy`] splices a connection onto the
-//! caller's database, and is handed the request that started the
-//! plugin so that a caller can decide what that connection may reach.
+//! caller's database — for a plugin run and an agentic loop alike —
+//! and is handed the request that started the run so that a caller
+//! can decide what that connection may reach.
 //!
 //! Which is one of the things here that name a type from
 //! [`endpoints`](crate::endpoints). All do it for the same reason:
@@ -115,7 +116,7 @@
 //! # Who asks for them
 //!
 //! [`agentic_loop::run`](crate::endpoints::agentic_loop::run::client::execute)
-//! takes an [`mcp_proxy`] and a [`fetch_proxy`];
+//! takes an [`mcp_proxy`], a [`fetch_proxy`] and a [`postgres_proxy`];
 //! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run::client::execute)
 //! takes an [`oci_proxy`], a [`postgres_proxy`] and a
 //! [`command_proxy`];

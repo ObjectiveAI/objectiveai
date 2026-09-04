@@ -7,18 +7,25 @@
 //! the addition cannot ride a new run request without ending this
 //! one.
 //!
-//! Two requests, both about the queue: [`enqueue`](Frame::Enqueue)
+//! Two requests are about the queue: [`enqueue`](Frame::Enqueue)
 //! puts a message in, [`dequeue`](Frame::Dequeue) clears whatever
 //! has not yet been taken. Each is answered once — by an
 //! [`enqueue::Frame`](crate::endpoints::agentic_loop::run::server::channel_response::enqueue::Frame)
 //! saying what became of the message, and a
 //! [`dequeue::Frame`](crate::endpoints::agentic_loop::run::server::channel_response::dequeue::Frame)
 //! saying whether the queue held anything.
+//!
+//! The third, [`Postgres`], is the caller's half of a database
+//! connection: the provider opened the other half, and this asks
+//! for the container's writes as a stream the provider can finish.
+//! It is answered for as long as the connection lives.
 
 mod dequeue;
 mod enqueue;
 mod frame;
+mod postgres;
 
 pub use dequeue::*;
 pub use enqueue::*;
 pub use frame::*;
+pub use postgres::*;
