@@ -101,7 +101,9 @@ use crate::shared::mcp;
 /// caller makes the caller's database the agent's memory, and
 /// leaves nothing to ship as a continuation but an identity. So the
 /// loop carries the same pair the plugin endpoint does, and the
-/// Container section names the port: `8082`.
+/// Container section names the port: `14980`, the container's own
+/// Postgres proxy, which carries each connection to the server over
+/// the [`postgres_proxy`](crate::postgres_proxy) wire.
 ///
 /// It is opened, never offered. A container that keeps its state on
 /// its filesystem never dials the port and never has one of these;
