@@ -2,11 +2,11 @@
 //!
 //! The program an `agentic_loop::run` server deploys for an agent
 //! whose `upstream` is `openrouter`, per the Container section of the
-//! provider specification: a WebSocket at `/` on port 8080, the
+//! provider specification: a WebSocket at `/` on port 14978, the
 //! server's first message the caller's request, every message back
 //! one frame of the container response vocabulary — the turns behind
 //! it run by [`r#loop`](r#loop::r#loop). The agent's tool calls go
-//! out as an MCP client against the in-container proxy on port 8081.
+//! out as an MCP client against the in-container proxy on port 14979.
 //! Beside the run, the queue's two verbs: `POST /enqueue` and `POST
 //! /dequeue`, per the SDK's `agentic_loop_container` module — the
 //! caller's way into the conversation already running. The
@@ -56,7 +56,7 @@ use crate::r#loop::Item;
 
 /// The loop port of the Container section of the provider
 /// specification: where the server opens the run's socket.
-const PORT: u16 = 8080;
+const PORT: u16 = 14978;
 
 /// Whether the container's one run has arrived.
 ///

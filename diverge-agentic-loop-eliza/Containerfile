@@ -1,5 +1,5 @@
-# The eliza agentic_loop image: the loop on 8080, the MCP proxy on
-# 8081, the Postgres proxy on 14980 and 14981, all musl binaries on
+# The eliza agentic_loop image: the loop on 14978, the MCP proxy on
+# 14979, the Postgres proxy on 14980 and 14981, all musl binaries on
 # Alpine.
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
@@ -58,9 +58,9 @@ RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\n/usr/local/
     > /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
 
-# The Container specification's ports: 8080 the loop, 8081 MCP,
+# The Container specification's ports: 14978 the loop, 14979 MCP,
 # 14981 the Postgres proxy's WebSocket. Its pgwire listener, 14980,
 # is loopback-only and not exposed.
-EXPOSE 8080 8081 14981
+EXPOSE 14978 14979 14981
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]

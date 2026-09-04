@@ -17,7 +17,7 @@ use tokio::sync::{Mutex, mpsc, oneshot};
 /// ports, and every connector's MCP ask dials it. Two copies would be
 /// two numbers the day one changed.
 // TODO: settled when the laboratory server is.
-pub(crate) const MCP_PORT: u16 = 8080;
+pub(crate) const MCP_PORT: u16 = 14978;
 
 /// Every laboratory this provider is running, keyed by the id its
 /// runner was told.

@@ -2,11 +2,11 @@
 //!
 //! The program an `agentic_loop::run` server deploys for an agent
 //! whose `upstream` is `claude_code`, per the Container section of the
-//! provider specification: a WebSocket at `/` on port 8080, the
+//! provider specification: a WebSocket at `/` on port 14978, the
 //! server's first message the caller's request, every message back
 //! one frame of the container response vocabulary — the run itself a
 //! Claude Code subprocess behind [`spawn`]. MCP is asked on port
-//! 8081, Postgres opened to port 8082. Beside the run, the queue's
+//! 14979, Postgres opened to port 14980. Beside the run, the queue's
 //! two verbs: `POST /enqueue` and `POST /dequeue`, per the SDK's
 //! `agentic_loop_container` module — the caller's way into the
 //! conversation already running: Claude Code holds the queue, and
@@ -46,7 +46,7 @@ use crate::continuation_fetcher::FetchError;
 
 /// The loop port of the Container section of the provider
 /// specification: where the server opens the run's socket.
-const PORT: u16 = 8080;
+const PORT: u16 = 14978;
 
 /// Whether the container's one run has arrived.
 ///
