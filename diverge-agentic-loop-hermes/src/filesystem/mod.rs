@@ -270,20 +270,23 @@ fn plan(request: &Request) -> Result<Plan, PrepareError> {
 /// a directory of skills, one skill, or a lone `SKILL.md` file. That
 /// is what turns the `skills` toolset on.
 fn skills_mounted(request: &Request) -> bool {
-    let under = |path: &String| {
-        path == EXTERNAL_SKILLS
-            || path.starts_with(&format!("{EXTERNAL_SKILLS}/"))
+    // The mount's path is components from the root; the constant is
+    // the same place as one string, split the same way.
+    let skills: Vec<&str> =
+        EXTERNAL_SKILLS.split('/').filter(|s| !s.is_empty()).collect();
+    let under = |path: &Vec<String>| {
+        path.len() >= skills.len()
+            && path
+                .iter()
+                .map(String::as_str)
+                .take(skills.len())
+                .eq(skills.iter().copied())
     };
     request
         .directory_mounts
         .iter()
-        .flatten()
-        .any(|(path, _)| under(path))
-        || request
-            .file_mounts
-            .iter()
-            .flatten()
-            .any(|(path, _)| under(path))
+        .chain(request.file_mounts.iter())
+        .any(|mount| under(&mount.path))
 }
 
 /// Stream the filesystem back out, after the gateway has exited:
