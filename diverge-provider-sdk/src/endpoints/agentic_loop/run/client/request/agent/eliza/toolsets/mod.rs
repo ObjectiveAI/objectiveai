@@ -7,8 +7,8 @@
 //! that takes a credential
 //! is an `Option` of its own structure, AUTH AS AN ARGUMENT exactly
 //! as for the provider: absent is off, present is on with that
-//! tool's key. Nothing about a tool's auth rides the filesystem, a
-//! mount, or the request's `environment`.
+//! tool's key. Nothing about a tool's auth rides the filesystem or
+//! a mount, and the request carries no environment for it to ride.
 //!
 //! Always on, no switch: `plugin-sql` (the database — required),
 //! the basic-capabilities bundle inside core (REPLY, IGNORE, NONE,

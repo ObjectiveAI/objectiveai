@@ -55,9 +55,9 @@ entry and the caller keeping its copy beats a lost run), and THEN
 the continuation, the closer, a piece at a time.
 
 `filesystem::prepare` turns the request's agent into the gateway's
-process environment (returned to the spawner — the request's own
-`environment` is the server's business and is never repeated),
-`config.yaml`, and the credential files, in one pass — and awaits
+process environment (returned to the spawner — the request carries
+no environment of its own; the agent's typed fields are the whole
+source), `config.yaml`, and the credential files, in one pass — and awaits
 the continuation's settlement (its chunks having landed on disk as
 they came, `filesystem::continuation`) IN PARALLEL with the resource
 fetches, since the two halves write disjoint files:

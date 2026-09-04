@@ -2,9 +2,10 @@
 //!
 //! AUTH IS AN ARGUMENT. Each provider here is a structure carrying
 //! exactly the credentials and endpoint facts that provider needs;
-//! nothing about a run's inference auth rides the filesystem, a
-//! mount, or the request's `environment` (which remains the TOOL
-//! credential channel — `FAL_KEY`, `HASS_TOKEN`, and friends).
+//! nothing about a run's inference auth rides the filesystem or a
+//! mount, and the request carries no environment for it to ride —
+//! tool credentials (`FAL_KEY`, `HASS_TOKEN`, and friends) are
+//! arguments on the toolset structures the same way.
 //!
 //! HOW THE HARNESS APPLIES IT: each structure's doc names the
 //! mechanism, and all but one reduce to setting the provider's
