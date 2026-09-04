@@ -1,5 +1,6 @@
-# The eliza agentic_loop image: the loop on 8080, the MCP proxy
-# on 8081, both musl binaries on Alpine.
+# The eliza agentic_loop image: the loop on 8080, the MCP proxy on
+# 8081, the Postgres proxy on 14980 and 14981, all musl binaries on
+# Alpine.
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
@@ -25,14 +26,18 @@ WORKDIR /build
 # the build does not pass --locked.
 COPY diverge-provider-sdk diverge-provider-sdk
 COPY diverge-container-mcp-proxy diverge-container-mcp-proxy
+COPY diverge-container-postgres-proxy diverge-container-postgres-proxy
 COPY diverge-agentic-loop-eliza diverge-agentic-loop-eliza
 COPY Cargo.lock diverge-agentic-loop-eliza/Cargo.lock
 COPY Cargo.lock diverge-container-mcp-proxy/Cargo.lock
+COPY Cargo.lock diverge-container-postgres-proxy/Cargo.lock
 
 RUN cargo build --release \
     --manifest-path diverge-agentic-loop-eliza/Cargo.toml
 RUN cargo build --release \
     --manifest-path diverge-container-mcp-proxy/Cargo.toml
+RUN cargo build --release \
+    --manifest-path diverge-container-postgres-proxy/Cargo.toml
 
 # alpine:latest, by digest.
 FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
@@ -43,14 +48,19 @@ COPY --from=build \
 COPY --from=build \
     /build/diverge-container-mcp-proxy/target/release/diverge-container-mcp-proxy \
     /usr/local/bin/diverge-container-mcp-proxy
+COPY --from=build \
+    /build/diverge-container-postgres-proxy/target/release/diverge-container-postgres-proxy \
+    /usr/local/bin/diverge-container-postgres-proxy
 
-# Two programs, one container: the proxy in the background, the loop
+# Three programs, one container: the two proxies in the background, the loop
 # in the foreground as the container's own life.
-RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\nexec /usr/local/bin/diverge-agentic-loop-eliza\n' \
+RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\n/usr/local/bin/diverge-container-postgres-proxy &\nexec /usr/local/bin/diverge-agentic-loop-eliza\n' \
     > /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
 
-# The Container specification's ports: 8080 the loop, 8081 MCP.
-EXPOSE 8080 8081
+# The Container specification's ports: 8080 the loop, 8081 MCP,
+# 14981 the Postgres proxy's WebSocket. Its pgwire listener, 14980,
+# is loopback-only and not exposed.
+EXPOSE 8080 8081 14981
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]

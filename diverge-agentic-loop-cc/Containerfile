@@ -1,6 +1,6 @@
 # The ClaudeCode agentic_loop image: the harness on 8080, the MCP
-# proxy on 8081, Claude Code itself spawned per run — everything as
-# root.
+# proxy on 8081, the Postgres proxy on 14980 and 14981, Claude Code
+# itself spawned per run — everything as root.
 #
 # The image ships NO Claude Code, for licensing reasons: the harness
 # installs the pinned version itself the moment it starts (the pin
@@ -32,14 +32,18 @@ WORKDIR /build
 # versions hold; cargo prunes what the crate does not use.
 COPY diverge-provider-sdk diverge-provider-sdk
 COPY diverge-container-mcp-proxy diverge-container-mcp-proxy
+COPY diverge-container-postgres-proxy diverge-container-postgres-proxy
 COPY diverge-agentic-loop-cc diverge-agentic-loop-cc
 COPY Cargo.lock diverge-agentic-loop-cc/Cargo.lock
 COPY Cargo.lock diverge-container-mcp-proxy/Cargo.lock
+COPY Cargo.lock diverge-container-postgres-proxy/Cargo.lock
 
 RUN cargo build --release \
     --manifest-path diverge-agentic-loop-cc/Cargo.toml
 RUN cargo build --release \
     --manifest-path diverge-container-mcp-proxy/Cargo.toml
+RUN cargo build --release \
+    --manifest-path diverge-container-postgres-proxy/Cargo.toml
 
 # debian:sid, by digest.
 FROM docker.io/library/debian:sid@sha256:c1acdb109bacb5adf0f2078892ac177ee2e2ce6f88e96c5b743998b5489d36a9
@@ -73,14 +77,19 @@ COPY --from=build \
 COPY --from=build \
     /build/diverge-container-mcp-proxy/target/release/diverge-container-mcp-proxy \
     /usr/local/bin/diverge-container-mcp-proxy
+COPY --from=build \
+    /build/diverge-container-postgres-proxy/target/release/diverge-container-postgres-proxy \
+    /usr/local/bin/diverge-container-postgres-proxy
 
-# Two programs, one container: the proxy in the background, the
+# Three programs, one container: the two proxies in the background, the
 # harness in the foreground as the container's own life.
-RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\nexec /usr/local/bin/diverge-agentic-loop-cc\n' \
+RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\n/usr/local/bin/diverge-container-postgres-proxy &\nexec /usr/local/bin/diverge-agentic-loop-cc\n' \
     > /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
 
-# The Container specification's ports: 8080 the loop, 8081 MCP.
-EXPOSE 8080 8081
+# The Container specification's ports: 8080 the loop, 8081 MCP,
+# 14981 the Postgres proxy's WebSocket. Its pgwire listener, 14980,
+# is loopback-only and not exposed.
+EXPOSE 8080 8081 14981
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
