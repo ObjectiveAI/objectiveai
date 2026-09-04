@@ -1,5 +1,6 @@
 # The hermes agentic_loop image: the loop on 8080, the MCP proxy on
-# 8081, both musl binaries laid into Hermes's OWN published image.
+# 8081, the Postgres proxy on 14980 and 14981, all musl binaries laid
+# into Hermes's OWN published image.
 #
 # The runtime is `nousresearch/hermes-agent`, pinned by tag AND digest
 # to the first release after the source this harness is written
@@ -16,7 +17,7 @@
 #     presence-detected, the tts floor and the fal generators are
 #     lazy installs, and lazy installs are DISABLED in Hermes's image
 #     — so they are installed up front, into Hermes's venv;
-#   - our two binaries and our entrypoint, which REPLACES the image's
+#   - our three binaries and our entrypoint, which REPLACES the image's
 #     s6 dispatcher: nothing auto-starts a gateway — `run::run` spawns
 #     it, with the environment the harness renders;
 #   - nothing else on disk: no ~/.hermes/.env (it would shadow the
@@ -51,14 +52,18 @@ WORKDIR /build
 # the build does not pass --locked.
 COPY diverge-provider-sdk diverge-provider-sdk
 COPY diverge-container-mcp-proxy diverge-container-mcp-proxy
+COPY diverge-container-postgres-proxy diverge-container-postgres-proxy
 COPY diverge-agentic-loop-hermes diverge-agentic-loop-hermes
 COPY Cargo.lock diverge-agentic-loop-hermes/Cargo.lock
 COPY Cargo.lock diverge-container-mcp-proxy/Cargo.lock
+COPY Cargo.lock diverge-container-postgres-proxy/Cargo.lock
 
 RUN cargo build --release \
     --manifest-path diverge-agentic-loop-hermes/Cargo.toml
 RUN cargo build --release \
     --manifest-path diverge-container-mcp-proxy/Cargo.toml
+RUN cargo build --release \
+    --manifest-path diverge-container-postgres-proxy/Cargo.toml
 
 # nousresearch/hermes-agent:v2026.8.31, by digest (amd64 + arm64).
 FROM docker.io/nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
@@ -79,16 +84,21 @@ COPY --from=build \
 COPY --from=build \
     /build/diverge-container-mcp-proxy/target/release/diverge-container-mcp-proxy \
     /usr/local/bin/diverge-container-mcp-proxy
+COPY --from=build \
+    /build/diverge-container-postgres-proxy/target/release/diverge-container-postgres-proxy \
+    /usr/local/bin/diverge-container-postgres-proxy
 
-# Two programs, one container: the proxy in the background, the loop
+# Three programs, one container: the two proxies in the background, the loop
 # in the foreground as the container's own life. This replaces the
 # image's s6 dispatcher entirely.
-RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\nexec /usr/local/bin/diverge-agentic-loop-hermes\n' \
+RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\n/usr/local/bin/diverge-container-postgres-proxy &\nexec /usr/local/bin/diverge-agentic-loop-hermes\n' \
     > /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
 
-# The Container specification's ports: 8080 the loop, 8081 MCP.
-EXPOSE 8080 8081
+# The Container specification's ports: 8080 the loop, 8081 MCP,
+# 14981 the Postgres proxy's WebSocket. Its pgwire listener, 14980,
+# is loopback-only and not exposed.
+EXPOSE 8080 8081 14981
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 CMD []
