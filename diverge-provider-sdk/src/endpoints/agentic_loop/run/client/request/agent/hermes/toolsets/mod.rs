@@ -10,7 +10,8 @@
 //! and get no file: a structure with no fields would only be
 //! ceremony.
 //! Nothing about a tool's auth
-//! rides the filesystem, a mount, or the request's `environment`.
+//! rides the filesystem or a mount, and the request carries no
+//! environment for it to ride.
 //!
 //! Where two toolsets name the same underlying variable (both
 //! generation tools apply `FAL_KEY`), a request supplying both MUST

@@ -82,28 +82,16 @@ pub struct Frame {
     /// too, the fetch riding the
     /// [`FetchDirectory`](crate::endpoints::agentic_loop::run::server::channel_request::Frame::FetchDirectory)
     /// exchange instead.
+    ///
+    /// The mounts are the caller's ONLY provisioning channel. There
+    /// is no environment on this request: every credential is an
+    /// argument on the agent — inference auth on its provider, tool
+    /// auth on its toolsets — and every other thing a container
+    /// needs is a typed field of the agent or a mount. A free map of
+    /// names would be a second, untyped way to carry what the typed
+    /// fields exist to carry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub directory_mounts: Option<IndexMap<String, String>>,
-    /// The environment, name to value — set on the container before
-    /// it starts, the same shape a laboratory run takes.
-    ///
-    /// A map rather than a list of `KEY=VALUE` strings, so one name
-    /// cannot appear twice with values that contradict each other.
-    /// Ordered, so the same environment always serializes identically.
-    ///
-    /// A provider may reserve names and will win any collision — it
-    /// has to, since some of what a container needs is delivered this
-    /// way. Which names are reserved is a provider's to state.
-    ///
-    /// Beside the mounts, this is the caller's other way of
-    /// provisioning a run — the channel for what nothing else
-    /// names. Credentials are NOT provisioned here: inference auth
-    /// is an argument on the agent's provider, and tool auth an
-    /// argument on its toolsets (hermes's provider and toolset
-    /// structures), so a provider-reserved name never has to carry
-    /// either.
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub environment: IndexMap<String, String>,
 }
 
 /// This frame's tag among the scope-opening requests.
