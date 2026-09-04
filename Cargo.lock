@@ -1772,6 +1772,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-container-postgres-proxy"
+version = "2.3.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "diverge-provider-sdk",
+ "futures-util",
+ "tokio",
+]
+
+[[package]]
 name = "diverge-provider-sdk"
 version = "2.3.0"
 dependencies = [

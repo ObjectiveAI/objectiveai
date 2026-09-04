@@ -1,0 +1,29 @@
+[package]
+name = "diverge-container-postgres-proxy"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Postgres conduit inside an agentic_loop container — pgwire over WebSocket, relayed to the caller's database"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# `ws` on top of the defaults: the WebSocket at `/` the server
+# connects into, and axum's upgrade is the listener half the wire
+# needs.
+axum = { version = "0.8.9", features = ["ws"] }
+# What a WebSocket message carries, and what a connection's bytes are
+# routed as — sliced out of the frame they arrived in, not copied.
+bytes = { version = "1.11.1", default-features = false }
+# Path-only: this crate rides the workspace and is never published, so
+# the SDK is named by where it lives rather than by a version pin
+# version.sh would have to chase.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+# `Sink`/`Stream` on the split socket, and `select` between a read and
+# the WebSocket going away.
+futures-util = { version = "0.3.33", default-features = false }
+# The runtime under the listeners. No `macros` — the runtime is built
+# in main, not attributed onto it, and the selects are futures-util's.
+tokio = { version = "1.53.1", default-features = false, features = ["io-util", "net", "rt-multi-thread", "sync", "time"] }
