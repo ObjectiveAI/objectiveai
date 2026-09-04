@@ -1,6 +1,6 @@
 ---
 title: 'Container'
-summary: 'The server executes each run in a container it deploys: one image per agent kind, fixed resources, and three in-container ports — the loop over HTTP and SSE, MCP, and Postgres.'
+summary: 'The server executes each run in a container it deploys: one image per agent kind, fixed resources, and four in-container ports — the loop, MCP, and the two of the Postgres conduit.'
 order: 2
 draft: false
 ---
@@ -24,14 +24,15 @@ handles across the container's boundary.
 
 ## Ports
 
-The server exposes three ports within the container. The container
-addresses all three on its own loopback interface.
+The server exposes four ports within the container. The container
+addresses all four on its own loopback interface.
 
 | Port | Traffic |
 |------|---------|
 | `8080` | The loop: the request in, over HTTP; the chunks out, over SSE. |
 | `8081` | MCP: the agent's tool calls, answered by the server. |
-| `8082` | Postgres: database sessions, routed to the caller. |
+| `14980` | Postgres, the agent's side: the database its driver dials. |
+| `14981` | Postgres, the server's side: the conduit's WebSocket, which the server connects into. |
 
 ## The loop
 
@@ -64,13 +65,19 @@ only that the container has no more to ask.
 
 ## Postgres
 
-The container opens connections to port `8082`. One TCP connection is
+The container runs a Postgres conduit. The agent's driver opens TCP
+connections to port `14980`, on the container's loopback, as if it
+were the database; the server connects into the conduit's WebSocket
+on port `14981`, one connection at a time, and every session the
+agent opens is announced and carried over it. One TCP connection is
 one database session, carrying the PostgreSQL wire protocol verbatim:
-the server relays the bytes unread, in both directions, and routes
-each connection to the caller. The count and timing of connections
-are the container's own — the server serves each as it is opened.
+the conduit and the server relay the bytes unread, in both
+directions, and the server routes each session to the caller. The
+count and timing of sessions are the container's own — the server
+serves each as it is opened.
 
 Either side closing the connection ends the session. PostgreSQL ends
 a session with a `Terminate` message before closing, so no half-close
-semantics are required: the server may treat either half closing as
-the connection's end.
+semantics are required: either half closing is the session's end.
+The WebSocket ending ends every session riding it; the next WebSocket
+begins with none.
