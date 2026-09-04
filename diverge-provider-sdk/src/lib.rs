@@ -63,6 +63,7 @@ pub mod agentic_loop_container;
 pub mod client;
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod connection;
+pub mod container_proxy;
 pub mod decode;
 pub mod encode;
 pub mod endpoints;
