@@ -21,7 +21,7 @@ diverge-provider-sdk = { path = "../diverge-provider-sdk" }
 # `Stream` and its combinators, for the chunk stream the response is.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
 # The MCP CLIENT half only: the agent's tool calls go to the in-container
-# proxy at 8081/mcp over Streamable HTTP, and nothing here serves MCP.
+# proxy at 14979/mcp over Streamable HTTP, and nothing here serves MCP.
 rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
 # The map types the OpenRouter shapes carry: ordered, so the same
 # request always serializes identically.

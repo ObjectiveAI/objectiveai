@@ -96,7 +96,7 @@ pub async fn handle<D>(
         // The loop, then the tool calls it makes — in that order, and
         // the calls below have to agree with it.
         // TODO: settled when the images are.
-        ports: vec![8080, 8081],
+        ports: vec![14978, 14979],
     };
 
     let deployed =
@@ -240,7 +240,7 @@ where
     C::Error: Into<Error>,
 {
     // TODO: the port is settled when the images are.
-    let requests = match container.mcp_serve(8081).await {
+    let requests = match container.mcp_serve(14979).await {
         Ok(requests) => requests,
         Err(error) => {
             write(scope, &response::Frame::Error(error.into())).await;
@@ -322,7 +322,7 @@ where
     };
 
     // TODO: the port is settled when the images are.
-    let mut chunks = match container.agentic_loop(8080, body).await {
+    let mut chunks = match container.agentic_loop(14978, body).await {
         Ok(chunks) => chunks,
         Err(error) => {
             return write(&scope, &response::Frame::Error(error.into())).await;

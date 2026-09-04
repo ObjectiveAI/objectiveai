@@ -84,7 +84,7 @@ pub async fn spawn(
         .arg("--dangerously-skip-permissions")
         .arg("--mcp-config")
         .arg(
-            r#"{"mcpServers":{"diverge":{"type":"http","url":"http://localhost:8081/mcp"}}}"#,
+            r#"{"mcpServers":{"diverge":{"type":"http","url":"http://localhost:14979/mcp"}}}"#,
         )
         .arg("--model")
         .arg(&agent.model)

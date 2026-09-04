@@ -29,15 +29,15 @@ addresses all four on its own loopback interface.
 
 | Port | Traffic |
 |------|---------|
-| `8080` | The loop: the request in, over HTTP; the chunks out, over SSE. |
-| `8081` | MCP: the agent's tool calls, answered by the server. |
+| `14978` | The loop: the request in, over HTTP; the chunks out, over SSE. |
+| `14979` | MCP: the agent's tool calls, answered by the server. |
 | `14980` | Postgres, the agent's side: the database its driver dials. |
 | `14981` | Postgres, the server's side: the conduit's WebSocket, which the server connects into. |
 
 ## The loop
 
 The server forwards the caller's request into the container over HTTP
-on port `8080`: the request's JSON — the request payload less its tag
+on port `14978`: the request's JSON — the request payload less its tag
 byte, byte for byte, so a member this specification does not model
 survives the trip.
 
@@ -53,7 +53,7 @@ of the run, and the server reports it as the scope's error.
 
 The container is the MCP client, and the caller holds the servers —
 so a tool call must leave the container before it can go anywhere.
-The container listens on port `8081`; the server connects and answers
+The container listens on port `14979`; the server connects and answers
 the container's MCP requests, relaying each as the corresponding
 [channel exchange](/endpoints/agentic-loop-run/channels/) and
 returning what the caller answers.

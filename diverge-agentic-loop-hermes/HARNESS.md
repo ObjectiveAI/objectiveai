@@ -70,7 +70,7 @@ fetches, since the two halves write disjoint files:
   `keenable`, `brave-free`, `searxng`, `firecrawl`; `tts.provider:
   elevenlabs` when keyed; `image_gen.provider` / `video_gen.provider:
   fal`), and the MCP proxy entry `diverge` →
-  `http://127.0.0.1:8081/mcp` with `trust: full`, elicitation AND
+  `http://127.0.0.1:14979/mcp` with `trust: full`, elicitation AND
   sampling disabled.
 - Toolset exposure is the explicit list `platform_toolsets.api_server`
   (the only deterministic form; there is no `disabled_toolsets`

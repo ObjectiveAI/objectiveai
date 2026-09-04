@@ -20,7 +20,7 @@ use crate::request::Tool;
 /// Where the in-container MCP proxy serves: its hard-coded port —
 /// the Container specification's MCP port — and rmcp's conventional
 /// path, on loopback.
-const MCP_PROXY: &str = "http://localhost:8081/mcp";
+const MCP_PROXY: &str = "http://localhost:14979/mcp";
 
 /// Run the whole agentic loop, and stream what it produces.
 ///

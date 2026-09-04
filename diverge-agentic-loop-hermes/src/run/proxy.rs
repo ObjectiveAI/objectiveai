@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 /// Where the proxy serves beside us: the Container specification's
 /// MCP port, on loopback.
-const ADDRESS: &str = "http://127.0.0.1:8081";
+const ADDRESS: &str = "http://127.0.0.1:14979";
 
 /// The proxy's answer to an enqueue — its own vocabulary, not the
 /// protocol's: `attached` is the fold, not a fate.

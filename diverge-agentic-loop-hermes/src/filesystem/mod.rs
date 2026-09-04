@@ -105,7 +105,7 @@ pub const MCP_PROXY_NAME: &str = "diverge";
 
 /// Where that proxy serves: the Container specification's MCP port,
 /// rmcp's conventional path, on loopback.
-pub const MCP_PROXY_URL: &str = "http://127.0.0.1:8081/mcp";
+pub const MCP_PROXY_URL: &str = "http://127.0.0.1:14979/mcp";
 
 /// Where the gateway's API server listens — loopback, for the run
 /// driver beside it and nobody else.

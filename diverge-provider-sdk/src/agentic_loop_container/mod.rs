@@ -1,7 +1,7 @@
 //! The HTTP surface every agentic-loop container serves.
 //!
 //! One definition, whatever the upstream behind it: a container
-//! serves a WebSocket at `/` on the loop port — `8080`, per the
+//! serves a WebSocket at `/` on the loop port — `14978`, per the
 //! Container section of the provider specification. The server's
 //! first binary message is THE request ([`request::Request`]), and
 //! every message the container sends back is one

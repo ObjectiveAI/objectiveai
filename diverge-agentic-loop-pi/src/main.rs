@@ -2,7 +2,7 @@
 //!
 //! The program an `agentic_loop::run` server deploys for an agent
 //! whose `upstream` is `pi`, per the Container section of the
-//! provider specification: one POST at `/` on port 8080 carries the
+//! provider specification: one POST at `/` on port 14978 carries the
 //! caller's request JSON in, and the answer is a server-sent event
 //! stream, each event one chunk of the response vocabulary. Beside
 //! the run, the queue's two verbs: `POST /enqueue` and `POST
@@ -25,7 +25,7 @@ use diverge_provider_sdk::agentic_loop_container;
 
 /// The loop port of the Container section of the provider
 /// specification: where the server POSTs the request in.
-const PORT: u16 = 8080;
+const PORT: u16 = 14978;
 
 /// Whether the container's one request has arrived.
 ///

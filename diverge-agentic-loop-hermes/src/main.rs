@@ -2,7 +2,7 @@
 //!
 //! The program an `agentic_loop::run` server deploys for an agent
 //! whose `upstream` is `hermes`, per the Container section of the
-//! provider specification: a WebSocket at `/` on port 8080, the
+//! provider specification: a WebSocket at `/` on port 14978, the
 //! server's first message the caller's request, every message back
 //! one frame of the container response vocabulary — the loop's
 //! chunks, the container's own `fetch_resource` asks for the agent's
@@ -49,7 +49,7 @@ use crate::run::{Item, notification};
 
 /// The loop port of the Container section of the provider
 /// specification: where the server opens the run's socket.
-const PORT: u16 = 8080;
+const PORT: u16 = 14978;
 
 /// Whether the container's one run has arrived.
 ///
