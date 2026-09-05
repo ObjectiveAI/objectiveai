@@ -5,7 +5,7 @@
 //! the container's loopback, [`LOOPBACK_PORT`], which the container's
 //! driver dials as if it were Postgres. Each connection the driver
 //! opens is ANNOUNCED on `/requests` — a
-//! [`Postgres`](crate::container_proxy::request::Request::Postgres)
+//! [`Postgres`](crate::container_proxy::requests::Request::Postgres)
 //! ask, kind `6`, carrying nothing but its channel — and the server
 //! opens `/postgres/{channel}` for it. That WebSocket is the
 //! connection: raw pgwire in both directions, one message one chunk,
