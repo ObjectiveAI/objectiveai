@@ -58,8 +58,8 @@
 //! | 1    | data               | close              |
 //! | 2    | close              |                    |
 
-pub mod container;
-pub mod server;
+pub mod request;
+pub mod response;
 
 mod error;
 

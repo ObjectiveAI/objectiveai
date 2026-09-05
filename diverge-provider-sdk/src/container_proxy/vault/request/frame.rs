@@ -1,7 +1,7 @@
 //! The frame the container sends on `/vault`.
 
-use super::FrameError;
-use super::request::{Request, RequestEncodeError};
+use super::super::FrameError;
+use super::{Request, RequestEncodeError};
 use crate::encode::{Encode, Writer};
 
 /// A frame sent by the container.
@@ -14,7 +14,7 @@ use crate::encode::{Encode, Writer};
 /// sends exactly one kind of frame: a request on a channel it
 /// minted. What kind of request is inside the request. The response
 /// and the finish that answer this are the server's —
-/// [`server::Frame`](super::server::Frame) — and the container sends
+/// [`response::Frame`](super::super::response::Frame) — and the container sends
 /// nothing on a channel it has opened.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Frame<'a> {

@@ -12,8 +12,8 @@ use crate::encode::{Encode, Writer};
 /// ```
 ///
 /// Which kinds a request may be answered with is stated on each
-/// [`Request`](super::request::Request) variant. The server's
-/// [`ChannelResponse`](super::server::Frame::ChannelResponse)
+/// [`Request`](super::super::request::Request) variant. The server's
+/// [`ChannelResponse`](super::Frame::ChannelResponse)
 /// carries this as its payload; the opener decodes it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Response<'a> {

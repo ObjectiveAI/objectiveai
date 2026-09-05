@@ -1,8 +1,8 @@
-//! Frames the server sends on `/command`.
+//! Frames the server sends on `/vault`.
 
 use std::convert::Infallible;
 
-use super::FrameError;
+use super::super::FrameError;
 use crate::encode::{Encode, Writer};
 
 /// A frame sent by the server — the provider, on the connection it
@@ -17,7 +17,7 @@ pub enum Frame<'a> {
     /// including none.
     ///
     /// Bytes to this layer: the opener decodes it as a
-    /// [`Response`](super::response::Response).
+    /// [`Response`](super::Response).
     ChannelResponse {
         /// The channel of the container request being answered.
         channel: u8,
@@ -59,7 +59,7 @@ impl<'a> Frame<'a> {
     /// Decode one frame from a WebSocket message's binary payload.
     /// The payload borrows from `bytes`.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
-        let (r#type, channel, payload) = super::split_header(bytes)?;
+        let (r#type, channel, payload) = super::super::split_header(bytes)?;
         match r#type {
             0 => Ok(Frame::ChannelResponse { channel, payload }),
             1 => Ok(Frame::ChannelResponseFinish { channel }),

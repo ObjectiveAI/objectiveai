@@ -1,7 +1,7 @@
 //! The frame the container sends on `/mcp`.
 
-use super::FrameError;
-use super::request::Request;
+use super::super::FrameError;
+use super::Request;
 use crate::encode::{Encode, Writer};
 
 /// A frame sent by the container.
@@ -14,7 +14,7 @@ use crate::encode::{Encode, Writer};
 /// sends exactly one kind of frame: an exchange on a channel it
 /// minted. Which exchange is inside the request. The responses and
 /// the finish that answer this are the server's —
-/// [`server::Frame`](super::server::Frame) — and the container sends
+/// [`response::Frame`](super::super::response::Frame) — and the container sends
 /// nothing on a channel it has opened.
 ///
 /// One of these per channel, and never a second — the channel carries
