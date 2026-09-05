@@ -19,9 +19,13 @@ use crate::shared::mcp;
 /// | `2` | [`McpCallTool`](Self::McpCallTool) | params JSON | `/mcp/call-tool/{channel}` |
 /// | `3` | [`McpReadResource`](Self::McpReadResource) | params JSON | `/mcp/read-resource/{channel}` |
 /// | `4` | [`McpNotifications`](Self::McpNotifications) | none | `/mcp/notifications/{channel}` |
-/// | `5` | [`Vault`](Self::Vault) | the operation, as [`vault::Request`] encodes | `/vault/{channel}` |
-/// | `6` | [`Command`](Self::Command) | the command, opaque | `/command/{channel}` |
-/// | `7` | [`Postgres`](Self::Postgres) | none | `/postgres/{channel}` |
+/// | `5` | [`VaultGet`](Self::VaultGet) | `[key…]` | `/vault/get/{channel}` |
+/// | `6` | [`VaultSet`](Self::VaultSet) | `[key_len: u16][key…][value…]` | `/vault/set/{channel}` |
+/// | `7` | [`VaultDelete`](Self::VaultDelete) | `[key…]` | `/vault/delete/{channel}` |
+/// | `8` | [`VaultLock`](Self::VaultLock) | `[ttl: u32][key…]` | `/vault/lock/{channel}` |
+/// | `9` | [`VaultUnlock`](Self::VaultUnlock) | `[key…]` | `/vault/unlock/{channel}` |
+/// | `10` | [`Command`](Self::Command) | the command, opaque | `/command/{channel}` |
+/// | `11` | [`Postgres`](Self::Postgres) | none | `/postgres/{channel}` |
 ///
 /// What each answer path carries is its module's to say: [`mcp`],
 /// [`vault`], [`command`](crate::container_proxy::command),
@@ -54,8 +58,16 @@ pub enum Request<'a> {
     /// unless the container asked; a container that never asks never
     /// hears one, at no cost to anyone.
     McpNotifications(mcp::notifications::request::Request),
-    /// One operation against the caller's vault. See [`vault`].
-    Vault(vault::Request<'a>),
+    /// Read a key of the caller's vault. See [`vault`].
+    VaultGet(vault::Get<'a>),
+    /// Write a key of the caller's vault. See [`vault`].
+    VaultSet(vault::Set<'a>),
+    /// Remove a key of the caller's vault. See [`vault`].
+    VaultDelete(vault::Delete<'a>),
+    /// Hold a key's lock for a while. See [`vault`].
+    VaultLock(vault::Lock<'a>),
+    /// Release a key's lock early. See [`vault`].
+    VaultUnlock(vault::Unlock<'a>),
     /// A diverge command for the caller to run: bytes in the CLI's
     /// own vocabulary, which this layer never reads. See
     /// [`command`](crate::container_proxy::command).
@@ -73,15 +85,18 @@ const MCP_LIST_RESOURCES: u8 = 1;
 const MCP_CALL_TOOL: u8 = 2;
 const MCP_READ_RESOURCE: u8 = 3;
 const MCP_NOTIFICATIONS: u8 = 4;
-const VAULT: u8 = 5;
-const COMMAND: u8 = 6;
-const POSTGRES: u8 = 7;
+const VAULT_GET: u8 = 5;
+const VAULT_SET: u8 = 6;
+const VAULT_DELETE: u8 = 7;
+const VAULT_LOCK: u8 = 8;
+const VAULT_UNLOCK: u8 = 9;
+const COMMAND: u8 = 10;
+const POSTGRES: u8 = 11;
 
 impl Encode for Request<'_> {
     /// The two payloads that can fail: MCP params are JSON, and a
-    /// vault key has a length prefix to overflow. A command is bytes
-    /// copied, and the notification ask and the announcement are
-    /// nothing.
+    /// vault `Set`'s key has a length prefix to overflow. Everything
+    /// else is bytes copied or nothing.
     type Error = RequestEncodeError;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), RequestEncodeError> {
@@ -108,9 +123,25 @@ impl Encode for Request<'_> {
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
             }
-            Request::Vault(request) => {
-                out.extend_from_slice(&[VAULT]);
+            Request::VaultGet(request) => {
+                out.extend_from_slice(&[VAULT_GET]);
+                request.encode(out).map_err(|error| match error {})
+            }
+            Request::VaultSet(request) => {
+                out.extend_from_slice(&[VAULT_SET]);
                 request.encode(out).map_err(RequestEncodeError::Vault)
+            }
+            Request::VaultDelete(request) => {
+                out.extend_from_slice(&[VAULT_DELETE]);
+                request.encode(out).map_err(|error| match error {})
+            }
+            Request::VaultLock(request) => {
+                out.extend_from_slice(&[VAULT_LOCK]);
+                request.encode(out).map_err(|error| match error {})
+            }
+            Request::VaultUnlock(request) => {
+                out.extend_from_slice(&[VAULT_UNLOCK]);
+                request.encode(out).map_err(|error| match error {})
             }
             Request::Command(command) => {
                 out.extend_from_slice(&[COMMAND]);
@@ -151,8 +182,20 @@ impl<'a> Request<'a> {
                 mcp::notifications::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
-            VAULT => vault::Request::decode(rest)
-                .map(Request::Vault)
+            VAULT_GET => vault::Get::decode(rest)
+                .map(Request::VaultGet)
+                .map_err(FrameError::Vault),
+            VAULT_SET => vault::Set::decode(rest)
+                .map(Request::VaultSet)
+                .map_err(FrameError::Vault),
+            VAULT_DELETE => vault::Delete::decode(rest)
+                .map(Request::VaultDelete)
+                .map_err(FrameError::Vault),
+            VAULT_LOCK => vault::Lock::decode(rest)
+                .map(Request::VaultLock)
+                .map_err(FrameError::Vault),
+            VAULT_UNLOCK => vault::Unlock::decode(rest)
+                .map(Request::VaultUnlock)
                 .map_err(FrameError::Vault),
             COMMAND => Ok(Request::Command(rest)),
             POSTGRES => Ok(Request::Postgres),
@@ -166,7 +209,7 @@ impl<'a> Request<'a> {
 pub enum RequestEncodeError {
     /// MCP params that would not serialize.
     Mcp(serde_json::Error),
-    /// A vault operation that would not encode.
+    /// A vault `Set` whose key would not fit its length prefix.
     Vault(vault::RequestEncodeError),
 }
 

@@ -5,12 +5,12 @@
 //! command it wants run has to be run by somebody who can. That is
 //! the caller. The container asks with a
 //! [`Command`](crate::container_proxy::requests::Request::Command) on
-//! `/requests` (kind `5`, the command's bytes), and the server
+//! `/requests` (kind `10`, the command's bytes), and the server
 //! answers on `/command/{channel}`: one message per
 //! [`Response`] the command produces, then the close.
 //!
 //! ```text
-//! the ask, after the channel:   [5][command…]
+//! the ask, after the channel:   [10][command…]
 //! the answer, per message:      [tag: u8][item… | error JSON…]
 //! ```
 //!
