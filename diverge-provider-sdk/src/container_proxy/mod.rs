@@ -10,7 +10,7 @@
 //!
 //! The container's own entrypoint listens on `14978`; that surface
 //! belongs to the `containers` endpoint and is not described here.
-//! The proxy listens on [`PORT`], `14979`, and serves five paths:
+//! The proxy listens on [`PORT`], `14979`, and serves these paths:
 //!
 //! | path        | shape    | who asks, who answers |
 //! |-------------|----------|-----------------------|
@@ -18,7 +18,7 @@
 //! | `/vault`    | exchange | the container reads, writes and locks keys the caller holds |
 //! | `/command`  | exchange | the container runs a diverge command; the caller streams the answer |
 //! | `/filetree` | stream   | the container streams its filesystem; the server reads |
-//! | `/mcp`      | exchange | the container's tool calls; the caller's MCP servers answer |
+//! | `/mcp/*`    | exchange | the container's MCP exchanges, one path each; the caller's MCP servers answer |
 //!
 //! One thing does not fit on the port: the pgwire listener the
 //! container's database driver dials is raw TCP, not HTTP, so it is
@@ -54,8 +54,8 @@
 //! `[channel: u8][request…]` outward and `[type: u8][channel:
 //! u8][payload…]` back, the type saying response or finish. Whether
 //! a channel that died with its connection is asked again is the
-//! path's rule: [`mcp`] re-asks, [`vault`] and [`command`] do not,
-//! and each says why.
+//! path's rule: the [`mcp`] paths re-ask, [`vault`] and [`command`]
+//! do not, and each says why.
 //!
 //! A SOCKET path ([`postgres`]) carries connections, not exchanges:
 //! bytes both ways in whatever order the two ends produce them,

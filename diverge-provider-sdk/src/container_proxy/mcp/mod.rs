@@ -1,34 +1,38 @@
-//! The `/mcp` path: the container's tool calls, answered by the
-//! caller's MCP servers.
+//! The `/mcp/*` paths: the container's MCP exchanges, answered by
+//! the caller's MCP servers.
 //!
 //! To the agent inside an agent container, the proxy is a fully
 //! compliant MCP server at `/mcp/agent` on the same port. Every
-//! exchange the agent asks of it leaves the container on this path,
-//! and the caller's servers answer on the far side of the provider.
+//! exchange the agent asks of it leaves the container on one of five
+//! paths — one per exchange — and the caller's servers answer on the
+//! far side of the provider.
 //!
-//! An exchange path (see [the module](super)): the container opens a
-//! channel with one [`Request`](request::Request), the server answers
-//! with the exchange's responses and the finish.
+//! | path                   | exchange           | answered |
+//! |------------------------|--------------------|----------|
+//! | `/mcp/list-tools`      | [`list_tools`]     | once     |
+//! | `/mcp/list-resources`  | [`list_resources`] | once     |
+//! | `/mcp/call-tool`       | [`call_tool`]      | once     |
+//! | `/mcp/read-resource`   | [`read_resource`]  | once     |
+//! | `/mcp/notifications`   | [`notifications`]  | a stream |
+//!
+//! The five are what an MCP server is once the transport is taken
+//! off it: a client POSTs a JSON-RPC message for the first four and
+//! opens a stream with a bare `GET` for the fifth. The verb is the
+//! whole of the distinction there, and the path is the whole of it
+//! here — which is why there is no request enum: a path names one
+//! exchange, so both its frames are typed end to end with the
+//! shapes [`shared::mcp`](crate::shared::mcp) defines.
+//!
+//! Every path is an exchange path (see [the module](super)): the
+//! container opens a channel with one request, the server answers
+//! with the exchange's response — or, on the notification path,
+//! one response per notification for as long as the channel lives —
+//! and the finish.
 //!
 //! ```text
-//! container → server:  [channel: u8][tag: u8][params JSON…]
-//! server → container:  [type: u8][channel: u8][payload…]
+//! container → server:  [channel: u8][params JSON…]
+//! server → container:  [type: u8][channel: u8][response JSON…]
 //! ```
-//!
-//! # The request is typed, and the responses are not
-//!
-//! A [`Request`](request::Request) is one of the five MCP exchanges,
-//! as [`shared::mcp`](crate::shared::mcp) defines them, with a tag
-//! byte saying which. A response stays bytes, and not for want of a
-//! type: which exchange a response answers is known only to whoever
-//! opened the channel, and the payload's own tag — result or error —
-//! discriminates within an exchange, not between them. The opener
-//! decodes with the response type of the exchange it asked for.
-//!
-//! Four of the five are answered once and finished; notifications is
-//! a stream — one response per notification for as long as the
-//! channel lives — because in MCP it is not a method but the place a
-//! server pushes into.
 //!
 //! # A connection dying does not fail an exchange
 //!
@@ -43,17 +47,12 @@
 //! is not re-asked is the deliberate one: a finish with no response
 //! is the far side's statement, not an accident.
 //!
-//! # Types
-//!
-//! | type | server |
-//! |------|--------|
-//! | 0    | channel response |
-//! | 1    | channel response finish |
+//! Each path holds its own connection, its own channels and its own
+//! fate; a notification stream dying does not un-answer a tool call
+//! in flight on another path.
 
-pub mod request;
-pub mod response;
-
-mod error;
-
-pub use error::{FrameError, HEADER_LEN};
-use error::split_header;
+pub mod call_tool;
+pub mod list_resources;
+pub mod list_tools;
+pub mod notifications;
+pub mod read_resource;
