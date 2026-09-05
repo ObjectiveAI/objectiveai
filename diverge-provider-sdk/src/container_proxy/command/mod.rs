@@ -4,10 +4,10 @@
 //! A container has no CLI binary and no daemon it may dial, so a
 //! command it wants run has to be run by somebody who can. That is
 //! the caller. The container asks with a
-//! [`Command`](crate::container_proxy::requests::Request::Command) on
+//! [`Command`](crate::container_proxy::requests::request::Request::Command) on
 //! `/requests` (kind `10`, the command's bytes), and the server
 //! answers on `/command/{channel}`: one message per
-//! [`Response`] the command produces, then the close.
+//! [`response::Frame`] the command produces, then the close.
 //!
 //! ```text
 //! the ask, after the channel:   [10][command…]
@@ -27,7 +27,7 @@
 //!
 //! A command yielding a thousand rows delivers them as a thousand
 //! messages, each as it lands, and the close is the end of the
-//! command. An [`Error`](Response::Error) is the caller saying the
+//! command. An [`Error`](response::Frame::Error) is the caller saying the
 //! command did not finish; it is the last message when present. The
 //! first message or the close is the acknowledgement, and nothing
 //! times anything out.
@@ -38,6 +38,5 @@
 //! died mid-stream, is a command whose outcome is unknown, and it is
 //! reported to whoever asked as failed rather than run again.
 
-mod response;
-
-pub use response::*;
+pub mod request;
+pub mod response;

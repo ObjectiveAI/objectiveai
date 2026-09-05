@@ -30,7 +30,7 @@ impl error::Error for RequestError {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RequestEncodeError {
     /// A key of more bytes than a two-byte length prefix can say,
-    /// carrying how many there were. Only [`Set`](super::Set)
+    /// carrying how many there were. Only [`set`](super::set)
     /// prefixes its key; the others take any length.
     KeyLength(usize),
 }

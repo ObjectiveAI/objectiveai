@@ -35,7 +35,7 @@
 //! # A request is a frame; an answer is a WebSocket
 //!
 //! The container asks on [`/requests`](requests): one
-//! [`Frame`](requests::Frame) per ask, carrying a CHANNEL the
+//! [`Frame`](requests::request::Frame) per ask, carrying a CHANNEL the
 //! container minted and the ask itself. The server answers by
 //! opening a WebSocket at the ask's own path with that channel in
 //! it, sending the answer as RAW messages — the response type and
@@ -49,6 +49,18 @@
 //! requests not yet answered. A u32 rather than a small tag,
 //! because a channel now names a WebSocket rather than a slot in a
 //! table, and a database connection is one of them.
+//!
+//! # One shape per path, in this module
+//!
+//! A path is a module, and every path module has the same shape:
+//! `request/` holds what the CONTAINER sends — for an answer path,
+//! the ask payload that rides `/requests` as `request::Request`; for
+//! a path the container speaks on directly, its messages as
+//! `request::Frame` — and `response/` holds what the SERVER sends on
+//! the path, as `response::Frame`. Where a direction carries
+//! nothing, the folder still exists and says so; where a type is
+//! shared by several paths, each path's folder re-exports it rather
+//! than defining it again.
 //!
 //! # The rules every path shares
 //!

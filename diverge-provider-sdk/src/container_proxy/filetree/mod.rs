@@ -36,7 +36,4 @@
 //! and tolerates a frame it cannot apply.
 
 pub mod request;
-
-mod error;
-
-pub use error::FrameError;
+pub mod response;

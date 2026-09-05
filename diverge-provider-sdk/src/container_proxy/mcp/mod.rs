@@ -9,11 +9,11 @@
 //!
 //! | ask on `/requests` | kind | answered on | with one message of |
 //! |--------------------|------|-------------|---------------------|
-//! | [`McpListTools`](crate::container_proxy::requests::Request::McpListTools) | `0` | `/mcp/list-tools/{channel}` | [`list_tools::response::Frame`](crate::shared::mcp::list_tools::response::Frame) |
-//! | [`McpListResources`](crate::container_proxy::requests::Request::McpListResources) | `1` | `/mcp/list-resources/{channel}` | [`list_resources::response::Frame`](crate::shared::mcp::list_resources::response::Frame) |
-//! | [`McpCallTool`](crate::container_proxy::requests::Request::McpCallTool) | `2` | `/mcp/call-tool/{channel}` | [`call_tool::response::Frame`](crate::shared::mcp::call_tool::response::Frame) |
-//! | [`McpReadResource`](crate::container_proxy::requests::Request::McpReadResource) | `3` | `/mcp/read-resource/{channel}` | [`read_resource::response::Frame`](crate::shared::mcp::read_resource::response::Frame) |
-//! | [`McpNotifications`](crate::container_proxy::requests::Request::McpNotifications) | `4` | `/mcp/notifications/{channel}` | [`notifications::response::Frame`](crate::shared::mcp::notifications::response::Frame), one per notification |
+//! | [`McpListTools`](crate::container_proxy::requests::request::Request::McpListTools) | `0` | `/mcp/list-tools/{channel}` | [`list_tools::response::Frame`] |
+//! | [`McpListResources`](crate::container_proxy::requests::request::Request::McpListResources) | `1` | `/mcp/list-resources/{channel}` | [`list_resources::response::Frame`] |
+//! | [`McpCallTool`](crate::container_proxy::requests::request::Request::McpCallTool) | `2` | `/mcp/call-tool/{channel}` | [`call_tool::response::Frame`] |
+//! | [`McpReadResource`](crate::container_proxy::requests::request::Request::McpReadResource) | `3` | `/mcp/read-resource/{channel}` | [`read_resource::response::Frame`] |
+//! | [`McpNotifications`](crate::container_proxy::requests::request::Request::McpNotifications) | `4` | `/mcp/notifications/{channel}` | [`notifications::response::Frame`], one per notification |
 //!
 //! The five are what an MCP server is once the transport is taken
 //! off it: a client POSTs a JSON-RPC message for the first four and
@@ -45,3 +45,9 @@
 //! side's statement, not an accident. A notification stream that
 //! died is re-asked the same way, and what it missed in between is
 //! missed — notifications are not replayed.
+
+pub mod call_tool;
+pub mod list_resources;
+pub mod list_tools;
+pub mod notifications;
+pub mod read_resource;

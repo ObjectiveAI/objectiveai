@@ -1,6 +1,6 @@
 //! The frame the container sends on `/filetree`.
 
-use super::super::FrameError;
+use super::FrameError;
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::shared::filetree;
