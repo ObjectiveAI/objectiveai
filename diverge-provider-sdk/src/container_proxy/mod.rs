@@ -1,6 +1,6 @@
 //! The wire between a provider server and the proxy inside a
 //! container: one path for every request, a path per answer, and
-//! two streams.
+//! one stream.
 //!
 //! Every container the provider runs — an AGENT container, whose
 //! entrypoint runs an agentic loop on a prompt, and an MCP container,
@@ -18,10 +18,10 @@
 //! |-------------------------------------|---------|
 //! | `/requests`                         | every request the container makes; nothing comes back on it |
 //! | `/mcp/list-tools/{channel}` and its three siblings | one MCP response, then the close |
+//! | `/mcp/notifications/{channel}`      | notifications as they come, then the close |
 //! | `/vault/{channel}`                  | one vault response, then the close |
 //! | `/command/{channel}`                | the command's items, then the close |
 //! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
-//! | `/mcp/notifications`                | notifications, pushed; the container is silent |
 //! | `/filetree`                         | filetree frames, sent by the container; the server is silent |
 //!
 //! One thing does not fit on the port: the pgwire listener the
@@ -54,9 +54,9 @@
 //!
 //! - Every message is one WebSocket BINARY frame. Text is a peer
 //!   speaking something else, and the connection ends.
-//! - The SERVER dials. `/requests`, `/filetree` and
-//!   `/mcp/notifications` accept exactly one connection at a time,
-//!   a second refused with `409` before the upgrade. An answer path
+//! - The SERVER dials. `/requests` and `/filetree` accept exactly
+//!   one connection at a time, a second refused with `409` before
+//!   the upgrade. An answer path
 //!   is accepted for a channel the container announced and the
 //!   server has not yet opened — an unknown channel is refused with
 //!   `404`, a second opening with `409`.
@@ -78,8 +78,8 @@
 //! was never opened is a driver socket the proxy closes. An answer
 //! path dying is that one request failing, by the same rule per
 //! kind — and a postgres path dying is that session ending, the
-//! driver's socket shut. The stream paths ([`filetree`],
-//! [`mcp::notifications`]) simply start over on the next connection.
+//! driver's socket shut. The stream path ([`filetree`]) simply
+//! starts over on the next connection.
 
 pub mod command;
 pub mod filetree;
