@@ -6,13 +6,13 @@
 //! driver dials as if it were Postgres. Each connection the driver
 //! opens is ANNOUNCED on `/requests` — a
 //! [`Postgres`](crate::container_proxy::requests::Request::Postgres)
-//! ask, kind `6`, carrying nothing but its channel — and the server
+//! ask, kind `11`, carrying nothing but its channel — and the server
 //! opens `/postgres/{channel}` for it. That WebSocket is the
 //! connection: raw pgwire in both directions, one message one chunk,
 //! never parsed, no frame around it, until either side closes.
 //!
 //! ```text
-//! the ask, after the channel:   [6]
+//! the ask, after the channel:   [11]
 //! the conduit, either way:      [pgwire bytes…]
 //! ```
 //!

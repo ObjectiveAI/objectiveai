@@ -19,7 +19,7 @@
 //! | `/requests`                         | every request the container makes; nothing comes back on it |
 //! | `/mcp/list-tools/{channel}` and its three siblings | one MCP response, then the close |
 //! | `/mcp/notifications/{channel}`      | notifications as they come, then the close |
-//! | `/vault/{channel}`                  | one vault response, then the close |
+//! | `/vault/get/{channel}` and its four siblings | one vault answer, then the close |
 //! | `/command/{channel}`                | the command's items, then the close |
 //! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
 //! | `/filetree`                         | filetree frames, sent by the container; the server is silent |
@@ -74,7 +74,8 @@
 //! asked again on the next connection, at-least-once accepted,
 //! because the agent inside is waiting; a [`vault`] operation and a
 //! [`command`] are reported to whoever asked as failed, because
-//! neither is safe to repeat; a [`postgres`] announcement whose path
+//! neither is safe to repeat (a lock already held outlives the dead
+//! connection by its TTL); a [`postgres`] announcement whose path
 //! was never opened is a driver socket the proxy closes. An answer
 //! path dying is that one request failing, by the same rule per
 //! kind — and a postgres path dying is that session ending, the
