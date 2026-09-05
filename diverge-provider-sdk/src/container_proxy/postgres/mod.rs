@@ -5,7 +5,7 @@
 //! the container's loopback, [`LOOPBACK_PORT`], which the container's
 //! driver dials as if it were Postgres. Each connection the driver
 //! opens is ANNOUNCED on `/requests` — a
-//! [`Postgres`](crate::container_proxy::requests::Request::Postgres)
+//! [`Postgres`](crate::container_proxy::requests::request::Request::Postgres)
 //! ask, kind `11`, carrying nothing but its channel — and the server
 //! opens `/postgres/{channel}` for it. That WebSocket is the
 //! connection: raw pgwire in both directions, one message one chunk,
@@ -45,7 +45,13 @@
 //! from the driver's side: its socket is shut. A socket cannot be
 //! resumed and pgwire cannot be replayed, so nothing is retried.
 //!
-//! No types: there is no frame here, only bytes.
+//! The types here are the shape every path has and nothing more:
+//! [`request::Request`] is the announcement, carrying nothing, and
+//! [`request::Frame`] / [`response::Frame`] are a chunk of pgwire in
+//! each direction — bytes borrowed, never parsed.
+
+pub mod request;
+pub mod response;
 
 /// The port the container's database driver dials, on the
 /// container's loopback: the proxy's pgwire listener. Not on the

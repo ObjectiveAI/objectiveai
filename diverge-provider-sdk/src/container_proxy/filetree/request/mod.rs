@@ -1,6 +1,8 @@
 //! What the container sends on `/filetree`: one filetree event per
-//! frame. The server sends nothing, so there is no `response`.
+//! frame.
 
+mod error;
 mod frame;
 
+pub use error::*;
 pub use frame::*;
