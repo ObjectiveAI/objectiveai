@@ -1,68 +1,35 @@
-//! Frames the server sends on `/mcp/notifications`.
+//! The frame the server sends on `/mcp/notifications`.
 
 use super::super::FrameError;
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::shared::mcp;
 
-/// A frame sent by the server — the provider, on the connection it
-/// opened into the container.
+/// A frame sent by the server: one notification, the whole message.
 ///
-/// The answering half: responses on a channel the container opened,
-/// and the finish that ends it. Typed, because the path names the
-/// exchange: what answers on this path is always
-/// [`mcp::notifications::response::Frame`].
+/// A newtype over the shared frame, because the wire adds nothing to
+/// it — no header, no channel, no type. An
+/// [`Error`](mcp::notifications::response::Frame::Error) is the last
+/// one on a connection.
 ///
 /// No `PartialEq`, because the notification it carries has none.
 #[derive(Debug, Clone)]
-pub enum Frame {
-    /// Type `0`. One notification. There are as many of these as the servers
-    /// send for as long as the channel lives; an error is the last.
-    ChannelResponse {
-        /// The channel of the container request being answered.
-        channel: u8,
-        /// One notification, or the error that ends the stream.
-        response: mcp::notifications::response::Frame,
-    },
-    /// Type `1`. The answer is complete and the channel is closed.
-    /// Nothing follows on it, and the number is free again.
-    ///
-    /// With no response preceding it, this states that the exchange
-    /// could not be served.
-    ChannelResponseFinish {
-        /// The channel of the container request being answered.
-        channel: u8,
-    },
-}
+pub struct Frame(pub mcp::notifications::response::Frame);
 
 impl Encode for Frame {
-    /// The response's own failure: it is JSON. The finish cannot fail.
+    /// The notification's own failure: it is JSON.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
-        match self {
-            Frame::ChannelResponse { channel, response } => {
-                out.extend_from_slice(&[0, *channel]);
-                response.encode(out)
-            }
-            Frame::ChannelResponseFinish { channel } => {
-                out.extend_from_slice(&[1, *channel]);
-                Ok(())
-            }
-        }
+        self.0.encode(out)
     }
 }
 
 impl Frame {
     /// Decode one frame from a WebSocket message's binary payload.
     pub fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
-        let (r#type, channel, payload) = super::super::split_header(bytes)?;
-        match r#type {
-            0 => mcp::notifications::response::Frame::decode(payload)
-                .map(|response| Frame::ChannelResponse { channel, response })
-                .map_err(FrameError::Response),
-            1 => Ok(Frame::ChannelResponseFinish { channel }),
-            other => Err(FrameError::UnknownType(other)),
-        }
+        mcp::notifications::response::Frame::decode(bytes)
+            .map(Frame)
+            .map_err(FrameError)
     }
 }

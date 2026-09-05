@@ -63,9 +63,10 @@
 //! minted, `[type: u8][connection: u32][payload…]` in both
 //! directions.
 //!
-//! A STREAM path ([`filetree`]) is one direction only: the container
-//! sends frames for as long as the connection lives, and the server
-//! sends nothing.
+//! A STREAM path is one direction only, for as long as the
+//! connection lives: on [`filetree`] the container sends and the
+//! server is silent; on [`mcp::notifications`] the server sends and
+//! the container is silent. Nothing is asked on either.
 
 pub mod command;
 pub mod filetree;
