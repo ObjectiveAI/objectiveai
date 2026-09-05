@@ -4,7 +4,7 @@
 //! A container has no CLI binary and no daemon it may dial, so a
 //! command it wants run has to be run by somebody who can. That is
 //! the caller. The container asks with a
-//! [`Command`](crate::container_proxy::request::Request::Command) on
+//! [`Command`](crate::container_proxy::requests::Request::Command) on
 //! `/requests` (kind `5`, the command's bytes), and the server
 //! answers on `/command/{channel}`: one message per
 //! [`Response`] the command produces, then the close.

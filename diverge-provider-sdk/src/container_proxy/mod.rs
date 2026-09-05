@@ -34,8 +34,8 @@
 //!
 //! # A request is a frame; an answer is a WebSocket
 //!
-//! The container asks on [`/requests`](request): one
-//! [`Frame`](request::Frame) per ask, carrying a CHANNEL the
+//! The container asks on [`/requests`](requests): one
+//! [`Frame`](requests::Frame) per ask, carrying a CHANNEL the
 //! container minted and the ask itself. The server answers by
 //! opening a WebSocket at the ask's own path with that channel in
 //! it, sending the answer as RAW messages — the response type and
@@ -85,7 +85,7 @@ pub mod command;
 pub mod filetree;
 pub mod mcp;
 pub mod postgres;
-pub mod request;
+pub mod requests;
 pub mod vault;
 
 /// The port the proxy listens on, inside the container. The server

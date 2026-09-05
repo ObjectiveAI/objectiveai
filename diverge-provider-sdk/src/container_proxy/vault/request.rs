@@ -6,7 +6,7 @@ use std::fmt;
 use crate::encode::{Encode, Writer};
 
 /// One operation against the caller's vault — the payload of a
-/// [`Vault`](crate::container_proxy::request::Request::Vault) ask.
+/// [`Vault`](crate::container_proxy::requests::Request::Vault) ask.
 ///
 /// ```text
 /// [op: u8][key_len: u16 BE][key: utf8…][value…]
