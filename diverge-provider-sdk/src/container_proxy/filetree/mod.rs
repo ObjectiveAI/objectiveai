@@ -36,4 +36,3 @@
 //! and tolerates a frame it cannot apply.
 
 pub mod request;
-pub mod response;
