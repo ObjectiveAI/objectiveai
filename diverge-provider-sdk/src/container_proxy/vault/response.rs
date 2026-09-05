@@ -5,16 +5,14 @@ use std::fmt;
 
 use crate::encode::{Encode, Writer};
 
-/// The one response on a vault channel, before the finish.
+/// The one message on `/vault/{channel}`, before the close.
 ///
 /// ```text
 /// [kind: u8][payload…]
 /// ```
 ///
-/// Which kinds a request may be answered with is stated on each
-/// [`Request`](super::super::request::Request) variant. The server's
-/// [`ChannelResponse`](super::Frame::ChannelResponse)
-/// carries this as its payload; the opener decodes it.
+/// Which kinds an operation may be answered with is stated on each
+/// [`Request`](super::Request) variant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Response<'a> {
     /// Kind `0`. Done: the set, delete or unlock happened, or the
@@ -24,7 +22,7 @@ pub enum Response<'a> {
     Value(&'a [u8]),
     /// Kind `2`. No such key.
     Missing,
-    /// Kind `3`. The request was refused or failed, and this says
+    /// Kind `3`. The operation was refused or failed, and this says
     /// why, for a reader rather than a program: nothing here is
     /// enumerated, because what a vault can refuse is the caller's
     /// policy and not this specification's.
@@ -57,16 +55,16 @@ impl Encode for Response<'_> {
 }
 
 impl<'a> Response<'a> {
-    /// Decode one response from a server frame's payload. The value
-    /// or message borrows from `bytes`.
+    /// Decode the one message. The value or message borrows from
+    /// `bytes`.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, ResponseError> {
         let (kind, rest) = bytes.split_first().ok_or(ResponseError::Empty)?;
         match *kind {
-            0 => Ok(Response::Ok),
+            0 => Ok(super::Response::Ok),
             1 => Ok(Response::Value(rest)),
-            2 => Ok(Response::Missing),
+            2 => Ok(super::Response::Missing),
             3 => std::str::from_utf8(rest)
-                .map(Response::Error)
+                .map(super::Response::Error)
                 .map_err(|_| ResponseError::MessageUtf8),
             other => Err(ResponseError::UnknownKind(other)),
         }
@@ -78,7 +76,7 @@ impl<'a> Response<'a> {
 pub enum ResponseError {
     /// No bytes at all, so not even a kind.
     Empty,
-    /// A kind this path does not define.
+    /// A kind this wire does not define.
     UnknownKind(u8),
     /// An error message that is not UTF-8.
     MessageUtf8,

@@ -8,11 +8,9 @@ use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// The payload of one
-/// [`ChannelResponse`](super::Frame::ChannelResponse) on a
-/// command channel.
+/// One message on `/command/{channel}`.
 ///
-/// A payload leads with one byte saying which — `0` for
+/// A message leads with one byte saying which — `0` for
 /// [`Item`](Self::Item), `1` for [`Error`](Self::Error) — and the
 /// rest is that variant's own bytes.
 ///
@@ -23,15 +21,15 @@ use crate::shared::error::Error;
 /// used for that, and a container that did not know the shape could
 /// not find out. [`Error`](Self::Error) is the caller saying the
 /// command did not finish. What arrived before it is what the
-/// command produced; nothing follows it, because the channel
-/// finishes after.
+/// command produced; nothing follows it, because the close comes
+/// after.
 ///
 /// # The item is opaque, and the tag does not change that
 ///
 /// The tag says whether there is an item, not what is in one.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Response<'a> {
-    /// One item, borrowed from the frame it arrived in. Tag `0`.
+    /// One item, borrowed from the message it arrived in. Tag `0`.
     Item(&'a [u8]),
     /// The command did not finish. Tag `1`.
     ///
@@ -69,14 +67,13 @@ impl Encode for Response<'_> {
 }
 
 impl<'a> Response<'a> {
-    /// Decode one response from a server frame's payload. An item
-    /// borrows from `bytes`.
+    /// Decode one message. An item borrows from `bytes`.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, ResponseError> {
         let (tag, rest) = bytes.split_first().ok_or(ResponseError::Empty)?;
         match *tag {
             ITEM => Ok(Response::Item(rest)),
             ERROR => Error::decode(rest)
-                .map(Response::Error)
+                .map(super::Response::Error)
                 .map_err(ResponseError::Error),
             tag => Err(ResponseError::UnknownTag(tag)),
         }

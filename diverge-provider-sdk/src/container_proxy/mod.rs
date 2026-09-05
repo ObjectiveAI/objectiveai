@@ -1,24 +1,28 @@
 //! The wire between a provider server and the proxy inside a
-//! container: five features, five paths, one port.
+//! container: one path for every request, a path per answer, and
+//! two streams.
 //!
 //! Every container the provider runs — an AGENT container, whose
 //! entrypoint runs an agentic loop on a prompt, and an MCP container,
 //! whose entrypoint is an MCP connection — carries one proxy program
 //! beside its own entrypoint. The proxy is how the container reaches
 //! the caller's world and how the caller sees into the container,
-//! and this module is the frames each of its five features rides.
+//! and this module is what rides its WebSockets.
 //!
 //! The container's own entrypoint listens on `14978`; that surface
 //! belongs to the `containers` endpoint and is not described here.
-//! The proxy listens on [`PORT`], `14979`, and serves these paths:
+//! The proxy listens on [`PORT`], `14979`, and the server dials
+//! every path on it:
 //!
-//! | path        | shape    | who asks, who answers |
-//! |-------------|----------|-----------------------|
-//! | `/postgres` | socket   | the container's driver dials a database; the caller's answers |
-//! | `/vault`    | exchange | the container reads, writes and locks keys the caller holds |
-//! | `/command`  | exchange | the container runs a diverge command; the caller streams the answer |
-//! | `/filetree` | stream   | the container streams its filesystem; the server reads |
-//! | `/mcp/*`    | exchange | the container's MCP exchanges, one path each; the caller's MCP servers answer |
+//! | path                                | carries |
+//! |-------------------------------------|---------|
+//! | `/requests`                         | every request the container makes; nothing comes back on it |
+//! | `/mcp/list-tools/{channel}` and its three siblings | one MCP response, then the close |
+//! | `/vault/{channel}`                  | one vault response, then the close |
+//! | `/command/{channel}`                | the command's items, then the close |
+//! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
+//! | `/mcp/notifications`                | notifications, pushed; the container is silent |
+//! | `/filetree`                         | filetree frames, sent by the container; the server is silent |
 //!
 //! One thing does not fit on the port: the pgwire listener the
 //! container's database driver dials is raw TCP, not HTTP, so it is
@@ -28,52 +32,62 @@
 //! `/mcp/agent` on this same port; that surface is MCP's own and
 //! not a wire of this module.
 //!
+//! # A request is a frame; an answer is a WebSocket
+//!
+//! The container asks on [`/requests`](request): one
+//! [`Frame`](request::Frame) per ask, carrying a CHANNEL the
+//! container minted and the ask itself. The server answers by
+//! opening a WebSocket at the ask's own path with that channel in
+//! it, sending the answer as RAW messages — the response type and
+//! nothing around it: no channel, no type byte, no finish — and then
+//! CLOSING. The close is the end of the answer, which is why nothing
+//! in a response message has to say so. An answer path opened and
+//! closed cleanly with no message is the server saying the request
+//! could not be served.
+//!
+//! The channel is a `u32` the container counts up, unique among its
+//! requests not yet answered. A u32 rather than a small tag,
+//! because a channel now names a WebSocket rather than a slot in a
+//! table, and a database connection is one of them.
+//!
 //! # The rules every path shares
 //!
 //! - Every message is one WebSocket BINARY frame. Text is a peer
 //!   speaking something else, and the connection ends.
-//! - The SERVER dials. The proxy accepts exactly one connection per
-//!   path at a time; a second arrival while one is live is refused
-//!   with `409` before the upgrade.
-//! - There is no handshake. The upgrade at the path is it, and the
-//!   first frame is protocol.
-//! - The paths are independent. Each holds its own state — its live
-//!   channels, its sessions, its locks — and one path's connection
-//!   dying kills only that state. What a death means is each path's
-//!   to say, and each says it.
+//! - The SERVER dials. `/requests`, `/filetree` and
+//!   `/mcp/notifications` accept exactly one connection at a time,
+//!   a second refused with `409` before the upgrade. An answer path
+//!   is accepted for a channel the container announced and the
+//!   server has not yet opened — an unknown channel is refused with
+//!   `404`, a second opening with `409`.
+//! - There is no handshake. The upgrade is it.
+//! - A clean close — the Close frame, the handshake — is an answer
+//!   complete or a session ended; an abrupt end is a connection
+//!   dying, and the two are told apart.
 //! - Nothing times anything out. A quiet connection is a connection
 //!   still running.
 //!
-//! # Three shapes
+//! # What dying means, stated once
 //!
-//! An EXCHANGE path ([`vault`], [`command`], [`mcp`]) is the
-//! channel discipline in miniature: the container opens a channel
-//! with one request, the server answers with responses on it and a
-//! finish, after which the channel is dead. The container mints the
-//! channels — a `u8`, unique among its live ones — so the frames are
-//! `[channel: u8][request…]` outward and `[type: u8][channel:
-//! u8][payload…]` back, the type saying response or finish. Whether
-//! a channel that died with its connection is asked again is the
-//! path's rule: the [`mcp`] paths re-ask, [`vault`] and [`command`]
-//! do not, and each says why.
-//!
-//! A SOCKET path ([`postgres`]) carries connections, not exchanges:
-//! bytes both ways in whatever order the two ends produce them,
-//! several connections at once, each named by a `u32` the container
-//! minted, `[type: u8][connection: u32][payload…]` in both
-//! directions.
-//!
-//! A STREAM path is one direction only, for as long as the
-//! connection lives: on [`filetree`] the container sends and the
-//! server is silent; on [`mcp::notifications`] the server sends and
-//! the container is silent. Nothing is asked on either.
+//! `/requests` dying loses the requests not yet answered. What
+//! happens to each is its kind's rule: the [`mcp`] exchanges are
+//! asked again on the next connection, at-least-once accepted,
+//! because the agent inside is waiting; a [`vault`] operation and a
+//! [`command`] are reported to whoever asked as failed, because
+//! neither is safe to repeat; a [`postgres`] announcement whose path
+//! was never opened is a driver socket the proxy closes. An answer
+//! path dying is that one request failing, by the same rule per
+//! kind — and a postgres path dying is that session ending, the
+//! driver's socket shut. The stream paths ([`filetree`],
+//! [`mcp::notifications`]) simply start over on the next connection.
 
 pub mod command;
 pub mod filetree;
 pub mod mcp;
 pub mod postgres;
+pub mod request;
 pub mod vault;
 
-/// The port the proxy listens on, inside the container, serving the
-/// five paths. The server dials it.
+/// The port the proxy listens on, inside the container. The server
+/// dials every path on it.
 pub const PORT: u16 = 14979;

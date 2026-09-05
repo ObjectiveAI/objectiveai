@@ -1,70 +1,51 @@
-//! The `/postgres` path: the container's database connections,
-//! carried to the caller.
+//! Postgres: the container's database connections, carried to the
+//! caller as raw conduits.
 //!
 //! The proxy is a database to the container: a plain TCP listener on
 //! the container's loopback, [`LOOPBACK_PORT`], which the container's
-//! driver dials as if it were Postgres. Every connection it opens is
-//! carried out over this path, and the server carries each one on to
-//! the caller, whose real database answers.
-//!
-//! Both directions frame the same way:
+//! driver dials as if it were Postgres. Each connection the driver
+//! opens is ANNOUNCED on `/requests` — a
+//! [`Postgres`](crate::container_proxy::request::Request::Postgres)
+//! ask, kind `6`, carrying nothing but its channel — and the server
+//! opens `/postgres/{channel}` for it. That WebSocket is the
+//! connection: raw pgwire in both directions, one message one chunk,
+//! never parsed, no frame around it, until either side closes.
 //!
 //! ```text
-//! [type: u8][connection: u32 big-endian][payload…]
+//! the ask, after the channel:   [6]
+//! the conduit, either way:      [pgwire bytes…]
 //! ```
 //!
-//! One byte says which, four name the connection, and the rest — on
-//! the two frames that carry any — is pgwire, never parsed. Fixed
-//! headers, no length prefix: WebSocket already delimits messages;
-//! see [`HEADER_LEN`].
+//! # A conduit, not a protocol
 //!
-//! # A connection is a socket, not an exchange
+//! Nothing is acknowledged, nothing is framed as a message — a
+//! pgwire message larger than one WebSocket message spans several,
+//! and each end reassembles as it would from a socket. The bytes are
+//! never parsed, which is what lets TLS negotiation and every
+//! protocol extension cross untouched. There is no open frame and no
+//! close frame: the path opening is the connection existing, and the
+//! WebSocket closing — cleanly or not — is the connection ending, on
+//! whichever side closed it.
 //!
-//! Bytes flow both ways in whatever order the two ends produce them,
-//! and either end closes. Nothing is acknowledged, nothing is framed
-//! as a message — a pgwire message larger than one frame spans
-//! several, and each end reassembles as it would from a socket. The
-//! bytes are never parsed, which is what lets TLS negotiation and
-//! every protocol extension cross untouched.
+//! # The driver may dial before the path exists
 //!
-//! # The container mints the connections
+//! pgwire is client-first: the driver writes its startup message the
+//! instant it connects. The proxy holds the socket — its first bytes
+//! wait in the kernel's buffer — until the server has opened the
+//! path, then pumps. A driver that dials before any `/requests`
+//! connection exists is held until one does and the announcement can
+//! be sent.
 //!
-//! Only the container opens connections — its driver dials, the
-//! proxy accepts — so there is one minter and nothing to collide
-//! with. A connection is a `u32`, counted up from `1`, unique among
-//! the container's LIVE connections; reuse after both ends have
-//! closed is fine, because nothing remembers.
+//! # What dying means here
 //!
-//! # A connection that arrives before the server is held
+//! The path ending is the connection ending: the proxy shuts the
+//! driver's socket, the driver sees a server that hung up, and a
+//! pool reconnects — which is a new announcement and a new path.
+//! `/requests` dying with an announcement not yet opened is the same
+//! from the driver's side: its socket is shut. A socket cannot be
+//! resumed and pgwire cannot be replayed, so nothing is retried.
 //!
-//! The driver may dial before the server has connected to this path.
-//! The proxy holds the socket — its first bytes wait in the kernel's
-//! buffer — until a server connection exists, then announces it.
-//!
-//! # The path dying kills every connection on it
-//!
-//! A socket cannot be resumed and pgwire cannot be replayed, so there
-//! is no retry law here. When the server's connection to this path
-//! ends, every database connection riding it is dead: the proxy
-//! closes each driver-side socket (the driver sees a server that
-//! hung up, and a pool reconnects), and the server finishes what it
-//! was carrying for each. The next connection starts with none.
-//!
-//! # Types
-//!
-//! | type | container → server | server → container |
-//! |------|--------------------|--------------------|
-//! | 0    | open               | data               |
-//! | 1    | data               | close              |
-//! | 2    | close              |                    |
-
-pub mod request;
-pub mod response;
-
-mod error;
-
-pub use error::{FrameError, HEADER_LEN};
-use error::split_header;
+//! No types: there is no frame here, only bytes.
 
 /// The port the container's database driver dials, on the
 /// container's loopback: the proxy's pgwire listener. Not on the

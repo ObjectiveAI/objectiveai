@@ -23,10 +23,9 @@
 //! In Streamable HTTP a client opens the notification stream with a
 //! bare `GET`: no method, no body, nothing to say. The container had
 //! nothing to put in a request but the wish to listen, and the
-//! connection existing is that wish. It also spares the container
-//! the one exchange the old wire opened before the agent had asked
-//! for anything — a server that has notifications sends them, and
-//! one that has none sends nothing, at no cost to anyone.
+//! connection existing is that wish. A server that has notifications
+//! sends them, and one that has none sends nothing, at no cost to
+//! anyone.
 //!
 //! # Every connection is a fresh stream
 //!
