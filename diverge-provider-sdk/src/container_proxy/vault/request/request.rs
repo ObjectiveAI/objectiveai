@@ -17,14 +17,14 @@ use crate::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Request<'a> {
     /// Kind `0`. Read the key. Answered with
-    /// [`Value`](super::response::Response::Value) or
-    /// [`Missing`](super::response::Response::Missing).
+    /// [`Value`](super::super::response::Response::Value) or
+    /// [`Missing`](super::super::response::Response::Missing).
     Get {
         /// The key.
         key: &'a str,
     },
     /// Kind `1`. Write the key, creating or replacing it. Answered
-    /// with [`Ok`](super::response::Response::Ok).
+    /// with [`Ok`](super::super::response::Response::Ok).
     Set {
         /// The key.
         key: &'a str,
@@ -32,22 +32,22 @@ pub enum Request<'a> {
         value: &'a [u8],
     },
     /// Kind `2`. Remove the key. Answered with
-    /// [`Ok`](super::response::Response::Ok) whether or not it
+    /// [`Ok`](super::super::response::Response::Ok) whether or not it
     /// existed — the state asked for is the state that results.
     Delete {
         /// The key.
         key: &'a str,
     },
     /// Kind `3`. Hold the key's lock, waiting for it. Answered with
-    /// [`Ok`](super::response::Response::Ok) once held — see [the
-    /// module](super) for whose the lock is and how it ends.
+    /// [`Ok`](super::super::response::Response::Ok) once held — see [the
+    /// module](super::super) for whose the lock is and how it ends.
     Lock {
         /// The key.
         key: &'a str,
     },
     /// Kind `4`. Release the key's lock. Answered with
-    /// [`Ok`](super::response::Response::Ok), or
-    /// [`Error`](super::response::Response::Error) when this
+    /// [`Ok`](super::super::response::Response::Ok), or
+    /// [`Error`](super::super::response::Response::Error) when this
     /// connection does not hold it.
     Unlock {
         /// The key.

@@ -2,7 +2,7 @@
 
 use std::convert::Infallible;
 
-use super::FrameError;
+use super::super::FrameError;
 use crate::encode::{Encode, Writer};
 
 /// A frame sent by the server, about a connection the container
@@ -66,7 +66,7 @@ impl<'a> Frame<'a> {
     /// Decode one frame from a WebSocket message's binary payload.
     /// The payload borrows from `bytes`.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
-        let (r#type, connection, payload) = super::split_header(bytes)?;
+        let (r#type, connection, payload) = super::super::split_header(bytes)?;
         match r#type {
             0 => Ok(Frame::Data {
                 connection,

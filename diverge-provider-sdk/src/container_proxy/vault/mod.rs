@@ -59,10 +59,8 @@
 //! | 0    | channel response |
 //! | 1    | channel response finish |
 
-pub mod container;
 pub mod request;
 pub mod response;
-pub mod server;
 
 mod error;
 

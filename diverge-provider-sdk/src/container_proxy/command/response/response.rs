@@ -9,7 +9,7 @@ use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
 /// The payload of one
-/// [`ChannelResponse`](super::server::Frame::ChannelResponse) on a
+/// [`ChannelResponse`](super::Frame::ChannelResponse) on a
 /// command channel.
 ///
 /// A payload leads with one byte saying which — `0` for

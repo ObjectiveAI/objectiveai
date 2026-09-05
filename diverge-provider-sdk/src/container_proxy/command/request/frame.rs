@@ -2,7 +2,7 @@
 
 use std::convert::Infallible;
 
-use super::FrameError;
+use super::super::FrameError;
 use crate::encode::{Encode, Writer};
 
 /// A frame sent by the container.
@@ -14,7 +14,7 @@ use crate::encode::{Encode, Writer};
 /// A struct, and no type byte in front of it, because the container
 /// sends exactly one kind of frame: a command on a channel it
 /// minted. The responses and the finish that answer this are the
-/// server's — [`server::Frame`](super::server::Frame) — and the
+/// server's — [`response::Frame`](super::super::response::Frame) — and the
 /// container sends nothing on a channel it has opened.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Frame<'a> {
