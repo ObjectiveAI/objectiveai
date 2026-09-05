@@ -1,8 +1,8 @@
 //! The `/filetree` path: the container's filesystem, streamed to the
 //! server.
 //!
-//! The one path where the server is the reader and the container the
-//! source. The proxy watches the container's filesystem from its
+//! The one stream path, and the one where the server is the reader
+//! and the container the source. The proxy watches the container's filesystem from its
 //! root and sends one [`Frame`](request::Frame) per event: first a
 //! snapshot of the whole tree, then one delta per change, for as
 //! long as the connection lives. Not a request — the server opens
