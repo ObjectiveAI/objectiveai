@@ -7,13 +7,13 @@
 //! paths — one per exchange — and the caller's servers answer on the
 //! far side of the provider.
 //!
-//! | path                   | exchange           | answered |
+//! | path                   | exchange           | shape    |
 //! |------------------------|--------------------|----------|
-//! | `/mcp/list-tools`      | [`list_tools`]     | once     |
-//! | `/mcp/list-resources`  | [`list_resources`] | once     |
-//! | `/mcp/call-tool`       | [`call_tool`]      | once     |
-//! | `/mcp/read-resource`   | [`read_resource`]  | once     |
-//! | `/mcp/notifications`   | [`notifications`]  | a stream |
+//! | `/mcp/list-tools`      | [`list_tools`]     | exchange, answered once |
+//! | `/mcp/list-resources`  | [`list_resources`] | exchange, answered once |
+//! | `/mcp/call-tool`       | [`call_tool`]      | exchange, answered once |
+//! | `/mcp/read-resource`   | [`read_resource`]  | exchange, answered once |
+//! | `/mcp/notifications`   | [`notifications`]  | stream, pushed by the server |
 //!
 //! The five are what an MCP server is once the transport is taken
 //! off it: a client POSTs a JSON-RPC message for the first four and
@@ -23,15 +23,17 @@
 //! exchange, so both its frames are typed end to end with the
 //! shapes [`shared::mcp`](crate::shared::mcp) defines.
 //!
-//! Every path is an exchange path (see [the module](super)): the
-//! container opens a channel with one request, the server answers
-//! with the exchange's response — or, on the notification path,
-//! one response per notification for as long as the channel lives —
-//! and the finish.
+//! Four are exchange paths (see [the module](super)): the container
+//! opens a channel with one request, the server answers with the
+//! exchange's response and the finish. The fifth is a stream path
+//! the other way round from [`filetree`](super::filetree): nothing
+//! is asked, and the server pushes each notification as the caller's
+//! servers produce it.
 //!
 //! ```text
-//! container → server:  [channel: u8][params JSON…]
-//! server → container:  [type: u8][channel: u8][response JSON…]
+//! exchange, container → server:  [channel: u8][params JSON…]
+//! exchange, server → container:  [type: u8][channel: u8][response JSON…]
+//! notifications, server → container:  [notification JSON…]
 //! ```
 //!
 //! # A connection dying does not fail an exchange
@@ -48,8 +50,9 @@
 //! is the far side's statement, not an accident.
 //!
 //! Each path holds its own connection, its own channels and its own
-//! fate; a notification stream dying does not un-answer a tool call
-//! in flight on another path.
+//! fate; the notification stream dying does not un-answer a tool
+//! call in flight on another path, and the container simply waits
+//! for the next connection to listen again.
 
 pub mod call_tool;
 pub mod list_resources;
