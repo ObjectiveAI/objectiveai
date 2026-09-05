@@ -6,4 +6,3 @@
 //! frame carried — see [the module](super).
 
 pub mod request;
-pub mod response;

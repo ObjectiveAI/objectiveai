@@ -57,10 +57,9 @@
 //! the ask payload that rides `/requests` as `request::Request`; for
 //! a path the container speaks on directly, its messages as
 //! `request::Frame` — and `response/` holds what the SERVER sends on
-//! the path, as `response::Frame`. Where a direction carries
-//! nothing, the folder still exists and says so; where a type is
-//! shared by several paths, each path's folder re-exports it rather
-//! than defining it again.
+//! the path, as `response::Frame`. A direction that carries nothing
+//! has no folder; where a type is shared by several paths, each
+//! path's folder re-exports it rather than defining it again.
 //!
 //! # The rules every path shares
 //!
