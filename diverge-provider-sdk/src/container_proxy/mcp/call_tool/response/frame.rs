@@ -1,30 +1,25 @@
-//! Frames the server sends on `/mcp`.
-
-use std::convert::Infallible;
+//! Frames the server sends on `/mcp/call-tool`.
 
 use super::super::FrameError;
+use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
+use crate::shared::mcp;
 
 /// A frame sent by the server — the provider, on the connection it
 /// opened into the container.
 ///
 /// The answering half: responses on a channel the container opened,
-/// and the finish that ends it. The server opens nothing — the
-/// container is the only minter on this path.
+/// and the finish that ends it. Typed, because the path names the
+/// exchange: what answers on this path is always
+/// [`mcp::call_tool::response::Frame`].
 #[derive(Debug, Clone, PartialEq)]
-pub enum Frame<'a> {
-    /// Type `0`. One piece of the answer. There may be any number,
-    /// including none.
-    ///
-    /// Bytes to this layer: which exchange it answers is known
-    /// only to whoever opened the channel, and the opener decodes it
-    /// with the response type of that exchange, as
-    /// [`shared::mcp`](crate::shared::mcp) defines them.
+pub enum Frame {
+    /// Type `0`. The answer. One of these, then the finish.
     ChannelResponse {
         /// The channel of the container request being answered.
         channel: u8,
-        /// The response bytes.
-        payload: &'a [u8],
+        /// What the tool returned, or the server's error.
+        response: mcp::call_tool::response::Frame,
     },
     /// Type `1`. The answer is complete and the channel is closed.
     /// Nothing follows on it, and the number is free again.
@@ -37,33 +32,32 @@ pub enum Frame<'a> {
     },
 }
 
-/// A frame writes its own header, and a payload never does.
-impl Encode for Frame<'_> {
-    /// [`Infallible`]: a header is fixed bytes and every payload is
-    /// bytes already.
-    type Error = Infallible;
+impl Encode for Frame {
+    /// The response's own failure: it is JSON. The finish cannot fail.
+    type Error = serde_json::Error;
 
-    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Infallible> {
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::ChannelResponse { channel, payload } => {
+            Frame::ChannelResponse { channel, response } => {
                 out.extend_from_slice(&[0, *channel]);
-                out.extend_from_slice(payload);
+                response.encode(out)
             }
             Frame::ChannelResponseFinish { channel } => {
                 out.extend_from_slice(&[1, *channel]);
+                Ok(())
             }
         }
-        Ok(())
     }
 }
 
-impl<'a> Frame<'a> {
+impl Frame {
     /// Decode one frame from a WebSocket message's binary payload.
-    /// The payload borrows from `bytes`.
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (r#type, channel, payload) = super::super::split_header(bytes)?;
         match r#type {
-            0 => Ok(Frame::ChannelResponse { channel, payload }),
+            0 => mcp::call_tool::response::Frame::decode(payload)
+                .map(|response| Frame::ChannelResponse { channel, response })
+                .map_err(FrameError::Response),
             1 => Ok(Frame::ChannelResponseFinish { channel }),
             other => Err(FrameError::UnknownType(other)),
         }

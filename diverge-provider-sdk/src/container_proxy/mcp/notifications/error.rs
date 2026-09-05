@@ -1,4 +1,6 @@
-//! Why a frame on the `/mcp` path could not be decoded.
+//! Why a frame on the `/mcp/notifications` path could not be decoded.
+
+use crate::shared::mcp;
 
 /// The bytes a SERVER frame's header occupies: `type` plus
 /// `channel`.
@@ -15,32 +17,31 @@ pub const HEADER_LEN: usize = 1 + 1;
 /// A frame that could not be read.
 ///
 /// Two are about the envelope — a header too short to read, a type
-/// nobody defines — and the third is the one payload this path
-/// types: a container request whose exchange would not decode. A server response's payload is bytes to
-/// this layer, so it has no failure to report here; what an opener's
-/// own decoder makes of one is reported by that decoder.
+/// nobody defines — and the rest are the payloads, which this path
+/// types on both sides.
 #[derive(Debug)]
 pub enum FrameError {
-    /// Fewer than [`HEADER_LEN`] bytes.
+    /// Fewer bytes than a header — a container frame with no channel
+    /// byte, or a server frame shorter than [`HEADER_LEN`].
     Truncated,
     /// A `type` this path does not define, on a server frame — the
     /// one direction that has a type byte to be wrong about.
     UnknownType(u8),
-    /// A container request that would not decode.
-    Request(super::request::RequestError),
+    /// A server response that would not decode as this exchange's.
+    Response(mcp::FrameError),
 }
 
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FrameError::Truncated => {
-                f.write_str("mcp frame is shorter than its header")
+                f.write_str("notifications frame is shorter than its header")
             }
             FrameError::UnknownType(byte) => {
-                write!(f, "unknown mcp frame type {byte}")
+                write!(f, "unknown notifications frame type {byte}")
             }
-            FrameError::Request(error) => {
-                write!(f, "an mcp request could not be read: {error}")
+            FrameError::Response(error) => {
+                write!(f, "notifications response did not decode: {error}")
             }
         }
     }
@@ -49,7 +50,7 @@ impl std::fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Request(error) => Some(error),
+            FrameError::Response(error) => Some(error),
             FrameError::Truncated | FrameError::UnknownType(_) => None,
         }
     }
@@ -57,9 +58,6 @@ impl std::error::Error for FrameError {
 
 /// Split a server frame's header off the front, returning
 /// `(type, channel, payload)`.
-///
-/// The server's alone: a container frame has no type byte, and its
-/// decoder splits the channel off itself.
 pub(super) fn split_header(
     bytes: &[u8],
 ) -> Result<(u8, u8, &[u8]), FrameError> {
