@@ -5,9 +5,10 @@
 //! source. The proxy watches the container's filesystem from its
 //! root and sends one [`Frame`](request::Frame) per event: first a
 //! snapshot of the whole tree, then one delta per change, for as
-//! long as the connection lives. The server sends NOTHING on this
-//! path; a message from it is a peer speaking something else, and
-//! the proxy closes.
+//! long as the connection lives. Not a request — the server opens
+//! the path and reads — and the server sends NOTHING on it; a
+//! message from it is a peer speaking something else, and the proxy
+//! closes.
 //!
 //! ```text
 //! container → server:  [postcard-encoded filetree frame…]
