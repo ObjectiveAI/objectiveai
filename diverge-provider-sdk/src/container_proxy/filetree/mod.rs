@@ -3,12 +3,13 @@
 //!
 //! The one stream path, and the one where the server is the reader
 //! and the container the source. The proxy watches the container's filesystem from its
-//! root and sends one [`Frame`](request::Frame) per event: first a
+//! root and sends one [`Frame`](response::Frame) per event: first a
 //! snapshot of the whole tree, then one delta per change, for as
-//! long as the connection lives. Not a request — the server opens
-//! the path and reads — and the server sends NOTHING on it; a
-//! message from it is a peer speaking something else, and the proxy
-//! closes.
+//! long as the connection lives. The server's opening of the path
+//! is the whole ask — it carries nothing, so there is no `request`
+//! here — and the stream is the answer; the server sends NOTHING on
+//! it, and a message from it is a peer speaking something else, at
+//! which the proxy closes.
 //!
 //! ```text
 //! container → server:  [postcard-encoded filetree frame…]
@@ -35,4 +36,4 @@
 //! that folds them with [`Root::update`](crate::shared::filetree::response::Root::update)
 //! and tolerates a frame it cannot apply.
 
-pub mod request;
+pub mod response;

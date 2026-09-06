@@ -23,6 +23,8 @@
 //! | `/command/{channel}`                | the command's items, then the close |
 //! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
 //! | `/filetree`                         | filetree frames, sent by the container; the server is silent |
+//! | `/read`                             | the server names a file; the container answers its bytes, then the close |
+//! | `/write`                            | the server names a file and sends its content; the container answers ok or error |
 //!
 //! One thing does not fit on the port: the pgwire listener the
 //! container's database driver dials is raw TCP, not HTTP, so it is
@@ -53,13 +55,16 @@
 //! # One shape per path, in this module
 //!
 //! A path is a module, and every path module has the same shape:
-//! `request/` holds what the CONTAINER sends — for an answer path,
-//! the ask payload that rides `/requests` as `request::Request`; for
-//! a path the container speaks on directly, its messages as
-//! `request::Frame` — and `response/` holds what the SERVER sends on
-//! the path, as `response::Frame`. A direction that carries nothing
-//! has no folder; where a type is shared by several paths, each
-//! path's folder re-exports it rather than defining it again.
+//! `request/` holds the ASK and `response/` the ANSWER, whichever
+//! side sends them. For the exchanges the container opens, the ask
+//! is the payload that rides `/requests` as `request::Request` (and,
+//! on postgres, the driver's bytes as `request::Frame`) and the
+//! answer is what the server sends on the path as `response::Frame`.
+//! For the paths the server opens — [`read`], [`write`](mod@write), [`filetree`]
+//! — the ask is the server's message, or nothing but the opening,
+//! and the answer is the container's. A direction that carries
+//! nothing has no folder; where a type is shared by several paths,
+//! each path's folder re-exports it rather than defining it again.
 //!
 //! # The rules every path shares
 //!
@@ -67,7 +72,8 @@
 //!   speaking something else, and the connection ends.
 //! - The SERVER dials. `/requests` and `/filetree` accept exactly
 //!   one connection at a time, a second refused with `409` before
-//!   the upgrade. An answer path
+//!   the upgrade; `/read` and `/write` accept as many as the server
+//!   opens, each one file. An answer path
 //!   is accepted for a channel the container announced and the
 //!   server has not yet opened — an unknown channel is refused with
 //!   `404`, a second opening with `409`.
@@ -91,14 +97,18 @@
 //! path dying is that one request failing, by the same rule per
 //! kind — and a postgres path dying is that session ending, the
 //! driver's socket shut. The stream path ([`filetree`]) simply
-//! starts over on the next connection.
+//! starts over on the next connection, and a [`read`] or [`write`](mod@write)
+//! whose socket died is that one file failing, nothing else, and
+//! nothing retries it.
 
 pub mod command;
 pub mod filetree;
 pub mod mcp;
 pub mod postgres;
+pub mod read;
 pub mod requests;
 pub mod vault;
+pub mod write;
 
 /// The port the proxy listens on, inside the container. The server
 /// dials every path on it.
