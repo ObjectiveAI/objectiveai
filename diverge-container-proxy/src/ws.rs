@@ -203,3 +203,12 @@ pub async fn vault_unlock(
 ) -> Response {
     answer(Kind::VaultUnlock, requests, upgrade, channel).await
 }
+
+/// `/command/{channel}`.
+pub async fn command(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::Command, requests, upgrade, channel).await
+}
