@@ -7,14 +7,17 @@
 //! server opens on its own — the filetree, a file read, a file write
 //! — are served here too.
 //!
-//! Built one feature at a time. Today: MCP. To the agent beside it
-//! the proxy is a fully compliant MCP server at `/mcp/agent`; every
-//! exchange the agent asks of it becomes an ask on `/requests`,
-//! answered on `/mcp/list-tools/{channel}` and its siblings by the
-//! caller's own servers on the far side of the provider.
+//! Built one feature at a time. Today: MCP and the vault. To the
+//! agent beside it the proxy is a fully compliant MCP server at
+//! `/mcp/agent`; every exchange the agent asks of it becomes an ask
+//! on `/requests`, answered on `/mcp/list-tools/{channel}` and its
+//! siblings by the caller's own servers on the far side of the
+//! provider. The vault is plain HTTP at `/vault/agent/<op>`, each
+//! call one ask, answered on `/vault/<op>/{channel}`.
 
 mod mcp;
 mod requests;
+mod vault;
 mod ws;
 
 use std::sync::Arc;
@@ -81,6 +84,22 @@ async fn run() {
             "/mcp/notifications/{channel}",
             axum::routing::any(ws::mcp_notifications),
         )
+        .route("/vault/get/{channel}", axum::routing::any(ws::vault_get))
+        .route("/vault/set/{channel}", axum::routing::any(ws::vault_set))
+        .route(
+            "/vault/delete/{channel}",
+            axum::routing::any(ws::vault_delete),
+        )
+        .route("/vault/lock/{channel}", axum::routing::any(ws::vault_lock))
+        .route(
+            "/vault/unlock/{channel}",
+            axum::routing::any(ws::vault_unlock),
+        )
+        .route("/vault/agent/get", axum::routing::post(vault::get))
+        .route("/vault/agent/set", axum::routing::post(vault::set))
+        .route("/vault/agent/delete", axum::routing::post(vault::delete))
+        .route("/vault/agent/lock", axum::routing::post(vault::lock))
+        .route("/vault/agent/unlock", axum::routing::post(vault::unlock))
         .nest_service("/mcp/agent", agent)
         .with_state(Arc::clone(&requests));
 
