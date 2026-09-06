@@ -2,26 +2,29 @@
 //!
 //! At `/mcp/agent` the proxy is a compliant MCP server whose answers
 //! all live with the caller: what it lists and what it calls are the
-//! caller's servers, relayed. The proxy's rules apply to each
-//! exchange — an ask is asked again across a dead connection, and a
-//! tool that failed comes back as a result rather than an error.
+//! caller's servers, relayed. The first of these methods to be called
+//! dials the session; the rest share it. The proxy's rules apply to
+//! each exchange — an ask is asked again across a dead connection,
+//! and a tool that failed comes back as a result rather than an
+//! error.
 
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult,
     ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
     ReadResourceResult,
 };
-use rmcp::{ClientHandler, Peer, RoleClient};
+use rmcp::{Peer, RoleClient};
 
 use crate::{Client, Error};
 
-impl<H: ClientHandler> Client<H> {
+impl Client {
     /// What tools there are. [`None`] asks for the first page.
     pub async fn list_tools(
         &self,
         params: Option<PaginatedRequestParams>,
     ) -> Result<ListToolsResult, Error> {
-        self.mcp
+        self.mcp()
+            .await?
             .peer()
             .list_tools(params)
             .await
@@ -33,7 +36,8 @@ impl<H: ClientHandler> Client<H> {
         &self,
         params: Option<PaginatedRequestParams>,
     ) -> Result<ListResourcesResult, Error> {
-        self.mcp
+        self.mcp()
+            .await?
             .peer()
             .list_resources(params)
             .await
@@ -51,7 +55,8 @@ impl<H: ClientHandler> Client<H> {
         &self,
         params: CallToolRequestParams,
     ) -> Result<CallToolResult, Error> {
-        self.mcp
+        self.mcp()
+            .await?
             .peer()
             .call_tool(params)
             .await
@@ -63,7 +68,8 @@ impl<H: ClientHandler> Client<H> {
         &self,
         params: ReadResourceRequestParams,
     ) -> Result<ReadResourceResult, Error> {
-        self.mcp
+        self.mcp()
+            .await?
             .peer()
             .read_resource(params)
             .await
@@ -71,8 +77,8 @@ impl<H: ClientHandler> Client<H> {
     }
 
     /// rmcp's own peer for the MCP session, for whatever the four
-    /// methods do not cover.
-    pub fn mcp_peer(&self) -> &Peer<RoleClient> {
-        self.mcp.peer()
+    /// methods do not cover. Dials the session if none exists yet.
+    pub async fn mcp_peer(&self) -> Result<&Peer<RoleClient>, Error> {
+        Ok(self.mcp().await?.peer())
     }
 }

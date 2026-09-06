@@ -16,8 +16,6 @@ pub enum Error {
     /// An MCP exchange could not be carried: the session is gone, or
     /// the proxy answered something rmcp could not read.
     McpService(rmcp::ServiceError),
-    /// The MCP session's task could not be joined on close.
-    McpClose(tokio::task::JoinError),
 }
 
 impl fmt::Display for Error {
@@ -29,9 +27,6 @@ impl fmt::Display for Error {
             Error::McpService(error) => {
                 write!(f, "an MCP exchange with the proxy failed: {error}")
             }
-            Error::McpClose(error) => {
-                write!(f, "closing the MCP session failed: {error}")
-            }
         }
     }
 }
@@ -41,7 +36,6 @@ impl error::Error for Error {
         match self {
             Error::McpConnect(error) => Some(error),
             Error::McpService(error) => Some(error),
-            Error::McpClose(error) => Some(error),
         }
     }
 }
