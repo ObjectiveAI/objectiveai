@@ -1790,6 +1790,7 @@ dependencies = [
  "bytes",
  "diverge-provider-sdk",
  "futures-util",
+ "notify",
  "rmcp 3.1.2",
  "serde_json",
  "tokio",
