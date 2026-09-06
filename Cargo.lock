@@ -1796,6 +1796,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-container-sdk"
+version = "2.3.0"
+dependencies = [
+ "diverge-provider-sdk",
+ "reqwest 0.12.28",
+ "rmcp 3.1.2",
+ "tokio",
+]
+
+[[package]]
 name = "diverge-provider-sdk"
 version = "2.3.0"
 dependencies = [
