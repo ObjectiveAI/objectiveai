@@ -34,20 +34,24 @@ fn main() {
 async fn run() {
     let requests = Arc::new(requests::Requests::new());
     let peers = Arc::new(mcp::Peers::new());
+    let gate = Arc::new(mcp::Gate::new());
 
     tokio::spawn(mcp::notifications(
         Arc::clone(&requests),
         Arc::clone(&peers),
+        Arc::clone(&gate),
     ));
 
     let agent = StreamableHttpService::new(
         {
             let requests = Arc::clone(&requests);
             let peers = Arc::clone(&peers);
+            let gate = Arc::clone(&gate);
             move || {
                 Ok(mcp::Handler {
                     requests: Arc::clone(&requests),
                     peers: Arc::clone(&peers),
+                    gate: Arc::clone(&gate),
                 })
             }
         },

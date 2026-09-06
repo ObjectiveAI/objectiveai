@@ -15,7 +15,7 @@ use rmcp::model::{
 use rmcp::service::{NotificationContext, RequestContext};
 use rmcp::{ErrorData, RoleServer, ServerHandler};
 
-use super::Peers;
+use super::{Gate, Peers};
 use crate::requests::{Event, Requests};
 
 /// A compliant MCP server whose answers all live somewhere else.
@@ -32,6 +32,9 @@ pub struct Handler {
     /// The broadcast registry the resident notifications stream fans
     /// out to; a session enters it when it initializes.
     pub peers: Arc<Peers>,
+    /// What the notifications ask waits behind: opened by the first
+    /// exchange that passes through [`exchange`](Self::exchange).
+    pub gate: Arc<Gate>,
 }
 
 impl Handler {
@@ -49,6 +52,7 @@ impl Handler {
     where
         F: for<'a> Decode<'a>,
     {
+        self.gate.open();
         let bytes = loop {
             let (_, mut receiver) = self
                 .requests
