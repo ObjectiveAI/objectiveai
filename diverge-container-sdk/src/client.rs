@@ -15,21 +15,32 @@ const MCP: &str = "/mcp/agent";
 ///
 /// Made without a connection and held for the program's life; every
 /// feature the proxy carries is a method here, each feature in its
-/// own file — the MCP exchanges in `mcp.rs`, the rest as they land —
-/// and each opens its own session with the proxy the first time it
-/// is used. There is nothing to connect and nothing to close: a
-/// session ends when the client is dropped.
+/// own file — the MCP exchanges in `mcp.rs`, the vault in `vault.rs`,
+/// the rest as they land. MCP opens its session the first time it is
+/// used; the vault and the features after it speak plain HTTP to the
+/// proxy, one request per call, nothing kept between. There is
+/// nothing to connect and nothing to close: a session ends when the
+/// client is dropped.
 #[derive(Default)]
 pub struct Client {
     /// The MCP session with the proxy's server at `/mcp/agent`, made
     /// by the first MCP method that needs it.
     mcp: OnceCell<RunningService<RoleClient, ClientInfo>>,
+    /// The HTTP client the plain-HTTP features share. A handle, not
+    /// a connection: making it is no I/O.
+    http: reqwest::Client,
 }
 
 impl Client {
     /// The client. No I/O happens here.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The HTTP client, for the features that are one request per
+    /// call.
+    pub(crate) fn http(&self) -> &reqwest::Client {
+        &self.http
     }
 
     /// The MCP session, dialed and initialized on first use.
