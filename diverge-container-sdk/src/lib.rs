@@ -5,13 +5,13 @@
 //! that proxy is the container's whole way to the caller's world —
 //! its tools, its database, its vault, the commands it may run. This
 //! crate is that proxy as one [`Client`]: the address hard-coded,
-//! every feature a method, so no program inside a container names a
-//! port or a path.
+//! every feature a method, one constructor and nothing to connect or
+//! close — each feature's session opens the first time it is used —
+//! so no program inside a container names a port or a path.
 //!
 //! Built one feature at a time, as the proxy is. Today: MCP — the
 //! four exchanges the proxy relays to the caller's servers, their
-//! methods in `mcp.rs`, with their notifications delivered by rmcp to the
-//! handler the client was started with.
+//! methods in `mcp.rs`, their notifications ignored.
 
 mod client;
 mod error;
