@@ -11,10 +11,12 @@
 //!
 //! Built one feature at a time, as the proxy is. Today: MCP — the
 //! four exchanges the proxy relays to the caller's servers, their
-//! methods in `mcp.rs`, their notifications ignored — and the vault,
-//! the keys the caller holds, in `vault.rs`.
+//! methods in `mcp.rs`, their notifications ignored — the vault, the
+//! keys the caller holds, in `vault.rs` — and commands the caller
+//! runs, in `command.rs`.
 
 mod client;
+mod command;
 mod error;
 mod mcp;
 mod vault;
