@@ -1,0 +1,25 @@
+[package]
+name = "diverge-container-sdk"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The SDK for a program inside a Diverge container: the proxy beside it, as a client"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# Path-only: this crate rides the workspace and is never published, so
+# the provider SDK is named by where it lives rather than by a version
+# pin version.sh would have to chase. It supplies the proxy's port —
+# one source of truth for the number.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+# The MCP CLIENT half only: the agent's tool calls go to the
+# in-container proxy over Streamable HTTP, and nothing here serves MCP.
+rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
+# 0.12: the line rmcp's reqwest transport rides. rustls, no default
+# TLS — the feature set that builds on the musl images.
+reqwest = { version = "0.12", default-features = false, features = ["charset", "http2", "rustls-tls", "json"] }
+# `JoinError`, the one failure closing a session can report.
+tokio = { version = "1.53.1", default-features = false, features = ["rt"] }
