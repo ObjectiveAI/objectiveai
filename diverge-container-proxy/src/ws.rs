@@ -1,17 +1,27 @@
-//! The WebSocket half: `/requests` in, every answer path, and the one
-//! path that carries bytes both ways.
+//! The WebSocket half: `/requests` in, every answer path, the one
+//! path that carries bytes both ways, and the stream.
 
 use std::pin::pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use diverge_provider_sdk::container_proxy;
+use diverge_provider_sdk::encode::{Encode as _, Writer};
+use diverge_provider_sdk::shared::filetree::response;
 use futures_util::future;
+use futures_util::stream::SplitSink;
 use futures_util::{SinkExt as _, StreamExt as _};
+use tokio::sync::mpsc;
 
+use crate::filetree;
+use crate::filetree::{Ignore, Mapped};
 use crate::requests::{Answering, Claim, Kind, Refusal, Requests};
+
+/// The root the tree is watched from: the container's own.
+const ROOT: &str = "/";
 
 /// Accept the one `/requests` connection, or refuse because one is
 /// live.
@@ -306,4 +316,128 @@ async fn serve_postgres(
         let _ = (&mut pump).await;
     }
     requests.finish(answering, complete).await;
+}
+
+/// `/filetree`: the stream. Accepted as many times as the server
+/// opens it, each a watch of its own.
+pub async fn filetree(
+    State(ignore): State<Arc<Ignore>>,
+    upgrade: WebSocketUpgrade,
+) -> Response {
+    upgrade
+        .on_upgrade(move |socket| serve_filetree(socket, ignore))
+        .into_response()
+}
+
+/// Serve one subscription: arm, walk, snapshot, then deltas until the
+/// server ends it.
+///
+/// The watcher is armed BEFORE the walk, so a change during the walk
+/// waits in the events queue and goes out as a delta after the
+/// snapshot — replayed onto a tree that may already show it, which
+/// the fold tolerates — rather than falling between the two. Arming,
+/// registering and walking are one blocking task; every event is
+/// mapped in another, one at a time, so the stream's frames are the
+/// events' order. The server sends nothing: its socket yielding
+/// anything but a ping or pong — a close, a message, an error, the
+/// end — ends the subscription, and the watcher drops with this
+/// task, which unregisters every watch it held.
+///
+/// A watch that could not be armed, or a root that could not be
+/// watched at all, closes the socket before any frame: the server
+/// sees a stream that ended and starts over. Lost events — the queue
+/// overflowed, or notify reported an error — re-walk and send a
+/// fresh snapshot on the same connection.
+async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
+    let (mut sink, mut stream) = socket.split();
+    let (sender, mut events) = mpsc::unbounded_channel();
+
+    let armed = tokio::task::spawn_blocking({
+        let ignore = Arc::clone(&ignore);
+        move || {
+            let mut watcher = filetree::arm(sender)?;
+            filetree::register(&mut watcher, std::path::Path::new(ROOT), &ignore)?;
+            let children = filetree::children(std::path::Path::new(ROOT), &ignore);
+            Ok::<_, notify::Error>((watcher, children))
+        }
+    })
+    .await;
+    let (watcher, children) = match armed {
+        Ok(Ok(armed)) => armed,
+        Ok(Err(_)) | Err(_) => {
+            let _ = sink.close().await;
+            return;
+        }
+    };
+    let watcher = Arc::new(Mutex::new(watcher));
+
+    if !send_frame(&mut sink, response::Frame::Snapshot { children }).await {
+        return;
+    }
+
+    loop {
+        let event = pin!(events.recv());
+        let reading = pin!(stream.next());
+        match future::select(event, reading).await {
+            future::Either::Left((Some(result), _)) => {
+                let mapped = match result {
+                    Ok(event) => {
+                        let ignore = Arc::clone(&ignore);
+                        let watcher = Arc::clone(&watcher);
+                        let mapped = tokio::task::spawn_blocking(move || {
+                            filetree::map(event, &ignore, &watcher)
+                        })
+                        .await;
+                        match mapped {
+                            Ok(mapped) => mapped,
+                            Err(_) => break,
+                        }
+                    }
+                    Err(_) => Mapped::Resync,
+                };
+                let frames = match mapped {
+                    Mapped::Frames(frames) => frames,
+                    Mapped::Resync => {
+                        let ignore = Arc::clone(&ignore);
+                        let children = tokio::task::spawn_blocking(move || {
+                            filetree::children(std::path::Path::new(ROOT), &ignore)
+                        })
+                        .await;
+                        match children {
+                            Ok(children) => vec![response::Frame::Snapshot { children }],
+                            Err(_) => break,
+                        }
+                    }
+                };
+                for frame in frames {
+                    if !send_frame(&mut sink, frame).await {
+                        return;
+                    }
+                }
+            }
+            // The watcher is this task's and outlives the loop, so
+            // its channel cannot end first; if it somehow did, there
+            // is nothing left to stream.
+            future::Either::Left((None, _)) => break,
+            future::Either::Right((Some(Ok(Message::Ping(_) | Message::Pong(_))), _)) => {}
+            future::Either::Right(_) => break,
+        }
+    }
+    let _ = sink.close().await;
+}
+
+/// Encode one filetree frame and send it. `false` is the socket gone
+/// — or a frame postcard would not write, which it has no way to be
+/// short of a buffer that refuses bytes.
+async fn send_frame(
+    sink: &mut SplitSink<WebSocket, Message>,
+    frame: response::Frame,
+) -> bool {
+    let mut bytes = Vec::new();
+    let encoded = container_proxy::filetree::response::Frame(frame)
+        .encode(&mut Writer::new(&mut bytes));
+    if encoded.is_err() {
+        return false;
+    }
+    sink.send(Message::Binary(bytes.into())).await.is_ok()
 }

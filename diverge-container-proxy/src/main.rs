@@ -7,23 +7,27 @@
 //! server opens on its own — the filetree, a file read, a file write
 //! — are served here too.
 //!
-//! Built one feature at a time. Today: MCP, the vault, commands and
-//! Postgres. To the agent beside it the proxy is a fully compliant
-//! MCP server at `/mcp/agent`; every exchange the agent asks of it
-//! becomes an ask on `/requests`, answered on
+//! Built one feature at a time. Today: MCP, the vault, commands,
+//! Postgres and the filetree. To the agent beside it the proxy is a
+//! fully compliant MCP server at `/mcp/agent`; every exchange the
+//! agent asks of it becomes an ask on `/requests`, answered on
 //! `/mcp/list-tools/{channel}` and its siblings by the caller's own
 //! servers on the far side of the provider. The vault is plain HTTP
 //! at `/vault/agent/<op>`, each call one ask, answered on
 //! `/vault/<op>/{channel}`; a command is `POST /command/agent`, its
-//! items streamed back as they land from `/command/{channel}`. And
-//! the proxy is a database: a pgwire listener on the loopback at
-//! `14980`, each connection the driver opens announced as one ask and
-//! carried, raw, on `/postgres/{channel}`.
+//! items streamed back as they land from `/command/{channel}`. The
+//! proxy is a database: a pgwire listener on the loopback at `14980`,
+//! each connection the driver opens announced as one ask and carried,
+//! raw, on `/postgres/{channel}`. And it is the caller's window: every
+//! `/filetree` the server opens gets the container's filesystem,
+//! watched from `/`, as a snapshot and then its changes.
 
 mod command;
+mod filetree;
 mod mcp;
 mod postgres;
 mod requests;
+mod state;
 mod vault;
 mod ws;
 
@@ -47,6 +51,14 @@ async fn run() {
     let requests = Arc::new(requests::Requests::new());
     let peers = Arc::new(mcp::Peers::new());
     let gate = Arc::new(mcp::Gate::new());
+    // The server's mounts, or nothing: an unset or unreadable
+    // variable is the empty set, by the SDK's rule.
+    let ignore = Arc::new(filetree::Ignore::new(
+        container_proxy::filetree::Ignore::parse(
+            &std::env::var(container_proxy::filetree::IGNORE_ENV)
+                .unwrap_or_default(),
+        ),
+    ));
 
     tokio::spawn(mcp::notifications(
         Arc::clone(&requests),
@@ -112,8 +124,12 @@ async fn run() {
         .route("/command/{channel}", axum::routing::any(ws::command))
         .route("/command/agent", axum::routing::post(command::agent))
         .route("/postgres/{channel}", axum::routing::any(ws::postgres))
+        .route("/filetree", axum::routing::any(ws::filetree))
         .nest_service("/mcp/agent", agent)
-        .with_state(Arc::clone(&requests));
+        .with_state(state::AppState {
+            requests: Arc::clone(&requests),
+            ignore,
+        });
 
     // Both listeners or neither: a proxy that could answer asks but
     // not take the driver's connections would be a database that is

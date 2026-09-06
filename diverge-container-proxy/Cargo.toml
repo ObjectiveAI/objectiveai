@@ -25,6 +25,9 @@ diverge-provider-sdk = { path = "../diverge-provider-sdk" }
 # conduit's `select` between a read and its pump, and the two binds
 # joined.
 futures-util = { version = "0.3.33", default-features = false }
+# The filesystem watch behind `/filetree`: inotify, on the images this
+# runs in. The daemon's line.
+notify = "8.2"
 # The MCP server the agent talks to: a compliant Streamable HTTP
 # server whose handler is this crate's relay.
 rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
