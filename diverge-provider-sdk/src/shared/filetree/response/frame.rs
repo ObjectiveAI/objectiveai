@@ -11,8 +11,7 @@ use crate::encode::{Encode, Writer};
 /// [`Snapshot`](Frame::Snapshot) establishes the tree. Every other
 /// variant names exactly one node and says what became of it: it
 /// appeared ([`Inserted`](Frame::Inserted)), changed in place
-/// ([`Modified`](Frame::Modified)), changed location
-/// ([`Moved`](Frame::Moved)), or ceased to exist
+/// ([`Modified`](Frame::Modified)), or ceased to exist
 /// ([`Removed`](Frame::Removed)).
 ///
 /// Insertion and modification are distinguished because a consumer
@@ -25,12 +24,20 @@ use crate::encode::{Encode, Writer};
 /// A delta that carries a node carries its COMPLETE value, never a
 /// patch against a value the consumer is assumed to hold. That is what
 /// makes replaying an already-applied frame harmless, and therefore
-/// what makes at-least-once delivery safe.
+/// what makes at-least-once delivery safe: every variant overwrites
+/// or clears one place in the tree, and none reads the tree first.
 ///
-/// [`Moved`](Frame::Moved) is the one variant that reads the tree
-/// rather than overwriting part of it, so it is the one place replay
-/// is not free: re-applying a move is harmless while its source path
-/// stays empty, but not if something has since taken that path.
+/// # A rename is two frames
+///
+/// There is no move. A node renamed — within one directory or across
+/// the tree — is reported as what happened on disk:
+/// [`Removed`](Frame::Removed) at the path it left and
+/// [`Inserted`](Frame::Inserted) at the path it arrived at, the
+/// inserted node complete, a directory with its whole subtree. The
+/// pairing a filesystem offers for the two halves is not reliable
+/// enough to promise a consumer, and the tree is right without it;
+/// what a consumer loses is only the knowledge that the two were one
+/// node.
 ///
 /// Every `path` in every variant is a component vector relative to the
 /// filetree root — one meaning of "path" throughout, matching
@@ -50,6 +57,11 @@ use crate::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Frame {
     /// The whole tree: the root's entries, recursively.
+    ///
+    /// The first frame of every stream, and the only frame that may
+    /// come again: a source that lost track of the tree — a watch
+    /// whose event queue overflowed — sends a fresh one rather than
+    /// deltas it cannot know. Each replaces the tree whole.
     Snapshot {
         /// The root's entries. The root itself is not among them and
         /// is not described — see [`Root`](super::Root).
@@ -57,9 +69,9 @@ pub enum Frame {
     },
     /// A node came into existence at a path that held nothing.
     ///
-    /// Also how a node that was moved in from OUTSIDE the filetree
-    /// arrives: from this tree's point of view nothing was relocated,
-    /// something simply appeared.
+    /// Also how a node arrives by rename, from elsewhere in the tree
+    /// or from outside it: from this path's point of view nothing was
+    /// relocated, something appeared.
     Inserted {
         /// Where the node appeared. The last element equals `node`'s
         /// `name`.
@@ -82,37 +94,12 @@ pub enum Frame {
         /// than merges.
         node: Node,
     },
-    /// A node changed location. Its identity is preserved: this is one
-    /// node relocating, not one vanishing and another appearing.
-    ///
-    /// Carries no node, because a relocation produces none. Renaming
-    /// touches directory entries, not data, so the moved node's
-    /// `modified_at`, `created_at` and `size` are all exactly what the
-    /// consumer already holds. The only field a move can change is
-    /// `name`, and that is the last component of `new_path`. A node
-    /// payload here would be, for a directory, an entire re-transmitted
-    /// subtree conveying nothing.
-    ///
-    /// It follows that a move never carries a modification. A rename
-    /// ONTO an existing name — the atomic write-then-rename that
-    /// editors and package managers perform — is a different inode
-    /// taking over a name, and is reported as the two events it
-    /// actually is.
-    ///
-    /// A node moved OUT of the filetree is not this — it is
-    /// [`Removed`](Frame::Removed), since there is no destination
-    /// inside the tree to name.
-    Moved {
-        /// Where the node was, before this frame.
-        path: Vec<String>,
-        /// Where the node is now. Its last component is the node's
-        /// name, which a move that renames will have changed.
-        new_path: Vec<String>,
-    },
     /// A node ceased to exist. A directory takes its whole subtree with
     /// it — no per-descendant removals follow.
     ///
-    /// Also how a node moved OUT of the filetree is reported.
+    /// Also how a node leaves by rename — to elsewhere in the tree,
+    /// where an [`Inserted`](Frame::Inserted) reports its arrival, or
+    /// out of it.
     Removed {
         /// The vanished node's path.
         path: Vec<String>,

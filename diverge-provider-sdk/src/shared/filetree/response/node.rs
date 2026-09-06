@@ -72,8 +72,7 @@ pub enum Node {
         /// The link's target, as path components ALWAYS RELATIVE TO
         /// THE FILETREE ROOT — the same frame of reference as the
         /// `path` carried by [`Frame::Inserted`](super::Frame::Inserted),
-        /// [`Frame::Modified`](super::Frame::Modified),
-        /// [`Frame::Moved`](super::Frame::Moved) and
+        /// [`Frame::Modified`](super::Frame::Modified) and
         /// [`Frame::Removed`](super::Frame::Removed). Every path in
         /// this API means the same thing, so a consumer walks a link's
         /// target down from the snapshot's child list exactly as it
@@ -112,25 +111,8 @@ impl Node {
         }
     }
 
-    /// Rename this node. Only a move does this — see
-    /// [`Frame::Moved`](super::Frame::Moved).
-    pub(super) fn set_name(&mut self, new_name: String) {
-        match self {
-            Node::File { name, .. }
-            | Node::Directory { name, .. }
-            | Node::Symlink { name, .. } => *name = new_name,
-        }
-    }
-
-    /// This node's entries — `None` for anything but a directory.
-    pub(super) fn children(&self) -> Option<&[Node]> {
-        match self {
-            Node::Directory { children, .. } => Some(children),
-            _ => None,
-        }
-    }
-
-    /// [`Self::children`], mutably.
+    /// This node's entries, mutably — `None` for anything but a
+    /// directory.
     pub(super) fn children_mut(&mut self) -> Option<&mut Vec<Node>> {
         match self {
             Node::Directory { children, .. } => Some(children),

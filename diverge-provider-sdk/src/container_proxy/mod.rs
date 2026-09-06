@@ -70,10 +70,10 @@
 //!
 //! - Every message is one WebSocket BINARY frame. Text is a peer
 //!   speaking something else, and the connection ends.
-//! - The SERVER dials. `/requests` and `/filetree` accept exactly
-//!   one connection at a time, a second refused with `409` before
-//!   the upgrade; `/read` and `/write` accept as many as the server
-//!   opens, each one file. An answer path
+//! - The SERVER dials. `/requests` accepts exactly one connection
+//!   at a time, a second refused with `409` before the upgrade;
+//!   `/filetree`, `/read` and `/write` accept as many as the server
+//!   opens — each a subscription, each one file. An answer path
 //!   is accepted for a channel the container announced and the
 //!   server has not yet opened — an unknown channel is refused with
 //!   `404`, a second opening with `409`.
