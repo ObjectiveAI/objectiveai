@@ -73,6 +73,8 @@ impl Handler {
                     }
                     Some(Event::Complete) => break Some(answer.take()),
                     Some(Event::Died) | None => break None,
+                    // The postgres path's alone; never on an exchange.
+                    Some(Event::Opened(_)) => {}
                 }
             };
             match outcome {

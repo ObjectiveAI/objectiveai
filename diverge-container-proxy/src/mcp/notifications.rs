@@ -64,6 +64,8 @@ pub async fn notifications(
                 }
                 Some(Event::Complete) => break true,
                 Some(Event::Died) | None => break false,
+                // The postgres path's alone; never on this one.
+                Some(Event::Opened(_)) => {}
             }
         };
 

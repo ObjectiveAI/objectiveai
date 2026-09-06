@@ -1,11 +1,14 @@
-//! The WebSocket half: `/requests` in, and every answer path.
+//! The WebSocket half: `/requests` in, every answer path, and the one
+//! path that carries bytes both ways.
 
+use std::pin::pin;
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use futures_util::future;
 use futures_util::{SinkExt as _, StreamExt as _};
 
 use crate::requests::{Answering, Claim, Kind, Refusal, Requests};
@@ -68,19 +71,30 @@ async fn serve_requests(socket: WebSocket, requests: Arc<Requests>, claim: Claim
     let _ = (&mut pump).await;
 }
 
-/// Accept an answer path for one channel, or refuse: `404` for a
+/// Admit a path opening for one channel, or refuse: `404` for a
 /// channel that is not an ask of this kind awaiting its answer, `409`
 /// for one already being answered — both BEFORE the upgrade.
+async fn open(
+    kind: Kind,
+    requests: &Requests,
+    channel: u32,
+) -> Result<Answering, Response> {
+    requests.open(kind, channel).await.map_err(|refusal| match refusal {
+        Refusal::NotFound => StatusCode::NOT_FOUND.into_response(),
+        Refusal::Conflict => StatusCode::CONFLICT.into_response(),
+    })
+}
+
+/// Accept an answer path for one channel, or refuse as [`open`] does.
 async fn answer(
     kind: Kind,
     requests: Arc<Requests>,
     upgrade: WebSocketUpgrade,
     channel: u32,
 ) -> Response {
-    let answering = match requests.open(kind, channel).await {
+    let answering = match open(kind, &requests, channel).await {
         Ok(answering) => answering,
-        Err(Refusal::NotFound) => return StatusCode::NOT_FOUND.into_response(),
-        Err(Refusal::Conflict) => return StatusCode::CONFLICT.into_response(),
+        Err(refusal) => return refusal,
     };
     upgrade
         .on_upgrade(move |socket| serve_answer(socket, requests, answering))
@@ -211,4 +225,85 @@ pub async fn command(
     Path(channel): Path<u32>,
 ) -> Response {
     answer(Kind::Command, requests, upgrade, channel).await
+}
+
+/// `/postgres/{channel}`: the one path that is not an answer but a
+/// conduit. Admitted as any answer path is, then served both ways.
+pub async fn postgres(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    let answering = match open(Kind::Postgres, &requests, channel).await {
+        Ok(answering) => answering,
+        Err(refusal) => return refusal,
+    };
+    upgrade
+        .on_upgrade(move |socket| serve_postgres(socket, requests, answering))
+        .into_response()
+}
+
+/// Pump one conduit until either side ends it.
+///
+/// The driver's side is the announcing task in [`postgres`]
+/// (crate::postgres): the first thing it hears is the sender that
+/// writes on this socket, and every chunk it sends is one binary
+/// message. A write pump owns the sink; the read loop delivers every
+/// binary message as one chunk toward the driver. Either side closing
+/// ends the session: the server's `Close` is whole, the socket ending
+/// any other way is dead — both reach the driver's task through
+/// [`finish`](Requests::finish), which shuts the driver's socket — and
+/// the driver hanging up drops the sender, the pump drains and closes
+/// the socket cleanly, and the session is over on this side.
+async fn serve_postgres(
+    socket: WebSocket,
+    requests: Arc<Requests>,
+    answering: Answering,
+) {
+    let (mut sink, mut stream) = socket.split();
+
+    let (sender, mut chunks) = Requests::conduit();
+    let mut pump = tokio::spawn(async move {
+        while let Some(bytes) = chunks.recv().await {
+            if sink.send(Message::Binary(bytes)).await.is_err() {
+                return false;
+            }
+        }
+        // The driver hung up: say so, cleanly.
+        sink.close().await.is_ok()
+    });
+
+    requests.deliver_opened(&answering, sender);
+
+    let mut pumped = false;
+    let mut complete = false;
+    loop {
+        let reading = pin!(stream.next());
+        match future::select(reading, &mut pump).await {
+            future::Either::Left((Some(Ok(message)), _)) => match message {
+                Message::Binary(bytes) => requests.deliver(&answering, bytes),
+                Message::Close(_) => {
+                    complete = true;
+                    break;
+                }
+                Message::Text(_) => break,
+                Message::Ping(_) | Message::Pong(_) => {}
+            },
+            future::Either::Left((Some(Err(_)) | None, _)) => break,
+            // The pump ended first: the driver hung up and the socket
+            // was closed from here — cleanly, unless the send that
+            // failed was what ended it.
+            future::Either::Right((closed, _)) => {
+                pumped = true;
+                complete = closed.unwrap_or(false);
+                break;
+            }
+        }
+    }
+
+    if !pumped {
+        pump.abort();
+        let _ = (&mut pump).await;
+    }
+    requests.finish(answering, complete).await;
 }

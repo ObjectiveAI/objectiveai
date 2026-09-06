@@ -38,10 +38,14 @@ pub async fn agent(State(requests): State<Arc<Requests>>, body: Bytes) -> Respon
     else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
-    let first = match receiver.recv().await {
-        Some(Event::Message(bytes)) => bytes,
-        Some(Event::Complete) | Some(Event::Died) | None => {
-            return StatusCode::BAD_GATEWAY.into_response();
+    let first = loop {
+        match receiver.recv().await {
+            Some(Event::Message(bytes)) => break bytes,
+            Some(Event::Complete | Event::Died) | None => {
+                return StatusCode::BAD_GATEWAY.into_response();
+            }
+            // The postgres path's alone; never on a command's.
+            Some(Event::Opened(_)) => {}
         }
     };
     let records = stream::unfold(
@@ -50,17 +54,20 @@ pub async fn agent(State(requests): State<Arc<Requests>>, body: Bytes) -> Respon
             if let Some(first) = first {
                 return Some((record(&first), (None, receiver)));
             }
-            match receiver.recv().await {
-                Some(Event::Message(bytes)) => {
-                    Some((record(&bytes), (None, receiver)))
+            loop {
+                match receiver.recv().await {
+                    Some(Event::Message(bytes)) => {
+                        return Some((record(&bytes), (None, receiver)));
+                    }
+                    // The end record, then nothing: the finish that
+                    // sent `Complete` dropped the sender, so the next
+                    // poll finds the receiver closed.
+                    Some(Event::Complete) => {
+                        return Some((record(&[]), (None, receiver)));
+                    }
+                    Some(Event::Died) | None => return None,
+                    Some(Event::Opened(_)) => {}
                 }
-                // The end record, then nothing: the finish that sent
-                // `Complete` dropped the sender, so the next poll finds
-                // the receiver closed.
-                Some(Event::Complete) => {
-                    Some((record(&[]), (None, receiver)))
-                }
-                Some(Event::Died) | None => None,
             }
         },
     );
