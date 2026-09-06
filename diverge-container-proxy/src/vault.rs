@@ -46,6 +46,8 @@ async fn relay(requests: &Requests, request: Request<'_>) -> Response {
             Some(Event::Died) | None => {
                 return StatusCode::BAD_GATEWAY.into_response();
             }
+            // The postgres path's alone; never on a vault path.
+            Some(Event::Opened(_)) => {}
         }
     }
 }

@@ -15,6 +15,14 @@ use tokio::sync::{Mutex, mpsc, watch};
 /// askers wait.
 const OUTBOUND_CAPACITY: usize = 64;
 
+/// How many chunks may queue from a driver toward its `/postgres`
+/// path before the driver's read loop waits.
+///
+/// A bound, deliberately: what waits on it is that read loop, and a
+/// read loop that waits is TCP flow control reaching the driver —
+/// the honest signal for a caller's database that cannot keep up.
+const CONDUIT_CAPACITY: usize = 64;
+
 /// Which answer path an ask is answered on.
 ///
 /// Every [`Request`] kind has one, and an answer path opening for a
@@ -63,8 +71,16 @@ impl Kind {
 /// dropping, the `/requests` socket dying before the answer path
 /// ever opened — is [`Died`](Event::Died), which each kind of ask
 /// treats by its own rule.
+///
+/// One path is not an answer but a conversation: `/postgres` carries
+/// bytes both ways. Its asker hears [`Opened`](Event::Opened) first,
+/// with the sender that writes on the path, before any message; no
+/// other path sends it, and the other askers ignore it.
 #[derive(Debug, Clone)]
 pub enum Event {
+    /// The path opened, and this is how to write on it. The postgres
+    /// path's alone.
+    Opened(mpsc::Sender<Bytes>),
     /// One message of the answer.
     Message(Bytes),
     /// The answer path closed cleanly: the answer is whole.
@@ -186,6 +202,12 @@ impl Requests {
     /// Make the outbound queue a claimed connection will publish.
     pub fn queue() -> (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>) {
         mpsc::channel(OUTBOUND_CAPACITY)
+    }
+
+    /// Make the queue a duplex path hands its asker: the driver's
+    /// chunks, toward the path's socket.
+    pub fn conduit() -> (mpsc::Sender<Bytes>, mpsc::Receiver<Bytes>) {
+        mpsc::channel(CONDUIT_CAPACITY)
     }
 
     /// Take the connection slot, or learn that it is taken.
@@ -339,6 +361,14 @@ impl Requests {
     /// gone — dropped its receiver — is nobody to tell.
     pub fn deliver(&self, answering: &Answering, bytes: Bytes) {
         let _ = answering.events.send(Event::Message(bytes));
+    }
+
+    /// A duplex path opened: hand its asker the sender that writes on
+    /// it, before any message. An asker that has gone is nobody to
+    /// tell, and the sender drops with the event — the path then sees
+    /// its queue end, which is the driver gone.
+    pub fn deliver_opened(&self, answering: &Answering, sender: mpsc::Sender<Bytes>) {
+        let _ = answering.events.send(Event::Opened(sender));
     }
 
     /// The answer path ended: whole if it closed cleanly, dead

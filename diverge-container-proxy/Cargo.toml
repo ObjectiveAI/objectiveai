@@ -21,13 +21,16 @@ bytes = { version = "1.11.1", default-features = false }
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.
 diverge-provider-sdk = { path = "../diverge-provider-sdk" }
-# `Sink`/`Stream` on the split socket, and the fan-out's `join_all`.
+# `Sink`/`Stream` on the split socket, the fan-out's `join_all`, the
+# conduit's `select` between a read and its pump, and the two binds
+# joined.
 futures-util = { version = "0.3.33", default-features = false }
 # The MCP server the agent talks to: a compliant Streamable HTTP
 # server whose handler is this crate's relay.
 rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
 # A refusal the far side sent, rendered whole into a tool result.
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
-# The runtime under the listener. No `macros` — the runtime is built in
-# main, not attributed onto it.
-tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }
+# The runtime under the listeners. No `macros` — the runtime is built
+# in main, not attributed onto it. `io-util` reads and writes the
+# driver's socket; `time` paces an accept loop that keeps failing.
+tokio = { version = "1.53.1", default-features = false, features = ["io-util", "net", "rt-multi-thread", "sync", "time"] }
