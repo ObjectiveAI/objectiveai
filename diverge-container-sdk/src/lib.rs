@@ -4,16 +4,21 @@
 //! own entrypoint, on the container's loopback at port `14979`, and
 //! that proxy is the container's whole way to the caller's world —
 //! its tools, its database, its vault, the commands it may run. This
-//! crate is that proxy as a client: the address hard-coded, the
-//! features as methods, so no program inside a container names a
+//! crate is that proxy as one [`Client`]: the address hard-coded,
+//! every feature a method, so no program inside a container names a
 //! port or a path.
 //!
-//! Built one feature at a time, as the proxy is. Today: [`mcp`] —
-//! the proxy's MCP server at `/mcp/agent`, which relays the four
-//! exchanges to the caller's servers and delivers their
-//! notifications.
+//! Built one feature at a time, as the proxy is. Today: MCP — the
+//! four exchanges the proxy relays to the caller's servers, their
+//! methods in `mcp.rs`, with their notifications delivered by rmcp to the
+//! handler the client was started with.
 
-pub mod mcp;
+mod client;
+mod error;
+mod mcp;
+
+pub use client::*;
+pub use error::*;
 
 use diverge_provider_sdk::container_proxy;
 
