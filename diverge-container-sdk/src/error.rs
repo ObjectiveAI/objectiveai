@@ -30,6 +30,27 @@ pub enum Error {
     VaultAnswer(diverge_provider_sdk::container_proxy::vault::ResponseError),
     /// The caller's own refusal, in its words.
     Vault(String),
+    /// The HTTP call to the proxy failed before a command's answer
+    /// began.
+    CommandRequest(reqwest::Error),
+    /// The proxy answered a status other than success: `502` for a
+    /// command the caller could not serve or whose answer died before
+    /// its first item.
+    CommandStatus(u16),
+    /// The answer's body failed while it was being read.
+    CommandStream(reqwest::Error),
+    /// A record of the answer could not be read as a command message.
+    CommandAnswer(diverge_provider_sdk::container_proxy::command::response::FrameError),
+    /// The answer's body ended without its end record: the command's
+    /// answer died mid-stream, and what arrived before is all there
+    /// is.
+    CommandTruncated,
+    /// The caller's own error: the command did not finish. A JSON
+    /// value the caller chose, shown here as its JSON — see
+    /// [`shared::error::Error`](diverge_provider_sdk::shared::error::Error)
+    /// for why it says so little, and why it is a message rather than
+    /// a Rust error.
+    Command(diverge_provider_sdk::shared::error::Error),
 }
 
 impl fmt::Display for Error {
@@ -56,6 +77,24 @@ impl fmt::Display for Error {
             Error::Vault(message) => {
                 write!(f, "the vault refused: {message}")
             }
+            Error::CommandRequest(error) => {
+                write!(f, "a command request to the proxy failed: {error}")
+            }
+            Error::CommandStatus(status) => {
+                write!(f, "the proxy answered a command with {status}")
+            }
+            Error::CommandStream(error) => {
+                write!(f, "a command's answer failed mid-stream: {error}")
+            }
+            Error::CommandAnswer(error) => {
+                write!(f, "a command answer could not be read: {error}")
+            }
+            Error::CommandTruncated => {
+                f.write_str("a command's answer ended without its end")
+            }
+            Error::Command(error) => {
+                write!(f, "the command did not finish: {}", error.0)
+            }
         }
     }
 }
@@ -68,7 +107,16 @@ impl error::Error for Error {
             Error::VaultKey(error) => Some(error),
             Error::VaultRequest(error) => Some(error),
             Error::VaultAnswer(error) => Some(error),
-            Error::VaultStatus(_) | Error::Vault(_) => None,
+            Error::CommandRequest(error) => Some(error),
+            Error::CommandStream(error) => Some(error),
+            Error::CommandAnswer(error) => Some(error),
+            // A message from the wire, not a Rust error: nothing to
+            // chain.
+            Error::VaultStatus(_)
+            | Error::Vault(_)
+            | Error::CommandStatus(_)
+            | Error::CommandTruncated
+            | Error::Command(_) => None,
         }
     }
 }

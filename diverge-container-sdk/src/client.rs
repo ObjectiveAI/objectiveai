@@ -16,7 +16,8 @@ const MCP: &str = "/mcp/agent";
 /// Made without a connection and held for the program's life; every
 /// feature the proxy carries is a method here, each feature in its
 /// own file — the MCP exchanges in `mcp.rs`, the vault in `vault.rs`,
-/// the rest as they land. MCP opens its session the first time it is
+/// commands in `command.rs`, the rest as they land. MCP opens its
+/// session the first time it is
 /// used; the vault and the features after it speak plain HTTP to the
 /// proxy, one request per call, nothing kept between. There is
 /// nothing to connect and nothing to close: a session ends when the
