@@ -158,3 +158,48 @@ pub async fn mcp_notifications(
 ) -> Response {
     answer(Kind::McpNotifications, requests, upgrade, channel).await
 }
+
+/// `/vault/get/{channel}`.
+pub async fn vault_get(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::VaultGet, requests, upgrade, channel).await
+}
+
+/// `/vault/set/{channel}`.
+pub async fn vault_set(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::VaultSet, requests, upgrade, channel).await
+}
+
+/// `/vault/delete/{channel}`.
+pub async fn vault_delete(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::VaultDelete, requests, upgrade, channel).await
+}
+
+/// `/vault/lock/{channel}`.
+pub async fn vault_lock(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::VaultLock, requests, upgrade, channel).await
+}
+
+/// `/vault/unlock/{channel}`.
+pub async fn vault_unlock(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::VaultUnlock, requests, upgrade, channel).await
+}
