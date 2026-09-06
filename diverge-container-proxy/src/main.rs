@@ -7,14 +7,17 @@
 //! server opens on its own — the filetree, a file read, a file write
 //! — are served here too.
 //!
-//! Built one feature at a time. Today: MCP and the vault. To the
+//! Built one feature at a time. Today: MCP, the vault and commands. To the
 //! agent beside it the proxy is a fully compliant MCP server at
 //! `/mcp/agent`; every exchange the agent asks of it becomes an ask
 //! on `/requests`, answered on `/mcp/list-tools/{channel}` and its
 //! siblings by the caller's own servers on the far side of the
 //! provider. The vault is plain HTTP at `/vault/agent/<op>`, each
-//! call one ask, answered on `/vault/<op>/{channel}`.
+//! call one ask, answered on `/vault/<op>/{channel}`; a command is
+//! `POST /command/agent`, its items streamed back as they land from
+//! `/command/{channel}`.
 
+mod command;
 mod mcp;
 mod requests;
 mod vault;
@@ -100,6 +103,8 @@ async fn run() {
         .route("/vault/agent/delete", axum::routing::post(vault::delete))
         .route("/vault/agent/lock", axum::routing::post(vault::lock))
         .route("/vault/agent/unlock", axum::routing::post(vault::unlock))
+        .route("/command/{channel}", axum::routing::any(ws::command))
+        .route("/command/agent", axum::routing::post(command::agent))
         .nest_service("/mcp/agent", agent)
         .with_state(Arc::clone(&requests));
 
