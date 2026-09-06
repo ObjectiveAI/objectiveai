@@ -44,20 +44,20 @@ impl Root {
     /// invented nodes is wrong in a way nothing detects. Nothing here
     /// panics, and no ordering is assumed.
     ///
-    /// **Replay-safe, with one edge.** [`Inserted`](Frame::Inserted)
-    /// and [`Modified`](Frame::Modified) both place a complete node,
-    /// so applying either twice is a no-op, and applying one where the
+    /// **Replay-safe.** [`Inserted`](Frame::Inserted) and
+    /// [`Modified`](Frame::Modified) both place a complete node, so
+    /// applying either twice is a no-op, and applying one where the
     /// other was expected still lands the right value —
     /// deliberately, since that tolerance is what makes at-least-once
-    /// delivery safe. [`Moved`](Frame::Moved) is the exception: it
-    /// reads the tree rather than overwriting part of it, so replaying
-    /// one is harmless only while its source path stays empty.
+    /// delivery safe. [`Removed`](Frame::Removed) of a path already
+    /// empty is nothing, and a [`Snapshot`](Frame::Snapshot) replaces
+    /// the tree whole whenever it comes. No frame reads the tree
+    /// before changing it, so no order of arrival can leave it wrong.
     pub fn update(&mut self, frame: Frame) {
         match frame {
             Frame::Snapshot { children } => self.snapshot(children),
             Frame::Inserted { path, node } => self.inserted(path, node),
             Frame::Modified { path, node } => self.modified(path, node),
-            Frame::Moved { path, new_path } => self.moved(path, new_path),
             Frame::Removed { path } => self.removed(path),
         }
     }
@@ -80,27 +80,6 @@ impl Root {
     /// Replace a node that already existed. See [`Self::inserted`].
     fn modified(&mut self, path: Vec<String>, node: Node) {
         self.place(path, node);
-    }
-
-    /// Relocate a node, renaming it to its new basename.
-    ///
-    /// The destination is validated BEFORE the node is detached. A
-    /// move that cannot be completed must leave the tree alone rather
-    /// than destroy the node on the way to a place it cannot reach.
-    fn moved(&mut self, path: Vec<String>, new_path: Vec<String>) {
-        let Some(name) = new_path.last().cloned() else {
-            return;
-        };
-        if !self.has_parent(&new_path) {
-            return;
-        }
-        let Some(mut node) = self.detach(&path) else {
-            return;
-        };
-        // A move is the only change that renames a node, and the
-        // new name is the only thing it changes. See `Frame::Moved`.
-        node.set_name(name);
-        self.place(new_path, node);
     }
 
     /// Drop a node, and with it everything beneath it.
@@ -130,28 +109,11 @@ impl Root {
         let i = siblings.iter().position(|c| c.name() == leaf)?;
         Some(siblings.remove(i))
     }
-
-    /// Whether the directory that would contain `path` exists.
-    fn has_parent(&self, path: &[String]) -> bool {
-        match path.split_last() {
-            Some((_, parents)) => descend(&self.0, parents).is_some(),
-            None => false,
-        }
-    }
 }
 
 /// Walk `comps` down from `children`, following each component into
 /// its directory's entries. `None` if a component is absent or names
 /// something that is not a directory.
-fn descend<'a>(mut children: &'a [Node], comps: &[String]) -> Option<&'a [Node]> {
-    for comp in comps {
-        let i = children.iter().position(|c| c.name() == comp)?;
-        children = children[i].children()?;
-    }
-    Some(children)
-}
-
-/// [`descend`], mutably.
 fn descend_mut<'a>(
     mut children: &'a mut Vec<Node>,
     comps: &[String],
