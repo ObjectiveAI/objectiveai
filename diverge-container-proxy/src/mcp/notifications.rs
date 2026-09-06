@@ -6,14 +6,17 @@ use diverge_provider_sdk::container_proxy::requests::request::Request;
 use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::shared::mcp;
 
-use super::Peers;
+use super::{Gate, Peers};
 use crate::requests::{Event, Requests};
 
-/// Keep one notifications ask open for the proxy's whole life, and
-/// fan everything that answers it out to the sessions.
+/// Keep one notifications ask open for the proxy's whole life — from
+/// the agent's first exchange on — and fan everything that answers
+/// it out to the sessions.
 ///
-/// The ask is re-sent for as long as the proxy runs; what varies is
-/// only when:
+/// Nothing is asked before the [`Gate`] opens: a container whose
+/// agent never makes an MCP exchange never hears a notification, and
+/// never costs the caller one. After that the ask is re-sent for as
+/// long as the proxy runs; what varies is only when:
 ///
 /// - **It died** — `/requests` went before the answer path opened,
 ///   or the path ended abruptly — and the next ask happens at once,
@@ -28,7 +31,12 @@ use crate::requests::{Event, Requests};
 /// Each notification is shipped to every registered session, once,
 /// as it arrives — see [`Peers::broadcast`] for the fan-out and its
 /// trade.
-pub async fn notifications(requests: Arc<Requests>, peers: Arc<Peers>) {
+pub async fn notifications(
+    requests: Arc<Requests>,
+    peers: Arc<Peers>,
+    gate: Arc<Gate>,
+) {
+    gate.opened().await;
     loop {
         let Ok((generation, mut receiver)) = requests
             .ask(Request::McpNotifications(
