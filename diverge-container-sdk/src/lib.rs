@@ -12,13 +12,16 @@
 //! Built one feature at a time, as the proxy is. Today: MCP — the
 //! four exchanges the proxy relays to the caller's servers, their
 //! methods in `mcp.rs`, their notifications ignored — the vault, the
-//! keys the caller holds, in `vault.rs` — and commands the caller
-//! runs, in `command.rs`.
+//! keys the caller holds, in `vault.rs` — commands the caller runs,
+//! in `command.rs` — and Postgres, the caller's database on the
+//! container's loopback, whose one method in `postgres.rs` is the
+//! address the program's driver dials.
 
 mod client;
 mod command;
 mod error;
 mod mcp;
+mod postgres;
 mod vault;
 
 pub use client::*;
