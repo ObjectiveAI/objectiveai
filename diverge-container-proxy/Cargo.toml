@@ -1,0 +1,33 @@
+[package]
+name = "diverge-container-proxy"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The proxy inside a Diverge container — the container's asks out over one WebSocket, the caller's answers back, one path each"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# `ws` on top of the defaults: one listener serves `/requests`, every
+# answer path, and the agent's MCP server, and axum's upgrade is the
+# listener half the wire needs.
+axum = { version = "0.8.9", features = ["ws"] }
+# What a WebSocket message carries, and what an answer's messages are
+# routed as — the frame's own bytes, not copied.
+bytes = { version = "1.11.1", default-features = false }
+# Path-only: this crate rides the workspace and is never published, so
+# the SDK is named by where it lives rather than by a version pin
+# version.sh would have to chase.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+# `Sink`/`Stream` on the split socket, and the fan-out's `join_all`.
+futures-util = { version = "0.3.33", default-features = false }
+# The MCP server the agent talks to: a compliant Streamable HTTP
+# server whose handler is this crate's relay.
+rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
+# A refusal the far side sent, rendered whole into a tool result.
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# The runtime under the listener. No `macros` — the runtime is built in
+# main, not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }

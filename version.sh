@@ -244,6 +244,7 @@ CARGO_TOMLS=(
   diverge-agentic-loop-hermes/Cargo.toml
   diverge-container-mcp-proxy/Cargo.toml
   diverge-container-postgres-proxy/Cargo.toml
+  diverge-container-proxy/Cargo.toml
   diverge-agentic-loop-openrouter/Cargo.toml
   diverge-agentic-loop-pi/Cargo.toml
   diverge-broker-sdk/Cargo.toml
