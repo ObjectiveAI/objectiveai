@@ -20,8 +20,9 @@
 //! each connection the driver opens announced as one ask and carried,
 //! raw, on `/postgres/{channel}`. And it is the caller's window: every
 //! `/filetree` the server opens gets the container's filesystem,
-//! watched from `/`, as a snapshot and then its changes, and every
-//! `/read` one file out of it, its bytes then the close.
+//! watched from `/`, as a snapshot and then its changes; every
+//! `/read` one file out of it, its bytes then the close; and every
+//! `/write` one file into it, moved into place whole.
 
 mod command;
 mod filetree;
@@ -32,6 +33,7 @@ mod read;
 mod requests;
 mod state;
 mod vault;
+mod write;
 mod ws;
 
 use std::sync::Arc;
@@ -129,6 +131,7 @@ async fn run() {
         .route("/postgres/{channel}", axum::routing::any(ws::postgres))
         .route("/filetree", axum::routing::any(ws::filetree))
         .route("/read", axum::routing::any(ws::read))
+        .route("/write", axum::routing::any(ws::write))
         .nest_service("/mcp/agent", agent)
         .with_state(state::AppState {
             requests: Arc::clone(&requests),
