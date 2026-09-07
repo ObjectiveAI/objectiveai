@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 /// looping link is a leaf rather than an error or an infinite tree.
 ///
 /// Every variant carries `name` — the basename, never a path — plus
-/// `created_at` and `modified_at`.
+/// `created_at` and `modified_at`. A directory alone carries
+/// `changes`: whether what happens beneath it will be reported, which
+/// is a question only a directory can answer, because only a
+/// directory is watched — see the field.
 ///
 /// # Times are unsigned seconds
 ///
@@ -60,6 +63,19 @@ pub enum Node {
         /// Last-modified time (unix seconds). A directory's mtime
         /// tracks entry add/remove, not changes within its children.
         modified_at: Option<u64>,
+        /// Whether changes beneath this directory stream.
+        ///
+        /// `true` is the ordinary case: what happens under it arrives
+        /// as deltas. `false` is a directory the source could not
+        /// watch — a watch limit reached, a corner it was refused —
+        /// and with it everything beneath, files included: what is
+        /// here is what the walk found, nothing under it will be
+        /// reported until the next [`Snapshot`](super::Frame::Snapshot),
+        /// and a consumer should treat it as possibly stale. Only a
+        /// directory carries this, because only a directory is
+        /// watched: a file's changes are its parent's to report, so a
+        /// file cannot fail to be watched on its own.
+        changes: bool,
         /// This directory's entries. An empty directory carries an
         /// empty list — this field is never absent, so a consumer never
         /// has to distinguish "no children" from "children unknown".

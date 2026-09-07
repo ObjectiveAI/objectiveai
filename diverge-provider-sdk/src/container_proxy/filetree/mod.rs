@@ -39,6 +39,12 @@
 //! exist as far as the stream is concerned: absent from the
 //! snapshot, never watched, an event under it dropped.
 //!
+//! Different from a corner the proxy could not WATCH — a subtree the
+//! watch limit ran out on, or that refused registration. That stays
+//! in the tree, walked as everything else is, with its directory's
+//! `changes` false: what is there is what the walk found, and
+//! nothing under it is reported until the next snapshot.
+//!
 //! # A snapshot may come again
 //!
 //! A watch that lost events — its queue overflowed under a burst —
