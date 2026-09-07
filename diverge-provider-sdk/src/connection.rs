@@ -44,10 +44,12 @@ use futures_util::{Sink, Stream};
 ///
 /// Neither dial nor accept. Both variants take a socket somebody else
 /// finished making: a provider upgrades a request its own server
-/// received, a caller connects with its own tokio-tungstenite. This
-/// crate carries `tokio-tungstenite` with `stream` alone — enough to
-/// name the type and not to connect with — and `axum` without `http1`,
-/// for the same reason.
+/// received, a caller connects with its own tokio-tungstenite. The one
+/// thing this crate dials is the proxy inside a container, through
+/// [`ContainerClient`](crate::server::container_client::ContainerClient)
+/// behind the `server` feature — and that socket never becomes one of
+/// these, because the proxy's wire needs a clean close and an abrupt
+/// end told apart, which this type folds into one ending.
 ///
 /// Which keeps every question about the transport where it belongs:
 /// what the URL is, what the TLS story is, what authenticates the

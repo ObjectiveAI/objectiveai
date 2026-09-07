@@ -225,6 +225,13 @@
 //! for nothing at all, its answer being a compile-time constant. It is
 //! the one request a provider can serve without supplying anything.
 //!
+//! [`container_client`] faces the other way: not something a provider
+//! supplies, but the one thing this crate dials — the proxy inside a
+//! container, at the URL a provider composes for it. Every executor
+//! under [`container_proxy`](crate::container_proxy) takes one and
+//! opens the path it serves, which is how a provider answers what a
+//! container asks and asks what it wants to know.
+//!
 //! And in front of all of them stands [`handle`]: take a
 //! [`Session`](session::Session), the connection's identity and
 //! address, and the capabilities above, and every scope the client
@@ -235,10 +242,12 @@
 pub mod authorization;
 pub mod channel;
 pub mod container;
+pub mod container_client;
 pub mod container_deployer;
 pub mod deployment;
 pub mod handle;
 pub mod image_checker;
+pub(crate) mod messages;
 pub mod mount;
 mod notice;
 pub mod received;
