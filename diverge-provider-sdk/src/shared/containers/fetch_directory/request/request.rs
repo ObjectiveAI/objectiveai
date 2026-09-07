@@ -17,7 +17,7 @@ use crate::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Request {
     /// The directory's size-bearing identity:
-    /// `d1:<total size>:<base64url sha256 of the manifest>` — the
+    /// `<total size>:<base64url sha256 of the manifest>` — the
     /// manifest one sorted `<hash> <size> <path>` line per file.
     pub identity: String,
 }

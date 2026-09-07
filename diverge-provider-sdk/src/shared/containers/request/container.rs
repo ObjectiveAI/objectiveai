@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{HashMount, Image, VolumeMount};
+use super::{IdentityMount, Image, VolumeMount};
 
 /// Ask a provider to create a container.
 ///
@@ -62,18 +62,18 @@ pub struct Container {
     pub volume_mounts: Vec<VolumeMount>,
     /// Files the caller holds, by content, mounted read-only.
     ///
-    /// Each names a file by its `f1:` identity — see [`HashMount`].
+    /// Each names a file by its identity — see [`IdentityMount`].
     /// The provider MUST mount every one before the container starts,
     /// fetching what it does not hold from the caller by that
     /// identity.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub file_mounts: Vec<HashMount>,
+    pub file_mounts: Vec<IdentityMount>,
     /// Directories the caller holds, by content, mounted read-only.
     ///
-    /// Each names a directory by its `d1:` identity — see
-    /// [`HashMount`]. No mount's path, in any of the three lists, is
+    /// Each names a directory by its identity — see
+    /// [`IdentityMount`]. No mount's path, in any of the three lists, is
     /// a prefix of another's: mounting INTO a directory the image owns
     /// is the point, and mounts stacking on each other is not.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub directory_mounts: Vec<HashMount>,
+    pub directory_mounts: Vec<IdentityMount>,
 }

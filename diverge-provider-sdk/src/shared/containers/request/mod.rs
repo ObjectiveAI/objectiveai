@@ -2,7 +2,7 @@
 //!
 //! [`Container`] is the whole of asking for one: an [`Image`], the
 //! limits, and the mounts — a [`VolumeMount`] for a volume the
-//! provider offers, a [`HashMount`] for content the caller holds.
+//! provider offers, a [`IdentityMount`] for content the caller holds.
 //! Every run in [`containers`](crate::endpoints::containers) sends one
 //! of these and nothing more; what differs between the kinds is asked
 //! later, on a channel, not here. [`Connect`] is the other way to get
@@ -16,12 +16,12 @@
 
 mod connect;
 mod container;
-mod hash_mount;
+mod identity_mount;
 mod image;
 mod volume_mount;
 
 pub use connect::*;
 pub use container::*;
-pub use hash_mount::*;
+pub use identity_mount::*;
 pub use image::*;
 pub use volume_mount::*;
