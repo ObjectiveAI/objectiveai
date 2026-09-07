@@ -346,11 +346,12 @@ pub async fn filetree(
 /// which unregisters everything it held. A corner the watch could
 /// not cover is still walked, its directory's `changes` false.
 ///
-/// A watch that could not be armed, or a root that could not be
-/// watched at all, closes the socket before any frame: the server
-/// sees a stream that ended and starts over. Lost events — the queue
-/// overflowed, or notify reported an error — re-walk and send a
-/// fresh snapshot on the same connection.
+/// What is an error, per the wire: the watcher could not be made, the
+/// root could not be watched at all, or a blocking task died — each
+/// answered with one `Error` carrying the reason, then the clean
+/// close, and the server starts over when it likes. Lost events — the
+/// queue overflowed, or notify reported an error — are not: they
+/// re-walk and send a fresh snapshot on the same connection.
 async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
     let (mut sink, mut stream) = socket.split();
     let (sender, mut events) = mpsc::unbounded_channel();
@@ -369,8 +370,12 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
     .await;
     let (watch, children) = match armed {
         Ok(Ok(armed)) => armed,
-        Ok(Err(_)) | Err(_) => {
-            let _ = sink.close().await;
+        Ok(Err(reason)) => {
+            send_error(&mut sink, &format!("watch: {reason}")).await;
+            return;
+        }
+        Err(reason) => {
+            send_error(&mut sink, &format!("walk: {reason}")).await;
             return;
         }
     };
@@ -395,7 +400,10 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
                         .await;
                         match mapped {
                             Ok(mapped) => mapped,
-                            Err(_) => break,
+                            Err(reason) => {
+                                send_error(&mut sink, &format!("map: {reason}")).await;
+                                return;
+                            }
                         }
                     }
                     Err(_) => Mapped::Resync,
@@ -412,7 +420,10 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
                         .await;
                         match children {
                             Ok(children) => vec![response::Frame::Snapshot { children }],
-                            Err(_) => break,
+                            Err(reason) => {
+                                send_error(&mut sink, &format!("walk: {reason}")).await;
+                                return;
+                            }
                         }
                     }
                 };
@@ -422,7 +433,7 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
                     }
                 }
             }
-            // The watcher is this task's and outlives the loop, so
+            // The watch is this task's and outlives the loop, so
             // its channel cannot end first; if it somehow did, there
             // is nothing left to stream.
             future::Either::Left((None, _)) => break,
@@ -445,17 +456,31 @@ pub async fn write(upgrade: WebSocketUpgrade) -> Response {
     upgrade.on_upgrade(write::serve).into_response()
 }
 
-/// Encode one filetree frame and send it. `false` is the socket gone
-/// — or a frame postcard would not write, which it has no way to be
-/// short of a buffer that refuses bytes.
+/// Encode one filetree event behind its kind and send it. `false` is
+/// the socket gone — or a frame postcard would not write, which it
+/// has no way to be short of a buffer that refuses bytes.
 async fn send_frame(
     sink: &mut SplitSink<WebSocket, Message>,
     frame: response::Frame,
 ) -> bool {
+    send(sink, container_proxy::filetree::response::Frame::Filetree(frame)).await
+}
+
+/// The error, then the clean close: the watch could not exist, and
+/// this is why. A socket that is gone takes the reason with it.
+async fn send_error(sink: &mut SplitSink<WebSocket, Message>, reason: &str) {
+    if send(sink, container_proxy::filetree::response::Frame::Error(reason)).await {
+        let _ = sink.close().await;
+    }
+}
+
+/// One message on `/filetree`, as the wire's frame.
+async fn send(
+    sink: &mut SplitSink<WebSocket, Message>,
+    frame: container_proxy::filetree::response::Frame<'_>,
+) -> bool {
     let mut bytes = Vec::new();
-    let encoded = container_proxy::filetree::response::Frame(frame)
-        .encode(&mut Writer::new(&mut bytes));
-    if encoded.is_err() {
+    if frame.encode(&mut Writer::new(&mut bytes)).is_err() {
         return false;
     }
     sink.send(Message::Binary(bytes.into())).await.is_ok()
