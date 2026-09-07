@@ -19,8 +19,8 @@ use crate::shared::filetree;
 /// [`Filetree`](Self::Filetree) carries
 /// [`filetree::response::Frame`](crate::shared::filetree::response::Frame),
 /// which is what a change to a tree looks like anywhere — a
-/// [`laboratory`](crate::endpoints::laboratories::run) reports one
-/// over a container's filesystem using the same type. Defining it
+/// [`container`](crate::endpoints::containers) reports one over its
+/// own filesystem using the same type. Defining it
 /// again here would be two definitions of one thing waiting to
 /// disagree, and
 /// [`Root::update`](crate::shared::filetree::response::Root::update)

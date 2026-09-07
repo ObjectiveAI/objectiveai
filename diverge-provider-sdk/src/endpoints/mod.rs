@@ -6,11 +6,9 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agentic_loop`] | run an agent, stream what it does |
+//! | [`containers`] | run an agent or a tool server in a container; join one |
 //! | [`images`] | ask whether an image can be supplied |
 //! | [`volumes`] | list what a provider offers; watch one; make, resize or destroy one |
-//! | [`laboratories`] | run a laboratory; join one |
-//! | [`mcp_plugin`] | run a plugin, call it |
 //! | [`version`] | ask what a provider is |
 //!
 //! # The tags
@@ -22,10 +20,10 @@
 //!
 //! | tag | request |
 //! |-----|---------|
-//! | `0` | [`agentic_loop::run`] |
-//! | `1` | [`mcp_plugin::run`] |
-//! | `2` | [`laboratories::run`] |
-//! | `3` | [`laboratories::connect`] |
+//! | `0` | [`containers::agents::run`] |
+//! | `1` | [`containers::agents::connect`] |
+//! | `2` | [`containers::tools::run`] |
+//! | `3` | [`containers::tools::connect`] |
 //! | `4` | [`volumes::list`] |
 //! | `5` | [`volumes::watch`] |
 //! | `6` | [`volumes::create`] |
@@ -34,13 +32,11 @@
 //! | `9` | [`images::check`] |
 //! | `10` | [`version`] |
 //!
-//! Eleven, grouped by endpoint and ordered within it. The three
-//! containers lead, in the order an agent meets them — it runs in the
-//! first, calls the second, works inside the third — then joining one
-//! somebody else is running. The five volume scopes follow in the
-//! order a caller uses them: find one, watch it, make one, resize it,
-//! destroy it. Then the two that ask rather than do:
-//! [`images::check`], and [`version`].
+//! Eleven, grouped by endpoint and ordered within it. The four
+//! container scopes lead, a family at a time and a run before its
+//! connect. The five volume scopes follow in the order a caller uses
+//! them: find one, watch it, make one, resize it, destroy it. Then the
+//! two that ask rather than do: [`images::check`], and [`version`].
 //!
 //! Nothing derives meaning from adjacency, which [`version`] is the
 //! proof of — it is the one a client asks FIRST and it holds the
@@ -58,27 +54,19 @@
 //! [`Invalid`](ClientRequest::Invalid) for a payload that is none of
 //! them. It is the only place the values meet.
 //!
-//! # Named for what runs in them
+//! # One substrate, two families
 //!
-//! Three of these are containers, and the three are told apart by what
-//! runs inside. An [`agentic_loop`] runs an agent in one, a
-//! [`laboratory`](laboratories) is one an agent works inside, and an
-//! [`mcp_plugin`] is one that serves tools. So `containers` was never
-//! a distinction — it was the substrate, and a module named after it
-//! would have grouped things by the one property they all share.
-//!
-//! What they are NOT all built from is in
-//! [`shared`](crate::shared) — including
-//! [`container`](crate::shared::container), which is the reading,
-//! writing and moving of files that any of them can be asked to do.
+//! [`containers`] is the substrate, and the two families under it are
+//! told apart by the one exchange a caller makes into the container:
+//! a loop, or MCP. Everything else a container scope carries is the
+//! same wire in all four, defined once in
+//! [`shared::containers`](crate::shared::containers).
 
 mod client_request;
 
 pub use client_request::*;
 
-pub mod agentic_loop;
+pub mod containers;
 pub mod images;
-pub mod laboratories;
-pub mod mcp_plugin;
 pub mod version;
 pub mod volumes;

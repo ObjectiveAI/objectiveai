@@ -3,9 +3,7 @@
 use std::convert::Infallible;
 use std::fmt;
 
-use super::{
-    agentic_loop, images, laboratories, mcp_plugin, version, volumes,
-};
+use super::{containers, images, version, volumes};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
@@ -32,14 +30,14 @@ use crate::encode::{Encode, Writer};
 /// client's whole session for one bad frame.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClientRequest<'a> {
-    /// Tag `0`. Run an agent and stream what it does.
-    AgenticLoopRun(agentic_loop::run::client::request::Frame),
-    /// Tag `1`. Run an MCP plugin.
-    McpPluginRun(mcp_plugin::run::client::request::Frame),
-    /// Tag `2`. Run a laboratory.
-    LaboratoriesRun(laboratories::run::client::request::Frame),
-    /// Tag `3`. Join one somebody else is running.
-    LaboratoriesConnect(laboratories::connect::client::request::Frame),
+    /// Tag `0`. Run an agent in a container.
+    ContainersAgentsRun(containers::agents::run::client::request::Frame),
+    /// Tag `1`. Join an agent container somebody else is running.
+    ContainersAgentsConnect(containers::agents::connect::client::request::Frame),
+    /// Tag `2`. Run a tool server in a container.
+    ContainersToolsRun(containers::tools::run::client::request::Frame),
+    /// Tag `3`. Join a tool container somebody else is running.
+    ContainersToolsConnect(containers::tools::connect::client::request::Frame),
     /// Tag `4`. List the volumes a provider offers.
     VolumesList(volumes::list::client::request::Frame),
     /// Tag `5`. Watch one of them.
@@ -93,16 +91,16 @@ impl Encode for ClientRequest<'_> {
         out: &mut Writer<'_>,
     ) -> Result<(), ClientRequestEncodeError> {
         match self {
-            ClientRequest::AgenticLoopRun(frame) => {
+            ClientRequest::ContainersAgentsRun(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
-            ClientRequest::McpPluginRun(frame) => {
+            ClientRequest::ContainersAgentsConnect(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
-            ClientRequest::LaboratoriesRun(frame) => {
+            ClientRequest::ContainersToolsRun(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
-            ClientRequest::LaboratoriesConnect(frame) => {
+            ClientRequest::ContainersToolsConnect(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::VolumesList(frame) => {
@@ -154,17 +152,17 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             return Ok(ClientRequest::Invalid(bytes));
         };
         let request = match *tag {
-            0 => agentic_loop::run::client::request::Frame::decode(bytes)
-                .map(ClientRequest::AgenticLoopRun)
+            0 => containers::agents::run::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ContainersAgentsRun)
                 .ok(),
-            1 => mcp_plugin::run::client::request::Frame::decode(bytes)
-                .map(ClientRequest::McpPluginRun)
+            1 => containers::agents::connect::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ContainersAgentsConnect)
                 .ok(),
-            2 => laboratories::run::client::request::Frame::decode(bytes)
-                .map(ClientRequest::LaboratoriesRun)
+            2 => containers::tools::run::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ContainersToolsRun)
                 .ok(),
-            3 => laboratories::connect::client::request::Frame::decode(bytes)
-                .map(ClientRequest::LaboratoriesConnect)
+            3 => containers::tools::connect::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ContainersToolsConnect)
                 .ok(),
             4 => volumes::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesList)
