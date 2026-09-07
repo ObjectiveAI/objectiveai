@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// One shape for a file and for a directory — which it is, the field
 /// it sits in says ([`file_mounts`](super::Container::file_mounts) or
 /// [`directory_mounts`](super::Container::directory_mounts)), and the
-/// [`hash`](Self::hash) grammar agrees. The server MUST mount every
+/// [`identity`](Self::identity) grammar agrees. The server MUST mount every
 /// one — read-only — before the container starts: the request
 /// naming it IS the requirement. What the server does not hold it
 /// MAY fetch from the client, by the hash, over the fetch exchanges.
