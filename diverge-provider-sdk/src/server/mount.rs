@@ -1,6 +1,6 @@
-//! One directory made visible inside a container, and whose it is.
+//! One volume made visible inside a container, and whose it is.
 
-/// A [`request::Mount`] with the one thing a caller could not say.
+/// A [`request::VolumeMount`] with the one thing a caller could not say.
 ///
 /// The same three fields, in the same order, behind a fourth that came
 /// from somewhere else:
@@ -56,20 +56,7 @@
 /// Nothing on the wire carries it, so nothing on the wire constrains
 /// what it looks like.
 ///
-/// # It is not [`Identity`]
-///
-/// Which is a different question with a similar name.
-/// [`Identity`] is what a plugin is TOLD about its caller — an agent
-/// instance, a loop, a task — and a plugin reads it to decide how to
-/// behave. This is what a provider KNOWS about its caller, and a
-/// provider reads it to decide which directory a name means.
-///
-/// A [`laboratory`](crate::endpoints::laboratories::run) has no
-/// [`Identity`] at all and still takes mounts, which is the short
-/// argument that they are not the same thing.
-///
-/// [`request::Mount`]: crate::shared::container::request::Mount
-/// [`Identity`]: crate::endpoints::mcp_plugin::run::client::request::Identity
+/// [`request::VolumeMount`]: crate::shared::containers::request::VolumeMount
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Mount {
     /// Whose volume [`host_name`](Self::host_name) is.

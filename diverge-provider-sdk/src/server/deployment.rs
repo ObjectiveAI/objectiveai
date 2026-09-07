@@ -6,35 +6,29 @@ use super::mount::Mount;
 
 /// A container to put somewhere, minus the image.
 ///
-/// What the three container endpoints mean by "a container" once the
-/// differences between them are set aside. An
-/// [`agentic_loop`](crate::endpoints::agentic_loop::run) runs an agent
-/// in one, a [`laboratory`](crate::endpoints::laboratories::run) is one
-/// an agent works inside, and an
-/// [`mcp_plugin`](crate::endpoints::mcp_plugin::run) is one that serves
-/// tools — and none of that is here, because none of it changes how the
-/// container is deployed.
+/// What the [`containers`](crate::endpoints::containers) family means
+/// by "a container" once the differences between its kinds are set
+/// aside. An agent container runs an agent, a tool container serves
+/// tools — and none of that is here, because none of it changes how
+/// the container is deployed.
 ///
 /// # It is built, not passed through
 ///
 /// No endpoint's request frame becomes one of these. A handler reads
-/// its own request and fills this in, and for
-/// [`agentic_loop`](crate::endpoints::agentic_loop::run) there is
-/// nothing to copy at all — its request carries an agent, a prompt and
-/// a continuation, and what container that implies is the provider's
-/// to work out.
+/// its own request and fills this in — the limits and the mounts as
+/// the caller sent them, the ports as the provider arranges them.
 ///
 /// Which is the point. A deployer that took a request frame would take
-/// three of them, and be three deployers.
+/// one per scope, and be that many deployers.
 ///
 /// # The image is not here
 ///
 /// It is an argument to whichever
 /// [`ContainerDeployer`](super::container_deployer::ContainerDeployer)
 /// method is called, because the method IS the source. Carrying an
-/// [`Image`](crate::shared::container::request::Image) here as well
+/// [`Image`](crate::shared::containers::request::Image) here as well
 /// would let a caller hand
-/// [`Client`](crate::shared::container::request::Image::Client) to the
+/// [`Client`](crate::shared::containers::request::Image::Client) to the
 /// method that pulls from a registry, which is a contradiction nothing
 /// would catch.
 ///
@@ -88,12 +82,9 @@ pub struct Deployment {
     pub environment: IndexMap<String, String>,
     /// The volumes to make visible inside it.
     ///
-    /// Empty for a container that takes none, which is every plugin —
-    /// a plugin serves tools rather than works on a filesystem, and
-    /// mounting a caller's directories into one would hand it access it
-    /// has no reason to want.
+    /// Empty for a container that takes none.
     ///
-    /// Not the [`Mount`](crate::shared::container::request::Mount) a
+    /// Not the [`VolumeMount`](crate::shared::containers::request::VolumeMount) a
     /// caller sent. [`server::Mount`](Mount) is that one plus the
     /// caller it came from, because a volume's name is unique within
     /// the caller it was listed to and means nothing on its own — so a
@@ -125,10 +116,8 @@ pub struct Deployment {
     ///
     /// # More than one, because one is not the rule
     ///
-    /// An [`mcp_plugin`](crate::endpoints::mcp_plugin::run) names one
-    /// to three on its own: where its MCP server listens, and, if it
-    /// wants them, where it listens for the database and command
-    /// conduits a provider dials in to. A provider that arranges
+    /// A container has at least two — its entrypoint's, and its
+    /// proxy's, which carries everything else. A provider that arranges
     /// something further for itself needs somewhere to say so, and this
     /// is it.
     ///

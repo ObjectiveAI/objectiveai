@@ -58,7 +58,6 @@
 //!
 //! Under construction. The types land as the provider API is defined.
 
-pub mod agentic_loop_container;
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(any(feature = "client", feature = "server"))]
@@ -68,8 +67,6 @@ pub mod decode;
 pub mod encode;
 pub mod endpoints;
 pub mod frame;
-pub mod mcp_proxy;
-pub mod postgres_proxy;
 #[cfg(feature = "server")]
 pub mod server;
 pub mod shared;

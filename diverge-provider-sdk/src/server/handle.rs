@@ -10,7 +10,6 @@ use super::authorization::{self, Authorization};
 use super::container::Container;
 use super::container_deployer::ContainerDeployer;
 use super::image_checker::ImageChecker;
-use super::laboratories::Laboratories;
 use super::received::Received;
 use super::session::Session;
 use super::unbrokered_authorizer::UnbrokeredAuthorizer;
@@ -37,16 +36,14 @@ use crate::shared::error::Error;
 /// and with what — see the handshake below, which is where the
 /// `client_identity` every handler receives now comes from. `address`
 /// is the peer the socket came from, which rides a connector's
-/// [`Authorize`](crate::endpoints::laboratories::run::server::channel_request::Authorize)
+/// [`Authorize`](crate::shared::containers::authorize::request::Authorize)
 /// and is a signal rather than an identity.
 ///
 /// The rest are the provider's capabilities, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
-/// boxed behind one pointer. [`laboratories`](Laboratories) must be
-/// the SAME registry across every connection the provider serves: a
-/// connector may arrive on a different connection than its runner, and
-/// two registries would be two worlds that cannot see each other's
-/// laboratories.
+/// boxed behind one pointer. `deployer` and `address` are held for the
+/// container handlers, which are not written yet: nothing dispatched
+/// today reaches either.
 ///
 /// # The handshake comes first
 ///
@@ -102,18 +99,15 @@ use crate::shared::error::Error;
 ///
 /// Then it waits for all of them. Aborting instead would tear through
 /// every one of those teardowns — and it would end runs a caller had
-/// already paid for, which the
-/// [`agentic_loop`](crate::endpoints::agentic_loop::run) handler
-/// documents as the wrong way round: the work was real, and a caller
-/// that leaves does not un-spend it.
+/// already paid for, which is the wrong way round: the work was real,
+/// and a caller that leaves does not un-spend it.
 pub async fn handle<D, V, I, U>(
     mut session: Session,
     authorization: Authorization<U>,
-    address: IpAddr,
-    deployer: Arc<D>,
+    _address: IpAddr,
+    _deployer: Arc<D>,
     volume_manager: Arc<V>,
     image_checker: Arc<I>,
-    laboratories: Arc<Laboratories<D::Container>>,
 ) -> Result<(), HandleError<U::Error>>
 where
     D: ContainerDeployer + 'static,
@@ -202,56 +196,14 @@ where
         match ClientRequest::decode(&payload)
             .unwrap_or_else(|error| match error {})
         {
-            ClientRequest::AgenticLoopRun(frame) => {
-                // The tag off the front: what remains is the request's
-                // own JSON, which that handler forwards raw so a field
-                // this crate does not model survives the trip.
-                let body = payload.slice(1..);
-                let identity = Arc::clone(&client_identity);
-                let deployer = Arc::clone(&deployer);
-                scopes.spawn(async move {
-                    endpoints::agentic_loop::run::server::handle::handle(
-                        scope, frame, body, &identity, &*deployer,
-                    )
-                    .await;
-                });
-            }
-            ClientRequest::McpPluginRun(frame) => {
-                let identity = Arc::clone(&client_identity);
-                let deployer = Arc::clone(&deployer);
-                scopes.spawn(async move {
-                    endpoints::mcp_plugin::run::server::handle::handle(
-                        scope, frame, &identity, &*deployer,
-                    )
-                    .await;
-                });
-            }
-            ClientRequest::LaboratoriesRun(frame) => {
-                let identity = Arc::clone(&client_identity);
-                let deployer = Arc::clone(&deployer);
-                let laboratories = Arc::clone(&laboratories);
-                scopes.spawn(async move {
-                    endpoints::laboratories::run::server::handle::handle(
-                        scope,
-                        frame,
-                        &identity,
-                        &*deployer,
-                        &laboratories,
-                    )
-                    .await;
-                });
-            }
-            ClientRequest::LaboratoriesConnect(frame) => {
-                let laboratories = Arc::clone(&laboratories);
-                scopes.spawn(async move {
-                    endpoints::laboratories::connect::server::handle::handle(
-                        scope,
-                        frame,
-                        address,
-                        &laboratories,
-                    )
-                    .await;
-                });
+            // The four container scopes have no handler yet: the wire
+            // is defined and the serving is not. Until it is, each is
+            // finished with nothing — the standing "could not serve".
+            ClientRequest::ContainersAgentsRun(_)
+            | ClientRequest::ContainersAgentsConnect(_)
+            | ClientRequest::ContainersToolsRun(_)
+            | ClientRequest::ContainersToolsConnect(_) => {
+                scope.send_response_finish().await
             }
             ClientRequest::VolumesList(_) => {
                 let identity = Arc::clone(&client_identity);

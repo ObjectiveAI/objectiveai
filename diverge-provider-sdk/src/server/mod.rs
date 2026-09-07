@@ -109,26 +109,26 @@
 //! Sharing happens one level down instead. A
 //! [`ScopeHandle`](scope_handle::ScopeHandle) takes `&self` throughout,
 //! so several tasks can answer one scope at once — which is what a
-//! provider needs where a client does not, because an endpoint like
-//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run) writes in
-//! two directions and neither should wait on the other. A client shares
+//! provider needs where a client does not, because a
+//! [`containers`](crate::endpoints::containers) scope writes in two
+//! directions and neither should wait on the other. A client shares
 //! the thing that makes scopes; a provider shares the scope.
 //!
 //! # Every endpoint is handled, and [`handle`] wires them together
 //!
-//! All eleven scopes have a `server::handle`, and this module's
-//! [`handle`] is the dispatch in front of them: it reads each request
-//! a [`Session`](session::Session) yields, decides which endpoint it
-//! belongs to, and spawns that endpoint's handler with the decoded
-//! request. One call per connection is a provider's whole loop.
+//! This module's [`handle`] is the dispatch in front of the endpoint
+//! handlers: it reads each request a [`Session`](session::Session)
+//! yields, decides which endpoint it belongs to, and spawns that
+//! endpoint's handler with the decoded request. One call per
+//! connection is a provider's whole loop.
 //!
 //! The five [`volumes`](crate::endpoints::volumes),
 //! [`images::check`](crate::endpoints::images::check) and
 //! [`version`](crate::endpoints::version) answer and finish, which is
-//! the whole of what those endpoints do. The three container
-//! endpoints serve for as long as their containers run, and
-//! [`laboratories::connect`](crate::endpoints::laboratories::connect)
-//! serves a container somebody else runs.
+//! the whole of what those endpoints do. The four
+//! [`containers`](crate::endpoints::containers) scopes serve for as
+//! long as their containers run; their handlers are not written yet,
+//! and until they are the dispatch finishes those scopes with nothing.
 //!
 //! # Auth is a handshake in front of [`handle`]
 //!
@@ -189,14 +189,6 @@
 //! machinery and not something a provider could implement. What comes
 //! back on one is an [`oci_stream`].
 //!
-//! [`laboratories`] is concrete for the same reason, and it is the one
-//! piece of state that outlives a scope: a laboratory's id is minted
-//! on one scope and quoted on others — a connect joining it, a
-//! transfer naming it as a destination — so something above every
-//! scope has to resolve one. A provider makes one registry and hands
-//! it to both laboratories handlers, and that is the whole of its
-//! involvement.
-//!
 //! [`volume_manager`] is the second, and it is the other five
 //! endpoints: the directories a provider offers, listed, created,
 //! resized, deleted and watched. One trait for all of them, because
@@ -228,20 +220,13 @@
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](crate::endpoints::images::check)'s, and
-//! [`container_deployer`] by the handlers of
-//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run),
-//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run) and
-//! [`laboratories::run`](crate::endpoints::laboratories::run) — the
-//! three endpoints that put a container somewhere. The first uses one
-//! of its methods, an agent's image being this crate's own; the other
-//! two use all three, and they are the two that reach
-//! [`client_registry`] and [`oci_stream`], which exist for an image
-//! the CALLER serves.
-//!
-//! [`laboratories::connect`](crate::endpoints::laboratories::connect)'s
-//! handler is the odd one out: it consumes none of the three, because
-//! it deploys nothing — the container it serves already exists, found
-//! through [`laboratories`] and stopped by whoever ran it.
+//! [`container_deployer`] by the two run handlers of
+//! [`containers`](crate::endpoints::containers) — the scopes that put
+//! a container somewhere, which use all three of its methods and are
+//! what reach [`client_registry`] and [`oci_stream`], which exist for
+//! an image the CALLER serves. A connect handler consumes none of the
+//! three, because it deploys nothing — the container it serves already
+//! exists, and is stopped by whoever ran it.
 //!
 //! [`version`](crate::endpoints::version) has a handler too and asks
 //! for nothing at all, its answer being a compile-time constant. It is
@@ -262,7 +247,6 @@ pub mod container_deployer;
 pub mod deployment;
 pub mod handle;
 pub mod image_checker;
-pub mod laboratories;
 pub mod mount;
 mod notice;
 pub mod oci_stream;

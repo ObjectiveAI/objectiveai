@@ -9,14 +9,10 @@ use super::deployment::Deployment;
 /// What runs a container for a provider.
 ///
 /// The first thing this crate asks a provider to supply, and the one
-/// every container endpoint needs. An
-/// [`agentic_loop`](crate::endpoints::agentic_loop::run) runs an agent
-/// in a container, a
-/// [`laboratory`](crate::endpoints::laboratories::run) is one an agent
-/// works inside, and an
-/// [`mcp_plugin`](crate::endpoints::mcp_plugin::run) is one that serves
-/// tools — three endpoints that differ in what goes IN a container and
-/// not in how one is deployed.
+/// every [`containers`](crate::endpoints::containers) scope needs. An
+/// agent container runs an agent and a tool container serves tools —
+/// two families that differ in what goes IN a container and not in
+/// how one is deployed.
 ///
 /// So this is generic and lives here rather than under any of them,
 /// beside [`Session`](super::session::Session) and for the same reason:
@@ -83,25 +79,24 @@ use super::deployment::Deployment;
 /// # A port that is never bound is a different thing
 ///
 /// And it is still not detectable here. An image that binds nothing on
-/// [`mcp_port`](crate::endpoints::mcp_plugin::run::client::request::Frame::mcp_port)
-/// is a container that came up perfectly and has nothing listening, and
-/// no amount of waiting turns that into an answer — which is why
-/// `mcp_plugin` documents a wrong port as surfacing "as an exchange
-/// that finishes without an answer".
+/// its entrypoint's port is a container that came up perfectly and has
+/// nothing listening, and no amount of waiting turns that into an
+/// answer — which is why a wrong port surfaces as an exchange that
+/// finishes without an answer.
 ///
 /// The distinction is between not YET and not EVER. This promises the
 /// first is over; nothing can promise the second away.
 ///
 /// # Three methods, one per source
 ///
-/// [`Image`](crate::shared::container::request::Image) has three
+/// [`Image`](crate::shared::containers::request::Image) has three
 /// variants and this has three methods, named for them. Which is not
 /// bookkeeping — it is what makes the fourth argument possible.
 ///
 /// A caller-served image is the one case where the provider has to ask
 /// somebody for the bytes, so [`client`](Self::client) is handed a
 /// [`ClientRegistry`] and the other two are not. One method taking an
-/// [`Image`](crate::shared::container::request::Image) would have to
+/// [`Image`](crate::shared::containers::request::Image) would have to
 /// carry that as an [`Option`], `Some` exactly when the variant is
 /// `Client` — a correlation nothing would enforce and every
 /// implementation would have to be trusted to respect.
