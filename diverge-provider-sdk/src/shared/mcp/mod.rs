@@ -16,12 +16,13 @@
 //!
 //! # Why they are shared
 //!
-//! Because more than one endpoint carries them, in more than one
-//! direction. An [`agentic_loop`](crate::endpoints::agentic_loop::run)
-//! has an agent inside a container asking a caller's servers; an
-//! [`mcp_plugin`](crate::endpoints::mcp_plugin::run) and a
-//! [`laboratory`](crate::endpoints::laboratories) have a caller asking
-//! a server the provider is holding.
+//! Because more than one scope carries them, in more than one
+//! direction. Every [`containers`](crate::endpoints::containers) scope
+//! has the container inside asking a caller's servers; a
+//! [`tools`](crate::endpoints::containers::tools) scope also has the
+//! caller asking a server the provider is holding; and the
+//! [`proxy`](crate::container_proxy::mcp) inside the container relays
+//! the first of those one hop earlier.
 //!
 //! Same five exchanges, opposite ways round. A shape defined once per
 //! endpoint would be four definitions that agree until they do not.

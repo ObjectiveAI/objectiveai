@@ -17,10 +17,10 @@
 //! rebuilding a request rather than forwarding one.
 //!
 //! [`filetree`] is a live filesystem view — a watch answers with one,
-//! and so does a laboratory run, over a different tree. [`container`]
-//! is what a container endpoint does to a container once it has one,
-//! plus the part of asking for one that does not vary between the
-//! kinds.
+//! and so does a container scope, over a different tree.
+//! [`containers`] is everything the four container scopes have in
+//! common, which is everything but one exchange each: asking for a
+//! container, working with its files, and the asks it makes back.
 //!
 //! [`error`] is the odd one out: a shape nothing carries yet. It is
 //! here rather than beside whichever frame first needs it, because a
@@ -33,7 +33,7 @@
 //! [`Root::update`](filetree::response::Root::update) is exactly the
 //! kind of thing that would stop agreeing quietly.
 
-pub mod container;
+pub mod containers;
 pub mod error;
 pub mod filetree;
 pub mod mcp;

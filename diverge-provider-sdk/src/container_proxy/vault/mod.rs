@@ -61,13 +61,4 @@
 //! `Lock` re-sent after the fact might refresh a lock the container
 //! had meanwhile decided to give up. The container decides.
 
-pub mod delete;
-pub mod get;
-pub mod lock;
-pub mod response;
-pub mod set;
-pub mod unlock;
-
-mod error;
-
-pub use error::*;
+pub use crate::shared::containers::vault::*;

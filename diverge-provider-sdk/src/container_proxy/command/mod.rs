@@ -38,5 +38,4 @@
 //! died mid-stream, is a command whose outcome is unknown, and it is
 //! reported to whoever asked as failed rather than run again.
 
-pub mod request;
-pub mod response;
+pub use crate::shared::containers::command::*;

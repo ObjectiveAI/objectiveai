@@ -28,8 +28,7 @@
 //!
 //! They cost visibility: nothing here can say what is on the wire, the
 //! same way nothing can say what is on a
-//! [`postgres`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Postgres)
-//! conduit.
+//! [`postgres`](crate::shared::containers::postgres) conduit.
 //!
 //! They buy correctness that a structured form kept getting wrong. A
 //! relay that takes a request apart and builds a new one has to decide
