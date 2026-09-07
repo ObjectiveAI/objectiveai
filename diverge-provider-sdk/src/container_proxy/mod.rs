@@ -22,7 +22,7 @@
 //! | `/vault/get/{channel}` and its four siblings | one vault answer, then the close |
 //! | `/command/{channel}`                | the command's items, then the close |
 //! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
-//! | `/filetree`                         | filetree frames, sent by the container; the server is silent |
+//! | `/filetree`                         | filetree frames, or why there are none, sent by the container; the server is silent |
 //! | `/read`                             | the server names a file; the container answers its bytes, or why not, then the close |
 //! | `/write`                            | the server names a file and sends its content; the container answers ok or error |
 //!

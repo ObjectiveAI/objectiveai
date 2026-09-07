@@ -1,5 +1,5 @@
 //! The answer on `/filetree`: one filetree event per frame, from the
-//! container.
+//! container, or why there will be no more.
 
 mod error;
 mod frame;
