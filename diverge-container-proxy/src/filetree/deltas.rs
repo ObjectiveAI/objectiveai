@@ -1,13 +1,14 @@
 //! One notify event, as the frames it means.
 
+use std::fs;
 use std::path::{Component, Path};
 use std::sync::Mutex;
 
-use diverge_provider_sdk::shared::filetree::response::{Frame, Node};
+use diverge_provider_sdk::shared::filetree::response::Frame;
+use notify::EventKind;
 use notify::event::{ModifyKind, RenameMode};
-use notify::{EventKind, RecommendedWatcher};
 
-use super::{Ignore, node, register};
+use super::{Ignore, Watch, node};
 
 /// What an event came to.
 pub enum Mapped {
@@ -24,11 +25,12 @@ pub enum Mapped {
 ///
 /// - **Rescan flagged** — the inotify queue overflowed — is
 ///   [`Resync`](Mapped::Resync), whatever else the event says.
-/// - **Create** — the node is read. Present: `Inserted` with its
-///   complete value, a directory with its subtree — and a directory
-///   is also registered for watching, which matters only where the
-///   tree's registration degraded (see [`register`]). Already gone:
-///   nothing; the removal that follows will say so.
+/// - **Create** — a directory is registered for watching first,
+///   which matters only where the tree's registration degraded (see
+///   [`Watch::register`]) and decides its `changes`; then the node is
+///   read. Present: `Inserted` with its complete value, a directory
+///   with its subtree. Already gone: nothing; the removal that
+///   follows will say so.
 /// - **Rename, the leaving half** (`From`) — `Removed`. Whether the
 ///   node went elsewhere in the tree or out of it, this path no
 ///   longer holds it.
@@ -46,14 +48,29 @@ pub enum Mapped {
 /// watched directory being renamed yields its `From` twice — once
 /// from its parent's watch, once from its own — which is a second
 /// `Removed` of a path already empty, and the fold drops it.
-pub fn map(
-    event: notify::Event,
-    ignore: &Ignore,
-    watcher: &Mutex<RecommendedWatcher>,
-) -> Mapped {
+pub fn map(event: notify::Event, ignore: &Ignore, watch: &Mutex<Watch>) -> Mapped {
     if event.need_rescan() {
         return Mapped::Resync;
     }
+    let arriving = matches!(
+        event.kind,
+        EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(RenameMode::To))
+    );
+    let dark = {
+        let Ok(mut watch) = watch.lock() else {
+            return Mapped::Frames(Vec::new());
+        };
+        if arriving {
+            for path in &event.paths {
+                if !ignore.excluded(path)
+                    && fs::symlink_metadata(path).is_ok_and(|meta| meta.is_dir())
+                {
+                    let _ = watch.register(path, ignore);
+                }
+            }
+        }
+        watch.dark()
+    };
     let mut frames = Vec::new();
     match event.kind {
         EventKind::Create(_)
@@ -62,18 +79,12 @@ pub fn map(
                 let Some(components) = components(path, ignore) else {
                     continue;
                 };
-                let Some(node) = node(path, ignore) else {
-                    continue;
-                };
-                if matches!(node, Node::Directory { .. })
-                    && let Ok(mut watcher) = watcher.lock()
-                {
-                    let _ = register(&mut watcher, path, ignore);
+                if let Some(node) = node(path, ignore, &dark) {
+                    frames.push(Frame::Inserted {
+                        path: components,
+                        node,
+                    });
                 }
-                frames.push(Frame::Inserted {
-                    path: components,
-                    node,
-                });
             }
         }
         EventKind::Modify(ModifyKind::Name(RenameMode::From))
@@ -90,7 +101,7 @@ pub fn map(
                 let Some(components) = components(path, ignore) else {
                     continue;
                 };
-                frames.push(match node(path, ignore) {
+                frames.push(match node(path, ignore, &dark) {
                     Some(node) => Frame::Modified {
                         path: components,
                         node,

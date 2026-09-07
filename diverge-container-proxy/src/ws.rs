@@ -342,8 +342,9 @@ pub async fn filetree(
 /// mapped in another, one at a time, so the stream's frames are the
 /// events' order. The server sends nothing: its socket yielding
 /// anything but a ping or pong — a close, a message, an error, the
-/// end — ends the subscription, and the watcher drops with this
-/// task, which unregisters every watch it held.
+/// end — ends the subscription, and the watch drops with this task,
+/// which unregisters everything it held. A corner the watch could
+/// not cover is still walked, its directory's `changes` false.
 ///
 /// A watch that could not be armed, or a root that could not be
 /// watched at all, closes the socket before any frame: the server
@@ -357,21 +358,23 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
     let armed = tokio::task::spawn_blocking({
         let ignore = Arc::clone(&ignore);
         move || {
-            let mut watcher = filetree::arm(sender)?;
-            filetree::register(&mut watcher, std::path::Path::new(ROOT), &ignore)?;
-            let children = filetree::children(std::path::Path::new(ROOT), &ignore);
-            Ok::<_, notify::Error>((watcher, children))
+            let mut watch = filetree::Watch::arm(sender)?;
+            watch.register(std::path::Path::new(ROOT), &ignore)?;
+            let dark = watch.dark();
+            let children =
+                filetree::children(std::path::Path::new(ROOT), &ignore, &dark);
+            Ok::<_, notify::Error>((watch, children))
         }
     })
     .await;
-    let (watcher, children) = match armed {
+    let (watch, children) = match armed {
         Ok(Ok(armed)) => armed,
         Ok(Err(_)) | Err(_) => {
             let _ = sink.close().await;
             return;
         }
     };
-    let watcher = Arc::new(Mutex::new(watcher));
+    let watch = Arc::new(Mutex::new(watch));
 
     if !send_frame(&mut sink, response::Frame::Snapshot { children }).await {
         return;
@@ -385,9 +388,9 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
                 let mapped = match result {
                     Ok(event) => {
                         let ignore = Arc::clone(&ignore);
-                        let watcher = Arc::clone(&watcher);
+                        let watch = Arc::clone(&watch);
                         let mapped = tokio::task::spawn_blocking(move || {
-                            filetree::map(event, &ignore, &watcher)
+                            filetree::map(event, &ignore, &watch)
                         })
                         .await;
                         match mapped {
@@ -401,8 +404,10 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
                     Mapped::Frames(frames) => frames,
                     Mapped::Resync => {
                         let ignore = Arc::clone(&ignore);
+                        let watch = Arc::clone(&watch);
                         let children = tokio::task::spawn_blocking(move || {
-                            filetree::children(std::path::Path::new(ROOT), &ignore)
+                            let dark = watch.lock().map(|watch| watch.dark()).unwrap_or_default();
+                            filetree::children(std::path::Path::new(ROOT), &ignore, &dark)
                         })
                         .await;
                         match children {
