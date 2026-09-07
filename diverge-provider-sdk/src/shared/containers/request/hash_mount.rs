@@ -36,5 +36,5 @@ pub struct HashMount {
     /// Because the size rides the identity, a server can refuse an
     /// oversized request up front, as a request error, with nothing
     /// fetched.
-    pub hash: String,
+    pub identity: String,
 }
