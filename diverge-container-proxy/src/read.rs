@@ -5,6 +5,7 @@ use diverge_provider_sdk::CHUNK_SIZE;
 use diverge_provider_sdk::container_proxy::read;
 use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::encode::{Encode as _, Writer};
+use diverge_provider_sdk::shared::containers;
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::io::AsyncReadExt as _;
 
@@ -16,21 +17,21 @@ use crate::paths;
 ///
 /// 1. The first message is the ask. It must be binary and decode as
 ///    the request; a text message, a close, an error, the end, or a
-///    body that will not decode is a refusal — the clean close with
-///    nothing before it — since the server sent something this is
-///    not.
-/// 2. The path must name a file: [`paths::absolute`], or a refusal.
+///    body that will not decode is the clean close with nothing before
+///    it — the server sent something this is not, and there is no
+///    read to say anything about.
+/// 2. The path must name a file ([`paths::absolute`]), else `Error`.
 /// 3. The file is opened as the OS opens it, a symlink followed, and
 ///    must then be a regular file — a directory above all is never
 ///    read, per the shared read's doctrine. An open that fails, or
-///    anything else, is a refusal.
-/// 4. The bytes go out as they are read, [`CHUNK_SIZE`] at most per
-///    message, until a read returns nothing. A file that had nothing
-///    is one empty message: the clean close alone would mean refused.
-///    A read that fails mid-file is the read dying, and the socket is
-///    dropped unclosed — the abrupt end the wire names for it. A send
-///    that fails is the server gone.
-/// 5. The clean close: the read complete.
+///    anything else, is `Error`, with the reason.
+/// 4. The bytes go out as bodies, [`CHUNK_SIZE`] at most per message,
+///    until a read returns nothing. A file that had nothing is one
+///    empty body: the clean close alone would mean refused. A read
+///    that fails mid-file is `Error` after the bodies already sent —
+///    the file was not read whole, and this is why. A send that fails
+///    is the server gone.
+/// 5. The clean close: the read complete, or its error delivered.
 ///
 /// The server is silent after its one message, so nothing here
 /// listens for it: a server that went away is a send that fails.
@@ -41,19 +42,24 @@ pub async fn serve(mut socket: WebSocket) {
         }
         _ => None,
     };
-    let Some(path) =
-        request.and_then(|request| paths::absolute(&request.path))
-    else {
+    let Some(request) = request else {
         let _ = socket.close().await;
+        return;
+    };
+    let Some(path) = paths::absolute(&request.path) else {
+        error(socket, "path names no file").await;
         return;
     };
 
-    let Ok(mut file) = tokio::fs::File::open(&path).await else {
-        let _ = socket.close().await;
-        return;
+    let mut file = match tokio::fs::File::open(&path).await {
+        Ok(file) => file,
+        Err(reason) => {
+            error(socket, &format!("open: {reason}")).await;
+            return;
+        }
     };
     if !file.metadata().await.is_ok_and(|meta| meta.is_file()) {
-        let _ = socket.close().await;
+        error(socket, "not a regular file").await;
         return;
     }
 
@@ -63,25 +69,38 @@ pub async fn serve(mut socket: WebSocket) {
         match file.read(&mut buffer).await {
             Ok(0) => break,
             Ok(n) => {
-                if !send(&mut socket, &buffer[..n]).await {
+                let body = containers::read::response::Frame(&buffer[..n]);
+                if !send(&mut socket, read::response::Frame::Body(body)).await {
                     return;
                 }
                 sent = true;
             }
-            Err(_) => return,
+            Err(reason) => {
+                error(socket, &format!("read: {reason}")).await;
+                return;
+            }
         }
     }
-    if !sent && !send(&mut socket, &[]).await {
-        return;
+    if !sent {
+        let body = containers::read::response::Frame(&[]);
+        if !send(&mut socket, read::response::Frame::Body(body)).await {
+            return;
+        }
     }
     let _ = socket.close().await;
 }
 
-/// One piece of the file, as the wire's frame. `false` is the socket
-/// gone.
-async fn send(socket: &mut WebSocket, bytes: &[u8]) -> bool {
-    let mut out = Vec::with_capacity(bytes.len());
-    read::response::Frame(bytes)
+/// The error, then the clean close.
+async fn error(mut socket: WebSocket, reason: &str) {
+    if send(&mut socket, read::response::Frame::Error(reason)).await {
+        let _ = socket.close().await;
+    }
+}
+
+/// One message, as the wire's frame. `false` is the socket gone.
+async fn send(socket: &mut WebSocket, frame: read::response::Frame<'_>) -> bool {
+    let mut out = Vec::new();
+    frame
         .encode(&mut Writer::new(&mut out))
         .unwrap_or_else(|error| match error {});
     socket.send(Message::Binary(out.into())).await.is_ok()
