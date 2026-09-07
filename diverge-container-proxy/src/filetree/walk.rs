@@ -1,7 +1,7 @@
 //! The tree, read from disk.
 
 use std::fs;
-use std::path::{Component, Path};
+use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use diverge_provider_sdk::shared::filetree::response::Node;
@@ -16,14 +16,18 @@ use super::Ignore;
 /// runs this under `spawn_blocking` so nothing async waits on it. A
 /// directory that cannot be read is empty, an entry that cannot be
 /// read is absent, and an excluded entry does not exist. Entries come
-/// in the order the directory yields them.
-pub fn children(dir: &Path, ignore: &Ignore) -> Vec<Node> {
+/// in the order the directory yields them. `dark` is the watch's
+/// list of directories it could not watch (see
+/// [`Watch::dark`](super::Watch::dark)): a directory there, or under
+/// one there, is walked like any other and reported with `changes`
+/// false.
+pub fn children(dir: &Path, ignore: &Ignore, dark: &[PathBuf]) -> Vec<Node> {
     let Ok(entries) = fs::read_dir(dir) else {
         return Vec::new();
     };
     entries
         .flatten()
-        .filter_map(|entry| node(&entry.path(), ignore))
+        .filter_map(|entry| node(&entry.path(), ignore, dark))
         .collect()
 }
 
@@ -35,7 +39,7 @@ pub fn children(dir: &Path, ignore: &Ignore) -> Vec<Node> {
 /// a failure rather than a link with no target, and here the failure
 /// is the node's absence. Links are never followed: a symlink is the
 /// link, and its metadata is the link's own.
-pub fn node(path: &Path, ignore: &Ignore) -> Option<Node> {
+pub fn node(path: &Path, ignore: &Ignore, dark: &[PathBuf]) -> Option<Node> {
     if ignore.excluded(path) {
         return None;
     }
@@ -49,7 +53,8 @@ pub fn node(path: &Path, ignore: &Ignore) -> Option<Node> {
             name,
             created_at,
             modified_at,
-            children: children(path, ignore),
+            changes: !dark.iter().any(|dark| path.starts_with(dark)),
+            children: children(path, ignore, dark),
         }
     } else if kind.is_symlink() {
         let target = fs::read_link(path).ok()?;
