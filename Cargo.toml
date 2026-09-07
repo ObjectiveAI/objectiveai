@@ -11,8 +11,6 @@ members = [
     "diverge-agentic-loop-cc",
     "diverge-agentic-loop-eliza",
     "diverge-agentic-loop-hermes",
-    "diverge-container-mcp-proxy",
-    "diverge-container-postgres-proxy",
     "diverge-container-proxy",
     "diverge-container-proxy-sdk",
     "diverge-agentic-loop-openrouter",

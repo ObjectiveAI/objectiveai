@@ -33,8 +33,8 @@ use crate::frame::server::ServerFrame;
 /// several tasks to answer the same scope at once. Which is what a
 /// two-directional endpoint
 /// needs: an
-/// [`agentic_loop`](crate::endpoints::agentic_loop::run) relays chunks
-/// down while relaying tool calls out, and a handle that had to be held
+/// [`agent container`](crate::endpoints::containers::agents) relays
+/// chunks down while relaying tool calls out, and a handle that had to be held
 /// exclusively would have put a queue and an arbiter between those two
 /// jobs for no reason but the signature.
 ///

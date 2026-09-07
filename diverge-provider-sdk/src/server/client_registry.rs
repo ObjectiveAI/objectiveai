@@ -15,7 +15,7 @@ use crate::shared::oci;
 /// request the runtime makes to whoever does have the bytes.
 ///
 /// It is the mirror of
-/// [`OciProxy`](crate::client::oci_proxy::OciProxy). That answers these
+/// `OciProxy`. That answers these
 /// requests; this makes them.
 ///
 /// # A concrete type, not a trait
@@ -45,14 +45,14 @@ use crate::shared::oci;
 ///
 /// # Why it is told how to wrap a request
 ///
-/// Because the frame it goes out in belongs to the endpoint, not to
-/// this. A
-/// [`laboratory run`](crate::endpoints::laboratories::run::server::channel_request::Frame::Oci)
-/// and an
-/// [`mcp plugin run`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Oci)
+/// Because the frame it goes out in belongs to the scope, not to
+/// this. An
+/// [`agents run`](crate::endpoints::containers::agents::run::server::channel_request::Frame::Oci)
+/// and a
+/// [`tools run`](crate::endpoints::containers::tools::run::server::channel_request::Frame::Oci)
 /// each have their own channel-request enum with an `Oci` in it, and a
 /// type serving both cannot name either — the same rule that moved
-/// [`Mount`](crate::shared::container::request::Mount) into
+/// [`VolumeMount`](crate::shared::containers::request::VolumeMount) into
 /// [`shared`](crate::shared).
 ///
 /// The alternative was writing the tag byte here. Both endpoints
@@ -109,7 +109,7 @@ impl<'a> ClientRegistry<'a> {
     /// Ask for one thing, and get the answer as it arrives.
     ///
     /// One channel per request, opened here and answered by the
-    /// caller's [`OciProxy`](crate::client::oci_proxy::OciProxy). What
+    /// caller's `OciProxy`. What
     /// comes back is an [`OciStream`]: the registry's answer as it
     /// arrives, in as many pieces as it arrives in.
     ///
@@ -138,8 +138,8 @@ impl<'a> ClientRegistry<'a> {
     /// A request is bytes copied into a buffer and cannot fail to
     /// encode; what the type reports is the whole endpoint frame's
     /// error, and
-    /// [`laboratories::run`](crate::endpoints::laboratories::run::server::channel_request::Frame)
-    /// has a variant that IS JSON. Narrowing it would mean a type
+    /// [`agents::run`](crate::endpoints::containers::agents::run::server::channel_request::Frame)
+    /// has variants that ARE JSON. Narrowing it would mean a type
     /// parameter here, which would then have to appear on
     /// [`ContainerDeployer::client`](super::container_deployer::ContainerDeployer::client)
     /// — a bound on every implementation, to delete an arm one endpoint

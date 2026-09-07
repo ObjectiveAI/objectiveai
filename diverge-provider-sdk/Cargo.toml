@@ -67,8 +67,8 @@ tokio = { version = "1.53.1", default-features = false, features = ["net", "rt",
 # upgrading is the provider's — this crate takes the socket that comes
 # out of either.
 tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["stream"], optional = true }
-# `v4` and nothing else: a laboratory's id is a capability — holding it
-# is what authorizes a connect and a transfer — so it has to be
-# unguessable, and a random UUID is the smallest thing that is. Server
-# side only, because only the run handler mints one.
+# `v4` and nothing else: a container's id is a capability — holding it
+# is what authorizes a connect — so it has to be unguessable, and a
+# random UUID is the smallest thing that is. Server side only, because
+# only a run handler mints one.
 uuid = { version = "1.18.1", default-features = false, features = ["v4"], optional = true }

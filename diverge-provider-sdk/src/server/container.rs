@@ -14,7 +14,7 @@ use rmcp::model::{
 };
 use serde_json::value::RawValue;
 
-use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
+use crate::shared::containers::agentic_loop::response::AgenticLoopChunk;
 use crate::shared::error::Error;
 use crate::shared::filetree;
 
@@ -301,8 +301,8 @@ pub trait Container: Send + Sync {
     ///
     /// The container is the CLIENT here. It asks and this end answers,
     /// which is the direction an agent's tool calls travel: an
-    /// [`agentic_loop`](crate::endpoints::agentic_loop::run) runs its
-    /// agent beside the provider and the MCP servers live with the
+    /// [`agent container`](crate::endpoints::containers::agents) runs
+    /// its agent beside the provider and the MCP servers live with the
     /// caller, so a tool call has to leave the container before it can
     /// go anywhere.
     ///
@@ -558,9 +558,8 @@ pub trait Container: Send + Sync {
 
     /// Take the database connections a container opens.
     ///
-    /// A plugin that was given a
-    /// [`postgres_port`](crate::endpoints::mcp_plugin::run::client::request::Frame::postgres_port)
-    /// has a database, and the database lives with the CALLER. So the
+    /// A container that dials Postgres has a database, and the
+    /// database lives with the CALLER. So the
     /// plugin connects, and every connection it opens has to be carried
     /// out of the container and offered to whoever holds the data.
     ///
@@ -578,7 +577,7 @@ pub trait Container: Send + Sync {
     /// messages on somebody else's schedule, inside the crate that is
     /// this protocol's normative artifact. So the bytes go through
     /// unread, which is also what the caller's
-    /// [`PostgresProxy`](crate::client::postgres_proxy::PostgresProxy)
+    /// `PostgresProxy`
     /// takes and gives back.
     ///
     /// # A stream, because the count is the plugin's
@@ -626,7 +625,7 @@ pub trait Container: Send + Sync {
     /// caller's own CLI, against the caller's own state — so it asks,
     /// and the ask has to leave the container before anything can
     /// happen. What the caller's
-    /// [`CommandProxy`](crate::client::command_proxy::CommandProxy)
+    /// `CommandProxy`
     /// produces comes back through the item's writer.
     ///
     /// # The container-side protocol, whole
@@ -748,7 +747,7 @@ pub trait Container: Send + Sync {
     ///
     /// # One file, never a directory
     ///
-    /// See [`read`](crate::shared::container::read) for why. A path
+    /// See [`read`](crate::shared::containers::read) for why. A path
     /// that names a directory is a read that fails, not a read that
     /// produces something else.
     ///
@@ -802,7 +801,7 @@ pub trait Container: Send + Sync {
     /// Which is why its errors are a [`ContentError`] rather than one
     /// type. A caller's content arrives over the wire and fails in the
     /// caller's vocabulary; a
-    /// [`transfer`](crate::shared::container::transfer)'s comes from a
+    /// `transfer`'s comes from a
     /// [`read`](Self::read) on another container in this same process
     /// and fails in the provider's. See [`ContentError`] for why
     /// neither collapses into the other.
@@ -852,8 +851,8 @@ pub trait Container: Send + Sync {
 /// # Five, because the wire carries five
 ///
 /// They are the exchanges an
-/// [`agentic_loop`](crate::endpoints::agentic_loop::run::server::channel_request::Frame)
-/// relays and nothing else. MCP has more — `initialize`, `ping`,
+/// [`agent container`](crate::endpoints::containers::agents) relays
+/// outward and nothing else. MCP has more — `initialize`, `ping`,
 /// `complete`, `subscribe` — and none of them crosses this connection:
 /// initialization is between the container and whatever serves it, and
 /// the rest were never in the protocol this crate defines.
@@ -1014,7 +1013,7 @@ pub trait McpResponder {
 /// JSON value, from somebody else's process, meaning whatever that
 /// caller meant. That is [`Wire`](Self::Wire).
 ///
-/// A [`transfer`](crate::shared::container::transfer) has no wire in
+/// A `transfer` has no wire in
 /// it. Both containers are the provider's, so the bytes go from a
 /// [`read`](Container::read) on one straight into a
 /// write on the other without ever becoming frames — which is the whole
@@ -1065,7 +1064,7 @@ pub enum ContentError<E> {
     /// The provider's own error, from the
     /// [`read`](Container::read) feeding this write.
     /// Which happens for a
-    /// [`transfer`](crate::shared::container::transfer), where the
+    /// `transfer`, where the
     /// source is a container rather than a caller.
     ///
     /// Whether it is a refused read or a truncated one is not

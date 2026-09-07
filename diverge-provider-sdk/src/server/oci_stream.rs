@@ -21,7 +21,7 @@ use crate::shared::oci;
 ///
 /// The item is [`Bytes`] and nothing else — a refcounted view of the
 /// frame it arrived in, never a copy. It is the mirror of what an
-/// [`OciProxy`](crate::client::oci_proxy::OciProxy) produces, and the
+/// `OciProxy` produces, and the
 /// same bytes.
 ///
 /// # A provider does not read this
@@ -72,7 +72,7 @@ use crate::shared::oci;
 /// [`OciStreamError`] is this crate's plumbing breaking.
 ///
 /// Which is why this is fallible where an
-/// [`OciProxy`](crate::client::oci_proxy::OciProxy)'s stream is not.
+/// `OciProxy`'s stream is not.
 /// That end produces bytes it already has; this end reads a wire, and a
 /// wire can stop.
 #[must_use = "an answer that is not polled grows a queue nobody reads"]
