@@ -1,0 +1,73 @@
+//! What can go wrong watching the tree.
+
+use std::fmt;
+
+use tokio_tungstenite::tungstenite;
+
+use super::super::response::FrameError;
+use crate::server::container_client::OpenError;
+
+/// The watch could not be opened.
+#[derive(Debug)]
+pub enum ExecuteError {
+    /// The path could not be opened.
+    Open(OpenError),
+}
+
+impl fmt::Display for ExecuteError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ExecuteError::Open(error) => write!(f, "/filetree: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for ExecuteError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ExecuteError::Open(error) => Some(error),
+        }
+    }
+}
+
+/// Why the watch ended other than cleanly. Every one is terminal.
+#[derive(Debug)]
+pub enum ExecuteStreamError {
+    /// The proxy could not watch: the watcher would not arm, the root
+    /// would not be watched, the walk died — and this is its reason.
+    Refused(String),
+    /// A message that would not decode.
+    Frame(FrameError),
+    /// A text message: the far side speaking something else.
+    Text,
+    /// The socket failed.
+    Socket(tungstenite::Error),
+    /// The socket ended without a Close: the proxy died.
+    Closed,
+}
+
+impl fmt::Display for ExecuteStreamError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ExecuteStreamError::Refused(reason) => {
+                write!(f, "the proxy could not watch: {reason}")
+            }
+            ExecuteStreamError::Frame(error) => write!(f, "{error}"),
+            ExecuteStreamError::Text => f.write_str("/filetree carried a text message"),
+            ExecuteStreamError::Socket(error) => write!(f, "/filetree failed: {error}"),
+            ExecuteStreamError::Closed => f.write_str("/filetree ended without a close"),
+        }
+    }
+}
+
+impl std::error::Error for ExecuteStreamError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ExecuteStreamError::Frame(error) => Some(error),
+            ExecuteStreamError::Socket(error) => Some(error),
+            ExecuteStreamError::Refused(_)
+            | ExecuteStreamError::Text
+            | ExecuteStreamError::Closed => None,
+        }
+    }
+}

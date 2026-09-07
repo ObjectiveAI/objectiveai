@@ -39,3 +39,6 @@
 //! reported to whoever asked as failed rather than run again.
 
 pub use crate::shared::containers::command::*;
+
+#[cfg(feature = "server")]
+pub mod execute;
