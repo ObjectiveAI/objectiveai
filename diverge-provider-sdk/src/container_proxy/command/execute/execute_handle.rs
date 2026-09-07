@@ -5,7 +5,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use super::super::response;
 use super::HandleError;
-use crate::server::container_client::{self, WebSocket};
+use crate::server::container_client::{self, ContainerWebSocket};
 
 /// One answer path, open: send frames, then finish.
 ///
@@ -17,11 +17,11 @@ use crate::server::container_client::{self, WebSocket};
 /// DYING: a command whose outcome is unknown, reported to whoever asked as failed and never run again. So a server that is done says so.
 #[must_use = "dropping the handle without finishing is the answer dying"]
 pub struct ExecuteHandle {
-    socket: WebSocket,
+    socket: ContainerWebSocket,
 }
 
 impl ExecuteHandle {
-    pub(super) fn new(socket: WebSocket) -> Self {
+    pub(super) fn new(socket: ContainerWebSocket) -> Self {
         ExecuteHandle { socket }
     }
 

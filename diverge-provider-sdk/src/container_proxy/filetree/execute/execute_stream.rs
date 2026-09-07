@@ -7,7 +7,7 @@ use futures_util::Stream;
 
 use super::super::response;
 use super::ExecuteStreamError;
-use crate::server::container_client::WebSocket;
+use crate::server::container_client::ContainerWebSocket;
 use crate::server::messages::{MessageError, Messages};
 use crate::shared::filetree;
 
@@ -24,11 +24,11 @@ use crate::shared::filetree;
 /// [`Root::update`](filetree::response::Root::update).
 #[must_use = "a watch that is not polled is a tree nobody sees"]
 pub struct ExecuteStream {
-    messages: Messages<WebSocket>,
+    messages: Messages<ContainerWebSocket>,
 }
 
 impl ExecuteStream {
-    pub(super) fn new(socket: WebSocket) -> Self {
+    pub(super) fn new(socket: ContainerWebSocket) -> Self {
         ExecuteStream {
             messages: Messages::new(socket),
         }

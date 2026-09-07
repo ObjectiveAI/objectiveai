@@ -8,7 +8,7 @@ use futures_util::Stream;
 use futures_util::stream::SplitStream;
 
 use super::ExecuteStreamError;
-use crate::server::container_client::WebSocket;
+use crate::server::container_client::ContainerWebSocket;
 use crate::server::messages::{MessageError, Messages};
 
 /// pgwire from the container, one message one chunk, until its socket
@@ -21,11 +21,11 @@ use crate::server::messages::{MessageError, Messages};
 /// database's side reassembles as from a socket.
 #[must_use = "a connection that is not read is a driver nobody answers"]
 pub struct ExecuteStream {
-    messages: Messages<SplitStream<WebSocket>>,
+    messages: Messages<SplitStream<ContainerWebSocket>>,
 }
 
 impl ExecuteStream {
-    pub(super) fn new(stream: SplitStream<WebSocket>) -> Self {
+    pub(super) fn new(stream: SplitStream<ContainerWebSocket>) -> Self {
         ExecuteStream {
             messages: Messages::new(stream),
         }
