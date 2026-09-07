@@ -62,3 +62,12 @@
 //! had meanwhile decided to give up. The container decides.
 
 pub use crate::shared::containers::vault::*;
+
+// Each operation is a module of its own here, shadowing the shared
+// one it re-exports, so the executor that answers it can live under
+// it.
+pub mod delete;
+pub mod get;
+pub mod lock;
+pub mod set;
+pub mod unlock;

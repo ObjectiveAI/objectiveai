@@ -53,6 +53,9 @@
 pub mod request;
 pub mod response;
 
+#[cfg(feature = "server")]
+pub mod execute;
+
 /// The port the container's database driver dials, on the
 /// container's loopback: the proxy's pgwire listener. Not on the
 /// proxy's own [`PORT`](super::PORT), because pgwire is not HTTP and
