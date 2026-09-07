@@ -12,14 +12,26 @@
 //! else, at which the proxy closes.
 //!
 //! ```text
-//! container → server:  [postcard-encoded filetree frame…]
+//! container → server:  [0][postcard-encoded filetree frame…]   per event
+//!                   or [1][message…]                            last, then the close
 //! ```
 //!
-//! No header at all: the container sends exactly one kind of frame,
-//! so there is no type byte to spend, and the frame is the
-//! [`shared::filetree`](crate::shared::filetree) response frame
-//! encoded as that module encodes it — postcard, high-volume,
-//! relayed to nobody in that form.
+//! One kind byte, then the frame: a [`shared::filetree`](crate::shared::filetree)
+//! response frame encoded as that module encodes it — postcard,
+//! high-volume, relayed to nobody in that form — or, once, why there
+//! will be no more of them. The byte per frame is the price of a
+//! stream that can say why it ended, and it is small next to the
+//! paths a frame carries.
+//!
+//! # What is an error, and what is not
+//!
+//! An [`Error`](response::Frame::Error) is the watch failing to
+//! exist: the watcher could not be made, the root could not be
+//! watched at all, or the walk died. It is the last message, and the
+//! close follows. Everything short of that is not an error and is
+//! reported in the tree itself: a corner that could not be watched
+//! carries `changes` false, a corner that could not be read is absent,
+//! and lost events bring a fresh snapshot — see below.
 //!
 //! # Every connection is a fresh subscription
 //!
@@ -28,8 +40,9 @@
 //! accepts as many connections as the server opens, each a watch of
 //! its own starting whole; one at a time is the expected use, and
 //! more is merely allowed. A connection the proxy could not begin —
-//! the watch would not arm, the root would not be watched — closes
-//! before any frame, and the server starts over when it likes.
+//! the watch would not arm, the root would not be watched — answers
+//! one [`Error`](response::Frame::Error) and closes, and the server
+//! starts over when it likes.
 //!
 //! # What the tree leaves out
 //!
