@@ -34,7 +34,7 @@ use futures_util::Stream;
 /// # The sender chunks; the receiver never has to know
 ///
 /// No yielded item's bytes may exceed
-/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE):
+/// [`CHUNK_SIZE`](crate::CHUNK_SIZE):
 /// a larger file is yielded as consecutive items — same path for a
 /// directory's file, bare adjacency for the file exchange — and the
 /// far side reassembles by appending, never measuring. Only split

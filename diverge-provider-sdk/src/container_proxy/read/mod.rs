@@ -3,7 +3,8 @@
 //! Opened by the server. It sends exactly one message — the
 //! [`request::Request`], naming the file as path components from
 //! the container's root — and the container answers with the file's
-//! bytes, one [`response::Frame`] per message, then closes cleanly.
+//! bytes, one [`response::Frame`] per message, each at most
+//! [`CHUNK_SIZE`](crate::CHUNK_SIZE), then closes cleanly.
 //! The clean close is the read complete: there is no length, no
 //! `Complete` and no failure frame, which is the laboratories' read
 //! exactly — see [`shared::container::read`](crate::shared::container::read)

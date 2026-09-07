@@ -21,7 +21,7 @@ use crate::encode::{Encode, Writer};
 ///
 /// # Adjacency is the chunking
 ///
-/// A file larger than [`CHUNK_SIZE`](super::super::CHUNK_SIZE) is
+/// A file larger than [`CHUNK_SIZE`](crate::CHUNK_SIZE) is
 /// sent as
 /// consecutive frames with an EQUAL path, in order, and the receiver
 /// concatenates — chunk-naive by design: same path, next frame,

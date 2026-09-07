@@ -49,7 +49,7 @@ use crate::shared::error::Error;
 /// is the bytes themselves, on the frame's own tag, and it CLOSES the
 /// response: a provider sends it last — one frame, or several, each
 /// at most
-/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
+/// [`CHUNK_SIZE`](crate::CHUNK_SIZE)
 /// — and nothing follows it but the finish. A run that closes with
 /// no continuation frames issued none.
 ///

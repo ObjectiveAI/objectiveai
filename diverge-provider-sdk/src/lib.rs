@@ -73,3 +73,11 @@ pub mod postgres_proxy;
 #[cfg(feature = "server")]
 pub mod server;
 pub mod shared;
+
+/// The most bytes one frame of content carries, anywhere in this
+/// crate — a fetched file's piece, a container file read out or
+/// written in, a transfer's chunk. The SENDER's rule alone: content
+/// larger than this leaves as adjacent frames, and every receiver is
+/// chunk-naive — same content, next frame, append — and never
+/// measures. One number, at the root, so no two paths can disagree.
+pub const CHUNK_SIZE: usize = 2 * 1024 * 1024;

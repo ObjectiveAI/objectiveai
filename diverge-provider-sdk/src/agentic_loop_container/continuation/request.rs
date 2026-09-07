@@ -22,7 +22,7 @@ use crate::encode::{Encode, Writer};
 /// The chunk the earlier run's closer sent, replayed with its
 /// boundaries intact — the store keeps the sequence, never joins
 /// it. Each is at most
-/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE),
+/// [`CHUNK_SIZE`](crate::CHUNK_SIZE),
 /// the minting container's rule. A chunk may be as short as its
 /// container made it (one tag byte, say); a fresh start is a lone
 /// [`complete`](super::complete) with no chunks at all.

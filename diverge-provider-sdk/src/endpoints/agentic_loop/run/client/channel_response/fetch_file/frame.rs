@@ -19,7 +19,7 @@ use crate::encode::{Encode, Writer};
 /// The receiver is chunk-naive by design: each frame's bytes are
 /// concatenated onto what arrived before, and the channel's finish
 /// is what says the file is whole. The SENDER splits at
-/// [`CHUNK_SIZE`](super::super::CHUNK_SIZE); the receiver never
+/// [`CHUNK_SIZE`](crate::CHUNK_SIZE); the receiver never
 /// measures.
 /// Zero frames before the finish is the client saying it does not
 /// hold the identity at all.

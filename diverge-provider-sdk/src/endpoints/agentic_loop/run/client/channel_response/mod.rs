@@ -21,7 +21,8 @@
 //! from — answered out of the client's own store: bytes until the
 //! finish says the content is whole, zero frames saying the client
 //! has none (a refusal for the three named by identity, a fresh
-//! start for the continuation). All four chunk at [`CHUNK_SIZE`],
+//! start for the continuation). All four chunk at
+//! [`CHUNK_SIZE`](crate::CHUNK_SIZE),
 //! and the receiver never has to know: a file's chunks are adjacent
 //! frames, and appending is the whole of reassembly.
 //!
@@ -57,9 +58,3 @@ pub mod mcp_list_tools;
 pub mod mcp_notifications;
 pub mod mcp_read_resource;
 pub mod postgres;
-
-/// The most bytes one fetched frame's body carries — the SENDER's
-/// rule alone: a file larger than this leaves as adjacent frames,
-/// and receivers are chunk-naive (same file, next frame, append)
-/// and never measure.
-pub const CHUNK_SIZE: usize = 4 * 1024 * 1024;

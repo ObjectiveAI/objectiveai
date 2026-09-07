@@ -21,7 +21,7 @@ use crate::encode::{Encode, Writer};
 /// of it: the client sends back the pieces the earlier run's closer
 /// delivered, one frame each, in the same order — never joined,
 /// never re-split — and the channel's finish says the sequence is
-/// whole. Each is at most [`CHUNK_SIZE`](super::super::CHUNK_SIZE),
+/// whole. Each is at most [`CHUNK_SIZE`](crate::CHUNK_SIZE),
 /// because the provider that minted it kept to that.
 ///
 /// # Zero frames is a fresh start

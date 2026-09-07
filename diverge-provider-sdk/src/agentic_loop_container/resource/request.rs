@@ -22,7 +22,7 @@ use crate::encode::{Encode, Writer};
 /// Onto what arrived before for the path's identity — chunk-naive
 /// by design: same identity, next POST, append. The sender splits
 /// at
-/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
+/// [`CHUNK_SIZE`](crate::CHUNK_SIZE)
 /// and only splits what exceeds it, so an empty chunk does not
 /// occur; the empty resource is a lone
 /// [`complete`](super::complete).

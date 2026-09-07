@@ -47,7 +47,7 @@ use crate::endpoints::agentic_loop::run::server::response::{
 ///
 /// The continuation's frames are the last thing a container sends:
 /// one, or several, each at most
-/// [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE),
+/// [`CHUNK_SIZE`](crate::CHUNK_SIZE),
 /// and then the socket closes. A run that closes without them issued
 /// none. The chunks are KEPT as chunks all the way to the caller and
 /// back — nobody joins or splits them — so the next run's delivery at

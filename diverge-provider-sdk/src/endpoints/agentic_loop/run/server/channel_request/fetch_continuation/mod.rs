@@ -8,7 +8,7 @@
 //! with the bytes themselves:
 //! [`fetch_continuation::Frame`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_continuation::Frame)s
 //! of at most
-//! [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
+//! [`CHUNK_SIZE`](crate::CHUNK_SIZE)
 //! each — the same chunks the earlier run closed with, in the same
 //! order, one frame each — then the finish.
 //!

@@ -9,7 +9,7 @@
 //! one
 //! [`fetch_directory::Frame`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_directory::Frame)
 //! per file — or several per file, adjacently, when a file exceeds
-//! [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
+//! [`CHUNK_SIZE`](crate::CHUNK_SIZE)
 //! — then the finish.
 //!
 //! # By identity, not by path

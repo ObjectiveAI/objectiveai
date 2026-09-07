@@ -8,7 +8,7 @@
 //! the identity, and the client answers with the bytes themselves:
 //! [`fetch_file::Frame`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_file::Frame)s
 //! of at most
-//! [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
+//! [`CHUNK_SIZE`](crate::CHUNK_SIZE)
 //! each, every frame appending to the one file, then the finish.
 //!
 //! # By identity, not by path
