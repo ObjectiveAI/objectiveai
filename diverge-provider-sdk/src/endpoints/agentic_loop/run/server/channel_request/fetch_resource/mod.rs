@@ -17,7 +17,7 @@
 //! identity. The client answers with the bytes themselves:
 //! [`fetch_resource::Frame`](crate::endpoints::agentic_loop::run::client::channel_response::fetch_resource::Frame)s
 //! of at most
-//! [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
+//! [`CHUNK_SIZE`](crate::CHUNK_SIZE)
 //! each, every frame appending to the one resource, then the finish.
 //!
 //! # By identity, not by field

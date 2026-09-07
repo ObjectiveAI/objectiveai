@@ -42,7 +42,7 @@ use diverge_provider_sdk::agentic_loop_container;
 use diverge_provider_sdk::agentic_loop_container::response::Response;
 use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::encode::{Encode as _, Writer};
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE;
+use diverge_provider_sdk::CHUNK_SIZE;
 use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::Agent;
 use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
     AgenticLoopChunk, NotificationChunk,

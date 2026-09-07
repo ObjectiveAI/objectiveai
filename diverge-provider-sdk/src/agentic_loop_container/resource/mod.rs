@@ -38,7 +38,7 @@
 //! server posts one at a time, each answered before the next, and
 //! the receiver appends, never measures: the sender's chunking (at
 //! most
-//! [`CHUNK_SIZE`](crate::endpoints::agentic_loop::run::client::channel_response::CHUNK_SIZE)
+//! [`CHUNK_SIZE`](crate::CHUNK_SIZE)
 //! per POST) is the sender's business. The completion or the error
 //! settles the identity — exactly one, and nothing lands after it.
 //! A lone completion with no chunks before it delivers the empty
