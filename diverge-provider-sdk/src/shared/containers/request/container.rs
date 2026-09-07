@@ -1,0 +1,79 @@
+//! Asking for a container.
+
+use serde::{Deserialize, Serialize};
+
+use super::{HashMount, Image, VolumeMount};
+
+/// Ask a provider to create a container.
+///
+/// Everything here is what a caller may CHOOSE, and it is the same for
+/// every kind of container: what differs between an agent and a tool
+/// server is asked once the container runs, on a channel, not here.
+/// What a caller may not choose is not here at all rather than here
+/// and ignored — the container's name, its published ports, its
+/// entrypoint and its environment are the provider's, because they
+/// are how the provider reaches the container and how the container
+/// reaches back. There is no environment: the mounts are the caller's
+/// only provisioning channel, and a field that is accepted and
+/// ignored is a field callers will believe in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Container {
+    /// The image, and who supplies it.
+    ///
+    /// See [`Image`]. Which variant it is decides how the image is
+    /// named, which is why the source and the name are one field
+    /// rather than two that only make sense together.
+    pub image: Image,
+    /// How much memory the container may have, in BYTES.
+    ///
+    /// A ceiling, not a hint. A process that exceeds what the
+    /// container is allowed is killed by the kernel rather than told —
+    /// no failed allocation to catch, no warning first — and the
+    /// container will not see this number in its own
+    /// `/proc/meminfo`, which reports the host's. An image that sizes
+    /// itself off what it thinks it has will size itself wrong.
+    ///
+    /// Bytes rather than megabytes because a unit that has to be
+    /// spelled out in prose is a unit half of everyone gets wrong.
+    pub memory: u64,
+    /// How much the container may WRITE, in BYTES.
+    ///
+    /// Its own filesystem only — what it adds to or changes over the
+    /// image it came from. The image's layers are read-only and are
+    /// not counted, so a container starts at nothing however large the
+    /// image is.
+    ///
+    /// # It does not govern the mounts
+    ///
+    /// A volume is storage that already existed, with a size of its
+    /// own that a [`volume`](crate::endpoints::volumes) stated when it
+    /// was made, and hash-mounted content is read-only. A number here
+    /// that silently applied to either would be this request deciding
+    /// how much of somebody else's storage a container may fill.
+    ///
+    /// Bytes rather than megabytes, for the reason
+    /// [`memory`](Self::memory) gives.
+    pub disk: u64,
+    /// Volumes the provider offers, made visible inside the container.
+    ///
+    /// Ordered, and a provider applies them in order. See
+    /// [`VolumeMount`] for how one is named without a host path.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub volume_mounts: Vec<VolumeMount>,
+    /// Files the caller holds, by content, mounted read-only.
+    ///
+    /// Each names a file by its `f1:` identity — see [`HashMount`].
+    /// The provider MUST mount every one before the container starts,
+    /// fetching what it does not hold from the caller by that
+    /// identity.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub file_mounts: Vec<HashMount>,
+    /// Directories the caller holds, by content, mounted read-only.
+    ///
+    /// Each names a directory by its `d1:` identity — see
+    /// [`HashMount`]. No mount's path, in any of the three lists, is
+    /// a prefix of another's: mounting INTO a directory the image owns
+    /// is the point, and mounts stacking on each other is not.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub directory_mounts: Vec<HashMount>,
+}

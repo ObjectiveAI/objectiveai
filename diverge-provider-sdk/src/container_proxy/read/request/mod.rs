@@ -1,5 +1,5 @@
 //! The ask: the file to read, as
-//! [`shared::container::read::request`](crate::shared::container::read::request),
+//! [`shared::containers::read::request`](crate::shared::containers::read::request),
 //! re-exported.
 
-pub use crate::shared::container::read::request::*;
+pub use crate::shared::containers::read::request::*;

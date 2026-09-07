@@ -7,7 +7,7 @@
 //! [`CHUNK_SIZE`](crate::CHUNK_SIZE), then closes cleanly.
 //! The clean close is the read complete: there is no length, no
 //! `Complete` and no failure frame, which is the laboratories' read
-//! exactly — see [`shared::container::read`](crate::shared::container::read)
+//! exactly — see [`shared::containers::read`](crate::shared::containers::read)
 //! for why a directory is never read and for the silent tear a
 //! reader of a live file accepts.
 //!
