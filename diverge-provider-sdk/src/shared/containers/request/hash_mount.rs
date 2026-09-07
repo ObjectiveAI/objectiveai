@@ -26,7 +26,7 @@ pub struct HashMount {
     /// INTO a directory the image owns is the point; mounts stacking
     /// on each other is not. Empty would name the root, which a
     /// provider refuses: the image's own filesystem is there.
-    pub path: Vec<String>,
+    pub container_path: Vec<String>,
     /// The content's size-bearing identity. For a file,
     /// `f1:<size>:<base64url sha256 of the bytes>`; for a directory,
     /// `d1:<total size>:<base64url sha256 of the manifest>`, the
