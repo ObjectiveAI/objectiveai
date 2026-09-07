@@ -1,5 +1,5 @@
 [package]
-name = "diverge-container-sdk"
+name = "diverge-container-proxy-sdk"
 version = "2.3.0"
 edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
