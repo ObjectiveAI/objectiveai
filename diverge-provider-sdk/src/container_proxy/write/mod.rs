@@ -31,6 +31,17 @@
 //! it wrote: a half-written file that looks finished is the worse
 //! outcome. An abrupt end from either side is a write that died,
 //! reported the same way. Nothing here retries.
+//!
+//! # How it lands
+//!
+//! Beside its destination first. The proxy writes the content to a
+//! temporary file in the same directory and moves it over the
+//! destination on the empty message — one rename, so the destination
+//! is either what it was or the whole new file, never the half
+//! between. A symlink at the destination is replaced by the file,
+//! not written through; a file already there lends the new one its
+//! permissions; and a `/filetree` watch sees the temporary's name
+//! come and go.
 
 pub mod request;
 pub mod response;
