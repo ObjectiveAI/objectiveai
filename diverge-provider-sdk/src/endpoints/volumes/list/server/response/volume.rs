@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 /// Everything a caller does with a volume goes through its name: a
 /// [`watch`](crate::endpoints::volumes::watch) names it, a
 /// [`delete`](crate::endpoints::volumes::delete) names it, and a
-/// [`Mount`](crate::shared::container::request::Mount)
+/// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
 /// names it, and a provider looks the name up rather than resolving
 /// anything. A path would be the one field nothing consumes, and a
 /// field nothing consumes is one that gets consumed anyway — a caller
@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 /// Because the name is the point. A directory is a thing on a disk; a
 /// volume is a thing a provider decided to OFFER, and the offering is
 /// what a caller interacts with. It is also what a
-/// [`Mount`](crate::shared::container::request::Mount)
+/// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
 /// names, which is where the word already meant this.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Volume {

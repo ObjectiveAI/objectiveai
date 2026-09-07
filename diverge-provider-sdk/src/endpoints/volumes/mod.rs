@@ -18,7 +18,7 @@
 //! name in a component list rather than an instruction.
 //!
 //! Which is also what they are FOR. A
-//! [`Mount`](crate::shared::container::request::Mount)
+//! [`VolumeMount`](crate::shared::containers::request::VolumeMount)
 //! names one of these and makes it visible inside a laboratory, so
 //! what a caller can watch and what it can mount are one list rather
 //! than two that could disagree.

@@ -24,7 +24,7 @@ use crate::encode::{Encode, Writer};
 /// is a volume: it appears in a
 /// [`list`](crate::endpoints::volumes::list), it can be
 /// [`watch`](crate::endpoints::volumes::watch)ed, and a
-/// [`Mount`](crate::shared::container::request::Mount)
+/// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
 /// names it exactly as it names any other. Nothing downstream knows or
 /// cares which way it came about.
 ///
@@ -45,7 +45,7 @@ pub struct Frame {
     ///
     /// The handle, from the moment it exists — a
     /// [`watch`](crate::endpoints::volumes::watch) and a
-    /// [`Mount`](crate::shared::container::request::Mount)
+    /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
     /// name it by this and by nothing else.
     ///
     /// Nothing derives it from anything and nothing constrains it here.

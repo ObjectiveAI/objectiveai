@@ -34,8 +34,8 @@ use crate::shared::error::Error;
 ///
 /// # The scope ends, and the volume does not
 ///
-/// Unlike a [`laboratory`](crate::endpoints::laboratories::run),
-/// whose scope IS the container's life. A volume outlives the request
+/// Unlike a [`container`](crate::endpoints::containers), whose
+/// scope IS its life. A volume outlives the request
 /// that made it and every connection the caller ever holds; it goes
 /// away when a
 /// [`delete`](crate::endpoints::volumes::delete) says so and not

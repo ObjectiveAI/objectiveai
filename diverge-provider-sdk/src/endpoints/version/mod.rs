@@ -6,7 +6,7 @@
 //!
 //! # It is the one thing askable before anything else is known
 //!
-//! Every other scope assumes something. A [`run`](super::laboratories)
+//! Every other scope assumes something. A [`run`](super::containers)
 //! assumes the provider understands the request being sent; a
 //! [`check`](super::images) assumes it agrees about what an image is.
 //! This assumes only that the connection carries frames, which is the
