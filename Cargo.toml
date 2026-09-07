@@ -14,7 +14,7 @@ members = [
     "diverge-container-mcp-proxy",
     "diverge-container-postgres-proxy",
     "diverge-container-proxy",
-    "diverge-container-sdk",
+    "diverge-container-proxy-sdk",
     "diverge-agentic-loop-openrouter",
     "diverge-agentic-loop-pi",
     "diverge-broker-sdk",
