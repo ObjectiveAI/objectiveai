@@ -17,13 +17,13 @@
 ///
 /// # The lifetime
 ///
-/// `Self` may borrow from `bytes` — a [`registry request`] is a
-/// `&[u8]` pointing into the frame it arrived in, and so is everything
-/// else this crate relays without reading. A payload that owns
+/// `Self` may borrow from `bytes` — a [`blob`] is a `&[u8]` pointing
+/// into the frame it arrived in, and so is everything else this crate
+/// relays without reading. A payload that owns
 /// everything implements `Decode<'_>` and ignores it.
 ///
 /// [`serde::Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
-/// [`registry request`]: crate::shared::oci::request::Request
+/// [`blob`]: crate::shared::containers::oci::blob::response::Frame
 pub trait Decode<'a>: Sized {
     /// What went wrong, in the format's own words.
     ///

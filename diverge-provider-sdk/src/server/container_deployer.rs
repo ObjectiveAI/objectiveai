@@ -1,8 +1,8 @@
 //! Putting a container somewhere.
 
 use std::future::Future;
+use std::net::SocketAddr;
 
-use super::client_registry::ClientRegistry;
 use super::container::Container;
 use super::deployment::Deployment;
 
@@ -93,9 +93,9 @@ use super::deployment::Deployment;
 /// variants and this has three methods, named for them. Which is not
 /// bookkeeping — it is what makes the fourth argument possible.
 ///
-/// A caller-served image is the one case where the provider has to ask
-/// somebody for the bytes, so [`client`](Self::client) is handed a
-/// [`ClientRegistry`] and the other two are not. One method taking an
+/// A caller-held image is the one case where the runtime pulls from
+/// the provider's own registry, so [`client`](Self::client) is handed
+/// that registry's address and the other two are not. One method taking an
 /// [`Image`](crate::shared::containers::request::Image) would have to
 /// carry that as an [`Option`], `Some` exactly when the variant is
 /// `Client` — a correlation nothing would enforce and every
@@ -191,14 +191,17 @@ pub trait ContainerDeployer: Send + Sync {
     /// which is the thing an associated type was for.
     type Error: Send + 'static;
 
-    /// Deploy from an image the CALLER serves.
+    /// Deploy from an image the CALLER holds.
     ///
     /// For images that exist nowhere a provider can reach — built
     /// locally, never pushed, carrying a digest no registry has heard
-    /// of. The provider stands up a registry endpoint, points its
-    /// runtime at it, and relays through `registry`.
+    /// of. The provider runs a registry of its own, at `registry`, and
+    /// fills it from the caller by digest — see
+    /// [`oci`](crate::shared::containers::oci) — so an implementation
+    /// points its runtime at `<registry>/<repository>/<name>@<digest>`
+    /// and pulls as from any registry.
     ///
-    /// # What the provider does not do
+    /// # What the implementation does not do
     ///
     /// Parse a manifest, diff layer digests, or decide what a blob is.
     /// A runtime already indexes layers by digest and already skips the
@@ -209,14 +212,14 @@ pub trait ContainerDeployer: Send + Sync {
     /// # The name is a path fragment, and is not checked
     ///
     /// It lands in a URL by concatenation. A `..` in it walks out of
-    /// the scope segment and into another caller's namespace, so an
-    /// implementation normalizes or refuses before concatenating.
+    /// the repository segment and into another caller's namespace, so
+    /// an implementation normalizes or refuses before concatenating.
     /// Nothing upstream of here does it.
     ///
-    /// The digest needs no such care: a runtime recomputes the hash on
-    /// pull and rejects a mismatch, so a caller serving the wrong bytes
-    /// under the right name fails at the runtime rather than quietly
-    /// succeeding.
+    /// The digest needs no such care: the provider's registry hashes
+    /// what the caller sent before storing it, and the runtime hashes
+    /// again on pull, so a caller holding the wrong bytes under the
+    /// right digest fails before anything runs.
     ///
     /// # The future is [`Send`]
     ///
@@ -229,7 +232,8 @@ pub trait ContainerDeployer: Send + Sync {
         deployment: &Deployment,
         name: &str,
         digest: &str,
-        registry: ClientRegistry<'_>,
+        registry: SocketAddr,
+        repository: &str,
     ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
 
     /// Deploy from an image the PROVIDER produces.

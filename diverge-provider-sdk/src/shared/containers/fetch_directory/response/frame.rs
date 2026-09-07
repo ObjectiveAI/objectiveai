@@ -13,9 +13,8 @@ use crate::encode::{Encode, Writer};
 /// directory is whole. Zero frames before the finish is the client
 /// saying it does not hold the identity at all.
 ///
-/// The body is borrowed from the frame it arrived in, the
-/// [`oci`](crate::shared::oci::response::Frame) way: the receiver is
-/// about to write these bytes somewhere, and copying them first
+/// The body is borrowed from the frame it arrived in: the receiver
+/// is about to write these bytes somewhere, and copying them first
 /// would double every chunk's memory for nothing. The path is owned —
 /// it is parsed out of its JSON, and it is small.
 ///

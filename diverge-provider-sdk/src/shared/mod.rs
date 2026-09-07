@@ -6,15 +6,13 @@
 //! so that one definition serves all of them.
 //!
 //! [`mcp`] is the five exchanges an MCP server answers, each one typed
-//! and each one its own channel. [`oci`] is the OCI Distribution
-//! protocol, which is bytes: a caller serving its own image answers
-//! what the runtime asked, verbatim, and nothing between them reads it.
-//!
-//! They were one module until recently — a tunneled HTTP exchange that
-//! both rode. Removing it lost nothing, because MCP over HTTP is
-//! JSON-RPC with a transport under it and the transport was the only
-//! part being carried; and it took with it every bug that came of
-//! rebuilding a request rather than forwarding one.
+//! and each one its own channel. It was once a tunneled HTTP exchange;
+//! removing the tunnel lost nothing, because MCP over HTTP is JSON-RPC
+//! with a transport under it and the transport was the only part
+//! being carried — and it took with it every bug that came of
+//! rebuilding a request rather than forwarding one. The image pull
+//! went the same way later, into
+//! [`containers::oci`].
 //!
 //! [`filetree`] is a live filesystem view — a watch answers with one,
 //! and so does a container scope, over a different tree.
@@ -37,4 +35,3 @@ pub mod containers;
 pub mod error;
 pub mod filetree;
 pub mod mcp;
-pub mod oci;
