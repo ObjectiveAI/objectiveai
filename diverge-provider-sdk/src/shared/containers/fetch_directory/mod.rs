@@ -2,7 +2,7 @@
 //!
 //! A request's
 //! [`directory_mounts`](crate::shared::containers::request::Container::directory_mounts)
-//! name directories by identity — `d1:<total size>:<base64url sha256
+//! name directories by identity — `<total size>:<base64url sha256
 //! of the manifest>`, the total riding the identity so a provider can
 //! judge the weight before fetching anything — and the content itself
 //! lives with the client. A provider missing one opens a channel with

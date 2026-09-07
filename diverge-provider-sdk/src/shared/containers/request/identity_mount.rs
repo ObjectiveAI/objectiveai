@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// naming it IS the requirement. What the server does not hold it
 /// MAY fetch from the client, by the hash, over the fetch exchanges.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct HashMount {
+pub struct IdentityMount {
     /// Where it appears inside the container, as path components
     /// from the container's root — the shape every path in this
     /// crate takes, as
@@ -27,11 +27,14 @@ pub struct HashMount {
     /// on each other is not. Empty would name the root, which a
     /// provider refuses: the image's own filesystem is there.
     pub container_path: Vec<String>,
-    /// The content's size-bearing identity. For a file,
-    /// `f1:<size>:<base64url sha256 of the bytes>`; for a directory,
-    /// `d1:<total size>:<base64url sha256 of the manifest>`, the
-    /// manifest one `<hash> <size> <path>` line per file, paths
-    /// relative and `/`-separated, sorted bytewise.
+    /// The content's size-bearing identity:
+    /// `<size>:<base64url sha256>` — the size in bytes, then the
+    /// hash. For a file the hash is of its bytes; for a directory it
+    /// is of its manifest — one `<hash> <size> <path>` line per file,
+    /// paths relative and `/`-separated, sorted bytewise — and the
+    /// size is the total. Which of the two it is, the field it sits in
+    /// says, as does the fetch that asks for it; the value does not
+    /// need to.
     ///
     /// Because the size rides the identity, a server can refuse an
     /// oversized request up front, as a request error, with nothing

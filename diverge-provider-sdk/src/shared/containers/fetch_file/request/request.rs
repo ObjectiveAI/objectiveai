@@ -16,7 +16,7 @@ use crate::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Request {
     /// The file's size-bearing identity:
-    /// `f1:<size>:<base64url sha256 of the bytes>`.
+    /// `<size>:<base64url sha256 of the bytes>`.
     pub identity: String,
 }
 
