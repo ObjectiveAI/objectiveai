@@ -18,6 +18,7 @@ use tokio::sync::mpsc;
 
 use crate::filetree;
 use crate::filetree::{Ignore, Mapped};
+use crate::read;
 use crate::requests::{Answering, Claim, Kind, Refusal, Requests};
 
 /// The root the tree is watched from: the container's own.
@@ -424,6 +425,12 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
         }
     }
     let _ = sink.close().await;
+}
+
+/// `/read`: one file out. Accepted as many times as the server opens
+/// it, each one file; nothing to admit, nothing to share.
+pub async fn read(upgrade: WebSocketUpgrade) -> Response {
+    upgrade.on_upgrade(read::serve).into_response()
 }
 
 /// Encode one filetree frame and send it. `false` is the socket gone

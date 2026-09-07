@@ -35,5 +35,6 @@ rmcp = { version = "3.1.2", default-features = false, features = ["server", "tra
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
 # The runtime under the listeners. No `macros` — the runtime is built
 # in main, not attributed onto it. `io-util` reads and writes the
-# driver's socket; `time` paces an accept loop that keeps failing.
-tokio = { version = "1.53.1", default-features = false, features = ["io-util", "net", "rt-multi-thread", "sync", "time"] }
+# driver's socket; `time` paces an accept loop that keeps failing;
+# `fs` opens and reads the files the server asks for.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "rt-multi-thread", "sync", "time"] }

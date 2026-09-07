@@ -20,12 +20,15 @@
 //! each connection the driver opens announced as one ask and carried,
 //! raw, on `/postgres/{channel}`. And it is the caller's window: every
 //! `/filetree` the server opens gets the container's filesystem,
-//! watched from `/`, as a snapshot and then its changes.
+//! watched from `/`, as a snapshot and then its changes, and every
+//! `/read` one file out of it, its bytes then the close.
 
 mod command;
 mod filetree;
 mod mcp;
+mod paths;
 mod postgres;
+mod read;
 mod requests;
 mod state;
 mod vault;
@@ -125,6 +128,7 @@ async fn run() {
         .route("/command/agent", axum::routing::post(command::agent))
         .route("/postgres/{channel}", axum::routing::any(ws::postgres))
         .route("/filetree", axum::routing::any(ws::filetree))
+        .route("/read", axum::routing::any(ws::read))
         .nest_service("/mcp/agent", agent)
         .with_state(state::AppState {
             requests: Arc::clone(&requests),
