@@ -183,12 +183,6 @@
 //! in a deployment is the name together with whoever it authenticated,
 //! which is a fact only this half of the connection has.
 //!
-//! [`client_registry`] is the piece that goes with it, and it is a
-//! concrete type rather than a trait: pulling an image the CALLER
-//! serves means opening a channel on a scope, which is this crate's
-//! machinery and not something a provider could implement. What comes
-//! back on one is an [`oci_stream`].
-//!
 //! [`volume_manager`] is the second, and it is the other five
 //! endpoints: the directories a provider offers, listed, created,
 //! resized, deleted and watched. One trait for all of them, because
@@ -222,11 +216,10 @@
 //! [`images::check`](crate::endpoints::images::check)'s, and
 //! [`container_deployer`] by the two run handlers of
 //! [`containers`](crate::endpoints::containers) — the scopes that put
-//! a container somewhere, which use all three of its methods and are
-//! what reach [`client_registry`] and [`oci_stream`], which exist for
-//! an image the CALLER serves. A connect handler consumes none of the
-//! three, because it deploys nothing — the container it serves already
-//! exists, and is stopped by whoever ran it.
+//! a container somewhere, which use all three of its methods. A
+//! connect handler consumes none of the three, because it deploys
+//! nothing — the container it serves already exists, and is stopped by
+//! whoever ran it.
 //!
 //! [`version`](crate::endpoints::version) has a handler too and asks
 //! for nothing at all, its answer being a compile-time constant. It is
@@ -241,7 +234,6 @@
 
 pub mod authorization;
 pub mod channel;
-pub mod client_registry;
 pub mod container;
 pub mod container_deployer;
 pub mod deployment;
@@ -249,7 +241,6 @@ pub mod handle;
 pub mod image_checker;
 pub mod mount;
 mod notice;
-pub mod oci_stream;
 pub mod received;
 pub mod scope_handle;
 pub mod session;

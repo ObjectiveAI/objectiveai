@@ -1,8 +1,9 @@
 //! What a caller sends back during a run, one module per kind of
 //! channel the provider opens.
 //!
-//! [`oci`] serves the image when it is the caller's to serve;
-//! [`authorize`] answers whether a connector may join; [`write_bytes`]
+//! [`oci_manifest`] and [`oci_blob`] hand over the image when it is
+//! the caller's to hold; [`authorize`] answers whether a connector
+//! may join; [`write_bytes`]
 //! streams the content of a file being written; [`fetch_file`] and
 //! [`fetch_directory`] hand over mounted content the provider does not
 //! hold. The rest answer the CONTAINER, relayed: [`postgres`] is what
@@ -19,7 +20,8 @@ pub mod mcp_list_resources;
 pub mod mcp_list_tools;
 pub mod mcp_notifications;
 pub mod mcp_read_resource;
-pub mod oci;
+pub mod oci_blob;
+pub mod oci_manifest;
 pub mod postgres;
 pub mod vault_delete;
 pub mod vault_get;

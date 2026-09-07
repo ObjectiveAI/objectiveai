@@ -9,10 +9,9 @@ use crate::encode::{Encode, Writer};
 /// tag: the request named ONE file, so there is nothing a frame
 /// could need to say beyond the bytes themselves.
 ///
-/// Borrowed from the frame it arrived in, the
-/// [`oci`](crate::shared::oci::response::Frame) way: the receiver is
-/// about to write these bytes somewhere, and copying them first
-/// would double every chunk's memory for nothing.
+/// Borrowed from the frame it arrived in: the receiver is about to
+/// write these bytes somewhere, and copying them first would double
+/// every chunk's memory for nothing.
 ///
 /// # Every frame appends
 ///

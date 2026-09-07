@@ -26,37 +26,34 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Image {
-    /// The caller serves it.
+    /// The caller holds it.
     ///
     /// For images that exist nowhere a provider can reach — built
     /// locally, never pushed, carrying a digest no registry has heard
     /// of.
     ///
-    /// The caller runs a registry and the provider relays to it. A
-    /// request the container runtime makes arrives at `/v2/<scope>/…`,
-    /// the provider strips the scope segment, and the rest goes to the
-    /// caller as an
-    /// [`oci::request::Request`](crate::shared::oci::request::Request)
-    /// on a channel — the bytes as the runtime wrote them, unread.
-    /// The runtime never learns it is talking to a proxy; the
-    /// caller never learns it is not being pulled from directly.
+    /// The provider runs a registry of its own and its runtime pulls
+    /// from that; what the registry does not hold, the provider asks
+    /// the caller for by digest — a manifest, a blob — over
+    /// [`oci`](crate::shared::containers::oci). The caller needs no
+    /// registry and no HTTP: it needs the image's manifest and blobs
+    /// in a store keyed by digest, which is what an image is once it
+    /// has been saved anywhere, and it answers two kinds of fetch.
     ///
-    /// Which is why a provider needs nothing else. It does not read a
-    /// manifest, diff layer digests, or decide what a blob is — a
-    /// runtime already indexes layers by compressed digest and already
-    /// skips the ones it holds, so letting it pull means that logic is
-    /// USED rather than reimplemented beside it. One cache, and no
-    /// second one to disagree with it. `Range` resumes and `HEAD`
-    /// probes work for the same reason: they are headers, and headers
-    /// cross.
+    /// The runtime never learns the registry is a proxy, and every
+    /// header it relies on — `Content-Type`, `Content-Length`,
+    /// `Range`, `Docker-Content-Digest` — is the provider's registry
+    /// answering from its store. A runtime already indexes layers by
+    /// digest and skips the ones it holds, so letting it pull means
+    /// that logic is USED rather than reimplemented beside it.
     Client {
         /// The repository path — `library/nginx`, `myorg/myimage`.
         ///
         /// # It lands in a URL path
         ///
         /// The provider builds its pull reference by concatenation —
-        /// `localhost:PORT/` plus the scope plus this — with no
-        /// parsing. Which makes it a path fragment wearing the costume
+        /// its registry's address, a repository segment, then this —
+        /// with no parsing. Which makes it a path fragment wearing the costume
         /// of a name: a `..` in it walks out of the scope segment and
         /// into another caller's namespace, so a provider normalizes
         /// or refuses before concatenating. The field cannot enforce
@@ -65,10 +62,10 @@ pub enum Image {
         /// The manifest digest, `<algorithm>:<hex>`.
         ///
         /// What actually identifies the image, and the reason nothing
-        /// here has to trust the name: a runtime recomputes the hash
-        /// on pull and rejects a mismatch, so a caller serving the
-        /// wrong bytes under the right name fails at the runtime
-        /// rather than silently succeeding.
+        /// here has to trust the name: the provider hashes what the
+        /// caller sent before storing it, and the runtime hashes again
+        /// on pull, so a caller holding the wrong bytes under the
+        /// right digest fails before anything runs.
         digest: String,
     },
     /// The provider produces it, however it likes.
