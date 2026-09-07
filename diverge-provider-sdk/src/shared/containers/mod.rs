@@ -22,7 +22,8 @@
 //! it wants run, [`vault`] the keys it keeps with the caller, and the
 //! exchanges in [`mcp`](crate::shared::mcp) its tool calls outward.
 //!
-//! The PROVIDER asks the caller on its own account: [`fetch_file`] and
+//! The PROVIDER asks the caller on its own account: [`oci`] for the
+//! manifest and blobs of an image the caller holds, [`fetch_file`] and
 //! [`fetch_directory`] for mounted content it does not hold, and
 //! [`authorize`] whether a connector may join.
 //!
@@ -30,10 +31,10 @@
 //! exchanges; they are here rather than in that family because its
 //! run and its connect both carry them.
 //!
-//! [`filetree`](crate::shared::filetree), [`mcp`](crate::shared::mcp)
-//! and [`oci`](crate::shared::oci) stay beside this module rather than
-//! inside it: each is ridden by something that is not a container
-//! scope — a volume watch, the proxy inside the container.
+//! [`filetree`](crate::shared::filetree) and [`mcp`](crate::shared::mcp)
+//! stay beside this module rather than inside it: each is ridden by
+//! something that is not a container scope — a volume watch, the
+//! proxy inside the container.
 
 pub mod agentic_loop;
 pub mod authorize;
@@ -41,6 +42,7 @@ pub mod command;
 pub mod fetch_directory;
 pub mod fetch_file;
 pub mod filetree;
+pub mod oci;
 pub mod postgres;
 pub mod read;
 pub mod request;
