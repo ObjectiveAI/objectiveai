@@ -6,7 +6,7 @@ use futures_util::stream::SplitSink;
 use tokio_tungstenite::tungstenite::Message;
 
 use super::HandleError;
-use crate::server::container_client::WebSocket;
+use crate::server::container_client::ContainerWebSocket;
 
 /// The database's side of the connection.
 ///
@@ -18,11 +18,11 @@ use crate::server::container_client::WebSocket;
 /// nothing is lost but the clarity, and a server that is done says so.
 #[must_use = "dropping the handle ends the connection abruptly"]
 pub struct ExecuteHandle {
-    sink: SplitSink<WebSocket, Message>,
+    sink: SplitSink<ContainerWebSocket, Message>,
 }
 
 impl ExecuteHandle {
-    pub(super) fn new(sink: SplitSink<WebSocket, Message>) -> Self {
+    pub(super) fn new(sink: SplitSink<ContainerWebSocket, Message>) -> Self {
         ExecuteHandle { sink }
     }
 

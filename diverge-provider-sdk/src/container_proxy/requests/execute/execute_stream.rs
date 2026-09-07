@@ -7,7 +7,7 @@ use futures_util::Stream;
 
 use super::super::request::Frame;
 use super::{Ask, ExecuteStreamError};
-use crate::server::container_client::WebSocket;
+use crate::server::container_client::ContainerWebSocket;
 use crate::server::messages::{MessageError, Messages};
 
 /// Every ask the container makes, until the connection ends.
@@ -19,11 +19,11 @@ use crate::server::messages::{MessageError, Messages};
 /// [`Ask::frame`] does not fail on one this yielded.
 #[must_use = "asks that are not polled are asks nobody answers"]
 pub struct ExecuteStream {
-    messages: Messages<WebSocket>,
+    messages: Messages<ContainerWebSocket>,
 }
 
 impl ExecuteStream {
-    pub(super) fn new(socket: WebSocket) -> Self {
+    pub(super) fn new(socket: ContainerWebSocket) -> Self {
         ExecuteStream {
             messages: Messages::new(socket),
         }

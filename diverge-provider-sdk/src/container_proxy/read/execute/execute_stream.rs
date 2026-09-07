@@ -8,7 +8,7 @@ use futures_util::Stream;
 
 use super::super::response;
 use super::ExecuteStreamError;
-use crate::server::container_client::WebSocket;
+use crate::server::container_client::ContainerWebSocket;
 use crate::server::messages::{MessageError, Messages};
 
 /// One file, arriving.
@@ -22,13 +22,13 @@ use crate::server::messages::{MessageError, Messages};
 /// with nothing before it, the wire's refusal with nothing to say.
 #[must_use = "a read that is not polled is a file nobody receives"]
 pub struct ExecuteStream {
-    messages: Messages<WebSocket>,
+    messages: Messages<ContainerWebSocket>,
     /// Whether any body has arrived: a close before one is `Unserved`.
     received: bool,
 }
 
 impl ExecuteStream {
-    pub(super) fn new(socket: WebSocket) -> Self {
+    pub(super) fn new(socket: ContainerWebSocket) -> Self {
         ExecuteStream {
             messages: Messages::new(socket),
             received: false,

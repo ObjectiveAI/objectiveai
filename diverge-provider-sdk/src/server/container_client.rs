@@ -13,7 +13,7 @@ use crate::encode::{Encode, Writer};
 /// [`Connection`](crate::connection::Connection), because the proxy's
 /// wire lives on the difference between a clean close and an abrupt
 /// end and that type folds the two into one ending.
-pub(crate) type WebSocket = WebSocketStream<MaybeTlsStream<TcpStream>>;
+pub(crate) type ContainerWebSocket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 /// The proxy beside a container: where it is, held once, dialed per
 /// path.
@@ -62,7 +62,7 @@ impl ContainerClient {
     /// status: the proxy's `404` for a channel it does not know and
     /// `409` for one already being answered, or `/requests` already
     /// taken.
-    pub(crate) async fn open(&self, path: &str) -> Result<WebSocket, OpenError> {
+    pub(crate) async fn open(&self, path: &str) -> Result<ContainerWebSocket, OpenError> {
         let url = format!("{}{}", self.url, path);
         match tokio_tungstenite::connect_async(url).await {
             Ok((socket, _)) => Ok(socket),
@@ -87,7 +87,7 @@ pub(crate) fn encoded<T: Encode>(frame: &T) -> Result<Bytes, T::Error> {
 /// own Close comes back or the connection ends — so the clean close
 /// has reached the proxy before this returns, rather than being a
 /// frame in a buffer the drop may or may not deliver.
-pub(crate) async fn finish(mut socket: WebSocket) -> Result<(), tungstenite::Error> {
+pub(crate) async fn finish(mut socket: ContainerWebSocket) -> Result<(), tungstenite::Error> {
     socket.close(None).await?;
     drain(&mut socket).await
 }
