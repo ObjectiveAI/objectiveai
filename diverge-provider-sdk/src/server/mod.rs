@@ -125,7 +125,7 @@
 //! The five [`volumes`](crate::endpoints::volumes),
 //! [`images::check`](crate::endpoints::images::check) and
 //! [`version`](crate::endpoints::version) answer and finish, which is
-//! the whole of what those endpoints do. The four
+//! the whole of what those endpoints do. The three
 //! [`containers`](crate::endpoints::containers) scopes serve for as
 //! long as their containers run; their handlers are not written yet,
 //! and until they are the dispatch finishes those scopes with nothing.
