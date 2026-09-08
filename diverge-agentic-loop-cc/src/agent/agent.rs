@@ -1,8 +1,9 @@
 //! The Claude Code agent.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{Effort, Tools, Upstream};
+use super::{Effort, Tools};
 
 /// An agent running against Claude Code.
 ///
@@ -12,10 +13,8 @@ use super::{Effort, Tools, Upstream};
 /// What it does expose is its tools: [`tools`](Self::tools) is the
 /// exact set of built-ins the model is given, every switch stated,
 /// passed to Claude Code as `--tools`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Agent {
-    /// The discriminator. Always `claude_code`.
-    pub upstream: Upstream,
     /// The model to run.
     pub model: String,
     /// The switchable built-in tools — each absent or `false` is

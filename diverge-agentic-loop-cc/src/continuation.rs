@@ -1,4 +1,4 @@
-//! What a ClaudeCode continuation token holds: a filesystem.
+//! What a ClaudeCode continuation holds: a filesystem.
 //!
 //! Claude Code keeps its conversation on disk — append-only JSONL
 //! under `$CLAUDE_CONFIG_DIR/projects/<sanitized-cwd>/<session>.jsonl`
@@ -8,8 +8,12 @@
 //! working directory. So this container's continuation IS the
 //! files: the continuation carries the session id and everything
 //! needed to make it resumable, and running a continuation means
-//! writing them back before Claude Code starts. On the wire it is
-//! raw bytes — this JSON, uncoated: no base64, no envelope.
+//! writing them back before Claude Code starts. It lives in the
+//! caller's database as one jsonb row — this JSON, whole — reached
+//! through the proxy's loopback pgwire: [`load`](Continuation::load)
+//! reads it when a run starts (no row is a fresh start; a row that
+//! will not open as one is an error, by rule) and
+//! [`save`](Continuation::save) replaces it when the run ends.
 //!
 //! The container fixes its geometry — one working directory, one
 //! config dir (the stock `~/.claude`, no environment overrides) — so
@@ -21,6 +25,8 @@
 
 use std::io;
 use std::path::{Component, Path};
+
+use sqlx::PgPool;
 
 /// Where the session state lives, fixed for the container's life:
 /// Claude Code's own default, `~/.claude` for the container's root
@@ -52,20 +58,43 @@ pub struct ContinuationFile {
     pub content: String,
 }
 
+/// The table: one row, `id` pinned to `1`, the state as jsonb.
+const CREATE: &str = "CREATE TABLE IF NOT EXISTS continuation (\
+    id smallint PRIMARY KEY CHECK (id = 1), state jsonb NOT NULL)";
+
+/// The row, if there is one.
+const SELECT: &str = "SELECT state FROM continuation WHERE id = 1";
+
+/// The row, written or replaced.
+const UPSERT: &str = "INSERT INTO continuation (id, state) VALUES (1, $1) \
+    ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state";
+
 impl Continuation {
-    /// Open the chunks the server delivered: joined, they are the
-    /// state as JSON. The protocol keeps the chunks apart for
-    /// containers that put meaning in the boundaries; this one does
-    /// not — its closer is one document split at the chunk ceiling,
-    /// and joining is the whole of reading it back.
-    pub fn parse(chunks: &[Vec<u8>]) -> Result<Self, serde_json::Error> {
-        serde_json::from_slice(&chunks.concat())
+    /// Read the state the database holds, making the table if this
+    /// is the first run to look.
+    pub async fn load(pool: &PgPool) -> Result<Option<Self>, Error> {
+        sqlx::query(CREATE).execute(pool).await.map_err(Error::Database)?;
+        let row: Option<(serde_json::Value,)> = sqlx::query_as(SELECT)
+            .fetch_optional(pool)
+            .await
+            .map_err(Error::Database)?;
+        match row {
+            None => Ok(None),
+            Some((state,)) => serde_json::from_value(state)
+                .map(Some)
+                .map_err(Error::Parse),
+        }
     }
 
-    /// The state as the bytes the run closes with —
-    /// [`parse`](Self::parse)'s exact inverse.
-    pub fn tokenize(&self) -> Result<Vec<u8>, serde_json::Error> {
-        serde_json::to_vec(self)
+    /// Replace the state the database holds with this one.
+    pub async fn save(&self, pool: &PgPool) -> Result<(), Error> {
+        let state = serde_json::to_value(self).map_err(Error::Parse)?;
+        sqlx::query(UPSERT)
+            .bind(state)
+            .execute(pool)
+            .await
+            .map_err(Error::Database)?;
+        Ok(())
     }
 
     /// Write every file under [`CONFIG_DIR`], parents created as
@@ -122,7 +151,7 @@ impl Continuation {
     ///
     /// Not harvested, deliberately: `history.jsonl` (global prompt
     /// history, cross-session), `image-cache` and `uploads` (binary,
-    /// which the token does not carry), `debug` (diagnostics), plan
+    /// which the continuation does not carry), `debug` (diagnostics), plan
     /// documents (their slug lives inside transcript lines), and the
     /// config file. A file that is not valid UTF-8 is skipped for the
     /// same binary reason.
@@ -185,7 +214,7 @@ async fn collect_file(
         }
         Err(error) => return Err(error),
     };
-    // Not UTF-8 is not carried — the token holds text.
+    // Not UTF-8 is not carried — the continuation holds text.
     let Ok(content) = String::from_utf8(bytes) else {
         return Ok(());
     };
@@ -231,4 +260,46 @@ async fn collect_tree(
         }
     }
     Ok(())
+}
+
+/// A continuation that could not be read or written.
+#[derive(Debug)]
+pub enum Error {
+    /// The database would not answer.
+    Database(sqlx::Error),
+    /// The row is there and is not a continuation — or one would not
+    /// serialize, which plain data never fails to do.
+    Parse(serde_json::Error),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Database(error) => {
+                write!(f, "the continuation's database failed: {error}")
+            }
+            Error::Parse(error) => {
+                write!(f, "the continuation would not parse: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Database(error) => Some(error),
+            Error::Parse(error) => Some(error),
+        }
+    }
+}
+
+impl Error {
+    /// The failure as JSON, the shape every failure on the stream has.
+    pub fn message(&self) -> serde_json::Value {
+        serde_json::json!({
+            "kind": "continuation",
+            "error": self.to_string(),
+        })
+    }
 }

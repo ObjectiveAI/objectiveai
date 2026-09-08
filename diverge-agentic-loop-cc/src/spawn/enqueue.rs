@@ -1,6 +1,6 @@
 //! The enqueue verb.
 
-use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
 use uuid::Uuid;
 
 use super::pending;
@@ -20,7 +20,7 @@ use super::writer;
 /// fate wire dying undecided all answer missed.
 pub async fn enqueue(
     prompt: String,
-) -> agentic_loop_container::enqueue::Response {
+) -> Fate {
     let (fate, receiver) = tokio::sync::oneshot::channel();
     let uuid = Uuid::new_v4().to_string();
     {
@@ -30,9 +30,7 @@ pub async fn enqueue(
         // dequeue queued ahead has already excluded it.
         let mut writer = writer::WRITER.lock().await;
         let Some(child_stdin) = writer.as_mut() else {
-            return agentic_loop_container::enqueue::Response::Missed {
-                r#type: Default::default(),
-            };
+            return Fate::Missed;
         };
         match stdin::write_lines(
             child_stdin,
@@ -46,18 +44,14 @@ pub async fn enqueue(
             // A broken stdin is the process dying: the run is over.
             Err(_) => {
                 *writer = None;
-                return agentic_loop_container::enqueue::Response::Missed {
-                    r#type: Default::default(),
-                };
+                return Fate::Missed;
             }
         }
     }
     let response = receiver.await.unwrap_or(
         // The wire died undecided — the run's machinery is gone, and
         // a message nobody will take is missed.
-        agentic_loop_container::enqueue::Response::Missed {
-            r#type: Default::default(),
-        },
+        Fate::Missed,
     );
     // Whoever decided the fate already removed the entry; this tidies
     // up the cases nobody else covers, and is a no-op otherwise.

@@ -1,6 +1,6 @@
 //! The `assistant` records: what the model said.
 
-use diverge_provider_sdk::endpoints::agentic_loop::run::server::response;
+use diverge_provider_sdk::shared::containers::run_loop::response;
 use serde::Deserialize;
 
 use super::message;

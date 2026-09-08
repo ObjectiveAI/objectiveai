@@ -18,8 +18,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Agent {
-    /// See [`claude_code::Agent`](super::claude_code::Agent).
-    ClaudeCode(super::claude_code::Agent),
     /// See [`codex::Agent`](super::codex::Agent).
     Codex(super::codex::Agent),
     /// See [`hermes::Agent`](super::hermes::Agent).

@@ -2,7 +2,8 @@
 
 use std::collections::HashMap;
 
-use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::container_proxy::agent::dequeue::Outcome;
+use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
 use uuid::Uuid;
 
 use crate::response;
@@ -40,23 +41,19 @@ use super::writer;
 /// it was already taken, and its fate is delivered. A fate already
 /// decided by someone faster, or one nobody is listening to, is
 /// skipped — the reader races this same map on every replay echo.
-pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
+pub async fn dequeue() -> Outcome {
     // Joined, in parallel; the writer's fair queue makes this very
     // acquisition the withdrawal boundary.
     let (mut writer, mut replies) =
         tokio::join!(writer::WRITER.lock(), replies::REPLIES.lock());
     let Some(child_stdin) = writer.as_mut() else {
-        return agentic_loop_container::dequeue::Response::Empty {
-            r#type: Default::default(),
-        };
+        return Outcome::Empty;
     };
     let Some(receiver) = replies.as_mut() else {
         // Unreachable in practice — the replies are set before the
         // writer — but a missing receiver reads as no run all the
         // same.
-        return agentic_loop_container::dequeue::Response::Empty {
-            r#type: Default::default(),
-        };
+        return Outcome::Empty;
     };
 
     // The pending map's keys ARE the queue: entries leave as fates
@@ -68,9 +65,7 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
         .map(|entry| entry.key().clone())
         .collect();
     if uuids.is_empty() {
-        return agentic_loop_container::dequeue::Response::Empty {
-            r#type: Default::default(),
-        };
+        return Outcome::Empty;
     }
 
     // One buffered write for all the withdrawals, each under a fresh
@@ -99,9 +94,7 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
         // reader's end-of-stream to miss.
         *writer = None;
         *replies = None;
-        return agentic_loop_container::dequeue::Response::Empty {
-            r#type: Default::default(),
-        };
+        return Outcome::Empty;
     }
     // The write is through: the writer's job here is done, and every
     // message a cancel could reach is in the snapshot. Enqueues flow
@@ -138,9 +131,7 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
                                 pending::PENDING.remove(&uuid)
                             {
                                 let _ = fate.send(
-                                    agentic_loop_container::enqueue::Response::Dequeued {
-                                        r#type: Default::default(),
-                                    },
+                                    Fate::Dequeued,
                                 );
                             }
                         }
@@ -149,9 +140,7 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
                                 pending::PENDING.remove(&uuid)
                             {
                                 let _ = fate.send(
-                                    agentic_loop_container::enqueue::Response::Delivered {
-                                        r#type: Default::default(),
-                                    },
+                                    Fate::Delivered,
                                 );
                             }
                         }
@@ -174,16 +163,12 @@ pub async fn dequeue() -> agentic_loop_container::dequeue::Response {
             // missing the pending fates.
             None => {
                 *replies = None;
-                return agentic_loop_container::dequeue::Response::Empty {
-                    r#type: Default::default(),
-                };
+                return Outcome::Empty;
             }
         }
     }
 
     // The last reply is in: the receiver's job here is done too.
     drop(replies);
-    agentic_loop_container::dequeue::Response::Dequeued {
-        r#type: Default::default(),
-    }
+    Outcome::Dequeued
 }

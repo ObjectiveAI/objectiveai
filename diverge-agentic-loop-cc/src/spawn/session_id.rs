@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 
 /// The session Claude Code is actually running, or `None` until a
 /// record names it. The reader captures it from the first record
-/// that carries one; the root handler reads it when the stream ends,
+/// that carries one; the run handler reads it when the stream ends,
 /// because the continuation harvest is keyed by it. Never cleared —
 /// the id outlives the run on purpose: the harvest happens AFTER the
 /// stream is over.
