@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::{agent_schema, dequeue, enqueue, run_loop};
+use crate::shared::containers::{agent_schema, dequeue, enqueue};
 use crate::shared::containers::{filetree, postgres, read, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
@@ -88,10 +88,11 @@ pub enum Frame {
     /// Run the loop. Tag `5`.
     ///
     /// The family's own exchange. Carries nothing — the prompt and
-    /// the agent were on the request that made the container — and
+    /// the agent were on the request that made the container, so
+    /// there is no request type and the variant is bare — and
     /// answers with the loop's chunks. See
     /// [`run_loop`](crate::shared::containers::run_loop).
-    RunLoop(run_loop::request::Request),
+    RunLoop,
     /// What the agent may be. Tag `6`.
     ///
     /// Carries nothing; the provider answers with the JSON Schema of
@@ -170,11 +171,9 @@ impl Encode for Frame {
                 out.extend_from_slice(&[POSTGRES]);
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::RunLoop(request) => {
+            Frame::RunLoop => {
                 out.extend_from_slice(&[RUN_LOOP]);
-                // Its error is `Infallible`, and an empty match on one
-                // is how you say so: there is no value to handle.
-                request.encode(out).map_err(|error| match error {})
+                Ok(())
             }
             Frame::AgentSchema(request) => {
                 out.extend_from_slice(&[AGENT_SCHEMA]);
@@ -215,10 +214,7 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            RUN_LOOP => Ok(Frame::RunLoop(
-                run_loop::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            RUN_LOOP => Ok(Frame::RunLoop),
             AGENT_SCHEMA => Ok(Frame::AgentSchema(
                 agent_schema::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
