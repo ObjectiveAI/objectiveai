@@ -24,13 +24,8 @@ rmcp = { version = "3.1.2", default-features = false, features = ["client", "tra
 reqwest = { version = "0.12", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"] }
 # The stream a command's items come back as, written as a generator.
 async-stream = { version = "0.3.6" }
-# `Stream`, the type that generator is; `sink`, for the loop's socket.
-futures-util = { version = "0.3.33", default-features = false, features = ["std", "sink"] }
-# The loop's socket: the harness dials the proxy and streams chunks
-# back on it. `connect` and nothing else.
-tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect"] }
-# The agent's schema, and the loop's request, are JSON values.
-serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# `Stream`, the type that generator is.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
 # What a vault value comes back as: the answer's bytes, not copied.
 bytes = { version = "1.11.1", default-features = false }
 # `OnceCell`: a session made by the first method that needs it, once.
