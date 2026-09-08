@@ -1,6 +1,6 @@
 //! The request-body `plugins` array.
 
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
+use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
 use serde::Serialize;
 
 /// One entry in OpenRouter's request-body `plugins` array. Today the
