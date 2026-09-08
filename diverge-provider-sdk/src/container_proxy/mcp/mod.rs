@@ -2,7 +2,7 @@
 //! servers, and their notifications on request.
 //!
 //! To the agent inside an agent container, the proxy is a fully
-//! compliant MCP server at `/mcp/agent` on the same port. Every
+//! compliant MCP server at `/mcp` on [`INSIDE_PORT`](super::INSIDE_PORT). Every
 //! exchange the agent asks of it leaves the container as one of five
 //! asks on `/requests`, and the caller's servers answer on the ask's
 //! own path.

@@ -28,7 +28,7 @@ pub(crate) type ContainerWebSocket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 /// # The URL is the caller's
 ///
 /// `ws://<host>:14979` — the proxy's
-/// [`PORT`](crate::container_proxy::PORT) at wherever the provider
+/// [`OUTSIDE_PORT`](crate::container_proxy::OUTSIDE_PORT) at wherever the provider
 /// can reach the container, which is a fact about the provider's
 /// network and not this crate's. It is kept as given and a path is
 /// appended to it; a trailing slash is dropped so the paths, which
