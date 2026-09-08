@@ -1,22 +1,44 @@
 //! What a client's request frame carries for an agent container run.
 
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::containers::request::Container;
 
-/// Ask a provider to create an agent container.
+/// Ask a provider to create an agent container, and say what its loop
+/// runs.
 ///
-/// A [`Container`] and nothing else: the image, the limits, the
-/// mounts. What makes it an agent container rather than the other kind is not in
-/// the request — it is the image, and it is what the caller does on
-/// the channels once it runs: the loop over
-/// [`agentic_loop`](crate::shared::containers::agentic_loop), and its
-/// [`agent_schema`](crate::shared::containers::agent_schema).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Frame(
-    /// What to run.
-    pub Container,
-);
+/// A [`Container`] — the image, the limits, the mounts — and then the
+/// two things a loop needs: a prompt, and an agent. They are on the
+/// request rather than on the channel that starts the loop because a
+/// container runs one loop, on one prompt, as one agent, for its
+/// whole life; the channel that starts it has nothing left to say.
+///
+/// The two are typed to different depths on purpose. The prompt is a
+/// string, because every loop takes one and this crate can say so.
+/// The agent is a JSON value, because this crate does not know what
+/// an agent is — a model, a set of tools, a personality, a harness's
+/// own knobs — and a wire that typed it would have to be revised for
+/// every agent that ever ran. What the value MAY be is what
+/// [`agent_schema`](crate::shared::containers::agent_schema) answers.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Frame {
+    /// The container: image, limits, mounts. Flattened, so the wire
+    /// is one object rather than a container inside a request.
+    #[serde(flatten)]
+    pub container: Container,
+    /// What the loop is asked. POST-TRANSFORM: the result of whatever
+    /// built the request — a system prompt applied, a history folded
+    /// in — so a provider never rewrites what it was given.
+    pub prompt: String,
+    /// The agent, as the image defines it. The typed agents this
+    /// crate once carried are kept in
+    /// [`agent`](crate::endpoints::containers::agents::agent) for
+    /// reference; nothing here reads them.
+    pub agent: Value,
+}
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -37,14 +59,16 @@ const TAG: u8 = 0;
 /// uses. One of these is sent per container rather than per
 /// filesystem event, so there is no throughput to optimize for — and
 /// it names an image the same way a check does, which is reason
-/// enough for the two to look alike on the wire.
+/// enough for the two to look alike on the wire. The agent being a
+/// [`Value`] settles it besides: a value cannot come back out of
+/// postcard at all.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        serde_json::to_writer(out, &self.0)
+        serde_json::to_writer(out, self)
     }
 }
 
@@ -57,7 +81,7 @@ impl Decode<'_> for Frame {
         if *tag != TAG {
             return Err(FrameError::UnexpectedTag(*tag));
         }
-        serde_json::from_slice(rest).map(Frame).map_err(FrameError::Body)
+        serde_json::from_slice(rest).map_err(FrameError::Body)
     }
 }
 

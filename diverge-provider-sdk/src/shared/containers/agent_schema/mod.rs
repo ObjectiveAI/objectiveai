@@ -4,9 +4,8 @@
 //! first usable without knowing the image: the caller opens a channel
 //! with [`request::Request`], which carries nothing, and the provider
 //! answers with one [`response::Frame`] — the JSON Schema of the
-//! [`agent`](crate::shared::containers::agentic_loop::request::Request::agent)
-//! value an [`agentic_loop`](crate::shared::containers::agentic_loop)
-//! request carries, or an error — then the finish.
+//! [`agent`](crate::endpoints::containers::agents::run::client::request::Frame::agent)
+//! value the container was made with, or an error — then the finish.
 //!
 //! The schema is the AGENT's, not the request's. The request's other
 //! field is a prompt and is this crate's to type; the agent is the

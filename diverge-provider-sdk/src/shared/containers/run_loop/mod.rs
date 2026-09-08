@@ -1,13 +1,15 @@
-//! Running an agentic loop in an agent container.
+//! Running the loop in an agent container.
 //!
-//! The agents family's own exchange. The caller opens a channel with
-//! [`request::Request`] — a prompt, and an agent as a JSON value the
-//! IMAGE defines, since what an agent is is the image's business and
-//! one wire has to carry every agent — and the provider answers with
-//! the loop as it happens: one [`response::Frame`] per chunk, then
-//! the finish, or an [`Error`](response::Frame::Error) when there is
-//! no loop to report on. What the agent value may be is asked over
-//! [`agent_schema`](crate::shared::containers::agent_schema).
+//! The agents family's own exchange. The container was made with a
+//! prompt and an agent on its
+//! [`request`](crate::endpoints::containers::agents::run::client::request::Frame),
+//! so the channel that starts the loop has nothing left to say: the
+//! caller opens it with [`request::Request`], which carries nothing,
+//! and the provider answers with the loop as it happens — one
+//! [`response::Frame`] per chunk, then the finish, or an
+//! [`Error`](response::Frame::Error) when there is no loop to report
+//! on. A container runs one loop; what a second opening means while
+//! one runs, or after one ended, is the image's to define.
 //!
 //! A running loop has a QUEUE, and a caller has two verbs against
 //! it: [`enqueue`](crate::shared::containers::enqueue) puts a message

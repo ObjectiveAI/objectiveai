@@ -32,7 +32,7 @@ use crate::shared::error::Error;
 /// ending the stream silently would leave a caller unable to tell a
 /// partial result from a complete one. An [`Error`](Self::Error) is
 /// not part of the loop. It is what a provider sends when there is no
-/// loop to report on — the request the image would not take, the
+/// loop to report on — the agent the image would not take, the
 /// container gone — and it carries a bare JSON value because this
 /// specification does not describe what providers can go wrong with.
 #[derive(Debug, Clone, PartialEq)]

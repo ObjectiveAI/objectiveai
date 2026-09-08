@@ -5,12 +5,12 @@
 //! caller's mounts — and the caller then works with what runs inside.
 //! Two families, told apart by what that is:
 //!
-//! - [`agents`]: an agentic loop. The caller opens a channel carrying
-//!   the loop's request — a prompt, and an agent as a JSON value the
-//!   image defines — and reads the loop's chunks back on it; an
-//!   `agent_schema` channel says what that agent value may be, and
-//!   `enqueue` and `dequeue` add to a running loop's queue and clear
-//!   it.
+//! - [`agents`]: an agentic loop. The request that makes the
+//!   container carries a prompt and an agent — a JSON value the image
+//!   defines — and a `run_loop` channel, carrying nothing, starts the
+//!   loop and reads its chunks back; an `agent_schema` channel says
+//!   what the agent value may be, and `enqueue` and `dequeue` add to
+//!   the running loop's queue and clear it.
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
