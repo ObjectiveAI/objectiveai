@@ -51,6 +51,23 @@ pub enum Error {
     /// for why it says so little, and why it is a message rather than
     /// a Rust error.
     Command(diverge_provider_sdk::shared::error::Error),
+    /// Dialing `/run-loop/agent` failed.
+    RunLoopConnect(tokio_tungstenite::tungstenite::Error),
+    /// The proxy refused the attachment with a status: `409` for a
+    /// harness already attached.
+    RunLoopStatus(u16),
+    /// The request the proxy handed over did not parse.
+    RunLoopRequest(serde_json::Error),
+    /// The socket ended before any request came.
+    RunLoopClosed,
+    /// A chunk or an error would not serialize.
+    RunLoopEncode(serde_json::Error),
+    /// The loop's socket failed.
+    RunLoopSocket(tokio_tungstenite::tungstenite::Error),
+    /// The HTTP call to the proxy failed.
+    AgentSchemaRequest(reqwest::Error),
+    /// The proxy answered a status other than success.
+    AgentSchemaStatus(u16),
 }
 
 impl fmt::Display for Error {
@@ -95,6 +112,30 @@ impl fmt::Display for Error {
             Error::Command(error) => {
                 write!(f, "the command did not finish: {}", error.0)
             }
+            Error::RunLoopConnect(error) => {
+                write!(f, "attaching to the proxy's loop failed: {error}")
+            }
+            Error::RunLoopStatus(status) => {
+                write!(f, "the proxy refused the loop attachment with {status}")
+            }
+            Error::RunLoopRequest(error) => {
+                write!(f, "the loop's request did not parse: {error}")
+            }
+            Error::RunLoopClosed => {
+                f.write_str("the loop's socket ended before a request came")
+            }
+            Error::RunLoopEncode(error) => {
+                write!(f, "a loop frame did not serialize: {error}")
+            }
+            Error::RunLoopSocket(error) => {
+                write!(f, "the loop's socket failed: {error}")
+            }
+            Error::AgentSchemaRequest(error) => {
+                write!(f, "posting the agent schema failed: {error}")
+            }
+            Error::AgentSchemaStatus(status) => {
+                write!(f, "the proxy refused the agent schema with {status}")
+            }
         }
     }
 }
@@ -110,13 +151,19 @@ impl error::Error for Error {
             Error::CommandRequest(error) => Some(error),
             Error::CommandStream(error) => Some(error),
             Error::CommandAnswer(error) => Some(error),
+            Error::RunLoopConnect(error) | Error::RunLoopSocket(error) => Some(error),
+            Error::RunLoopRequest(error) | Error::RunLoopEncode(error) => Some(error),
+            Error::AgentSchemaRequest(error) => Some(error),
             // A message from the wire, not a Rust error: nothing to
             // chain.
             Error::VaultStatus(_)
             | Error::Vault(_)
             | Error::CommandStatus(_)
             | Error::CommandTruncated
-            | Error::Command(_) => None,
+            | Error::Command(_)
+            | Error::RunLoopStatus(_)
+            | Error::RunLoopClosed
+            | Error::AgentSchemaStatus(_) => None,
         }
     }
 }

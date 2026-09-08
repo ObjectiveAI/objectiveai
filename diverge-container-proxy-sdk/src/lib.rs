@@ -13,19 +13,26 @@
 //! four exchanges the proxy relays to the caller's servers, their
 //! methods in `mcp.rs`, their notifications ignored — the vault, the
 //! keys the caller holds, in `vault.rs` — commands the caller runs,
-//! in `command.rs` — and Postgres, the caller's database on the
-//! container's loopback, whose one method in `postgres.rs` is the
-//! address the program's driver dials.
+//! in `command.rs` — Postgres, the caller's database on the
+//! container's loopback, whose methods in `postgres.rs` are the
+//! address and the URL the program's driver dials — and, for an agent
+//! container, the loop: `run_loop.rs` waits for the request the
+//! server hands the proxy and streams the loop's chunks back, and
+//! `agent_schema.rs` posts what the agent value may be.
 
+mod agent_schema;
 mod client;
 mod command;
 mod error;
 mod mcp;
 mod postgres;
+mod run_loop;
 mod vault;
 
 pub use client::*;
 pub use error::*;
+pub use postgres::*;
+pub use run_loop::*;
 
 use diverge_provider_sdk::container_proxy;
 
@@ -34,4 +41,10 @@ use diverge_provider_sdk::container_proxy;
 /// out, so there is one copy of the number.
 fn url(path: &str) -> String {
     format!("http://127.0.0.1:{}{}", container_proxy::PORT, path)
+}
+
+/// The same, as a WebSocket URL, for the one feature that holds a
+/// socket open.
+fn ws_url(path: &str) -> String {
+    format!("ws://127.0.0.1:{}{}", container_proxy::PORT, path)
 }
