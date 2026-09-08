@@ -119,9 +119,11 @@ async fn serve() {
 /// `POST /run`: the run.
 ///
 /// Refused, in order, for what is knowable before the stream: a run
-/// beside one in progress (`409` — the [`Claim`], released on every
+/// beside one STREAMING (`409` — the [`Claim`], released on every
 /// refusal below and otherwise by the run's settlement, so the next
-/// run finds clean locks); Claude Code failing to install (`500`,
+/// run finds clean locks; a request that lands while a settlement
+/// is still running waits for it and is never refused); Claude Code
+/// failing to install (`500`,
 /// and the same on every endpoint, forever — a request during the
 /// install simply waits for the outcome); an agent value that is not
 /// this image's (`400`); an empty prompt (`400` — stream-json input
@@ -147,7 +149,7 @@ async fn run(
     State(client): State<Arc<Client>>,
     Json(request): Json<run_loop::request::Request>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Refusal> {
-    let Some(claim) = Claim::take() else {
+    let Ok(claim) = Claim::take().await else {
         return Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
