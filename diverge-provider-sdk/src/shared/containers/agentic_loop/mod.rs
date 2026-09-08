@@ -9,6 +9,14 @@
 //! no loop to report on. What the agent value may be is asked over
 //! [`agent_schema`](crate::shared::containers::agent_schema).
 //!
+//! A running loop has a QUEUE, and a caller has two verbs against
+//! it: [`enqueue`](crate::shared::containers::enqueue) puts a message
+//! in, [`dequeue`](crate::shared::containers::dequeue) clears whatever
+//! has not yet been taken. Neither touches the turn in flight — the
+//! agent takes a message at a seam of its own choosing, and marks the
+//! delivery in this stream with a
+//! [`UserChunk`](response::UserChunk) carrying it verbatim.
+//!
 //! The chunks are typed, and they are the one thing a container says
 //! that this crate defines: content, reasoning, tool calls, tool
 //! results, usage, notifications — MCP's own content vocabulary,

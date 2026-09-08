@@ -16,7 +16,10 @@ use serde::{Deserialize, Serialize};
 /// The delivered message's text, verbatim — so the chunk stands on
 /// its own in the response stream and in any history built from it,
 /// and a caller with several enqueues in flight tells them apart by
-/// content.
+/// content. The
+/// [`Delivered`](crate::shared::containers::enqueue::response::Frame::Delivered)
+/// answer on the enqueue's own channel says the same event from the
+/// channel's side.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserChunk {
     /// The discriminator. Fixed, and the reason

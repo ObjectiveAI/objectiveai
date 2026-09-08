@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::{agent_schema, agentic_loop};
+use crate::shared::containers::{agent_schema, agentic_loop, dequeue, enqueue};
 use crate::shared::containers::{filetree, postgres, read, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
@@ -22,6 +22,8 @@ use crate::shared::containers::{filetree, postgres, read, write_path};
 /// | `4` | [`Postgres`](Self::Postgres) |
 /// | `5` | [`AgenticLoop`](Self::AgenticLoop) |
 /// | `6` | [`AgentSchema`](Self::AgentSchema) |
+/// | `7` | [`Enqueue`](Self::Enqueue) |
+/// | `8` | [`Dequeue`](Self::Dequeue) |
 ///
 /// The first five are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -95,6 +97,21 @@ pub enum Frame {
     /// the agent value. See
     /// [`agent_schema`](crate::shared::containers::agent_schema).
     AgentSchema(agent_schema::request::Request),
+    /// A message for the running loop's queue. Tag `7`.
+    ///
+    /// Answered once — by an
+    /// [`enqueue::response::Frame`](crate::shared::containers::enqueue::response::Frame)
+    /// naming the message's fate, whenever that is known — and then
+    /// the finish. See [`enqueue`](crate::shared::containers::enqueue).
+    Enqueue(enqueue::request::Request),
+    /// Withdraw every message still waiting in the queue. Tag `8`.
+    ///
+    /// Answered once — by a
+    /// [`dequeue::response::Frame`](crate::shared::containers::dequeue::response::Frame)
+    /// saying whether the queue held anything — and then the finish.
+    /// Each message it withdraws is ALSO answered, on its own enqueue
+    /// channel. See [`dequeue`](crate::shared::containers::dequeue).
+    Dequeue(dequeue::request::Request),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -117,6 +134,12 @@ const AGENTIC_LOOP: u8 = 5;
 
 /// Tag for [`Frame::AgentSchema`].
 const AGENT_SCHEMA: u8 = 6;
+
+/// Tag for [`Frame::Enqueue`].
+const ENQUEUE: u8 = 7;
+
+/// Tag for [`Frame::Dequeue`].
+const DEQUEUE: u8 = 8;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -156,6 +179,14 @@ impl Encode for Frame {
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
             }
+            Frame::Enqueue(request) => {
+                out.extend_from_slice(&[ENQUEUE]);
+                request.encode(out)
+            }
+            Frame::Dequeue(request) => {
+                out.extend_from_slice(&[DEQUEUE]);
+                request.encode(out).map_err(|error| match error {})
+            }
         }
     }
 }
@@ -188,6 +219,13 @@ impl Decode<'_> for Frame {
                 agent_schema::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
+            ENQUEUE => enqueue::request::Request::decode(rest)
+                .map(Frame::Enqueue)
+                .map_err(FrameError::Enqueue),
+            DEQUEUE => Ok(Frame::Dequeue(
+                dequeue::request::Request::decode(rest)
+                    .unwrap_or_else(|error| match error {}),
+            )),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -208,6 +246,8 @@ pub enum FrameError {
     Postgres(postgres::request::PostgresError),
     /// The loop's request did not parse as JSON.
     AgenticLoop(serde_json::Error),
+    /// The enqueued message did not parse as JSON.
+    Enqueue(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -229,6 +269,9 @@ impl fmt::Display for FrameError {
             FrameError::AgenticLoop(error) => {
                 write!(f, "agentic loop request did not parse: {error}")
             }
+            FrameError::Enqueue(error) => {
+                write!(f, "enqueue request did not parse: {error}")
+            }
         }
     }
 }
@@ -238,7 +281,8 @@ impl Error for FrameError {
         match self {
             FrameError::Read(error)
             | FrameError::Write(error)
-            | FrameError::AgenticLoop(error) => Some(error),
+            | FrameError::AgenticLoop(error)
+            | FrameError::Enqueue(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }

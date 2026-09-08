@@ -8,7 +8,9 @@
 //! - [`agents`]: an agentic loop. The caller opens a channel carrying
 //!   the loop's request — a prompt, and an agent as a JSON value the
 //!   image defines — and reads the loop's chunks back on it; an
-//!   `agent_schema` channel says what that agent value may be.
+//!   `agent_schema` channel says what that agent value may be, and
+//!   `enqueue` and `dequeue` add to a running loop's queue and clear
+//!   it.
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
