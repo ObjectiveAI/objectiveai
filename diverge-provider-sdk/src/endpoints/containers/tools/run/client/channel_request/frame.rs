@@ -6,7 +6,7 @@ use std::fmt;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::mcp;
-use crate::shared::containers::{filetree, postgres, read, write_path};
+use crate::shared::containers::{postgres, read, write_path};
 
 /// What a caller asks a provider for while a tool container runs.
 ///
@@ -61,10 +61,11 @@ pub enum Frame {
     Stop,
     /// The container's filesystem, watched. Tag `1`.
     ///
-    /// Carries nothing; the provider answers with a snapshot and then
-    /// every change, for as long as the channel lives. See
+    /// Carries nothing — the variant is bare — and the provider answers
+    /// with a snapshot and then every change, for as long as the
+    /// channel lives. See
     /// [`filetree`](crate::shared::containers::filetree).
-    Filetree(filetree::request::Request),
+    Filetree,
     /// One file, read out of the container. Tag `2`.
     ///
     /// See [`read`](crate::shared::containers::read) for why this is
@@ -161,11 +162,9 @@ impl Encode for Frame {
                 out.extend_from_slice(&[STOP]);
                 Ok(())
             }
-            Frame::Filetree(request) => {
+            Frame::Filetree => {
                 out.extend_from_slice(&[FILETREE]);
-                // Its error is `Infallible`, and an empty match on one
-                // is how you say so: there is no value to handle.
-                request.encode(out).map_err(|error| match error {})
+                Ok(())
             }
             Frame::Read(request) => {
                 out.extend_from_slice(&[READ]);
@@ -213,10 +212,7 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             STOP => Ok(Frame::Stop),
-            FILETREE => Ok(Frame::Filetree(
-                filetree::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            FILETREE => Ok(Frame::Filetree),
             READ => read::request::Request::decode(rest)
                 .map(Frame::Read)
                 .map_err(FrameError::Read),

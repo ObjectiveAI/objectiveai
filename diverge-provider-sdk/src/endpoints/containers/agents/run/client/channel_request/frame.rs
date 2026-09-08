@@ -5,8 +5,8 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::{agent_schema, dequeue, enqueue};
-use crate::shared::containers::{filetree, postgres, read, write_path};
+use crate::shared::containers::enqueue;
+use crate::shared::containers::{postgres, read, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
 ///
@@ -60,10 +60,11 @@ pub enum Frame {
     Stop,
     /// The container's filesystem, watched. Tag `1`.
     ///
-    /// Carries nothing; the provider answers with a snapshot and then
-    /// every change, for as long as the channel lives. See
+    /// Carries nothing — the variant is bare — and the provider answers
+    /// with a snapshot and then every change, for as long as the
+    /// channel lives. See
     /// [`filetree`](crate::shared::containers::filetree).
-    Filetree(filetree::request::Request),
+    Filetree,
     /// One file, read out of the container. Tag `2`.
     ///
     /// See [`read`](crate::shared::containers::read) for why this is
@@ -95,10 +96,10 @@ pub enum Frame {
     RunLoop,
     /// What the agent may be. Tag `6`.
     ///
-    /// Carries nothing; the provider answers with the JSON Schema of
-    /// the agent value. See
+    /// Carries nothing — the variant is bare — and the provider answers
+    /// with the JSON Schema of the agent value. See
     /// [`agent_schema`](crate::shared::containers::agent_schema).
-    AgentSchema(agent_schema::request::Request),
+    AgentSchema,
     /// A message for the running loop's queue. Tag `7`.
     ///
     /// Answered once — by an
@@ -108,12 +109,12 @@ pub enum Frame {
     Enqueue(enqueue::request::Request),
     /// Withdraw every message still waiting in the queue. Tag `8`.
     ///
-    /// Answered once — by a
+    /// Carries nothing — the variant is bare. Answered once — by a
     /// [`dequeue::response::Frame`](crate::shared::containers::dequeue::response::Frame)
     /// saying whether the queue held anything — and then the finish.
     /// Each message it withdraws is ALSO answered, on its own enqueue
     /// channel. See [`dequeue`](crate::shared::containers::dequeue).
-    Dequeue(dequeue::request::Request),
+    Dequeue,
 }
 
 /// Tag for [`Frame::Stop`].
@@ -153,11 +154,9 @@ impl Encode for Frame {
                 out.extend_from_slice(&[STOP]);
                 Ok(())
             }
-            Frame::Filetree(request) => {
+            Frame::Filetree => {
                 out.extend_from_slice(&[FILETREE]);
-                // Its error is `Infallible`, and an empty match on one
-                // is how you say so: there is no value to handle.
-                request.encode(out).map_err(|error| match error {})
+                Ok(())
             }
             Frame::Read(request) => {
                 out.extend_from_slice(&[READ]);
@@ -175,19 +174,17 @@ impl Encode for Frame {
                 out.extend_from_slice(&[RUN_LOOP]);
                 Ok(())
             }
-            Frame::AgentSchema(request) => {
+            Frame::AgentSchema => {
                 out.extend_from_slice(&[AGENT_SCHEMA]);
-                // Its error is `Infallible`, and an empty match on one
-                // is how you say so: there is no value to handle.
-                request.encode(out).map_err(|error| match error {})
+                Ok(())
             }
             Frame::Enqueue(request) => {
                 out.extend_from_slice(&[ENQUEUE]);
                 request.encode(out)
             }
-            Frame::Dequeue(request) => {
+            Frame::Dequeue => {
                 out.extend_from_slice(&[DEQUEUE]);
-                request.encode(out).map_err(|error| match error {})
+                Ok(())
             }
         }
     }
@@ -201,10 +198,7 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             STOP => Ok(Frame::Stop),
-            FILETREE => Ok(Frame::Filetree(
-                filetree::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            FILETREE => Ok(Frame::Filetree),
             READ => read::request::Request::decode(rest)
                 .map(Frame::Read)
                 .map_err(FrameError::Read),
@@ -215,17 +209,11 @@ impl Decode<'_> for Frame {
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
             RUN_LOOP => Ok(Frame::RunLoop),
-            AGENT_SCHEMA => Ok(Frame::AgentSchema(
-                agent_schema::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            AGENT_SCHEMA => Ok(Frame::AgentSchema),
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),
-            DEQUEUE => Ok(Frame::Dequeue(
-                dequeue::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            DEQUEUE => Ok(Frame::Dequeue),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }

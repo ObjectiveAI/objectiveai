@@ -1,7 +1,8 @@
 //! Watching a container's filesystem.
 //!
-//! The caller opens a channel with [`request::Request`], which carries
-//! nothing — the channel is the ask — and the provider answers with a
+//! The caller opens a channel that carries nothing — the channel is
+//! the ask, and there is no request type — and the provider answers
+//! with a
 //! [`filetree`](crate::shared::filetree) stream over the container's
 //! root: one snapshot, then one frame per change, for as long as the
 //! channel lives. Every path is relative to the container's root, and
@@ -13,5 +14,4 @@
 //! watch on their own terms. Every channel is a fresh subscription,
 //! starting whole.
 
-pub mod request;
 pub mod response;
