@@ -6,17 +6,20 @@ use serde_json::Value;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// What to run the loop on, as the image defines it.
+/// What to run the loop on: a prompt, and the agent that runs it.
 ///
-/// A JSON value and nothing more, because this crate does not know
-/// what an agent takes: a prompt, a conversation, a model, a set of
-/// tools — that is the image's to define and the image's to change,
-/// and a wire that typed it would have to be revised for every agent
-/// that ever ran. What the value MAY be is what
-/// [`schema`](crate::shared::containers::schema) answers, so a caller
-/// learns an image's request from the image rather than from here.
+/// Two fields, and they are typed to different depths on purpose.
+/// The prompt is a string, because every loop takes one and this
+/// crate can say so. The agent is a JSON value, because this crate
+/// does not know what an agent is — a model, a set of tools, a
+/// personality, a harness's own knobs — and a wire that typed it
+/// would have to be revised for every agent that ever ran. What the
+/// value MAY be is what
+/// [`agent_schema`](crate::shared::containers::agent_schema) answers,
+/// so a caller learns an image's agent from the image rather than
+/// from here.
 ///
-/// The typed configurations this crate once carried are kept in
+/// The typed agents this crate once carried are kept in
 /// [`agent`](crate::endpoints::containers::agents::agent) for
 /// reference; nothing here reads them.
 ///
@@ -26,18 +29,21 @@ use crate::encode::{Encode, Writer};
 /// with no self-description cannot answer — the same reason
 /// [`shared::error::Error`](crate::shared::error::Error) is JSON.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-#[serde(transparent)]
-pub struct Request(
-    /// The request, as the image defines it.
-    pub Value,
-);
+pub struct Request {
+    /// What the loop is asked. POST-TRANSFORM: the result of whatever
+    /// built the request — a system prompt applied, a history folded
+    /// in — so a provider never rewrites what it was given.
+    pub prompt: String,
+    /// The agent, as the image defines it.
+    pub agent: Value,
+}
 
 impl Encode for Request {
     /// The ordinary JSON failure.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        serde_json::to_writer(out, &self.0)
+        serde_json::to_writer(out, self)
     }
 }
 
@@ -46,6 +52,6 @@ impl Decode<'_> for Request {
     type Error = serde_json::Error;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
-        serde_json::from_slice(bytes).map(Request)
+        serde_json::from_slice(bytes)
     }
 }

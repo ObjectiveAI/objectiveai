@@ -1,4 +1,4 @@
-//! What a schema channel answers.
+//! What an agent schema channel answers.
 
 use std::fmt;
 
@@ -8,21 +8,23 @@ use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// The schema, or the news that there is none.
+/// The agent's schema, or the news that there is none.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Schema`](Self::Schema), `1` for [`Error`](Self::Error) — and the
+/// [`AgentSchema`](Self::AgentSchema), `1` for [`Error`](Self::Error)
+/// — and the
 /// rest is that variant's own JSON. One frame is all there is, and the
 /// channel finishes after it.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The JSON Schema of the loop's request, as the image states it.
-    /// Tag `0`.
+    /// The JSON Schema of the
+    /// [`agent`](crate::shared::containers::agentic_loop::request::Request::agent)
+    /// value, as the image states it. Tag `0`.
     ///
     /// A [`Value`] rather than a typed schema, because a schema is a
     /// document in its own vocabulary and this crate has no business
     /// restating it.
-    Schema(Value),
+    AgentSchema(Value),
     /// A failure. Tag `1`.
     ///
     /// The image has no schema to give, or the container could not be
@@ -31,8 +33,8 @@ pub enum Frame {
     Error(Error),
 }
 
-/// Tag for [`Frame::Schema`].
-const SCHEMA: u8 = 0;
+/// Tag for [`Frame::AgentSchema`].
+const AGENT_SCHEMA: u8 = 0;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 1;
@@ -45,8 +47,8 @@ impl Encode for Frame {
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Schema(schema) => {
-                out.extend_from_slice(&[SCHEMA]);
+            Frame::AgentSchema(schema) => {
+                out.extend_from_slice(&[AGENT_SCHEMA]);
                 serde_json::to_writer(out, schema)
             }
             Frame::Error(error) => {
@@ -65,9 +67,9 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            SCHEMA => serde_json::from_slice(rest)
-                .map(Frame::Schema)
-                .map_err(FrameError::Schema),
+            AGENT_SCHEMA => serde_json::from_slice(rest)
+                .map(Frame::AgentSchema)
+                .map_err(FrameError::AgentSchema),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -76,7 +78,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A schema answer that could not be read.
+/// An agent schema answer that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -84,7 +86,7 @@ pub enum FrameError {
     /// A tag that is neither of this frame's two.
     UnknownTag(u8),
     /// The schema did not parse.
-    Schema(serde_json::Error),
+    AgentSchema(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -92,15 +94,15 @@ pub enum FrameError {
 impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("schema answer frame is empty"),
+            FrameError::Empty => f.write_str("agent schema answer frame is empty"),
             FrameError::UnknownTag(tag) => {
-                write!(f, "unknown schema answer frame tag {tag}")
+                write!(f, "unknown agent schema answer frame tag {tag}")
             }
-            FrameError::Schema(error) => {
-                write!(f, "schema did not parse: {error}")
+            FrameError::AgentSchema(error) => {
+                write!(f, "agent schema did not parse: {error}")
             }
             FrameError::Error(error) => {
-                write!(f, "schema error did not parse: {error}")
+                write!(f, "agent schema error did not parse: {error}")
             }
         }
     }
@@ -109,7 +111,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Schema(error) | FrameError::Error(error) => Some(error),
+            FrameError::AgentSchema(error) | FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

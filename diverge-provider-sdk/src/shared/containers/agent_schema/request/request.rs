@@ -1,12 +1,12 @@
-//! Asking for the schema.
+//! Asking for the agent's schema.
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Ask what the loop's request may be.
+/// Ask what the agent value may be.
 ///
 /// Nothing to say: which container is the scope's, and it has one
-/// loop, so the payload is empty and the channel opening is the ask.
+/// agent, so the payload is empty and the channel opening is the ask.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Request;
 

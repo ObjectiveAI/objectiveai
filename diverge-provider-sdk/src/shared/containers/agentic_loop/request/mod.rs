@@ -1,4 +1,4 @@
-//! The ask: the loop's request, as the image defines it.
+//! The ask: a prompt, and the agent that runs it.
 
 mod request;
 

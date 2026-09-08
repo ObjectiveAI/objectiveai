@@ -11,7 +11,7 @@ use crate::shared::containers::request::Container;
 /// the request — it is the image, and it is what the caller does on
 /// the channels once it runs: the loop over
 /// [`agentic_loop`](crate::shared::containers::agentic_loop), and its
-/// [`schema`](crate::shared::containers::schema).
+/// [`agent_schema`](crate::shared::containers::agent_schema).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame(
     /// What to run.
