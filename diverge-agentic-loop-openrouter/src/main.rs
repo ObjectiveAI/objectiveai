@@ -12,6 +12,14 @@
 //! resumes from, and leaves behind, is one row in the caller's
 //! database, reached through the proxy's loopback pgwire.
 //!
+//! # Nothing of the proxy's before a request
+//!
+//! The proxy is not part of this image: the host injects it at
+//! runtime, and it may not be up at all until a request comes. So
+//! the server binds and waits, and the first thing to touch the
+//! proxy — the vault, the database, the MCP session — is `POST /run`
+//! itself. Making the [`Client`] is no I/O.
+//!
 //! # What is an error, and what is not
 //!
 //! Anything that fails before the loop has said a single thing is a
