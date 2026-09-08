@@ -1,11 +1,13 @@
 //! The toolsets' contribution: which are exposed, their credentials
-//! as environment, their backend pins, spotify's state as a resource.
+//! as environment, their backend pins, spotify's login as a vault
+//! document.
 
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::hermes::Toolsets;
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::hermes::toolsets::browser::Remote;
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::hermes::toolsets::web::{Extract, Search};
+use diverge_provider_sdk::shared::containers::vault::keys;
 
-use super::{Ask, Plan, PrepareError, Target};
+use super::{Document, Plan, PrepareError, Target};
+use crate::agent::Toolsets;
+use crate::agent::toolsets::browser::Remote;
+use crate::agent::toolsets::web::{Extract, Search};
 
 /// Add the toolsets to the plan.
 ///
@@ -20,10 +22,10 @@ use super::{Ask, Plan, PrepareError, Target};
 /// Nothing is on by omission — Hermes's own
 /// API-server default (which would list web, browser, terminal,
 /// file, code_execution, vision, todo, memory, session_search and
-/// image_gen) is never consulted. `skills` is in exactly when the
-/// request mounted something under the external skills path — `skills` here is that
-/// fact, decided by the caller of this function from the mounts —
-/// and out otherwise: a skills catalogue with nothing of the
+/// image_gen) is never consulted. `skills` is in exactly when
+/// something is mounted under the external skills path — `skills`
+/// here is that fact, decided by the caller of this function from
+/// the disk — and out otherwise: a skills catalogue with nothing of the
 /// caller's in it is only Hermes's bundle, which nobody asked for.
 /// Never in: delegation
 /// and cronjob (both in Hermes's default, both unsupportable here),
@@ -34,7 +36,7 @@ use super::{Ask, Plan, PrepareError, Target};
 /// Each structure's credentials become the variables the SDK's
 /// toolset docs name; a web slot also pins its backend; an
 /// ElevenLabs key pins `tts.provider`; the generation toolsets pin
-/// `fal`; spotify's state is a resource bound for `auth.json`.
+/// `fal`; spotify's login is a vault document bound for `auth.json`.
 pub fn apply(
     toolsets: &Toolsets,
     skills: bool,
@@ -149,9 +151,8 @@ pub fn apply(
 
     if let Some(spotify) = &toolsets.spotify {
         plan.set("HERMES_SPOTIFY_CLIENT_ID", spotify.client_id.clone())?;
-        plan.asks.push(Ask {
-            field: "toolsets.spotify.auth_resource",
-            identity: spotify.auth_resource.clone(),
+        plan.documents.push(Document {
+            key: keys::SPOTIFY_OAUTH,
             target: Target::AuthEntry("spotify"),
         });
     }

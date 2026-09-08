@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// parameters rather than as a wrapper around them.
 ///
 /// One variant per upstream because the parameter sets genuinely do
-/// not overlap: `thinking` means nothing to Hermes, and a Python
+/// not overlap: Codex's knobs mean nothing to Eliza, and a Python
 /// agent has no sampling parameters at all. A union of every provider's
 /// knobs would be a struct where most fields are always absent, and
 /// would leave a provider to discover at runtime that it was handed
@@ -20,8 +20,6 @@ use serde::{Deserialize, Serialize};
 pub enum Agent {
     /// See [`codex::Agent`](super::codex::Agent).
     Codex(super::codex::Agent),
-    /// See [`hermes::Agent`](super::hermes::Agent).
-    Hermes(super::hermes::Agent),
     /// See [`eliza::Agent`](super::eliza::Agent).
     Eliza(super::eliza::Agent),
     /// See [`python::Agent`](super::python::Agent).

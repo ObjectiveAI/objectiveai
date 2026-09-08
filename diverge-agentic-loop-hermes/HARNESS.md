@@ -8,15 +8,17 @@ figured out.
 ## Auth is handled on the filesystem, from the request
 
 Nothing about credentials arrives ambiently: the request's agent
-carries them as arguments (provider structures, toolset structures,
-`*_resource` identities), and the harness APPLIES them before
+carries the static ones as arguments (provider structures, toolset
+structures), the ROTATING ones live in the caller's vault under the
+SDK's well-known keys, and the harness APPLIES all of them before
 `hermes gateway` starts —
 
 - canonical env vars in the gateway's PROCESS environment (the
-  per-provider and per-toolset docs in the SDK name each one);
-- `$HERMES_HOME/auth.json` entries for the resource providers
-  (nous, openai-codex, minimax-oauth) and spotify — the fetched
-  resource bytes written verbatim as `providers.<name>`;
+  per-provider and per-toolset docs in the agent module name each
+  one);
+- `$HERMES_HOME/auth.json` entries for the OAuth providers (nous,
+  openai-codex, minimax-oauth) and spotify — the vault document
+  written verbatim as `providers.<name>`;
 - qwen-oauth's document at the REAL `$HOME`
   (`~/.qwen/oauth_creds.json`) — and NO `providers.qwen-oauth`
   marker: that entry serves the setup wizard's credential check
@@ -36,41 +38,49 @@ Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
   when writing auth.json.
 - Where two toolsets name the same env var (`FAL_KEY`), the values
   must agree; disagreement is the caller's contradiction.
-- Rotating OAuth state is a RESOURCE: fetched by identity over the
-  container surface, written to the filesystem, rotated in place by
-  Hermes, and its rotated form surfaced back to the caller as a
-  `resource` frame — tag `3` on the container surface, `2` on the
-  wire: a u32 name length, the name (the request field's dotted
-  path, `provider.auth_resource` / `toolsets.spotify.auth_resource`),
-  then the whole new document. Not terminal; the last one wins.
+- Rotating OAuth state is a VAULT DOCUMENT under a fixed key
+  (`NOUS_OAUTH`, `OPENAI_CODEX_OAUTH`, `MINIMAX_OAUTH`, `QWEN_OAUTH`,
+  `SPOTIFY_OAUTH` — the SDK's `vault::keys`, shared by any image
+  that speaks the same login). The agent names no field for it:
+  choosing the provider or toolset is the whole ask. Every run owes
+  the cycle, in `vault.rs`: LOCK the key (TTL 300 s, re-locked every
+  100 s on a task for the run's life), GET the document, write it,
+  run, read it back as Hermes left it, SET it, UNLOCK. A key the
+  vault does not hold, or holds as something other than a JSON
+  object, refuses the run before the gateway starts. A document no
+  longer on disk at the end (Hermes quarantined the entry) is not
+  set — the caller keeping its copy beats a lost login — and the key
+  is still unlocked. A run abandoned mid-way stops refreshing and
+  the locks lapse by their TTL.
 
-## The `filesystem` module lays all of it down, once — and streams it back
+## The `filesystem` module lays it down, and reads the documents back
 
-Two entry points: `filesystem::prepare` before the gateway,
-`filesystem::finish` after it has exited. `finish` streams every
-resource the request named, as the run left it (the `auth.json`
-entry re-serialized, the Qwen file verbatim — a resource no longer
-there yields nothing, since Hermes quarantines a terminally-failed
-entry and the caller keeping its copy beats a lost run), and THEN
-the continuation, the closer, a piece at a time.
+Three entry points: `filesystem::plan` reads the agent into the
+`Plan` — the environment, the config's inputs, and which vault
+documents the run needs; `filesystem::prepare` writes the plan down
+with the documents in hand; `filesystem::read_back` reads each
+document off disk after the gateway has exited (the `auth.json`
+entry re-serialized, the Qwen file verbatim — a document no longer
+there is `None`), for the vault. The continuation is not the
+filesystem module's to move any more: `continuation.rs` restores it
+from the database once and harvests it at every run's end.
 
-`filesystem::prepare` turns the request's agent into the gateway's
-process environment (returned to the spawner — the request carries
-no environment of its own; the agent's typed fields are the whole
-source), `config.yaml`, and the credential files, in one pass — and awaits
-the continuation's settlement (its chunks having landed on disk as
-they came, `filesystem::continuation`) IN PARALLEL with the resource
-fetches, since the two halves write disjoint files:
+`filesystem::prepare` turns the plan into the gateway's process
+environment (returned to the spawner — the request carries no
+environment of its own; the agent's typed fields and the vault are
+the whole source), `config.yaml`, and the credential files, in one
+pass:
 
 - `config.yaml` is written as JSON (JSON is YAML): `model.provider`
-  (the SDK marker's id IS Hermes's) + `model.default`,
-  `model.base_url` + `model.api_key` for `custom` only, `security.protected_instruction_files: false`,
-  the backend pins asked for (`web.search_backend` /
-  `web.extract_backend` by plugin name — `tavily`, `exa`, `parallel`,
-  `keenable`, `brave-free`, `searxng`, `firecrawl`; `tts.provider:
-  elevenlabs` when keyed; `image_gen.provider` / `video_gen.provider:
-  fal`), and the MCP proxy entry `diverge` →
-  `http://127.0.0.1:14979/mcp` with `trust: full`, elicitation AND
+  (the agent marker's id IS Hermes's) + `model.default`,
+  `model.base_url` + `model.api_key` for `custom` only,
+  `security.protected_instruction_files: false`, the backend pins
+  asked for (`web.search_backend` / `web.extract_backend` by plugin
+  name — `tavily`, `exa`, `parallel`, `keenable`, `brave-free`,
+  `searxng`, `firecrawl`; `tts.provider: elevenlabs` when keyed;
+  `image_gen.provider` / `video_gen.provider: fal`), and the MCP
+  proxy entry `diverge` → the container SDK's `mcp_url()` (the
+  proxy's inside port, `/mcp`) with `trust: full`, elicitation AND
   sampling disabled.
 - Toolset exposure is the explicit list `platform_toolsets.api_server`
   (the only deterministic form; there is no `disabled_toolsets`
@@ -81,28 +91,26 @@ fetches, since the two halves write disjoint files:
   browser, terminal, file, code_execution, vision, todo, memory,
   session_search, and image_gen (hidden without a FAL key, which only
   the structure brings) — is never consulted.
-  `skills` in exactly when something is mounted under the external
+  `skills` in exactly when something is on disk under the external
   skills path, out otherwise — and skills come from MOUNTS at
   `/root/.hermes/external-skills/` (one directory per skill, its
   `SKILL.md` inside), which the config names as `skills.external_dirs`:
   Hermes discovers them recursively and views them, never writes
   (read-only to the curator, the usage tracker, the hub). Its own
   `skills/` is off limits for mounts — bundled skills sync into it
-  at startup and the bookkeeping lives there. delegation, cronjob,
-  clarify, computer_use,
+  at startup and the bookkeeping lives there. The request carries no
+  mount list any more, so the disk is probed: a non-empty directory
+  is skills mounted. delegation, cronjob, clarify, computer_use,
   discord, yuanbao, context_engine, stt never.
 - `HERMES_HOME=/root/.hermes` is set explicitly, pinning the geometry
   the files were laid down under.
 - The API server needs a usable bearer: `API_SERVER_KEY` is minted
   per run (64 hex), `API_SERVER_HOST=127.0.0.1`,
   `API_SERVER_PORT=8642`; `API_SERVER_ENABLED` is inert and unset.
-- Resources (a provider's OAuth state, spotify's) are fetched ALL AT
-  ONCE and parsed as JSON objects, the continuation fetched beside
-  them (every ask reaches the socket through the driver, on the one
-  `Fetcher`'s channel); only then is each file written,
-  exactly once — `auth.json` as `{"version": 1, "providers": {...}}`
-  with the documents verbatim, the Qwen file, the vertex file
-  (`VERTEX_CREDENTIALS_PATH` names it).
+- Each credential file is written exactly once — `auth.json` as
+  `{"version": 1, "providers": {...}}` with the documents verbatim,
+  the Qwen file, the vertex file (`VERTEX_CREDENTIALS_PATH` names
+  it).
 - One variable, one value: `FAL_KEY` (image_gen vs video_gen) and
   `XAI_API_KEY` (the xai provider vs x_search) must agree, or the
   request contradicts itself and is refused.
@@ -160,12 +168,14 @@ fail-closed stall it otherwise costs.
   `tool_response` chunks from its own MCP proxy's view, the only
   byte-faithful one. The gateway events
   supply timing, reasoning glimpses, deltas and the bill.
-- The enqueue/dequeue queue lives in the proxy; pending prompts
-  fold onto the next tool response AT ITS HEAD (one
-  `<system-reminder>` section, then a blank line, then the tool's
-  own content), and the fold's SHA-256 (lowercase
-  hex over the folded text blocks, concatenated, no separators) is
-  the caller's correlation key.
+- Hermes cannot be steered mid-turn, and the proxy holds no queue:
+  the container holds its own (`queue.rs`, openrouter's), and takes
+  it at each turn's end — every pending message answered
+  `delivered`, yielded as a `user` chunk, and joined with a blank
+  line between (openrouter's join) into the next turn's input on the
+  same session. Invoking Hermes again IS the delivery. An empty queue
+  at a turn's end closes it in the same lock hold and ends the run;
+  later enqueues are `missed`.
 
 ## Toolsets are applied, not passed through
 
@@ -193,30 +203,46 @@ override): `state.db` whole — the session store, schema v26 and
 moving, its gateway-only tables empty here — plus
 `memories/MEMORY.md` and `memories/USER.md`. Nothing else travels:
 configuration is rendered from the request, `auth.json` entries are
-resources, caches regenerate, skill writing is unsupported. The
-`filesystem::continuation` module is the shape; its rules:
+vault documents, caches regenerate, skill writing is unsupported. The
+`filesystem::continuation` module is the shape; `continuation.rs` is
+where it lives; the rules:
 
-- The continuation is NEVER held whole in memory: a delivered chunk
-  is appended to the file its tag names the moment it lands (the
-  slot keeps only the open handle), and the harvest streams each
-  file out in pieces of at most 2 MiB, one alive at a time. Large
-  databases and large memories are the normal case eventually.
+- The continuation is NEVER held whole in memory: the harvest
+  streams each file out in pieces of at most 2 MiB, each piece behind
+  one tag byte naming its file (`0` state.db, `1` MEMORY.md, `2`
+  USER.md), and each piece is ONE ROW of the caller's table
+  `continuation (seq integer PRIMARY KEY, frame bytea NOT NULL)`, in
+  order, written in one transaction that replaces the rows whole —
+  a run that dies mid-harvest leaves the previous rows intact. The
+  restore reads the rows in order and appends each to the file its
+  tag names, through the same ingest that used to take them off a
+  socket: the database is the source of the frames, and nothing
+  else changed. Large databases and large memories are the normal
+  case eventually.
+- Restored ONCE, on the program's first run, and never again: the
+  files stay on disk for the program's life, Hermes appends to them
+  itself, and the database on disk is the only authority on the
+  session. A later run reads no row and writes no continuation file;
+  it asks `state.db` for the lineage's tip. Every run still harvests
+  at its end. A restore that failed partway is retried by the next
+  run, the three files cleared first.
 - Harvest AFTER the gateway process has exited, and fold the
   database yourself: Hermes's close runs only a PASSIVE checkpoint,
   so a write-ahead log survives a clean exit and a database
   separated from it loses committed transactions. The module runs
   `VACUUM`, then `wal_checkpoint(TRUNCATE)`, then closes — and
   refuses a blocked checkpoint or a surviving log.
-- Prove a delivered `state.db` opens (`quick_check`) before the
+- Prove a restored `state.db` opens (`quick_check`) before the
   gateway starts: Hermes heals a database it cannot open by
   quarantining it and starting fresh, which would harvest an
   amnesiac continuation over the lineage.
-- The continuation fetch answers the SESSION ID to resume, read
-  from the database on that same connection — the most recently
-  active row of `sessions` (`last_activity_at`, else `started_at`).
-  The database is the only authority: compaction splits a session
-  into a child row, so the id a run started with is not necessarily
-  the lineage's tip when it ends. `None` is the fresh start.
+- The restore answers the SESSION ID to resume, read from the
+  database on that same connection — the most recently active row
+  of `sessions` (`last_activity_at`, else `started_at`). The
+  database is the only authority: compaction splits a session into
+  a child row, so the id a run started with is not necessarily the
+  lineage's tip when it ends. No rows, or no session yet, is the
+  fresh start.
 - Never enable session retention pruning in the config the harness
   writes; it would delete the older part of a lineage from inside
   the continuation.
@@ -224,46 +250,27 @@ resources, caches regenerate, skill writing is unsupported. The
   cache shows the model tools that no longer exist.
 - Mounts land at the same paths on every run of a lineage: session
   rows record `cwd` and the git root.
-- On the wire the protocol KEEPS chunk boundaries (nobody joins or
-  splits a continuation's pieces), so each chunk leads with one tag
-  byte naming its file — `0` state.db, `1` MEMORY.md, `2` USER.md.
-  The ingest appends each chunk to its tag's file and judges nothing
-  else: the container is fresh and the delivery lands before the
-  gateway starts, so there is nothing stale and no order to police.
 - The `memory` toolset is in the vocabulary: its two files are the
   continuation's, so what it writes is what the next run starts
   with. External memory-provider plugins stay off.
 
-## Resources ride the container surface
+## Nothing rides the container surface
 
-The run asks on its socket (`fetch_resource` frames), the server
-delivers at `POST /resource/{identity}` (bytes verbatim, chunked) /
-`…/complete` / `…/error`, the store settles per identity, and
-`Fetcher::fetch_resource` hands the run the whole document as UTF-8
-text — decoded over the ASSEMBLED bytes only, never per chunk. The
-continuation is fetched the same way (`Fetcher::fetch_continuation`),
-by the same object, on the same ask channel; only the stores differ
-(`store::resource` in memory by identity, `store::continuation` one
-slot to disk).
+There are no resources. What used to be fetched by identity over
+the socket — rotating OAuth state — comes from the vault (above),
+and the continuation comes from the database. Nothing rides the
+container surface but the request and the chunks.
 
 ## The runner (`run::run`)
 
-One stream for the whole lifetime: prepare → spawn `hermes gateway`
-(env from `prepare`, SIGTERM to stop, `/health` polled every 250ms
-with no timeout) → turns over `/v1/runs` → stop → `finish`. Rules
-settled with it:
+One stream for the whole run: plan → the vault cycle's first half →
+prepare → the session (restored once, else the tip on disk) → spawn
+`hermes gateway` (env from `prepare`, SIGTERM to stop, `/health`
+polled every 250ms with no timeout) → turns over `/v1/runs` → stop →
+read back and set the documents, unlock → harvest into the rows.
+Rules settled with it:
 
-- The proxy tells us nothing but the RETURN of its `/enqueue`,
-  which happens at the fold. That return's moment is recorded and
-  the prompt is yielded as a `user` chunk after the tool response
-  whose `tool.completed` timestamp is the first at or after it
-  (proxied calls are sequential barriers, so it is the one). The
-  container keeps its own queue mirrored onto the proxy's; a fate
-  is decided by whoever takes it first — the fold (`delivered`), the
-  caller's dequeue (`dequeued`), or the turn's end (`delivered`: the
-  message opens the next turn as its prompt, the proxy told to fold
-  nothing stale first). An empty queue at a turn's end closes the
-  run; later enqueues are `missed`.
+- The queue is taken at each turn's end, and only there (above).
 - Tool chunks come from the gateway's events, which carry no ids
   and no results: a FIFO of open calls pairs each `tool.completed`
   with the oldest `tool.started`, and the pair's id is minted here
@@ -279,22 +286,28 @@ settled with it:
 - After each turn the session tip is re-read from the database
   (compaction may have rotated it) and the next turn records into
   it. Effort rides `model_options.reasoning`.
-- Before the gateway is up, a failure is the stream's one `Err`;
-  after, every failure is a fatal notification and the run still
-  stops the gateway and closes with the continuation.
+- Before the gateway is up, a failure is the stream's one `Err` — the
+  server's status; after, every failure is a fatal notification and
+  the run still stops the gateway, releases the vault and harvests.
+- One run at a time: the run holds the `Claim` (cc's three-phase
+  lock) inside a `Teardown` captured into the stream; when the stream
+  drops the teardown marks it settling, closes the queue on a task,
+  and only then releases — a request landing meanwhile waits, never
+  refused. The gateway dies with the stream; held locks lapse by TTL.
 
-## The socket
+## The server
 
-`main.rs` is the socket around `run::run`: the request frame read,
-one `Fetcher` built, the run started, and then ONE merged stream
-onto the socket — the fetcher's asks (`fetch_resource`,
-`fetch_continuation`; the server's to consume) and the run's items
-(chunks, rewritten resources, the continuation's pieces last), each
-as its frame, in the order they come. The ask channel ends when the
-fetcher is dropped after the filesystem is prepared; the items end
-when the run does. A failure before the gateway is up is the run's
-one `Err` and becomes a fatal notification; after, the run's own
-fatal notifications ride the stream and the closer still comes.
+`main.rs` is the HTTP server around `run::run`, on the loopback at
+the port the SDK's `container_proxy::agent` names (`PORT`, else
+8080), forwarded to by the proxy the host injects: `POST /run`
+(the request JSON in; the run's chunks out as server-sent events,
+the first item pulled before the status is chosen — the run's one
+`Err` is a `500` with its own words, a run with nothing to say is
+`empty_run`, a run beside one streaming is `409 busy`), `GET
+/schema` (`schemars::schema_for!(Agent)`), `POST /enqueue` (held
+until the fate is known), `POST /dequeue`. Nothing of the proxy's is
+touched before a request; the vault, the database and the gateway
+are all `POST /run`'s.
 
 ## The runtime image (see also the Containerfile header)
 
@@ -303,9 +316,10 @@ first release after the pinned source (v2026.8.31 for v0.20.6 /
 4209d371); the build asserts `hermes version` is 0.20.6. The image
 brings Python, the uv venv on PATH, aiohttp, playwright's chromium,
 node, ripgrep, ffmpeg, git. We add `ddgs`, `edge-tts`, `fal-client`
-into its venv (lazy installs are disabled there), our two binaries,
-and our entrypoint in place of its s6 dispatcher, so no gateway
-auto-starts. The harness sets `HERMES_HOME=/root/.hermes` and
+into its venv (lazy installs are disabled there) and our one binary
+as the entrypoint in place of its s6 dispatcher, so no gateway
+auto-starts. The container proxy is NOT in the image: the host
+injects it at runtime, and it may not be up until a request comes. The harness sets `HERMES_HOME=/root/.hermes` and
 `HERMES_WRITE_SAFE_ROOT=` (empty — the image's `/opt/data` root
 would deny writes to the caller's mounts) on the gateway process.
 Never export `PYTEST_CURRENT_TEST` into the gateway environment
