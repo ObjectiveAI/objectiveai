@@ -4,9 +4,7 @@ use indexmap::IndexMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    ContextCompression, Provider, Reasoning, Stop, Upstream, Verbosity,
-};
+use super::{ContextCompression, Provider, Reasoning, Stop, Verbosity};
 
 /// An agent running against OpenRouter.
 ///
@@ -14,8 +12,6 @@ use super::{
 /// many providers and exposes what each of them accepts.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Agent {
-    /// The discriminator. Always `openrouter`.
-    pub upstream: Upstream,
     /// The model to route to, in OpenRouter's `vendor/name` form.
     pub model: String,
     /// The system prompt's text, sent as the conversation's leading

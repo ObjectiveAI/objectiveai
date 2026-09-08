@@ -1,9 +1,8 @@
 //! The `openrouter` agent, as a container.
 //!
-//! The program an agent container runs for an agent whose `upstream`
-//! is `openrouter`: an HTTP server on the container's loopback, at the
-//! port the SDK's [`container_proxy::agent`] module names, that the
-//! proxy beside it
+//! The program an agent container runs for an openrouter agent: an
+//! HTTP server on the container's loopback, at the port the SDK's
+//! [`container_proxy::agent`] module names, that the proxy beside it
 //! forwards the provider's asks to. `POST /run` runs the one loop the
 //! container serves and streams its chunks back as server-sent
 //! events; `POST /enqueue` and `POST /dequeue` are the running loop's
