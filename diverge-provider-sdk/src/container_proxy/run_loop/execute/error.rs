@@ -11,8 +11,7 @@ use crate::shared::error::Error;
 /// The loop could not be asked for.
 #[derive(Debug)]
 pub enum ExecuteError {
-    /// The path could not be opened: `409` for a loop already in
-    /// progress.
+    /// The path could not be opened.
     Open(OpenError),
     /// The request would not serialize.
     Encode(serde_json::Error),
@@ -23,11 +22,11 @@ pub enum ExecuteError {
 impl fmt::Display for ExecuteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ExecuteError::Open(error) => write!(f, "/run-loop: {error}"),
+            ExecuteError::Open(error) => write!(f, "/agent/run: {error}"),
             ExecuteError::Encode(error) => {
-                write!(f, "run-loop request did not serialize: {error}")
+                write!(f, "run request did not serialize: {error}")
             }
-            ExecuteError::Socket(error) => write!(f, "/run-loop failed: {error}"),
+            ExecuteError::Socket(error) => write!(f, "/agent/run failed: {error}"),
         }
     }
 }
@@ -66,9 +65,9 @@ impl fmt::Display for ExecuteStreamError {
                 write!(f, "the container refused the loop: {}", error.0)
             }
             ExecuteStreamError::Frame(error) => write!(f, "{error}"),
-            ExecuteStreamError::Text => f.write_str("/run-loop carried a text message"),
-            ExecuteStreamError::Socket(error) => write!(f, "/run-loop failed: {error}"),
-            ExecuteStreamError::Closed => f.write_str("/run-loop ended without a close"),
+            ExecuteStreamError::Text => f.write_str("/agent/run carried a text message"),
+            ExecuteStreamError::Socket(error) => write!(f, "/agent/run failed: {error}"),
+            ExecuteStreamError::Closed => f.write_str("/agent/run ended without a close"),
         }
     }
 }

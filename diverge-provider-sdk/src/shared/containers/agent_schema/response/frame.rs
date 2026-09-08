@@ -33,8 +33,9 @@ pub enum Frame {
     Error(Error),
 }
 
-/// Tag for [`Frame::AgentSchema`].
-const AGENT_SCHEMA: u8 = 0;
+/// Tag for [`Frame::AgentSchema`]. Public, so a relay that carries
+/// the schema's JSON without reading it can frame it.
+pub const AGENT_SCHEMA: u8 = 0;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 1;
