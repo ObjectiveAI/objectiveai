@@ -34,6 +34,13 @@ impl<S> Messages<S> {
     pub(crate) fn end(&mut self) {
         self.inner = None;
     }
+
+    /// The socket back, for a caller that read what it came for and
+    /// wants the raw thing — to drain it to its close, say. A stream
+    /// that already ended has no socket to give.
+    pub(crate) fn into_inner(self) -> Option<S> {
+        self.inner
+    }
 }
 
 impl<S> Stream for Messages<S>

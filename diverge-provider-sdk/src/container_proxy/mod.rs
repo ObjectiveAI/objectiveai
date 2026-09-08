@@ -9,10 +9,10 @@
 //! the caller's world and how the caller sees into the container,
 //! and this module is what rides its WebSockets.
 //!
-//! The container's own entrypoint listens on `14978`; that surface
-//! belongs to the `containers` endpoint and is not described here.
-//! The proxy listens on [`PORT`], `14979`, and the server dials
-//! every path on it:
+//! Nothing in the container listens for the server but the proxy. It
+//! listens on [`PORT`], `14979`, and the server dials every path on
+//! it — an agent container's loop included, which the proxy relays
+//! to the harness beside it:
 //!
 //! | path                                | carries |
 //! |-------------------------------------|---------|
@@ -25,6 +25,8 @@
 //! | `/filetree`                         | filetree frames, or why there are none, sent by the container; the server is silent |
 //! | `/read`                             | the server names a file; the container answers its bytes, or why not, then the close |
 //! | `/write`                            | the server names a file and sends its content; the container answers ok or error |
+//! | `/run-loop`                         | the server sends the prompt and the agent; the container answers the loop's chunks, or an error, then the close |
+//! | `/agent-schema`                     | the container answers its agent's JSON Schema, or an error, then the close |
 //!
 //! One thing does not fit on the port: the pgwire listener the
 //! container's database driver dials is raw TCP, not HTTP, so it is
@@ -32,7 +34,11 @@
 //! agent container the proxy also serves the agent's MCP SERVER —
 //! the Streamable HTTP endpoint its MCP client speaks to — at
 //! `/mcp/agent` on this same port; that surface is MCP's own and
-//! not a wire of this module.
+//! not a wire of this module. The harness's own attachments are
+//! surfaces of the same kind: `/run-loop/agent`, where it waits for
+//! the request and streams the loop back, and `/agent-schema/agent`,
+//! where it posts its agent's schema — see [`run_loop`] and
+//! [`agent_schema`].
 //!
 //! # A request is a frame; an answer is a WebSocket
 //!
@@ -101,12 +107,14 @@
 //! whose socket died is that one file failing, nothing else, and
 //! nothing retries it.
 
+pub mod agent_schema;
 pub mod command;
 pub mod filetree;
 pub mod mcp;
 pub mod postgres;
 pub mod read;
 pub mod requests;
+pub mod run_loop;
 pub mod vault;
 pub mod write;
 
