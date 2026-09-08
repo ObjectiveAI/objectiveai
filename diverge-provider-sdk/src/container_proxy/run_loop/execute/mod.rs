@@ -1,6 +1,6 @@
 //! Running the loop, rather than describing the run.
 //!
-//! [`execute`] opens `/run-loop`, hands over the request, and hands
+//! [`execute`] opens `/agent/run`, hands over the request, and hands
 //! back an [`ExecuteStream`] of the loop's chunks. Its own files are
 //! flattened into it.
 

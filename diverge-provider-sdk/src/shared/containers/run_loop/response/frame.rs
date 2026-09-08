@@ -46,8 +46,9 @@ pub enum Frame {
     Error(Error),
 }
 
-/// Tag for [`Frame::Chunk`].
-const CHUNK: u8 = 0;
+/// Tag for [`Frame::Chunk`]. Public, so a relay that carries a
+/// chunk's JSON without reading it can frame it.
+pub const CHUNK: u8 = 0;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 1;

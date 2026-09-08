@@ -1,4 +1,4 @@
-//! The `/run-loop` path: the loop, run.
+//! The `/agent/run` path: the loop, run.
 //!
 //! Opened by the server, for an agent container. It sends exactly one
 //! message — the [`request::Request`], the prompt and the agent the
@@ -11,29 +11,28 @@
 //! ```text
 //! server → container:   [request JSON]                       once
 //! container → server:   [0][chunk JSON] …                     then the close
+//!                    or [1][error JSON]                        then the close
 //!                    or [0][chunk JSON] … [1][error JSON]     then the close
 //! ```
 //!
-//! # The proxy is a relay
+//! # The proxy forwards
 //!
-//! The loop is a program beside the proxy — the harness — and the
-//! proxy carries the request to it and its frames back untouched. The
-//! harness attaches at `/run-loop/agent`, receives the request as its
-//! first message, and everything it sends after is a frame of this
-//! path, verbatim; the proxy decodes none of it. One frame the proxy
-//! sends on its own: a harness vanishing mid-stream — its socket
-//! ending without a close — is an `Error` saying so, then the close,
-//! because a stream that simply stopped could not be told from one
-//! that finished.
+//! The loop is the agent's server's, at
+//! [`agent::port()`](super::agent::port): the proxy `POST`s the
+//! request to its `/run`, verbatim — it decodes none of it — and
+//! answers what comes back. A `2xx` is a stream of chunks, `text/
+//! event-stream`, and every event's data goes out as one `Chunk`,
+//! its JSON untouched; the stream's end is the clean close. A
+//! non-`2xx`, or a server that cannot be dialed, is the `Error`
+//! frame first — the loop never ran — as [`agent`](super::agent)
+//! states. One frame the proxy sends on its own: the stream dying
+//! mid-way — the connection to the agent's server ending without the
+//! stream's end — is an `Error` saying so, last, because a stream
+//! that simply stopped could not be told from one that finished.
 //!
-//! # One at a time, and nobody waits in vain
-//!
-//! A container runs one loop; a second opening while one is in
-//! progress is refused with `409` before the upgrade. A server that
-//! opens before a harness has attached waits for one — nothing times
-//! anything out — and a harness that attaches with no server yet
-//! waits for the request the same way. Whichever side leaves first
-//! ends the other's wait.
+//! One loop at a time is the agent's server's rule, not the proxy's:
+//! a second `/run` while one is in progress is its own non-`2xx`,
+//! forwarded like any other.
 //!
 //! # What is an error, and what is not
 //!
@@ -44,7 +43,9 @@
 //! fatal notification chunk, part of the output, then the close —
 //! the loop's own vocabulary, as
 //! [`shared::containers::run_loop`](crate::shared::containers::run_loop)
-//! states it.
+//! states it. The stream from the agent's server never carries an
+//! error event; the two ways it can fail are the status before it
+//! and the notification within it.
 
 pub mod request;
 pub mod response;

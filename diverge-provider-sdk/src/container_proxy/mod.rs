@@ -11,8 +11,8 @@
 //!
 //! Nothing in the container listens for the server but the proxy. It
 //! listens on [`PORT`], `14979`, and the server dials every path on
-//! it — an agent container's loop included, which the proxy relays
-//! to the harness beside it:
+//! it — an agent container's loop included, which the proxy forwards
+//! to the agent's own server beside it:
 //!
 //! | path                                | carries |
 //! |-------------------------------------|---------|
@@ -25,8 +25,10 @@
 //! | `/filetree`                         | filetree frames, or why there are none, sent by the container; the server is silent |
 //! | `/read`                             | the server names a file; the container answers its bytes, or why not, then the close |
 //! | `/write`                            | the server names a file and sends its content; the container answers ok or error |
-//! | `/run-loop`                         | the server sends the prompt and the agent; the container answers the loop's chunks, or an error, then the close |
-//! | `/agent-schema`                     | the container answers its agent's JSON Schema, or an error, then the close |
+//! | `/agent/run`                        | the server sends the prompt and the agent; the container answers the loop's chunks, or an error, then the close |
+//! | `/agent/schema`                     | the container answers its agent's JSON Schema, or an error, then the close |
+//! | `/agent/enqueue`                    | the server sends a message for the loop's queue; the container answers its fate, when known, then the close |
+//! | `/agent/dequeue`                    | the container answers whether the queue held anything, then the close |
 //!
 //! One thing does not fit on the port: the pgwire listener the
 //! container's database driver dials is raw TCP, not HTTP, so it is
@@ -34,11 +36,13 @@
 //! agent container the proxy also serves the agent's MCP SERVER —
 //! the Streamable HTTP endpoint its MCP client speaks to — at
 //! `/mcp/agent` on this same port; that surface is MCP's own and
-//! not a wire of this module. The harness's own attachments are
-//! surfaces of the same kind: `/run-loop/agent`, where it waits for
-//! the request and streams the loop back, and `/agent-schema/agent`,
-//! where it posts its agent's schema — see [`run_loop`] and
-//! [`agent_schema`].
+//! not a wire of this module. And the four `/agent/*` paths are not
+//! the proxy's to answer: each is one call to the agent container's
+//! own HTTP server, on the loopback at [`agent::port()`], forwarded —
+//! the proxy holds nothing of the loop's, and dials that server only
+//! when the provider's server has opened a path that needs it, which
+//! it does only on an agent container. See [`agent`] for the calls
+//! and what their answers become.
 //!
 //! # A request is a frame; an answer is a WebSocket
 //!
@@ -66,9 +70,9 @@
 //! is the payload that rides `/requests` as `request::Request` (and,
 //! on postgres, the driver's bytes as `request::Frame`) and the
 //! answer is what the server sends on the path as `response::Frame`.
-//! For the paths the server opens — [`read`], [`write`](mod@write), [`filetree`]
-//! — the ask is the server's message, or nothing but the opening,
-//! and the answer is the container's. A direction that carries
+//! For the paths the server opens — [`read`], [`write`](mod@write), [`filetree`],
+//! and the four under `/agent/` — the ask is the server's message,
+//! or nothing but the opening, and the answer is the container's. A direction that carries
 //! nothing has no folder; where a type is shared by several paths,
 //! each path's folder re-exports it rather than defining it again.
 //!
@@ -105,10 +109,16 @@
 //! driver's socket shut. The stream path ([`filetree`]) simply
 //! starts over on the next connection, and a [`read`] or [`write`](mod@write)
 //! whose socket died is that one file failing, nothing else, and
-//! nothing retries it.
+//! nothing retries it. An `/agent/*` path dying is that one call to
+//! the agent's server failing — a loop cut short, a fate never heard
+//! — and nothing retries that either: the call was made, and what it
+//! did is done.
 
+pub mod agent;
 pub mod agent_schema;
 pub mod command;
+pub mod dequeue;
+pub mod enqueue;
 pub mod filetree;
 pub mod mcp;
 pub mod postgres;

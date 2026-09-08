@@ -1,7 +1,6 @@
-//! Asking for the schema.
+//! Clearing the queue.
 
 use futures_util::StreamExt as _;
-use serde_json::Value;
 
 use super::super::response;
 use super::ExecuteError;
@@ -9,13 +8,15 @@ use crate::decode::Decode as _;
 use crate::server::container_client::{self, ContainerClient};
 use crate::server::messages::{MessageError, Messages};
 
-/// Open `/agent/schema` and read the one answer.
+/// Open `/agent/dequeue` and read the one answer.
 ///
-/// The schema, as the image states it; or
-/// [`Refused`](ExecuteError::Refused) with the container's reason, an
-/// image that states none above all.
-pub async fn execute(client: &ContainerClient) -> Result<Value, ExecuteError> {
-    let socket = client.open("/agent/schema").await.map_err(ExecuteError::Open)?;
+/// The frame comes back whole, its `Error` included: that variant is
+/// the agent's server's own answer, which the caller's channel takes
+/// as it is, and not a failure of this call. What IS a failure of
+/// this call is the wire — the path not opening, the answer not
+/// decoding, the socket dying.
+pub async fn execute(client: &ContainerClient) -> Result<response::Frame, ExecuteError> {
+    let socket = client.open("/agent/dequeue").await.map_err(ExecuteError::Open)?;
     let mut messages = Messages::new(socket);
     let answer = match messages.next().await {
         None => return Err(ExecuteError::Unserved),
@@ -29,8 +30,5 @@ pub async fn execute(client: &ContainerClient) -> Result<Value, ExecuteError> {
     if let Some(mut socket) = messages.into_inner() {
         let _ = container_client::drain(&mut socket).await;
     }
-    match frame {
-        response::Frame::AgentSchema(schema) => Ok(schema),
-        response::Frame::Error(error) => Err(ExecuteError::Refused(error)),
-    }
+    Ok(frame)
 }
