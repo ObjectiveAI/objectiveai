@@ -34,7 +34,7 @@ impl Client {
     {
         let response = self
             .http()
-            .post(crate::url("/command/agent"))
+            .post(crate::url("/command"))
             .body(command.to_vec())
             .send()
             .await
