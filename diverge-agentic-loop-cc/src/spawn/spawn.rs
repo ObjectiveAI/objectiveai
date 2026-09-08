@@ -3,9 +3,8 @@
 use std::io;
 use std::process::Stdio;
 
-use diverge_provider_sdk::agentic_loop_container;
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::claude_code;
-use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
+use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
+use diverge_provider_sdk::shared::containers::run_loop::response::{
     AgenticLoopChunk, UserChunk,
 };
 use futures_util::Stream;
@@ -14,6 +13,7 @@ use tokio::process;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
+use crate::agent::{Agent, Effort, Tools};
 use crate::continuation;
 use crate::response;
 
@@ -31,7 +31,7 @@ use super::writer;
 /// drives it.
 ///
 /// The caller ensures there is one run per container lifetime — the
-/// same door guard the root handler owns — so this never contends
+/// same door guard the run handler owns — so this never contends
 /// with an earlier subprocess.
 ///
 /// The agent's knobs ride the argv: the model verbatim, thinking
@@ -48,13 +48,13 @@ use super::writer;
 /// none — with failures travelling as the [`error::Error`] they
 /// are, for the consumer to judge.
 pub async fn spawn(
-    agent: claude_code::Agent,
+    agent: Agent,
     continuation: Option<continuation::Continuation>,
     prompt: String,
 ) -> io::Result<
     impl Stream<Item = Result<AgenticLoopChunk, error::Error>> + Send,
 > {
-    // Before anything: Claude Code must EXIST. The root handler has
+    // Before anything: Claude Code must EXIST. The run handler has
     // already checked with its own error body — this arm makes
     // spawning uninstalled impossible by construction, not by
     // call-site discipline.
@@ -82,9 +82,19 @@ pub async fn spawn(
         .arg("--replay-user-messages")
         .arg("--enable-auth-status")
         .arg("--dangerously-skip-permissions")
+        // The proxy's MCP server, named by the container SDK so the
+        // port and the path are spelled in one place.
         .arg("--mcp-config")
         .arg(
-            r#"{"mcpServers":{"diverge":{"type":"http","url":"http://localhost:14979/mcp"}}}"#,
+            serde_json::json!({
+                "mcpServers": {
+                    "diverge": {
+                        "type": "http",
+                        "url": diverge_container_proxy_sdk::mcp_url(),
+                    }
+                }
+            })
+            .to_string(),
         )
         .arg("--model")
         .arg(&agent.model)
@@ -157,7 +167,7 @@ const ALWAYS_ON: [&str; 6] = [
 
 /// The `--tools` value: [`ALWAYS_ON`] and then the switched-on
 /// names, comma-joined.
-fn tools_flag(tools: &claude_code::Tools) -> String {
+fn tools_flag(tools: &Tools) -> String {
     ALWAYS_ON
         .into_iter()
         .chain(tools.names())
@@ -165,13 +175,13 @@ fn tools_flag(tools: &claude_code::Tools) -> String {
         .join(",")
 }
 
-fn effort_flag(effort: claude_code::Effort) -> &'static str {
+fn effort_flag(effort: Effort) -> &'static str {
     match effort {
-        claude_code::Effort::Low => "low",
-        claude_code::Effort::Medium => "medium",
-        claude_code::Effort::High => "high",
-        claude_code::Effort::Xhigh => "xhigh",
-        claude_code::Effort::Max => "max",
+        Effort::Low => "low",
+        Effort::Medium => "medium",
+        Effort::High => "high",
+        Effort::Xhigh => "xhigh",
+        Effort::Max => "max",
     }
 }
 
@@ -207,7 +217,7 @@ fn effort_flag(effort: claude_code::Effort) -> &'static str {
 /// wherever it falls. This side never judges how bad it is, because
 /// it cannot know yet: the CONSUMER decides by what follows. An
 /// error before the run's first chunk is the request's own failure
-/// (HTTP, the root handler's first-item contract); an error the run
+/// (the status, the run handler's first-item contract); an error the run
 /// outlives — a later chunk arrives — was survivable news; an error
 /// the stream ends behind was the run's death. The error result
 /// still bills: its `Err` is yielded first and its conversion
@@ -279,9 +289,7 @@ fn read(
                             pending::PENDING.remove(uuid)
                         {
                             let _ = fate.send(
-                                agentic_loop_container::enqueue::Response::Delivered {
-                                    r#type: Default::default(),
-                                },
+                                Fate::Delivered,
                             );
                             chunks.push(AgenticLoopChunk::User(
                                 UserChunk {
@@ -374,9 +382,7 @@ async fn close() {
     for uuid in uuids {
         if let Some((_, fate)) = pending::PENDING.remove(&uuid) {
             let _ = fate.send(
-                agentic_loop_container::enqueue::Response::Missed {
-                    r#type: Default::default(),
-                },
+                Fate::Missed,
             );
         }
     }

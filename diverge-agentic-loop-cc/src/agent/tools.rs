@@ -1,5 +1,6 @@
 //! Claude Code's built-in tools, each a switch.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The built-in tools Claude Code is given, every one stated.
@@ -41,7 +42,7 @@ use serde::{Deserialize, Serialize};
 /// stream-json input is a live-run check, not a promise of this
 /// type; the names are as the runtime spells them.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, Default,
 )]
 pub struct Tools {
     /// `Bash`: runs a command, with an optional timeout and

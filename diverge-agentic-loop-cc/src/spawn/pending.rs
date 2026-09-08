@@ -3,7 +3,7 @@
 use std::sync::LazyLock;
 
 use dashmap::DashMap;
-use diverge_provider_sdk::agentic_loop_container;
+use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
 use tokio::sync::oneshot;
 
 /// Every enqueued message's fate wire, by uuid, from the write that
@@ -23,6 +23,6 @@ use tokio::sync::oneshot;
 pub static PENDING: LazyLock<
     DashMap<
         String,
-        oneshot::Sender<agentic_loop_container::enqueue::Response>,
+        oneshot::Sender<Fate>,
     >,
 > = LazyLock::new(DashMap::new);

@@ -1,6 +1,10 @@
-# The ClaudeCode agentic_loop image: the harness on 14978, the MCP
-# proxy on 14979, the Postgres proxy on 14980 and 14981, Claude Code
-# itself spawned per run — everything as root.
+# The Claude Code agent image: the harness alone, Claude Code itself
+# spawned per run — everything as root.
+#
+# The container proxy is NOT in this image. The host injects it at
+# runtime, and it may not be up at all until a request comes — which
+# is why the harness touches nothing of the proxy's until `POST /run`
+# arrives: no database, no MCP, before then.
 #
 # The image ships NO Claude Code, for licensing reasons: the harness
 # installs the pinned version itself the moment it starts (the pin
@@ -27,23 +31,18 @@ FROM docker.io/library/rust:1.98.0@sha256:271849e998ffce5776454bbf98c5dc21baafc8
 WORKDIR /build
 
 # Only the crates this image needs, in their workspace layout — the
-# workspace manifest itself is NOT copied, so each crate builds as its
-# own root. The workspace lockfile rides into each crate so resolved
-# versions hold; cargo prunes what the crate does not use.
+# workspace manifest itself is NOT copied, so the crate builds as its
+# own root and the absent sibling members are never asked for. The
+# workspace lockfile rides into the crate so resolved versions hold;
+# cargo prunes what the crate does not use, which is why the build
+# does not pass --locked.
 COPY diverge-provider-sdk diverge-provider-sdk
-COPY diverge-container-mcp-proxy diverge-container-mcp-proxy
-COPY diverge-container-postgres-proxy diverge-container-postgres-proxy
+COPY diverge-container-proxy-sdk diverge-container-proxy-sdk
 COPY diverge-agentic-loop-cc diverge-agentic-loop-cc
 COPY Cargo.lock diverge-agentic-loop-cc/Cargo.lock
-COPY Cargo.lock diverge-container-mcp-proxy/Cargo.lock
-COPY Cargo.lock diverge-container-postgres-proxy/Cargo.lock
 
 RUN cargo build --release \
     --manifest-path diverge-agentic-loop-cc/Cargo.toml
-RUN cargo build --release \
-    --manifest-path diverge-container-mcp-proxy/Cargo.toml
-RUN cargo build --release \
-    --manifest-path diverge-container-postgres-proxy/Cargo.toml
 
 # debian:sid, by digest.
 FROM docker.io/library/debian:sid@sha256:c1acdb109bacb5adf0f2078892ac177ee2e2ce6f88e96c5b743998b5489d36a9
@@ -74,22 +73,9 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 COPY --from=build \
     /build/diverge-agentic-loop-cc/target/release/diverge-agentic-loop-cc \
     /usr/local/bin/diverge-agentic-loop-cc
-COPY --from=build \
-    /build/diverge-container-mcp-proxy/target/release/diverge-container-mcp-proxy \
-    /usr/local/bin/diverge-container-mcp-proxy
-COPY --from=build \
-    /build/diverge-container-postgres-proxy/target/release/diverge-container-postgres-proxy \
-    /usr/local/bin/diverge-container-postgres-proxy
 
-# Three programs, one container: the two proxies in the background, the
-# harness in the foreground as the container's own life.
-RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\n/usr/local/bin/diverge-container-postgres-proxy &\nexec /usr/local/bin/diverge-agentic-loop-cc\n' \
-    > /usr/local/bin/entrypoint \
-    && chmod +x /usr/local/bin/entrypoint
+# The harness's own server, on the loopback: 8080, or whatever `PORT`
+# names. Nothing is exposed — the proxy the host injects is the only
+# thing that dials it, and it is beside it.
 
-# The Container specification's ports: 14978 the loop, 14979 MCP,
-# 14981 the Postgres proxy's WebSocket. Its pgwire listener, 14980,
-# is loopback-only and not exposed.
-EXPOSE 14978 14979 14981
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
+ENTRYPOINT ["/usr/local/bin/diverge-agentic-loop-cc"]

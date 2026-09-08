@@ -6,8 +6,8 @@ use crate::response;
 /// error-typed record — yielded wherever it falls, with NO verdict
 /// attached. Fatality is finality, and it is the CONSUMER's call:
 /// an error before the run's first chunk is the request's own
-/// failure (HTTP, by [`status`](Self::status) and
-/// [`message`](Self::message)); an error that anything at all
+/// failure (the status, with [`message`](Self::message) as its
+/// body); an error that anything at all
 /// follows was survivable news (a non-fatal notification); the one
 /// the stream ends ON is the run's death (the fatal final chunk).
 ///
