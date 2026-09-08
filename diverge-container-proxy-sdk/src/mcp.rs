@@ -1,6 +1,6 @@
 //! MCP: the four exchanges the proxy relays to the caller's servers.
 //!
-//! At `/mcp/agent` the proxy is a compliant MCP server whose answers
+//! At `/mcp` the proxy is a compliant MCP server whose answers
 //! all live with the caller: what it lists and what it calls are the
 //! caller's servers, relayed. The first of these methods to be called
 //! dials the session; the rest share it. The proxy's rules apply to
@@ -18,7 +18,7 @@ use rmcp::{Peer, RoleClient};
 use crate::{Client, Error};
 
 /// The path the proxy serves the agent's MCP server on.
-const MCP: &str = "/mcp/agent";
+const MCP: &str = "/mcp";
 
 /// The URL of the proxy's MCP server, for an MCP client that is not
 /// this crate's.

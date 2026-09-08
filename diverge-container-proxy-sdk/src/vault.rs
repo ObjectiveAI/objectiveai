@@ -1,7 +1,7 @@
 //! The vault: keys the caller holds, read, written and locked from
 //! inside the container.
 //!
-//! Each method is one `POST` to the proxy's `/vault/agent/<op>`, its
+//! Each method is one `POST` to the proxy's `/vault/<op>`, its
 //! body the wire's request payload and its answer the wire's one
 //! message, decoded here so a caller sees values and errors rather
 //! than frames. Keys are whatever strings the program chooses; which
@@ -81,12 +81,12 @@ impl Client {
         done(&answer)
     }
 
-    /// One `POST` to `/vault/agent/<op>`: the answer's bytes on `200`,
+    /// One `POST` to `/vault/<op>`: the answer's bytes on `200`,
     /// the status otherwise.
     async fn post(&self, op: &str, body: Vec<u8>) -> Result<Bytes, Error> {
         let response = self
             .http()
-            .post(crate::url(&format!("/vault/agent/{op}")))
+            .post(crate::url(&format!("/vault/{op}")))
             .body(body)
             .send()
             .await

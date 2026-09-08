@@ -21,7 +21,7 @@ use super::Error;
 /// session ends when the client is dropped.
 #[derive(Default)]
 pub struct Client {
-    /// The MCP session with the proxy's server at `/mcp/agent`, made
+    /// The MCP session with the proxy's server at `/mcp`, made
     /// by the first MCP method that needs it.
     mcp: OnceCell<RunningService<RoleClient, ClientInfo>>,
     /// The HTTP client the plain-HTTP features share. A handle, not
