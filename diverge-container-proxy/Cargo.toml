@@ -33,6 +33,12 @@ notify = "8.2"
 rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
 # A refusal the far side sent, rendered whole into a tool result.
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# The agent's server, dialed: `/agent/*` is one HTTP call each to the
+# loopback. No TLS — it is the loopback. `json` reads a fate or an
+# outcome; `stream` reads the loop's events as they land.
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream"] }
+# The loop's events, parsed out of that stream.
+eventsource-stream = "0.2.3"
 # The runtime under the listeners. No `macros` — the runtime is built
 # in main, not attributed onto it. `io-util` reads and writes the
 # driver's socket; `time` paces an accept loop that keeps failing;
