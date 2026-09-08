@@ -1,7 +1,7 @@
 //! The Claude Code subprocess: spawning it, and the queue verbs
 //! against it.
 //!
-//! One run is one subprocess, behind two locks and a map:
+//! One run at a time is one subprocess, behind two locks and a map:
 //! [`writer::WRITER`] is stdin — holding it is the sole right to
 //! write, and to register a fate; [`replies::REPLIES`] is the
 //! RECEIVER for cancel replies, whose matching sender the reader
@@ -51,5 +51,5 @@ mod writer;
 pub use dequeue::dequeue;
 pub use enqueue::enqueue;
 pub use install::installed;
-pub use session_id::session_id;
+pub use session_id::{remember, session_id};
 pub use spawn::spawn;

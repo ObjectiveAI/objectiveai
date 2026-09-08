@@ -14,7 +14,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::agent::{Agent, Effort, Tools};
-use crate::continuation;
+use crate::claim::Claim;
 use crate::response;
 
 use super::error;
@@ -25,13 +25,15 @@ use super::session_id;
 use super::stdin;
 use super::writer;
 
-/// Start the run: write the continuation's files if resuming, launch
-/// Claude Code, hand it the prompt, and return the RUN AS A STREAM —
-/// the reader is not a spawned task; whoever consumes the stream
-/// drives it.
+/// Start the run: launch Claude Code — resuming `session_id` when
+/// there is one, whose files are already on disk — hand it the
+/// prompt, and return the RUN AS A STREAM — the reader is not a
+/// spawned task; whoever consumes the stream drives it.
 ///
-/// The caller ensures there is one run per container lifetime — the
-/// same door guard the run handler owns — so this never contends
+/// One run at a time: the caller holds the [`Claim`] and hands it
+/// over here, and the run's settlement releases it — see
+/// [`Teardown`] — so the next run can only start once this one's
+/// locks are cleared and its fates decided. Nothing here contends
 /// with an earlier subprocess.
 ///
 /// The agent's knobs ride the argv: the model verbatim, thinking
@@ -49,8 +51,9 @@ use super::writer;
 /// are, for the consumer to judge.
 pub async fn spawn(
     agent: Agent,
-    continuation: Option<continuation::Continuation>,
+    session_id: Option<String>,
     prompt: String,
+    claim: Claim,
 ) -> io::Result<
     impl Stream<Item = Result<AgenticLoopChunk, error::Error>> + Send,
 > {
@@ -61,15 +64,6 @@ pub async fn spawn(
     if let Err(error) = install::installed().await {
         return Err(io::Error::other(error.clone()));
     }
-
-    // Resuming is the files existing before Claude Code starts.
-    let session_id = match &continuation {
-        Some(continuation) => {
-            continuation.write().await?;
-            Some(continuation.session_id.clone())
-        }
-        None => None,
-    };
 
     let mut command = process::Command::new("claude");
     command
@@ -148,7 +142,7 @@ pub async fn spawn(
     // place.
     *replies::REPLIES.lock().await = Some(reply_receiver);
     *writer::WRITER.lock().await = Some(child_stdin);
-    Ok(read(child_stdout, child, reply_sender))
+    Ok(read(child_stdout, child, reply_sender, claim))
 }
 
 /// The `--effort` value for an SDK tier, 1:1.
@@ -206,7 +200,7 @@ fn effort_flag(effort: Effort) -> &'static str {
 /// followed. A replay with no pending entry — the initial prompt's
 /// echo, resumed history, a message dequeued mid-delivery — taps
 /// nothing. The first record naming the session is also captured
-/// into [`session_id::SESSION_ID`], the harvest's key. Then the
+/// by [`session_id::remember`], the harvest's key. Then the
 /// record converts, and every chunk is yielded; a line that failed
 /// to parse is yielded as its error.
 ///
@@ -249,11 +243,12 @@ fn read(
     reply_sender: mpsc::UnboundedSender<
         response::control::ControlResponse,
     >,
+    claim: Claim,
 ) -> impl Stream<Item = Result<AgenticLoopChunk, error::Error>> + Send {
     // Outside the generator, deliberately: a stream dropped before
     // its first poll never runs a line of the body, but its captured
     // locals still drop.
-    let teardown = Teardown;
+    let teardown = Teardown { claim: Some(claim) };
     async_stream::stream! {
         let _teardown = teardown;
         let mut child = child;
@@ -324,8 +319,7 @@ fn read(
                     _ => None,
                 };
                 if let Some(observed) = observed {
-                    *session_id::SESSION_ID.lock().await =
-                        Some(observed.to_string());
+                    session_id::remember(observed.to_string()).await;
                     session_seen = true;
                 }
             }
@@ -388,16 +382,29 @@ async fn close() {
     }
 }
 
-/// Settles the run when the stream drops, however it drops.
+/// Settles the run when the stream drops, however it drops — and
+/// THEN releases the run lock.
 ///
 /// [`Drop`] cannot await, so the closing rides a spawned task; the
 /// graceful path makes it a no-op. Constructed before the generator
 /// and captured into it, so even a stream dropped unpolled — whose
-/// body never ran a line — still settles.
-struct Teardown;
+/// body never ran a line — still settles. The [`Claim`] rides with
+/// it and drops on that task's next line after the settlement: the
+/// next run can only open once this one's locks are cleared and its
+/// fates decided, so a settlement arriving late can never clear a
+/// run that came after. Nothing interleaves — this drops exactly
+/// once per run, after the generator's own inline [`close`], and
+/// the next [`spawn`] can only follow the release.
+struct Teardown {
+    claim: Option<Claim>,
+}
 
 impl Drop for Teardown {
     fn drop(&mut self) {
-        tokio::spawn(close());
+        let claim = self.claim.take();
+        tokio::spawn(async move {
+            close().await;
+            drop(claim);
+        });
     }
 }
