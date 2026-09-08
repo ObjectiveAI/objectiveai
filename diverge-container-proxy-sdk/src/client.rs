@@ -8,9 +8,6 @@ use tokio::sync::OnceCell;
 
 use super::Error;
 
-/// The path the proxy serves the agent's MCP server on.
-const MCP: &str = "/mcp/agent";
-
 /// The proxy beside the container, as one client.
 ///
 /// Made without a connection and held for the program's life; every
@@ -61,7 +58,7 @@ impl Client {
                     ClientCapabilities::default(),
                     Implementation::new("diverge", env!("CARGO_PKG_VERSION")),
                 )
-                .serve(StreamableHttpClientTransport::from_uri(crate::url(MCP)))
+                .serve(StreamableHttpClientTransport::from_uri(crate::mcp_url()))
                 .await
                 .map_err(Error::McpConnect)
             })

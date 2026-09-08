@@ -11,7 +11,9 @@
 //!
 //! Built one feature at a time, as the proxy is. Today: MCP — the
 //! four exchanges the proxy relays to the caller's servers, their
-//! methods in `mcp.rs`, their notifications ignored — the vault, the
+//! methods in `mcp.rs`, their notifications ignored, and
+//! [`mcp_url`] for a program whose MCP client is not this crate's —
+//! the vault, the
 //! keys the caller holds, in `vault.rs` — commands the caller runs,
 //! in `command.rs` — Postgres, the caller's database on the
 //! container's loopback, whose methods in `postgres.rs` are the
@@ -33,6 +35,7 @@ mod vault;
 
 pub use client::*;
 pub use error::*;
+pub use mcp::*;
 pub use postgres::*;
 
 use diverge_provider_sdk::container_proxy;

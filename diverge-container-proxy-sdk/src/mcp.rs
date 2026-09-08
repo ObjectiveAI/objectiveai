@@ -17,6 +17,22 @@ use rmcp::{Peer, RoleClient};
 
 use crate::{Client, Error};
 
+/// The path the proxy serves the agent's MCP server on.
+const MCP: &str = "/mcp/agent";
+
+/// The URL of the proxy's MCP server, for an MCP client that is not
+/// this crate's.
+///
+/// A program whose MCP client is somebody else's — a subprocess it
+/// launches, say, handed a server list — points it here. The one
+/// place the address is spelled: built from the provider SDK's port
+/// and the path the proxy serves, so a program that uses this never
+/// names either, and a port that moves moves for everyone at once.
+/// [`Client`]'s own session dials the same URL.
+pub fn mcp_url() -> String {
+    crate::url(MCP)
+}
+
 impl Client {
     /// What tools there are. [`None`] asks for the first page.
     pub async fn mcp_list_tools(
