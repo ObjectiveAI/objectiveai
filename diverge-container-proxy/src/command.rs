@@ -1,4 +1,4 @@
-//! Commands, from the inside: `POST /command/agent`, one ask, the
+//! Commands, from the inside: `POST /command`, one ask, the
 //! items streamed back.
 //!
 //! The body is the command's bytes, opaque — the CLI's vocabulary,
@@ -30,7 +30,7 @@ use futures_util::stream;
 
 use crate::requests::{Event, Requests};
 
-/// `POST /command/agent`.
+/// `POST /command`.
 pub async fn agent(State(requests): State<Arc<Requests>>, body: Bytes) -> Response {
     let Ok((_, mut receiver)) = requests
         .ask(Request::Command(command::request::Request(&body)))

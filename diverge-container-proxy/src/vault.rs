@@ -1,4 +1,4 @@
-//! The vault, from the inside: `/vault/agent/<op>`, each one ask.
+//! The vault, from the inside: `/vault/<op>`, each one ask.
 //!
 //! The program beside the proxy has no MCP for the vault, so the
 //! proxy gives it plain HTTP: one `POST` per operation, its body the
@@ -52,7 +52,7 @@ async fn relay(requests: &Requests, request: Request<'_>) -> Response {
     }
 }
 
-/// `POST /vault/agent/get`.
+/// `POST /vault/get`.
 pub async fn get(State(requests): State<Arc<Requests>>, body: Bytes) -> Response {
     match vault::get::request::Request::decode(&body) {
         Ok(request) => relay(&requests, Request::VaultGet(request)).await,
@@ -60,7 +60,7 @@ pub async fn get(State(requests): State<Arc<Requests>>, body: Bytes) -> Response
     }
 }
 
-/// `POST /vault/agent/set`.
+/// `POST /vault/set`.
 pub async fn set(State(requests): State<Arc<Requests>>, body: Bytes) -> Response {
     match vault::set::request::Request::decode(&body) {
         Ok(request) => relay(&requests, Request::VaultSet(request)).await,
@@ -68,7 +68,7 @@ pub async fn set(State(requests): State<Arc<Requests>>, body: Bytes) -> Response
     }
 }
 
-/// `POST /vault/agent/delete`.
+/// `POST /vault/delete`.
 pub async fn delete(State(requests): State<Arc<Requests>>, body: Bytes) -> Response {
     match vault::delete::request::Request::decode(&body) {
         Ok(request) => relay(&requests, Request::VaultDelete(request)).await,
@@ -76,7 +76,7 @@ pub async fn delete(State(requests): State<Arc<Requests>>, body: Bytes) -> Respo
     }
 }
 
-/// `POST /vault/agent/lock`.
+/// `POST /vault/lock`.
 pub async fn lock(State(requests): State<Arc<Requests>>, body: Bytes) -> Response {
     match vault::lock::request::Request::decode(&body) {
         Ok(request) => relay(&requests, Request::VaultLock(request)).await,
@@ -84,7 +84,7 @@ pub async fn lock(State(requests): State<Arc<Requests>>, body: Bytes) -> Respons
     }
 }
 
-/// `POST /vault/agent/unlock`.
+/// `POST /vault/unlock`.
 pub async fn unlock(State(requests): State<Arc<Requests>>, body: Bytes) -> Response {
     match vault::unlock::request::Request::decode(&body) {
         Ok(request) => relay(&requests, Request::VaultUnlock(request)).await,

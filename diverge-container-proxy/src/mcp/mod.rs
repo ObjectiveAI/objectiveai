@@ -1,4 +1,4 @@
-//! MCP: the agent's server at `/mcp/agent`, every method an ask.
+//! MCP: the agent's server at `/mcp`, every method an ask.
 
 mod gate;
 mod handler;
