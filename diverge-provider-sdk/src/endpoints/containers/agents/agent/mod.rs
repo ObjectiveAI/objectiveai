@@ -7,9 +7,10 @@
 //! agents itself, kept so the next thing that needs one can start from
 //! them. An image that has been brought up to the containers API owns
 //! its agent itself and leaves here: the openrouter agent lives in
-//! `diverge-agentic-loop-openrouter` now and the Claude Code agent in
-//! `diverge-agentic-loop-cc`, each beside the loop that reads it and
-//! the schema it states.
+//! `diverge-agentic-loop-openrouter` now, the Claude Code agent in
+//! `diverge-agentic-loop-cc` and the Hermes agent in
+//! `diverge-agentic-loop-hermes`, each beside the loop that reads it
+//! and the schema it states.
 //!
 //! POST-TRANSFORM. An agent as authored carries things that shape a
 //! request before a provider ever sees it: a system prompt, prefix and
@@ -24,7 +25,6 @@
 
 pub mod codex;
 pub mod eliza;
-pub mod hermes;
 pub mod python;
 
 mod agent;

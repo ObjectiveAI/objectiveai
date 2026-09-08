@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value, json};
 
-use super::{EXTERNAL_SKILLS, MCP_PROXY_NAME, MCP_PROXY_URL, Plan};
+use super::{EXTERNAL_SKILLS, MCP_PROXY_NAME, Plan};
 
 /// The whole configuration Hermes reads at startup, as one JSON
 /// document (JSON is YAML, and Hermes parses YAML).
@@ -82,7 +82,7 @@ pub fn render(plan: &Plan) -> Value {
         "mcp_servers".to_string(),
         json!({
             MCP_PROXY_NAME: {
-                "url": MCP_PROXY_URL,
+                "url": diverge_container_proxy_sdk::mcp_url(),
                 "trust": "full",
                 "elicitation": { "enabled": false },
                 "sampling": { "enabled": false },

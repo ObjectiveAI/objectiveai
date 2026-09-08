@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 
-use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::{
+use diverge_provider_sdk::shared::containers::run_loop::response::{
     AgenticLoopChunk, AssistantReasoningChunk, AssistantTextContentChunk,
     AssistantToolCallChunk, NotificationChunk, ToolResponseChunk, UsageChunk,
 };

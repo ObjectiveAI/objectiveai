@@ -20,26 +20,28 @@
 //! verbatim, and the `state_meta` keys goals live under — a moving
 //! target better copied than re-inserted.
 //!
-//! # On the wire: tagged chunks
+//! # In the rows: tagged chunks
 //!
-//! The protocol keeps a continuation's chunks apart, boundaries and
-//! order intact, from this container's closer to the caller and
-//! back. So each chunk leads with one tag byte naming its file —
-//! `0` state.db, `1` MEMORY.md, `2` USER.md — and carries a piece of
-//! that file; a file longer than a piece is several chunks with the
-//! same tag. No lengths, no envelope: the boundaries the protocol
-//! preserves are the framing.
+//! The database keeps a continuation's chunks apart, boundaries and
+//! order intact — one row each, in sequence — from this container's
+//! harvest to the next program's restore. So each chunk leads with
+//! one tag byte naming its file — `0` state.db, `1` MEMORY.md, `2`
+//! USER.md — and carries a piece of that file; a file longer than a
+//! piece is several chunks with the same tag. No lengths, no
+//! envelope: the rows are the framing.
 //!
 //! # The flow, and what it spares
 //!
-//! The container is fresh. The continuation lands ([`Ingest`])
-//! before `hermes gateway` ever starts, so there is nothing stale to
-//! clear and nothing else touching the files; the gateway runs; it
-//! exits; the harvest ([`stream()`]) folds the database and reads the
-//! files. Nothing is validated that the flow already guarantees: a
-//! chunk goes to the file its tag names, in whatever order chunks
-//! come, and the one thing judged before the gateway starts is that
-//! a delivered `state.db` opens ([`check()`]).
+//! The continuation lands ([`Ingest`]) once, on the program's first
+//! run, before `hermes gateway` ever starts — the files cleared
+//! first ([`clear()`]), so a restore that failed partway does not
+//! append onto its own leavings — and stays: later runs find it
+//! where Hermes has been appending to it. Each run's gateway runs;
+//! it exits; the harvest ([`stream()`]) folds the database and reads
+//! the files. Nothing is validated that the flow already guarantees:
+//! a chunk goes to the file its tag names, in whatever order chunks
+//! come, and the one thing judged after a restore is that the
+//! landed `state.db` opens ([`check()`]).
 //!
 //! # Never whole in memory
 //!
@@ -107,6 +109,20 @@ const TAGS: [u8; 3] = [STATE_DB_TAG, MEMORY_TAG, USER_TAG];
 /// continuation that is ever in memory at once. Two mebibytes, well
 /// under the protocol's four-mebibyte chunk ceiling.
 pub const PIECE: usize = 2 * 1024 * 1024;
+
+/// Remove the three files, for a restore that starts over. A file
+/// that is not there is already removed.
+pub async fn clear() -> std::io::Result<()> {
+    for tag in TAGS {
+        let path = path_for(tag).expect("one of the three");
+        match tokio::fs::remove_file(&path).await {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
 
 /// The file a tag names, under the home — or none, for a tag that
 /// is not one of the three.

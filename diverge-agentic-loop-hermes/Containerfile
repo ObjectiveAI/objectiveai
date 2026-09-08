@@ -1,6 +1,10 @@
-# The hermes agentic_loop image: the loop on 14978, the MCP proxy on
-# 14979, the Postgres proxy on 14980 and 14981, all musl binaries laid
-# into Hermes's OWN published image.
+# The hermes agent image: the harness alone, a musl binary laid into
+# Hermes's OWN published image.
+#
+# The container proxy is NOT in this image. The host injects it at
+# runtime, and it may not be up at all until a request comes — which
+# is why the harness touches nothing of the proxy's until `POST /run`
+# arrives: no vault, no database, no gateway, before then.
 #
 # The runtime is `nousresearch/hermes-agent`, pinned by tag AND digest
 # to the first release after the source this harness is written
@@ -17,9 +21,9 @@
 #     presence-detected, the tts floor and the fal generators are
 #     lazy installs, and lazy installs are DISABLED in Hermes's image
 #     — so they are installed up front, into Hermes's venv;
-#   - our three binaries and our entrypoint, which REPLACES the image's
+#   - the harness binary as the entrypoint, which REPLACES the image's
 #     s6 dispatcher: nothing auto-starts a gateway — `run::run` spawns
-#     it, with the environment the harness renders;
+#     it per run, with the environment the harness renders;
 #   - nothing else on disk: no ~/.hermes/.env (it would shadow the
 #     process env), no HERMES_HOME on the image (the harness sets it
 #     on the gateway, to /root/.hermes, the root user's home the Qwen
@@ -35,7 +39,7 @@
 # (hermes-agent); bump deliberately.
 
 # rust:1.98.0-alpine3.24 — the musl toolchain is the image's default
-# target, so what it builds runs on the Alpine below.
+# target, so what it builds runs on the image below.
 FROM docker.io/library/rust:1.98.0-alpine3.24@sha256:a10e64dd139b7387337c7fbe8aca31b959b57b2fd4c8ae20a02cf1d6ea424dce AS build
 
 # The bundled SQLite (sqlx, the continuation's fold) and `ring`
@@ -45,25 +49,18 @@ RUN apk add --no-cache build-base
 WORKDIR /build
 
 # Only the crates this image needs, in their workspace layout — the
-# workspace manifest itself is NOT copied, so each crate builds as its
+# workspace manifest itself is NOT copied, so the crate builds as its
 # own root and the absent sibling members are never asked for. The
-# workspace lockfile rides into each crate so the resolved versions
+# workspace lockfile rides into the crate so the resolved versions
 # hold; cargo prunes the entries the crate does not use, which is why
 # the build does not pass --locked.
 COPY diverge-provider-sdk diverge-provider-sdk
-COPY diverge-container-mcp-proxy diverge-container-mcp-proxy
-COPY diverge-container-postgres-proxy diverge-container-postgres-proxy
+COPY diverge-container-proxy-sdk diverge-container-proxy-sdk
 COPY diverge-agentic-loop-hermes diverge-agentic-loop-hermes
 COPY Cargo.lock diverge-agentic-loop-hermes/Cargo.lock
-COPY Cargo.lock diverge-container-mcp-proxy/Cargo.lock
-COPY Cargo.lock diverge-container-postgres-proxy/Cargo.lock
 
 RUN cargo build --release \
     --manifest-path diverge-agentic-loop-hermes/Cargo.toml
-RUN cargo build --release \
-    --manifest-path diverge-container-mcp-proxy/Cargo.toml
-RUN cargo build --release \
-    --manifest-path diverge-container-postgres-proxy/Cargo.toml
 
 # nousresearch/hermes-agent:v2026.8.31, by digest (amd64 + arm64).
 FROM docker.io/nousresearch/hermes-agent:v2026.8.31@sha256:64923faeae267792bf9bf87fe3b4c4869e35004e360c7df01730ad801b74d524
@@ -81,24 +78,11 @@ RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache-dir \
 COPY --from=build \
     /build/diverge-agentic-loop-hermes/target/release/diverge-agentic-loop-hermes \
     /usr/local/bin/diverge-agentic-loop-hermes
-COPY --from=build \
-    /build/diverge-container-mcp-proxy/target/release/diverge-container-mcp-proxy \
-    /usr/local/bin/diverge-container-mcp-proxy
-COPY --from=build \
-    /build/diverge-container-postgres-proxy/target/release/diverge-container-postgres-proxy \
-    /usr/local/bin/diverge-container-postgres-proxy
 
-# Three programs, one container: the two proxies in the background, the loop
-# in the foreground as the container's own life. This replaces the
-# image's s6 dispatcher entirely.
-RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\n/usr/local/bin/diverge-container-postgres-proxy &\nexec /usr/local/bin/diverge-agentic-loop-hermes\n' \
-    > /usr/local/bin/entrypoint \
-    && chmod +x /usr/local/bin/entrypoint
+# The harness's own server, on the loopback: 8080, or whatever `PORT`
+# names. Nothing is exposed — the proxy the host injects is the only
+# thing that dials it, and it is beside it. This replaces the image's
+# s6 dispatcher entirely.
 
-# The Container specification's ports: 14978 the loop, 14979 MCP,
-# 14981 the Postgres proxy's WebSocket. Its pgwire listener, 14980,
-# is loopback-only and not exposed.
-EXPOSE 14978 14979 14981
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
+ENTRYPOINT ["/usr/local/bin/diverge-agentic-loop-hermes"]
 CMD []

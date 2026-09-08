@@ -1,12 +1,13 @@
-//! What the agent adds up to, before anything is fetched or written.
+//! What the agent adds up to, before anything is read or written.
 
 use std::collections::BTreeMap;
 
-use super::{Ask, PrepareError};
+use super::{Document, PrepareError};
 
 /// The accumulator the provider and the toolsets write into: the
-/// environment, the config's inputs, the resources to fetch, and
-/// the one file whose content the request carries inline.
+/// environment, the config's inputs, the vault documents to hold
+/// for the run, and the one file whose content the request carries
+/// inline.
 #[derive(Debug, Default)]
 pub struct Plan {
     /// The gateway's environment: the harness's variables only.
@@ -40,9 +41,9 @@ pub struct Plan {
     /// `platform_toolsets.api_server`: the toolsets exposed, by
     /// Hermes's own configurable-key names, in its order.
     pub toolsets: Vec<&'static str>,
-    /// The resources to fetch, all at once, before any file is
-    /// written.
-    pub asks: Vec<Ask>,
+    /// The rotating documents the run needs from the vault, in the
+    /// order they are locked.
+    pub documents: Vec<Document>,
     /// Vertex's service-account document, verbatim, to be written
     /// to the file `VERTEX_CREDENTIALS_PATH` names.
     pub vertex: Option<String>,

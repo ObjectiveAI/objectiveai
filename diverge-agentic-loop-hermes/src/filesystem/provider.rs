@@ -1,11 +1,12 @@
 //! The provider's contribution: its credential as environment, its
-//! id as the config's selection, its state as a resource to fetch.
+//! id as the config's selection, its login as a vault document.
 
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::hermes::Provider;
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::hermes::provider::bedrock;
+use diverge_provider_sdk::shared::containers::vault::keys;
 
-use super::{Ask, Plan, PrepareError, Target, VERTEX_FILE};
+use super::{Document, Plan, PrepareError, Target, VERTEX_FILE};
 use super::HERMES_HOME;
+use crate::agent::Provider;
+use crate::agent::provider::bedrock;
 
 /// Add the provider to the plan.
 ///
@@ -15,10 +16,10 @@ use super::HERMES_HOME;
 /// provider docs state it: the key-only majority set one variable;
 /// copilot, azure-foundry, custom, zai, bedrock and vertex set their
 /// several; opencode-free sets nothing; and the four OAuth-state
-/// providers ask for their resource — three as `auth.json` entries,
-/// qwen as the CLI's token file (its `providers.qwen-oauth` marker
-/// is a setup-wizard artifact the gateway never reads, and is not
-/// written).
+/// providers name their vault document — three as `auth.json`
+/// entries, qwen as the CLI's token file (its `providers.qwen-oauth`
+/// marker is a setup-wizard artifact the gateway never reads, and is
+/// not written).
 pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
     plan.provider = serde_json::to_value(provider)?
         .get("provider")
@@ -108,10 +109,9 @@ pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
         Provider::MinimaxCn(p) => {
             plan.set("MINIMAX_CN_API_KEY", p.api_key.clone())
         }
-        Provider::MinimaxOauth(p) => {
-            plan.asks.push(Ask {
-                field: "provider.auth_resource",
-                identity: p.auth_resource.clone(),
+        Provider::MinimaxOauth(_) => {
+            plan.documents.push(Document {
+                key: keys::MINIMAX_OAUTH,
                 target: Target::AuthEntry("minimax-oauth"),
             });
             Ok(())
@@ -119,10 +119,9 @@ pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
         Provider::NebiusTokenFactory(p) => {
             plan.set("NEBIUS_API_KEY", p.api_key.clone())
         }
-        Provider::Nous(p) => {
-            plan.asks.push(Ask {
-                field: "provider.auth_resource",
-                identity: p.auth_resource.clone(),
+        Provider::Nous(_) => {
+            plan.documents.push(Document {
+                key: keys::NOUS_OAUTH,
                 target: Target::AuthEntry("nous"),
             });
             Ok(())
@@ -130,10 +129,9 @@ pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
         Provider::Novita(p) => plan.set("NOVITA_API_KEY", p.api_key.clone()),
         Provider::Nvidia(p) => plan.set("NVIDIA_API_KEY", p.api_key.clone()),
         Provider::OllamaCloud(p) => plan.set("OLLAMA_API_KEY", p.api_key.clone()),
-        Provider::OpenaiCodex(p) => {
-            plan.asks.push(Ask {
-                field: "provider.auth_resource",
-                identity: p.auth_resource.clone(),
+        Provider::OpenaiCodex(_) => {
+            plan.documents.push(Document {
+                key: keys::OPENAI_CODEX_OAUTH,
                 target: Target::AuthEntry("openai-codex"),
             });
             Ok(())
@@ -150,10 +148,9 @@ pub fn apply(provider: &Provider, plan: &mut Plan) -> Result<(), PrepareError> {
         Provider::Openrouter(p) => {
             plan.set("OPENROUTER_API_KEY", p.api_key.clone())
         }
-        Provider::QwenOauth(p) => {
-            plan.asks.push(Ask {
-                field: "provider.oauth_creds_resource",
-                identity: p.oauth_creds_resource.clone(),
+        Provider::QwenOauth(_) => {
+            plan.documents.push(Document {
+                key: keys::QWEN_OAUTH,
                 target: Target::QwenCreds,
             });
             Ok(())

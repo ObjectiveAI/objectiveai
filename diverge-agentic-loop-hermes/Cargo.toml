@@ -3,25 +3,29 @@ name = "diverge-agentic-loop-hermes"
 version = "2.3.0"
 edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
-description = "The Hermes agentic_loop container of the Diverge provider protocol"
+description = "The Hermes agent container of the Diverge provider protocol"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://diverge.network"
 publish = false
 
 [dependencies]
-# The loop's face: a WebSocket at `/`, the Container specification's
-# surface. Default features carry the JSON extractor and the HTTP/1
-# server; `ws` the socket.
-axum = { version = "0.8.9", features = ["ws"] }
-# The resource store's map: sharded by key, so concurrent deliveries
-# of different identities append in parallel instead of queuing on
-# one mutex.
-dashmap = { version = "6.2.1" }
+# The loop's door: an HTTP server on the loopback the proxy forwards
+# to — `/run` as server-sent events, the queue's two verbs, the
+# schema. Default features carry the JSON extractor and the HTTP/1
+# server; SSE is axum's own.
+axum = { version = "0.8.9" }
 # Path-only: this crate rides the workspace and is never published, so
-# the SDK is named by where it lives rather than by a version pin
-# version.sh would have to chase.
+# the SDKs are named by where they live rather than by version pins
+# version.sh would have to chase. The provider SDK is the vocabulary —
+# the chunks, the fates, the vault's well-known keys; the container
+# SDK is the proxy beside this program — the vault, the database URL,
+# and the MCP URL the gateway is configured with.
 diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk" }
+# The agent's JSON Schema, derived from the agent types for
+# `GET /schema`.
+schemars = { version = "1.2.1" }
 # The continuation's outbound stream, as a generator.
 async-stream = { version = "0.3.6" }
 # `Stream` and its combinators, for the chunk stream the response is.
@@ -39,19 +43,21 @@ rmcp = { version = "3.1.2", default-features = false }
 # vocabulary is read with them — and under run::raw's request.
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
-# The continuation's database harvest: fold the WAL, VACUUM, prove a
-# delivered `state.db` opens. The async SQLite driver on tokio with
-# the vendored libsqlite3 (`sqlite` = sqlx-sqlite/bundled — compiles
-# sqlite3.c with cc, no bindgen, no system library); no TLS, no
-# postgres, no macros. Version: the workspace lock's, confirmed by
-# `cargo info sqlx`.
-sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
+# Two databases, one driver. SQLite for the continuation's fold and
+# check — the async driver on tokio with the vendored libsqlite3
+# (`sqlite` = sqlx-sqlite/bundled — compiles sqlite3.c with cc, no
+# bindgen, no system library). Postgres, through the proxy's loopback
+# pgwire, for the continuation's rows: `postgres` and the rustls TLS
+# the driver wants at compile time, though the loopback negotiates
+# none. No macros. Version: the workspace lock's.
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "tls-rustls"] }
 # The API server key: two v4 uuids, minted per run.
 uuid = { version = "1.22.0", features = ["v4"] }
-# The runtime under the listener, `sync` for the Notify the stores
-# wake their collectors with, `fs` + `io-util` for the continuation's
-# files, read and appended a piece at a time. No `macros` — the
-# runtime is built in main, not attributed onto it.
+# The runtime under the listener, `sync` for the queue's mutex and
+# the claim's Notify, `fs` + `io-util` for the continuation's files,
+# read and appended a piece at a time, `time` for the vault lock's
+# refresh. No `macros` — the runtime is built in main, not attributed
+# onto it.
 tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync", "time"] }
 
 # SIGTERM for the gateway: a graceful stop before the fold. Unix

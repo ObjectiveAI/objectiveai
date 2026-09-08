@@ -61,6 +61,7 @@
 
 pub mod delete;
 pub mod get;
+pub mod keys;
 pub mod lock;
 pub mod response;
 pub mod set;
