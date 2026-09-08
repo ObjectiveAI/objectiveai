@@ -2,7 +2,7 @@
 //! each socket announced and then carried.
 //!
 //! The proxy is a database to the container. A driver that dials
-//! `127.0.0.1:14980` gets a socket that is one ask on `/requests` —
+//! `127.0.0.1:81` gets a socket that is one ask on `/requests` —
 //! kind `11`, the channel and nothing else — and, once the server
 //! opens `/postgres/{channel}`, a conduit: the driver's bytes out as
 //! the path's messages, the path's messages in as the driver's bytes,

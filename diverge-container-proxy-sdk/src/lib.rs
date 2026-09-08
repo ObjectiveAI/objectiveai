@@ -1,7 +1,7 @@
 //! The SDK for a program inside a Diverge container.
 //!
 //! Every container the provider runs carries one proxy beside its
-//! own entrypoint, on the container's loopback at port `14981`, and
+//! own entrypoint, on the container's loopback at port `80`, and
 //! that proxy is the container's whole way to the caller's world —
 //! its tools, its database, its vault, the commands it may run. This
 //! crate is that proxy as one [`Client`]: the address hard-coded,

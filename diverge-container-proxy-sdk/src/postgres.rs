@@ -43,7 +43,7 @@ impl Client {
     }
 
     /// The whole URL, for a driver that takes one:
-    /// `postgres://diverge@127.0.0.1:14980/diverge?sslmode=disable`.
+    /// `postgres://diverge@127.0.0.1:81/diverge?sslmode=disable`.
     ///
     /// The user and the database are [`POSTGRES_USER`] and
     /// [`POSTGRES_DATABASE`], fixed, with no password — the caller's
