@@ -1,6 +1,6 @@
 //! Reasoning/thinking configuration.
 
-use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
+use crate::agent;
 use serde::Serialize;
 
 /// Configuration for model reasoning/thinking capabilities.
@@ -86,8 +86,8 @@ pub enum ReasoningSummaryVerbosity {
 }
 
 /// The provider request's reasoning configuration, field for field.
-impl From<openrouter::Reasoning> for Reasoning {
-    fn from(reasoning: openrouter::Reasoning) -> Self {
+impl From<agent::Reasoning> for Reasoning {
+    fn from(reasoning: agent::Reasoning) -> Self {
         Reasoning {
             enabled: reasoning.enabled,
             max_tokens: reasoning.max_tokens,
@@ -97,29 +97,29 @@ impl From<openrouter::Reasoning> for Reasoning {
     }
 }
 
-impl From<openrouter::ReasoningEffort> for ReasoningEffort {
-    fn from(effort: openrouter::ReasoningEffort) -> Self {
+impl From<agent::ReasoningEffort> for ReasoningEffort {
+    fn from(effort: agent::ReasoningEffort) -> Self {
         match effort {
-            openrouter::ReasoningEffort::None => ReasoningEffort::None,
-            openrouter::ReasoningEffort::Minimal => ReasoningEffort::Minimal,
-            openrouter::ReasoningEffort::Low => ReasoningEffort::Low,
-            openrouter::ReasoningEffort::Medium => ReasoningEffort::Medium,
-            openrouter::ReasoningEffort::High => ReasoningEffort::High,
-            openrouter::ReasoningEffort::Xhigh => ReasoningEffort::Xhigh,
+            agent::ReasoningEffort::None => ReasoningEffort::None,
+            agent::ReasoningEffort::Minimal => ReasoningEffort::Minimal,
+            agent::ReasoningEffort::Low => ReasoningEffort::Low,
+            agent::ReasoningEffort::Medium => ReasoningEffort::Medium,
+            agent::ReasoningEffort::High => ReasoningEffort::High,
+            agent::ReasoningEffort::Xhigh => ReasoningEffort::Xhigh,
         }
     }
 }
 
-impl From<openrouter::ReasoningSummaryVerbosity> for ReasoningSummaryVerbosity {
-    fn from(verbosity: openrouter::ReasoningSummaryVerbosity) -> Self {
+impl From<agent::ReasoningSummaryVerbosity> for ReasoningSummaryVerbosity {
+    fn from(verbosity: agent::ReasoningSummaryVerbosity) -> Self {
         match verbosity {
-            openrouter::ReasoningSummaryVerbosity::Auto => {
+            agent::ReasoningSummaryVerbosity::Auto => {
                 ReasoningSummaryVerbosity::Auto
             }
-            openrouter::ReasoningSummaryVerbosity::Concise => {
+            agent::ReasoningSummaryVerbosity::Concise => {
                 ReasoningSummaryVerbosity::Concise
             }
-            openrouter::ReasoningSummaryVerbosity::Detailed => {
+            agent::ReasoningSummaryVerbosity::Detailed => {
                 ReasoningSummaryVerbosity::Detailed
             }
         }

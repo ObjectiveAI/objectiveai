@@ -1,12 +1,13 @@
 //! Context compression.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Which compression engine to enable when a request would otherwise
 /// exceed the model's context window. Maps onto OpenRouter's
 /// request-body `plugins` array.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ContextCompression {

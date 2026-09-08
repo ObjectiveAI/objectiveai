@@ -1755,6 +1755,7 @@ dependencies = [
  "reqwest-eventsource",
  "rmcp 3.1.2",
  "rust_decimal",
+ "schemars 1.2.2",
  "serde",
  "serde_json",
  "serde_path_to_error",

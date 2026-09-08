@@ -2,12 +2,13 @@
 //!
 //! The program an agent container runs for an agent whose `upstream`
 //! is `openrouter`: an HTTP server on the container's loopback, at the
-//! port the SDK's [`agent`] module names, that the proxy beside it
+//! port the SDK's [`container_proxy::agent`] module names, that the
+//! proxy beside it
 //! forwards the provider's asks to. `POST /run` runs the one loop the
 //! container serves and streams its chunks back as server-sent
 //! events; `POST /enqueue` and `POST /dequeue` are the running loop's
-//! queue; `GET /schema` would be the agent's schema, which this image
-//! does not state. Its tool calls go through the proxy's MCP server;
+//! queue; `GET /schema` is the JSON Schema of the agent value this
+//! image accepts. Its tool calls go through the proxy's MCP server;
 //! its key comes from the vault the caller holds; the history it
 //! resumes from, and leaves behind, is one row in the caller's
 //! database, reached through the proxy's loopback pgwire.
@@ -24,6 +25,7 @@
 //! own last word, then the stream's end. The stream never carries an
 //! error of its own: it is chunks, and only chunks.
 
+mod agent;
 mod continuation;
 mod fetch;
 mod r#loop;
@@ -49,11 +51,10 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_container_proxy_sdk::Client;
-use diverge_provider_sdk::container_proxy::agent;
+use diverge_provider_sdk::container_proxy;
 use diverge_provider_sdk::container_proxy::agent::dequeue::Outcome;
 use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
 use diverge_provider_sdk::container_proxy::run_loop;
-use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
 use diverge_provider_sdk::shared::containers::enqueue;
 use diverge_provider_sdk::shared::containers::run_loop::response::{
     AgenticLoopChunk, NotificationChunk,
@@ -61,6 +62,7 @@ use diverge_provider_sdk::shared::containers::run_loop::response::{
 use futures_util::{Stream, StreamExt as _};
 use serde_json::Value;
 
+use crate::agent::Agent;
 use crate::continuation::Continuation;
 use crate::queue::QUEUE;
 use crate::r#loop::Item;
@@ -98,7 +100,7 @@ async fn serve() {
         .route("/dequeue", axum::routing::post(dequeue))
         .with_state(Arc::new(Client::new()));
 
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", agent::port()))
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", container_proxy::agent::port()))
         .await
         .expect("the port could not be bound");
     axum::serve(listener, app)
@@ -134,7 +136,7 @@ async fn run(
         ));
     }
 
-    let agent: openrouter::Agent = match serde_json::from_value(request.agent) {
+    let agent: Agent = match serde_json::from_value(request.agent) {
         Ok(agent) => agent,
         Err(error) => {
             return Err(refuse(
@@ -267,17 +269,11 @@ async fn run(
     }))
 }
 
-/// `GET /schema`: what the agent value may be — which this image does
-/// not state. A schema is a courtesy, not an obligation, and the
-/// refusal says so.
-async fn schema() -> Refusal {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "kind": "agent_schema",
-            "error": "this image states no schema",
-        })),
-    )
+/// `GET /schema`: what the agent value may be — the JSON Schema of
+/// [`Agent`], derived from the type the loop reads, so the two cannot
+/// disagree.
+async fn schema() -> Json<schemars::Schema> {
+    Json(schemars::schema_for!(Agent))
 }
 
 /// `POST /enqueue`: a message for the running loop's queue.

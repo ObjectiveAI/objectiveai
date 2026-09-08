@@ -1,6 +1,6 @@
 //! Chat completion request parameters for OpenRouter.
 
-use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
+use crate::agent::Agent;
 use indexmap::IndexMap;
 use serde::Serialize;
 
@@ -96,7 +96,7 @@ impl ChatCompletionCreateParams {
     /// in that order. `tools` are the loop's to supply: they are not a
     /// request field, they come from the MCP proxy's listing.
     pub fn new(
-        agent: openrouter::Agent,
+        agent: Agent,
         continuation: Option<crate::continuation::Continuation>,
         prompt: String,
         tools: Option<Vec<super::Tool>>,

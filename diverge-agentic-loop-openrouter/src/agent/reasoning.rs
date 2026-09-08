@@ -1,10 +1,11 @@
 //! Reasoning configuration.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// How much the model should reason before answering, and how much of
 /// that reasoning to report.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Reasoning {
     /// Whether to reason at all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -24,7 +25,7 @@ pub struct Reasoning {
 
 /// How hard the model should reason.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ReasoningEffort {
@@ -40,7 +41,7 @@ pub enum ReasoningEffort {
 
 /// How much of the reasoning to summarise in the response.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ReasoningSummaryVerbosity {

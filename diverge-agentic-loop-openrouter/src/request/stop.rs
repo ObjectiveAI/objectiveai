@@ -1,6 +1,6 @@
 //! Stop sequences.
 
-use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
+use crate::agent;
 use serde::Serialize;
 
 /// Stop sequences that terminate model generation.
@@ -22,11 +22,11 @@ pub enum Stop {
 }
 
 /// The provider request's stop sequences, field for field.
-impl From<openrouter::Stop> for Stop {
-    fn from(stop: openrouter::Stop) -> Self {
+impl From<agent::Stop> for Stop {
+    fn from(stop: agent::Stop) -> Self {
         match stop {
-            openrouter::Stop::String(stop) => Stop::String(stop),
-            openrouter::Stop::Strings(stops) => Stop::Strings(stops),
+            agent::Stop::String(stop) => Stop::String(stop),
+            agent::Stop::Strings(stops) => Stop::Strings(stops),
         }
     }
 }

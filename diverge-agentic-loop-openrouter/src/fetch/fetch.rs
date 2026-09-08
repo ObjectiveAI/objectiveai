@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
+use crate::agent::Agent;
 use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
 use eventsource_stream::Event as MessageEvent;
 use futures_util::{Stream, StreamExt as _};
@@ -36,7 +36,7 @@ const ADDRESS: &str = "https://openrouter.ai/api/v1";
 ///
 pub async fn fetch(
     api_key: &str,
-    agent: openrouter::Agent,
+    agent: Agent,
     continuation: Option<Continuation>,
     prompt: String,
     tools: Option<Vec<crate::request::Tool>>,

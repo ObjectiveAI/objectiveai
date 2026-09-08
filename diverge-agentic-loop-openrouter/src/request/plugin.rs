@@ -1,6 +1,6 @@
 //! The request-body `plugins` array.
 
-use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
+use crate::agent;
 use serde::Serialize;
 
 /// One entry in OpenRouter's request-body `plugins` array. Today the
@@ -17,8 +17,8 @@ pub struct Plugin {
 /// The agent's context compression, as the plugin entry it rides in
 /// as: the id is the plugin's, and the engine is the enum's own wire
 /// string.
-impl From<openrouter::ContextCompression> for Plugin {
-    fn from(compression: openrouter::ContextCompression) -> Self {
+impl From<agent::ContextCompression> for Plugin {
+    fn from(compression: agent::ContextCompression) -> Self {
         let engine = serde_json::to_value(compression)
             .ok()
             .and_then(|value| value.as_str().map(String::from));
