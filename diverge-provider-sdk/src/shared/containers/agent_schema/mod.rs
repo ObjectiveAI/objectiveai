@@ -2,7 +2,8 @@
 //!
 //! The agents family's second exchange, and the one that makes the
 //! first usable without knowing the image: the caller opens a channel
-//! with [`request::Request`], which carries nothing, and the provider
+//! that carries nothing — a direction with nothing to say has no
+//! request here, as everywhere in this crate — and the provider
 //! answers with one [`response::Frame`] — the JSON Schema of the
 //! [`agent`](crate::endpoints::containers::agents::run::client::request::Frame::agent)
 //! value the container was made with, or an error — then the finish.
@@ -15,5 +16,4 @@
 //! chunks are ordered, when the stream ends — is not its job, and
 //! this crate says that in prose as it does everywhere.
 
-pub mod request;
 pub mod response;
