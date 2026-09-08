@@ -5,14 +5,19 @@
 //! [`container_proxy::agent`] module names, that the proxy beside it
 //! forwards the provider's asks to. `POST /run` runs the one loop the
 //! container serves — a Claude Code subprocess behind [`spawn`] — and
-//! streams its chunks back as server-sent events; `POST /enqueue` and
-//! `POST /dequeue` are the running loop's queue, which Claude Code
+//! streams its chunks back as server-sent events — one at a time,
+//! the lock held until the run is settled, so a run after the first
+//! resumes the same session and a run beside it is refused;
+//! `POST /enqueue` and `POST /dequeue` are the running loop's queue, which Claude Code
 //! holds and this container writes to; `GET /schema` is the JSON
 //! Schema of the agent value this image accepts. Claude Code's tool
 //! calls go through the proxy's MCP server, whose URL it is handed on
 //! its argv; the session it resumes from, and leaves behind, is one
 //! row in the caller's database, reached through the proxy's loopback
-//! pgwire.
+//! pgwire — read once, the first run, and written at the end of
+//! every run. The one thing cached is the session id: known once, it
+//! never changes, and the files it names are on disk for good, so a
+//! later run neither reads the row nor writes a file.
 //!
 //! # Nothing of the proxy's before a request
 //!
@@ -30,8 +35,9 @@
 //! real error — a non-`2xx`, with a JSON reason, and no stream: a
 //! second run, an install that failed, an agent value that is not a
 //! Claude Code agent, an empty prompt, a database that will not
-//! answer, a session that will not open, a subprocess that will not
-//! start, and the first item of the stream itself, which is pulled
+//! answer, a session that will not open or whose files will not
+//! write, a subprocess that will not start, and the first item of
+//! the stream itself, which is pulled
 //! before the response is decided. After that, FATALITY IS FINALITY:
 //! an error record is held, not sent; a later chunk proves the run
 //! outlived it and flushes it as a non-fatal `notification` ahead of
@@ -40,6 +46,7 @@
 //! never carries an error of its own: it is chunks, and only chunks.
 
 mod agent;
+mod claim;
 mod continuation;
 // The wire module carries Claude Code's COMPLETE stdout vocabulary,
 // which is more than the conversion consumes — a field parsed and
@@ -50,7 +57,6 @@ mod spawn;
 
 use std::convert::Infallible;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::Json;
 use axum::extract::State;
@@ -70,19 +76,8 @@ use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::agent::Agent;
+use crate::claim::Claim;
 use crate::continuation::Continuation;
-
-/// Whether the container's one run has arrived.
-///
-/// A container is one run: its queue, its session, its filesystem
-/// are all one conversation's, and a second run would share all of
-/// them with the first. So the FIRST request claims the container
-/// for good — an atomic swap, so two arrivals a nanosecond apart
-/// resolve to exactly one winner — and everything after it,
-/// concurrent or later, is refused with `409`: a first run that
-/// fails every later check has still spent the container, because
-/// "one run" is a fact about arrivals, not about merit.
-static CLAIMED: AtomicBool = AtomicBool::new(false);
 
 /// A refusal: the status, and a JSON reason.
 type Refusal = (StatusCode, Json<Value>);
@@ -124,7 +119,9 @@ async fn serve() {
 /// `POST /run`: the run.
 ///
 /// Refused, in order, for what is knowable before the stream: a run
-/// after the first (`409`); Claude Code failing to install (`500`,
+/// beside one in progress (`409` — the [`Claim`], released on every
+/// refusal below and otherwise by the run's settlement, so the next
+/// run finds clean locks); Claude Code failing to install (`500`,
 /// and the same on every endpoint, forever — a request during the
 /// install simply waits for the outcome); an agent value that is not
 /// this image's (`400`); an empty prompt (`400` — stream-json input
@@ -150,15 +147,15 @@ async fn run(
     State(client): State<Arc<Client>>,
     Json(request): Json<run_loop::request::Request>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Refusal> {
-    if CLAIMED.swap(true, Ordering::SeqCst) {
+    let Some(claim) = Claim::take() else {
         return Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
-                "kind": "claimed",
-                "error": "this container serves one run, and it has already begun",
+                "kind": "busy",
+                "error": "a run is in progress",
             })),
         ));
-    }
+    };
     installed().await?;
 
     let agent: Agent = match serde_json::from_value(request.agent) {
@@ -199,19 +196,35 @@ async fn run(
             ));
         }
     };
-    let continuation = match Continuation::load(&pool).await {
-        Ok(continuation) => continuation,
-        Err(error) => {
-            return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error.message())));
-        }
+    // The session: known already — its files on disk, nothing to
+    // read and nothing to write — or, the first time, whatever the
+    // row holds: nothing, a fresh conversation; or a continuation,
+    // whose files are laid down now, once, and whose id is then
+    // known for good.
+    let session_id = match spawn::session_id().await {
+        Some(session_id) => Some(session_id),
+        None => match Continuation::load(&pool).await {
+            Ok(None) => None,
+            Ok(Some(continuation)) => {
+                if let Err(error) = continuation.write().await {
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({
+                            "kind": "continuation",
+                            "error": error.to_string(),
+                        })),
+                    ));
+                }
+                spawn::remember(continuation.session_id.clone()).await;
+                Some(continuation.session_id)
+            }
+            Err(error) => {
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error.message())));
+            }
+        },
     };
-    // The harvest's fallback key: a resumed run knows its session
-    // before the stream names it.
-    let resumed_session_id = continuation
-        .as_ref()
-        .map(|continuation| continuation.session_id.clone());
 
-    let stream = match spawn::spawn(agent, continuation, request.prompt).await {
+    let stream = match spawn::spawn(agent, session_id, request.prompt, claim).await {
         Ok(stream) => stream,
         Err(error) => {
             return Err((
@@ -269,7 +282,7 @@ async fn run(
         }
         match held.pop() {
             None => {
-                if let Err(chunk) = harvest(&pool, resumed_session_id).await {
+                if let Err(chunk) = harvest(&pool).await {
                     yield Ok(event(&chunk));
                 }
             }
@@ -283,7 +296,7 @@ async fn run(
                 }
                 yield Ok(event(&notification(last, true)));
                 if progressed {
-                    if let Err(chunk) = harvest(&pool, resumed_session_id).await {
+                    if let Err(chunk) = harvest(&pool).await {
                         yield Ok(event(&chunk));
                     }
                 }
@@ -341,13 +354,13 @@ async fn installed() -> Result<(), Refusal> {
 }
 
 /// The run's estate: the session's files swept into the continuation
-/// and saved as the row. Keyed by the session id the stream captured,
-/// falling back to the resumed one's own. A harvest that cannot
-/// happen — no record ever named the session and the request resumed
-/// nothing, or the sweep or the save failed — is the fatal
+/// and saved as the row. Keyed by the session id — known from the
+/// row, or from the first record that named it. A harvest that
+/// cannot happen — no record ever named the session and the request
+/// resumed nothing, or the sweep or the save failed — is the fatal
 /// notification the stream ends on instead.
-async fn harvest(pool: &PgPool, resumed_session_id: Option<String>) -> Result<(), AgenticLoopChunk> {
-    let session_id = match spawn::session_id().await.or(resumed_session_id) {
+async fn harvest(pool: &PgPool) -> Result<(), AgenticLoopChunk> {
+    let session_id = match spawn::session_id().await {
         Some(session_id) => session_id,
         None => {
             return Err(notification(
