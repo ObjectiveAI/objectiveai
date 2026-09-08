@@ -18,7 +18,7 @@ use crate::shared::error::Error;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The JSON Schema of the
-    /// [`agent`](crate::shared::containers::agentic_loop::request::Request::agent)
+    /// [`agent`](crate::endpoints::containers::agents::run::client::request::Frame::agent)
     /// value, as the image states it. Tag `0`.
     ///
     /// A [`Value`] rather than a typed schema, because a schema is a

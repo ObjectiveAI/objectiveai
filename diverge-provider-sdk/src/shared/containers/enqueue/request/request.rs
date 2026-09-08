@@ -17,7 +17,7 @@ use crate::encode::{Encode, Writer};
 /// # The content is a string
 ///
 /// Plain text, deliberately: a mid-run steer is text. The
-/// [`UserChunk`](crate::shared::containers::agentic_loop::response::UserChunk)
+/// [`UserChunk`](crate::shared::containers::run_loop::response::UserChunk)
 /// that marks this message's delivery carries the same string back,
 /// verbatim, at the position it landed.
 ///

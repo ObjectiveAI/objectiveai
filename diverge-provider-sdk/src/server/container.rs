@@ -14,7 +14,7 @@ use rmcp::model::{
 };
 use serde_json::value::RawValue;
 
-use crate::shared::containers::agentic_loop::response::AgenticLoopChunk;
+use crate::shared::containers::run_loop::response::AgenticLoopChunk;
 use crate::shared::error::Error;
 use crate::shared::filetree;
 

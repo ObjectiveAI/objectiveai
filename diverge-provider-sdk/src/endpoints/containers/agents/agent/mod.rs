@@ -1,10 +1,11 @@
 //! Agent definitions — what a provider USED to be asked to run.
 //!
-//! Held for reference, and not on the wire. An
-//! [`agentic_loop`](crate::shared::containers::agentic_loop) request
-//! is a JSON value the image defines; these are the typed shapes that
-//! value had when this crate named the agents itself, kept so the
-//! next thing that needs one can start from them.
+//! Held for reference, and not on the wire. The
+//! [`agent`](crate::endpoints::containers::agents::run::client::request::Frame::agent)
+//! on an agent container's request is a JSON value the image defines;
+//! these are the typed shapes that value had when this crate named the
+//! agents itself, kept so the next thing that needs one can start from
+//! them.
 //!
 //! POST-TRANSFORM. An agent as authored carries things that shape a
 //! request before a provider ever sees it: a system prompt, prefix and
