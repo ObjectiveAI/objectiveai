@@ -15,24 +15,25 @@
 //! keys the caller holds, in `vault.rs` — commands the caller runs,
 //! in `command.rs` — Postgres, the caller's database on the
 //! container's loopback, whose methods in `postgres.rs` are the
-//! address and the URL the program's driver dials — and, for an agent
-//! container, the loop: `run_loop.rs` waits for the request the
-//! server hands the proxy and streams the loop's chunks back, and
-//! `agent_schema.rs` posts what the agent value may be.
+//! address and the URL the program's driver dials.
+//!
+//! The loop is not here. An agent container's program is its own
+//! HTTP server, on the loopback at the port the provider SDK's
+//! [`container_proxy::agent`] names — `/run`, `/schema`, `/enqueue`,
+//! `/dequeue` — and the proxy dials it, forwarding what the
+//! provider's server asks; that surface is stated there, once, and
+//! nothing in this crate stands between the two.
 
-mod agent_schema;
 mod client;
 mod command;
 mod error;
 mod mcp;
 mod postgres;
-mod run_loop;
 mod vault;
 
 pub use client::*;
 pub use error::*;
 pub use postgres::*;
-pub use run_loop::*;
 
 use diverge_provider_sdk::container_proxy;
 
@@ -41,10 +42,4 @@ use diverge_provider_sdk::container_proxy;
 /// out, so there is one copy of the number.
 fn url(path: &str) -> String {
     format!("http://127.0.0.1:{}{}", container_proxy::PORT, path)
-}
-
-/// The same, as a WebSocket URL, for the one feature that holds a
-/// socket open.
-fn ws_url(path: &str) -> String {
-    format!("ws://127.0.0.1:{}{}", container_proxy::PORT, path)
 }

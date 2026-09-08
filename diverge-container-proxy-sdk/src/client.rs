@@ -16,15 +16,12 @@ const MCP: &str = "/mcp/agent";
 /// Made without a connection and held for the program's life; every
 /// feature the proxy carries is a method here, each feature in its
 /// own file — the MCP exchanges in `mcp.rs`, the vault in `vault.rs`,
-/// commands in `command.rs`, Postgres in `postgres.rs`, the loop in
-/// `run_loop.rs` and its schema in `agent_schema.rs`. MCP opens its
-/// session the first time it is used; the vault, commands and the
-/// schema speak plain HTTP to the proxy, one request per call,
-/// nothing kept between; Postgres is the program's own driver dialing
-/// the URL the client names; the loop is one socket, held by the
-/// handle [`run_loop`](Self::run_loop) hands back. There is nothing to
-/// connect and nothing to close: a session ends when the client is
-/// dropped.
+/// commands in `command.rs`, Postgres in `postgres.rs`. MCP opens its
+/// session the first time it is used; the vault and commands speak
+/// plain HTTP to the proxy, one request per call, nothing kept
+/// between; Postgres is the program's own driver dialing the URL the
+/// client names. There is nothing to connect and nothing to close: a
+/// session ends when the client is dropped.
 #[derive(Default)]
 pub struct Client {
     /// The MCP session with the proxy's server at `/mcp/agent`, made
