@@ -1,11 +1,12 @@
 //! What a container scope is made of, whichever kind it is.
 //!
 //! [`containers`](crate::endpoints::containers) has two families and
-//! each has two scopes, and the four differ in one exchange apiece.
+//! three scopes — an agent container's run, a tool container's run
+//! and connect — and the three differ in one exchange apiece.
 //! Everything else — asking for a container, reading and writing its
 //! files, watching its tree, the connections and asks the container
-//! makes back toward the caller — is the same wire in all four, so it
-//! is defined once here and each scope's frames wrap or alias it.
+//! makes back toward the caller — is the same wire in all three, so
+//! it is defined once here and each scope's frames wrap or alias it.
 //!
 //! [`request`] is the part of asking for a container that does not
 //! vary between the kinds: the image, the limits, the mounts; and the
@@ -28,8 +29,7 @@
 //! [`authorize`] whether a connector may join.
 //!
 //! [`agentic_loop`] and [`agent_schema`] are the agents family's own
-//! exchanges; they are here rather than in that family because its
-//! run and its connect both carry them.
+//! exchanges, here beside the rest of the wire they ride.
 //!
 //! [`filetree`](crate::shared::filetree) and [`mcp`](crate::shared::mcp)
 //! stay beside this module rather than inside it: each is ridden by

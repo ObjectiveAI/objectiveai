@@ -13,13 +13,14 @@
 //!   into it.
 //!
 //! Everything else is identical, and it is most of the wire: each
-//! family has a `run` that owns the container's life and a `connect`
-//! that joins one by id and authorization; every scope reads and
+//! family has a `run` that owns the container's life, and the tools
+//! family also has a `connect` that joins one by id and authorization
+//! — an agent container is its runner's alone; every scope reads and
 //! writes files, watches the tree, and relays what the container asks
 //! of the caller — its database connections, its commands, its vault,
 //! its tool calls outward. All of that is defined once, in
 //! [`shared::containers`](crate::shared::containers), and each scope's
-//! frames wrap or alias it. The four scopes' channel tags are laid out
+//! frames wrap or alias it. The three scopes' channel tags are laid out
 //! so the shared part comes first and identically, and the family's
 //! own exchange takes the tags after it.
 //!

@@ -14,8 +14,12 @@
 //! of the agents this crate once named — held for reference, and not
 //! on the wire.
 //!
-//! [`run`] owns the container; [`connect`] joins one.
+//! [`run`] owns the container, and there is no connect: an agent
+//! container is its runner's alone. A loop has one caller — the one
+//! that gave it its prompt and reads its chunks — and a second scope
+//! on it would be a second party to a conversation that has one
+//! side. What a tool container's connect is for, joining a server
+//! somebody else runs, has no counterpart here.
 
 pub mod agent;
-pub mod connect;
 pub mod run;

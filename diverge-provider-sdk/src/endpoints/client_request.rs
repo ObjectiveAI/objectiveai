@@ -32,25 +32,23 @@ use crate::encode::{Encode, Writer};
 pub enum ClientRequest<'a> {
     /// Tag `0`. Run an agent in a container.
     ContainersAgentsRun(containers::agents::run::client::request::Frame),
-    /// Tag `1`. Join an agent container somebody else is running.
-    ContainersAgentsConnect(containers::agents::connect::client::request::Frame),
-    /// Tag `2`. Run a tool server in a container.
+    /// Tag `1`. Run a tool server in a container.
     ContainersToolsRun(containers::tools::run::client::request::Frame),
-    /// Tag `3`. Join a tool container somebody else is running.
+    /// Tag `2`. Join a tool container somebody else is running.
     ContainersToolsConnect(containers::tools::connect::client::request::Frame),
-    /// Tag `4`. List the volumes a provider offers.
+    /// Tag `3`. List the volumes a provider offers.
     VolumesList(volumes::list::client::request::Frame),
-    /// Tag `5`. Watch one of them.
+    /// Tag `4`. Watch one of them.
     VolumesWatch(volumes::watch::client::request::Frame),
-    /// Tag `6`. Make a volume.
+    /// Tag `5`. Make a volume.
     VolumesCreate(volumes::create::client::request::Frame),
-    /// Tag `7`. Change how much one reserves.
+    /// Tag `6`. Change how much one reserves.
     VolumesEdit(volumes::edit::client::request::Frame),
-    /// Tag `8`. Destroy one.
+    /// Tag `7`. Destroy one.
     VolumesDelete(volumes::delete::client::request::Frame),
-    /// Tag `9`. Ask whether an image can be supplied.
+    /// Tag `8`. Ask whether an image can be supplied.
     ImagesCheck(images::check::client::request::Frame),
-    /// Tag `10`. Ask what the provider is.
+    /// Tag `9`. Ask what the provider is.
     Version(version::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -62,7 +60,7 @@ pub enum ClientRequest<'a> {
     /// # It is answered, not dropped
     ///
     /// A server finishes the scope over it, with nothing in front:
-    /// eleven endpoints have eleven error vocabularies, and an invalid
+    /// ten endpoints have ten error vocabularies, and an invalid
     /// request names none of them — where a finish with nothing before
     /// it is already what the wire means by a request that could not
     /// be served, and every executor reads it as its own "unanswered".
@@ -81,8 +79,8 @@ pub enum ClientRequest<'a> {
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Two ways to fail, because eleven requests use two encodings
-    /// between them — and one of the eleven uses neither, having
+    /// Two ways to fail, because ten requests use two encodings
+    /// between them — and one of the ten uses neither, having
     /// nothing to encode.
     type Error = ClientRequestEncodeError;
 
@@ -92,9 +90,6 @@ impl Encode for ClientRequest<'_> {
     ) -> Result<(), ClientRequestEncodeError> {
         match self {
             ClientRequest::ContainersAgentsRun(frame) => {
-                frame.encode(out).map_err(ClientRequestEncodeError::Json)
-            }
-            ClientRequest::ContainersAgentsConnect(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::ContainersToolsRun(frame) => {
@@ -155,34 +150,31 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             0 => containers::agents::run::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ContainersAgentsRun)
                 .ok(),
-            1 => containers::agents::connect::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ContainersAgentsConnect)
-                .ok(),
-            2 => containers::tools::run::client::request::Frame::decode(bytes)
+            1 => containers::tools::run::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ContainersToolsRun)
                 .ok(),
-            3 => containers::tools::connect::client::request::Frame::decode(bytes)
+            2 => containers::tools::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ContainersToolsConnect)
                 .ok(),
-            4 => volumes::list::client::request::Frame::decode(bytes)
+            3 => volumes::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesList)
                 .ok(),
-            5 => volumes::watch::client::request::Frame::decode(bytes)
+            4 => volumes::watch::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesWatch)
                 .ok(),
-            6 => volumes::create::client::request::Frame::decode(bytes)
+            5 => volumes::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreate)
                 .ok(),
-            7 => volumes::edit::client::request::Frame::decode(bytes)
+            6 => volumes::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEdit)
                 .ok(),
-            8 => volumes::delete::client::request::Frame::decode(bytes)
+            7 => volumes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDelete)
                 .ok(),
-            9 => images::check::client::request::Frame::decode(bytes)
+            8 => images::check::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesCheck)
                 .ok(),
-            10 => version::client::request::Frame::decode(bytes)
+            9 => version::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Version)
                 .ok(),
             _ => None,
@@ -193,8 +185,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
 
 /// A request that could not be written.
 ///
-/// Named for the encoding rather than for the request, because ten
-/// requests share two of them and a variant per request would be eight
+/// Named for the encoding rather than for the request, because nine
+/// requests share two of them and a variant per request would be seven
 /// names that mean the same failure.
 #[derive(Debug)]
 pub enum ClientRequestEncodeError {

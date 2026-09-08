@@ -84,7 +84,7 @@ use crate::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — eleven endpoints have eleven error vocabularies, and an
+/// answer — ten endpoints have ten error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -196,11 +196,10 @@ where
         match ClientRequest::decode(&payload)
             .unwrap_or_else(|error| match error {})
         {
-            // The four container scopes have no handler yet: the wire
-            // is defined and the serving is not. Until it is, each is
-            // finished with nothing — the standing "could not serve".
+            // The three container scopes have no handler yet: the
+            // wire is defined and the serving is not. Until it is, each
+            // is finished with nothing — the standing "could not serve".
             ClientRequest::ContainersAgentsRun(_)
-            | ClientRequest::ContainersAgentsConnect(_)
             | ClientRequest::ContainersToolsRun(_)
             | ClientRequest::ContainersToolsConnect(_) => {
                 scope.send_response_finish().await

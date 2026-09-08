@@ -16,7 +16,7 @@
 //!
 //! [`filetree`] is a live filesystem view — a watch answers with one,
 //! and so does a container scope, over a different tree.
-//! [`containers`] is everything the four container scopes have in
+//! [`containers`] is everything the three container scopes have in
 //! common, which is everything but one exchange each: asking for a
 //! container, working with its files, and the asks it makes back.
 //!

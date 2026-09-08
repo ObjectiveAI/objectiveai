@@ -30,7 +30,7 @@ pub struct Frame(
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 2;
+const TAG: u8 = 1;
 
 /// JSON, matching [`images::check`](crate::endpoints::images::check)
 /// rather than the postcard [`volumes`](crate::endpoints::volumes)
