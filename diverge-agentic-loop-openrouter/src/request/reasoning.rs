@@ -1,6 +1,6 @@
 //! Reasoning/thinking configuration.
 
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
+use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
 use serde::Serialize;
 
 /// Configuration for model reasoning/thinking capabilities.

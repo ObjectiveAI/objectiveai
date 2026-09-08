@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use diverge_provider_sdk::endpoints::agentic_loop::run::client::request::agent::openrouter;
-use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
+use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
+use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
 use eventsource_stream::Event as MessageEvent;
 use futures_util::{Stream, StreamExt as _};
 use reqwest_eventsource::{Event, RequestBuilderExt as _};

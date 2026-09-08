@@ -1,15 +1,24 @@
-//! What an OpenRouter continuation holds.
+//! What an OpenRouter continuation holds, and where it lives.
 
-use diverge_provider_sdk::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
+use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
+use sqlx::PgPool;
 
 /// A continuation, opened.
 ///
 /// Opaque to everyone but this container: what it holds is the
 /// conversation's own history — each turn's user prompt and the
-/// chunks the loop produced, in order — as a JSON array. On the wire
-/// it is those bytes, uncoated: no base64, no envelope. Resuming is
-/// deserializing it and rebuilding the conversation from what was
+/// chunks the loop produced, in order — as a JSON array. Resuming is
+/// reading it back and rebuilding the conversation from what was
 /// already said.
+///
+/// # It lives in the caller's database
+///
+/// One row of one table, reached through the proxy's loopback pgwire:
+/// [`load`](Self::load) reads it when the loop starts — no row is a
+/// fresh start, a row that will not open as a history is an error, by
+/// rule — and [`save`](Self::save) replaces it at every point the
+/// history is at rest, so a container that dies loses nothing that
+/// was ever whole.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Continuation(pub Vec<ContinuationItem>);
 
@@ -27,19 +36,58 @@ pub enum ContinuationItem {
     Prompt(String),
 }
 
+/// The table: one row, `id` pinned to `1`, the history as jsonb.
+const CREATE: &str = "CREATE TABLE IF NOT EXISTS continuation (\
+    id smallint PRIMARY KEY CHECK (id = 1), state jsonb NOT NULL)";
+
+/// The row, if there is one.
+const SELECT: &str = "SELECT state FROM continuation WHERE id = 1";
+
+/// The row, written or replaced.
+const UPSERT: &str = "INSERT INTO continuation (id, state) VALUES (1, $1) \
+    ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state";
+
 impl Continuation {
-    /// Open the chunks the server delivered: joined, they are the
-    /// history as JSON. The protocol keeps the chunks apart for
-    /// containers that put meaning in the boundaries; this one does
-    /// not — its closer is one document split at the chunk ceiling,
-    /// and joining is the whole of reading it back.
-    pub fn parse(chunks: &[Vec<u8>]) -> Result<Self, serde_json::Error> {
-        serde_json::from_slice(&chunks.concat()).map(Continuation)
+    /// Read the history the database holds, making the table if this
+    /// is the first run to look.
+    pub async fn load(pool: &PgPool) -> Result<Option<Self>, Error> {
+        sqlx::query(CREATE).execute(pool).await?;
+        let row: Option<(serde_json::Value,)> =
+            sqlx::query_as(SELECT).fetch_optional(pool).await?;
+        match row {
+            None => Ok(None),
+            Some((state,)) => serde_json::from_value(state)
+                .map(|items| Some(Continuation(items)))
+                .map_err(Error::Parse),
+        }
     }
 
-    /// The history as the bytes the run closes with —
-    /// [`parse`](Self::parse)'s exact inverse.
-    pub fn tokenize(&self) -> Result<Vec<u8>, serde_json::Error> {
-        serde_json::to_vec(&self.0)
+    /// Replace the history the database holds with this one.
+    pub async fn save(&self, pool: &PgPool) -> Result<(), Error> {
+        let state = serde_json::to_value(&self.0).map_err(Error::Parse)?;
+        sqlx::query(UPSERT).bind(state).execute(pool).await?;
+        Ok(())
+    }
+}
+
+/// A history that could not be read or written.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// The database would not answer.
+    #[error("the continuation's database failed: {0}")]
+    Database(#[from] sqlx::Error),
+    /// The row is there and is not a history — or one would not
+    /// serialize, which plain data never fails to do.
+    #[error("the continuation would not parse: {0}")]
+    Parse(serde_json::Error),
+}
+
+impl Error {
+    /// The failure as JSON, the shape every failure on the stream has.
+    pub fn message(&self) -> serde_json::Value {
+        serde_json::json!({
+            "kind": "continuation",
+            "error": self.to_string(),
+        })
     }
 }

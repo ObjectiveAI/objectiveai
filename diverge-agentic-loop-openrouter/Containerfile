@@ -1,6 +1,5 @@
-# The openrouter agentic_loop image: the loop on 14978, the MCP proxy on
-# 14979, the Postgres proxy on 14980 and 14981, all musl binaries on
-# Alpine.
+# The openrouter agent image: the loop beside the container proxy, both
+# musl binaries on Alpine.
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
@@ -25,19 +24,16 @@ WORKDIR /build
 # hold; cargo prunes the entries the crate does not use, which is why
 # the build does not pass --locked.
 COPY diverge-provider-sdk diverge-provider-sdk
-COPY diverge-container-mcp-proxy diverge-container-mcp-proxy
-COPY diverge-container-postgres-proxy diverge-container-postgres-proxy
+COPY diverge-container-proxy-sdk diverge-container-proxy-sdk
+COPY diverge-container-proxy diverge-container-proxy
 COPY diverge-agentic-loop-openrouter diverge-agentic-loop-openrouter
 COPY Cargo.lock diverge-agentic-loop-openrouter/Cargo.lock
-COPY Cargo.lock diverge-container-mcp-proxy/Cargo.lock
-COPY Cargo.lock diverge-container-postgres-proxy/Cargo.lock
+COPY Cargo.lock diverge-container-proxy/Cargo.lock
 
 RUN cargo build --release \
     --manifest-path diverge-agentic-loop-openrouter/Cargo.toml
 RUN cargo build --release \
-    --manifest-path diverge-container-mcp-proxy/Cargo.toml
-RUN cargo build --release \
-    --manifest-path diverge-container-postgres-proxy/Cargo.toml
+    --manifest-path diverge-container-proxy/Cargo.toml
 
 # alpine:latest, by digest.
 FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
@@ -46,21 +42,19 @@ COPY --from=build \
     /build/diverge-agentic-loop-openrouter/target/release/diverge-agentic-loop-openrouter \
     /usr/local/bin/diverge-agentic-loop-openrouter
 COPY --from=build \
-    /build/diverge-container-mcp-proxy/target/release/diverge-container-mcp-proxy \
-    /usr/local/bin/diverge-container-mcp-proxy
-COPY --from=build \
-    /build/diverge-container-postgres-proxy/target/release/diverge-container-postgres-proxy \
-    /usr/local/bin/diverge-container-postgres-proxy
+    /build/diverge-container-proxy/target/release/diverge-container-proxy \
+    /usr/local/bin/diverge-container-proxy
 
-# Three programs, one container: the two proxies in the background, the loop
-# in the foreground as the container's own life.
-RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\n/usr/local/bin/diverge-container-postgres-proxy &\nexec /usr/local/bin/diverge-agentic-loop-openrouter\n' \
+# Two programs, one container: the proxy in the background, the loop
+# in the foreground as the container's own life — it attaches to the
+# proxy, runs the one loop the server asks for, and exits.
+RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-proxy &\nexec /usr/local/bin/diverge-agentic-loop-openrouter\n' \
     > /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
 
-# The Container specification's ports: 14978 the loop, 14979 MCP,
-# 14981 the Postgres proxy's WebSocket. Its pgwire listener, 14980,
-# is loopback-only and not exposed.
-EXPOSE 14978 14979 14981
+# The proxy's port, the one thing the server dials. Its pgwire
+# listener, 14980, is loopback-only and not exposed; nothing listens
+# on 14978 any more.
+EXPOSE 14979
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]

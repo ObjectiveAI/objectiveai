@@ -11,20 +11,13 @@ pub enum Error {
     #[error(transparent)]
     Fetch(#[from] fetch::Error),
 
-    /// Establishing the MCP connection to the in-container proxy
-    /// failed.
-    #[error("connecting to the MCP proxy failed: {0}")]
-    Connect(#[from] rmcp::service::ClientInitializeError),
+    /// The proxy's MCP session could not be made.
+    #[error("connecting to the proxy's MCP server failed: {0}")]
+    Connect(diverge_container_proxy_sdk::Error),
 
     /// The proxy could not list the tools.
     #[error("listing tools failed: {0}")]
     ListTools(rmcp::ServiceError),
-
-    /// The history would not serialize into a continuation token —
-    /// which plain data never fails to do, so this names a bug rather
-    /// than a circumstance.
-    #[error("the continuation would not serialize: {0}")]
-    Tokenize(serde_json::Error),
 
     /// A tool call could not be carried at all — the MCP link itself
     /// failed. The proxy converts every tool-level failure into a
@@ -35,8 +28,8 @@ pub enum Error {
 
 impl Error {
     /// The failure as JSON, in the same shape fetch reports — a
-    /// notification's message, since the stream is the only place
-    /// a loop failure can be said.
+    /// notification's message, or the error frame's, depending on
+    /// whether the loop had already spoken.
     pub fn message(&self) -> serde_json::Value {
         match self {
             Error::Fetch(error) => error.message(),
@@ -51,13 +44,6 @@ impl Error {
                 "kind": "loop",
                 "error": {
                     "kind": "list_tools",
-                    "error": error.to_string(),
-                },
-            }),
-            Error::Tokenize(error) => serde_json::json!({
-                "kind": "loop",
-                "error": {
-                    "kind": "tokenize",
                     "error": error.to_string(),
                 },
             }),
