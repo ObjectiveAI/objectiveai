@@ -27,7 +27,7 @@
 //! [`fetch_directory`] for mounted content it does not hold, and
 //! [`authorize`] whether a connector may join.
 //!
-//! [`agentic_loop`] and [`schema`] are the agents family's own
+//! [`agentic_loop`] and [`agent_schema`] are the agents family's own
 //! exchanges; they are here rather than in that family because its
 //! run and its connect both carry them.
 //!
@@ -36,6 +36,7 @@
 //! something that is not a container scope — a volume watch, the
 //! proxy inside the container.
 
+pub mod agent_schema;
 pub mod agentic_loop;
 pub mod authorize;
 pub mod command;
@@ -47,7 +48,6 @@ pub mod postgres;
 pub mod read;
 pub mod request;
 pub mod response;
-pub mod schema;
 pub mod vault;
 pub mod write_bytes;
 pub mod write_path;

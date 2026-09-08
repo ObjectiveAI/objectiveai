@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::{agentic_loop, schema};
+use crate::shared::containers::{agent_schema, agentic_loop};
 use crate::shared::containers::{filetree, postgres, read, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
@@ -21,7 +21,7 @@ use crate::shared::containers::{filetree, postgres, read, write_path};
 /// | `3` | [`Write`](Self::Write) |
 /// | `4` | [`Postgres`](Self::Postgres) |
 /// | `5` | [`AgenticLoop`](Self::AgenticLoop) |
-/// | `6` | [`Schema`](Self::Schema) |
+/// | `6` | [`AgentSchema`](Self::AgentSchema) |
 ///
 /// The first five are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
@@ -79,15 +79,16 @@ pub enum Frame {
     Postgres(postgres::request::Postgres),
     /// Run the loop. Tag `5`.
     ///
-    /// The family's own exchange: a JSON value the image defines, and
-    /// the loop's chunks back. See
+    /// The family's own exchange: a prompt and an agent, and the
+    /// loop's chunks back. See
     /// [`agentic_loop`](crate::shared::containers::agentic_loop).
     AgenticLoop(agentic_loop::request::Request),
-    /// What the loop's request may be. Tag `6`.
+    /// What the agent may be. Tag `6`.
     ///
-    /// Carries nothing; the provider answers with one JSON Schema. See
-    /// [`schema`](crate::shared::containers::schema).
-    Schema(schema::request::Request),
+    /// Carries nothing; the provider answers with the JSON Schema of
+    /// the agent value. See
+    /// [`agent_schema`](crate::shared::containers::agent_schema).
+    AgentSchema(agent_schema::request::Request),
 }
 
 /// Tag for [`Frame::Disconnect`].
@@ -108,8 +109,8 @@ const POSTGRES: u8 = 4;
 /// Tag for [`Frame::AgenticLoop`].
 const AGENTIC_LOOP: u8 = 5;
 
-/// Tag for [`Frame::Schema`].
-const SCHEMA: u8 = 6;
+/// Tag for [`Frame::AgentSchema`].
+const AGENT_SCHEMA: u8 = 6;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -143,8 +144,8 @@ impl Encode for Frame {
                 out.extend_from_slice(&[AGENTIC_LOOP]);
                 request.encode(out)
             }
-            Frame::Schema(request) => {
-                out.extend_from_slice(&[SCHEMA]);
+            Frame::AgentSchema(request) => {
+                out.extend_from_slice(&[AGENT_SCHEMA]);
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
@@ -177,8 +178,8 @@ impl Decode<'_> for Frame {
             AGENTIC_LOOP => agentic_loop::request::Request::decode(rest)
                 .map(Frame::AgenticLoop)
                 .map_err(FrameError::AgenticLoop),
-            SCHEMA => Ok(Frame::Schema(
-                schema::request::Request::decode(rest)
+            AGENT_SCHEMA => Ok(Frame::AgentSchema(
+                agent_schema::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
             tag => Err(FrameError::UnknownTag(tag)),

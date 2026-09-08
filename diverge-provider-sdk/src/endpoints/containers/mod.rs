@@ -6,9 +6,9 @@
 //! Two families, told apart by what that is:
 //!
 //! - [`agents`]: an agentic loop. The caller opens a channel carrying
-//!   the loop's request, a JSON value the image defines, and reads the
-//!   loop's chunks back on it; a `schema` channel says what that value
-//!   may be.
+//!   the loop's request — a prompt, and an agent as a JSON value the
+//!   image defines — and reads the loop's chunks back on it; an
+//!   `agent_schema` channel says what that agent value may be.
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
