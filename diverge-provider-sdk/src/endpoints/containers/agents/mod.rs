@@ -8,7 +8,12 @@
 //! what that agent value may be, so a caller can learn an image's
 //! agent without knowing the image. The agent being a value is what
 //! lets one wire carry every agent: what an image accepts is its own
-//! to say, and its schema is how it says it.
+//! to say, and its schema is how it says it. A running loop has a
+//! queue, and [`enqueue`](crate::shared::containers::enqueue) and
+//! [`dequeue`](crate::shared::containers::dequeue) are a caller's two
+//! verbs against it — a message for the conversation in flight, or
+//! everything not yet taken withdrawn — neither touching the turn
+//! being run.
 //!
 //! [`agent`] is what that value USED to be — the typed configurations
 //! of the agents this crate once named — held for reference, and not

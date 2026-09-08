@@ -28,8 +28,10 @@
 //! [`fetch_directory`] for mounted content it does not hold, and
 //! [`authorize`] whether a connector may join.
 //!
-//! [`agentic_loop`] and [`agent_schema`] are the agents family's own
-//! exchanges, here beside the rest of the wire they ride.
+//! [`agentic_loop`], [`agent_schema`], [`enqueue`] and [`dequeue`] are
+//! the agents family's own exchanges — the loop, its agent's schema,
+//! and the two verbs against a running loop's queue — here beside the
+//! rest of the wire they ride.
 //!
 //! [`filetree`](crate::shared::filetree) and [`mcp`](crate::shared::mcp)
 //! stay beside this module rather than inside it: each is ridden by
@@ -40,6 +42,8 @@ pub mod agent_schema;
 pub mod agentic_loop;
 pub mod authorize;
 pub mod command;
+pub mod dequeue;
+pub mod enqueue;
 pub mod fetch_directory;
 pub mod fetch_file;
 pub mod filetree;
