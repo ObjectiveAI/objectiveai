@@ -3,9 +3,11 @@
 //! The program an agent container runs for an openrouter agent: an
 //! HTTP server on the container's loopback, at the port the SDK's
 //! [`container_proxy::agent`] module names, that the proxy beside it
-//! forwards the provider's asks to. `POST /run` runs the one loop the
-//! container serves and streams its chunks back as server-sent
-//! events; `POST /enqueue` and `POST /dequeue` are the running loop's
+//! forwards the provider's asks to. `POST /run` runs a loop — one at
+//! a time, the lock held for exactly the stream's life, so a run
+//! after the first resumes the conversation and a run beside it is
+//! refused — and streams its chunks back as server-sent events;
+//! `POST /enqueue` and `POST /dequeue` are the running loop's
 //! queue; `GET /schema` is the JSON Schema of the agent value this
 //! image accepts. Its tool calls go through the proxy's MCP server;
 //! its key comes from the vault the caller holds; the history it
@@ -33,8 +35,10 @@
 //! error of its own: it is chunks, and only chunks.
 
 mod agent;
+mod claim;
 mod continuation;
 mod fetch;
+mod history;
 mod r#loop;
 mod queue;
 // The wire modules carry OpenRouter's COMPLETE shapes, which is more
@@ -51,7 +55,6 @@ mod stream_once;
 
 use std::convert::Infallible;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::Json;
 use axum::extract::State;
@@ -70,19 +73,13 @@ use futures_util::{Stream, StreamExt as _};
 use serde_json::Value;
 
 use crate::agent::Agent;
+use crate::claim::Claim;
 use crate::continuation::Continuation;
 use crate::queue::QUEUE;
 use crate::r#loop::Item;
 
 /// The vault key the upstream's credential is kept under.
 const API_KEY: &str = "OPENROUTER_API_KEY";
-
-/// Whether the container's one run has arrived.
-///
-/// A container serves one loop, ever: the history it resumes from is
-/// loaded once and its queue is one run's. A second `/run` is refused
-/// with `409`, and the flag is never cleared.
-static CLAIMED: AtomicBool = AtomicBool::new(false);
 
 /// A refusal: the status, and a JSON reason.
 type Refusal = (StatusCode, Json<Value>);
@@ -122,31 +119,40 @@ async fn serve() {
 /// and the reason, with no stream begun. Then the stream — the first
 /// chunk, then every chunk as it comes, each history at rest saved as
 /// it is reached, and a failure after the first chunk a fatal
-/// notification. Every refusal before the loop exists also closes
-/// the queue: the container is spent, and a message waiting for a
-/// loop that will never look is missed honestly instead. Once the
-/// loop exists its own guard closes the queue however the run ends —
-/// the stream dropped by a caller that left included.
+/// notification.
+///
+/// One run at a time: the [`Claim`] is taken first and refused with
+/// `409` while another holds it, and it lives exactly as long as the
+/// stream — released on every refusal below, and otherwise captured
+/// into the stream, so it drops with it, finished or abandoned. The
+/// queue is opened for this run right behind the claim; every
+/// refusal before the loop exists closes it again, so a message
+/// waiting for a loop that will never look is missed honestly. Once
+/// the loop exists its own guard closes the queue however the run
+/// ends. The history comes from the cache when this container has
+/// loaded or saved one, and from the row only the first time.
 async fn run(
     State(client): State<Arc<Client>>,
     Json(request): Json<run_loop::request::Request>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Refusal> {
-    if CLAIMED.swap(true, Ordering::SeqCst) {
-        // Not a refusal of the kind below: the running loop owns the
-        // queue, and this ask changes nothing.
+    // Not a refusal of the kind below: the running loop owns the
+    // queue, and this ask changes nothing.
+    let Some(claim) = Claim::take() else {
         return Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
-                "kind": "claimed",
-                "error": "this container serves one run, and it has already begun",
+                "kind": "busy",
+                "error": "a run is in progress",
             })),
         ));
-    }
+    };
+    let generation = QUEUE.open().await;
 
     let agent: Agent = match serde_json::from_value(request.agent) {
         Ok(agent) => agent,
         Err(error) => {
             return Err(refuse(
+                generation,
                 StatusCode::BAD_REQUEST,
                 serde_json::json!({
                     "kind": "agent",
@@ -162,6 +168,7 @@ async fn run(
             Ok(api_key) => api_key,
             Err(_) => {
                 return Err(refuse(
+                generation,
                     StatusCode::INTERNAL_SERVER_ERROR,
                     serde_json::json!({
                         "kind": "api_key",
@@ -173,6 +180,7 @@ async fn run(
         },
         Ok(None) => {
             return Err(refuse(
+                generation,
                 StatusCode::INTERNAL_SERVER_ERROR,
                 serde_json::json!({
                     "kind": "api_key",
@@ -183,6 +191,7 @@ async fn run(
         }
         Err(error) => {
             return Err(refuse(
+                generation,
                 StatusCode::INTERNAL_SERVER_ERROR,
                 serde_json::json!({
                     "kind": "api_key",
@@ -201,6 +210,7 @@ async fn run(
         Ok(pool) => pool,
         Err(error) => {
             return Err(refuse(
+                generation,
                 StatusCode::INTERNAL_SERVER_ERROR,
                 serde_json::json!({
                     "kind": "continuation",
@@ -210,11 +220,17 @@ async fn run(
             .await);
         }
     };
-    let continuation = match Continuation::load(&pool).await {
-        Ok(continuation) => continuation,
-        Err(error) => {
-            return Err(refuse(StatusCode::INTERNAL_SERVER_ERROR, error.message()).await);
-        }
+    let continuation = match history::cached().await {
+        Some(continuation) => continuation,
+        None => match Continuation::load(&pool).await {
+            Ok(continuation) => {
+                history::remember(continuation.clone()).await;
+                continuation
+            }
+            Err(error) => {
+                return Err(refuse(generation, StatusCode::INTERNAL_SERVER_ERROR, error.message()).await);
+            }
+        },
     };
 
     let mut items = match r#loop::r#loop(
@@ -223,12 +239,13 @@ async fn run(
         agent,
         continuation,
         request.prompt,
+        generation,
     )
     .await
     {
         Ok(items) => items,
         Err(error) => {
-            return Err(refuse(StatusCode::INTERNAL_SERVER_ERROR, error.message()).await);
+            return Err(refuse(generation, StatusCode::INTERNAL_SERVER_ERROR, error.message()).await);
         }
     };
 
@@ -244,6 +261,7 @@ async fn run(
             if let Err(error) = history.save(&pool).await {
                 return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error.message())));
             }
+            history::remember(Some(history)).await;
             None
         }
         Some(Err(error)) => {
@@ -252,6 +270,8 @@ async fn run(
     };
 
     Ok(Sse::new(async_stream::stream! {
+        // The lock lives here now: it drops when the stream does.
+        let _claim = claim;
         let mut items = items;
         if let Some(chunk) = first {
             yield Ok(event(&chunk));
@@ -266,6 +286,7 @@ async fn run(
                         yield Ok(event(&notification(error.message(), true)));
                         return;
                     }
+                    history::remember(Some(history)).await;
                 }
                 Err(error) => {
                     yield Ok(event(&notification(error.message(), true)));
@@ -319,10 +340,11 @@ async fn dequeue() -> Json<Outcome> {
     }
 }
 
-/// A refusal before the loop exists: the queue closed, then the
-/// status and the reason.
-async fn refuse(status: StatusCode, message: Value) -> Refusal {
-    QUEUE.close().await;
+/// A refusal before the loop exists: this run's queue closed, then
+/// the status and the reason. The claim is the caller's local, and
+/// drops on its return.
+async fn refuse(generation: u64, status: StatusCode, message: Value) -> Refusal {
+    QUEUE.close(generation).await;
     (status, Json(message))
 }
 
