@@ -22,8 +22,13 @@
 //! `/filetree` the server opens gets the container's filesystem,
 //! watched from `/`, as a snapshot and then its changes; every
 //! `/read` one file out of it, its bytes then the close; and every
-//! `/write` one file into it, moved into place whole.
+//! `/write` one file into it, moved into place whole. And for an
+//! agent container the proxy is the loop's face: `/run-loop` hands
+//! the request to the harness attached at `/run-loop/agent` and
+//! relays its chunks back, and `/agent-schema` answers the schema the
+//! harness posted at `/agent-schema/agent`.
 
+mod agent_schema;
 mod command;
 mod filetree;
 mod mcp;
@@ -31,6 +36,7 @@ mod paths;
 mod postgres;
 mod read;
 mod requests;
+mod run_loop;
 mod state;
 mod vault;
 mod write;
@@ -64,6 +70,9 @@ async fn run() {
                 .unwrap_or_default(),
         ),
     ));
+
+    let run_loop = Arc::new(run_loop::RunLoop::new());
+    let agent_schema = Arc::new(agent_schema::AgentSchema::new());
 
     tokio::spawn(mcp::notifications(
         Arc::clone(&requests),
@@ -132,10 +141,16 @@ async fn run() {
         .route("/filetree", axum::routing::any(ws::filetree))
         .route("/read", axum::routing::any(ws::read))
         .route("/write", axum::routing::any(ws::write))
+        .route("/run-loop", axum::routing::any(run_loop::server))
+        .route("/run-loop/agent", axum::routing::any(run_loop::harness))
+        .route("/agent-schema", axum::routing::any(agent_schema::server))
+        .route("/agent-schema/agent", axum::routing::post(agent_schema::agent))
         .nest_service("/mcp/agent", agent)
         .with_state(state::AppState {
             requests: Arc::clone(&requests),
             ignore,
+            run_loop,
+            agent_schema,
         });
 
     // Both listeners or neither: a proxy that could answer asks but
