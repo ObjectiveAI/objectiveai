@@ -32,7 +32,7 @@
 //! | `/agent/dequeue`                    | the container answers whether the queue held anything, then the close |
 //!
 //! The program inside the container has a listener of its own,
-//! [`INSIDE_PORT`], `14981`, on the loopback: `/mcp`, the agent's MCP
+//! [`INSIDE_PORT`], `80`, on the loopback: `/mcp`, the agent's MCP
 //! SERVER — the Streamable HTTP endpoint its MCP client speaks to,
 //! every exchange one ask on `/requests` — `/vault/<op>`, the vault
 //! as plain HTTP, and `/command`. Two listeners, one per audience, so
@@ -140,4 +140,4 @@ pub const OUTSIDE_PORT: u16 = 14979;
 /// The port the proxy listens for the PROGRAM on, inside the
 /// container, on the loopback only: `/mcp`, `/vault/<op>` and
 /// `/command`, the surfaces the program beside the proxy dials.
-pub const INSIDE_PORT: u16 = 14981;
+pub const INSIDE_PORT: u16 = 80;

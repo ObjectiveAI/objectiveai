@@ -5,7 +5,7 @@
 //! `14979`, where the container's asks go out on `/requests`, the
 //! server answers each on the ask's own path, and the paths the
 //! server opens on its own — the filetree, a file read, a file write,
-//! the agent's four — are served; and the program's side on `14981`,
+//! the agent's four — are served; and the program's side on `80`,
 //! loopback only, where the program beside the proxy finds its MCP
 //! server, its vault and its commands, with no path having to say
 //! which side it faces.
@@ -19,7 +19,7 @@
 //! at `/vault/<op>`, each call one ask, answered on
 //! `/vault/<op>/{channel}`; a command is `POST /command`, its
 //! items streamed back as they land from `/command/{channel}`. The
-//! proxy is a database: a pgwire listener on the loopback at `14980`,
+//! proxy is a database: a pgwire listener on the loopback at `81`,
 //! each connection the driver opens announced as one ask and carried,
 //! raw, on `/postgres/{channel}`. And it is the caller's window: every
 //! `/filetree` the server opens gets the container's filesystem,

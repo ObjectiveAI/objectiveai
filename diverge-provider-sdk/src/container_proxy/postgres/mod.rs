@@ -61,4 +61,4 @@ pub mod execute;
 /// of the proxy's own ports — [`OUTSIDE_PORT`](super::OUTSIDE_PORT)
 /// or [`INSIDE_PORT`](super::INSIDE_PORT) — because pgwire is not
 /// HTTP and cannot share a listener with the paths.
-pub const LOOPBACK_PORT: u16 = 14980;
+pub const LOOPBACK_PORT: u16 = 81;
