@@ -1,7 +1,7 @@
 //! The loop itself: connect, learn the tools, run the turns.
 
 use diverge_container_proxy_sdk::Client;
-use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
+use crate::agent::Agent;
 use diverge_provider_sdk::shared::containers::run_loop::response;
 use diverge_provider_sdk::shared::containers::run_loop::response::{
     AgenticLoopChunk, ToolResponseChunk, UserChunk,
@@ -79,7 +79,7 @@ use crate::request::Tool;
 pub async fn r#loop(
     client: &Client,
     api_key: &str,
-    agent: openrouter::Agent,
+    agent: Agent,
     continuation: Option<Continuation>,
     prompt: String,
 ) -> Result<

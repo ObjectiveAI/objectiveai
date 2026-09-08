@@ -1,6 +1,6 @@
 //! Provider routing options: quantization.
 
-use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
+use crate::agent;
 use serde::Serialize;
 
 /// Model quantization levels for provider filtering.
@@ -39,28 +39,28 @@ pub enum ProviderQuantization {
 }
 
 /// The provider request's quantization, variant for variant.
-impl From<openrouter::ProviderQuantization> for ProviderQuantization {
-    fn from(quantization: openrouter::ProviderQuantization) -> Self {
+impl From<agent::ProviderQuantization> for ProviderQuantization {
+    fn from(quantization: agent::ProviderQuantization) -> Self {
         match quantization {
-            openrouter::ProviderQuantization::Int4 => {
+            agent::ProviderQuantization::Int4 => {
                 ProviderQuantization::Int4
             }
-            openrouter::ProviderQuantization::Int8 => {
+            agent::ProviderQuantization::Int8 => {
                 ProviderQuantization::Int8
             }
-            openrouter::ProviderQuantization::Fp4 => ProviderQuantization::Fp4,
-            openrouter::ProviderQuantization::Fp6 => ProviderQuantization::Fp6,
-            openrouter::ProviderQuantization::Fp8 => ProviderQuantization::Fp8,
-            openrouter::ProviderQuantization::Fp16 => {
+            agent::ProviderQuantization::Fp4 => ProviderQuantization::Fp4,
+            agent::ProviderQuantization::Fp6 => ProviderQuantization::Fp6,
+            agent::ProviderQuantization::Fp8 => ProviderQuantization::Fp8,
+            agent::ProviderQuantization::Fp16 => {
                 ProviderQuantization::Fp16
             }
-            openrouter::ProviderQuantization::Bf16 => {
+            agent::ProviderQuantization::Bf16 => {
                 ProviderQuantization::Bf16
             }
-            openrouter::ProviderQuantization::Fp32 => {
+            agent::ProviderQuantization::Fp32 => {
                 ProviderQuantization::Fp32
             }
-            openrouter::ProviderQuantization::Unknown => {
+            agent::ProviderQuantization::Unknown => {
                 ProviderQuantization::Unknown
             }
         }

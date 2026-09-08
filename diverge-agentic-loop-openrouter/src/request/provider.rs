@@ -1,6 +1,6 @@
 //! Provider preferences for OpenRouter requests.
 
-use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
+use crate::agent;
 use serde::Serialize;
 
 /// Provider preferences from the Agent configuration.
@@ -27,8 +27,8 @@ pub struct Provider {
 }
 
 /// The provider request's routing preferences, field for field.
-impl From<openrouter::Provider> for Provider {
-    fn from(provider: openrouter::Provider) -> Self {
+impl From<agent::Provider> for Provider {
+    fn from(provider: agent::Provider) -> Self {
         Provider {
             allow_fallbacks: provider.allow_fallbacks,
             require_parameters: provider.require_parameters,

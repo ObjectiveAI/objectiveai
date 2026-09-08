@@ -5,7 +5,10 @@
 //! on an agent container's request is a JSON value the image defines;
 //! these are the typed shapes that value had when this crate named the
 //! agents itself, kept so the next thing that needs one can start from
-//! them.
+//! them. An image that has been brought up to the containers API owns
+//! its agent itself and leaves here: the openrouter agent lives in
+//! `diverge-agentic-loop-openrouter` now, beside the loop that reads
+//! it and the schema it states.
 //!
 //! POST-TRANSFORM. An agent as authored carries things that shape a
 //! request before a provider ever sees it: a system prompt, prefix and
@@ -22,7 +25,6 @@ pub mod claude_code;
 pub mod codex;
 pub mod eliza;
 pub mod hermes;
-pub mod openrouter;
 pub mod python;
 
 mod agent;

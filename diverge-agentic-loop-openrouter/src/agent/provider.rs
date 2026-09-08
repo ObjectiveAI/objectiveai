@@ -1,5 +1,6 @@
 //! Provider routing preferences.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Which backing providers OpenRouter may route to, and in what order.
@@ -7,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// OpenRouter fronts many providers for one model, and they differ in
 /// price, throughput and quantization — so "which model" does not
 /// fully determine what answers.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Provider {
     /// Whether to fall back to a provider outside the preferences when
     /// none of them can serve the request.
@@ -35,7 +36,7 @@ pub struct Provider {
 /// A weight quantization level.
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash,
-    Serialize, Deserialize,
+    Serialize, Deserialize, JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderQuantization {

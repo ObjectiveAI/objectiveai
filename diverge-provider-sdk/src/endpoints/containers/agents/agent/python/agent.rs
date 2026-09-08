@@ -63,7 +63,7 @@ pub struct Agent {
     /// version constraint.
     ///
     /// Precision is the author's statement of intent, exactly as it is
-    /// for [`model`](super::super::openrouter::Agent::model) one
+    /// for `model` one
     /// upstream over: a loose specifier says "track updates", an exact
     /// one says "freeze this". Content addressing identifies the
     /// definition, not the execution — an id means two runs were given

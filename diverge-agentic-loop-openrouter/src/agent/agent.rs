@@ -1,6 +1,7 @@
 //! The OpenRouter agent.
 
 use indexmap::IndexMap;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -11,7 +12,7 @@ use super::{
 ///
 /// The widest parameter set of any upstream, because OpenRouter fronts
 /// many providers and exposes what each of them accepts.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Agent {
     /// The discriminator. Always `openrouter`.
     pub upstream: Upstream,
