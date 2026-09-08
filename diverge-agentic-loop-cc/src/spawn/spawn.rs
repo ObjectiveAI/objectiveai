@@ -392,7 +392,9 @@ async fn close() {
 /// it and drops on that task's next line after the settlement: the
 /// next run can only open once this one's locks are cleared and its
 /// fates decided, so a settlement arriving late can never clear a
-/// run that came after. Nothing interleaves — this drops exactly
+/// run that came after — and a request that lands meanwhile WAITS
+/// for the settlement rather than being refused, because the claim
+/// is marked settling before the task is spawned. Nothing interleaves — this drops exactly
 /// once per run, after the generator's own inline [`close`], and
 /// the next [`spawn`] can only follow the release.
 struct Teardown {
@@ -402,6 +404,11 @@ struct Teardown {
 impl Drop for Teardown {
     fn drop(&mut self) {
         let claim = self.claim.take();
+        // Settling, from this instant: a request landing while the
+        // task below runs waits for it rather than being refused.
+        if let Some(claim) = &claim {
+            claim.settling();
+        }
         tokio::spawn(async move {
             close().await;
             drop(claim);
