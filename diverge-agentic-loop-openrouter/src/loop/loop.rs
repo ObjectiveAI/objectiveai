@@ -4,7 +4,7 @@ use diverge_container_proxy_sdk::Client;
 use diverge_provider_sdk::endpoints::containers::agents::agent::openrouter;
 use diverge_provider_sdk::shared::containers::run_loop::response;
 use diverge_provider_sdk::shared::containers::run_loop::response::{
-    AgenticLoopChunk, ToolResponseChunk,
+    AgenticLoopChunk, ToolResponseChunk, UserChunk,
 };
 use futures_util::stream::FuturesUnordered;
 use futures_util::{Stream, StreamExt as _};
@@ -14,6 +14,7 @@ use rmcp::{Peer, RoleClient};
 use super::{Error, Item};
 use crate::continuation::{Continuation, ContinuationItem};
 use crate::fetch;
+use crate::queue::{CloseOnDrop, QUEUE};
 use crate::request::Tool;
 
 /// Run the whole agentic loop, and stream what it produces.
@@ -58,7 +59,23 @@ use crate::request::Tool;
 /// the old salvage made continuous: a loop that dies mid-turn leaves
 /// the last rest already saved, and never an unanswered call or a
 /// partial response in it. An empty turn is not a rest — its opening
-/// prompt hangs unanswered — and a call-less turn ends the loop.
+/// prompt hangs unanswered.
+///
+/// # The queue is consulted at the seams
+///
+/// The same two seams Claude Code uses. After a turn's tool calls
+/// have all answered, everything pending in [`QUEUE`] is delivered —
+/// a `user` chunk per message, after the tool responses, which is
+/// the position the message actually enters the conversation — and
+/// each becomes its own `Prompt` item in the history, unjoined and
+/// unwrapped: how delivered prompts sit inside a tool message is the
+/// request builder's derivation, not the continuation's business.
+/// And when a turn ends with NO tool calls, the queue gets a last
+/// look, atomically: messages pending there open another turn, and
+/// only an empty queue — closed in the same lock hold that proved it
+/// empty — lets the loop end. Every delivery answers its `/enqueue`;
+/// everything still pending when the stream ends, however it ends,
+/// is missed.
 pub async fn r#loop(
     client: &Client,
     api_key: &str,
@@ -69,6 +86,13 @@ pub async fn r#loop(
     impl Stream<Item = Result<Item, Error>> + Send + Unpin + use<>,
     Error,
 > {
+    // First, before anything can fail or unwind: the guard that
+    // closes the queue however this run ends. From here on there is
+    // no exit — Err return, panic, or the stream below dying at any
+    // age, polled or not — that leaves the queue open and a pending
+    // message waiting on a loop that will never look.
+    let close = CloseOnDrop;
+
     // The MCP session: the proxy beside us, dialed by the client the
     // first time it is asked and held for the program's life.
     let peer = client.mcp_peer().await.map_err(Error::Connect)?.clone();
@@ -90,7 +114,15 @@ pub async fn r#loop(
     items.push(ContinuationItem::Prompt(prompt));
 
     let api_key = api_key.to_string();
+    // The guard moves INTO the stream — but as a captured local, not
+    // a body-created one: a generator's body runs on first poll, so
+    // a guard born inside it would not exist in the window where the
+    // stream is dropped unpolled — and that window is exactly the
+    // kind of nanosecond it guards. Captured, it dies with the
+    // stream, polled or not; the graceful path has already closed
+    // the queue by then, and every close after the first is a no-op.
     Ok(Box::pin(async_stream::stream! {
+        let _close = close;
         let peer = peer;
         let mut stream = stream;
         let mut items = items;
@@ -138,50 +170,88 @@ pub async fn r#loop(
             let spoke = !turn.is_empty();
             items.extend(turn.into_iter().map(ContinuationItem::Chunk));
 
-            // No calls: the model is done. A turn that said something
-            // is a rest, and the last one.
             if calls.is_empty() {
+                // No calls: the model may be done. A turn that said
+                // something is at rest, and the rest is yielded
+                // BEFORE the last look: a prompt delivered here would
+                // trail the assistant's answer with nothing to fold
+                // onto, so it stays out of this rest — and a later
+                // turn that dies loses its place, accepted. Then the
+                // look, atomic: an empty queue is CLOSED in the same
+                // lock hold that proved it empty, and the loop ends;
+                // messages pending open another turn, each its own
+                // user chunk and its own Prompt item.
                 if spoke {
                     yield Ok(Item::Rest(Continuation(items.clone())));
                 }
-                return;
-            }
-
-            // Every call at once; every answer the moment it lands.
-            let mut pending = FuturesUnordered::new();
-            for (id, name, arguments) in calls {
-                let peer = peer.clone();
-                pending.push(async move {
-                    let mut params = CallToolRequestParams::new(name);
-                    // Arguments that never became a JSON object are
-                    // sent as none; the tool's refusal comes back as a
-                    // tool response, which is the model's to read.
-                    params.arguments = serde_json::from_str(&arguments).ok();
-                    (id, peer.call_tool(params).await)
-                });
-            }
-            while let Some((id, result)) = pending.next().await {
-                match result {
-                    Ok(result) => {
-                        let chunk = ToolResponseChunk {
-                            r#type: Default::default(),
-                            parent_tool_call_id: None,
-                            id,
-                            inner: result,
-                        };
-                        let mut kept = AgenticLoopChunk::ToolResponse(chunk.clone());
-                        strip(&mut kept);
-                        items.push(ContinuationItem::Chunk(kept));
-                        yield Ok(Item::Chunk(AgenticLoopChunk::ToolResponse(chunk)));
-                    }
-                    Err(error) => {
-                        yield Err(Error::CallTool(error));
-                        return;
+                let taken = QUEUE.take_or_close().await;
+                if taken.is_empty() {
+                    return;
+                }
+                for message in taken {
+                    yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
+                        r#type: Default::default(),
+                        prompt: message.prompt.clone(),
+                        meta: None,
+                    })));
+                    items.push(ContinuationItem::Prompt(message.prompt.clone()));
+                    message.deliver();
+                }
+            } else {
+                // Every call at once; every answer the moment it lands.
+                let mut pending = FuturesUnordered::new();
+                for (id, name, arguments) in calls {
+                    let peer = peer.clone();
+                    pending.push(async move {
+                        let mut params = CallToolRequestParams::new(name);
+                        // Arguments that never became a JSON object are
+                        // sent as none; the tool's refusal comes back as a
+                        // tool response, which is the model's to read.
+                        params.arguments = serde_json::from_str(&arguments).ok();
+                        (id, peer.call_tool(params).await)
+                    });
+                }
+                while let Some((id, result)) = pending.next().await {
+                    match result {
+                        Ok(result) => {
+                            let chunk = ToolResponseChunk {
+                                r#type: Default::default(),
+                                parent_tool_call_id: None,
+                                id,
+                                inner: result,
+                            };
+                            let mut kept = AgenticLoopChunk::ToolResponse(chunk.clone());
+                            strip(&mut kept);
+                            items.push(ContinuationItem::Chunk(kept));
+                            yield Ok(Item::Chunk(AgenticLoopChunk::ToolResponse(chunk)));
+                        }
+                        Err(error) => {
+                            yield Err(Error::CallTool(error));
+                            return;
+                        }
                     }
                 }
+                // The tool seam: everything enqueued while the tools
+                // ran is delivered here, after the answers and before
+                // the model speaks again — the position Claude Code
+                // gives it, and the position it truly enters the
+                // conversation.
+                for message in QUEUE.take().await {
+                    yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
+                        r#type: Default::default(),
+                        prompt: message.prompt.clone(),
+                        meta: None,
+                    })));
+                    items.push(ContinuationItem::Prompt(message.prompt.clone()));
+                    message.deliver();
+                }
+                // Every answer is in and the seam's deliveries with
+                // them: the history is at rest. A resume from here
+                // ends on the responses — or on prompts that FOLD ONTO
+                // them at request-building time, which is a valid
+                // resume and keeps the delivered messages delivered.
+                yield Ok(Item::Rest(Continuation(items.clone())));
             }
-            // Every answer is in: the history is at rest.
-            yield Ok(Item::Rest(Continuation(items.clone())));
 
             // The next turn: fresh tools, fresh request, no new
             // prompt — the history carries the conversation now.
@@ -231,8 +301,9 @@ async fn list(peer: &Peer<RoleClient>) -> Result<Vec<Tool>, Error> {
 /// streamed kinds coalesce through the SDK's own [`response::push`]:
 /// the history keeps what was said, not how it was cut. Usage and
 /// notifications say nothing the conversation replays, and are not
-/// kept; user chunks are not either, because this upstream never
-/// produces one.
+/// kept; user chunks are not either — a delivered message enters the
+/// history as its own `Prompt` item at the seam that delivered it,
+/// not as a chunk.
 fn accumulate(turn: &mut Vec<AgenticLoopChunk>, chunk: &AgenticLoopChunk) {
     if matches!(
         chunk,

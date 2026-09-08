@@ -46,15 +46,15 @@ COPY --from=build \
     /usr/local/bin/diverge-container-proxy
 
 # Two programs, one container: the proxy in the background, the loop
-# in the foreground as the container's own life — it attaches to the
-# proxy, runs the one loop the server asks for, and exits.
+# in the foreground as the container's own life — an HTTP server on
+# the loopback the proxy forwards the server's asks to.
 RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-proxy &\nexec /usr/local/bin/diverge-agentic-loop-openrouter\n' \
     > /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
 
 # The proxy's port, the one thing the server dials. Its pgwire
-# listener, 14980, is loopback-only and not exposed; nothing listens
-# on 14978 any more.
+# listener, 14980, and the loop's own server — 8080, or whatever
+# `PORT` names — are loopback-only and not exposed.
 EXPOSE 14979
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]

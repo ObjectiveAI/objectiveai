@@ -17,6 +17,11 @@ publish = false
 # program — the request, the chunks' way out, the vault, the database.
 diverge-provider-sdk = { path = "../diverge-provider-sdk" }
 diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk" }
+# The loop's door: an HTTP server on the loopback the proxy forwards
+# to — `/run` as server-sent events, the queue's two verbs, the
+# schema. Default features carry the JSON extractor and the HTTP/1
+# server; SSE is axum's own.
+axum = { version = "0.8.9" }
 # `Stream` and its combinators, for the chunk stream the response is.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
 # The MCP types the tool calls are made of; the session itself is the
@@ -34,8 +39,8 @@ mime2ext = { version = "0.1.54" }
 rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
-# The runtime. No `macros` — the runtime is built in main, not
-# attributed onto it.
+# The runtime under the listener. No `macros` — the runtime is built
+# in main, not attributed onto it.
 tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }
 # The SSE client over reqwest.
 reqwest-eventsource = "0.6.0"

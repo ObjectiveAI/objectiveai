@@ -1744,6 +1744,7 @@ name = "diverge-agentic-loop-openrouter"
 version = "2.3.0"
 dependencies = [
  "async-stream",
+ "axum",
  "diverge-container-proxy-sdk",
  "diverge-provider-sdk",
  "eventsource-stream",
@@ -1788,8 +1789,10 @@ dependencies = [
  "axum",
  "bytes",
  "diverge-provider-sdk",
+ "eventsource-stream",
  "futures-util",
  "notify",
+ "reqwest 0.12.28",
  "rmcp 3.1.2",
  "serde_json",
  "tokio",
@@ -1805,9 +1808,7 @@ dependencies = [
  "futures-util",
  "reqwest 0.12.28",
  "rmcp 3.1.2",
- "serde_json",
  "tokio",
- "tokio-tungstenite 0.29.0",
 ]
 
 [[package]]
