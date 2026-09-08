@@ -4,8 +4,10 @@
 //! prompt and an agent on its
 //! [`request`](crate::endpoints::containers::agents::run::client::request::Frame),
 //! so the channel that starts the loop has nothing left to say: the
-//! caller opens it with [`request::Request`], which carries nothing,
-//! and the provider answers with the loop as it happens — one
+//! caller's [`RunLoop`](crate::endpoints::containers::agents::run::client::channel_request::Frame::RunLoop)
+//! carries no payload at all — a direction that carries nothing has
+//! no request here, as everywhere in this crate — and the provider
+//! answers with the loop as it happens: one
 //! [`response::Frame`] per chunk, then the finish, or an
 //! [`Error`](response::Frame::Error) when there is no loop to report
 //! on. A container runs one loop; what a second opening means while
@@ -25,5 +27,4 @@
 //! flattened, so what a model produces and what a tool returns need
 //! no translation between them. See [`response::AgenticLoopChunk`].
 
-pub mod request;
 pub mod response;
