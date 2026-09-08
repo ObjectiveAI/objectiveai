@@ -57,7 +57,8 @@ pub mod response;
 pub mod execute;
 
 /// The port the container's database driver dials, on the
-/// container's loopback: the proxy's pgwire listener. Not on the
-/// proxy's own [`PORT`](super::PORT), because pgwire is not HTTP and
-/// cannot share a listener with the paths.
+/// container's loopback: the proxy's pgwire listener. Not on either
+/// of the proxy's own ports — [`OUTSIDE_PORT`](super::OUTSIDE_PORT)
+/// or [`INSIDE_PORT`](super::INSIDE_PORT) — because pgwire is not
+/// HTTP and cannot share a listener with the paths.
 pub const LOOPBACK_PORT: u16 = 14980;

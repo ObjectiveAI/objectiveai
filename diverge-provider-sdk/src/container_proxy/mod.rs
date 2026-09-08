@@ -10,9 +10,10 @@
 //! and this module is what rides its WebSockets.
 //!
 //! Nothing in the container listens for the server but the proxy. It
-//! listens on [`PORT`], `14979`, and the server dials every path on
-//! it — an agent container's loop included, which the proxy forwards
-//! to the agent's own server beside it:
+//! listens for the server on [`OUTSIDE_PORT`], `14979`, and the
+//! server dials every path on it — an agent container's loop
+//! included, which the proxy forwards to the agent's own server
+//! beside it:
 //!
 //! | path                                | carries |
 //! |-------------------------------------|---------|
@@ -30,13 +31,16 @@
 //! | `/agent/enqueue`                    | the server sends a message for the loop's queue; the container answers its fate, when known, then the close |
 //! | `/agent/dequeue`                    | the container answers whether the queue held anything, then the close |
 //!
-//! One thing does not fit on the port: the pgwire listener the
-//! container's database driver dials is raw TCP, not HTTP, so it is
-//! its own loopback port — [`postgres::LOOPBACK_PORT`]. And for an
-//! agent container the proxy also serves the agent's MCP SERVER —
-//! the Streamable HTTP endpoint its MCP client speaks to — at
-//! `/mcp/agent` on this same port; that surface is MCP's own and
-//! not a wire of this module. And the four `/agent/*` paths are not
+//! The program inside the container has a listener of its own,
+//! [`INSIDE_PORT`], `14981`, on the loopback: `/mcp`, the agent's MCP
+//! SERVER — the Streamable HTTP endpoint its MCP client speaks to,
+//! every exchange one ask on `/requests` — `/vault/<op>`, the vault
+//! as plain HTTP, and `/command`. Two listeners, one per audience, so
+//! no path on either has to say which side it faces; those surfaces
+//! are the program's, not wires of this module. One thing fits on
+//! neither: the pgwire listener the container's database driver
+//! dials is raw TCP, not HTTP, so it is its own loopback port —
+//! [`postgres::LOOPBACK_PORT`]. And the four `/agent/*` paths are not
 //! the proxy's to answer: each is one call to the agent container's
 //! own HTTP server, on the loopback at [`agent::port()`], forwarded —
 //! the proxy holds nothing of the loop's, and dials that server only
@@ -128,6 +132,12 @@ pub mod run_loop;
 pub mod vault;
 pub mod write;
 
-/// The port the proxy listens on, inside the container. The server
-/// dials every path on it.
-pub const PORT: u16 = 14979;
+/// The port the proxy listens for the SERVER on, inside the
+/// container: every path of this module is dialed here, from
+/// outside.
+pub const OUTSIDE_PORT: u16 = 14979;
+
+/// The port the proxy listens for the PROGRAM on, inside the
+/// container, on the loopback only: `/mcp`, `/vault/<op>` and
+/// `/command`, the surfaces the program beside the proxy dials.
+pub const INSIDE_PORT: u16 = 14981;
