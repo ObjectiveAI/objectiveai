@@ -75,13 +75,15 @@ use crate::request::Tool;
 /// only an empty queue — closed in the same lock hold that proved it
 /// empty — lets the loop end. Every delivery answers its `/enqueue`;
 /// everything still pending when the stream ends, however it ends,
-/// is missed.
+/// is missed. `generation` is the run's number, from
+/// [`QUEUE.open`](crate::queue::Queue::open), quoted by the close.
 pub async fn r#loop(
     client: &Client,
     api_key: &str,
     agent: Agent,
     continuation: Option<Continuation>,
     prompt: String,
+    generation: u64,
 ) -> Result<
     impl Stream<Item = Result<Item, Error>> + Send + Unpin + use<>,
     Error,
@@ -90,8 +92,9 @@ pub async fn r#loop(
     // closes the queue however this run ends. From here on there is
     // no exit — Err return, panic, or the stream below dying at any
     // age, polled or not — that leaves the queue open and a pending
-    // message waiting on a loop that will never look.
-    let close = CloseOnDrop;
+    // message waiting on a loop that will never look. It carries the
+    // run's number, so a close that runs late cannot touch the next.
+    let close = CloseOnDrop(generation);
 
     // The MCP session: the proxy beside us, dialed by the client the
     // first time it is asked and held for the program's life.

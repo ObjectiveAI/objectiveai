@@ -4,9 +4,11 @@
 //! `/dequeue` handlers put messages in and clear them, the loop
 //! takes them at its seams, and every message's HTTP response waits
 //! on the fate whoever acted sends — the SDK's own [`Fate`], because
-//! the fate IS the response. A true global, because the container is
-//! one run — the door already enforces that — and one run has one
-//! queue.
+//! the fate IS the response. A true global, because the container
+//! runs one loop at a time — the door enforces that — and one run has
+//! one queue: [`Queue::open`] makes it the next run's, and every
+//! close names the run it belongs to, so a close that arrives late
+//! cannot touch the run that came after.
 
 use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
 use tokio::sync::Mutex;
@@ -16,7 +18,8 @@ use tokio::sync::oneshot;
 pub static QUEUE: Queue = Queue {
     state: Mutex::const_new(State {
         pending: Vec::new(),
-        closed: false,
+        closed: true,
+        generation: 0,
     }),
 };
 
@@ -44,11 +47,11 @@ impl Pending {
     }
 }
 
-/// The queue itself: a [`Mutex`] around the pending messages and the
-/// closed flag, and nothing else. Every operation is a few pushes
-/// and takes — nothing awaits while holding the lock; the waiting,
-/// which is the whole substance of an enqueue, happens on the
-/// [`oneshot`] outside it.
+/// The queue itself: a [`Mutex`] around the pending messages, the
+/// closed flag and the run's number, and nothing else. Every
+/// operation is a few pushes and takes — nothing awaits while
+/// holding the lock; the waiting, which is the whole substance of an
+/// enqueue, happens on the [`oneshot`] outside it.
 pub struct Queue {
     state: Mutex<State>,
 }
@@ -65,11 +68,27 @@ struct State {
     /// that empties it — [`Queue::close`]. That is what makes "an
     /// enqueue that will never be delivered" impossible: there is no
     /// instant between the loop's last look and the closing in which
-    /// one could land.
+    /// one could land. Closed to begin with: no run, no queue.
     closed: bool,
+    /// Which run the queue is: counted up by [`Queue::open`], and
+    /// quoted by every [`Queue::close`], so a close spawned by a run
+    /// that has ended — [`CloseOnDrop`] cannot await, so its close
+    /// runs later — is a no-op once the next run has opened.
+    generation: u64,
 }
 
 impl Queue {
+    /// The next run's queue: open, and one generation on. Called by
+    /// the run before anything of it can fail, so that everything
+    /// enqueued from here on is this run's to take — or, if the run
+    /// never gets as far as a loop, to miss by closing.
+    pub async fn open(&self) -> u64 {
+        let mut state = self.state.lock().await;
+        state.closed = false;
+        state.generation += 1;
+        state.generation
+    }
+
     /// Put a message in, and get the wire its fate will arrive on.
     ///
     /// On a closed queue the fate is already known — the run is
@@ -133,10 +152,16 @@ impl Queue {
     }
 
     /// The run is over, however it got that way: everything still
-    /// pending is missed, and so is everything that arrives after.
-    pub async fn close(&self) {
+    /// pending is missed, and so is everything that arrives after —
+    /// until the next run opens. A close naming a run that is not
+    /// the current one is a close that arrived late, and does
+    /// nothing: the queue it meant to close is already gone.
+    pub async fn close(&self, generation: u64) {
         let taken = {
             let mut state = self.state.lock().await;
+            if state.generation != generation {
+                return;
+            }
             state.closed = true;
             std::mem::take(&mut state.pending)
         };
@@ -146,18 +171,21 @@ impl Queue {
     }
 }
 
-/// Closes [`QUEUE`] when dropped.
+/// Closes [`QUEUE`] when dropped — the run it was made for, and no
+/// other.
 ///
 /// The loop holds one so that EVERY way its stream ends — the
 /// graceful close already done by
 /// [`take_or_close`](Queue::take_or_close), an error yielded, or the
 /// consumer dropping the stream mid-run — leaves the queue closed
 /// and every pending message answered. [`Drop`] cannot await, so the
-/// closing rides a spawned task; the graceful path makes it a no-op.
-pub struct CloseOnDrop;
+/// closing rides a spawned task; the graceful path makes it a no-op,
+/// and so does a next run that opened before the task ran, because
+/// the close carries this run's number.
+pub struct CloseOnDrop(pub u64);
 
 impl Drop for CloseOnDrop {
     fn drop(&mut self) {
-        tokio::spawn(QUEUE.close());
+        tokio::spawn(QUEUE.close(self.0));
     }
 }
