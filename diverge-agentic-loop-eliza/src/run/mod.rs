@@ -186,7 +186,7 @@ pub fn run(
             settings: rendered.settings,
             plugins: rendered.plugins,
             installed: resolved.iter().map(|plugin| plugin.package.clone()).collect(),
-            openai_media: rendered.openai_media,
+            generate_media: rendered.generate_media,
             advanced_capabilities: rendered.advanced_capabilities,
             enable_relationships: rendered.enable_relationships,
             enable_documents: rendered.enable_documents,

@@ -93,9 +93,14 @@ What the agent renders to:
   → plugin-documents, constructor `enableDocuments`, `DOCUMENTS_PATH=
   /documents`, `LOAD_DOCS_ON_STARTUP=true` (a caller mounts the files
   there); `web_search` → plugin-web-search with `TAVILY_API_KEY` from
-  the vault; `generate_media` → plugin-openai's media tiers (above).
-  `GENERATE_MEDIA` itself is a basic-capabilities action and always
-  registered; without the tiers it fails as itself.
+  the vault; `generate_media` → the `GENERATE_MEDIA` action, a
+  basic-capabilities action always registered, is UNREGISTERED after
+  `initialize()` when the switch is off. plugin-openai's media tiers
+  (image description and generation, transcription, speech) are
+  registered regardless — they are how a tool's image or audio is
+  read to the model — and `OPENAI_IMAGE_DESCRIPTION_MODEL` is the
+  caller's one model like the five text tiers; transcription keeps
+  the plugin's default.
 - memory: `advanced_capabilities` and `relationships` are constructor
   options; `advanced_memory` and `advanced_planning` are character
   flags.
@@ -276,6 +281,28 @@ call. plugin-mcp was rejected: it paraphrases every result through a
 `TEXT_SMALL` call, exposes one untyped `MCP` action, and its SSRF
 guard may refuse the loopback.
 
+Non-text content reaches the model the way an inbound attachment
+does. The planner renders an `ActionResult` into the model's tool
+result by JSON-stringifying the WHOLE object as text — there is no
+image or file part on that path at the pin, and `ActionResult` has no
+attachments — so the plugin's `ActionResult` is `{success, text}` and
+nothing else (never the result in `data`: a base64 block there would
+land in the model's context as a giant string), and `text` is each
+block rendered as Eliza's own ingress renders an attachment:
+
+| block | the model's text |
+|---|---|
+| `text` | the text |
+| `image` | `describeImageCached` (core's cached `IMAGE_DESCRIPTION`) over the data URL, with core's own prompt → title and description; no model registered → `[image <mime>, <n> bytes; …]` |
+| `audio` | `useModel(TRANSCRIPTION, bytes)` → the transcript; no model → `[audio …]` |
+| embedded `resource` / read `contents`, text | `Resource <uri> (<mime>):` then the text |
+| embedded `resource` / read `contents`, blob | by mime: `image/*` as image; `audio/*` as audio; `text/*` and `application/json` as UTF-8; `application/pdf` through `unpdf`'s `extractText` (core's own PDF call; the parser itself is not exported); else `[binary <uri>, <mime>, <n> bytes]` |
+| `resource_link` | `Resource link <uri> — <name> (<mime>); readable with DIVERGE_READ_RESOURCE` |
+
+A transcoder that throws yields `[… could not be read: <error>]` in
+place, and the run goes on. The `tool_result` line to the harness —
+and so the `tool_response` chunk — stays the MCP result verbatim.
+
 The lists are LIVE. The proxy's MCP server declares `tools/
 list_changed` and `resources/list_changed` and broadcasts the
 caller's notifications to every initialized peer; the plugin
@@ -404,3 +431,6 @@ first:
 10. A tool re-registered mid-run showing up on the planner's next
     call, and a removed one gone, with `registerAction` /
     `unregisterAction` on the live runtime.
+11. An image block described through the caller's endpoint with the
+    caller's model, an audio block transcribed with the plugin's
+    default transcription model, and a PDF blob read through `unpdf`.

@@ -54,8 +54,11 @@ pub struct Rendered {
     pub plugins: Vec<String>,
     /// The character, in Eliza's own casing, with the memory flags.
     pub character: Value,
-    /// Whether `plugin-openai` registers its media tiers.
-    pub openai_media: bool,
+    /// Whether the `GENERATE_MEDIA` action stays registered. The
+    /// tiers that READ media — image description, transcription — are
+    /// registered regardless: they are how a tool's image or audio is
+    /// read to the model.
+    pub generate_media: bool,
     /// Constructor option `advancedCapabilities`.
     pub advanced_capabilities: bool,
     /// Constructor option `enableRelationships`.
@@ -80,12 +83,16 @@ pub fn render(
     settings.insert("POSTGRES_URL".to_string(), postgres_url);
 
     settings.insert("OPENAI_BASE_URL".to_string(), agent.provider.base_url.clone());
+    // The five text tiers and the tier that reads images, all the
+    // one model the caller named. Transcription keeps the plugin's
+    // default: a chat model is not a transcriber.
     for tier in [
         "OPENAI_NANO_MODEL",
         "OPENAI_SMALL_MODEL",
         "OPENAI_MEDIUM_MODEL",
         "OPENAI_LARGE_MODEL",
         "OPENAI_MEGA_MODEL",
+        "OPENAI_IMAGE_DESCRIPTION_MODEL",
     ] {
         settings.insert(tier.to_string(), agent.provider.model.clone());
     }
@@ -152,7 +159,7 @@ pub fn render(
         env,
         plugins,
         character: character(&agent.character, memory.advanced_memory, memory.advanced_planning),
-        openai_media: toolsets.generate_media == Some(true),
+        generate_media: toolsets.generate_media == Some(true),
         advanced_capabilities: memory.advanced_capabilities == Some(true),
         enable_relationships: memory.relationships == Some(true),
         enable_documents,

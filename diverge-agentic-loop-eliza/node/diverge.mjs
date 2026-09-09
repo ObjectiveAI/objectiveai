@@ -19,18 +19,35 @@
  * read's contents as embedded-resource blocks — and the runtime's own
  * tool envelopes for these actions are dropped by the entry, so each is
  * said exactly once, from the side that has the bytes.
- * `ActionResult.text` is what the model reads back; no extra model call
- * paraphrases it.
+ *
+ * What the MODEL reads is `ActionResult.text`, and only that: the
+ * planner stringifies the whole result as text, so nothing else goes on
+ * it (a base64 block in `data` would land in the model's context as a
+ * giant string). Each content block is rendered the way Eliza's own
+ * ingress renders an inbound attachment: text as-is; an image described
+ * through the cached `IMAGE_DESCRIPTION` tier with core's own prompt;
+ * audio transcribed through `TRANSCRIPTION`; a blob by its type — text
+ * and JSON decoded, a PDF read through `unpdf` as core reads one, an
+ * image or audio as above, anything else named by uri, type and size.
+ * A transcoder that fails says so in place, and the run goes on.
  */
 
+import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 
+import {
+  ModelType,
+  describeImageCached,
+  imageDescriptionTemplate,
+  resolveOptimizedPromptForRuntime,
+} from "@elizaos/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import {
   ResourceListChangedNotificationSchema,
   ToolListChangedNotificationSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { extractText } from "unpdf";
 
 /** The action-name pattern the runtime enforces. */
 const ACTION_NAME = /^[A-Z_][A-Z0-9_]*$/;
@@ -221,7 +238,7 @@ function action(client, emit, tool, name) {
     description: tool.description ?? tool.name,
     parameters: parameters(tool.inputSchema),
     validate: async () => true,
-    handler: async (_runtime, _message, _state, options) => {
+    handler: async (runtime, _message, _state, options) => {
       const args = options?.parameters ?? {};
       const id = randomUUID();
       emit({
@@ -242,14 +259,9 @@ function action(client, emit, tool, name) {
         };
       }
       emit({ type: "tool_result", id, result });
-      const text = (result.content ?? [])
-        .filter((block) => block.type === "text")
-        .map((block) => block.text)
-        .join("\n");
       return {
         success: !result.isError,
-        text,
-        data: { mcp: result },
+        text: await render(runtime, result.content ?? []),
       };
     },
   };
@@ -258,8 +270,8 @@ function action(client, emit, tool, name) {
 /**
  * The resource read: one parameter, the URI as the provider listed
  * it. Reported as a tool call named `read_resource`, its result the
- * contents verbatim as embedded-resource blocks; the model reads the
- * text contents, and a blob is described rather than pasted.
+ * contents verbatim as embedded-resource blocks, and rendered to the
+ * model exactly as those blocks would be in a tool's result.
  */
 function readResourceAction(client, emit) {
   return {
@@ -275,7 +287,7 @@ function readResourceAction(client, emit) {
       },
     ],
     validate: async () => true,
-    handler: async (_runtime, _message, _state, options) => {
+    handler: async (runtime, _message, _state, options) => {
       const uri = String(options?.parameters?.uri ?? "");
       const id = randomUUID();
       emit({
@@ -285,34 +297,149 @@ function readResourceAction(client, emit) {
         arguments: JSON.stringify({ uri }),
       });
       let result;
-      let text;
       try {
         const read = await client.readResource({ uri });
-        const contents = read.contents ?? [];
         result = {
-          content: contents.map((resource) => ({ type: "resource", resource })),
+          content: (read.contents ?? []).map((resource) => ({
+            type: "resource",
+            resource,
+          })),
           isError: false,
         };
-        text = contents.map(describeContents).join("\n");
       } catch (error) {
-        const message = describe(error);
-        result = { content: [{ type: "text", text: message }], isError: true };
-        text = message;
+        result = {
+          content: [{ type: "text", text: describe(error) }],
+          isError: true,
+        };
       }
       emit({ type: "tool_result", id, result });
-      return { success: !result.isError, text, data: { mcp: result } };
+      return {
+        success: !result.isError,
+        text: await render(runtime, result.content),
+      };
     },
   };
 }
 
-/** One resource's contents, as the model reads them. */
-function describeContents(contents) {
-  if (typeof contents.text === "string") return contents.text;
-  if (typeof contents.blob === "string") {
-    const type = contents.mimeType ?? "unknown type";
-    return `binary ${contents.uri} (${type}, ${contents.blob.length} base64 characters)`;
+/** Every block, rendered for the model, one after another. */
+async function render(runtime, blocks) {
+  const parts = [];
+  for (const block of blocks) {
+    parts.push(await renderBlock(runtime, block));
   }
-  return `${contents.uri}: no contents`;
+  return parts.join("\n");
+}
+
+/** One content block, as Eliza's ingress would render it. */
+async function renderBlock(runtime, block) {
+  switch (block.type) {
+    case "text":
+      return block.text ?? "";
+    case "image":
+      return describeImage(runtime, block.mimeType ?? "", block.data ?? "", "image");
+    case "audio":
+      return transcribe(runtime, block.mimeType ?? "", block.data ?? "", "audio");
+    case "resource":
+      return renderResource(runtime, block.resource ?? {});
+    case "resource_link": {
+      const name = block.title ?? block.name ?? block.uri;
+      const type = block.mimeType ? ` (${block.mimeType})` : "";
+      return `Resource link ${block.uri} — ${name}${type}; readable with ${READ_RESOURCE}`;
+    }
+    default:
+      return `[${block.type ?? "unknown"} content]`;
+  }
+}
+
+/** An embedded resource, or one entry of a read's contents. */
+async function renderResource(runtime, resource) {
+  const uri = resource.uri ?? "";
+  const mime = resource.mimeType ?? "";
+  const head = `Resource ${uri}${mime ? ` (${mime})` : ""}:`;
+  if (typeof resource.text === "string") {
+    return `${head}\n${resource.text}`;
+  }
+  if (typeof resource.blob !== "string") {
+    return `${head} no contents`;
+  }
+  return `${head}\n${await renderBlob(runtime, uri, mime, resource.blob)}`;
+}
+
+/** A blob, by its type — core's ingress rules for an attachment. */
+async function renderBlob(runtime, uri, mime, blob) {
+  const kind = mime.toLowerCase();
+  if (kind.startsWith("image/")) {
+    return describeImage(runtime, mime, blob, `binary ${uri}`);
+  }
+  if (kind.startsWith("audio/")) {
+    return transcribe(runtime, mime, blob, `binary ${uri}`);
+  }
+  const bytes = Buffer.from(blob, "base64");
+  if (kind.startsWith("text/") || kind === "application/json") {
+    return bytes.toString("utf8");
+  }
+  if (kind === "application/pdf") {
+    try {
+      const { text } = await extractText(new Uint8Array(bytes), { mergePages: true });
+      return text;
+    } catch (error) {
+      return unread(`binary ${uri}`, mime, bytes.length, error);
+    }
+  }
+  return `[binary ${uri}, ${mime || "unknown type"}, ${bytes.length} bytes]`;
+}
+
+/**
+ * An image, described through core's content-addressed cache over
+ * the `IMAGE_DESCRIPTION` tier, with the prompt core resolves for its
+ * own inbound images — or, without that tier, named by type and size.
+ */
+async function describeImage(runtime, mime, data, label) {
+  const size = Buffer.byteLength(data, "base64");
+  if (typeof runtime.getModel(ModelType.IMAGE_DESCRIPTION) !== "function") {
+    return `[${label} ${mime}, ${size} bytes; no image-description model is registered]`;
+  }
+  try {
+    const prompt = resolveOptimizedPromptForRuntime(
+      runtime,
+      "media_description",
+      imageDescriptionTemplate,
+    );
+    const described = await describeImageCached(
+      runtime,
+      `data:${mime};base64,${data}`,
+      prompt,
+    );
+    if (!described) {
+      return `[${label} ${mime}, ${size} bytes; no description came back]`;
+    }
+    return described.text || `${described.title || "Image"}: ${described.description}`;
+  } catch (error) {
+    return unread(label, mime, size, error);
+  }
+}
+
+/**
+ * Audio, transcribed through the `TRANSCRIPTION` tier from its bytes,
+ * as core transcribes an inbound attachment — or named by type and
+ * size without that tier.
+ */
+async function transcribe(runtime, mime, data, label) {
+  const bytes = Buffer.from(data, "base64");
+  if (typeof runtime.getModel(ModelType.TRANSCRIPTION) !== "function") {
+    return `[${label} ${mime}, ${bytes.length} bytes; no transcription model is registered]`;
+  }
+  try {
+    const transcript = await runtime.useModel(ModelType.TRANSCRIPTION, bytes);
+    return `Transcript: ${transcript}`;
+  } catch (error) {
+    return unread(label, mime, bytes.length, error);
+  }
+}
+
+/** A block the transcoder could not read: said in place. */
+function unread(label, mime, size, error) {
+  return `[${label} ${mime}, ${size} bytes; could not be read: ${describe(error)}]`;
 }
 
 /**
