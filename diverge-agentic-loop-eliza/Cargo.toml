@@ -15,18 +15,38 @@ publish = false
 # schema. Default features carry the JSON extractor and the HTTP/1
 # server; SSE is axum's own.
 axum = { version = "0.8.9" }
+# Path-only: this crate rides the workspace and is never published, so
+# the SDKs are named by where they live rather than by version pins
+# version.sh would have to chase. The provider SDK is the vocabulary —
+# the chunks, the fates; the container SDK is the proxy beside this
+# program — the vault, the database URL, and the MCP URL the entry's
+# diverge plugin dials.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk" }
 # The agent's JSON Schema, derived from the agent types for
 # `GET /schema`.
 schemars = { version = "1.2.1" }
-# The derives under the agent module.
-serde = { version = "1.0.229", features = ["derive"] }
-# Path-only: this crate rides the workspace and is never published, so
-# the SDK is named by where it lives rather than by a version pin
-# version.sh would have to chase.
-diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+# The run's outbound stream, as a generator.
+async-stream = { version = "0.3.6" }
 # `Stream` and its combinators, for the chunk stream the response is.
 futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The chunk vocabulary's content types (tool results, text content)
+# — model types only, no transport; the entry's tool results arrive
+# as MCP's own `CallToolResult`, verbatim.
+rmcp = { version = "3.1.2", default-features = false }
+# The derives under the agent module and the entry protocol's lines.
+serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
-# The runtime under the listener. No `macros` — the runtime is built in
-# main, not attributed onto it.
-tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread"] }
+# Postgres, through the proxy's loopback pgwire, for the lineage row:
+# `postgres` and the rustls TLS the driver wants at compile time,
+# though the loopback negotiates none. No macros. Version: the
+# workspace lock's.
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "postgres", "tls-rustls"] }
+# The lineage's agent id, and the minted vault secrets: v4 uuids.
+uuid = { version = "1.22.0", features = ["v4"] }
+# The runtime under the listener, `sync` for the queue's mutex and
+# the claim's Notify, `process` + `io-util` for the entry process and
+# its lines, `fs` for a rotated credential's file, `time` for the
+# vault lock's refresh. No `macros` — the runtime is built in main,
+# not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync", "time"] }

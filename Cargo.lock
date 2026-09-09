@@ -1715,13 +1715,18 @@ dependencies = [
 name = "diverge-agentic-loop-eliza"
 version = "2.3.0"
 dependencies = [
+ "async-stream",
  "axum",
+ "diverge-container-proxy-sdk",
  "diverge-provider-sdk",
  "futures-util",
+ "rmcp 3.1.2",
  "schemars 1.2.2",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

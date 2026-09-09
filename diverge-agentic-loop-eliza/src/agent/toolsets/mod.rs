@@ -13,11 +13,10 @@
 //! Always on, no switch: `plugin-sql` (the database — required),
 //! the basic-capabilities bundle inside core (REPLY, IGNORE, NONE,
 //! CHOOSE_OPTION, ATTACHMENT, CALCULATE, CHANNEL_RECAP,
-//! SEARCH_CHANNEL_TOPICS and its twenty-one providers — registered
-//! unconditionally), `plugin-agent-skills` (skills are MOUNTS; the
-//! switch is whether anything is mounted), and the harness's own
-//! `diverge` plugin, which registers each of the caller's MCP tools
-//! as a native action through the proxy — the tool channel.
+//! SEARCH_CHANNEL_TOPICS, GENERATE_MEDIA and its twenty-one providers
+//! — registered unconditionally), and the harness's own `diverge`
+//! plugin, which registers each of the caller's MCP tools as a native
+//! action through the proxy — the tool channel.
 //!
 //! Always off, no switch, and the reason for each so nobody
 //! re-opens it without a new fact:
