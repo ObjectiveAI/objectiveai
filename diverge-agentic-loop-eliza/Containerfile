@@ -1,66 +1,91 @@
-# The eliza agentic_loop image: the loop on 14978, the MCP proxy on
-# 14979, the Postgres proxy on 14980 and 14981, all musl binaries on
-# Alpine.
+# The Eliza agent image: the harness, and the Node project it drives —
+# elizaOS core, the pinned plugins and the entry — on Node and Debian.
+#
+# The container proxy is NOT in this image. The host injects it at
+# runtime, and it may not be up at all until a request comes — which
+# is why the harness touches nothing of the proxy's until `POST /run`
+# arrives: no database, no vault, no MCP, before then. The one thing a
+# run does before the proxy is touched is install the caller's plugins
+# from the npm registry, so a running container needs the registry
+# reachable when the agent names any.
 #
 # Build from the WORKSPACE ROOT — the crates ride path dependencies:
 #
 #     podman build -f diverge-agentic-loop-eliza/Containerfile .
 #
-# Digests pinned from Docker Hub on 2026-08-26; bump deliberately.
+# Debian, deliberately: plugin-browser and plugin-documents want a
+# real distro underneath, and the coding tools run whatever scripts
+# the model writes. Node is the runtime the published elizaOS packages
+# run on (`>=24`); bun is copied in from its own image for exactly one
+# job, the installs — `bun add --ignore-scripts`, the command elizaOS's
+# own installer runs — and the project's own install at build.
+#
+# Digests pinned from Docker Hub on 2026-08-29 (rust) and 2026-09-09
+# (node, bun); bump deliberately. The elizaOS packages are pinned to
+# 2.0.3-beta.7 in node/package.json — the version of the source under
+# sources/ — and bun's lockfile is produced here, at build, not
+# committed: the exact pins are the reproducibility stated, and a
+# transitive drift is proven or disproven by a rebuild.
 
-# rust:1.98.0-alpine3.24 — the musl toolchain is the image's default
-# target, so what it builds runs on the Alpine below.
-FROM docker.io/library/rust:1.98.0-alpine3.24@sha256:a10e64dd139b7387337c7fbe8aca31b959b57b2fd4c8ae20a02cf1d6ea424dce AS build
-
-# `ring` (rustls' crypto) compiles C; build-base is the whole musl C
-# toolchain.
-RUN apk add --no-cache build-base
+FROM docker.io/library/rust:1.98.0@sha256:271849e998ffce5776454bbf98c5dc21baafc854ff8e566197908d3aca9a81e8 AS build
 
 WORKDIR /build
 
 # Only the crates this image needs, in their workspace layout — the
-# workspace manifest itself is NOT copied, so each crate builds as its
+# workspace manifest itself is NOT copied, so the crate builds as its
 # own root and the absent sibling members are never asked for. The
-# workspace lockfile rides into each crate so the resolved versions
-# hold; cargo prunes the entries the crate does not use, which is why
-# the build does not pass --locked.
+# workspace lockfile rides into the crate so resolved versions hold;
+# cargo prunes what the crate does not use, which is why the build
+# does not pass --locked. Of the eliza crate only the manifest and the
+# sources ride: reports/ and the pinned elizaOS tree under sources/
+# are research, not the build's.
 COPY diverge-provider-sdk diverge-provider-sdk
-COPY diverge-container-mcp-proxy diverge-container-mcp-proxy
-COPY diverge-container-postgres-proxy diverge-container-postgres-proxy
-COPY diverge-agentic-loop-eliza diverge-agentic-loop-eliza
+COPY diverge-container-proxy-sdk diverge-container-proxy-sdk
+COPY diverge-agentic-loop-eliza/Cargo.toml diverge-agentic-loop-eliza/Cargo.toml
+COPY diverge-agentic-loop-eliza/src diverge-agentic-loop-eliza/src
 COPY Cargo.lock diverge-agentic-loop-eliza/Cargo.lock
-COPY Cargo.lock diverge-container-mcp-proxy/Cargo.lock
-COPY Cargo.lock diverge-container-postgres-proxy/Cargo.lock
 
 RUN cargo build --release \
     --manifest-path diverge-agentic-loop-eliza/Cargo.toml
-RUN cargo build --release \
-    --manifest-path diverge-container-mcp-proxy/Cargo.toml
-RUN cargo build --release \
-    --manifest-path diverge-container-postgres-proxy/Cargo.toml
 
-# alpine:latest, by digest.
-FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+# oven/bun:1.3.14 — the pin's own `packageManager` — by digest, for
+# its one binary.
+FROM docker.io/oven/bun:1.3.14@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS bun
+
+# node:24-bookworm-slim, by digest.
+FROM docker.io/library/node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
+
+# The agent's world: CA certificates so TLS works at all, git and
+# python because the coding tools reach for both, and bun.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        git \
+        python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+
+# The Node project, at the path the harness names (plugins::PROJECT):
+# the manifest with the pinned packages, the entry and the diverge
+# plugin. Installed here with scripts allowed — native dependencies
+# build at image build, never at a run.
+WORKDIR /opt/diverge/eliza
+COPY diverge-agentic-loop-eliza/node/ ./
+RUN bun install
+
+# Eliza's state directory (its own vault lives under it) and the
+# documents path, both fixed by the harness; a caller mounts a volume
+# at either to give it a life beyond the container.
+RUN mkdir -p /var/lib/eliza /documents
 
 COPY --from=build \
     /build/diverge-agentic-loop-eliza/target/release/diverge-agentic-loop-eliza \
     /usr/local/bin/diverge-agentic-loop-eliza
-COPY --from=build \
-    /build/diverge-container-mcp-proxy/target/release/diverge-container-mcp-proxy \
-    /usr/local/bin/diverge-container-mcp-proxy
-COPY --from=build \
-    /build/diverge-container-postgres-proxy/target/release/diverge-container-postgres-proxy \
-    /usr/local/bin/diverge-container-postgres-proxy
 
-# Three programs, one container: the two proxies in the background, the loop
-# in the foreground as the container's own life.
-RUN printf '#!/bin/sh\n/usr/local/bin/diverge-container-mcp-proxy &\n/usr/local/bin/diverge-container-postgres-proxy &\nexec /usr/local/bin/diverge-agentic-loop-eliza\n' \
-    > /usr/local/bin/entrypoint \
-    && chmod +x /usr/local/bin/entrypoint
+# The harness's own server, on the loopback: 8080, or whatever `PORT`
+# names. Nothing is exposed — the proxy the host injects is the only
+# thing that dials it, and it is beside it.
 
-# The Container specification's ports: 14978 the loop, 14979 MCP,
-# 14981 the Postgres proxy's WebSocket. Its pgwire listener, 14980,
-# is loopback-only and not exposed.
-EXPOSE 14978 14979 14981
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
+WORKDIR /
+ENTRYPOINT ["/usr/local/bin/diverge-agentic-loop-eliza"]
