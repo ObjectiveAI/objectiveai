@@ -20,9 +20,12 @@ use serde::{Deserialize, Serialize};
 /// start of every run (the key's presence is also what enables the
 /// plugin; a vault without it refuses the run), and
 /// `OPENAI_NANO_MODEL`, `OPENAI_SMALL_MODEL`, `OPENAI_MEDIUM_MODEL`,
-/// `OPENAI_LARGE_MODEL`, `OPENAI_MEGA_MODEL` ALL set to
-/// [`model`](Self::model) — Eliza's tier ladder collapsed to the one
-/// model the caller named, so its fallback chains never surprise.
+/// `OPENAI_LARGE_MODEL`, `OPENAI_MEGA_MODEL` and
+/// `OPENAI_IMAGE_DESCRIPTION_MODEL` (the tier that reads an image a
+/// tool returned) ALL set to [`model`](Self::model) — Eliza's tier
+/// ladder collapsed to the one model the caller named, so its
+/// fallback chains never surprise. Transcription keeps the plugin's
+/// default: a chat model is not a transcriber.
 /// Every setting goes in the runtime's constructor settings map AND
 /// the entry process's environment: the core's `getSetting` never
 /// reads the environment, and this plugin's own shim does. Embeddings are NOT this

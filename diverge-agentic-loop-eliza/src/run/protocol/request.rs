@@ -26,8 +26,8 @@ pub enum Request {
         /// The caller's plugins to import after the diverge plugin,
         /// by package name.
         installed: Vec<String>,
-        /// Whether `plugin-openai` registers its media tiers.
-        openai_media: bool,
+        /// Whether the `GENERATE_MEDIA` action stays registered.
+        generate_media: bool,
         /// Constructor option `advancedCapabilities`.
         advanced_capabilities: bool,
         /// Constructor option `enableRelationships`.

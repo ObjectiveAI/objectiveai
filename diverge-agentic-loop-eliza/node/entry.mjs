@@ -111,18 +111,17 @@ function looksLikePlugin(value) {
 
 /**
  * `plugin-openai`, shaped to the agent: its embedding tier is never
- * registered (the agent's `embedding` structure is the one source of
- * vectors), and its media tiers, which its `init` registers, only when
- * the agent turned `generate_media` on.
+ * registered — the agent's `embedding` structure is the one source of
+ * vectors. Its media tiers (image description and generation,
+ * transcription, speech), which its `init` registers against the
+ * caller's endpoint, always are: they are how a tool's image or audio
+ * is read to the model. Whether the model may GENERATE media is the
+ * `GENERATE_MEDIA` action's, gated after initialize.
  */
-function shapeOpenai(plugin, media) {
+function shapeOpenai(plugin) {
   const models = { ...(plugin.models ?? {}) };
   delete models[ModelType.TEXT_EMBEDDING];
-  const shaped = { ...plugin, models };
-  if (!media) {
-    delete shaped.init;
-  }
-  return shaped;
+  return { ...plugin, models };
 }
 
 /** The runtime, and everything a turn needs of it. */
@@ -139,9 +138,7 @@ async function configure(config) {
   for (const name of config.plugins) {
     const plugin = await loadPlugin(name);
     plugins.push(
-      name === "@elizaos/plugin-openai"
-        ? shapeOpenai(plugin, config.openaiMedia)
-        : plugin,
+      name === "@elizaos/plugin-openai" ? shapeOpenai(plugin) : plugin,
     );
   }
   const diverge = await createDivergePlugin({ url: config.mcpUrl, emit });
@@ -195,6 +192,11 @@ async function configure(config) {
   // A list-changed notification that arrived before the runtime was
   // ready is applied now, with the static actions certainly registered.
   await diverge.flush();
+  // The generate_media switch is the action: off, the model cannot
+  // ask for media, while the tiers that READ media stay registered.
+  if (!config.generateMedia) {
+    runtime.unregisterAction("GENERATE_MEDIA");
+  }
 
   entityId = createUniqueUuid(runtime, USER);
   roomId = createUniqueUuid(runtime, ROOM);
