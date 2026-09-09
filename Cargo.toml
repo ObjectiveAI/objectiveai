@@ -9,6 +9,7 @@ members = [
     "objectiveai-mcp-proxy",
     "objectiveai-mcp-plugin-framework-rs",
     "diverge-agentic-loop-cc",
+    "diverge-agentic-loop-codex",
     "diverge-agentic-loop-eliza",
     "diverge-agentic-loop-hermes",
     "diverge-container-proxy",

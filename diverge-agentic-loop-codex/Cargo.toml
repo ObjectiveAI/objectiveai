@@ -1,0 +1,32 @@
+[package]
+name = "diverge-agentic-loop-codex"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Codex agent container of the Diverge provider protocol"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# The loop's door: an HTTP server on the loopback the proxy forwards
+# to — `/run` as server-sent events, the queue's two verbs, the
+# schema. Default features carry the JSON extractor and the HTTP/1
+# server; SSE is axum's own.
+axum = { version = "0.8.9" }
+# The agent's JSON Schema, derived from the agent types for
+# `GET /schema`.
+schemars = { version = "1.2.1" }
+# The derives under the agent module.
+serde = { version = "1.0.229", features = ["derive"] }
+# Path-only: this crate rides the workspace and is never published, so
+# the SDK is named by where it lives rather than by a version pin
+# version.sh would have to chase.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+# `Stream` and its combinators, for the chunk stream the response is.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+# The runtime under the listener. No `macros` — the runtime is built in
+# main, not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread"] }
