@@ -1,17 +1,17 @@
 //! Running the loop in an agent container.
 //!
-//! The agents family's own exchange. The container was made with a
-//! prompt and an agent on its
+//! The agents family's own exchange. The container was made with an
+//! agent on its
 //! [`request`](crate::endpoints::containers::agents::run::client::request::Frame),
-//! so the channel that starts the loop has nothing left to say: the
-//! caller's [`RunLoop`](crate::endpoints::containers::agents::run::client::channel_request::Frame::RunLoop)
-//! carries no payload at all — a direction that carries nothing has
-//! no request here, as everywhere in this crate — and the provider
-//! answers with the loop as it happens: one
-//! [`response::Frame`] per chunk, then the finish, or an
-//! [`Error`](response::Frame::Error) when there is no loop to report
-//! on. A container runs one loop; what a second opening means while
-//! one runs, or after one ended, is the image's to define.
+//! fixed for its life; what each loop is asked is the loop's own, so
+//! the caller's [`RunLoop`](crate::endpoints::containers::agents::run::client::channel_request::Frame::RunLoop)
+//! carries a [`request::Request`] — the prompt — and the provider
+//! answers with the loop as it happens: one [`response::Frame`] per
+//! chunk, then the finish, or an [`Error`](response::Frame::Error)
+//! when there is no loop to report on. A container runs loops one
+//! after another, each resuming the conversation the last one left,
+//! and one at a time: a second opening while one runs is the image's
+//! refusal, as an `Error`.
 //!
 //! A running loop has a QUEUE, and a caller has two verbs against
 //! it: [`enqueue`](crate::shared::containers::enqueue) puts a message
@@ -27,4 +27,5 @@
 //! flattened, so what a model produces and what a tool returns need
 //! no translation between them. See [`response::AgenticLoopChunk`].
 
+pub mod request;
 pub mod response;

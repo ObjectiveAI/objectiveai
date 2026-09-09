@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::enqueue;
+use crate::shared::containers::{enqueue, run_loop};
 use crate::shared::containers::{postgres, read, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
@@ -86,14 +86,13 @@ pub enum Frame {
     /// container wrote. See
     /// [`postgres`](crate::shared::containers::postgres) for the pair.
     Postgres(postgres::request::Postgres),
-    /// Run the loop. Tag `5`.
+    /// Run a loop. Tag `5`.
     ///
-    /// The family's own exchange. Carries nothing — the prompt and
-    /// the agent were on the request that made the container, so
-    /// there is no request type and the variant is bare — and
-    /// answers with the loop's chunks. See
+    /// The family's own exchange. Carries the prompt — the agent was
+    /// on the request that made the container, and never changes —
+    /// and answers with the loop's chunks. See
     /// [`run_loop`](crate::shared::containers::run_loop).
-    RunLoop,
+    RunLoop(run_loop::request::Request),
     /// What the agent may be. Tag `6`.
     ///
     /// Carries nothing — the variant is bare — and the provider answers
@@ -170,9 +169,9 @@ impl Encode for Frame {
                 out.extend_from_slice(&[POSTGRES]);
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::RunLoop => {
+            Frame::RunLoop(request) => {
                 out.extend_from_slice(&[RUN_LOOP]);
-                Ok(())
+                request.encode(out)
             }
             Frame::AgentSchema => {
                 out.extend_from_slice(&[AGENT_SCHEMA]);
@@ -208,7 +207,9 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            RUN_LOOP => Ok(Frame::RunLoop),
+            RUN_LOOP => run_loop::request::Request::decode(rest)
+                .map(Frame::RunLoop)
+                .map_err(FrameError::RunLoop),
             AGENT_SCHEMA => Ok(Frame::AgentSchema),
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
@@ -232,6 +233,8 @@ pub enum FrameError {
     Write(serde_json::Error),
     /// The connection id was not four bytes.
     Postgres(postgres::request::PostgresError),
+    /// The loop's prompt did not parse as JSON.
+    RunLoop(serde_json::Error),
     /// The enqueued message did not parse as JSON.
     Enqueue(serde_json::Error),
 }
@@ -252,6 +255,9 @@ impl fmt::Display for FrameError {
                 write!(f, "write request did not parse: {error}")
             }
             FrameError::Postgres(error) => write!(f, "{error}"),
+            FrameError::RunLoop(error) => {
+                write!(f, "run loop request did not parse: {error}")
+            }
             FrameError::Enqueue(error) => {
                 write!(f, "enqueue request did not parse: {error}")
             }
@@ -264,6 +270,7 @@ impl Error for FrameError {
         match self {
             FrameError::Read(error)
             | FrameError::Write(error)
+            | FrameError::RunLoop(error)
             | FrameError::Enqueue(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,

@@ -26,7 +26,8 @@
 //! | `/filetree`                         | filetree frames, or why there are none, sent by the container; the server is silent |
 //! | `/read`                             | the server names a file; the container answers its bytes, or why not, then the close |
 //! | `/write`                            | the server names a file and sends its content; the container answers ok or error |
-//! | `/agent/run`                        | the server sends the prompt and the agent; the container answers the loop's chunks, or an error, then the close |
+//! | `/agent/register`                   | the server sends the agent, once; the container answers registered, or an error, then the close |
+//! | `/agent/run`                        | the server sends the prompt; the container answers the loop's chunks, or an error, then the close |
 //! | `/agent/schema`                     | the container answers its agent's JSON Schema, or an error, then the close |
 //! | `/agent/enqueue`                    | the server sends a message for the loop's queue; the container answers its fate, when known, then the close |
 //! | `/agent/dequeue`                    | the container answers whether the queue held anything, then the close |
@@ -40,7 +41,7 @@
 //! are the program's, not wires of this module. One thing fits on
 //! neither: the pgwire listener the container's database driver
 //! dials is raw TCP, not HTTP, so it is its own loopback port —
-//! [`postgres::LOOPBACK_PORT`]. And the four `/agent/*` paths are not
+//! [`postgres::LOOPBACK_PORT`]. And the five `/agent/*` paths are not
 //! the proxy's to answer: each is one call to the agent container's
 //! own HTTP server, on the loopback at [`agent::port()`], forwarded —
 //! the proxy holds nothing of the loop's, and dials that server only
@@ -114,9 +115,9 @@
 //! starts over on the next connection, and a [`read`] or [`write`](mod@write)
 //! whose socket died is that one file failing, nothing else, and
 //! nothing retries it. An `/agent/*` path dying is that one call to
-//! the agent's server failing — a loop cut short, a fate never heard
-//! — and nothing retries that either: the call was made, and what it
-//! did is done.
+//! the agent's server failing — a loop cut short, a fate never heard,
+//! a registration whose answer never came — and nothing retries that
+//! either: the call was made, and what it did is done.
 
 pub mod agent;
 pub mod agent_schema;
@@ -127,6 +128,7 @@ pub mod filetree;
 pub mod mcp;
 pub mod postgres;
 pub mod read;
+pub mod register;
 pub mod requests;
 pub mod run_loop;
 pub mod vault;

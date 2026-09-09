@@ -13,10 +13,20 @@
 //!
 //! | the proxy's path | it calls | the agent's server answers |
 //! |------------------|----------|----------------------------|
+//! | `/agent/register` | `POST /register`, body the [`register::request::Request`](super::register::request::Request) JSON | `2xx`, the agent held for the container's life; or a non-`2xx` |
 //! | `/agent/run` | `POST /run`, body the [`run_loop::request::Request`](super::run_loop::request::Request) JSON | `2xx` as `text/event-stream`, every `data:` one [`AgenticLoopChunk`](crate::shared::containers::run_loop::response::AgenticLoopChunk) JSON, the stream's end the loop ended; or a non-`2xx` |
 //! | `/agent/schema` | `GET /schema` | `2xx` with the JSON Schema of the agent value; or a non-`2xx` |
 //! | `/agent/enqueue` | `POST /enqueue`, body the [`enqueue::request::Request`](super::enqueue::request::Request) JSON | `2xx` with one [`enqueue::Fate`], held until the fate is known; or a non-`2xx` |
 //! | `/agent/dequeue` | `POST /dequeue`, body `{}` | `2xx` with one [`dequeue::Outcome`]; or a non-`2xx` |
+//!
+//! # Registration comes first, and once
+//!
+//! The agent is fixed for the container's life. The server registers
+//! it exactly once, before the first loop; the agent's server refuses
+//! a `/run` before that (`{"kind":"unregistered"}`) and refuses any
+//! second `/register`, whatever it carries (`{"kind":"registered"}`,
+//! `409`) — both non-`2xx`, forwarded as the path's `Error`. Every
+//! loop after runs as that agent, on its own prompt.
 //!
 //! # The stream never carries an error
 //!

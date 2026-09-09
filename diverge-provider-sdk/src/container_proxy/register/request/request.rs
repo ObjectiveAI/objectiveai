@@ -1,4 +1,4 @@
-//! What the loop runs on.
+//! The agent, as the request that made the container carried it.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -6,18 +6,14 @@ use serde_json::Value;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// The prompt and the agent, as the agent container's
-/// [`request`](crate::endpoints::containers::agents::run::client::request::Frame)
-/// carried them: what the server hands the loop, once, as its first
-/// message.
-///
-/// The same two fields, typed to the same depths and for the same
-/// reasons — the prompt is every loop's, the agent is the image's —
-/// carried on to the program that will read them.
+/// The agent, handed to the container once: the
+/// [`agent`](crate::endpoints::containers::agents::run::client::request::Frame::agent)
+/// of the request that made it, typed to the same depth for the same
+/// reason — a JSON value, because the image defines what an agent
+/// is, and what the value may be is what
+/// [`agent_schema`](crate::shared::containers::agent_schema) answers.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct Request {
-    /// What the loop is asked, post-transform.
-    pub prompt: String,
     /// The agent, as the image defines it.
     pub agent: Value,
 }
