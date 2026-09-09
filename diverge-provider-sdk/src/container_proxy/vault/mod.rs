@@ -60,47 +60,8 @@
 //! re-sent might overwrite what another run wrote in between, and a
 //! `Lock` re-sent after the fact might refresh a lock the container
 //! had meanwhile decided to give up. The container decides.
-//!
-//! # Mounts: a key as one file
-//!
-//! Beside the five operations the proxy can serve a key AS A FILE: the
-//! server names [`Mount`]s in the [`MOUNTS_ENV`] variable, and at its
-//! start the proxy mounts, at each path, a FUSE filesystem of exactly
-//! one regular file — the mount point is the file itself, made empty
-//! if absent, and the directory around it stays the image's own. The
-//! file is a vendor CLI's credential file, most often: a login the
-//! CLI rewrites when it refreshes, which the caller keeps in the
-//! vault and no harness has to copy in and read back.
-//!
-//! - The file is mode `0600`, root's, one link, its size the value's
-//!   length. `stat` asks the vault; a missing key is an empty file.
-//! - `open` reads the value into a buffer of the handle's own, so a
-//!   reader sees the snapshot its open took. Opening for writing
-//!   [`lock`]s the key first (TTL 300 s, not refreshed — a credential
-//!   rewrite is milliseconds; a handle held past the TTL loses the
-//!   lock and its write still lands); a lock refused is `EAGAIN`.
-//!   `O_TRUNC` empties the buffer.
-//! - `write` and `truncate` change the buffer; `flush`, `fsync` and
-//!   the close of a changed handle [`set`] the whole buffer as the
-//!   key's value — a set that fails is `EIO`, which is what the
-//!   writer's `close` returns. Two write handles each set the whole
-//!   buffer, and the last close wins. The close unlocks.
-//! - It cannot be moved or deleted: the kernel refuses to rename or
-//!   unlink a mount point (`EBUSY`), and nothing of the proxy's is
-//!   asked. So a program that saves by writing a temp file beside and
-//!   renaming over it fails at the rename; the mount is for programs
-//!   that rewrite in place, which the credential files this exists
-//!   for are.
-//! - The mount needs `/dev/fuse` in the container and the proxy
-//!   running as root in the container's user namespace, which is how
-//!   the host runs it; a mount that cannot be made ends the proxy at
-//!   its start, as an unbindable port does.
 
 pub use crate::shared::containers::vault::*;
-
-mod mounts;
-
-pub use mounts::*;
 
 // Each operation is a module of its own here, shadowing the shared
 // one it re-exports, so the executor that answers it can live under

@@ -1,6 +1,8 @@
-//! A vault key as one file: a FUSE mount of a single regular file.
+//! A file mount: a FUSE mount of a single regular file that can be
+//! read and overwritten but never moved or deleted, its bytes kept
+//! under a vault key.
 //!
-//! The SDK's [`vault`](diverge_provider_sdk::container_proxy::vault)
+//! The SDK's [`filesystem`](diverge_provider_sdk::container_proxy::filesystem)
 //! module states the semantics; this is the filesystem that keeps
 //! them. One inode, the root, a regular file: `getattr` asks the
 //! vault for the size, `open` reads the value into a buffer of the
@@ -20,7 +22,7 @@
 use std::io;
 use std::sync::Arc;
 
-use diverge_provider_sdk::container_proxy::vault::Mount;
+use diverge_provider_sdk::container_proxy::filesystem::Mount;
 use tokio::runtime::Handle;
 
 use crate::requests::Requests;
@@ -32,7 +34,7 @@ pub struct Mounted {
 }
 
 /// Make the file's parents, the file itself if absent (mode `0600`),
-/// and mount the key over it.
+/// and mount over it.
 #[cfg(unix)]
 pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Mount) -> io::Result<Mounted> {
     use std::os::unix::fs::OpenOptionsExt as _;
@@ -58,7 +60,11 @@ pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Mount) -> io::Resu
     ];
     config.acl = fuser::SessionACL::All;
     config.n_threads = Some(1);
-    let session = fuser::Session::new(unix::VaultFile::new(requests, handle, &mount.key), &path, &config)?;
+    let session = fuser::Session::new(
+        unix::MountedFile::new(requests, handle, &mount.key),
+        &path,
+        &config,
+    )?;
     Ok(Mounted {
         _session: session.spawn()?,
     })
@@ -69,7 +75,7 @@ pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Mount) -> io::Resu
 pub fn mount(_requests: Arc<Requests>, _handle: Handle, mount: &Mount) -> io::Result<Mounted> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
-        format!("vault mounts need FUSE, which this host has not: {}", mount.key),
+        format!("file mounts need FUSE, which this host has not: {}", mount.key),
     ))
 }
 
@@ -101,7 +107,7 @@ mod unix {
     const ATTR_TTL: Duration = Duration::ZERO;
 
     /// The one file.
-    pub struct VaultFile {
+    pub struct MountedFile {
         requests: Arc<Requests>,
         handle: Handle,
         key: String,
@@ -120,9 +126,9 @@ mod unix {
         dirty: bool,
     }
 
-    impl VaultFile {
+    impl MountedFile {
         pub fn new(requests: Arc<Requests>, handle: Handle, key: &str) -> Self {
-            VaultFile {
+            MountedFile {
                 requests,
                 handle,
                 key: key.to_string(),
@@ -224,7 +230,7 @@ mod unix {
         }
     }
 
-    impl Filesystem for VaultFile {
+    impl Filesystem for MountedFile {
         fn lookup(&self, _req: &fuser::Request, _parent: INodeNo, _name: &OsStr, reply: ReplyEntry) {
             // The root is a file: there is nothing under it.
             reply.error(Errno::ENOTDIR);
@@ -486,7 +492,7 @@ mod unix {
         }
     }
 
-    impl VaultFile {
+    impl MountedFile {
         /// The size a `getattr` would answer: the handle's buffer, or
         /// the vault's value.
         fn getattr_size(&self, fh: Option<FileHandle>) -> Result<u64, Errno> {

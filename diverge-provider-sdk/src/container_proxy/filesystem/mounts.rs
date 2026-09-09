@@ -1,19 +1,22 @@
-//! Vault mounts: a key as one file in the container, and how the
-//! server says so.
+//! File mounts: one file in the container that can be read and
+//! overwritten but never moved or deleted, and how the server says
+//! so.
 
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-/// The environment variable the server sets on the proxy: the vault
+/// The environment variable the server sets on the proxy: the file
 /// mounts, as a [`Mounts`] in JSON. Unset is no mounts.
-pub const MOUNTS_ENV: &str = "DIVERGE_CONTAINER_PROXY_VAULT_MOUNTS";
+pub const MOUNTS_ENV: &str = "DIVERGE_CONTAINER_PROXY_FILESYSTEM_MOUNTS";
 
-/// One vault key, served as one regular file at one path.
+/// One file, mounted at one path, its bytes kept under one vault key.
 ///
-/// The proxy mounts a FUSE filesystem of exactly one file at the
-/// path — the mount point is the file itself, and the directory
-/// around it stays the image's own — whose bytes are the key's value:
+/// The proxy mounts a FUSE filesystem of exactly one regular file at
+/// the path — the mount point is the file itself, and the directory
+/// around it stays the image's own. The file can be read, written and
+/// overwritten; it cannot be moved or deleted. Its bytes live under
+/// the key, the one store the wire has that outlives the container:
 /// a read is a `get`, a write is a `set`, and the file's size is the
 /// value's length. The [module](super) states the semantics.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,11 +24,11 @@ pub struct Mount {
     /// The file's path, as components from the container's root — the
     /// shape every path in this crate takes.
     pub path: Vec<String>,
-    /// The vault key whose value the file is.
+    /// The vault key the file's bytes are kept under.
     pub key: String,
 }
 
-/// Every vault mount the proxy makes at its start.
+/// Every file mount the proxy makes at its start.
 ///
 /// The variable's value is a JSON array of [`Mount`]s, which is what
 /// serde makes of this newtype. A value that does not parse is an

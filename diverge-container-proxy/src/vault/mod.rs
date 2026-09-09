@@ -11,16 +11,10 @@
 //! ask that died or was refused, `500` for one that would not encode.
 //! No retry, per the wire: a vault operation is not safe to repeat.
 //! A `lock` holds its request open until the lock is held; nothing
-//! times out.
-//!
-//! And the vault as FILES: [`mount()`] serves a key as one regular
-//! file, the SDK's vault mounts, for the credential files vendor
-//! CLIs rewrite in place.
+//! times out. [`ask`] is the one relay under all five, and the file
+//! mounts under [`filesystem`](crate::filesystem) ask through it too.
 
-mod ask;
-mod mount;
-
-pub use mount::*;
+pub mod ask;
 
 use std::sync::Arc;
 
