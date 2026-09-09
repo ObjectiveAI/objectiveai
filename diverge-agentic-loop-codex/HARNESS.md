@@ -27,6 +27,45 @@ resume <SESSION_ID>` as the continuation, the session's rollout files
 under `CODEX_HOME` harvested into the caller's database as hermes
 harvests its files; and the login from the vault.
 
+## The stream is `codex exec --json`, and `response/` is its vocabulary
+
+Read from `codex-rs/exec/src/exec_events.rs` and
+`event_processor_with_jsonl_output.rs` at tag `rust-v0.153.4`
+(2026-09-09); typed, strict, deserialize-only in `src/response/`,
+cc's shape (marker `type` fields, untagged unions, no catch-all — the
+pin closes the union; the one open tail is the source's own
+`WebSearchAction::Other`).
+
+- One JSON object per line, and NOTHING else on stdout: the final
+  message goes to a file only with `-o`, and a serialization failure
+  is itself written as an `error` event.
+- Eight events: `thread.started {thread_id}` first, on a fresh and a
+  resumed thread alike; `turn.started`; `item.started` /
+  `item.updated` / `item.completed {item}`; `turn.completed {usage}`
+  or `turn.failed {error}`; `error {message}`. One process is ONE
+  turn: completion initiates shutdown, and the next turn is `codex
+  exec resume <thread_id> --json`.
+- Nine items, `{id, type, ...}`: `agent_message`, `reasoning`,
+  `command_execution`, `file_change`, `mcp_tool_call`,
+  `collab_tool_call`, `web_search`, `todo_list`, `error`. Ids are
+  `item_<n>`, minted per process.
+- NO DELTAS. Agent messages and reasoning summaries arrive whole, once,
+  at `item.completed`, never started. Commands, MCP calls, web
+  searches, file changes, collab calls and the todo list start and
+  complete; only the todo list is updated, and it completes at the
+  turn's end; every started item still open is completed at the
+  turn's end too.
+- Non-fatal news — warnings, config warnings, deprecations, a model
+  reroute — is an `item.completed` with an `error` ITEM. The `error`
+  EVENT is critical but does not end the turn by itself; `turn.failed`
+  follows, carrying the turn's own error or the last critical one.
+- `turn.completed.usage` is the thread's CUMULATIVE usage
+  (`usage_from_last_total`), not the turn's: the converter bills the
+  difference from what the previous turn reported.
+- `mcp_tool_call.result.content` is kept as raw JSON blocks, as the
+  source keeps it; the converter turns them into rmcp's
+  `CallToolResult` for the `tool_response` chunk, byte-faithfully.
+
 ## The image (see also the Containerfile header)
 
 `debian:sid` by digest, cc's; node and npm, python, git, curl. Codex
@@ -114,9 +153,9 @@ Nothing about credentials rides the agent value, the schema or a row.
 
 ## What a live run has to prove
 
-1. The `--json` event vocabulary at 0.153.4, item by item, before the
-   converter is written — the docs name the event families, not the
-   fields.
+1. The `--json` event vocabulary as typed in `src/response/`, line by
+   line against a real run at 0.153.4 — the types are from the
+   source, and a strict parser dies on the first surprise.
 2. `danger-full-access` with `approval_policy = "never"` running
    inside the container as root without a Landlock or seccomp
    complaint, and with the MCP server reachable on the loopback.
