@@ -1,11 +1,11 @@
 //! The `web_search` item: a search the model made.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// A web search — Codex's own, never one of the caller's tools:
 /// started when kicked off, completed when the results are returned
 /// to the agent.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearch {
     /// The Responses API's id for the search call.
     pub id: String,
@@ -19,7 +19,7 @@ pub struct WebSearch {
 /// `type`. The source carries `#[serde(other)]` on its last variant
 /// — the one open tail on this wire, and the wire's own, so a newer
 /// action still parses.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WebSearchAction {
     /// A search.

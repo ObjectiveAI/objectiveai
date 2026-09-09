@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// A call to a collab tool — Codex's own sub-agent machinery, one
 /// thread spawning, prompting, waiting on or closing another.
@@ -15,7 +15,7 @@ use serde::Deserialize;
 /// `resume_agent` is reported as [`Wait`](CollabTool::Wait), and a
 /// call whose status is interrupted is dropped. So the four tools
 /// here are the four the wire can name, not the four Codex has.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CollabToolCall {
     /// Which collab tool.
     pub tool: CollabTool,
@@ -32,7 +32,7 @@ pub struct CollabToolCall {
 }
 
 /// The collab tools.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CollabTool {
     /// Start another agent.
@@ -46,7 +46,7 @@ pub enum CollabTool {
 }
 
 /// The status of a collab tool call.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum CollabToolCallStatus {
     /// Running.
@@ -59,7 +59,7 @@ pub enum CollabToolCallStatus {
 }
 
 /// The state of a collab agent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CollabAgentStatus {
     /// Spawned, not yet initialized.
@@ -79,7 +79,7 @@ pub enum CollabAgentStatus {
 }
 
 /// The last known state of a collab agent.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CollabAgentState {
     /// Its status.
     pub status: CollabAgentStatus,
