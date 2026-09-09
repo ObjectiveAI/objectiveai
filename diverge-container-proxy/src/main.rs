@@ -26,10 +26,12 @@
 //! filesystem, watched from `/`, as a snapshot and then its changes;
 //! every `/filesystem/read` one file out of it, its bytes then the
 //! close; and every `/filesystem/write` one file into it, moved into
-//! place whole. And it mounts files: each file mount the server
-//! named is one regular file, mounted over FUSE at the proxy's start,
-//! readable and overwritable but never moved or deleted, its bytes
-//! kept under a vault key. And for an
+//! place whole. And it mounts files: each FUSE mount the server named
+//! is one regular file, mounted at the proxy's start, readable and —
+//! unless read-only — overwritable but never moved or deleted, its
+//! bytes the caller's, asked by the mount's id on `/requests` and
+//! answered on `/fuse/read/{channel}` and `/fuse/write/{channel}`.
+//! And for an
 //! agent container the proxy is the loop's door: `/agent/register`,
 //! `/agent/run`, `/agent/schema`, `/agent/enqueue` and
 //! `/agent/dequeue` are each one call to the agent's own server on
@@ -39,6 +41,7 @@
 //! of the loop's between calls.
 
 mod agent;
+mod ask;
 mod command;
 mod filesystem;
 mod mcp;
@@ -81,13 +84,14 @@ async fn run() {
 
     let upstream = Arc::new(agent::Upstream::new());
 
-    // The file mounts, before anything listens: one FUSE file each,
-    // at the paths the server named. Unset is none; a value that
-    // will not parse, or a mount that cannot be made, ends the proxy
-    // here, as loudly as a port that will not bind.
+    // The FUSE mounts, before anything listens: one file each, at
+    // the paths the server named, its bytes the caller's by the id.
+    // Unset is none; a value that will not parse, or a mount that
+    // cannot be made, ends the proxy here, as loudly as a port that
+    // will not bind.
     let mounts = match std::env::var_os(container_proxy::filesystem::MOUNTS_ENV) {
         Some(value) => container_proxy::filesystem::Mounts::parse(&value.to_string_lossy())
-            .expect("the file mounts would not parse"),
+            .expect("the FUSE mounts would not parse"),
         None => container_proxy::filesystem::Mounts::default(),
     };
     let _mounted: Vec<filesystem::Mounted> = mounts
@@ -95,7 +99,7 @@ async fn run() {
         .iter()
         .map(|mount| {
             filesystem::mount(Arc::clone(&requests), tokio::runtime::Handle::current(), mount)
-                .expect("a file mount could not be made")
+                .expect("a FUSE mount could not be made")
         })
         .collect();
 
@@ -162,6 +166,8 @@ async fn run() {
             "/vault/unlock/{channel}",
             axum::routing::any(ws::vault_unlock),
         )
+        .route("/fuse/read/{channel}", axum::routing::any(ws::fuse_read))
+        .route("/fuse/write/{channel}", axum::routing::any(ws::fuse_write))
         .route("/command/{channel}", axum::routing::any(ws::command))
         .route("/postgres/{channel}", axum::routing::any(ws::postgres))
         .route("/filesystem/tree", axum::routing::any(ws::filesystem_tree))
