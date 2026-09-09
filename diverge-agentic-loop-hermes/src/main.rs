@@ -9,7 +9,9 @@
 //! — and streams its chunks back as server-sent events; `POST
 //! /enqueue` and `POST /dequeue` are the running loop's queue, taken
 //! at each turn's end; `GET /schema` is the JSON Schema of the agent
-//! value this image accepts. The run itself is [`run::run`]: the
+//! value this image accepts; `POST /register` is that value, told
+//! once for the container's life before any run — a run before it is
+//! refused. The run itself is [`run::run`]: the
 //! filesystem laid down from the agent, `hermes gateway` spawned and
 //! driven over `/v1/runs`, the way back up. Its tool calls go through
 //! the proxy's MCP server, named in its config; its rotating logins
@@ -45,6 +47,7 @@ mod claim;
 mod continuation;
 mod filesystem;
 mod queue;
+mod registration;
 // The response module carries the gateway's COMPLETE run-event
 // vocabulary, which is more than the conversion consumes — a field
 // parsed and never read is the completeness, not dead code.
@@ -64,6 +67,7 @@ use diverge_container_proxy_sdk::Client;
 use diverge_provider_sdk::container_proxy;
 use diverge_provider_sdk::container_proxy::agent::dequeue::Outcome;
 use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
+use diverge_provider_sdk::container_proxy::register;
 use diverge_provider_sdk::container_proxy::run_loop;
 use diverge_provider_sdk::shared::containers::enqueue;
 use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
@@ -92,6 +96,7 @@ fn main() {
 /// and the proxy is beside it.
 async fn serve() {
     let app = axum::Router::new()
+        .route("/register", axum::routing::post(register))
         .route("/run", axum::routing::post(run))
         .route("/schema", axum::routing::get(schema))
         .route("/enqueue", axum::routing::post(enqueue))
@@ -109,11 +114,11 @@ async fn serve() {
 /// `POST /run`: the run.
 ///
 /// Refused, in order, for what is knowable before the stream: a run
+/// before the agent is registered (`409`); a run
 /// beside one streaming (`409` — the [`Claim`], released on every
 /// refusal below and otherwise by the run's settlement; a request
 /// that lands while a settlement is still running waits for it and
-/// is never refused); an agent value that is not this image's
-/// (`400`); an empty prompt (`400` — a turn needs one); a database
+/// is never refused); an empty prompt (`400` — a turn needs one); a database
 /// that will not answer (`500`); and the run's FIRST item, pulled
 /// before the response is decided — the run's one `Err` is the
 /// request's own failure (`500`, in its own words), and a run with
@@ -126,6 +131,15 @@ async fn run(
     State(client): State<Arc<Client>>,
     Json(request): Json<run_loop::request::Request>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Refusal> {
+    let Some(agent) = registration::registered() else {
+        return Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "kind": "unregistered",
+                "error": "no agent has been registered",
+            })),
+        ));
+    };
     let Ok(claim) = Claim::take().await else {
         return Err((
             StatusCode::CONFLICT,
@@ -137,20 +151,6 @@ async fn run(
     };
     let generation = QUEUE.open().await;
 
-    let agent: Agent = match serde_json::from_value(request.agent) {
-        Ok(agent) => agent,
-        Err(error) => {
-            return Err(refuse(
-                generation,
-                StatusCode::BAD_REQUEST,
-                serde_json::json!({
-                    "kind": "agent",
-                    "error": error.to_string(),
-                }),
-            )
-            .await);
-        }
-    };
     if request.prompt.is_empty() {
         return Err(refuse(
             generation,
@@ -229,6 +229,36 @@ async fn run(
             }
         }
     }))
+}
+
+/// `POST /register`: the agent, once, for the container's life.
+///
+/// A value this image will not take is `400`; an agent already
+/// registered is `409`, whatever the second carries — the agent
+/// never changes. `204` is the agent held.
+async fn register(Json(request): Json<register::request::Request>) -> Result<StatusCode, Refusal> {
+    let agent: Agent = match serde_json::from_value(request.agent) {
+        Ok(agent) => agent,
+        Err(error) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "kind": "agent",
+                    "error": error.to_string(),
+                })),
+            ));
+        }
+    };
+    match registration::register(agent) {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(_) => Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "kind": "registered",
+                "error": "the agent is registered, and it never changes",
+            })),
+        )),
+    }
 }
 
 /// `GET /schema`: what the agent value may be — the JSON Schema of
