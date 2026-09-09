@@ -15,35 +15,42 @@
 //! each path with the one thing this wire adds: a way to say why
 //! there will not be one.
 //!
-//! # Mounts: a file that can be overwritten but not moved or deleted
+//! # FUSE mounts: a file the caller serves, overwritable unless read-only
 //!
-//! Beside the three paths the proxy can MOUNT files: the server names
-//! [`Mount`]s in the [`MOUNTS_ENV`] variable, and at its start the
-//! proxy mounts, at each path, a FUSE filesystem of exactly one
-//! regular file — the mount point is the file itself, made empty if
-//! absent, and the directory around it stays the image's own. The
-//! file's bytes are kept under a vault key, the one store the wire
-//! has that outlives the container; the feature is the filesystem's.
-//! It is for the credential files vendor CLIs rewrite when they
-//! refresh a login: the caller keeps the file, and no harness copies
-//! it in or reads it back.
+//! Beside the three paths the proxy MOUNTS files: the server names
+//! [`Mount`]s in the [`MOUNTS_ENV`] variable — the request's
+//! [`FuseMount`](crate::shared::containers::request::FuseMount)s, handed
+//! down — and at its start the proxy mounts, at each path, a FUSE
+//! filesystem of exactly one regular file: the mount point is the
+//! file itself, made empty if absent, and the directory around it
+//! stays the image's own. The file's bytes are the CALLER's, asked by
+//! the mount's id over [`fuse`](super::fuse) — a read on every open,
+//! a write on every changed close — so the caller serves the file
+//! from wherever it keeps it, and nothing copies it in or reads it
+//! back. It is for the credential files vendor CLIs rewrite when they
+//! refresh a login.
 //!
-//! - The file is mode `0600`, root's, one link, its size the value's
-//!   length. `stat` asks the vault; a missing key is an empty file.
-//! - `open` reads the value into a buffer of the handle's own, so a
-//!   reader sees the snapshot its open took. Opening for writing
-//!   locks the key first (TTL 300 s, not refreshed — a credential
-//!   rewrite is milliseconds; a handle held past the TTL loses the
-//!   lock and its write still lands); a lock refused is `EAGAIN`.
+//! - The file is root's, one link, its size the caller's answer's
+//!   length; mode `0600`, or `0400` when read-only. `stat` asks the
+//!   caller; a caller that holds nothing under the id yet answers an
+//!   empty file.
+//! - `open` reads the file into a buffer of the handle's own, so a
+//!   reader sees the snapshot its open took. No lock: the file is
+//!   the caller's, and so is any serialization of it.
 //! - OVERWRITABLE, every way a program overwrites in place: `O_TRUNC`
 //!   empties the handle's buffer; `truncate` resizes it (or, with no
-//!   handle open, the value itself); `write` changes it at any
+//!   handle open, the file itself); `write` changes it at any
 //!   offset, extending past the end; `flush`, `fsync` and the close
-//!   of a changed handle set the whole buffer as the key's value — a
-//!   set that fails is `EIO`, which is what the writer's `close`
-//!   returns. Two write handles each set the whole buffer, and the
-//!   last close wins. The close unlocks. A `chmod` or `chown` is
-//!   accepted and changes nothing.
+//!   of a changed handle store the whole buffer with the caller — a
+//!   write the caller refuses is `EIO`, which is what the writer's
+//!   `close` returns. Two write handles each store the whole buffer,
+//!   and the last close wins. A `chmod` or `chown` is accepted and
+//!   changes nothing.
+//! - READ-ONLY means read-only: the mount carries the kernel's `ro`
+//!   option, so writes are turned away before they reach the proxy,
+//!   AND every write path in the proxy answers `EROFS` regardless —
+//!   an open for writing or with `O_TRUNC`, a truncate, a write. The
+//!   caller never sees a write for a read-only id.
 //! - NOT movable, NOT deletable: the kernel refuses to rename or
 //!   unlink a mount point (`EBUSY`), and nothing of the proxy's is
 //!   asked. A program that saves by writing a temp file beside and

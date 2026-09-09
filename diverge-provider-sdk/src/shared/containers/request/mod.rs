@@ -16,12 +16,14 @@
 
 mod connect;
 mod container;
+mod fuse_mount;
 mod identity_mount;
 mod image;
 mod volume_mount;
 
 pub use connect::*;
 pub use container::*;
+pub use fuse_mount::*;
 pub use identity_mount::*;
 pub use image::*;
 pub use volume_mount::*;
