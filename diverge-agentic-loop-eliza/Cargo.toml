@@ -3,17 +3,23 @@ name = "diverge-agentic-loop-eliza"
 version = "2.3.0"
 edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
-description = "The Eliza agentic_loop container of the Diverge provider protocol"
+description = "The Eliza agent container of the Diverge provider protocol"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://diverge.network"
 publish = false
 
 [dependencies]
-# The loop's face: one POST at `/`, answered with the SSE stream
-# the Container specification names. Default features carry the JSON
-# extractor and the HTTP/1 server.
+# The loop's door: an HTTP server on the loopback the proxy forwards
+# to — `/run` as server-sent events, the queue's two verbs, the
+# schema. Default features carry the JSON extractor and the HTTP/1
+# server; SSE is axum's own.
 axum = { version = "0.8.9" }
+# The agent's JSON Schema, derived from the agent types for
+# `GET /schema`.
+schemars = { version = "1.2.1" }
+# The derives under the agent module.
+serde = { version = "1.0.229", features = ["derive"] }
 # Path-only: this crate rides the workspace and is never published, so
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.

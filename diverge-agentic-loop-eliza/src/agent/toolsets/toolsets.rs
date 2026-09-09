@@ -1,5 +1,6 @@
 //! The toolsets — every switch in one place.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Per-plugin switches over Eliza's local capabilities, narrowed to
@@ -12,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// always wires them in. What is deliberately ABSENT, and why, is
 /// [the module](super)'s to say.
 #[derive(
-    Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema,
 )]
 pub struct Toolsets {
     /// `plugin-coding-tools`: Claude-Code-style Read, Write, Edit,
@@ -39,8 +40,11 @@ pub struct Toolsets {
     /// fails the action as itself.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generate_media: Option<bool>,
-    /// `plugin-web-search`, keyed. See
-    /// [`web_search`](super::web_search).
+    /// `plugin-web-search`: web search through Tavily, the one
+    /// backend the pinned plugin reads a key for. Its key is the
+    /// vault's `TAVILY_API_KEY`, read at the start of every run the
+    /// switch is on (a vault without it refuses the run) and set as
+    /// the plugin's setting.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub web_search: Option<super::web_search::Toolset>,
+    pub web_search: Option<bool>,
 }

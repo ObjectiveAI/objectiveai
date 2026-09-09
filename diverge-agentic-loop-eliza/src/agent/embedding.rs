@@ -1,9 +1,10 @@
 //! The embedding source.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Where the agent's vectors come from: an OpenAI-compatible
-/// `/embeddings` endpoint, with its credential as an argument.
+/// `/embeddings` endpoint, its bearer the vault's.
 ///
 /// A second structure, independent of [`Provider`](super::Provider),
 /// because the two are independent facts: the model that speaks may
@@ -13,8 +14,11 @@ use serde::{Deserialize, Serialize};
 /// to the `OPENAI_*` settings.
 ///
 /// HOW THE HARNESS APPLIES IT: `EMBEDDING_BASE_URL`,
-/// `EMBEDDING_API_KEY`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS` in
-/// the runtime's process environment. ABSENT, the harness sets
+/// `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS`, and `EMBEDDING_API_KEY`
+/// read from the vault under that same key at the start of every
+/// run (a vault without it refuses the run) — in the runtime's
+/// constructor settings map and the entry process's environment
+/// both. ABSENT, the harness sets
 /// `ELIZA_DISABLE_LOCAL_EMBEDDINGS=1` and registers no embedding
 /// tier at all: Eliza boots, stores every memory WITHOUT a vector,
 /// and searches by keyword — an honest degradation the caller chose
@@ -25,13 +29,11 @@ use serde::{Deserialize, Serialize};
 /// from the continuation's switches the column and re-embeds every
 /// memory in the background — at the caller's cost, the memory
 /// surviving. The harness records the width the vectors were built
-/// on beside the continuation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// on in the lineage's row, and warns when a run changes it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub struct Embedding {
     /// The OpenAI-compatible base URL, `/v1` included.
     pub base_url: String,
-    /// The bearer the endpoint takes.
-    pub api_key: String,
     /// The embedding model, in the endpoint's own naming.
     pub model: String,
     /// The vector width the model produces. One of the widths the

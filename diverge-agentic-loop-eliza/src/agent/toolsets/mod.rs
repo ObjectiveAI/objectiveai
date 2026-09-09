@@ -2,13 +2,13 @@
 //!
 //! Each switch names a PLUGIN the image carries and the harness
 //! lists or skips when it constructs the runtime — the grain Eliza
-//! itself switches things at. A toolset with nothing to configure
-//! is an `Option<bool>` on [`Toolsets`], absent meaning off; one
-//! that takes a credential
-//! is an `Option` of its own structure, AUTH AS AN ARGUMENT exactly
-//! as for the provider: absent is off, present is on with that
-//! tool's key. Nothing about a tool's auth rides the filesystem or
-//! a mount, and the request carries no environment for it to ride.
+//! itself switches things at. Every switch is an `Option<bool>` on
+//! [`Toolsets`], absent meaning off; one that takes a credential
+//! reads it from the VAULT under a key its doc names, exactly as the
+//! provider does. Nothing about a tool's auth rides the agent value,
+//! the filesystem or a mount. A plugin beyond these — any elizaOS
+//! plugin on npm — is the caller's to name in
+//! [`plugins`](super::Agent::plugins), through [`Plugin`](super::Plugin).
 //!
 //! Always on, no switch: `plugin-sql` (the database — required),
 //! the basic-capabilities bundle inside core (REPLY, IGNORE, NONE,
@@ -52,13 +52,12 @@
 //!   fact), trajectory-logger, form, video, fish-audio,
 //!   local-storage, inmemorydb: diagnostics, device features, or
 //!   alternatives to what the harness already decides.
-//! - THIRD-PARTY PLUGINS, as a class: no install at start exists,
-//!   and a drop-in mount would run unreviewed code in the agent's
-//!   process with the tool channel in reach and no isolation. A
-//!   plugin, in this project's lineage, is a container the caller
-//!   runs — its tools arrive over MCP.
-
-pub mod web_search;
+//!
+//! None of those is a third-party plugin: they are Eliza's own host
+//! machinery, which a caller does not get through
+//! [`plugins`](super::Agent::plugins) either — an installed plugin
+//! is configured through its settings, not through the host's
+//! wiring these need.
 
 mod toolsets;
 
