@@ -26,10 +26,11 @@
 //! watched from `/`, as a snapshot and then its changes; every
 //! `/read` one file out of it, its bytes then the close; and every
 //! `/write` one file into it, moved into place whole. And for an
-//! agent container the proxy is the loop's door: `/agent/run`,
-//! `/agent/schema`, `/agent/enqueue` and `/agent/dequeue` are each
-//! one call to the agent's own server on the loopback — `/run`,
-//! `/schema`, `/enqueue`, `/dequeue` — made when the server opens the
+//! agent container the proxy is the loop's door: `/agent/register`,
+//! `/agent/run`, `/agent/schema`, `/agent/enqueue` and
+//! `/agent/dequeue` are each one call to the agent's own server on
+//! the loopback — `/register`, `/run`, `/schema`, `/enqueue`,
+//! `/dequeue` — made when the server opens the
 //! path, its answer re-framed as the wire's; the proxy keeps nothing
 //! of the loop's between calls.
 
@@ -146,6 +147,7 @@ async fn run() {
         .route("/filetree", axum::routing::any(ws::filetree))
         .route("/read", axum::routing::any(ws::read))
         .route("/write", axum::routing::any(ws::write))
+        .route("/agent/register", axum::routing::any(agent::register))
         .route("/agent/run", axum::routing::any(agent::run))
         .route("/agent/schema", axum::routing::any(agent::schema))
         .route("/agent/enqueue", axum::routing::any(agent::enqueue))
