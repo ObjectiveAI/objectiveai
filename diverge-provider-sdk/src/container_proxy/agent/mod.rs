@@ -13,10 +13,10 @@
 //!
 //! | the proxy's path | it calls | the agent's server answers |
 //! |------------------|----------|----------------------------|
-//! | `/agent/register` | `POST /register`, body the [`register::request::Request`](super::register::request::Request) JSON | `2xx`, the agent held for the container's life; or a non-`2xx` |
-//! | `/agent/run` | `POST /run`, body the [`run_loop::request::Request`](super::run_loop::request::Request) JSON | `2xx` as `text/event-stream`, every `data:` one [`AgenticLoopChunk`](crate::shared::containers::run_loop::response::AgenticLoopChunk) JSON, the stream's end the loop ended; or a non-`2xx` |
+//! | `/agent/register` | `POST /register`, body the [`register::request::Request`] JSON | `2xx`, the agent held for the container's life; or a non-`2xx` |
+//! | `/agent/run` | `POST /run`, body the [`run_loop::request::Request`](run::request::Request) JSON | `2xx` as `text/event-stream`, every `data:` one [`AgenticLoopChunk`](crate::shared::containers::run_loop::response::AgenticLoopChunk) JSON, the stream's end the loop ended; or a non-`2xx` |
 //! | `/agent/schema` | `GET /schema` | `2xx` with the JSON Schema of the agent value; or a non-`2xx` |
-//! | `/agent/enqueue` | `POST /enqueue`, body the [`enqueue::request::Request`](super::enqueue::request::Request) JSON | `2xx` with one [`enqueue::Fate`], held until the fate is known; or a non-`2xx` |
+//! | `/agent/enqueue` | `POST /enqueue`, body the [`enqueue::request::Request`] JSON | `2xx` with one [`enqueue::Fate`], held until the fate is known; or a non-`2xx` |
 //! | `/agent/dequeue` | `POST /dequeue`, body `{}` | `2xx` with one [`dequeue::Outcome`]; or a non-`2xx` |
 //!
 //! # Registration comes first, and once
@@ -61,6 +61,9 @@
 
 pub mod dequeue;
 pub mod enqueue;
+pub mod register;
+pub mod run;
+pub mod schema;
 
 /// The port the agent's server listens on when the environment does
 /// not say otherwise.
