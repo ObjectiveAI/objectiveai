@@ -230,6 +230,24 @@ pub async fn vault_unlock(
     answer(Kind::VaultUnlock, requests, upgrade, channel).await
 }
 
+/// `/fuse/read/{channel}`.
+pub async fn fuse_read(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::FuseRead, requests, upgrade, channel).await
+}
+
+/// `/fuse/write/{channel}`.
+pub async fn fuse_write(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::FuseWrite, requests, upgrade, channel).await
+}
+
 /// `/command/{channel}`.
 pub async fn command(
     State(requests): State<Arc<Requests>>,

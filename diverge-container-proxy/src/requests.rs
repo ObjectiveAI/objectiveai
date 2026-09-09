@@ -42,6 +42,8 @@ pub enum Kind {
     VaultUnlock,
     Command,
     Postgres,
+    FuseRead,
+    FuseWrite,
 }
 
 impl Kind {
@@ -59,6 +61,8 @@ impl Kind {
             Request::VaultUnlock(_) => Kind::VaultUnlock,
             Request::Command(_) => Kind::Command,
             Request::Postgres(_) => Kind::Postgres,
+            Request::FuseRead(_) => Kind::FuseRead,
+            Request::FuseWrite(_) => Kind::FuseWrite,
         }
     }
 }

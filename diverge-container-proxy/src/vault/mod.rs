@@ -11,10 +11,8 @@
 //! ask that died or was refused, `500` for one that would not encode.
 //! No retry, per the wire: a vault operation is not safe to repeat.
 //! A `lock` holds its request open until the lock is held; nothing
-//! times out. [`ask`] is the one relay under all five, and the file
-//! mounts under [`filesystem`](crate::filesystem) ask through it too.
-
-pub mod ask;
+//! times out. The crate's [`crate::ask`] is the one relay under
+//! all five.
 
 use std::sync::Arc;
 
@@ -25,6 +23,7 @@ use axum::response::{IntoResponse, Response};
 use diverge_provider_sdk::container_proxy::requests::request::Request;
 use diverge_provider_sdk::container_proxy::vault;
 
+use crate::ask;
 use crate::requests::Requests;
 
 /// Ask once, and answer with what came back.
