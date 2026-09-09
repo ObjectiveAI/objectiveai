@@ -9,23 +9,107 @@ learn.chatgpt.com) and from `codex-rs/exec/src/cli.rs` on `main` on
 2026-09-09, against `@openai/codex` 0.153.4, the version the image
 pins; nothing here has been run.
 
-## What is built, and what is not
+## What is built
 
-The bootstrap: the crate, the agent vocabulary with its schema, the
-server (`POST /register`, `GET /schema`, `POST /enqueue` → `missed`,
-`POST /dequeue` → `empty`, `POST /run` → `409` before registration and
-`501` after), and the image. The run chunk brings, in the other
-containers' shape: cc's three-phase claim; hermes's queue taken at the
-turn's end (Codex cannot be steered mid-turn either — a turn is one
-`codex exec`, and invoking it again is the delivery); `codex exec
---json` spawned per turn with the config the agent renders to, its
-JSONL events (`thread.started`, `turn.started`, `turn.completed`,
-`turn.failed`, `item.started`, `item.completed`, `error`; items are
-agent messages, reasoning, command executions, file changes, MCP tool
-calls, web searches, plan updates) converted into chunks; `codex exec
-resume <SESSION_ID>` as the continuation, the session's rollout files
-under `CODEX_HOME` harvested into the caller's database as hermes
-harvests its files; and the login from the vault.
+The whole container, never run: the agent vocabulary with its schema;
+the server (`main.rs`, hermes's); cc's three-phase claim and hermes's
+queue; the login from a mount or the vault (`auth.rs`); `config.toml`
+rendered from the agent (`config.rs`); the thread's rollouts as the
+continuation in the caller's database (`continuation.rs`); and the
+run (`run/`): `codex exec --json` spawned per turn (`process.rs`), its
+events converted into chunks (`convert.rs`), the queue taken at the
+turn's end, the login read back, the rollouts harvested.
+
+## The run: one `codex exec` per turn
+
+`codex exec --json --dangerously-bypass-approvals-and-sandbox
+--skip-git-repo-check [resume <thread_id>] -`, the prompt on stdin
+(argv caps one argument at 128 KiB on Linux, and joined queue prompts
+can exceed it), `CODEX_HOME=/root/.codex` and the login's variable in
+the environment, cwd the harness's (the caller's mounts are wherever
+the caller put them), stderr passed through, `kill_on_drop`. The
+bypass flag is the source's own for "environments that are externally
+sandboxed"; the config carries no `sandbox_mode` or `approval_policy`,
+so that decision has one spelling. The first turn of a fresh lineage
+runs without `resume`; every turn after resumes the thread
+`thread.started` named. A turn ends when stdout closes; the queue is
+then taken (empty closes it and ends the run; pending is delivered as
+`user` chunks and joined with a blank line into the next turn's
+prompt), the login read back, and the next process spawned. Before
+the first event of the first process a failure is the request's own
+(`500`); after, a fatal notification, and the run still harvests and
+releases.
+
+Rules settled with it:
+
+- An interrupted turn (stdout closed after `turn.started` with no
+  terminal event) is a fatal notification `{kind: "interrupted"}`.
+  A non-zero exit after a terminal event is a non-fatal notification.
+  A line that is not an event is a non-fatal notification after the
+  first event, the request's own failure before it.
+- Tool-call ids are MINTED here (uuid v4), mapped from the item id
+  for the process's life: Codex's `item_<n>` ids restart every
+  process, and the stream needs an id unique across the run. A
+  completed item that never started (agent messages and reasoning
+  always; anything reconciled at the turn's end) gets a fresh id and,
+  for a tool, a call and a response back to back.
+- The converter, per item: `agent_message` → `assistant_text_content`
+  whole; `reasoning` → `assistant_reasoning` whole;
+  `command_execution` → call `command_execution` `{command}` /
+  response one text block of `aggregated_output`, `is_error` on
+  failed or declined; `file_change` → call `file_change` `{changes}`
+  / response one text line per change (`<kind> <path>`), `is_error`
+  on failed; `mcp_tool_call` → call named the TOOL (the server is
+  `diverge`; another server is prefixed `<server>/`) with the
+  arguments verbatim / response the MCP result verbatim — content
+  blocks parsed into rmcp's own, a block that will not parse kept as
+  a text block of its JSON — `structured_content`, `_meta`, `is_error`
+  on failed, an `error` without a result as one text block of its
+  message; `web_search` → call `web_search` `{query, action}` /
+  response the action as text; `todo_list` (started, updated,
+  completed) → non-fatal notification `{kind: "todo_list", items}`;
+  `collab_tool_call` → non-fatal notification `{kind: "collab", ...}`;
+  the `error` item → non-fatal `{kind: "codex", error}`. The `error`
+  EVENT → non-fatal `{kind: "codex", error}`; `turn.failed` → fatal
+  `{kind: "turn", error}`; `turn.completed` → `usage`.
+- Usage is a DELTA against the thread's baseline: `turn.completed`
+  reports the thread's cumulative count; the chunk is cumulative minus
+  the last cumulative seen (each counter clamped at zero), and when
+  the cumulative is smaller than the baseline the process is counting
+  from zero and the delta is the cumulative itself. `prompt_tokens` =
+  input, `completion_tokens` = output (reasoning tokens are inside
+  output), `total` their sum. The baseline is the thread row's.
+
+## The continuation is the thread's rollouts
+
+`codex exec resume <thread_id>` finds a thread through its SQLite
+index first and falls back to scanning the rollout files, so the
+files are the continuation and the index is Codex's to rebuild. Two
+tables in the caller's database:
+
+```sql
+CREATE TABLE IF NOT EXISTS codex_thread (
+    id smallint PRIMARY KEY CHECK (id = 1),
+    thread_id text NOT NULL,
+    usage jsonb NOT NULL)
+CREATE TABLE IF NOT EXISTS codex_files (
+    path text PRIMARY KEY, content bytea NOT NULL)
+```
+
+- The thread row is read once per program and cached (cc's rule);
+  the files are restored under `$CODEX_HOME` once per program and
+  never again (hermes's rule) — Codex appends to them itself, and the
+  disk is the authority from then on. Paths are validated (relative,
+  no `..`) before a write.
+- Every run harvests at its end, whenever a thread is known — the
+  fatal end included, since the files are the truth of what happened:
+  every file under `sessions/` and `archived_sessions/` whose name
+  carries the thread id, read as BYTES (rollouts may be `.zst` once
+  compressed), replacing the rows whole in one transaction beside the
+  thread row.
+- Nothing else travels: not the state database (an index), not
+  `history.jsonl` (display history), not `config.toml` and
+  `auth.json` (the harness's and the vault's).
 
 ## The stream is `codex exec --json`, and `response/` is its vocabulary
 
@@ -110,16 +194,18 @@ Every absent `Option` leaves its key unset, so Codex applies its own
 default for the model — except `web_search`, above.
 
 Always written, no switch (the reasons are in `agent/mod.rs`):
-`sandbox_mode = "danger-full-access"` and `approval_policy = "never"`
-(the container is the sandbox; a prompt waits on a user who is not
-there); `mcp_servers.diverge = { url = <the container SDK's
-mcp_url()> }` — the caller's tools and resources, through the proxy,
-the one MCP server; `hide_agent_reasoning = false`. `--skip-git-repo
--check` on the argv (the workspace is whatever the caller mounted).
-Never written: `--ephemeral` (the session IS the continuation),
-profiles, `notify`, execpolicy rules, `shell_environment_policy`
-(the harness renders the process environment itself), `--image` and
-`--output-schema` (the wire is text and chunks).
+`mcp_servers.diverge = { url = <the container SDK's mcp_url()> }` —
+the caller's tools and resources, through the proxy, the one MCP
+server; `hide_agent_reasoning = false`. On the argv, not in the
+config: `--dangerously-bypass-approvals-and-sandbox` (the container
+is the sandbox; a prompt waits on a user who is not there) and
+`--skip-git-repo-check` (the workspace is whatever the caller
+mounted). `config.toml` is written before every run at
+`$CODEX_HOME/config.toml`, the home made as needed. Never written:
+`--ephemeral` (the thread IS the continuation), profiles, `notify`,
+execpolicy rules, `shell_environment_policy` (the harness renders the
+process environment itself), `--image` and `--output-schema` (the
+wire is text and chunks).
 
 ## Auth: a mount first, then the vault, and only both missing refuses
 
@@ -132,18 +218,19 @@ The agent says nothing about how Codex logs in (user ruling
    choice and the harness never reads it. Codex refreshes ChatGPT
    tokens in place, on the mount, so the caller's copy stays current
    without any cycle of the harness's. Found, the vault is never
-   asked.
+   asked. A file THIS PROGRAM wrote from the vault in an earlier run
+   is not a mount (a static remembers), so the vault stays
+   authoritative across runs.
 2. **The vault's `OPENAI_CODEX_OAUTH`** — the SDK's well-known key,
    the same document Hermes's `providers.openai-codex` entry carries
-   — rendered as `$CODEX_HOME/auth.json`. ROTATING: Codex refreshes
-   the tokens during use, so the run owes hermes's cycle (`vault.rs`
-   there is the model): lock for 300 s refreshed every 100 s on a
-   task, get, render, run, read the file back after every turn and at
-   the end, set when changed, unlock — every key attempted, the first
-   failure reported. The exact shape Codex 0.153.4 expects in
-   `auth.json`, versus the vault document's, is a live-run check: the
-   harness renders one from the other and never guesses fields it has
-   not seen.
+   — written VERBATIM as `$CODEX_HOME/auth.json`: the document is
+   Codex's own file, and no field is ever rendered or guessed.
+   ROTATING: Codex refreshes the tokens during use, so the run owes
+   hermes's cycle: lock for 300 s refreshed every 100 s on a task,
+   get, write, run, read the file's bytes back after every turn, set
+   when they changed, unlock at the end. A file no longer there at a
+   read-back is nothing new. That the vault's document is exactly
+   the `auth.json` Codex 0.153.4 accepts is a live-run check.
 3. **The vault's `OPENAI_API_KEY`**: a STATIC secret, read once per
    run and put in the process environment, where Codex's `env_key`
    looks. No lock, no set.
@@ -176,4 +263,12 @@ Nothing about credentials rides the agent value, the schema or a row.
    `auth.json` refreshed in place on the mount.
 5. `wire_api = "responses"` against the Diverge relay.
 6. `codex exec resume <SESSION_ID>` across container restarts once
-   the rollout files are restored from the database.
+   the rollout files are restored from the database, with the SQLite
+   index rebuilt from them, and `.zst` rollouts after compression.
+7. `-` on stdin under `exec resume` reading the whole prompt, as it
+   does under plain `exec`.
+8. Whether a resumed process's `turn.completed.usage` counts from the
+   thread's beginning or from zero — the delta logic tolerates both,
+   but the bill is only right if one of them is what happens.
+9. `mcp_servers.diverge` with a bare `url` connecting to the proxy's
+   inside port and the model calling the caller's tools through it.
