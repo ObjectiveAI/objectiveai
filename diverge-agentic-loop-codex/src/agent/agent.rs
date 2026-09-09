@@ -3,15 +3,17 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{Effort, Login, Provider, Summary, Verbosity, WebSearch};
+use super::{Effort, Provider, Summary, Verbosity, WebSearch};
 
 /// An agent running against Codex.
 ///
 /// Few knobs, and not because anything is missing: Codex decides its
 /// own sampling, its own tools and its own loop, and what it exposes
 /// to a caller is the model, how hard it reasons and how it speaks,
-/// whether it may search the web, how it logs in, and where it sends
-/// its requests. Each field is one config key or flag, named in its
+/// whether it may search the web, and where it sends its requests.
+/// How it logs in is not the agent's to say: the login is a mount or
+/// the vault's (see [the module](super)). Each field is one config
+/// key or flag, named in its
 /// doc; every `Option` absent leaves that key unset, so Codex applies
 /// its own default for the model — except [`web_search`](Self::web_search),
 /// where absent is off, because nothing is on by omission.
@@ -39,15 +41,10 @@ pub struct Agent {
     /// ABSENT IS `disabled`. See [`WebSearch`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub web_search: Option<WebSearch>,
-    /// How Codex logs in, and so which vault key the run reads:
-    /// `forced_login_method`. Absent is an API key. See [`Login`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub login: Option<Login>,
     /// Where requests go instead of OpenAI: a `model_providers` entry
-    /// the harness writes and selects. Needs an API-key
-    /// [`login`](Self::login); with a ChatGPT login it is a
-    /// contradiction the run refuses. Absent is OpenAI's own
-    /// endpoint. See [`Provider`].
+    /// the harness writes and selects, its key the `OPENAI_API_KEY`
+    /// the run found. Absent is OpenAI's own endpoint. See
+    /// [`Provider`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<Provider>,
 }

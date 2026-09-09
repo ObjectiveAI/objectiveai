@@ -52,13 +52,11 @@ nothing else:
 - `web_search` → `web_search = disabled | cached | indexed | live`;
   ABSENT IS `disabled` (nothing is on by omission). A search is
   Codex's own, never one of the caller's tool calls on the stream.
-- `login` → `forced_login_method = "api" | "chatgpt"`; absent is
-  `api`. Decides the vault key (below).
 - `provider` → `model_providers.diverge = { name = "diverge",
   base_url, env_key = "OPENAI_API_KEY", wire_api = "responses" }` and
-  `model_provider = "diverge"`. Requires an API-key login; both a
-  provider and a ChatGPT login is a contradiction the run refuses.
-  Absent, Codex's own `openai` provider.
+  `model_provider = "diverge"`. Keyed by the `OPENAI_API_KEY` the run
+  found (below); beside a ChatGPT login it fails as itself, in Codex's
+  words. Absent, Codex's own `openai` provider.
 
 Every absent `Option` leaves its key unset, so Codex applies its own
 default for the model — except `web_search`, above.
@@ -75,25 +73,44 @@ profiles, `notify`, execpolicy rules, `shell_environment_policy`
 (the harness renders the process environment itself), `--image` and
 `--output-schema` (the wire is text and chunks).
 
-## Auth comes from the vault, by `login`
+## Auth: a mount first, then the vault, and only both missing refuses
 
-- `api_key`: `OPENAI_API_KEY` is a STATIC vault secret, read once per
-  run and put in the process environment, which is where Codex's
-  `env_key` looks. A vault without it refuses the run.
-- `chatgpt`: `OPENAI_CODEX_OAUTH` — the SDK's well-known key, the
-  same document Hermes's `providers.openai-codex` entry carries — is
-  ROTATING: Codex refreshes the tokens during use. The run owes
-  hermes's cycle (`vault.rs` there is the model): lock for 300 s
-  refreshed every 100 s on a task, get, render as
-  `$CODEX_HOME/auth.json`, run, read the file back after every turn
-  and at the end, set when changed, unlock — every key attempted, the
-  first failure reported. The exact shape Codex 0.153.4 expects in
-  `auth.json` for a ChatGPT login, versus the shape the vault document
-  carries, is a live-run check: the harness renders one from the
-  other and never guesses fields it has not seen.
+The agent says nothing about how Codex logs in (user ruling
+2026-09-09). At each run's start the harness looks, in order:
 
-Nothing about credentials rides the agent value, the schema, a row or
-a mount.
+1. **A mounted `auth.json`** at `$CODEX_HOME/auth.json`. The caller
+   put it there, exactly as cc's caller mounts Claude Code's
+   credentials; its kind (API key or ChatGPT tokens) is the caller's
+   choice and the harness never reads it. Codex refreshes ChatGPT
+   tokens in place, on the mount, so the caller's copy stays current
+   without any cycle of the harness's. Found, the vault is never
+   asked.
+2. **The vault's `OPENAI_CODEX_OAUTH`** — the SDK's well-known key,
+   the same document Hermes's `providers.openai-codex` entry carries
+   — rendered as `$CODEX_HOME/auth.json`. ROTATING: Codex refreshes
+   the tokens during use, so the run owes hermes's cycle (`vault.rs`
+   there is the model): lock for 300 s refreshed every 100 s on a
+   task, get, render, run, read the file back after every turn and at
+   the end, set when changed, unlock — every key attempted, the first
+   failure reported. The exact shape Codex 0.153.4 expects in
+   `auth.json`, versus the vault document's, is a live-run check: the
+   harness renders one from the other and never guesses fields it has
+   not seen.
+3. **The vault's `OPENAI_API_KEY`**: a STATIC secret, read once per
+   run and put in the process environment, where Codex's `env_key`
+   looks. No lock, no set.
+
+None of the three: the run is refused, naming all three places. The
+OAuth document outranks the API key in the vault because the key is
+a generic secret other images share (Eliza reads the same one), so
+its presence says nothing about Codex, while the document is Codex's
+own and its presence is intent. A ChatGPT login bills the caller's
+subscription; an API key bills the platform at API rates — Codex's
+docs keep the two systems apart, and so does this order. The vault is
+touched only at the run, never at startup: the proxy may not be up
+before a request.
+
+Nothing about credentials rides the agent value, the schema or a row.
 
 ## What a live run has to prove
 
@@ -107,7 +124,8 @@ a mount.
    bearer) connecting to the proxy's inside port, listing the
    caller's tools, and reading resources.
 4. A ChatGPT `auth.json` rendered from the vault document accepted
-   headless, and refreshed tokens read back.
+   headless, and refreshed tokens read back; and a MOUNTED
+   `auth.json` refreshed in place on the mount.
 5. `wire_api = "responses"` against the Diverge relay.
 6. `codex exec resume <SESSION_ID>` across container restarts once
    the rollout files are restored from the database.

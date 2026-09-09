@@ -17,8 +17,8 @@
 //! the other containers' shape: cc's three-phase claim, hermes's
 //! queue taken at the turn's end, `codex exec --json` spawned per
 //! turn with the config the agent renders to, `exec resume` as the
-//! continuation, the login from the vault, and the JSONL events
-//! converted into chunks.
+//! continuation, the login from a mount or the vault, and the JSONL
+//! events converted into chunks.
 
 mod agent;
 mod registration;

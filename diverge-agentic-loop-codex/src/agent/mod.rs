@@ -11,10 +11,14 @@
 //! HONORABLE: it names a key of that file, or a flag of that command,
 //! that the harness actually renders — `model`,
 //! `model_reasoning_effort`, `model_reasoning_summary`,
-//! `model_verbosity`, `web_search`, `forced_login_method`, and a
-//! `model_providers` entry — and nothing else made the cut. Nothing
-//! here is a secret: the login the agent names is read from the
-//! caller's vault per run, under a key the [`Login`] decides.
+//! `model_verbosity`, `web_search`, and a `model_providers` entry —
+//! and nothing else made the cut. Nothing here is a secret, and
+//! nothing here says how Codex logs in: the run looks for an
+//! `auth.json` the caller MOUNTED at `$CODEX_HOME` first, and, absent
+//! one, at the vault — the well-known `OPENAI_CODEX_OAUTH` document
+//! rendered as that file (rotating; the run owes the cycle), else the
+//! static `OPENAI_API_KEY` into the process environment — and refuses
+//! the run only when every one of those is missing.
 //!
 //! What is deliberately ABSENT, and why, so nobody re-opens it
 //! without a new fact:
@@ -39,6 +43,9 @@
 //! - PROFILES, `notify` hooks, execpolicy rules and
 //!   `shell_environment_policy`: the harness's rendering of the
 //!   process, not the caller's vocabulary.
+//! - THE LOGIN (`forced_login_method`, any credential): a mount or
+//!   the vault's, above — the caller who mounted an `auth.json` chose
+//!   its kind, and the vault's documents are what they are.
 //! - SKILLS: mounts, exactly as for Claude Code; a directory under
 //!   Codex's skills path is a skill, and no switch decides it.
 //! - `wire_api`: the configuration reference names one value,
@@ -46,7 +53,6 @@
 
 mod agent;
 mod effort;
-mod login;
 mod provider;
 mod summary;
 mod verbosity;
@@ -54,7 +60,6 @@ mod web_search;
 
 pub use agent::*;
 pub use effort::*;
-pub use login::*;
 pub use provider::*;
 pub use summary::*;
 pub use verbosity::*;

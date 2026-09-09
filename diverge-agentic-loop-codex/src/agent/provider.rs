@@ -11,10 +11,11 @@ use serde::{Deserialize, Serialize};
 /// must speak the Responses API, which the Diverge relay and every
 /// upstream this protocol routes do.
 ///
-/// Absent, Codex's own `openai` provider is used, and the login may
-/// be either kind. Present, the login must be an API key: a ChatGPT
-/// login speaks only to OpenAI's own backend, and a request naming
-/// both is a contradiction the run refuses.
+/// Absent, Codex's own `openai` provider is used, with whatever
+/// login the run found. Present, the entry is keyed by the
+/// `OPENAI_API_KEY` the run found — a ChatGPT login speaks only to
+/// OpenAI's own backend, and a provider beside one fails as itself,
+/// in Codex's words.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub struct Provider {
     /// The base URL, `/v1` included: `model_providers.diverge.base_url`.
