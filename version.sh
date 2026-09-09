@@ -245,7 +245,6 @@ CARGO_TOMLS=(
   diverge-container-proxy/Cargo.toml
   diverge-container-proxy-sdk/Cargo.toml
   diverge-agentic-loop-openrouter/Cargo.toml
-  diverge-agentic-loop-pi/Cargo.toml
   diverge-broker-sdk/Cargo.toml
   diverge-provider-sdk/Cargo.toml
   objectiveai-sdk-rs/Cargo.toml
