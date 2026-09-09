@@ -17,8 +17,9 @@
 //! `knowledge`/`documents` (files, so MOUNTS — the documents
 //! toolset ingests what is mounted); `plugins`, `settings`,
 //! `secrets`, `templates` (see [the agent module](super)); and `id`
-//! — the identity is the HARNESS's, pinned once per lineage beside
-//! the continuation, so a renamed character keeps its memory.
+//! — the identity is the HARNESS's, pinned once per lineage in its
+//! row of the caller's database, so a renamed character keeps its
+//! memory.
 
 mod character;
 mod example;

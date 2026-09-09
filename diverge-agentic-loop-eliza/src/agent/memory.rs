@@ -1,5 +1,6 @@
 //! What a turn accumulates beyond the conversation.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The memory-shaping switches, every one stated.
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 /// are persisted whenever it found any — a cost already inside the
 /// turn the caller asked for.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, Default,
 )]
 pub struct Memory {
     /// The advanced-capabilities bundle: the post-turn reflection

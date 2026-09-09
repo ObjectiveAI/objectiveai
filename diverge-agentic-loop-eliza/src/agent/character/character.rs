@@ -1,5 +1,6 @@
 //! The character.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::{Example, Style};
@@ -11,7 +12,7 @@ use super::{Example, Style};
 /// an ingredient Eliza samples or blocks into the prompt, empty
 /// meaning "nothing to say", which is how a caller whose whole
 /// personality is the system prompt states that.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub struct Character {
     /// The agent's name. The prompt's `{{agentName}}` and
     /// `{{name}}`; every prompt block is headed by it.

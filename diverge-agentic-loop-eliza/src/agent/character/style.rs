@@ -1,5 +1,6 @@
 //! Style directions.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// How the agent writes, as direction lines.
@@ -11,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// kept because the character is one document and a caller may
 /// carry it whole.
 #[derive(
-    Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema,
 )]
 pub struct Style {
     /// Directions for everything the agent writes.

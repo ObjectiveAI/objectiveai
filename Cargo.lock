@@ -1718,6 +1718,8 @@ dependencies = [
  "axum",
  "diverge-provider-sdk",
  "futures-util",
+ "schemars 1.2.2",
+ "serde",
  "serde_json",
  "tokio",
 ]
