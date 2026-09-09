@@ -26,7 +26,9 @@
 //! filesystem, watched from `/`, as a snapshot and then its changes;
 //! every `/filesystem/read` one file out of it, its bytes then the
 //! close; and every `/filesystem/write` one file into it, moved into
-//! place whole. And for an
+//! place whole. And it is the vault as files: each vault mount the
+//! server named is one regular file, mounted over FUSE at the proxy's
+//! start, whose bytes are a key's value. And for an
 //! agent container the proxy is the loop's door: `/agent/register`,
 //! `/agent/run`, `/agent/schema`, `/agent/enqueue` and
 //! `/agent/dequeue` are each one call to the agent's own server on
@@ -77,6 +79,24 @@ async fn run() {
     ));
 
     let upstream = Arc::new(agent::Upstream::new());
+
+    // The vault mounts, before anything listens: a key as one file
+    // each, at the paths the server named. Unset is none; a value
+    // that will not parse, or a mount that cannot be made, ends the
+    // proxy here, as loudly as a port that will not bind.
+    let mounts = match std::env::var_os(container_proxy::vault::MOUNTS_ENV) {
+        Some(value) => container_proxy::vault::Mounts::parse(&value.to_string_lossy())
+            .expect("the vault mounts would not parse"),
+        None => container_proxy::vault::Mounts::default(),
+    };
+    let _mounted: Vec<vault::Mounted> = mounts
+        .0
+        .iter()
+        .map(|mount| {
+            vault::mount(Arc::clone(&requests), tokio::runtime::Handle::current(), mount)
+                .expect("a vault mount could not be made")
+        })
+        .collect();
 
     tokio::spawn(mcp::notifications(
         Arc::clone(&requests),

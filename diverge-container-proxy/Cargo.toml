@@ -44,3 +44,12 @@ eventsource-stream = "0.2.3"
 # driver's socket; `time` paces an accept loop that keeps failing;
 # `fs` opens and reads the files the server asks for.
 tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "rt-multi-thread", "sync", "time"] }
+
+# The vault mounts: one FUSE file per key, mounted by the proxy itself.
+# Pure Rust — `fuser` talks to /dev/fuse and mounts through the syscall
+# as the namespace's root — and Unix only, which the container is and
+# the check host is not. `libc` for the one open flag the trait hands
+# over raw (`O_TRUNC`).
+[target.'cfg(unix)'.dependencies]
+fuser = { version = "0.18.0" }
+libc = { version = "0.2.186" }
