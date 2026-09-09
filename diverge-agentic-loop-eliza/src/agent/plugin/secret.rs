@@ -30,7 +30,12 @@ use super::Rotates;
 /// The two places a plugin may leave a rotated value are its setting
 /// and a file, and the harness re-applies the vault's copy at the
 /// top of Eliza's precedence at every run's start, so a rewound row
-/// never wins over the vault.
+/// never wins over the vault. Eliza's OWN vault — the encrypted
+/// store the `@elizaos/vault` library keeps on disk, on by default
+/// with a passphrase the harness holds — is a third place, outside
+/// the database and outside this read-back: a plugin that keeps a
+/// rotated login there keeps it across runs when the state
+/// directory is mounted, and is declared a static seed here.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum Secret {
