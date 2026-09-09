@@ -1,8 +1,8 @@
 //! The `/agent/run` path: the loop, run.
 //!
-//! Opened by the server, for an agent container. It sends exactly one
-//! message — the [`request::Request`], the prompt and the agent the
-//! container was made with — and the container answers with the loop
+//! Opened by the server, for an agent container whose agent was
+//! registered ([`register`](super::register)). It sends exactly one
+//! message — the [`request::Request`], the prompt — and the container answers with the loop
 //! as it happens: one [`response::Frame`] per chunk, then the clean
 //! close, which is the loop ended. An [`Error`](response::Frame::Error)
 //! is a message too — first, when nothing ran, or last, when the loop

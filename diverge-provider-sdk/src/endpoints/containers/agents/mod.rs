@@ -1,11 +1,10 @@
 //! An agent in a container.
 //!
-//! The image runs an agentic loop. The prompt and the agent — a JSON
-//! value the image defines — are on the
-//! [`request`](run::client::request::Frame) that makes the container,
-//! and the caller starts the loop over a channel,
-//! [`run_loop`](crate::shared::containers::run_loop), that carries
-//! nothing and answers with the loop's chunks;
+//! The image runs agentic loops. The agent — a JSON value the image
+//! defines — is on the [`request`](run::client::request::Frame) that
+//! makes the container, fixed for its life, and the caller runs each
+//! loop over a channel, [`run_loop`](crate::shared::containers::run_loop),
+//! that carries the loop's prompt and answers with its chunks;
 //! [`agent_schema`](crate::shared::containers::agent_schema) returns
 //! what the agent value may be, so a caller can learn an image's
 //! agent without knowing the image. The agent being a value is what

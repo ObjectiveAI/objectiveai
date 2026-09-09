@@ -7,17 +7,17 @@ use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::containers::request::Container;
 
-/// Ask a provider to create an agent container, and say what its loop
-/// runs.
+/// Ask a provider to create an agent container, and say what agent
+/// it is.
 ///
-/// A [`Container`] — the image, the limits, the mounts — and then the
-/// two things a loop needs: a prompt, and an agent. They are on the
-/// request rather than on the channel that starts the loop because a
-/// container runs one loop, on one prompt, as one agent, for its
-/// whole life; the channel that starts it has nothing left to say.
+/// A [`Container`] — the image, the limits, the mounts — and the
+/// agent. The agent is on the request rather than on the channel
+/// that starts a loop because it is FIXED: a container is one agent
+/// for its whole life, registered with it once, and every loop it
+/// runs is that agent. What a loop is asked is each loop's own, and
+/// rides the [`RunLoop`](super::super::channel_request::Frame::RunLoop)
+/// channel as its prompt.
 ///
-/// The two are typed to different depths on purpose. The prompt is a
-/// string, because every loop takes one and this crate can say so.
 /// The agent is a JSON value, because this crate does not know what
 /// an agent is — a model, a set of tools, a personality, a harness's
 /// own knobs — and a wire that typed it would have to be revised for
@@ -29,11 +29,7 @@ pub struct Frame {
     /// is one object rather than a container inside a request.
     #[serde(flatten)]
     pub container: Container,
-    /// What the loop is asked. POST-TRANSFORM: the result of whatever
-    /// built the request — a system prompt applied, a history folded
-    /// in — so a provider never rewrites what it was given.
-    pub prompt: String,
-    /// The agent, as the image defines it. The typed agents this
+    /// The agent, as the image defines it, for the container's life. The typed agents this
     /// crate once carried are kept in
     /// [`agent`](crate::endpoints::containers::agents::agent) for
     /// reference; nothing here reads them.
