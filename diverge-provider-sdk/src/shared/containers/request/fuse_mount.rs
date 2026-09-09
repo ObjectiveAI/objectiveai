@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 /// The provider MUST mount every one before the container starts —
 /// the proxy inside the container does, at its start — as a
 /// filesystem of exactly one regular file: the mount point is the
-/// file itself, and the directory around it stays whatever the image
-/// or another mount made it. The file can be read and, unless
+/// file itself, made if absent with every missing parent directory
+/// made too, and the directory around it stays whatever the image or
+/// another mount made it. The file can be read and, unless
 /// [`readonly`](Self::readonly), overwritten in place; it cannot be
 /// moved or deleted — the kernel refuses to rename or unlink a mount
 /// point. Its bytes are fetched from the caller on every open and

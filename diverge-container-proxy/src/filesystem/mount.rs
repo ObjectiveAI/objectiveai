@@ -38,8 +38,8 @@ pub struct Mounted {
     _session: fuser::BackgroundSession,
 }
 
-/// Make the file's parents, the file itself if absent, and mount over
-/// it: read-only at the kernel too when the mount says so.
+/// Make every missing parent directory, the file itself if absent, and
+/// mount over it: read-only at the kernel too when the mount says so.
 #[cfg(unix)]
 pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Mount) -> io::Result<Mounted> {
     use std::os::unix::fs::OpenOptionsExt as _;

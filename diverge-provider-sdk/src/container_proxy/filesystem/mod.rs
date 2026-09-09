@@ -22,8 +22,8 @@
 //! [`FuseMount`](crate::shared::containers::request::FuseMount)s, handed
 //! down — and at its start the proxy mounts, at each path, a FUSE
 //! filesystem of exactly one regular file: the mount point is the
-//! file itself, made empty if absent, and the directory around it
-//! stays the image's own. The file's bytes are the CALLER's, asked by
+//! file itself, made empty if absent — every missing parent directory
+//! made first — and the directory around it stays the image's own. The file's bytes are the CALLER's, asked by
 //! the mount's id over [`fuse`](super::fuse) — a read on every open,
 //! a write on every changed close — so the caller serves the file
 //! from wherever it keeps it, and nothing copies it in or reads it
