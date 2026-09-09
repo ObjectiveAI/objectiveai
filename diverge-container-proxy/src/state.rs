@@ -5,7 +5,7 @@ use std::sync::Arc;
 use axum::extract::FromRef;
 
 use crate::agent::Upstream;
-use crate::filetree::Ignore;
+use crate::filesystem::tree::Ignore;
 use crate::requests::Requests;
 
 /// The router's state: the ask table every exchange rides, the ignore

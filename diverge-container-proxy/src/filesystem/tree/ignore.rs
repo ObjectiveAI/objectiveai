@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use diverge_provider_sdk::container_proxy::filetree;
+use diverge_provider_sdk::container_proxy::filesystem::tree;
 
 /// The paths that do not exist as far as the stream is concerned:
 /// never walked, never watched, and an event under one is dropped.
@@ -11,7 +11,7 @@ use diverge_provider_sdk::container_proxy::filetree;
 /// pseudo-filesystems, which churn, hold nothing a caller wants, and
 /// break a recursive watch — and the rest are the server's: the
 /// mounts it placed, named in
-/// [`IGNORE_ENV`](filetree::IGNORE_ENV), read-only content the
+/// [`IGNORE_ENV`](tree::IGNORE_ENV), read-only content the
 /// caller already holds, which a watch of would cost the walk and
 /// yield no events.
 pub struct Ignore {
@@ -21,7 +21,7 @@ pub struct Ignore {
 impl Ignore {
     /// The three, plus the server's. An empty path in the server's
     /// list would name the root and is dropped.
-    pub fn new(ignore: filetree::Ignore) -> Self {
+    pub fn new(ignore: tree::Ignore) -> Self {
         let mut paths: Vec<PathBuf> =
             ["/proc", "/sys", "/dev"].iter().map(PathBuf::from).collect();
         paths.extend(

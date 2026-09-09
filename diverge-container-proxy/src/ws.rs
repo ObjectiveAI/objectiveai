@@ -16,11 +16,11 @@ use futures_util::stream::SplitSink;
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::sync::mpsc;
 
-use crate::filetree;
-use crate::filetree::{Ignore, Mapped};
-use crate::read;
+use crate::filesystem::tree;
+use crate::filesystem::tree::{Ignore, Mapped};
+use crate::filesystem::read;
 use crate::requests::{Answering, Claim, Kind, Refusal, Requests};
-use crate::write;
+use crate::filesystem::write;
 
 /// The root the tree is watched from: the container's own.
 const ROOT: &str = "/";
@@ -320,9 +320,9 @@ async fn serve_postgres(
     requests.finish(answering, complete).await;
 }
 
-/// `/filetree`: the stream. Accepted as many times as the server
+/// `/filesystem/tree`: the stream. Accepted as many times as the server
 /// opens it, each a watch of its own.
-pub async fn filetree(
+pub async fn filesystem_tree(
     State(ignore): State<Arc<Ignore>>,
     upgrade: WebSocketUpgrade,
 ) -> Response {
@@ -359,11 +359,11 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
     let armed = tokio::task::spawn_blocking({
         let ignore = Arc::clone(&ignore);
         move || {
-            let mut watch = filetree::Watch::arm(sender)?;
+            let mut watch = tree::Watch::arm(sender)?;
             watch.register(std::path::Path::new(ROOT), &ignore)?;
             let dark = watch.dark();
             let children =
-                filetree::children(std::path::Path::new(ROOT), &ignore, &dark);
+                tree::children(std::path::Path::new(ROOT), &ignore, &dark);
             Ok::<_, notify::Error>((watch, children))
         }
     })
@@ -395,7 +395,7 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
                         let ignore = Arc::clone(&ignore);
                         let watch = Arc::clone(&watch);
                         let mapped = tokio::task::spawn_blocking(move || {
-                            filetree::map(event, &ignore, &watch)
+                            tree::map(event, &ignore, &watch)
                         })
                         .await;
                         match mapped {
@@ -415,7 +415,7 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
                         let watch = Arc::clone(&watch);
                         let children = tokio::task::spawn_blocking(move || {
                             let dark = watch.lock().map(|watch| watch.dark()).unwrap_or_default();
-                            filetree::children(std::path::Path::new(ROOT), &ignore, &dark)
+                            tree::children(std::path::Path::new(ROOT), &ignore, &dark)
                         })
                         .await;
                         match children {
@@ -444,15 +444,15 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
     let _ = sink.close().await;
 }
 
-/// `/read`: one file out. Accepted as many times as the server opens
+/// `/filesystem/read`: one file out. Accepted as many times as the server opens
 /// it, each one file; nothing to admit, nothing to share.
-pub async fn read(upgrade: WebSocketUpgrade) -> Response {
+pub async fn filesystem_read(upgrade: WebSocketUpgrade) -> Response {
     upgrade.on_upgrade(read::serve).into_response()
 }
 
-/// `/write`: one file in. Accepted as many times as the server opens
+/// `/filesystem/write`: one file in. Accepted as many times as the server opens
 /// it, each one file; nothing to admit, nothing to share.
-pub async fn write(upgrade: WebSocketUpgrade) -> Response {
+pub async fn filesystem_write(upgrade: WebSocketUpgrade) -> Response {
     upgrade.on_upgrade(write::serve).into_response()
 }
 
@@ -463,21 +463,21 @@ async fn send_frame(
     sink: &mut SplitSink<WebSocket, Message>,
     frame: response::Frame,
 ) -> bool {
-    send(sink, container_proxy::filetree::response::Frame::Filetree(frame)).await
+    send(sink, container_proxy::filesystem::tree::response::Frame::Filetree(frame)).await
 }
 
 /// The error, then the clean close: the watch could not exist, and
 /// this is why. A socket that is gone takes the reason with it.
 async fn send_error(sink: &mut SplitSink<WebSocket, Message>, reason: &str) {
-    if send(sink, container_proxy::filetree::response::Frame::Error(reason)).await {
+    if send(sink, container_proxy::filesystem::tree::response::Frame::Error(reason)).await {
         let _ = sink.close().await;
     }
 }
 
-/// One message on `/filetree`, as the wire's frame.
+/// One message on `/filesystem/tree`, as the wire's frame.
 async fn send(
     sink: &mut SplitSink<WebSocket, Message>,
-    frame: container_proxy::filetree::response::Frame<'_>,
+    frame: container_proxy::filesystem::tree::response::Frame<'_>,
 ) -> bool {
     let mut bytes = Vec::new();
     if frame.encode(&mut Writer::new(&mut bytes)).is_err() {

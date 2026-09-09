@@ -1,10 +1,10 @@
-//! `/write`, served: one file into the container.
+//! `/filesystem/write`, served: one file into the container.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::extract::ws::{Message, WebSocket};
-use diverge_provider_sdk::container_proxy::write;
+use diverge_provider_sdk::container_proxy::filesystem::write;
 use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::encode::{Encode as _, Writer};
 use futures_util::{SinkExt as _, StreamExt as _};

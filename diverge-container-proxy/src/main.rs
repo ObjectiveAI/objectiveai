@@ -22,10 +22,11 @@
 //! proxy is a database: a pgwire listener on the loopback at `81`,
 //! each connection the driver opens announced as one ask and carried,
 //! raw, on `/postgres/{channel}`. And it is the caller's window: every
-//! `/filetree` the server opens gets the container's filesystem,
-//! watched from `/`, as a snapshot and then its changes; every
-//! `/read` one file out of it, its bytes then the close; and every
-//! `/write` one file into it, moved into place whole. And for an
+//! `/filesystem/tree` the server opens gets the container's
+//! filesystem, watched from `/`, as a snapshot and then its changes;
+//! every `/filesystem/read` one file out of it, its bytes then the
+//! close; and every `/filesystem/write` one file into it, moved into
+//! place whole. And for an
 //! agent container the proxy is the loop's door: `/agent/register`,
 //! `/agent/run`, `/agent/schema`, `/agent/enqueue` and
 //! `/agent/dequeue` are each one call to the agent's own server on
@@ -36,15 +37,13 @@
 
 mod agent;
 mod command;
-mod filetree;
+mod filesystem;
 mod mcp;
 mod paths;
 mod postgres;
-mod read;
 mod requests;
 mod state;
 mod vault;
-mod write;
 mod ws;
 
 use std::future::IntoFuture as _;
@@ -70,9 +69,9 @@ async fn run() {
     let gate = Arc::new(mcp::Gate::new());
     // The server's mounts, or nothing: an unset or unreadable
     // variable is the empty set, by the SDK's rule.
-    let ignore = Arc::new(filetree::Ignore::new(
-        container_proxy::filetree::Ignore::parse(
-            &std::env::var(container_proxy::filetree::IGNORE_ENV)
+    let ignore = Arc::new(filesystem::tree::Ignore::new(
+        container_proxy::filesystem::tree::Ignore::parse(
+            &std::env::var(container_proxy::filesystem::tree::IGNORE_ENV)
                 .unwrap_or_default(),
         ),
     ));
@@ -144,9 +143,9 @@ async fn run() {
         )
         .route("/command/{channel}", axum::routing::any(ws::command))
         .route("/postgres/{channel}", axum::routing::any(ws::postgres))
-        .route("/filetree", axum::routing::any(ws::filetree))
-        .route("/read", axum::routing::any(ws::read))
-        .route("/write", axum::routing::any(ws::write))
+        .route("/filesystem/tree", axum::routing::any(ws::filesystem_tree))
+        .route("/filesystem/read", axum::routing::any(ws::filesystem_read))
+        .route("/filesystem/write", axum::routing::any(ws::filesystem_write))
         .route("/agent/register", axum::routing::any(agent::register))
         .route("/agent/run", axum::routing::any(agent::run))
         .route("/agent/schema", axum::routing::any(agent::schema))
