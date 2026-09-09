@@ -144,7 +144,8 @@ async function configure(config) {
         : plugin,
     );
   }
-  plugins.push(await createDivergePlugin({ url: config.mcpUrl, emit }));
+  const diverge = await createDivergePlugin({ url: config.mcpUrl, emit });
+  plugins.push(diverge.plugin);
   for (const name of config.installed) {
     plugins.push(await loadPlugin(name));
   }
@@ -191,6 +192,9 @@ async function configure(config) {
   if (!runtime.messageService) {
     throw new Error("the runtime has no message service after initialize");
   }
+  // A list-changed notification that arrived before the runtime was
+  // ready is applied now, with the static actions certainly registered.
+  await diverge.flush();
 
   entityId = createUniqueUuid(runtime, USER);
   roomId = createUniqueUuid(runtime, ROOM);

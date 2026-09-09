@@ -258,23 +258,63 @@ input in the same room. An empty queue at a turn's end closes it in
 the same lock hold and ends the run; later enqueues are `missed`.
 Invoking Eliza again IS the delivery.
 
-## The diverge plugin is the tool channel
+## The diverge plugin is the tool channel, and the resource channel
 
 `node/diverge.mjs`: before the runtime is constructed, inside `POST
 /run`, an MCP `Client` over `StreamableHTTPClientTransport` at the
-container SDK's `mcp_url()` lists every tool (paginated) and builds
-one native `Action` per tool: name `DIVERGE_` + the tool name
-upper-cased with every character outside `[A-Z0-9]` as `_` (the
-runtime's pattern; a collision gets a numeric suffix), the tool's
-description, one `ActionParameter {name, description, required,
-schema}` per `inputSchema.properties` entry (the runtime folds these
-back into one tool schema for native tool calling), `validate` always
-true, and a handler that calls `callTool` and returns
-`{success: !isError, text: <text blocks joined>, data: {mcp: result}}`
-— `text` is what the model reads back, with no extra model call.
-plugin-mcp was rejected: it paraphrases every result through a
+container SDK's `mcp_url()` lists every tool and every resource
+(paginated) and builds one native `Action` per tool: name `DIVERGE_`
++ the tool name upper-cased with every character outside `[A-Z0-9]`
+as `_` (the runtime's pattern; a collision gets a numeric suffix),
+the tool's description, one `ActionParameter {name, description,
+required, schema}` per `inputSchema.properties` entry (the runtime
+folds these back into one tool schema for native tool calling),
+`validate` always true, and a handler that calls `callTool` and
+returns `{success: !isError, text: <text blocks joined>, data: {mcp:
+result}}` — `text` is what the model reads back, with no extra model
+call. plugin-mcp was rejected: it paraphrases every result through a
 `TEXT_SMALL` call, exposes one untyped `MCP` action, and its SSRF
 guard may refuse the loopback.
+
+The lists are LIVE. The proxy's MCP server declares `tools/
+list_changed` and `resources/list_changed` and broadcasts the
+caller's notifications to every initialized peer; the plugin
+subscribes to both with the SDK client's `setNotificationHandler`:
+
+- A tool change re-lists and diffs by MCP tool name: a removed tool
+  is `unregisterAction`ed, a new one registered, one whose
+  description or input schema changed is unregistered and registered
+  again under the SAME action name (names are stable for the run; a
+  new tool takes a name avoiding the ones in use). The caller sees it
+  as a non-fatal `notification` `{kind: "tools_changed", added,
+  removed, changed}`.
+- A resource change re-lists into the cache the `DIVERGE_RESOURCES`
+  provider renders; `{kind: "resources_changed", added, removed}`.
+- Refreshes run one at a time per list, in notification order; a
+  re-list that fails keeps the previous set and says so (`{kind:
+  "mcp", list, error}`). A notification that arrives before the
+  runtime exists only marks the list dirty; the entry calls the
+  plugin's `flush()` right after `initialize()` — with the static
+  actions certainly registered — so a refresh never races the
+  initial registration.
+- A change lands on the NEXT model call, not the one in flight: the
+  planner's tool schemas are built per call from the current actions.
+
+Resources: the provider `DIVERGE_RESOURCES` (`alwaysInResponseState`,
+so context routing never drops it) renders one line per resource —
+`<uri> — <name>: <description> (<mimeType>)` — into every turn's
+state, and nothing when there are none. The action
+`DIVERGE_READ_RESOURCE` (its name reserved before any tool folds, so
+a tool literally named `read_resource` becomes
+`DIVERGE_READ_RESOURCE_2`) takes one required `uri`, calls
+`readResource`, and is reported like a tool: a `tool_call` named
+`read_resource` with `{"uri"}`, and a `tool_result` whose content is
+the read's contents verbatim as MCP embedded-resource blocks
+(`{type: "resource", resource: {uri, mimeType, text | blob}}`, which
+rmcp's `CallToolResult` deserializes as-is). The model reads the text
+contents joined; a blob is described (`binary <uri> (<type>, <n>
+base64 characters)`), never pasted. Resource templates are not
+listed: the proxy relays no `resources/templates/list` exchange.
 
 ## Plugins the caller names are installed at the run
 
@@ -358,3 +398,9 @@ first:
 8. Node's startup plus `initialize()` per run, to decide whether the
    entry should instead be kept alive across runs whose agent value
    hashes the same.
+9. The SDK client's standalone GET stream through the proxy's
+   `StreamableHttpService`: that a `list_changed` the caller sends
+   reaches the plugin's notification handler at all.
+10. A tool re-registered mid-run showing up on the planner's next
+    call, and a removed one gone, with `registerAction` /
+    `unregisterAction` on the live runtime.
