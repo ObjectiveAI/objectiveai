@@ -35,10 +35,9 @@ runs without `resume`; every turn after resumes the thread
 `thread.started` named. A turn ends when stdout closes; the queue is
 then taken (empty closes it and ends the run; pending is delivered as
 `user` chunks and joined with a blank line into the next turn's
-prompt), the login read back, and the next process spawned. Before
-the first event of the first process a failure is the request's own
-(`500`); after, a fatal notification, and the run still harvests and
-releases.
+prompt), and the next process spawned. Before the first event of the
+first process a failure is the request's own (`500`); after, a fatal
+notification, and the run still harvests.
 
 Rules settled with it:
 
@@ -224,13 +223,12 @@ The agent says nothing about how Codex logs in (user ruling
 2. **The vault's `OPENAI_CODEX_OAUTH`** — the SDK's well-known key,
    the same document Hermes's `providers.openai-codex` entry carries
    — written VERBATIM as `$CODEX_HOME/auth.json`: the document is
-   Codex's own file, and no field is ever rendered or guessed.
-   ROTATING: Codex refreshes the tokens during use, so the run owes
-   hermes's cycle: lock for 300 s refreshed every 100 s on a task,
-   get, write, run, read the file's bytes back after every turn, set
-   when they changed, unlock at the end. A file no longer there at a
-   read-back is nothing new. That the vault's document is exactly
-   the `auth.json` Codex 0.153.4 accepts is a live-run check.
+   Codex's own file, and no field is ever rendered or guessed. Read
+   WITHOUT a lock and never written back (user ruling 2026-09-09):
+   the document does not rotate in the container — it carries the
+   access token the caller refreshes on their side — so there is no
+   cycle to owe. That the vault's document is exactly the `auth.json`
+   Codex 0.153.4 accepts is a live-run check.
 3. **The vault's `OPENAI_API_KEY`**: a STATIC secret, read once per
    run and put in the process environment, where Codex's `env_key`
    looks. No lock, no set.
@@ -258,9 +256,9 @@ Nothing about credentials rides the agent value, the schema or a row.
 3. `mcp_servers.diverge` with a bare `url` (Streamable HTTP, no
    bearer) connecting to the proxy's inside port, listing the
    caller's tools, and reading resources.
-4. A ChatGPT `auth.json` rendered from the vault document accepted
-   headless, and refreshed tokens read back; and a MOUNTED
-   `auth.json` refreshed in place on the mount.
+4. The vault's document written verbatim as `auth.json` accepted
+   headless; and a MOUNTED `auth.json` refreshed in place on the
+   mount.
 5. `wire_api = "responses"` against the Diverge relay.
 6. `codex exec resume <SESSION_ID>` across container restarts once
    the rollout files are restored from the database, with the SQLite

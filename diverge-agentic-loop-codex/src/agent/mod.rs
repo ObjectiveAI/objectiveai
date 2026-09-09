@@ -16,9 +16,9 @@
 //! nothing here says how Codex logs in: the run looks for an
 //! `auth.json` the caller MOUNTED at `$CODEX_HOME` first, and, absent
 //! one, at the vault — the well-known `OPENAI_CODEX_OAUTH` document
-//! rendered as that file (rotating; the run owes the cycle), else the
-//! static `OPENAI_API_KEY` into the process environment — and refuses
-//! the run only when every one of those is missing.
+//! written verbatim as that file, else the static `OPENAI_API_KEY`
+//! into the process environment — and refuses the run only when every
+//! one of those is missing.
 //!
 //! What is deliberately ABSENT, and why, so nobody re-opens it
 //! without a new fact:
