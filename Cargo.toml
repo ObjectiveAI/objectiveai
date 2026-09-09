@@ -15,6 +15,7 @@ members = [
     "diverge-container-proxy",
     "diverge-container-proxy-sdk",
     "diverge-agentic-loop-openrouter",
+    "diverge-agentic-loop-python",
     "diverge-broker-sdk",
     "diverge-provider-sdk",
     "objectiveai-sdk-rs",
