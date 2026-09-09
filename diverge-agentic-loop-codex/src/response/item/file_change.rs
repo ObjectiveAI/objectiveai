@@ -21,7 +21,8 @@ pub struct FileUpdateChange {
     pub kind: PatchChangeKind,
 }
 
-/// The status of a patch.
+/// The status of a patch. The core's `declined` is folded into
+/// [`Failed`](Self::Failed) on this wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PatchApplyStatus {
@@ -29,7 +30,8 @@ pub enum PatchApplyStatus {
     InProgress,
     /// Applied.
     Completed,
-    /// Did not apply.
+    /// Did not apply — or was declined, which the wire spells the
+    /// same.
     Failed,
 }
 

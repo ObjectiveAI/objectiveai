@@ -50,11 +50,20 @@ pin closes the union; the one open tail is the source's own
   `collab_tool_call`, `web_search`, `todo_list`, `error`. Ids are
   `item_<n>`, minted per process.
 - NO DELTAS. Agent messages and reasoning summaries arrive whole, once,
-  at `item.completed`, never started. Commands, MCP calls, web
-  searches, file changes, collab calls and the todo list start and
-  complete; only the todo list is updated, and it completes at the
-  turn's end; every started item still open is completed at the
-  turn's end too.
+  at `item.completed`, never started (a reasoning summary is its
+  lines joined with `\n`; a blank one produces no item). Commands,
+  MCP calls, web searches, collab calls and the todo list start and
+  complete; a file change is documented as completed only, though
+  the mapping would pass a start through; only the todo list is
+  updated, and it completes at the turn's end; every started item
+  still open is completed at the turn's end too.
+- An INTERRUPTED turn ends with NEITHER `turn.completed` nor
+  `turn.failed`: the processor writes nothing and shuts down. Stdout
+  closing after `turn.started` with no terminal event is an
+  interruption, and the converter treats it as one.
+- The items are a projection of the core's: four collab tools and an
+  interrupted collab call produce no item, `resume_agent` is reported
+  as `wait`, and a declined patch is reported as failed.
 - Non-fatal news — warnings, config warnings, deprecations, a model
   reroute — is an `item.completed` with an `error` ITEM. The `error`
   EVENT is critical but does not end the turn by itself; `turn.failed`
