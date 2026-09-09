@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// ```json
 /// true                           // the setting of the same name
 /// {"setting": "GOOGLE_TOKENS"}   // another setting
-/// {"file": "/root/.qwen/oauth_creds.json"}
+/// {"file": ["root", ".qwen", "oauth_creds.json"]}
 /// ```
 ///
 /// A setting is read through the runtime the harness constructs —
@@ -37,7 +37,8 @@ pub enum Rotates {
     },
     /// The plugin leaves the rotated value in a file.
     File {
-        /// The file's path in the container.
-        file: String,
+        /// The file's path, as components from the container's root
+        /// — the shape every path in this system takes.
+        file: Vec<String>,
     },
 }
