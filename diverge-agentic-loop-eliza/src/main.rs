@@ -24,8 +24,8 @@ use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_provider_sdk::container_proxy::agent::dequeue::Outcome;
 use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
-use diverge_provider_sdk::container_proxy::register;
-use diverge_provider_sdk::container_proxy::run_loop;
+use diverge_provider_sdk::container_proxy::agent::register;
+use diverge_provider_sdk::container_proxy::agent::run;
 use diverge_provider_sdk::shared::containers::enqueue;
 
 use crate::agent::Agent;
@@ -70,7 +70,7 @@ async fn serve() {
 /// implementation will fill; no stream is ever built here, so its
 /// type is the empty stream's, concretely.
 async fn run(
-    Json(_request): Json<run_loop::request::Request>,
+    Json(_request): Json<run::request::Request>,
 ) -> Result<
     Sse<futures_util::stream::Empty<Result<Event, axum::Error>>>,
     (StatusCode, Json<serde_json::Value>),
