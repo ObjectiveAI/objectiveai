@@ -4,9 +4,8 @@
 //! login resolved ([`Auth`]), `config.toml` written ([`config`]),
 //! the continuation loaded and restored once ([`continuation`]),
 //! `codex exec --json` spawned per turn ([`Process`]) and its events
-//! converted into chunks ([`Turn`]), the login read back after every
-//! turn, the queue consulted at each turn's end ([`QUEUE`]), the
-//! rollouts harvested into the rows, the lock released.
+//! converted into chunks ([`Turn`]), the queue consulted at each
+//! turn's end ([`QUEUE`]), the rollouts harvested into the rows.
 //!
 //! # The queue is consulted when a turn ends
 //!
@@ -25,8 +24,8 @@
 //! nothing to salvage, and a failure is the stream's one [`Err`] —
 //! the request's own failure, a status. From then on every failure —
 //! a turn that fails, a process that dies or is interrupted, a
-//! document that will not set, a harvest that cannot happen — is a
-//! fatal `notification` chunk, and the run still does what it can of
+//! harvest that cannot happen — is a fatal `notification` chunk, and
+//! the run still does what it can of
 //! the way back up: the rollouts on disk are the truth of what
 //! happened, and they are harvested whenever a thread is known.
 //!
@@ -37,7 +36,7 @@
 //! finished, or abandoned by a caller that left — the teardown marks
 //! the claim settling, closes the queue on a task, and only then
 //! drops the claim. The process dies with the stream
-//! (`kill_on_drop`), and a held vault lock lapses by its TTL.
+//! (`kill_on_drop`).
 
 mod convert;
 mod error;
@@ -84,7 +83,7 @@ pub fn run(
     async_stream::stream! {
         let _teardown = teardown;
 
-        let mut login = match Auth::resolve(&client).await {
+        let login = match Auth::resolve(&client).await {
             Ok(login) => login,
             Err(error) => {
                 yield Err(Error::Auth(error));
@@ -230,13 +229,6 @@ pub fn run(
                 }
             }
 
-            // The login, read back as Codex left it.
-            if let Auth::Vault(held) = &mut login {
-                if let Err(error) = held.read_back().await {
-                    yield Ok(notification(error.message(), false));
-                }
-            }
-
             if fatal {
                 break 'turns;
             }
@@ -258,14 +250,9 @@ pub fn run(
 
         // The way back up: the rollouts into the rows, whenever a
         // thread is known — the files are the truth of what happened,
-        // however the run ended; then the lock.
+        // however the run ended.
         if thread.thread_id.is_some() {
             if let Err(error) = continuation::harvest(&pool, &thread).await {
-                yield Ok(notification(error.message(), true));
-            }
-        }
-        if let Auth::Vault(held) = login {
-            if let Err(error) = held.release().await {
                 yield Ok(notification(error.message(), true));
             }
         }

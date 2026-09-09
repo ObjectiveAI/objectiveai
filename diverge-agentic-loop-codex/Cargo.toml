@@ -48,7 +48,6 @@ sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio
 uuid = { version = "1.22.0", features = ["v4"] }
 # The runtime under the listener, `sync` for the queue's mutex and
 # the claim's Notify, `process` + `io-util` for the Codex process and
-# its lines, `fs` for the config, the login file and the rollouts,
-# `time` for the vault lock's refresh. No `macros` — the runtime is
-# built in main, not attributed onto it.
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync", "time"] }
+# its lines, `fs` for the config, the login file and the rollouts.
+# No `macros` — the runtime is built in main, not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync"] }
