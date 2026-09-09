@@ -23,9 +23,9 @@
 //! | `/vault/get/{channel}` and its four siblings | one vault answer, then the close |
 //! | `/command/{channel}`                | the command's items, then the close |
 //! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
-//! | `/filetree`                         | filetree frames, or why there are none, sent by the container; the server is silent |
-//! | `/read`                             | the server names a file; the container answers its bytes, or why not, then the close |
-//! | `/write`                            | the server names a file and sends its content; the container answers ok or error |
+//! | `/filesystem/tree`                  | filetree frames, or why there are none, sent by the container; the server is silent |
+//! | `/filesystem/read`                  | the server names a file; the container answers its bytes, or why not, then the close |
+//! | `/filesystem/write`                 | the server names a file and sends its content; the container answers ok or error |
 //! | `/agent/register`                   | the server sends the agent, once; the container answers registered, or an error, then the close |
 //! | `/agent/run`                        | the server sends the prompt; the container answers the loop's chunks, or an error, then the close |
 //! | `/agent/schema`                     | the container answers its agent's JSON Schema, or an error, then the close |
@@ -69,14 +69,16 @@
 //!
 //! # One shape per path, in this module
 //!
-//! A path is a module, and every path module has the same shape:
+//! A path is a module, and the tree of modules is the tree of
+//! paths: [`filesystem`] holds `/filesystem/*`, [`agent`] holds
+//! `/agent/*`, and every path module has the same shape:
 //! `request/` holds the ASK and `response/` the ANSWER, whichever
 //! side sends them. For the exchanges the container opens, the ask
 //! is the payload that rides `/requests` as `request::Request` (and,
 //! on postgres, the driver's bytes as `request::Frame`) and the
 //! answer is what the server sends on the path as `response::Frame`.
-//! For the paths the server opens — [`read`], [`write`](mod@write), [`filetree`],
-//! and the four under `/agent/` — the ask is the server's message,
+//! For the paths the server opens — the three under [`filesystem`]
+//! and the five under [`agent`] — the ask is the server's message,
 //! or nothing but the opening, and the answer is the container's. A direction that carries
 //! nothing has no folder; where a type is shared by several paths,
 //! each path's folder re-exports it rather than defining it again.
@@ -87,8 +89,8 @@
 //!   speaking something else, and the connection ends.
 //! - The SERVER dials. `/requests` accepts exactly one connection
 //!   at a time, a second refused with `409` before the upgrade;
-//!   `/filetree`, `/read` and `/write` accept as many as the server
-//!   opens — each a subscription, each one file. An answer path
+//!   the `/filesystem/*` paths accept as many as the server opens —
+//!   each a subscription, each one file. An answer path
 //!   is accepted for a channel the container announced and the
 //!   server has not yet opened — an unknown channel is refused with
 //!   `404`, a second opening with `409`.
@@ -111,28 +113,21 @@
 //! was never opened is a driver socket the proxy closes. An answer
 //! path dying is that one request failing, by the same rule per
 //! kind — and a postgres path dying is that session ending, the
-//! driver's socket shut. The stream path ([`filetree`]) simply
-//! starts over on the next connection, and a [`read`] or [`write`](mod@write)
-//! whose socket died is that one file failing, nothing else, and
-//! nothing retries it. An `/agent/*` path dying is that one call to
+//! driver's socket shut. The stream path ([`filesystem::tree`]) simply
+//! starts over on the next connection, and a [`filesystem::read`] or
+//! [`filesystem::write`] whose socket died is that one file failing,
+//! nothing else, and nothing retries it. An `/agent/*` path dying is that one call to
 //! the agent's server failing — a loop cut short, a fate never heard,
 //! a registration whose answer never came — and nothing retries that
 //! either: the call was made, and what it did is done.
 
 pub mod agent;
-pub mod agent_schema;
 pub mod command;
-pub mod dequeue;
-pub mod enqueue;
-pub mod filetree;
+pub mod filesystem;
 pub mod mcp;
 pub mod postgres;
-pub mod read;
-pub mod register;
 pub mod requests;
-pub mod run_loop;
 pub mod vault;
-pub mod write;
 
 /// The port the proxy listens for the SERVER on, inside the
 /// container: every path of this module is dialed here, from
