@@ -12,6 +12,15 @@
 //! No retry, per the wire: a vault operation is not safe to repeat.
 //! A `lock` holds its request open until the lock is held; nothing
 //! times out.
+//!
+//! And the vault as FILES: [`mount()`] serves a key as one regular
+//! file, the SDK's vault mounts, for the credential files vendor
+//! CLIs rewrite in place.
+
+mod ask;
+mod mount;
+
+pub use mount::*;
 
 use std::sync::Arc;
 
@@ -22,33 +31,14 @@ use axum::response::{IntoResponse, Response};
 use diverge_provider_sdk::container_proxy::requests::request::Request;
 use diverge_provider_sdk::container_proxy::vault;
 
-use crate::requests::{Event, Requests};
+use crate::requests::Requests;
 
 /// Ask once, and answer with what came back.
 async fn relay(requests: &Requests, request: Request<'_>) -> Response {
-    let Ok((_, mut receiver)) = requests.ask(request).await else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-    let mut answer: Option<Bytes> = None;
-    loop {
-        match receiver.recv().await {
-            // The first message is the answer; a vault path carries
-            // one, and extras are ignored rather than obeyed.
-            Some(Event::Message(bytes)) => {
-                answer.get_or_insert(bytes);
-            }
-            Some(Event::Complete) => {
-                return match answer {
-                    Some(bytes) => (StatusCode::OK, bytes).into_response(),
-                    None => StatusCode::BAD_GATEWAY.into_response(),
-                };
-            }
-            Some(Event::Died) | None => {
-                return StatusCode::BAD_GATEWAY.into_response();
-            }
-            // The postgres path's alone; never on a vault path.
-            Some(Event::Opened(_)) => {}
-        }
+    match ask::ask(requests, request).await {
+        Ok(bytes) => (StatusCode::OK, bytes).into_response(),
+        Err(ask::Asked::Encode) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(ask::Asked::Empty) | Err(ask::Asked::Died) => StatusCode::BAD_GATEWAY.into_response(),
     }
 }
 
