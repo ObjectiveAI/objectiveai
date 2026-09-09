@@ -6,7 +6,7 @@ use std::sync::Arc;
 use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::response::{IntoResponse, Response};
-use diverge_provider_sdk::container_proxy::register::response;
+use diverge_provider_sdk::container_proxy::agent::register::response;
 use futures_util::StreamExt as _;
 use reqwest::header::CONTENT_TYPE;
 

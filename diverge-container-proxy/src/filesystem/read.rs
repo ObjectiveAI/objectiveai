@@ -1,8 +1,8 @@
-//! `/read`, served: one file out of the container.
+//! `/filesystem/read`, served: one file out of the container.
 
 use axum::extract::ws::{Message, WebSocket};
 use diverge_provider_sdk::CHUNK_SIZE;
-use diverge_provider_sdk::container_proxy::read;
+use diverge_provider_sdk::container_proxy::filesystem::read;
 use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::encode::{Encode as _, Writer};
 use diverge_provider_sdk::shared::containers;
