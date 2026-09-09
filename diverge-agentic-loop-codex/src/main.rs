@@ -22,6 +22,13 @@
 
 mod agent;
 mod registration;
+// The response module carries `codex exec --json`'s COMPLETE event
+// vocabulary, which is more than the conversion will consume — a
+// field parsed and never read is the completeness, not dead code;
+// and until the run chunk reads the union, its re-export is unused
+// for the same reason.
+#[allow(dead_code, unused_imports)]
+mod response;
 
 use axum::Json;
 use axum::http::StatusCode;
