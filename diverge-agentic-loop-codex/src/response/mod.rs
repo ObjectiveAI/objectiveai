@@ -24,15 +24,23 @@
 //!
 //! - `thread.started` opens every process — a fresh thread and a
 //!   resumed one alike — naming the thread the continuation resumes.
-//! - One `turn.started`, then the items, then exactly one of
-//!   `turn.completed` (with the thread's CUMULATIVE usage, see
-//!   [`Usage`]) or `turn.failed`; the process exits after that. One
-//!   process is one turn.
+//! - One `turn.started`, then the items, then `turn.completed` (with
+//!   the thread's CUMULATIVE usage, see [`Usage`]) or `turn.failed`;
+//!   the process exits after that. One process is one turn. An
+//!   INTERRUPTED turn ends with NEITHER: the processor writes nothing
+//!   for it and shuts down, so stdout closing after `turn.started`
+//!   with no terminal event is an interruption, not a bug.
 //! - NO DELTAS. Agent messages and reasoning have no `item.started`:
 //!   they arrive whole, once, at `item.completed`. Commands, MCP
-//!   calls, web searches, file changes, collab calls and the todo
-//!   list start and complete; only the todo list is `item.updated`,
-//!   and it completes at the turn's end.
+//!   calls, web searches, collab calls and the todo list start and
+//!   complete; a file change is documented by the source as
+//!   completed only, though the mapping would pass a start through
+//!   if the core sent one; only the todo list is `item.updated`, and
+//!   it completes at the turn's end.
+//! - The items are a PROJECTION of the core's, not all of it: a
+//!   blank reasoning summary, four collab tools and an interrupted
+//!   collab call produce no item; a declined patch is reported as
+//!   failed. Each type says what its own projection folds.
 //! - Non-fatal news — a warning, a config warning, a deprecation, a
 //!   model reroute — is an `item.completed` whose item is an `error`.
 //!   The top-level `error` event is a CRITICAL error that does not

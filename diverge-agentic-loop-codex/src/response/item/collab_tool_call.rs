@@ -9,6 +9,12 @@ use serde::Deserialize;
 /// Started when invoked, completed when the tool reports. What the
 /// harness makes of it is the converter's; the type carries all of
 /// it.
+///
+/// A projection of the core's: its `send_message`, `followup_task`,
+/// `interrupt_agent` and `list_agents` calls produce no item at all,
+/// `resume_agent` is reported as [`Wait`](CollabTool::Wait), and a
+/// call whose status is interrupted is dropped. So the four tools
+/// here are the four the wire can name, not the four Codex has.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct CollabToolCall {
     /// Which collab tool.
