@@ -20,8 +20,9 @@
 //!
 //! The CONTAINER asks the caller, through the provider: [`postgres`]
 //! carries each database connection it opens, [`command`] a command
-//! it wants run, [`vault`] the keys it keeps with the caller, and the
-//! exchanges in [`mcp`](crate::shared::mcp) its tool calls outward.
+//! it wants run, [`vault`] the keys it keeps with the caller, [`fuse`]
+//! the files the caller mounted live, and the exchanges in
+//! [`mcp`](crate::shared::mcp) its tool calls outward.
 //!
 //! The PROVIDER asks the caller on its own account: [`oci`] for the
 //! manifest and blobs of an image the caller holds, [`fetch_file`] and
@@ -46,6 +47,7 @@ pub mod enqueue;
 pub mod fetch_directory;
 pub mod fetch_file;
 pub mod filetree;
+pub mod fuse;
 pub mod oci;
 pub mod postgres;
 pub mod read;

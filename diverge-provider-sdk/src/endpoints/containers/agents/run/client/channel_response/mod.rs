@@ -8,13 +8,17 @@
 //! [`fetch_directory`] hand over mounted content the provider does not
 //! hold. The rest answer the CONTAINER, relayed: [`postgres`] is what
 //! its database said, [`command`] the items its command produced, the
-//! five `vault_*` what its vault answered, and the five `mcp_*` what
-//! the caller's MCP servers answered its tool calls with.
+//! five `vault_*` what its vault answered, the five `mcp_*` what the
+//! caller's MCP servers answered its tool calls with, and the two
+//! `fuse_*` what the files it mounted live hold, and whether a write
+//! to one took.
 
 pub mod authorize;
 pub mod command;
 pub mod fetch_directory;
 pub mod fetch_file;
+pub mod fuse_read;
+pub mod fuse_write;
 pub mod mcp_call_tool;
 pub mod mcp_list_resources;
 pub mod mcp_list_tools;

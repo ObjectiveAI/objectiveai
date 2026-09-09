@@ -3,7 +3,7 @@
 use std::error;
 use std::fmt;
 
-use crate::container_proxy::vault;
+use crate::container_proxy::{fuse, vault};
 
 /// A frame that could not be read.
 #[derive(Debug)]
@@ -20,6 +20,8 @@ pub enum FrameError {
     Mcp(serde_json::Error),
     /// A vault ask that would not decode.
     Vault(vault::RequestError),
+    /// A fuse ask that did not decode.
+    Fuse(fuse::RequestError),
 }
 
 impl fmt::Display for FrameError {
@@ -37,6 +39,9 @@ impl fmt::Display for FrameError {
             FrameError::Vault(error) => {
                 write!(f, "vault request did not decode: {error}")
             }
+            FrameError::Fuse(error) => {
+                write!(f, "fuse request did not decode: {error}")
+            }
         }
     }
 }
@@ -46,6 +51,7 @@ impl error::Error for FrameError {
         match self {
             FrameError::Mcp(error) => Some(error),
             FrameError::Vault(error) => Some(error),
+            FrameError::Fuse(error) => Some(error),
             FrameError::Truncated | FrameError::UnknownKind(_) => None,
         }
     }

@@ -4,7 +4,7 @@ use std::error;
 use std::fmt;
 
 use super::FrameError;
-use crate::container_proxy::{command, mcp, postgres, vault};
+use crate::container_proxy::{command, fuse, mcp, postgres, vault};
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 
@@ -25,9 +25,11 @@ use crate::encode::{Encode, Writer};
 /// | `9` | [`VaultUnlock`](Self::VaultUnlock) | `[key…]` | `/vault/unlock/{channel}` |
 /// | `10` | [`Command`](Self::Command) | the command, opaque | `/command/{channel}` |
 /// | `11` | [`Postgres`](Self::Postgres) | none | `/postgres/{channel}` |
+/// | `12` | [`FuseRead`](Self::FuseRead) | `[id…]` | `/fuse/read/{channel}` |
+/// | `13` | [`FuseWrite`](Self::FuseWrite) | `[id_len: u16][id…][bytes…]` | `/fuse/write/{channel}` |
 ///
 /// What each answer path carries is its module's to say: [`mcp`],
-/// [`vault`], [`command`], [`postgres`]. Every payload is that path's
+/// [`vault`], [`command`], [`postgres`], [`fuse`]. Every payload is that path's
 /// `request::Request`, so the ask and its answer are found together.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Request<'a> {
@@ -75,6 +77,12 @@ pub enum Request<'a> {
     /// the bytes flow there. Carries nothing — pgwire is client-first
     /// and the driver's first bytes wait for the path. See [`postgres`].
     Postgres(postgres::request::Request),
+    /// Read a file the caller mounted live, by its id: the proxy's
+    /// own ask, for every open of the file. See [`fuse`].
+    FuseRead(fuse::read::request::Request<'a>),
+    /// Write such a file, whole: every changed close of it, never on
+    /// a read-only mount. See [`fuse`].
+    FuseWrite(fuse::write::request::Request<'a>),
 }
 
 const MCP_LIST_TOOLS: u8 = 0;
@@ -89,11 +97,13 @@ const VAULT_LOCK: u8 = 8;
 const VAULT_UNLOCK: u8 = 9;
 const COMMAND: u8 = 10;
 const POSTGRES: u8 = 11;
+const FUSE_READ: u8 = 12;
+const FUSE_WRITE: u8 = 13;
 
 impl Encode for Request<'_> {
-    /// The two payloads that can fail: MCP params are JSON, and a
-    /// vault `Set`'s key has a length prefix to overflow. Everything
-    /// else is bytes copied or nothing.
+    /// The payloads that can fail: MCP params are JSON, and a vault
+    /// `Set`'s key and a fuse `Write`'s id have a length prefix to
+    /// overflow. Everything else is bytes copied or nothing.
     type Error = RequestEncodeError;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), RequestEncodeError> {
@@ -148,6 +158,14 @@ impl Encode for Request<'_> {
                 out.extend_from_slice(&[POSTGRES]);
                 request.encode(out).map_err(|error| match error {})
             }
+            Request::FuseRead(request) => {
+                out.extend_from_slice(&[FUSE_READ]);
+                request.encode(out).map_err(|error| match error {})
+            }
+            Request::FuseWrite(request) => {
+                out.extend_from_slice(&[FUSE_WRITE]);
+                request.encode(out).map_err(RequestEncodeError::Fuse)
+            }
         }
     }
 }
@@ -198,6 +216,12 @@ impl<'a> Request<'a> {
                 postgres::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
+            FUSE_READ => fuse::read::request::Request::decode(rest)
+                .map(Request::FuseRead)
+                .map_err(FrameError::Fuse),
+            FUSE_WRITE => fuse::write::request::Request::decode(rest)
+                .map(Request::FuseWrite)
+                .map_err(FrameError::Fuse),
             other => Err(FrameError::UnknownKind(other)),
         }
     }
@@ -210,6 +234,8 @@ pub enum RequestEncodeError {
     Mcp(serde_json::Error),
     /// A vault `Set` whose key would not fit its length prefix.
     Vault(vault::RequestEncodeError),
+    /// A fuse `Write` whose id would not fit its length prefix.
+    Fuse(fuse::RequestEncodeError),
 }
 
 impl fmt::Display for RequestEncodeError {
@@ -221,6 +247,9 @@ impl fmt::Display for RequestEncodeError {
             RequestEncodeError::Vault(error) => {
                 write!(f, "vault request did not encode: {error}")
             }
+            RequestEncodeError::Fuse(error) => {
+                write!(f, "fuse request did not encode: {error}")
+            }
         }
     }
 }
@@ -230,6 +259,7 @@ impl error::Error for RequestEncodeError {
         match self {
             RequestEncodeError::Mcp(error) => Some(error),
             RequestEncodeError::Vault(error) => Some(error),
+            RequestEncodeError::Fuse(error) => Some(error),
         }
     }
 }

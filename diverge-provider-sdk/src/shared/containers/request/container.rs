@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{IdentityMount, Image, VolumeMount};
+use super::{FuseMount, IdentityMount, Image, VolumeMount};
 
 /// Ask a provider to create a container.
 ///
@@ -76,4 +76,15 @@ pub struct Container {
     /// is the point, and mounts stacking on each other is not.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub directory_mounts: Vec<IdentityMount>,
+    /// Files the caller serves LIVE, mounted one each over FUSE.
+    ///
+    /// Each names a file by a path, an id of the caller's, and
+    /// whether the container may write it — see [`FuseMount`]. The
+    /// provider MUST mount every one before the container starts, and
+    /// every open and every changed close inside the container is one
+    /// ask back to the caller, by that id. A path may lie inside a
+    /// directory another mount provides; it may not equal another
+    /// mount's path.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fuse_mounts: Vec<FuseMount>,
 }

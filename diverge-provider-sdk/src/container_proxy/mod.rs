@@ -21,6 +21,7 @@
 //! | `/mcp/list-tools/{channel}` and its three siblings | one MCP response, then the close |
 //! | `/mcp/notifications/{channel}`      | notifications as they come, then the close |
 //! | `/vault/get/{channel}` and its four siblings | one vault answer, then the close |
+//! | `/fuse/read/{channel}`, `/fuse/write/{channel}` | one answer for a mounted file's read or write, then the close |
 //! | `/command/{channel}`                | the command's items, then the close |
 //! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
 //! | `/filesystem/tree`                  | filetree frames, or why there are none, sent by the container; the server is silent |
@@ -124,6 +125,7 @@
 pub mod agent;
 pub mod command;
 pub mod filesystem;
+pub mod fuse;
 pub mod mcp;
 pub mod postgres;
 pub mod requests;

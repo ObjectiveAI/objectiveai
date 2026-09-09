@@ -5,8 +5,8 @@ use std::fmt;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::containers::{
-    authorize, command, fetch_directory, fetch_file, oci, postgres, vault,
-    write_bytes,
+    authorize, command, fetch_directory, fetch_file, fuse, oci, postgres,
+    vault, write_bytes,
 };
 use crate::shared::mcp;
 
@@ -35,14 +35,17 @@ use crate::shared::mcp;
 /// | `15` | [`McpCallTool`](Self::McpCallTool) |
 /// | `16` | [`McpReadResource`](Self::McpReadResource) |
 /// | `17` | [`McpNotifications`](Self::McpNotifications) |
+/// | `18` | [`FuseRead`](Self::FuseRead) |
+/// | `19` | [`FuseWrite`](Self::FuseWrite) |
 ///
-/// The same eighteen in both families, in the same order. The first
+/// The same twenty in both families, in the same order. The first
 /// six are the provider's own asks — the manifest and blobs of an
 /// image the caller holds, a connector's authorization, a write's
 /// content, mounted content it does not hold — and the rest are the
 /// CONTAINER's, relayed: its
-/// database connections, its commands, its vault, and its tool calls
-/// outward to the caller's MCP servers. A connector's scope has none
+/// database connections, its commands, its vault, its tool calls
+/// outward to the caller's MCP servers, and the files the caller
+/// mounted live. A connector's scope has none
 /// of these but [`Write`](Self::Write); the container's asks go to
 /// whoever runs it.
 #[derive(Debug, Clone, PartialEq)]
@@ -121,6 +124,16 @@ pub enum Frame<'a> {
     McpReadResource(mcp::read_resource::request::Request),
     /// Everything they say on their own account. Tag `17`.
     McpNotifications(mcp::notifications::request::Request),
+    /// Read a file the caller mounted live, by its id. Tag `18`.
+    ///
+    /// The container's proxy asking on behalf of a FUSE mount: every
+    /// open of the file. See [`fuse`](crate::shared::containers::fuse).
+    FuseRead(fuse::read::request::Request<'a>),
+    /// Write a file the caller mounted live, whole, by its id. Tag
+    /// `19`.
+    ///
+    /// Every changed close of the file; never for a read-only mount.
+    FuseWrite(fuse::write::request::Request<'a>),
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -177,9 +190,16 @@ const MCP_READ_RESOURCE: u8 = 16;
 /// Tag for [`Frame::McpNotifications`].
 const MCP_NOTIFICATIONS: u8 = 17;
 
+/// Tag for [`Frame::FuseRead`].
+const FUSE_READ: u8 = 18;
+
+/// Tag for [`Frame::FuseWrite`].
+const FUSE_WRITE: u8 = 19;
+
 impl Encode for Frame<'_> {
     /// The JSON failure from the asks that are JSON, or a vault key
-    /// too long for its prefix; everything else is bytes copied.
+    /// or a mount id too long for its prefix; everything else is
+    /// bytes copied.
     type Error = FrameEncodeError;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), FrameEncodeError> {
@@ -259,6 +279,14 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[MCP_NOTIFICATIONS]);
                 request.encode(out).map_err(|error| match error {})
             }
+            Frame::FuseRead(request) => {
+                out.extend_from_slice(&[FUSE_READ]);
+                request.encode(out).map_err(|error| match error {})
+            }
+            Frame::FuseWrite(request) => {
+                out.extend_from_slice(&[FUSE_WRITE]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
         }
     }
 }
@@ -270,6 +298,8 @@ pub enum FrameEncodeError {
     Json(serde_json::Error),
     /// A vault ask would not encode: a key too long for its prefix.
     Vault(vault::RequestEncodeError),
+    /// A fuse ask would not encode: an id too long for its prefix.
+    Fuse(fuse::RequestEncodeError),
 }
 
 impl fmt::Display for FrameEncodeError {
@@ -279,6 +309,7 @@ impl fmt::Display for FrameEncodeError {
                 write!(f, "channel request did not serialize: {error}")
             }
             FrameEncodeError::Vault(error) => write!(f, "{error}"),
+            FrameEncodeError::Fuse(error) => write!(f, "{error}"),
         }
     }
 }
@@ -288,6 +319,7 @@ impl std::error::Error for FrameEncodeError {
         match self {
             FrameEncodeError::Json(error) => Some(error),
             FrameEncodeError::Vault(error) => Some(error),
+            FrameEncodeError::Fuse(error) => Some(error),
         }
     }
 }
@@ -359,6 +391,12 @@ impl<'a> Decode<'a> for Frame<'a> {
                 mcp::notifications::request::Request::decode(rest)
                     .unwrap_or_else(|error| match error {}),
             )),
+            FUSE_READ => fuse::read::request::Request::decode(rest)
+                .map(Frame::FuseRead)
+                .map_err(FrameError::Fuse),
+            FUSE_WRITE => fuse::write::request::Request::decode(rest)
+                .map(Frame::FuseWrite)
+                .map_err(FrameError::Fuse),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -369,7 +407,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's eighteen.
+    /// A tag that is none of this frame's twenty.
     UnknownTag(u8),
     /// An image fetch did not parse.
     Oci(serde_json::Error),
@@ -383,6 +421,8 @@ pub enum FrameError {
     Postgres(postgres::request::PostgresError),
     /// A vault ask did not decode.
     Vault(vault::RequestError),
+    /// A fuse ask did not decode.
+    Fuse(fuse::RequestError),
     /// One of the five MCP exchanges' params did not parse.
     ///
     /// One variant for five tags, because they fail the same way and
@@ -413,6 +453,7 @@ impl fmt::Display for FrameError {
             }
             FrameError::Postgres(error) => write!(f, "{error}"),
             FrameError::Vault(error) => write!(f, "{error}"),
+            FrameError::Fuse(error) => write!(f, "{error}"),
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
@@ -430,6 +471,7 @@ impl std::error::Error for FrameError {
             FrameError::Write(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Vault(error) => Some(error),
+            FrameError::Fuse(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }
