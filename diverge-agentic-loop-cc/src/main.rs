@@ -69,8 +69,8 @@ use diverge_container_proxy_sdk::Client;
 use diverge_provider_sdk::container_proxy;
 use diverge_provider_sdk::container_proxy::agent::dequeue::Outcome;
 use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
-use diverge_provider_sdk::container_proxy::register;
-use diverge_provider_sdk::container_proxy::run_loop;
+use diverge_provider_sdk::container_proxy::agent::register;
+use diverge_provider_sdk::container_proxy::agent::run;
 use diverge_provider_sdk::shared::containers::enqueue;
 use diverge_provider_sdk::shared::containers::run_loop::response::{
     AgenticLoopChunk, NotificationChunk,
@@ -152,7 +152,7 @@ async fn serve() {
 /// is not progress — and leaves the row as it was.
 async fn run(
     State(client): State<Arc<Client>>,
-    Json(request): Json<run_loop::request::Request>,
+    Json(request): Json<run::request::Request>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Refusal> {
     let Some(agent) = registration::registered() else {
         return Err((
