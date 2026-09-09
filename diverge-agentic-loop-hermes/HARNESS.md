@@ -299,8 +299,10 @@ Rules settled with it:
 
 `main.rs` is the HTTP server around `run::run`, on the loopback at
 the port the SDK's `container_proxy::agent` names (`PORT`, else
-8080), forwarded to by the proxy the host injects: `POST /run`
-(the request JSON in; the run's chunks out as server-sent events,
+8080), forwarded to by the proxy the host injects: `POST /register` (the
+agent, once, for the container's life; a second is `409`), `POST /run`
+(the prompt JSON in — a run before registration is `409
+unregistered`; the run's chunks out as server-sent events,
 the first item pulled before the status is chosen — the run's one
 `Err` is a `500` with its own words, a run with nothing to say is
 `empty_run`, a run beside one streaming is `409 busy`), `GET
