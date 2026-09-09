@@ -67,8 +67,6 @@ use diverge_container_proxy_sdk::Client;
 use diverge_provider_sdk::container_proxy;
 use diverge_provider_sdk::container_proxy::agent::dequeue::Outcome;
 use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
-use diverge_provider_sdk::container_proxy::register;
-use diverge_provider_sdk::container_proxy::run_loop;
 use diverge_provider_sdk::shared::containers::enqueue;
 use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
 use futures_util::{Stream, StreamExt as _};
@@ -129,7 +127,7 @@ async fn serve() {
 /// chunk as it comes.
 async fn run(
     State(client): State<Arc<Client>>,
-    Json(request): Json<run_loop::request::Request>,
+    Json(request): Json<container_proxy::agent::run::request::Request>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Refusal> {
     let Some(agent) = registration::registered() else {
         return Err((
@@ -236,7 +234,7 @@ async fn run(
 /// A value this image will not take is `400`; an agent already
 /// registered is `409`, whatever the second carries — the agent
 /// never changes. `204` is the agent held.
-async fn register(Json(request): Json<register::request::Request>) -> Result<StatusCode, Refusal> {
+async fn register(Json(request): Json<container_proxy::agent::register::request::Request>) -> Result<StatusCode, Refusal> {
     let agent: Agent = match serde_json::from_value(request.agent) {
         Ok(agent) => agent,
         Err(error) => {
