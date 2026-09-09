@@ -9,6 +9,10 @@
 //! the source's own definitions: `codex-rs/exec/src/exec_events.rs`
 //! at tag `rust-v0.153.4`, the version the image pins, with what the
 //! JSONL event processor does with each recorded on the type.
+//! Deserialize-only, but for the items the converter re-emits as a
+//! notification's JSON (the todo list, a collab call, a file change,
+//! a search action) and the usage the continuation keeps, which also
+//! serialize.
 //!
 //! # Strict, deliberately
 //!

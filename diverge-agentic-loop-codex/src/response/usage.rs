@@ -1,6 +1,6 @@
 //! Token usage.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Token counts, as `turn.completed` carries them.
 ///
@@ -12,7 +12,11 @@ use serde::Deserialize;
 /// subtracts what the previous turn reported — the converter's job,
 /// since the harness resumes one thread across runs. Every field is
 /// zero when the core reported nothing.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Default)]
+///
+/// The one type of this module that also serializes: the last
+/// cumulative count is the continuation's baseline, kept in the
+/// thread row between runs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Usage {
     /// Input tokens.
     pub input_tokens: i64,
