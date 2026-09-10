@@ -16,7 +16,7 @@ use super::mount::Mount;
 ///
 /// No endpoint's request frame becomes one of these. A handler reads
 /// its own request and fills this in — the limits and the mounts as
-/// the caller sent them, the ports as the provider arranges them.
+/// the caller sent them, the environment as the handler completes it.
 ///
 /// Which is the point. A deployer that took a request frame would take
 /// one per scope, and be that many deployers.
@@ -39,7 +39,13 @@ use super::mount::Mount;
 /// environment "by its own reserved names", so a handler folds them in
 /// and what arrives here is [`environment`](Self::environment).
 ///
-/// Its ports ARE, and are [`ports`](Self::ports).
+/// Its ports are not here either, because there is exactly one and it
+/// is always the same: the proxy's
+/// [`OUTSIDE_PORT`](crate::container_proxy::OUTSIDE_PORT), which a
+/// deployer makes reachable on every container it deploys and reports
+/// as the container's [`address`](super::container::Container::address).
+/// The entrypoint's own port is the proxy's to reach, on the loopback
+/// inside, and nothing outside ever dials it.
 ///
 /// The [`client_identity`](Mount::client_identity) on a
 /// [`Mount`] is not that `identity` and does not contradict this. That
@@ -91,45 +97,4 @@ pub struct Deployment {
     /// handler pairs each with whoever it authenticated before putting
     /// it here.
     pub mounts: Vec<Mount>,
-    /// The ports inside the container that must be reachable.
-    ///
-    /// Container ports, not host ones. HOW a provider makes one
-    /// reachable is its own business — publishing it to a loopback port
-    /// it picks, routing to an address on a bridge, something a cloud
-    /// runtime does that resembles neither — and nothing here says.
-    ///
-    /// # Why they are declared rather than asked for later
-    ///
-    /// Because on the runtimes that need publishing, publishing happens
-    /// when the container is CREATED and cannot be added afterwards. So
-    /// a port not named here may be unreachable for the container's
-    /// whole life, and nothing would be able to fix it.
-    ///
-    /// Rootless Podman is the case that settles it. A rootless
-    /// container has no address the host can route to, so a published
-    /// port is the only way traffic gets in — where a rootful one has a
-    /// bridge address and can be reached on any port at all. A protocol
-    /// that let a port be named at request time would work in the
-    /// second case and be quietly broken in the first, which is the
-    /// worst way to be wrong: it compiles, and it works in whichever
-    /// setup happens to be rootful.
-    ///
-    /// # More than one, because one is not the rule
-    ///
-    /// A container has at least two — its entrypoint's, and its
-    /// proxy's, which carries everything else. A provider that arranges
-    /// something further for itself needs somewhere to say so, and this
-    /// is it.
-    ///
-    /// Order means nothing and duplicates mean nothing. Empty is a
-    /// container nothing reaches over a socket, which is ordinary.
-    ///
-    /// # A port here does not mean anything is listening
-    ///
-    /// It means a provider undertook to make that port reachable if
-    /// something binds it. Whether anything did is found out by
-    /// connecting — the same distinction a
-    /// [`ContainerDeployer`](super::container_deployer::ContainerDeployer)
-    /// draws when it says a container running is not a server bound.
-    pub ports: Vec<u16>,
 }

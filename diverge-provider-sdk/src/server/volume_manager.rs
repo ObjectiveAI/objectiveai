@@ -221,8 +221,8 @@ pub trait VolumeManager: Send + Sync {
     /// watching went away", which is the distinction this protocol
     /// works hardest to preserve everywhere else.
     ///
-    /// It diverges from [`Container::read`](super::container::Container::read),
-    /// which folds its failure in, and the difference is real: a path
+    /// It diverges from a read inside a container, which folds its
+    /// failure into the stream, and the difference is real: a path
     /// inside somebody else's container may not be checkable without
     /// beginning to read it, and a name in a namespace this trait OWNS
     /// always is.
