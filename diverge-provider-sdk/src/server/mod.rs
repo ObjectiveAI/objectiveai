@@ -126,8 +126,10 @@
 //! [`version`](crate::endpoints::version) answer and finish, which is
 //! the whole of what those endpoints do. The three
 //! [`containers`](crate::endpoints::containers) scopes serve for as
-//! long as their containers run; their handlers are not written yet,
-//! and until they are the dispatch finishes those scopes with nothing.
+//! long as their containers run: a run brings its container up,
+//! answers its id, and then carries the container's asks out and the
+//! caller's channels in until it ends; a connect joins a running
+//! container on its runner's say-so. Every endpoint is handled.
 //!
 //! # Auth is a handshake in front of [`handle`]
 //!
@@ -152,10 +154,10 @@
 //!
 //! # And what a provider supplies
 //!
-//! Four traits, which are what this half asks FOR rather than
-//! provides. They mirror the ones [`client`](crate::client) supplies:
-//! something a provider implements, so that the parts this crate cannot
-//! know are somebody else's.
+//! Six traits and one type, which are what this half asks FOR rather
+//! than provides. They mirror the ones [`client`](crate::client)
+//! supplies: something a provider implements, so that the parts this
+//! crate cannot know are somebody else's.
 //!
 //! [`container_deployer`] is the first — where a container actually
 //! runs.
@@ -203,17 +205,33 @@
 //! itself rather than by any endpoint's handler, because a credential
 //! belongs to the connection and not to any scope on it.
 //!
-//! Nothing implements any of them, and all four are consumed:
+//! [`content_store`] is the fifth: where the content a caller mounts
+//! by identity is kept, verified. A run handler asks it what it holds,
+//! fetches from the caller only the rest, and names every identity to
+//! the deployer, which binds from the store.
+//!
+//! [`image_registry`] is the sixth: the OCI registry a provider runs
+//! on its loopback for images the CALLER holds, fed by digest through
+//! an [`image_source`] — the run scope's channels to the caller, which
+//! is the one thing only this crate can be. The registry's HTTP is the
+//! provider's, for the reason above: this crate serves none.
+//!
+//! [`directory`] is the type: every container the provider is running,
+//! by id, shared across connections — because a connector names a
+//! container its runner may have started on another socket, and has
+//! to find its run scope to be authorized on, and its address to dial.
+//!
+//! Nothing implements any of them, and all are consumed:
 //! [`volume_manager`] by the five
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](crate::endpoints::images::check)'s, and
-//! [`container_deployer`] by the two run handlers of
-//! [`containers`](crate::endpoints::containers) — the scopes that put
-//! a container somewhere, which use all three of its methods. A
-//! connect handler consumes none of the three, because it deploys
-//! nothing — the container it serves already exists, and is stopped by
-//! whoever ran it.
+//! [`container_deployer`], [`content_store`] and [`image_registry`] by
+//! the two run handlers of [`containers`](crate::endpoints::containers)
+//! — the scopes that put a container somewhere. A connect handler
+//! consumes none of those, because it deploys nothing — the container
+//! it serves already exists, and is stopped by whoever ran it — and
+//! reads the [`directory`] the run handlers write.
 //!
 //! [`version`](crate::endpoints::version) has a handler too and asks
 //! for nothing at all, its answer being a compile-time constant. It is
@@ -233,14 +251,20 @@
 //! connection ends. One call per connection is the whole of a
 //! provider's loop.
 
+pub(crate) mod answer;
+pub(crate) mod answers;
 pub mod authorization;
 pub mod channel;
 pub mod container;
 pub mod container_client;
 pub mod container_deployer;
+pub mod content_store;
 pub mod deployment;
+pub mod directory;
 pub mod handle;
 pub mod image_checker;
+pub mod image_registry;
+pub mod image_source;
 pub(crate) mod messages;
 pub mod mount;
 mod notice;
