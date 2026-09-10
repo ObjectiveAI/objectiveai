@@ -46,6 +46,20 @@
 //! result — and a single channel-request enum carrying both would
 //! carry variants that can never be valid on half the scopes it
 //! serves.
+//!
+//! # And, behind the `client` feature, a way to use them
+//!
+//! Each scope's `client::execute` performs the exchange rather than
+//! describing it: hand it a [`Handle`](crate::client::handle::Handle),
+//! the request and — for a run — the caller's
+//! [`Answerers`](crate::client::Answerers), and get back the
+//! container's id and a handle that holds the scope for the
+//! container's life, opens every channel the caller may open, and
+//! answers every channel the provider opens. What the three share is
+//! [`client`], written once.
 
 pub mod agents;
 pub mod tools;
+
+#[cfg(feature = "client")]
+pub mod client;
