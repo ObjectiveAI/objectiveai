@@ -26,11 +26,13 @@
 //! filesystem, watched from `/`, as a snapshot and then its changes;
 //! every `/filesystem/read` one file out of it, its bytes then the
 //! close; and every `/filesystem/write` one file into it, moved into
-//! place whole. And it mounts files: each FUSE mount the server named
-//! is one regular file, mounted at the proxy's start, readable and —
-//! unless read-only — overwritable but never moved or deleted, its
-//! bytes the caller's, asked by the mount's id on `/requests` and
-//! answered on `/fuse/read/{channel}` and `/fuse/write/{channel}`.
+//! place whole. And it mounts: each FUSE mount the server named is
+//! one regular file, or one directory tree, mounted at the proxy's
+//! start, its contents the caller's, asked by the mount's id on
+//! `/requests` and answered on the six `/fuse/<op>/{channel}` paths —
+//! a file readable and, unless read-only, overwritable in place; a
+//! tree whose every entry is the caller's to list, read, write, make,
+//! rename and remove.
 //! And for an
 //! agent container the proxy is the loop's door: `/agent/register`,
 //! `/agent/run`, `/agent/schema`, `/agent/enqueue` and
@@ -84,21 +86,28 @@ async fn run() {
 
     let upstream = Arc::new(agent::Upstream::new());
 
-    // The FUSE mounts, before anything listens: one file each, at
-    // the paths the server named, its bytes the caller's by the id.
-    // Unset is none; a value that will not parse, or a mount that
-    // cannot be made, ends the proxy here, as loudly as a port that
-    // will not bind.
+    // The FUSE mounts, before anything listens: a file or a tree
+    // each, at the paths the server named, its contents the caller's
+    // by the id. Unset is none; a value that will not parse, or a
+    // mount that cannot be made, ends the proxy here, as loudly as a
+    // port that will not bind.
     let mounts = match std::env::var_os(container_proxy::filesystem::MOUNTS_ENV) {
         Some(value) => container_proxy::filesystem::Mounts::parse(&value.to_string_lossy())
             .expect("the FUSE mounts would not parse"),
         None => container_proxy::filesystem::Mounts::default(),
     };
     let _mounted: Vec<filesystem::Mounted> = mounts
-        .0
+        .files
         .iter()
-        .map(|mount| {
-            filesystem::mount(Arc::clone(&requests), tokio::runtime::Handle::current(), mount)
+        .map(|mount| (mount, filesystem::Kind::File))
+        .chain(
+            mounts
+                .directories
+                .iter()
+                .map(|mount| (mount, filesystem::Kind::Directory)),
+        )
+        .map(|(mount, kind)| {
+            filesystem::mount(Arc::clone(&requests), tokio::runtime::Handle::current(), mount, kind)
                 .expect("a FUSE mount could not be made")
         })
         .collect();
@@ -168,6 +177,10 @@ async fn run() {
         )
         .route("/fuse/read/{channel}", axum::routing::any(ws::fuse_read))
         .route("/fuse/write/{channel}", axum::routing::any(ws::fuse_write))
+        .route("/fuse/list/{channel}", axum::routing::any(ws::fuse_list))
+        .route("/fuse/remove/{channel}", axum::routing::any(ws::fuse_remove))
+        .route("/fuse/rename/{channel}", axum::routing::any(ws::fuse_rename))
+        .route("/fuse/mkdir/{channel}", axum::routing::any(ws::fuse_mkdir))
         .route("/command/{channel}", axum::routing::any(ws::command))
         .route("/postgres/{channel}", axum::routing::any(ws::postgres))
         .route("/filesystem/tree", axum::routing::any(ws::filesystem_tree))

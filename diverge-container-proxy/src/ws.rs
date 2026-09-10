@@ -248,6 +248,42 @@ pub async fn fuse_write(
     answer(Kind::FuseWrite, requests, upgrade, channel).await
 }
 
+/// `/fuse/list/{channel}`.
+pub async fn fuse_list(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::FuseList, requests, upgrade, channel).await
+}
+
+/// `/fuse/remove/{channel}`.
+pub async fn fuse_remove(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::FuseRemove, requests, upgrade, channel).await
+}
+
+/// `/fuse/rename/{channel}`.
+pub async fn fuse_rename(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::FuseRename, requests, upgrade, channel).await
+}
+
+/// `/fuse/mkdir/{channel}`.
+pub async fn fuse_mkdir(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::FuseMkdir, requests, upgrade, channel).await
+}
+
 /// `/command/{channel}`.
 pub async fn command(
     State(requests): State<Arc<Requests>>,

@@ -44,6 +44,10 @@ pub enum Kind {
     Postgres,
     FuseRead,
     FuseWrite,
+    FuseList,
+    FuseRemove,
+    FuseRename,
+    FuseMkdir,
 }
 
 impl Kind {
@@ -63,6 +67,10 @@ impl Kind {
             Request::Postgres(_) => Kind::Postgres,
             Request::FuseRead(_) => Kind::FuseRead,
             Request::FuseWrite(_) => Kind::FuseWrite,
+            Request::FuseList(_) => Kind::FuseList,
+            Request::FuseRemove(_) => Kind::FuseRemove,
+            Request::FuseRename(_) => Kind::FuseRename,
+            Request::FuseMkdir(_) => Kind::FuseMkdir,
         }
     }
 }
