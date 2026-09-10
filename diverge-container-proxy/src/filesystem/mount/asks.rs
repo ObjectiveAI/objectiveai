@@ -1,4 +1,4 @@
-//! The six asks a mount makes of the caller, by its id.
+//! The seven asks a mount makes of the caller, by its id.
 //!
 //! Each is one [`fuse`] ask on `/requests` and its one-message
 //! answer, through [`crate::ask`], made from the FUSE thread over the
@@ -29,14 +29,19 @@ pub struct Asks {
     readonly: bool,
 }
 
-/// One entry of a listed directory, owned.
+/// One entry of a listed directory, owned: what a `readdir` shows.
 pub struct Listed {
     /// The entry's name.
     pub name: String,
     /// Whether it is a directory.
     pub directory: bool,
-    /// The file's length; `0` for a directory.
-    pub size: u64,
+}
+
+/// What an entry is, as the caller last said.
+pub enum Stat {
+    /// A regular file of this length.
+    File(u64),
+    Directory,
 }
 
 impl Asks {
@@ -71,6 +76,22 @@ impl Asks {
         match fuse::ack::Frame::decode(answer) {
             Ok(fuse::ack::Frame::Ok) => Ok(()),
             Ok(fuse::ack::Frame::Error(_)) | Err(_) => Err(Errno::EIO),
+        }
+    }
+
+    /// What is at the path: `None` when the caller holds nothing
+    /// there. Nine bytes back, never the file: this is what every
+    /// `getattr` and `lookup` costs.
+    pub fn stat(&self, path: &str) -> Result<Option<Stat>, Errno> {
+        let request = fuse::stat::request::Request { id: &self.id, path };
+        let answer = self.ask(Request::FuseStat(request))?;
+        match fuse::stat::response::Frame::decode(&answer) {
+            Ok(fuse::stat::response::Frame::Present(stat)) => Ok(Some(match stat.kind {
+                fuse::Kind::File => Stat::File(stat.size),
+                fuse::Kind::Directory => Stat::Directory,
+            })),
+            Ok(fuse::stat::response::Frame::Missing) => Ok(None),
+            Ok(fuse::stat::response::Frame::Error(_)) | Err(_) => Err(Errno::EIO),
         }
     }
 
@@ -110,7 +131,6 @@ impl Asks {
                     .map(|entry| Listed {
                         name: entry.name.to_string(),
                         directory: entry.kind == fuse::Kind::Directory,
-                        size: entry.size,
                     })
                     .collect(),
             )),

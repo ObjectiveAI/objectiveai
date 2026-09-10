@@ -2,8 +2,9 @@
 //! tree the caller's.
 //!
 //! The root is a directory that cannot be deleted or moved — it is
-//! the mount point. Every entry under it is the caller's: `lookup`,
-//! `getattr` and `readdir` are a listing of the entry's directory; a
+//! the mount point. Every entry under it is the caller's: `lookup`
+//! and `getattr` are a stat of the entry, `readdir` a listing of the
+//! directory; a
 //! file's `open` reads its bytes into a [`handle`](super::handles) of
 //! its own and its changed close stores them whole, exactly as on a
 //! file mount; `create` makes an empty file with the caller at once —
@@ -15,7 +16,7 @@
 //! is `ENOTSUP`. Symbolic links, hard links and device nodes are
 //! `EPERM`. Times, mode and owner are accepted and change nothing.
 //! Attributes are never cached, so every `stat` is the caller's
-//! current answer.
+//! current answer — nine bytes, never the file.
 //!
 //! Inodes are numbers this filesystem hands out for paths as the
 //! kernel looks them up, kept while the kernel holds a lookup count
@@ -35,7 +36,7 @@ use fuser::{
     WriteFlags,
 };
 
-use super::asks::Asks;
+use super::asks::{Asks, Stat};
 use super::handles::Handles;
 
 /// How long the kernel may believe an attribute: not at all — the
@@ -53,13 +54,6 @@ pub struct MountedDirectory {
     born: SystemTime,
     handles: Handles,
     inodes: Mutex<Inodes>,
-}
-
-/// What an entry is, as the caller last said.
-enum Stat {
-    /// A regular file of this length.
-    File(u64),
-    Directory,
 }
 
 /// The inode table: numbers for paths, and the kernel's lookup counts.
@@ -211,24 +205,12 @@ impl MountedDirectory {
     }
 
     /// What is at the path, as the caller says now: the root is a
-    /// directory; anything else is found in its parent's listing.
+    /// directory; anything else is the caller's one stat.
     fn stat(&self, path: &str) -> Result<Stat, Errno> {
         if path.is_empty() {
             return Ok(Stat::Directory);
         }
-        let (parent, name) = split(path);
-        let listed = self.asks.list(parent)?.ok_or(Errno::ENOENT)?;
-        listed
-            .iter()
-            .find(|entry| entry.name == name)
-            .map(|entry| {
-                if entry.directory {
-                    Stat::Directory
-                } else {
-                    Stat::File(entry.size)
-                }
-            })
-            .ok_or(Errno::ENOENT)
+        self.asks.stat(path)?.ok_or(Errno::ENOENT)
     }
 
     /// An entry's attributes.

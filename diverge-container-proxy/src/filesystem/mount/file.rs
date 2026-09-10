@@ -2,8 +2,8 @@
 //! read-only — overwritten in place, but never deleted, moved or
 //! replaced by a rename, its bytes the caller's.
 //!
-//! One inode, the root, a regular file: `getattr` asks the caller for
-//! the bytes and answers their length, `open` reads them into a
+//! One inode, the root, a regular file: `getattr` asks the caller
+//! what it holds and answers the length, `open` reads the bytes into a
 //! [`handle`](super::handles) of its own, `read` and `write` work the
 //! buffer, and `flush`, `fsync` and `release` of a changed buffer
 //! store it whole — each ask carrying the mount's id and an empty
@@ -23,7 +23,7 @@ use fuser::{
     ReplyOpen, ReplyWrite, TimeOrNow, WriteFlags,
 };
 
-use super::asks::Asks;
+use super::asks::{Asks, Stat};
 use super::handles::Handles;
 
 /// How long the kernel may believe an attribute: not at all — the
@@ -75,11 +75,16 @@ impl MountedFile {
     }
 
     /// The size a `getattr` would answer: the handle's buffer, or the
-    /// caller's file.
+    /// caller's stat — nothing held yet is an empty file, and a
+    /// directory is the caller's mistake, not this mount's.
     fn size(&self, fh: Option<FileHandle>) -> Result<u64, Errno> {
         match fh {
             Some(fh) => self.handles.size(fh),
-            None => self.bytes().map(|bytes| bytes.len() as u64),
+            None => match self.asks.stat("")? {
+                Some(Stat::File(size)) => Ok(size),
+                Some(Stat::Directory) => Err(Errno::EIO),
+                None => Ok(0),
+            },
         }
     }
 }
