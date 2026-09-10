@@ -1,7 +1,7 @@
 //! Asking for one mounted FILE the provider is missing.
 //!
 //! A request's
-//! [`file_mounts`](crate::shared::containers::request::Container::file_mounts)
+//! [`identity_file_mounts`](crate::shared::containers::request::Container::identity_file_mounts)
 //! name files by identity — `<size>:<base64url sha256 of the
 //! bytes>`, the size riding the identity so a provider can judge the
 //! weight before fetching anything — and the content itself lives with

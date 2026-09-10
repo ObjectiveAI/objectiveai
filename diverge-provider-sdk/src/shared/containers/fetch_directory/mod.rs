@@ -1,7 +1,7 @@
 //! Asking for one mounted DIRECTORY the provider is missing.
 //!
 //! A request's
-//! [`directory_mounts`](crate::shared::containers::request::Container::directory_mounts)
+//! [`identity_directory_mounts`](crate::shared::containers::request::Container::identity_directory_mounts)
 //! name directories by identity — `<total size>:<base64url sha256
 //! of the manifest>`, the total riding the identity so a provider can
 //! judge the weight before fetching anything — and the content itself

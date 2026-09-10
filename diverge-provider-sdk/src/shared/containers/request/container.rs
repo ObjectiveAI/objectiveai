@@ -67,7 +67,7 @@ pub struct Container {
     /// fetching what it does not hold from the caller by that
     /// identity.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub file_mounts: Vec<IdentityMount>,
+    pub identity_file_mounts: Vec<IdentityMount>,
     /// Directories the caller holds, by content, mounted read-only.
     ///
     /// Each names a directory by its identity — see
@@ -75,7 +75,7 @@ pub struct Container {
     /// a prefix of another's: mounting INTO a directory the image owns
     /// is the point, and mounts stacking on each other is not.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub directory_mounts: Vec<IdentityMount>,
+    pub identity_directory_mounts: Vec<IdentityMount>,
     /// Files the caller serves LIVE, mounted one each over FUSE.
     ///
     /// Each names a file by a path, an id of the caller's, and
