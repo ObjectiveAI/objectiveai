@@ -4,15 +4,14 @@
 //! Eliza. The harness remembers only what ties a run to that state
 //! and keeps a later run honest against it — one row of one table:
 //! the agent id every Eliza id derives from, the room the
-//! conversation is, the vector width the memories were built at, and
-//! each caller plugin with the version the registry resolved, so a
-//! lineage is never resumed against a plugin that changed under it.
+//! conversation is, and each caller plugin with the version the
+//! registry resolved, so a lineage is never resumed against a plugin
+//! that changed under it.
 //!
 //! Read at the top of every run and cached in memory after the first,
 //! as cc caches its session id; written BEFORE the runtime starts —
-//! on the first run, and whenever the plugin set or the width changed
-//! — so a run that dies leaves a row naming the agent id its memories
-//! carry.
+//! on the first run, and whenever the plugin set changed — so a run
+//! that dies leaves a row naming the agent id its memories carry.
 
 use std::sync::Mutex;
 
@@ -29,20 +28,18 @@ const CREATE: &str = "CREATE TABLE IF NOT EXISTS eliza_lineage (\
     id smallint PRIMARY KEY CHECK (id = 1), \
     agent_id uuid NOT NULL, \
     room text NOT NULL, \
-    embedding_dimensions integer, \
     plugins jsonb NOT NULL)";
 
 /// The row, its uuid and jsonb as text so no driver feature is owed.
-const SELECT: &str = "SELECT agent_id::text, room, embedding_dimensions, \
+const SELECT: &str = "SELECT agent_id::text, room, \
     plugins::text FROM eliza_lineage WHERE id = 1";
 
 /// The row, made or replaced.
 const UPSERT: &str = "INSERT INTO eliza_lineage \
-    (id, agent_id, room, embedding_dimensions, plugins) \
-    VALUES (1, CAST($1 AS uuid), $2, $3, CAST($4 AS jsonb)) \
+    (id, agent_id, room, plugins) \
+    VALUES (1, CAST($1 AS uuid), $2, CAST($3 AS jsonb)) \
     ON CONFLICT (id) DO UPDATE SET agent_id = EXCLUDED.agent_id, \
     room = EXCLUDED.room, \
-    embedding_dimensions = EXCLUDED.embedding_dimensions, \
     plugins = EXCLUDED.plugins";
 
 /// The lineage, once read: a later run reads no row.
@@ -56,10 +53,8 @@ pub struct Lineage {
     pub agent_id: String,
     /// The room's external id: [`ROOM`].
     pub room: String,
-    /// The vector width the memories were built at; `None` before any
-    /// run named one.
-    pub embedding_dimensions: Option<i32>,
-    /// Each caller plugin, with the version the registry resolved.
+    /// Each caller plugin, on either list, with the version the
+    /// registry resolved.
     pub plugins: Vec<Resolved>,
     /// Whether the row exists in the database: `false` for a fresh
     /// lineage until [`save`](Self::save).
@@ -71,7 +66,8 @@ pub struct Lineage {
 pub struct Resolved {
     /// The package name, without a version.
     pub package: String,
-    /// The version the registry resolved.
+    /// The version the registry resolved — or the image's, for a
+    /// package it carries.
     pub version: String,
 }
 
@@ -88,11 +84,10 @@ impl Lineage {
         let row = sqlx::query(SELECT).fetch_optional(pool).await?;
         let lineage = match row {
             Some(row) => {
-                let plugins: String = row.get(3);
+                let plugins: String = row.get(2);
                 Lineage {
                     agent_id: row.get(0),
                     room: row.get(1),
-                    embedding_dimensions: row.get(2),
                     plugins: serde_json::from_str(&plugins)?,
                     persisted: true,
                 }
@@ -100,7 +95,6 @@ impl Lineage {
             None => Lineage {
                 agent_id: uuid::Uuid::new_v4().to_string(),
                 room: ROOM.to_string(),
-                embedding_dimensions: None,
                 plugins: Vec::new(),
                 persisted: false,
             },
@@ -110,30 +104,21 @@ impl Lineage {
     }
 
     /// Whether this run's facts differ from the row's: not persisted
-    /// yet, a different plugin set, or a different width.
-    pub fn changed(&self, plugins: &[Resolved], embedding_dimensions: Option<i32>) -> bool {
-        !self.persisted
-            || self.plugins != plugins
-            || self.embedding_dimensions != embedding_dimensions
+    /// yet, or a different plugin set.
+    pub fn changed(&self, plugins: &[Resolved]) -> bool {
+        !self.persisted || self.plugins != plugins
     }
 
     /// Write the row with this run's facts, and remember them.
-    pub async fn save(
-        &mut self,
-        pool: &PgPool,
-        plugins: Vec<Resolved>,
-        embedding_dimensions: Option<i32>,
-    ) -> Result<(), Error> {
+    pub async fn save(&mut self, pool: &PgPool, plugins: Vec<Resolved>) -> Result<(), Error> {
         let encoded = serde_json::to_string(&plugins)?;
         sqlx::query(UPSERT)
             .bind(&self.agent_id)
             .bind(&self.room)
-            .bind(embedding_dimensions)
             .bind(encoded)
             .execute(pool)
             .await?;
         self.plugins = plugins;
-        self.embedding_dimensions = embedding_dimensions;
         self.persisted = true;
         cache(self);
         Ok(())

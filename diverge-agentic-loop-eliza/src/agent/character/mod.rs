@@ -15,7 +15,7 @@
 //! a room that always responds); `postExamples` (rendered only in
 //! feed and thread rooms, which the loop's one DM room never is);
 //! `knowledge`/`documents` (files, so MOUNTS — the documents
-//! toolset ingests what is mounted); `plugins`, `settings`,
+//! feature and `plugin-documents` ingest what is mounted); `plugins`, `settings`,
 //! `secrets`, `templates` (see [the agent module](super)); and `id`
 //! — the identity is the HARNESS's, pinned once per lineage in its
 //! row of the caller's database, so a renamed character keeps its

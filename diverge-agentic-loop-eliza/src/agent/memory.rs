@@ -38,6 +38,17 @@ pub struct Memory {
     /// service and provider. Constructor option `enableRelationships`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relationships: Option<bool>,
+    /// The documents feature: document and fragment memories,
+    /// ingested and searched. Constructor option `enableDocuments`, a
+    /// native runtime feature like
+    /// [`relationships`](Self::relationships). The plugin that
+    /// ingests files is `@elizaos/plugin-documents`, the caller's to
+    /// list under `plugins` with `DOCUMENTS_PATH` and
+    /// `LOAD_DOCS_ON_STARTUP` as its settings; vectors need a
+    /// model-provider plugin that embeds, and without one the search
+    /// is by keyword.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub documents: Option<bool>,
     /// Advanced planning: the multi-step planner over the simple
     /// reply path. Character flag `advancedPlanning`.
     #[serde(default, skip_serializing_if = "Option::is_none")]

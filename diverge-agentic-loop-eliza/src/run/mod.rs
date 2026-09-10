@@ -3,7 +3,8 @@
 //! [`run`] owns everything between the request and the end: the
 //! lineage read and, when this run changes it, written
 //! ([`Lineage`]); the vault's secrets read and the rotating ones
-//! locked ([`vault`]); the caller's plugins installed ([`plugins`]);
+//! locked ([`vault`]); the caller's plugins, on both lists, installed
+//! ([`plugins`]);
 //! the agent rendered into settings ([`settings`]); the entry process
 //! spawned and configured ([`Entry`]); the turns driven over its line
 //! protocol ([`protocol`]) and converted into chunks ([`convert()`]);
@@ -69,7 +70,7 @@ use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChu
 use futures_util::Stream;
 use sqlx::PgPool;
 
-use crate::agent::Agent;
+use crate::agent::{Agent, Plugin};
 use crate::agent::plugin::Rotates;
 use crate::claim::Claim;
 use crate::lineage::Lineage;
@@ -139,31 +140,28 @@ pub fn run(
             }
         };
 
-        let resolved = match plugins::ensure(&agent.plugins, &lineage.plugins).await {
+        // Both lists, the model providers first, installed as one set
+        // and recorded as one: the lineage pins every package alike.
+        let listed: Vec<Plugin> = agent
+            .model_provider_plugins
+            .iter()
+            .chain(&agent.plugins)
+            .cloned()
+            .collect();
+        let resolved = match plugins::ensure(&listed, &lineage.plugins).await {
             Ok(resolved) => resolved,
             Err(error) => {
                 yield Err(Error::Install(error));
                 return;
             }
         };
+        let providers = agent.model_provider_plugins.len();
 
         // The lineage, written BEFORE the runtime starts when this
-        // run changes it. A width that changed is said, after ready.
-        let dimensions = agent.embedding.as_ref().map(|embedding| embedding.dimensions as i32);
+        // run changes it.
         let mut notes: Vec<serde_json::Value> = Vec::new();
-        if lineage.persisted
-            && lineage.embedding_dimensions.is_some()
-            && lineage.embedding_dimensions != dimensions
-        {
-            notes.push(serde_json::json!({
-                "kind": "embedding_dimensions",
-                "was": lineage.embedding_dimensions,
-                "now": dimensions,
-                "note": "the memories were built at another width; Eliza re-embeds them",
-            }));
-        }
-        if lineage.changed(&resolved, dimensions) {
-            if let Err(error) = lineage.save(&pool, resolved.clone(), dimensions).await {
+        if lineage.changed(&resolved) {
+            if let Err(error) = lineage.save(&pool, resolved.clone()).await {
                 yield Err(Error::Lineage(error));
                 return;
             }
@@ -184,8 +182,14 @@ pub fn run(
             agent_id: lineage.agent_id.clone(),
             character: rendered.character,
             settings: rendered.settings,
-            plugins: rendered.plugins,
-            installed: resolved.iter().map(|plugin| plugin.package.clone()).collect(),
+            model_provider_plugins: resolved[..providers]
+                .iter()
+                .map(|plugin| plugin.package.clone())
+                .collect(),
+            plugins: resolved[providers..]
+                .iter()
+                .map(|plugin| plugin.package.clone())
+                .collect(),
             generate_media: rendered.generate_media,
             advanced_capabilities: rendered.advanced_capabilities,
             enable_relationships: rendered.enable_relationships,

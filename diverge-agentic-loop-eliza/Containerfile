@@ -69,15 +69,17 @@ COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 # The Node project, at the path the harness names (plugins::PROJECT):
 # the manifest with the pinned packages, the entry and the diverge
 # plugin. Installed here with scripts allowed — native dependencies
-# build at image build, never at a run.
+# build at image build, never at a run. The pinned packages are
+# PRE-INSTALLED and nothing more: the harness loads only the adapter
+# on its own, and any other is loaded only when the agent lists it.
 WORKDIR /opt/diverge/eliza
 COPY diverge-agentic-loop-eliza/node/ ./
 RUN bun install
 
-# Eliza's state directory (its own vault lives under it) and the
-# documents path, both fixed by the harness; a caller mounts a volume
-# at either to give it a life beyond the container.
-RUN mkdir -p /var/lib/eliza /documents
+# Eliza's state directory (its own vault lives under it), fixed by
+# the harness; a caller mounts a volume here to give it a life beyond
+# the container.
+RUN mkdir -p /var/lib/eliza
 
 COPY --from=build \
     /build/diverge-agentic-loop-eliza/target/release/diverge-agentic-loop-eliza \

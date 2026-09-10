@@ -21,11 +21,16 @@ pub enum Request {
         character: Value,
         /// The constructor settings map.
         settings: BTreeMap<String, String>,
-        /// The image's plugins to import, in order.
+        /// The caller's model-provider plugins, by package name, in
+        /// priority order. Imported after the adapter and the diverge
+        /// plugin, which the entry loads on its own; each
+        /// must declare a model handler, and the entry refuses one
+        /// that does not.
+        model_provider_plugins: Vec<String>,
+        /// The caller's other plugins, by package name. Imported
+        /// last; each must declare no model handler, and the entry
+        /// refuses one that does.
         plugins: Vec<String>,
-        /// The caller's plugins to import after the diverge plugin,
-        /// by package name.
-        installed: Vec<String>,
         /// Whether the `GENERATE_MEDIA` action stays registered.
         generate_media: bool,
         /// Constructor option `advancedCapabilities`.
