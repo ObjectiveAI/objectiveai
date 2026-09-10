@@ -52,6 +52,16 @@ Rules that make this work (`provider-auth.md`, `oauth-resources.md`):
   set — the caller keeping its copy beats a lost login — and the key
   is still unlocked. A run abandoned mid-way stops refreshing and
   the locks lapse by their TTL.
+- The alternative to the vault cycle is a FUSE DIRECTORY mount
+  (`fuse_directory_mounts` on the container request): the caller
+  serves `$HERMES_HOME` — or the directory holding `auth.json` and
+  the qwen file — live, and every refresh Hermes writes lands with
+  the caller as it happens. A DIRECTORY, not a file mount: Hermes
+  saves its auth store by writing a temporary beside it and renaming
+  over it (`hermes_cli/auth.py`, `_save_auth_store`, an atomic
+  `os.replace`), and the kernel refuses a rename onto a single-file
+  mount point. Which the caller chooses is the request's; the
+  harness's cycle runs only for keys the vault holds.
 
 ## The `filesystem` module lays it down, and reads the documents back
 
