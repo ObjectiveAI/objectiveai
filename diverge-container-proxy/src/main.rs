@@ -29,7 +29,7 @@
 //! place whole. And it mounts: each FUSE mount the server named is
 //! one regular file, or one directory tree, mounted at the proxy's
 //! start, its contents the caller's, asked by the mount's id on
-//! `/requests` and answered on the six `/fuse/<op>/{channel}` paths —
+//! `/requests` and answered on the seven `/fuse/<op>/{channel}` paths —
 //! a file readable and, unless read-only, overwritable in place; a
 //! tree whose every entry is the caller's to list, read, write, make,
 //! rename and remove.
@@ -181,6 +181,7 @@ async fn run() {
         .route("/fuse/remove/{channel}", axum::routing::any(ws::fuse_remove))
         .route("/fuse/rename/{channel}", axum::routing::any(ws::fuse_rename))
         .route("/fuse/mkdir/{channel}", axum::routing::any(ws::fuse_mkdir))
+        .route("/fuse/stat/{channel}", axum::routing::any(ws::fuse_stat))
         .route("/command/{channel}", axum::routing::any(ws::command))
         .route("/postgres/{channel}", axum::routing::any(ws::postgres))
         .route("/filesystem/tree", axum::routing::any(ws::filesystem_tree))

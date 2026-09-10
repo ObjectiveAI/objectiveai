@@ -284,6 +284,15 @@ pub async fn fuse_mkdir(
     answer(Kind::FuseMkdir, requests, upgrade, channel).await
 }
 
+/// `/fuse/stat/{channel}`.
+pub async fn fuse_stat(
+    State(requests): State<Arc<Requests>>,
+    upgrade: WebSocketUpgrade,
+    Path(channel): Path<u32>,
+) -> Response {
+    answer(Kind::FuseStat, requests, upgrade, channel).await
+}
+
 /// `/command/{channel}`.
 pub async fn command(
     State(requests): State<Arc<Requests>>,

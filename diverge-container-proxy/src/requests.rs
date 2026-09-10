@@ -48,6 +48,7 @@ pub enum Kind {
     FuseRemove,
     FuseRename,
     FuseMkdir,
+    FuseStat,
 }
 
 impl Kind {
@@ -71,6 +72,7 @@ impl Kind {
             Request::FuseRemove(_) => Kind::FuseRemove,
             Request::FuseRename(_) => Kind::FuseRename,
             Request::FuseMkdir(_) => Kind::FuseMkdir,
+            Request::FuseStat(_) => Kind::FuseStat,
         }
     }
 }
