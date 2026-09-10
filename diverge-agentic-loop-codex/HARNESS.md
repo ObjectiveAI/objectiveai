@@ -13,12 +13,13 @@ pins; nothing here has been run.
 
 The whole container, never run: the agent vocabulary with its schema;
 the server (`main.rs`, hermes's); cc's three-phase claim and hermes's
-queue; the login from a mount or the vault (`auth.rs`); `config.toml`
-rendered from the agent (`config.rs`); the thread's rollouts as the
-continuation in the caller's database (`continuation.rs`); and the
-run (`run/`): `codex exec --json` spawned per turn (`process.rs`), its
-events converted into chunks (`convert.rs`), the queue taken at the
-turn's end, the login read back, the rollouts harvested.
+queue; the login from a mount or the vault's key (`auth.rs`);
+`config.toml` rendered from the agent (`config.rs`); the thread's
+rollouts as the
+continuation in the caller's database (`continuation.rs`); and
+the run (`run/`): `codex exec --json` spawned per turn
+(`process.rs`), its events converted into chunks (`convert.rs`), the
+queue taken at the turn's end, the rollouts harvested.
 
 ## The run: one `codex exec` per turn
 
@@ -108,7 +109,7 @@ CREATE TABLE IF NOT EXISTS codex_files (
   thread row.
 - Nothing else travels: not the state database (an index), not
   `history.jsonl` (display history), not `config.toml` and
-  `auth.json` (the harness's and the vault's).
+  `auth.json` (the harness's and the caller's).
 
 ## The stream is `codex exec --json`, and `response/` is its vocabulary
 
@@ -206,38 +207,27 @@ execpolicy rules, `shell_environment_policy` (the harness renders the
 process environment itself), `--image` and `--output-schema` (the
 wire is text and chunks).
 
-## Auth: a mount first, then the vault, and only both missing refuses
+## Auth: a mount first, then the vault's key, and only both missing refuses
 
 The agent says nothing about how Codex logs in (user ruling
 2026-09-09). At each run's start the harness looks, in order:
 
 1. **A mounted `auth.json`** at `$CODEX_HOME/auth.json`. The caller
-   put it there, exactly as cc's caller mounts Claude Code's
-   credentials; its kind (API key or ChatGPT tokens) is the caller's
-   choice and the harness never reads it. Codex refreshes ChatGPT
-   tokens in place, on the mount, so the caller's copy stays current
-   without any cycle of the harness's. Found, the vault is never
-   asked. A file THIS PROGRAM wrote from the vault in an earlier run
-   is not a mount (a static remembers), so the vault stays
-   authoritative across runs.
-2. **The vault's `OPENAI_CODEX_OAUTH`** — the SDK's well-known key,
-   the same document Hermes's `providers.openai-codex` entry carries
-   — written VERBATIM as `$CODEX_HOME/auth.json`: the document is
-   Codex's own file, and no field is ever rendered or guessed. Read
-   WITHOUT a lock and never written back (user ruling 2026-09-09):
-   the document does not rotate in the container — it carries the
-   access token the caller refreshes on their side — so there is no
-   cycle to owe. That the vault's document is exactly the `auth.json`
-   Codex 0.153.4 accepts is a live-run check.
-3. **The vault's `OPENAI_API_KEY`**: a STATIC secret, read once per
+   serves it through a FUSE mount on the container request, exactly
+   as cc's caller serves Claude Code's credentials; its kind (API key
+   or ChatGPT tokens) is the caller's choice and the harness never
+   reads it. Codex refreshes ChatGPT tokens in place, on the mount,
+   so the caller's copy is the current one without any cycle of the
+   harness's. Found, the vault is never asked.
+2. **The vault's `OPENAI_API_KEY`**: a STATIC secret, read once per
    run and put in the process environment, where Codex's `env_key`
    looks. No lock, no set.
 
-None of the three: the run is refused, naming all three places. The
-OAuth document outranks the API key in the vault because the key is
-a generic secret other images share (Eliza reads the same one), so
-its presence says nothing about Codex, while the document is Codex's
-own and its presence is intent. A ChatGPT login bills the caller's
+Neither: the run is refused, naming both places. The vault's OAuth
+document (`OPENAI_CODEX_OAUTH`) is NOT a source (user ruling
+2026-09-09): a login that refreshes is the caller's to serve live,
+which is what the FUSE mount is for, and the harness writes no
+`auth.json` of its own. A ChatGPT login bills the caller's
 subscription; an API key bills the platform at API rates — Codex's
 docs keep the two systems apart, and so does this order. The vault is
 touched only at the run, never at startup: the proxy may not be up
@@ -256,9 +246,9 @@ Nothing about credentials rides the agent value, the schema or a row.
 3. `mcp_servers.diverge` with a bare `url` (Streamable HTTP, no
    bearer) connecting to the proxy's inside port, listing the
    caller's tools, and reading resources.
-4. The vault's document written verbatim as `auth.json` accepted
-   headless; and a MOUNTED `auth.json` refreshed in place on the
-   mount.
+4. A MOUNTED `auth.json` — the FUSE mount's single file — accepted
+   headless and refreshed in place on the mount, the caller's copy
+   following.
 5. `wire_api = "responses"` against the Diverge relay.
 6. `codex exec resume <SESSION_ID>` across container restarts once
    the rollout files are restored from the database, with the SQLite

@@ -1,28 +1,24 @@
-//! The login: a mount, the vault's OAuth document, or the vault's
-//! API key.
+//! The login: a mounted `auth.json`, or the vault's API key.
 //!
 //! The agent says nothing about how Codex logs in. At each run's
 //! start [`Auth::resolve`] looks, in the ruled order:
 //!
 //! 1. A MOUNTED `auth.json` at [`AUTH_FILE`] — the caller's, of
-//!    whatever kind, and the harness never reads it. A file this
-//!    program itself wrote from the vault in an earlier run is NOT a
-//!    mount ([`RENDERED`]), so the vault stays authoritative.
-//! 2. The vault's [`OPENAI_CODEX_OAUTH`] — Codex's own `auth.json`,
-//!    bytes verbatim, never rendered and no field ever guessed. Read
-//!    without a lock and never written back: the document does not
-//!    rotate in the container — it carries the access token the
-//!    caller refreshes on their side — so there is no cycle to owe.
-//! 3. The vault's `OPENAI_API_KEY` — static, into the process
+//!    whatever kind, served through a FUSE mount on the container
+//!    request, and the harness never reads it. Codex refreshes a
+//!    ChatGPT login in place, on the mount, so the caller's copy is
+//!    the current one without any cycle of the harness's.
+//! 2. The vault's `OPENAI_API_KEY` — static, into the process
 //!    environment, where Codex's `env_key` looks.
 //!
-//! None of the three refuses the run, naming all three.
+//! Neither refuses the run, naming both. The vault's OAuth document
+//! is NOT a source: a login that refreshes is the caller's to serve
+//! live, which is what the mount is for, and nothing here writes an
+//! `auth.json` of its own.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use diverge_container_proxy_sdk::Client;
-use diverge_provider_sdk::shared::containers::vault::keys::OPENAI_CODEX_OAUTH;
 
 /// Codex's home, fixed for the container's life: its default for the
 /// root user, set explicitly on the process so the geometry never
@@ -35,16 +31,10 @@ pub const AUTH_FILE: &str = "/root/.codex/auth.json";
 /// The static key an API-key login reads.
 pub const API_KEY: &str = "OPENAI_API_KEY";
 
-/// Whether this program has ever written [`AUTH_FILE`] from the
-/// vault: a file it wrote is not a mount.
-static RENDERED: AtomicBool = AtomicBool::new(false);
-
 /// The login a run found.
 pub enum Auth {
     /// A mounted `auth.json`: the caller's, left alone.
     Mounted,
-    /// The vault's OAuth document, written as `auth.json`.
-    Vault,
     /// The vault's API key, for the environment.
     ApiKey(String),
 }
@@ -52,27 +42,8 @@ pub enum Auth {
 impl Auth {
     /// Look, in the ruled order.
     pub async fn resolve(client: &Arc<Client>) -> Result<Self, Error> {
-        if !RENDERED.load(Ordering::SeqCst)
-            && tokio::fs::try_exists(AUTH_FILE).await.unwrap_or(false)
-        {
+        if tokio::fs::try_exists(AUTH_FILE).await.unwrap_or(false) {
             return Ok(Auth::Mounted);
-        }
-        let document = client
-            .vault_get(OPENAI_CODEX_OAUTH)
-            .await
-            .map_err(|error| Error::Get {
-                key: OPENAI_CODEX_OAUTH,
-                error,
-            })?;
-        if let Some(document) = document {
-            if let Some(parent) = std::path::Path::new(AUTH_FILE).parent() {
-                tokio::fs::create_dir_all(parent).await.map_err(Error::Write)?;
-            }
-            tokio::fs::write(AUTH_FILE, document.as_ref())
-                .await
-                .map_err(Error::Write)?;
-            RENDERED.store(true, Ordering::SeqCst);
-            return Ok(Auth::Vault);
         }
         let key = client
             .vault_get(API_KEY)
@@ -93,7 +64,7 @@ impl Auth {
     pub fn env(&self) -> Option<(&'static str, &str)> {
         match self {
             Auth::ApiKey(key) => Some((API_KEY, key.as_str())),
-            Auth::Mounted | Auth::Vault => None,
+            Auth::Mounted => None,
         }
     }
 }
@@ -101,7 +72,7 @@ impl Auth {
 /// No login could be had.
 #[derive(Debug)]
 pub enum Error {
-    /// None of the three places held a login.
+    /// Neither place held a login.
     NoLogin,
     /// The key could not be read.
     Get {
@@ -110,8 +81,6 @@ pub enum Error {
     },
     /// The key holds something that is not text.
     NotText(&'static str),
-    /// `auth.json` could not be written.
-    Write(std::io::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -119,14 +88,12 @@ impl std::fmt::Display for Error {
         match self {
             Error::NoLogin => write!(
                 f,
-                "no login: no {AUTH_FILE} is mounted, and the vault holds neither \
-                 {OPENAI_CODEX_OAUTH} nor {API_KEY}"
+                "no login: no {AUTH_FILE} is mounted, and the vault holds no {API_KEY}"
             ),
             Error::Get { key, error } => {
                 write!(f, "the vault key {key} could not be read: {error}")
             }
             Error::NotText(key) => write!(f, "the vault's {key} is not text"),
-            Error::Write(error) => write!(f, "{AUTH_FILE} could not be written: {error}"),
         }
     }
 }
@@ -135,7 +102,6 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Get { error, .. } => Some(error),
-            Error::Write(error) => Some(error),
             Error::NoLogin | Error::NotText(_) => None,
         }
     }
