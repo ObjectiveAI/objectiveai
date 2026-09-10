@@ -9,7 +9,7 @@ use crate::endpoints::volumes::watch::client::channel_request;
 /// Half of what `execute` gives back. The other half
 /// is an [`ExecuteStream`](super::ExecuteStream) of the changes, and the
 /// split is the same one
-/// `laboratories::connect`
+/// [`containers::tools::connect`](crate::endpoints::containers::tools::connect)
 /// makes: the stream is what the provider says, and this is how a
 /// caller says anything back.
 ///
