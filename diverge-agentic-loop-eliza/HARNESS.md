@@ -396,6 +396,17 @@ by the diverge plugin when none does; `GENERATE_MEDIA`'s images come
 from whichever registers image generation, and the action fails as
 itself when none does.
 
+A ChatGPT subscription is `@elizaos/plugin-codex-cli` (published at
+the pin; text tiers only), which reads the Codex CLI's `auth.json`
+from `CODEX_AUTH_PATH` and refreshes it by writing a temporary beside
+it and renaming over it — a write a single-file FUSE mount cannot
+take, since the kernel refuses a rename onto a mount point. Its
+token cache therefore lives in a FUSE DIRECTORY mount the caller
+serves (`fuse_directory_mounts` on the request), with
+`CODEX_AUTH_PATH` pointing at the file inside it; the rename is then
+the mount's own to answer, and the caller holds the refreshed
+document as it lands.
+
 ## Plugins the caller names are installed at the run
 
 `plugins.rs`: every package the agent's two lists name is installed
