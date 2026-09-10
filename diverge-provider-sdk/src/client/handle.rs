@@ -48,9 +48,6 @@ use crate::frame::client::ClientFrame;
 /// frame is the wire's unit of exclusion, and a caller holding the lock
 /// for a stream of chunks is a caller who has taken the connection away
 /// from everybody else until it finishes.
-// Nothing reads it yet, because nothing locks it yet. The attribute
-// goes when the methods do.
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct Handle(Arc<Mutex<HandleInner>>);
 
@@ -261,15 +258,6 @@ impl Handle {
 /// second, because only this side mints them — the client chooses every
 /// scope and every channel it opens, which is what makes one minter
 /// enough and collisions this end's fault when they happen.
-///
-/// # Nothing is written yet
-///
-/// The fields are the whole of it. What goes on top — opening a scope,
-/// opening a channel inside one, minting the numbers for either — is
-/// not decided, and each of those decisions wants this to exist first.
-// Nothing reads these yet, because nothing sends yet. The attribute
-// goes when the methods do.
-#[allow(dead_code)]
 #[derive(Debug)]
 struct HandleInner {
     /// The write half of the connection.
