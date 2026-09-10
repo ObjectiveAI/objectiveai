@@ -28,13 +28,12 @@
 //! had to turn one into a request; and then through parsed requests and
 //! statuses and header maps, which only moved the problem up a level.
 //!
-//! Now [`Container`](container::Container) takes and returns the
-//! exchanges themselves — MCP asks and MCP answers — and whatever
-//! speaks HTTP to a container is on the provider's side of that line
-//! with everything else about how a container is reached. Which is
-//! where it belongs: an implementation is already an MCP client and an
-//! MCP server, and neither of those is a thing this crate should be
-//! reimplementing halfway.
+//! Now a [`Container`](container::Container) is an address and a way
+//! to stop it, and every exchange with one is spoken to the
+//! [`container_proxy`](crate::container_proxy) at that address by the
+//! executors under it — one WebSocket client, this crate's own, and
+//! nothing the provider has to speak. Whatever else the provider does
+//! to reach a container is on its side of that line.
 //!
 //! # Nothing is re-exported
 //!
@@ -169,13 +168,8 @@
 //! somebody's behalf and every question worth asking about it needs to
 //! know whose. What it
 //! hands back is a [`container`] — whatever that provider holds a
-//! running container by, with the things that need something only the
-//! deploy learned: where its filesystem is, for reading and writing,
-//! and how to end it.
-//!
-//! Reaching a port inside one belonged here too and is gone for now,
-//! while the shape of it is reconsidered. It will come back as
-//! something: a container nothing can speak to serves nobody.
+//! running container by, with the two things only the deploy learned:
+//! where the proxy it started inside answers, and how to end it.
 //!
 //! A deployment's [`mount`] is the one piece of it that is not simply
 //! copied out of a request. A caller names a volume, and a name is

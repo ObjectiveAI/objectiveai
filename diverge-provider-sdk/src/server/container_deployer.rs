@@ -26,10 +26,9 @@ use super::deployment::Deployment;
 /// [`Err`](Self::Error).
 ///
 /// This protocol has nothing that means "starting". A scope either
-/// answers or it fails, and the first thing a caller does with a
-/// container is reach into it — call its MCP server, read a file, write
-/// one. There is no state between "asked for" and "usable" for a caller
-/// to wait in.
+/// answers or it fails, and the first thing a handler does with a
+/// container is dial its proxy. There is no state between "asked for"
+/// and "usable" for a caller to wait in.
 ///
 /// # Which is why there is no create-then-start
 ///
@@ -51,11 +50,25 @@ use super::deployment::Deployment;
 /// container does, so the protocol has no pre-start write and never
 /// had one. A laboratory's file transfers happen while it runs.
 ///
-/// # And it is READY when a method returns
+/// # And its proxy is LISTENING when a method returns
 ///
-/// Every port in [`ports`](Deployment::ports) accepts a connection by
-/// the time this is [`Ok`]. Not "will shortly" — a handler's first act
-/// after a deploy is to dial into the container, and it dials once.
+/// Deploying is also injecting the
+/// [`container_proxy`](crate::container_proxy) into the container and
+/// starting it — the image never carries it, and nothing else in this
+/// crate can put it there. By the time this is [`Ok`], the proxy
+/// accepts a connection at the container's
+/// [`address`](Container::address). Not "will shortly" — a handler's
+/// first act after a deploy is to dial it, and it dials once.
+///
+/// One port, always the same one: the proxy's
+/// [`OUTSIDE_PORT`](crate::container_proxy::OUTSIDE_PORT). A
+/// [`Deployment`] names none, because there is nothing to choose. How
+/// a provider makes it reachable — published to a loopback port it
+/// picked, routed to a bridge address, something a cloud runtime does
+/// that resembles neither — is its own, and on the runtimes that need
+/// publishing it happens at creation, which is one more reason the
+/// port is fixed rather than asked for later. The entrypoint's port is
+/// behind the proxy, on the loopback inside, and is never published.
 ///
 /// # Why the waiting is not this protocol's
 ///
@@ -76,16 +89,17 @@ use super::deployment::Deployment;
 /// wait for waits before it returns, the same way it does for the
 /// container itself.
 ///
-/// # A port that is never bound is a different thing
+/// # An entrypoint that never binds is a different thing
 ///
 /// And it is still not detectable here. An image that binds nothing on
-/// its entrypoint's port is a container that came up perfectly and has
-/// nothing listening, and no amount of waiting turns that into an
-/// answer — which is why a wrong port surfaces as an exchange that
-/// finishes without an answer.
+/// its entrypoint's port is a container that came up perfectly, whose
+/// proxy answers and has nothing behind it, and no amount of waiting
+/// turns that into an answer — which is why it surfaces as an exchange
+/// the proxy cannot serve.
 ///
 /// The distinction is between not YET and not EVER. This promises the
-/// first is over; nothing can promise the second away.
+/// first is over for the proxy; nothing can promise the second away
+/// for the image.
 ///
 /// # Three methods, one per source
 ///
@@ -111,10 +125,10 @@ use super::deployment::Deployment;
 /// process handle, a name, an id its runtime minted, a struct with all
 /// three — and this crate does not look inside.
 ///
-/// What it must be ABLE to do is [`Container`], which is one method:
-/// stopping. Everything else a container is asked for travels on
-/// channels the scope already carries, and relaying does not need the
-/// container to have a method for it.
+/// What it must be ABLE to do is [`Container`], which is two methods:
+/// saying where its proxy answers, and stopping. Everything else a
+/// container is asked for is spoken to the proxy, and relaying does
+/// not need the container to have a method for it.
 ///
 /// # Every method is told whose it is
 ///

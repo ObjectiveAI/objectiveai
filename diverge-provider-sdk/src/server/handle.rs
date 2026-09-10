@@ -7,7 +7,6 @@ use std::sync::Arc;
 use futures_util::StreamExt as _;
 
 use super::authorization::{self, Authorization};
-use super::container::Container;
 use super::container_deployer::ContainerDeployer;
 use super::image_checker::ImageChecker;
 use super::received::Received;
@@ -112,7 +111,6 @@ pub async fn handle<D, V, I, U>(
 where
     D: ContainerDeployer + 'static,
     D::Error: Into<Error>,
-    <D::Container as Container>::Error: Into<Error>,
     V: VolumeManager + 'static,
     V::Error: Into<Error>,
     I: ImageChecker + 'static,
