@@ -40,7 +40,12 @@
 //! the loopback — `/register`, `/run`, `/schema`, `/enqueue`,
 //! `/dequeue` — made when the server opens the
 //! path, its answer re-framed as the wire's; the proxy keeps nothing
-//! of the loop's between calls.
+//! of the loop's between calls. And for a tool container it is the
+//! caller's MCP client: `/tool/list-tools`, `/tool/list-resources`,
+//! `/tool/call-tool`, `/tool/read-resource` and `/tool/notifications`
+//! are each one exchange with the tool's own MCP server on the
+//! loopback, through one client the proxy keeps for the container's
+//! life.
 
 mod agent;
 mod ask;
@@ -51,6 +56,7 @@ mod paths;
 mod postgres;
 mod requests;
 mod state;
+mod tool;
 mod vault;
 mod ws;
 
@@ -139,6 +145,7 @@ async fn run() {
         requests: Arc::clone(&requests),
         ignore,
         upstream,
+        tool: Arc::new(tool::Tool::new()),
     };
 
     // The server's side: every path of the wire.
@@ -192,6 +199,11 @@ async fn run() {
         .route("/agent/schema", axum::routing::any(agent::schema))
         .route("/agent/enqueue", axum::routing::any(agent::enqueue))
         .route("/agent/dequeue", axum::routing::any(agent::dequeue))
+        .route("/tool/list-tools", axum::routing::any(tool::list_tools))
+        .route("/tool/list-resources", axum::routing::any(tool::list_resources))
+        .route("/tool/call-tool", axum::routing::any(tool::call_tool))
+        .route("/tool/read-resource", axum::routing::any(tool::read_resource))
+        .route("/tool/notifications", axum::routing::any(tool::notifications))
         .with_state(state.clone());
 
     // The program's side: what the program beside the proxy dials.

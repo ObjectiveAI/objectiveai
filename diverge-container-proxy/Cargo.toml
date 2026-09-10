@@ -29,8 +29,10 @@ futures-util = { version = "0.3.33", default-features = false }
 # runs in. The daemon's line.
 notify = "8.2"
 # The MCP server the agent talks to: a compliant Streamable HTTP
-# server whose handler is this crate's relay.
-rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
+# server whose handler is this crate's relay. And the MCP client the
+# `/tool/*` paths call a tool container's own server through, over
+# Streamable HTTP on the loopback.
+rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server", "client", "transport-streamable-http-client-reqwest"] }
 # A refusal the far side sent, rendered whole into a tool result.
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
 # The agent's server, dialed: `/agent/*` is one HTTP call each to the
