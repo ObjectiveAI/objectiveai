@@ -3,6 +3,7 @@
 use indexmap::IndexMap;
 
 use super::mount::Mount;
+use crate::shared::containers::request::IdentityMount;
 
 /// A container to put somewhere, minus the image.
 ///
@@ -38,6 +39,12 @@ use super::mount::Mount;
 /// endpoint already says a provider delivers them through the
 /// environment "by its own reserved names", so a handler folds them in
 /// and what arrives here is [`environment`](Self::environment).
+///
+/// The FUSE mounts are not here: the proxy makes those itself, from
+/// the [`MOUNTS_ENV`](crate::container_proxy::filesystem::MOUNTS_ENV)
+/// a handler puts in the environment, and all a deployer owes them is
+/// what every container gets — `/dev/fuse` and the privilege to mount
+/// in its own namespace.
 ///
 /// Its ports are not here either, because there is exactly one and it
 /// is always the same: the proxy's
@@ -97,4 +104,15 @@ pub struct Deployment {
     /// handler pairs each with whoever it authenticated before putting
     /// it here.
     pub mounts: Vec<Mount>,
+    /// The files the caller mounts by identity, each read-only at its
+    /// path, from the provider's
+    /// [`ContentStore`](super::content_store::ContentStore).
+    ///
+    /// Every identity here is held by the time a deploy is asked for:
+    /// the handler fetched what the store lacked first, so a deployer
+    /// binds and never fetches. The wire type, unchanged — a path and
+    /// an identity are all a bind needs.
+    pub identity_file_mounts: Vec<IdentityMount>,
+    /// The directories the caller mounts by identity, likewise.
+    pub identity_directory_mounts: Vec<IdentityMount>,
 }
