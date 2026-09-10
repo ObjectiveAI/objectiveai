@@ -25,7 +25,6 @@ import {
   AgentRuntime,
   ChannelType,
   EventType,
-  ModelType,
   createMessageMemory,
   createUniqueUuid,
 } from "@elizaos/core";
@@ -50,6 +49,13 @@ const STREAM_EVENT_TYPES = new Set([
  */
 const SILENT_ACTIONS = new Set(["REPLY", "IGNORE", "NONE"]);
 const DIVERGE_PREFIX = "DIVERGE_";
+
+/**
+ * The one plugin the entry loads on its own: the database adapter,
+ * pointed at the caller's database by `POSTGRES_URL`. Everything else
+ * in the runtime is the diverge plugin or a package the agent listed.
+ */
+const ADAPTER = "@elizaos/plugin-sql";
 
 /** One protocol line out. */
 function emit(line) {
@@ -110,18 +116,14 @@ function looksLikePlugin(value) {
 }
 
 /**
- * `plugin-openai`, shaped to the agent: its embedding tier is never
- * registered — the agent's `embedding` structure is the one source of
- * vectors. Its media tiers (image description and generation,
- * transcription, speech), which its `init` registers against the
- * caller's endpoint, always are: they are how a tool's image or audio
- * is read to the model. Whether the model may GENERATE media is the
- * `GENERATE_MEDIA` action's, gated after initialize.
+ * The model types a plugin declares handlers for on its object — the
+ * static half of the two-list rule. What a plugin registers from its
+ * `init` is the dynamic half, checked after initialize.
  */
-function shapeOpenai(plugin) {
-  const models = { ...(plugin.models ?? {}) };
-  delete models[ModelType.TEXT_EMBEDDING];
-  return { ...plugin, models };
+function modelTypes(plugin) {
+  const models = plugin.models;
+  if (!models || typeof models !== "object") return [];
+  return Object.keys(models);
 }
 
 /** The runtime, and everything a turn needs of it. */
@@ -135,16 +137,41 @@ let elizaVault = null;
 
 async function configure(config) {
   const plugins = [];
-  for (const name of config.plugins) {
-    const plugin = await loadPlugin(name);
-    plugins.push(
-      name === "@elizaos/plugin-openai" ? shapeOpenai(plugin) : plugin,
-    );
-  }
+  // The adapter, and nothing else unasked.
+  const adapter = await loadPlugin(ADAPTER);
+  plugins.push(adapter);
   const diverge = await createDivergePlugin({ url: config.mcpUrl, emit });
   plugins.push(diverge.plugin);
-  for (const name of config.installed) {
-    plugins.push(await loadPlugin(name));
+  // The model providers, in the agent's order: the first listed gets
+  // the highest priority, so it answers every model type it registers
+  // and each later one is the failover behind it. One that declares
+  // no model handler is in the wrong list, and the run is refused.
+  const providers = [];
+  const count = config.modelProviderPlugins.length;
+  for (const [index, name] of config.modelProviderPlugins.entries()) {
+    const plugin = await loadPlugin(name);
+    if (modelTypes(plugin).length === 0) {
+      throw new Error(
+        `${name} is listed under model_provider_plugins but declares no ` +
+          `model handler; it belongs under plugins`,
+      );
+    }
+    plugin.priority = count - index;
+    providers.push(plugin);
+    plugins.push(plugin);
+  }
+  // Every other plugin. One that declares a model handler is in the
+  // wrong list, and the run is refused.
+  for (const name of config.plugins) {
+    const plugin = await loadPlugin(name);
+    const types = modelTypes(plugin);
+    if (types.length > 0) {
+      throw new Error(
+        `${name} declares model handlers (${types.join(", ")}) and is ` +
+          `listed under plugins; it belongs under model_provider_plugins`,
+      );
+    }
+    plugins.push(plugin);
   }
 
   runtime = new AgentRuntime({
@@ -188,6 +215,21 @@ async function configure(config) {
   await runtime.initialize();
   if (!runtime.messageService) {
     throw new Error("the runtime has no message service after initialize");
+  }
+  // The dynamic half of the two-list rule: every model handler the
+  // runtime holds now — the ones plugins registered from their `init`
+  // included — must belong to a model provider or the adapter.
+  const allowed = new Set([adapter, ...providers].map((plugin) => plugin.name));
+  const strays = runtime
+    .getModelRegistrations()
+    .filter((registration) => !allowed.has(registration.provider));
+  if (strays.length > 0) {
+    const listed = strays
+      .map((registration) => `${registration.provider}: ${registration.modelType}`)
+      .join("; ");
+    throw new Error(
+      `model handlers registered outside model_provider_plugins: ${listed}`,
+    );
   }
   // A list-changed notification that arrived before the runtime was
   // ready is applied now, with the static actions certainly registered.

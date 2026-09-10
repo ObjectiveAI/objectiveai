@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS eliza_lineage (
     id smallint PRIMARY KEY CHECK (id = 1),
     agent_id uuid NOT NULL,
     room text NOT NULL,
-    embedding_dimensions integer,
     plugins jsonb NOT NULL
 )
 ```
@@ -39,16 +38,17 @@ CREATE TABLE IF NOT EXISTS eliza_lineage (
 - `room` is the conversation's external id, the constant `diverge`;
   the entity is `diverge:user`. Same agent id, same room, is the
   resumption; there is no session tip to compute.
-- `embedding_dimensions` is what the vectors were built at; a run that
-  names another width is told so in a non-fatal notification (Eliza
-  re-embeds in the background, at the caller's cost).
-- `plugins` records each caller plugin with the version the registry
-  resolved; a later run installs `name@<that version>` whatever the
-  agent's spec says.
+- `plugins` records each caller plugin, on either list, with the
+  version the registry resolved (or the image's, for a pre-installed
+  one); a later run installs `name@<that version>` whatever the
+  agent's spec says. The vector width is not recorded: which provider
+  embeds, and at what width, is the caller's model-provider list's,
+  and Eliza itself pins the first embedding provider that answers and
+  re-embeds in the background when the width changes.
 
 Read at the top of every run and cached in memory after the first;
 written BEFORE the runtime starts — on the first run, and whenever the
-plugin set or the width changed — so a run that dies leaves a row
+plugin set changed — so a run that dies leaves a row
 naming the agent id its memories carry. The row is read and written
 on one sqlx connection beside Eliza's own `pg` pool; both go through
 the proxy's pgwire.
@@ -73,41 +73,29 @@ That is how "the vault's copy at the top of Eliza's precedence" is
 kept: a rewound row never wins over the vault for a key the harness
 sets.
 
-What the agent renders to:
+What the harness renders (user ruling 2026-09-10: nothing is
+pre-wired but the adapter):
 
-- provider: `OPENAI_BASE_URL`, and the five tiers `OPENAI_NANO/SMALL/
-  MEDIUM/LARGE/MEGA_MODEL` ALL set to `provider.model`;
-  `OPENAI_API_KEY` from the vault. plugin-openai's `TEXT_EMBEDDING`
-  handler is deleted from the plugin object by the entry — the agent's
-  `embedding` is the one source of vectors — and its `init` (which
-  registers the image/description/transcription/TTS tiers) is dropped
-  unless `toolsets.generate_media` is on.
-- embedding (present): plugin-embeddings loaded; `EMBEDDING_BASE_URL`,
-  `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS`; `EMBEDDING_API_KEY` from
-  the vault. Absent: no embedding plugin, no `TEXT_EMBEDDING` handler
-  at all — Eliza boots with a warning, stores memories without
-  vectors and searches by keyword.
-- toolsets: `coding_tools` → plugin-coding-tools with
-  `CODING_TOOLS_WORKSPACE_ROOTS=/` and `SHELL_ALLOWED_DIRECTORY=/` (the
-  container is the sandbox); `browser` → plugin-browser; `documents`
-  → plugin-documents, constructor `enableDocuments`, `DOCUMENTS_PATH=
-  /documents`, `LOAD_DOCS_ON_STARTUP=true` (a caller mounts the files
-  there); `web_search` → plugin-web-search with `TAVILY_API_KEY` from
-  the vault; `generate_media` → the `GENERATE_MEDIA` action, a
-  basic-capabilities action always registered, is UNREGISTERED after
-  `initialize()` when the switch is off. plugin-openai's media tiers
-  (image description and generation, transcription, speech) are
-  registered regardless — they are how a tool's image or audio is
-  read to the model — and `OPENAI_IMAGE_DESCRIPTION_MODEL` is the
-  caller's one model like the five text tiers; transcription keeps
-  the plugin's default.
-- memory: `advanced_capabilities` and `relationships` are constructor
-  options; `advanced_memory` and `advanced_planning` are character
-  flags.
-- each caller plugin's `settings`: strings as-is, booleans and numbers
-  spelled out, objects and arrays as JSON text, null not set.
-- the vault's values are inserted LAST, so a plugin setting cannot
+- `POSTGRES_URL`, the container SDK's `postgres_url()`, for
+  `plugin-sql` — the one setting of the harness's own.
+- each listed plugin's `settings`, the model providers' first then
+  the others', in list order — strings as-is, booleans and numbers
+  spelled out, objects and arrays as JSON text, null not set. These
+  are the plugins' own vocabularies: `OPENAI_BASE_URL` and the
+  `OPENAI_*_MODEL` tiers for plugin-openai, `EMBEDDING_BASE_URL`,
+  `EMBEDDING_MODEL` and `EMBEDDING_DIMENSIONS` for plugin-embeddings,
+  `CODING_TOOLS_WORKSPACE_ROOTS` and `SHELL_ALLOWED_DIRECTORY` for the
+  coding tools, `DOCUMENTS_PATH` and `LOAD_DOCS_ON_STARTUP` for
+  plugin-documents, and so on. The harness knows none of them.
+- the vault's values, inserted LAST, so a plugin setting cannot
   shadow a secret of the same name.
+- memory: `advanced_capabilities`, `relationships` and `documents`
+  are constructor options (`enableDocuments` is core's native
+  runtime feature, the same mechanism as `enableRelationships`, not
+  plugin-documents'); `advanced_memory` and `advanced_planning` are
+  character flags. `generate_media` is core's `GENERATE_MEDIA` action,
+  always registered and UNREGISTERED after `initialize()` when the
+  switch is off.
 
 Process-only, in the environment and not the map: `ELIZA_STATE_DIR=/
 var/lib/eliza`, `ELIZA_VAULT_PASSPHRASE`, `ELIZA_VAULT_DISABLE_KEYCHAIN
@@ -117,11 +105,12 @@ never set (production without a salt throws; unset is dev defaults).
 ## Secrets come from the vault, and only from the vault
 
 A secret is a vault key named by the setting it fills. `vault.rs`
-reads the keys off the agent: implied (`OPENAI_API_KEY` always,
-`EMBEDDING_API_KEY` with an embedding, `TAVILY_API_KEY` with web
-search) and every plugin's `secrets`. A key the vault does not hold,
-or holds as something other than text, refuses the run before the
-runtime starts, naming the key.
+reads the keys off the agent: every plugin's `secrets`, on either
+list, and nothing the harness implies of its own — `OPENAI_API_KEY`
+is plugin-openai's to be given as a secret on its entry, exactly as
+`TAVILY_API_KEY` is plugin-web-search's. A key the vault does not
+hold, or holds as something other than text, refuses the run before
+the runtime starts, naming the key.
 
 - STATIC (a bare name, or `rotates: false`): one `get`, no lock, no
   set.
@@ -180,9 +169,10 @@ One JSON object per line, discriminated by `type`; the Rust half is
 `run/protocol/`, and there is no third copy.
 
 Harness → entry: `configure` once, first (`agentId`, `character`,
-`settings`, `plugins` — the image's, in order — `installed` — the
-caller's — `openaiMedia`, `advancedCapabilities`,
-`enableRelationships`, `enableDocuments`, `mcpUrl`); `turn {text}`;
+`settings`, `modelProviderPlugins` and `plugins` — the caller's two
+lists, by package name — `generateMedia`,
+`advancedCapabilities`, `enableRelationships`, `enableDocuments`,
+`mcpUrl`); `turn {text}`;
 `read {kind: setting|vault, key}`; `stop`.
 
 Entry → harness: `fatal {error}` before ready (exit 1); `ready` after
@@ -203,7 +193,11 @@ Rules settled with it:
   direct chat interface always answers), `logLevel: "warn"`, and the
   export of each package found the way the host finds it (`default`
   → `plugin` → any `*Plugin`-named export that has a name, a
-  description and one capability array or an `init`).
+  description and one capability array or an `init`). The plugin
+  array is, in order: the adapter (`@elizaos/plugin-sql`, the entry's
+  own, pointed at the caller's database), the diverge plugin, the
+  model providers in the agent's order, the other plugins in the
+  agent's order.
 - Identity: `entityId = createUniqueUuid(runtime, "diverge:user")`,
   `roomId = createUniqueUuid(runtime, "diverge")`, one
   `ensureConnection({..., type: ChannelType.DM})` before ready —
@@ -343,21 +337,92 @@ contents joined; a blob is described (`binary <uri> (<type>, <n>
 base64 characters)`), never pasted. Resource templates are not
 listed: the proxy relays no `resources/templates/list` exchange.
 
+## Model-provider plugins are a field of their own, enforced
+
+User ruling 2026-09-10: the agent has two plugin lists. `model_provider_plugins` holds every plugin that registers a
+MODEL HANDLER — Eliza's own noun for them is "model-provider plugin"
+(`hasModelProvider`, `getLastResolvedModelProvider`, and every
+registration's `provider`, which is the plugin's name) — and `plugins`
+holds everything else. The list's ORDER is the priority: the entry sets
+`priority = n - index` on each model-provider plugin object, so the
+first listed (highest) answers every model type it registers, and core
+walks down the list on a fallback-class error (a rate limit, a 5xx or
+529, a timeout or network failure; never a 401 or a 400). Ties do not
+arise. `ELIZA_BRAIN_PROVIDER` is not rendered; a caller may still set
+it as a plugin setting.
+
+The rule is impossible to break, not merely documented, and the entry
+checks it twice:
+
+1. STATIC, at import, before the runtime exists: a package under
+   `modelProviderPlugins` whose object declares no `models` handler is
+   `fatal`, naming the package and that it belongs under `plugins`; a
+   package under `plugins` whose object declares any is `fatal`,
+   naming the package, the model types, and that it belongs under
+   `model_provider_plugins`.
+2. DYNAMIC, right after `initialize()`: `runtime.getModelRegistrations()`
+   is read, and every registration's `provider` must be the name of a
+   model-provider plugin or of the adapter; any other — a plugin that
+   registered a model from its `init`, under any name — is `fatal`,
+   naming the provider and the model type. Core registers no handler
+   of its own and the diverge plugin registers none, so the allowed set
+   is exactly the caller's model providers plus the adapter the entry
+   itself loads (`@elizaos/plugin-sql`).
+
+Either `fatal` is before `ready`: the run's one `Err`, a `500` with
+the message. Nothing was written to the lineage that a corrected agent
+would not write again.
+
+`plugin-openai` is a regular plugin under this rule (user ruling
+2026-09-10). Its one difference from a registry package is being
+pre-installed at the image's pin. Not listed, it is not loaded and
+nothing is rendered for it; listed, it takes its own settings
+(`OPENAI_BASE_URL`, the five `OPENAI_*_MODEL` tiers,
+`OPENAI_IMAGE_DESCRIPTION_MODEL`) and its secret (`OPENAI_API_KEY`) as
+any entry does, registers every tier it has — text, embedding, image
+description and generation, transcription, speech — and ranks by its
+position in the list. The same holds for `plugin-embeddings`: Eliza
+treats embeddings generically (plugin-openai, plugin-embeddings and
+plugin-elizacloud all register `TEXT_EMBEDDING`; core probes every
+embedding provider in priority order and pins the first that answers),
+so there is no `embedding` field and no special case. An agent that
+lists no model-provider plugin has no model, and its run fails as
+Eliza's own failure.
+
+Consequences the caller carries: image and audio blocks in a tool's
+result are read to the model by whichever listed provider registers
+`IMAGE_DESCRIPTION` and `TRANSCRIPTION`, and rendered as placeholders
+by the diverge plugin when none does; `GENERATE_MEDIA`'s images come
+from whichever registers image generation, and the action fails as
+itself when none does.
+
 ## Plugins the caller names are installed at the run
 
-`plugins.rs`: every package the agent's `plugins` names is installed
+`plugins.rs`: every package the agent's two lists name is installed
 at `POST /run`, before the runtime starts, with `bun add
 --ignore-scripts <spec>` in the project — the command elizaOS's own
 installer runs — at the lineage's pinned version where it has one,
 else the agent's spec. The resolved version is read from the
-installed package's manifest and recorded in the row. Installs are
-cached by spec for the program's life. The install is the one thing a
-run does before the proxy is touched, and it is the registry's, not
-the proxy's. A spec the registry cannot resolve, or a package that
-exports no plugin once imported, refuses the run before the runtime
-starts. An installed plugin is arbitrary JavaScript in the agent's
-process with the caller's tools in reach; the container is the
-sandbox.
+installed package's manifest and recorded in the row, the model
+providers first then the others. Installs are cached by spec for the
+program's life. The install is the one thing a run does before the
+proxy is touched, and it is the registry's, not the proxy's. A spec
+the registry cannot resolve, or a package that exports no plugin once
+imported, refuses the run before the runtime starts. An installed
+plugin is arbitrary JavaScript in the agent's process with the
+caller's tools in reach; the container is the sandbox.
+
+Pre-installed is the install: a package the image carries
+(`@elizaos/plugin-openai`, `plugin-embeddings`, `plugin-coding-tools`,
+`plugin-browser`, `plugin-documents`, `plugin-web-search`, `vault`, all
+at `2.0.3-beta.7`) is already in the project, so a spec that names no
+version, or names exactly the version on disk, is satisfied by that
+copy and nothing is added or re-resolved; the lineage then pins the
+image's version. A spec naming another version installs that version,
+as for any package. The toolset switches of the earlier design are
+gone: the coding tools, the browser, the documents ingester and web
+search are plain `plugins` entries with their own settings, and the
+harness renders nothing for them.
 
 ## One run at a time, and the settlement releases the lock
 
@@ -414,14 +479,17 @@ first:
 3. The stream envelope in practice: that `DIVERGE_*` envelopes are
    the ones dropped and the diverge plugin's own lines are the ones
    kept, and that `accumulated` behaves as the shipped client assumes.
-4. `MODEL_USED` firing per call through plugin-openai against the
-   caller's endpoint, with token counts.
+4. `MODEL_USED` firing per call through the caller's model-provider
+   plugin, with token counts.
 5. `bun add --ignore-scripts` of an arbitrary `@elizaos/plugin-*` at a
    run, and its plugin loading through the constructor.
 6. `@elizaos/vault`'s single-writer PGlite when the entry's
    `createVault()` opens the store beside a plugin's own instance.
-7. The embedding width probe with the caller's endpoint, and the
-   warning when a lineage changes width.
+7. The two-list rule against real packages: a model-provider plugin
+   listed under `plugins` refused at import; a plugin registering a
+   model from its `init` refused after `initialize()`; and a run with
+   no model-provider plugin failing as Eliza's own failure, as a
+   `500` before ready.
 8. Node's startup plus `initialize()` per run, to decide whether the
    entry should instead be kept alive across runs whose agent value
    hashes the same.
@@ -431,6 +499,8 @@ first:
 10. A tool re-registered mid-run showing up on the planner's next
     call, and a removed one gone, with `registerAction` /
     `unregisterAction` on the live runtime.
-11. An image block described through the caller's endpoint with the
-    caller's model, an audio block transcribed with the plugin's
-    default transcription model, and a PDF blob read through `unpdf`.
+11. An image block described and an audio block transcribed through
+    whichever listed provider registers those tiers, the placeholders
+    when none does, and a PDF blob read through `unpdf`.
+12. A bare `@elizaos/plugin-openai` spec resolving to the image's copy
+    with no `bun add`, and a versioned one replacing it.

@@ -1,6 +1,5 @@
-//! The agent, rendered: the settings map, the process environment,
-//! the plugin list and the character the entry constructs the runtime
-//! with.
+//! The agent, rendered: the settings map, the process environment
+//! and the character the entry constructs the runtime with.
 //!
 //! Every setting and every secret goes in TWO places: the runtime's
 //! constructor settings map — the core's `getSetting` never reads the
@@ -11,6 +10,13 @@
 //! vault's copy of a secret is always what the runtime sees. Nothing
 //! goes on the character's `settings` or `secrets`, so nothing lands
 //! in the row encrypted.
+//!
+//! The harness renders exactly one setting of its own, `POSTGRES_URL`,
+//! for the database adapter the entry loads; every other setting is a
+//! plugin's, given by the caller on that plugin's entry, and every
+//! secret is the vault's under the key the caller named. Nothing is
+//! rendered for a plugin the caller did not list, pre-installed or
+//! not.
 
 use std::collections::BTreeMap;
 
@@ -24,23 +30,6 @@ use crate::vault;
 /// the container mounts a volume here.
 pub const STATE_DIR: &str = "/var/lib/eliza";
 
-/// Where the documents feature reads the caller's files from, when
-/// the `documents` toolset is on: a mount, at this path.
-pub const DOCUMENTS_PATH: &str = "/documents";
-
-/// The coding tools' workspace root and the shell's allowed directory:
-/// the whole container, which is the sandbox.
-pub const WORKSPACE: &str = "/";
-
-/// The image's plugins, in registration order, by switch.
-const SQL: &str = "@elizaos/plugin-sql";
-const OPENAI: &str = "@elizaos/plugin-openai";
-const EMBEDDINGS: &str = "@elizaos/plugin-embeddings";
-const CODING_TOOLS: &str = "@elizaos/plugin-coding-tools";
-const BROWSER: &str = "@elizaos/plugin-browser";
-const DOCUMENTS: &str = "@elizaos/plugin-documents";
-const WEB_SEARCH: &str = "@elizaos/plugin-web-search";
-
 /// What the entry constructs the runtime with.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rendered {
@@ -50,14 +39,9 @@ pub struct Rendered {
     /// keys (the state directory, the vault passphrase and its
     /// keychain switch, the salt, trajectory logging off).
     pub env: BTreeMap<String, String>,
-    /// The image's plugins to load, in order.
-    pub plugins: Vec<String>,
     /// The character, in Eliza's own casing, with the memory flags.
     pub character: Value,
-    /// Whether the `GENERATE_MEDIA` action stays registered. The
-    /// tiers that READ media — image description, transcription — are
-    /// registered regardless: they are how a tool's image or audio is
-    /// read to the model.
+    /// Whether the `GENERATE_MEDIA` action stays registered.
     pub generate_media: bool,
     /// Constructor option `advancedCapabilities`.
     pub advanced_capabilities: bool,
@@ -78,58 +62,13 @@ pub fn render(
     salt: &str,
 ) -> Rendered {
     let mut settings: BTreeMap<String, String> = BTreeMap::new();
-    let mut plugins = vec![SQL.to_string(), OPENAI.to_string()];
 
     settings.insert("POSTGRES_URL".to_string(), postgres_url);
 
-    settings.insert("OPENAI_BASE_URL".to_string(), agent.provider.base_url.clone());
-    // The five text tiers and the tier that reads images, all the
-    // one model the caller named. Transcription keeps the plugin's
-    // default: a chat model is not a transcriber.
-    for tier in [
-        "OPENAI_NANO_MODEL",
-        "OPENAI_SMALL_MODEL",
-        "OPENAI_MEDIUM_MODEL",
-        "OPENAI_LARGE_MODEL",
-        "OPENAI_MEGA_MODEL",
-        "OPENAI_IMAGE_DESCRIPTION_MODEL",
-    ] {
-        settings.insert(tier.to_string(), agent.provider.model.clone());
-    }
-
-    if let Some(embedding) = &agent.embedding {
-        plugins.push(EMBEDDINGS.to_string());
-        settings.insert("EMBEDDING_BASE_URL".to_string(), embedding.base_url.clone());
-        settings.insert("EMBEDDING_MODEL".to_string(), embedding.model.clone());
-        settings.insert(
-            "EMBEDDING_DIMENSIONS".to_string(),
-            embedding.dimensions.to_string(),
-        );
-    }
-
-    let toolsets = &agent.toolsets;
-    if toolsets.coding_tools == Some(true) {
-        plugins.push(CODING_TOOLS.to_string());
-        settings.insert(
-            "CODING_TOOLS_WORKSPACE_ROOTS".to_string(),
-            WORKSPACE.to_string(),
-        );
-        settings.insert("SHELL_ALLOWED_DIRECTORY".to_string(), WORKSPACE.to_string());
-    }
-    if toolsets.browser == Some(true) {
-        plugins.push(BROWSER.to_string());
-    }
-    let enable_documents = toolsets.documents == Some(true);
-    if enable_documents {
-        plugins.push(DOCUMENTS.to_string());
-        settings.insert("DOCUMENTS_PATH".to_string(), DOCUMENTS_PATH.to_string());
-        settings.insert("LOAD_DOCS_ON_STARTUP".to_string(), "true".to_string());
-    }
-    if toolsets.web_search == Some(true) {
-        plugins.push(WEB_SEARCH.to_string());
-    }
-
-    for plugin in &agent.plugins {
+    // Every plugin's own settings, the model providers' first: a
+    // later entry's setting of the same name wins, which is the
+    // caller's order to know.
+    for plugin in agent.model_provider_plugins.iter().chain(&agent.plugins) {
         for (key, value) in &plugin.settings {
             if let Some(text) = text(value) {
                 settings.insert(key.clone(), text);
@@ -157,12 +96,11 @@ pub fn render(
     Rendered {
         settings,
         env,
-        plugins,
         character: character(&agent.character, memory.advanced_memory, memory.advanced_planning),
-        generate_media: toolsets.generate_media == Some(true),
+        generate_media: agent.generate_media == Some(true),
         advanced_capabilities: memory.advanced_capabilities == Some(true),
         enable_relationships: memory.relationships == Some(true),
-        enable_documents,
+        enable_documents: memory.documents == Some(true),
     }
 }
 

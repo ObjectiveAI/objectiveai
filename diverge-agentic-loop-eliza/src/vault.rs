@@ -2,10 +2,9 @@
 //! the ones it rotates.
 //!
 //! A secret is a vault key named by the setting it fills. The keys a
-//! run needs are read off the agent by [`keys`]: the ones the
-//! structures imply (`OPENAI_API_KEY` always, `EMBEDDING_API_KEY` for
-//! an embedding, `TAVILY_API_KEY` for web search) and every plugin's
-//! `secrets`. A STATIC secret is [`statics`]: one `get`, no lock, no
+//! run needs are read off the agent by [`keys`]: every plugin's
+//! `secrets`, on either list, and nothing the harness implies of its
+//! own. A STATIC secret is [`statics`]: one `get`, no lock, no
 //! set; a key the vault does not hold refuses the run, naming it. Two
 //! secrets the harness needs of its own — Eliza's vault passphrase
 //! and the settings salt — are [`minted`] when absent, so a lineage
@@ -63,7 +62,8 @@ pub struct Rotating {
     pub rotates: Rotates,
 }
 
-/// The keys the agent implies and names, deduplicated in order.
+/// The keys the agent names, deduplicated in order: the model
+/// providers' first, then the other plugins'.
 pub fn keys(agent: &Agent) -> Keys {
     let mut keys = Keys::default();
     let mut push_static = |key: &str| {
@@ -71,14 +71,7 @@ pub fn keys(agent: &Agent) -> Keys {
             keys.statics.push(key.to_string());
         }
     };
-    push_static("OPENAI_API_KEY");
-    if agent.embedding.is_some() {
-        push_static("EMBEDDING_API_KEY");
-    }
-    if agent.toolsets.web_search == Some(true) {
-        push_static("TAVILY_API_KEY");
-    }
-    for plugin in &agent.plugins {
+    for plugin in agent.model_provider_plugins.iter().chain(&agent.plugins) {
         for secret in &plugin.secrets {
             match secret {
                 Secret::Static(key) => push_static(key),

@@ -1,17 +1,26 @@
 //! The caller's plugins, installed into the image's Node project.
 //!
-//! Everything the agent's `plugins` names is installed at `POST /run`,
-//! before the runtime starts, with the command elizaOS's own installer
-//! runs: `bun add --ignore-scripts <spec>` into the project at
-//! [`PROJECT`]. The install is the one thing a run does before the
-//! proxy is touched, and it is not the proxy's — it is the registry's,
-//! over the network the container has. The version the registry
-//! resolved is read back from the installed package's manifest and
-//! recorded in the lineage's row; a later run of the lineage installs
-//! `name@<that version>`, whatever the agent's spec said, so a
-//! conversation is never resumed against a plugin that changed under
-//! it. Installs are cached for the program's life by spec: a second
-//! run with the same plugin set installs nothing.
+//! Everything the agent's two plugin lists name is installed at
+//! `POST /run`, before the runtime starts, with the command elizaOS's
+//! own installer runs: `bun add --ignore-scripts <spec>` into the
+//! project at [`PROJECT`]. The install is the one thing a run does
+//! before the proxy is touched, and it is not the proxy's — it is the
+//! registry's, over the network the container has. The version the
+//! registry resolved is read back from the installed package's
+//! manifest and recorded in the lineage's row; a later run of the
+//! lineage installs `name@<that version>`, whatever the agent's spec
+//! said, so a conversation is never resumed against a plugin that
+//! changed under it. Installs are cached for the program's life by
+//! spec: a second run with the same plugin set installs nothing.
+//!
+//! # Pre-installed is the install
+//!
+//! A package the image carries — `@elizaos/plugin-openai` and its
+//! siblings at the image's pin — is already in the project. A spec
+//! that names no version, or names exactly the version on disk, is
+//! satisfied by that copy and nothing is added or re-resolved against
+//! the registry; the lineage then pins the image's version. A spec
+//! naming another version installs that version, as for any package.
 
 use std::collections::BTreeSet;
 use std::io;
@@ -32,7 +41,8 @@ static INSTALLED: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
 
 /// Install what the agent names — at the lineage's pinned version
 /// where it has one — and answer each package with its resolved
-/// version, in the agent's order.
+/// version, in the agent's order. A package already on disk at the
+/// version the spec allows is not added.
 pub async fn ensure(plugins: &[Plugin], pinned: &[Resolved]) -> Result<Vec<Resolved>, Error> {
     let mut resolved = Vec::with_capacity(plugins.len());
     for plugin in plugins {
@@ -42,7 +52,9 @@ pub async fn ensure(plugins: &[Plugin], pinned: &[Resolved]) -> Result<Vec<Resol
             None => plugin.package.clone(),
         };
         if !installed(&spec) {
-            install(&spec).await?;
+            if !present(name, &spec).await {
+                install(&spec).await?;
+            }
             remember(spec);
         }
         resolved.push(Resolved {
@@ -51,6 +63,18 @@ pub async fn ensure(plugins: &[Plugin], pinned: &[Resolved]) -> Result<Vec<Resol
         });
     }
     Ok(resolved)
+}
+
+/// Whether the package on disk satisfies the spec: it is there, and
+/// the spec names no version or names the one it has.
+async fn present(name: &str, spec: &str) -> bool {
+    let Ok(have) = version(name).await else {
+        return false;
+    };
+    match spec.strip_prefix(name).and_then(|rest| rest.strip_prefix('@')) {
+        None => true,
+        Some(want) => want == have,
+    }
 }
 
 fn installed(spec: &str) -> bool {
