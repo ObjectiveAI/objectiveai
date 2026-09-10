@@ -6,21 +6,23 @@
 //! mount. The provider mounts, at that path, a FUSE filesystem the
 //! proxy inside the container serves — of exactly one regular file,
 //! or of a whole directory tree — and everything behind it is the
-//! CALLER's: every open reads a file's bytes with [`read`], every
-//! changed close stores them with [`mod@write`], and in a directory
-//! mount every listing, creation, deletion and rename is an ask of
-//! its own. Each ask carries the mount's id and the entry's path
+//! CALLER's: every `stat` asks what an entry is with [`stat`], every
+//! open reads a file's bytes with [`read`], every changed close
+//! stores them with [`mod@write`], and in a directory mount every
+//! listing, creation, deletion and rename is an ask of its own. Each ask carries the mount's id and the entry's path
 //! RELATIVE to the mount root — `/`-separated UTF-8, no leading
 //! slash, EMPTY for a file mount and for the directory root — so one
 //! vocabulary serves both kinds.
 //!
-//! Six operations, each its own ask and its own one-message answer:
+//! Seven operations, each its own ask and its own one-message
+//! answer:
 //!
 //! | ask | payload | answered with |
 //! |-----|---------|---------------|
+//! | [`stat`] | `[id_len: u16 BE][id…][path…]` | one [`stat::response::Frame`]: `0` `[kind: u8][size: u64 BE]`, `1` missing, `2` error |
 //! | [`read`] | `[id_len: u16 BE][id…][path…]` | one [`read::response::Frame`]: `0` the bytes, `1` missing, `2` error |
 //! | [`mod@write`] | `[id_len: u16 BE][id…][path_len: u16 BE][path…][bytes…]` | one [`Ack`](ack::Frame): `0` ok, `1` error |
-//! | [`list`] | `[id_len: u16 BE][id…][path…]` | one [`list::response::Frame`]: `0` the entries, `1` missing, `2` error |
+//! | [`list`] | `[id_len: u16 BE][id…][path…]` | one [`list::response::Frame`]: `0` the entries, each `[kind: u8][name_len: u16 BE][name…]`, `1` missing, `2` error |
 //! | [`remove`] | `[id_len: u16 BE][id…][path…]` | one [`Ack`](ack::Frame) |
 //! | [`rename`] | `[id_len: u16 BE][id…][from_len: u16 BE][from…][to…]` | one [`Ack`](ack::Frame) |
 //! | [`mkdir`] | `[id_len: u16 BE][id…][path…]` | one [`Ack`](ack::Frame) |
@@ -39,14 +41,21 @@
 //! mount the caller did not make, because it has no way to say an id
 //! it was not given.
 //!
-//! # A file is one message
+//! # A file is one message, and a stat is nine bytes
 //!
 //! A read answers the whole file in one message and a write carries
 //! the whole file in one ask, so a FUSE mount is for files the size
 //! of a credential or a configuration, not a database; the message
 //! cap is the transport's. Reads are not paged and writes are not
 //! chunked, by design: a file is replaced whole on every changed
-//! close, which is the only write a mount ever makes.
+//! close, which is the only write a mount ever makes. What is NOT a
+//! read is a `stat`: the kernel asks for an entry's attributes far
+//! more often than for its bytes — on every `stat(2)`, before most
+//! opens, once per component of every path it resolves — and [`stat`]
+//! answers those with the kind and the size alone, so a file's bytes
+//! cross the wire only when a program opens it. A [`list`] likewise
+//! carries only what a `readdir` shows, names and kinds; the size of
+//! an entry is its own `stat`.
 //!
 //! # A file mount is one file; a directory mount is a tree
 //!
@@ -60,8 +69,9 @@
 //! the proxy's. Such a program gets a DIRECTORY mount instead: there
 //! the whole tree is the caller's, every entry can be created,
 //! overwritten by either method, renamed and deleted, and only the
-//! root — the mount point — is fixed. [`list`] answers the entries of
-//! a directory with their kind and size; [`remove`] takes a file or
+//! root — the mount point — is fixed. [`stat`] answers what one entry
+//! is, and the proxy answers the root itself; [`list`] answers the
+//! entries of a directory with their kind; [`remove`] takes a file or
 //! an empty directory, and a non-empty one is the caller's to
 //! refuse; [`rename`] moves within one mount and replaces a file at
 //! its destination, a directory there being the caller's to refuse;
@@ -89,6 +99,7 @@ pub mod mkdir;
 pub mod read;
 pub mod remove;
 pub mod rename;
+pub mod stat;
 pub mod write;
 
 mod entry;

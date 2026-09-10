@@ -38,7 +38,6 @@ pub(crate) async fn list<F: FuseServer>(handle: &Handle, scope: u32, channel: u3
                 .map(|entry| fuse::Entry {
                     name: &entry.name,
                     kind: entry.kind,
-                    size: entry.size,
                 })
                 .collect(),
         ),
@@ -62,6 +61,19 @@ pub(crate) async fn rename<F: FuseServer>(handle: &Handle, scope: u32, channel: 
 /// Ok, or the error, then the finish.
 pub(crate) async fn mkdir<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, path: String, server: Arc<F>) -> Result<(), Stop> {
     ack(handle, scope, channel, server.mkdir(&id, &path).await).await
+}
+
+/// One frame — the kind and size, that there is nothing there, or the
+/// error — then the finish.
+pub(crate) async fn stat<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, path: String, server: Arc<F>) -> Result<(), Stop> {
+    let answer = server.stat(&id, &path).await;
+    let frame = match &answer {
+        Ok(Some(stat)) => fuse::stat::response::Frame::Present(*stat),
+        Ok(None) => fuse::stat::response::Frame::Missing,
+        Err(message) => fuse::stat::response::Frame::Error(message),
+    };
+    respond(handle, scope, channel, &frame).await?;
+    finish(handle, scope, channel).await
 }
 
 /// The one-frame answer every mutation shares.

@@ -21,7 +21,7 @@
 //! | `/mcp/list-tools/{channel}` and its three siblings | one MCP response, then the close |
 //! | `/mcp/notifications/{channel}`      | notifications as they come, then the close |
 //! | `/vault/get/{channel}` and its four siblings | one vault answer, then the close |
-//! | `/fuse/read/{channel}` and its five siblings | one answer for a mounted file's or directory's ask, then the close |
+//! | `/fuse/read/{channel}` and its six siblings | one answer for a mounted file's or directory's ask, then the close |
 //! | `/command/{channel}`                | the command's items, then the close |
 //! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
 //! | `/filesystem/tree`                  | filetree frames, or why there are none, sent by the container; the server is silent |
