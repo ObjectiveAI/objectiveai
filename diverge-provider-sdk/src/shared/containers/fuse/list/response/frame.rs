@@ -65,7 +65,9 @@ impl<'a> Frame<'a> {
                     .ok_or(ResponseError::Truncated)?;
                 let count = u32::from_be_bytes(*count) as usize;
                 let mut rest = &rest[COUNT..];
-                let mut entries = Vec::with_capacity(count.min(rest.len() / 11));
+                // The shortest entry is four bytes: a kind, a prefix, one
+                // byte of name.
+                let mut entries = Vec::with_capacity(count.min(rest.len() / 4));
                 for _ in 0..count {
                     let (entry, after) = Entry::decode(rest)?;
                     entries.push(entry);

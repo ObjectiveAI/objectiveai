@@ -91,5 +91,6 @@ pub(crate) async fn answer<O, A, I, P, C, V, M, F>(
             fuse::rename(&handle, scope, channel, id, from, to, answerers.fuse).await
         }
         Ask::FuseMkdir(id, path) => fuse::mkdir(&handle, scope, channel, id, path, answerers.fuse).await,
+        Ask::FuseStat(id, path) => fuse::stat(&handle, scope, channel, id, path, answerers.fuse).await,
     };
 }

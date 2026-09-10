@@ -41,8 +41,9 @@ use crate::shared::mcp;
 /// | `21` | [`FuseRemove`](Self::FuseRemove) |
 /// | `22` | [`FuseRename`](Self::FuseRename) |
 /// | `23` | [`FuseMkdir`](Self::FuseMkdir) |
+/// | `24` | [`FuseStat`](Self::FuseStat) |
 ///
-/// The same twenty-four in both families, in the same order. The first
+/// The same twenty-five in both families, in the same order. The first
 /// six are the provider's own asks — the manifest and blobs of an
 /// image the caller holds, a connector's authorization, a write's
 /// content, mounted content it does not hold — and the rest are the
@@ -140,7 +141,7 @@ pub enum Frame<'a> {
     FuseWrite(fuse::write::request::Request<'a>),
     /// List a directory of a tree the caller mounted live. Tag `20`.
     ///
-    /// Every lookup, stat and listing in a directory mount.
+    /// Every listing in a directory mount: names and kinds.
     FuseList(fuse::list::request::Request<'a>),
     /// Remove a file or an empty directory of such a tree. Tag `21`.
     FuseRemove(fuse::remove::request::Request<'a>),
@@ -148,8 +149,15 @@ pub enum Frame<'a> {
     FuseRename(fuse::rename::request::Request<'a>),
     /// Make a directory in such a tree. Tag `23`.
     ///
-    /// The last four are never sent for a read-only mount.
+    /// The four before this are never sent for a read-only mount.
     FuseMkdir(fuse::mkdir::request::Request<'a>),
+    /// What an entry the caller mounted live is, and how long. Tag
+    /// `24`.
+    ///
+    /// Every attribute of a file mount, and every lookup and
+    /// attribute of an entry in a directory mount: a `stat` costs
+    /// nine bytes back, not the file.
+    FuseStat(fuse::stat::request::Request<'a>),
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -223,6 +231,9 @@ const FUSE_RENAME: u8 = 22;
 
 /// Tag for [`Frame::FuseMkdir`].
 const FUSE_MKDIR: u8 = 23;
+
+/// Tag for [`Frame::FuseStat`].
+const FUSE_STAT: u8 = 24;
 
 impl Encode for Frame<'_> {
     /// The JSON failure from the asks that are JSON, or a vault key
@@ -329,6 +340,10 @@ impl Encode for Frame<'_> {
             }
             Frame::FuseMkdir(request) => {
                 out.extend_from_slice(&[FUSE_MKDIR]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::FuseStat(request) => {
+                out.extend_from_slice(&[FUSE_STAT]);
                 request.encode(out).map_err(FrameEncodeError::Fuse)
             }
         }
@@ -454,6 +469,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             FUSE_MKDIR => fuse::mkdir::request::Request::decode(rest)
                 .map(Frame::FuseMkdir)
                 .map_err(FrameError::Fuse),
+            FUSE_STAT => fuse::stat::request::Request::decode(rest)
+                .map(Frame::FuseStat)
+                .map_err(FrameError::Fuse),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -464,7 +482,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's twenty-four.
+    /// A tag that is none of this frame's twenty-five.
     UnknownTag(u8),
     /// An image fetch did not parse.
     Oci(serde_json::Error),

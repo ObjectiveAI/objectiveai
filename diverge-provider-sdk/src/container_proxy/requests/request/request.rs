@@ -31,6 +31,7 @@ use crate::encode::{Encode, Writer};
 /// | `15` | [`FuseRemove`](Self::FuseRemove) | `[id_len: u16][id…][path…]` | `/fuse/remove/{channel}` |
 /// | `16` | [`FuseRename`](Self::FuseRename) | `[id_len: u16][id…][from_len: u16][from…][to…]` | `/fuse/rename/{channel}` |
 /// | `17` | [`FuseMkdir`](Self::FuseMkdir) | `[id_len: u16][id…][path…]` | `/fuse/mkdir/{channel}` |
+/// | `18` | [`FuseStat`](Self::FuseStat) | `[id_len: u16][id…][path…]` | `/fuse/stat/{channel}` |
 ///
 /// What each answer path carries is its module's to say: [`mcp`],
 /// [`vault`], [`command`], [`postgres`], [`fuse`]. Every payload is that path's
@@ -88,8 +89,8 @@ pub enum Request<'a> {
     /// Write such a file, whole: every changed close of it, never on
     /// a read-only mount. See [`fuse`].
     FuseWrite(fuse::write::request::Request<'a>),
-    /// List a directory of a mounted tree: every lookup, stat and
-    /// listing in a directory mount. See [`fuse`].
+    /// List a directory of a mounted tree: every listing in a
+    /// directory mount. See [`fuse`].
     FuseList(fuse::list::request::Request<'a>),
     /// Remove a file or an empty directory of a mounted tree. See
     /// [`fuse`].
@@ -98,6 +99,10 @@ pub enum Request<'a> {
     FuseRename(fuse::rename::request::Request<'a>),
     /// Make a directory in a mounted tree. See [`fuse`].
     FuseMkdir(fuse::mkdir::request::Request<'a>),
+    /// What a mounted entry is and how long: every lookup and every
+    /// attribute of a file mount or an entry of a directory mount. See
+    /// [`fuse`].
+    FuseStat(fuse::stat::request::Request<'a>),
 }
 
 const MCP_LIST_TOOLS: u8 = 0;
@@ -118,6 +123,7 @@ const FUSE_LIST: u8 = 14;
 const FUSE_REMOVE: u8 = 15;
 const FUSE_RENAME: u8 = 16;
 const FUSE_MKDIR: u8 = 17;
+const FUSE_STAT: u8 = 18;
 
 impl Encode for Request<'_> {
     /// The payloads that can fail: MCP params are JSON, and a vault
@@ -201,6 +207,10 @@ impl Encode for Request<'_> {
                 out.extend_from_slice(&[FUSE_MKDIR]);
                 request.encode(out).map_err(RequestEncodeError::Fuse)
             }
+            Request::FuseStat(request) => {
+                out.extend_from_slice(&[FUSE_STAT]);
+                request.encode(out).map_err(RequestEncodeError::Fuse)
+            }
         }
     }
 }
@@ -268,6 +278,9 @@ impl<'a> Request<'a> {
                 .map_err(FrameError::Fuse),
             FUSE_MKDIR => fuse::mkdir::request::Request::decode(rest)
                 .map(Request::FuseMkdir)
+                .map_err(FrameError::Fuse),
+            FUSE_STAT => fuse::stat::request::Request::decode(rest)
+                .map(Request::FuseStat)
                 .map_err(FrameError::Fuse),
             other => Err(FrameError::UnknownKind(other)),
         }

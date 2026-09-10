@@ -10,7 +10,7 @@ use crate::shared::containers::authorize;
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// twenty-four asks in the same order with the same payloads, and
+/// twenty-five asks in the same order with the same payloads, and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -67,6 +67,8 @@ pub enum Ask {
     FuseRename(String, String, String),
     /// A mounted directory made: the id, the path.
     FuseMkdir(String, String),
+    /// A mounted entry described: the id, the path.
+    FuseStat(String, String),
 }
 
 impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
@@ -109,6 +111,7 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
                 request.to.to_string(),
             ),
             Frame::FuseMkdir(target) => Ask::FuseMkdir(target.id.to_string(), target.path.to_string()),
+            Frame::FuseStat(target) => Ask::FuseStat(target.id.to_string(), target.path.to_string()),
         }
     }
 }
@@ -153,6 +156,7 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
                 request.to.to_string(),
             ),
             Frame::FuseMkdir(target) => Ask::FuseMkdir(target.id.to_string(), target.path.to_string()),
+            Frame::FuseStat(target) => Ask::FuseStat(target.id.to_string(), target.path.to_string()),
         }
     }
 }

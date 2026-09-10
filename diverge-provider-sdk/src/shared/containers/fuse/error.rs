@@ -67,7 +67,8 @@ pub enum ResponseError {
     UnknownKind(u8),
     /// An error message that is not UTF-8.
     MessageUtf8,
-    /// A listing shorter than its counts and lengths promise.
+    /// A listing shorter than its counts and lengths promise, or a
+    /// stat shorter than its nine bytes.
     Truncated,
     /// An entry's name that is not UTF-8.
     NameUtf8,
@@ -84,7 +85,7 @@ impl fmt::Display for ResponseError {
                 f.write_str("fuse error message is not utf-8")
             }
             ResponseError::Truncated => {
-                f.write_str("fuse listing is shorter than it promises")
+                f.write_str("fuse answer is shorter than it promises")
             }
             ResponseError::NameUtf8 => f.write_str("fuse entry name is not utf-8"),
         }

@@ -2,8 +2,8 @@
 //! the shared vocabulary re-exported, and the executors that answer
 //! them.
 //!
-//! Six operations, each its own ask on `/requests` and its own answer
-//! path, exactly as the vault's are:
+//! Seven operations, each its own ask on `/requests` and its own
+//! answer path, exactly as the vault's are:
 //!
 //! | ask | kind | payload after the kind | answered on | with |
 //! |-----|------|------------------------|-------------|------|
@@ -13,6 +13,7 @@
 //! | [`remove`] | `15` | `[id_len: u16 BE][id…][path…]` | `/fuse/remove/{channel}` | one [`remove::response::Frame`] |
 //! | [`rename`] | `16` | `[id_len: u16 BE][id…][from_len: u16 BE][from…][to…]` | `/fuse/rename/{channel}` | one [`rename::response::Frame`] |
 //! | [`mkdir`] | `17` | `[id_len: u16 BE][id…][path…]` | `/fuse/mkdir/{channel}` | one [`mkdir::response::Frame`] |
+//! | [`stat`] | `18` | `[id_len: u16 BE][id…][path…]` | `/fuse/stat/{channel}` | one [`stat::response::Frame`] |
 //!
 //! The answer is one message, raw, then the close. The shapes are
 //! [`shared::containers::fuse`](crate::shared::containers::fuse)'s,
@@ -26,12 +27,13 @@
 //! makes at its start are the
 //! [`filesystem::Mounts`](super::filesystem::Mounts) the server
 //! named, files and directories, each carrying its id and whether it
-//! is read-only. A file mount asks [`read`] on every open and
-//! [`mod@write`] on every changed close, with an empty path. A
-//! directory mount asks all six, with the entry's path: [`list`] for
-//! every lookup, listing and stat; [`read`] and [`mod@write`] for its
-//! files; [`remove`], [`rename`] and [`mkdir`] for what a program
-//! does to its entries. A read-only mount never asks a mutation. The
+//! is read-only. A file mount asks [`stat`] for every attribute,
+//! [`read`] on every open and [`mod@write`] on every changed close,
+//! with an empty path. A directory mount asks all seven, with the
+//! entry's path: [`stat`] for every lookup and attribute; [`list`]
+//! for every listing; [`read`] and [`mod@write`] for its files;
+//! [`remove`], [`rename`] and [`mkdir`] for what a program does to
+//! its entries. A read-only mount never asks a mutation. The
 //! program beside the proxy never asks these directly — it opens the
 //! files.
 
@@ -45,4 +47,5 @@ pub mod mkdir;
 pub mod read;
 pub mod remove;
 pub mod rename;
+pub mod stat;
 pub mod write;
