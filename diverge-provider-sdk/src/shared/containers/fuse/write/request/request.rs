@@ -1,59 +1,50 @@
 //! Write a mounted file.
 
-use super::super::super::{RequestEncodeError, RequestError};
+use super::super::super::{RequestEncodeError, RequestError, prefixed};
 use crate::encode::{Encode, Writer};
 
-/// Write a mounted file, whole, by the id the caller gave its mount.
-/// Answered `Ok`.
+/// Write a file of a mount, whole, by the mount's id and the file's
+/// path in it. Answered with one [`Ack`](super::super::super::ack::Frame).
 ///
 /// ```text
-/// [id_len: u16 BE][id: utf8…][bytes…]
+/// [id_len: u16 BE][id: utf8…][path_len: u16 BE][path: utf8…][bytes…]
 /// ```
 ///
-/// The one operation whose id has a length prefix, because the bytes
-/// follow it and nothing else delimits the two. Answered with one
-/// [`response::Frame`](super::super::response::Frame).
+/// The bytes follow the path, so the path carries a length prefix
+/// here. On a file mount the path is empty. A file that does not
+/// exist yet is made by this; one that does is replaced whole.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Request<'a> {
     /// The mount's id.
     pub id: &'a str,
+    /// The file's path inside the mount; empty for a file mount.
+    pub path: &'a str,
     /// The file, whole, verbatim. Empty is a file.
     pub bytes: &'a [u8],
 }
 
-/// The bytes the id's length occupies.
-const ID_LEN: usize = 2;
-
 impl Encode for Request<'_> {
-    /// One way to fail: an id longer than the length prefix holds.
+    /// Two ways to fail: an id or a path longer than its prefix holds.
     type Error = RequestEncodeError;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), RequestEncodeError> {
-        let id = self.id.as_bytes();
-        let len = u16::try_from(id.len())
-            .map_err(|_| RequestEncodeError::IdLength(id.len()))?;
-        out.extend_from_slice(&len.to_be_bytes());
-        out.extend_from_slice(id);
+        prefixed::put(out, self.id.as_bytes()).map_err(RequestEncodeError::IdLength)?;
+        prefixed::put(out, self.path.as_bytes()).map_err(RequestEncodeError::PathLength)?;
         out.extend_from_slice(self.bytes);
         Ok(())
     }
 }
 
 impl<'a> Request<'a> {
-    /// Decode from the bytes after the ask's kind. The id and the
-    /// bytes borrow from `bytes`.
+    /// Decode from the bytes after the ask's kind. The id, the path
+    /// and the bytes borrow from `bytes`.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, RequestError> {
-        let len: &[u8; ID_LEN] = bytes
-            .get(..ID_LEN)
-            .and_then(|head| head.try_into().ok())
-            .ok_or(RequestError::Truncated)?;
-        let len = usize::from(u16::from_be_bytes(*len));
-        let rest = &bytes[ID_LEN..];
-        let id = rest.get(..len).ok_or(RequestError::Truncated)?;
-        let id = std::str::from_utf8(id).map_err(|_| RequestError::IdUtf8)?;
+        let (id, rest) = prefixed::take(bytes)?;
+        let (path, bytes) = prefixed::take(rest)?;
         Ok(Request {
-            id,
-            bytes: &rest[len..],
+            id: std::str::from_utf8(id).map_err(|_| RequestError::IdUtf8)?,
+            path: std::str::from_utf8(path).map_err(|_| RequestError::PathUtf8)?,
+            bytes,
         })
     }
 }

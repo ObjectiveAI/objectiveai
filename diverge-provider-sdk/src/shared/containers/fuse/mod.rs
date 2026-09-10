@@ -1,33 +1,42 @@
-//! FUSE mounts: files the caller serves live, one file each.
+//! FUSE mounts: files and directories the caller serves live.
 //!
 //! A [`FuseMount`](super::request::FuseMount) on a container request
-//! names a path, an id the caller minted, and whether the file is
-//! read-only. The provider mounts, at that path, a FUSE filesystem of
-//! exactly one regular file — the proxy inside the container does, at
-//! its start — and the file's bytes are the CALLER's: every open
-//! reads them with [`read`], every changed close stores them with
-//! [`mod@write`], each ask carrying the id, and the caller answers from
-//! wherever it keeps that file.
+//! names a path, an id the caller minted, and whether the mount is
+//! read-only — on one of two lists, a FILE mount or a DIRECTORY
+//! mount. The provider mounts, at that path, a FUSE filesystem the
+//! proxy inside the container serves — of exactly one regular file,
+//! or of a whole directory tree — and everything behind it is the
+//! CALLER's: every open reads a file's bytes with [`read`], every
+//! changed close stores them with [`mod@write`], and in a directory
+//! mount every listing, creation, deletion and rename is an ask of
+//! its own. Each ask carries the mount's id and the entry's path
+//! RELATIVE to the mount root — `/`-separated UTF-8, no leading
+//! slash, EMPTY for a file mount and for the directory root — so one
+//! vocabulary serves both kinds.
 //!
-//! Two operations, each its own ask and its own one-message answer:
+//! Six operations, each its own ask and its own one-message answer:
 //!
 //! | ask | payload | answered with |
 //! |-----|---------|---------------|
-//! | [`read`] | `[id…]` | one [`read::response::Frame`] |
-//! | [`mod@write`] | `[id_len: u16 BE][id…][bytes…]` | one [`write::response::Frame`] |
+//! | [`read`] | `[id_len: u16 BE][id…][path…]` | one [`read::response::Frame`]: `0` the bytes, `1` missing, `2` error |
+//! | [`mod@write`] | `[id_len: u16 BE][id…][path_len: u16 BE][path…][bytes…]` | one [`Ack`](ack::Frame): `0` ok, `1` error |
+//! | [`list`] | `[id_len: u16 BE][id…][path…]` | one [`list::response::Frame`]: `0` the entries, `1` missing, `2` error |
+//! | [`remove`] | `[id_len: u16 BE][id…][path…]` | one [`Ack`](ack::Frame) |
+//! | [`rename`] | `[id_len: u16 BE][id…][from_len: u16 BE][from…][to…]` | one [`Ack`](ack::Frame) |
+//! | [`mkdir`] | `[id_len: u16 BE][id…][path…]` | one [`Ack`](ack::Frame) |
 //!
-//! The id is the rest of the payload where nothing follows it, so
-//! only `write` carries a length prefix. Binary throughout: ids are
-//! UTF-8 strings the caller chose, bytes travel verbatim. The same
-//! shapes ride both wires this crate defines: the provider's channel
-//! toward the caller, and the [`proxy`](crate::container_proxy::fuse)
-//! inside the container.
+//! Where a path is the last thing in a payload it runs to the end;
+//! where bytes or a second path follow it, it carries a length
+//! prefix. Binary throughout: ids and paths are UTF-8 strings, bytes
+//! travel verbatim. The same shapes ride both wires this crate
+//! defines: the provider's channel toward the caller, and the
+//! [`proxy`](crate::container_proxy::fuse) inside the container.
 //!
 //! # The id is the caller's, and opaque
 //!
 //! Whatever string the caller put on the mount. Nothing between the
 //! container and the caller reads it, and a container cannot name a
-//! file the caller did not mount, because it has no way to say an id
+//! mount the caller did not make, because it has no way to say an id
 //! it was not given.
 //!
 //! # A file is one message
@@ -36,25 +45,57 @@
 //! the whole file in one ask, so a FUSE mount is for files the size
 //! of a credential or a configuration, not a database; the message
 //! cap is the transport's. Reads are not paged and writes are not
-//! chunked, by design: the file is replaced whole on every changed
+//! chunked, by design: a file is replaced whole on every changed
 //! close, which is the only write a mount ever makes.
+//!
+//! # A file mount is one file; a directory mount is a tree
+//!
+//! On a file mount the path is always empty, and the file can be read
+//! and overwritten in place — opened, truncated, written, closed —
+//! but never deleted or moved: the mount point is the file itself,
+//! and the kernel refuses to unlink or rename a mount point. A
+//! program that saves by writing a temporary beside the file and
+//! renaming it over the file fails at the rename, because that rename
+//! is an operation on the directory around the mount, which is not
+//! the proxy's. Such a program gets a DIRECTORY mount instead: there
+//! the whole tree is the caller's, every entry can be created,
+//! overwritten by either method, renamed and deleted, and only the
+//! root — the mount point — is fixed. [`list`] answers the entries of
+//! a directory with their kind and size; [`remove`] takes a file or
+//! an empty directory, and a non-empty one is the caller's to
+//! refuse; [`rename`] moves within one mount and replaces a file at
+//! its destination, a directory there being the caller's to refuse;
+//! [`mkdir`] makes one directory under an existing one. A path is
+//! the caller's to validate — it has no `..` and no empty component
+//! as the proxy sends it — and one the caller will not serve is
+//! answered with the error.
 //!
 //! # Read-only never writes
 //!
-//! A mount named read-only refuses every write inside the container,
-//! so the caller never sees a `write` for that id. A caller that gets
-//! one anyway — a container that ignored the flag — may answer
-//! [`Error`](write::response::Frame::Error).
+//! A mount named read-only refuses every mutation inside the
+//! container, so the caller never sees a `write`, `remove`, `rename`
+//! or `mkdir` for that id. A caller that gets one anyway — a
+//! container that ignored the flag — may answer the error.
 //!
 //! # No retry
 //!
 //! An operation whose answer never came is reported to whoever asked
-//! as failed, never re-asked: a `write` re-sent might overwrite what
-//! the caller wrote in between.
+//! as failed, never re-asked: a `write` or a `rename` re-sent might
+//! undo what the caller did in between.
 
+pub mod ack;
+pub mod list;
+pub mod mkdir;
 pub mod read;
+pub mod remove;
+pub mod rename;
 pub mod write;
 
+mod entry;
 mod error;
+mod prefixed;
+mod target;
 
+pub use entry::*;
 pub use error::*;
+pub use target::*;

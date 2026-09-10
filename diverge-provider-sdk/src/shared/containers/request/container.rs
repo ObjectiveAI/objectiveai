@@ -82,9 +82,20 @@ pub struct Container {
     /// whether the container may write it — see [`FuseMount`]. The
     /// provider MUST mount every one before the container starts, and
     /// every open and every changed close inside the container is one
-    /// ask back to the caller, by that id. A path may lie inside a
-    /// directory another mount provides; it may not equal another
-    /// mount's path.
+    /// ask back to the caller, by that id. The file is overwritten in
+    /// place only; a program that replaces its file by rename needs a
+    /// directory mount. A path may lie inside a directory another
+    /// mount provides; it may not equal another mount's path.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_mounts: Vec<FuseMount>,
+    pub fuse_file_mounts: Vec<FuseMount>,
+    /// Directories the caller serves LIVE, mounted one each over FUSE.
+    ///
+    /// Each names a directory by a path, an id of the caller's, and
+    /// whether the container may change it — see [`FuseMount`]. The
+    /// whole tree under the path is the caller's: every listing,
+    /// read, write, creation, removal and rename inside the container
+    /// is one ask back to the caller, by that id. No other mount may
+    /// lie inside it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fuse_directory_mounts: Vec<FuseMount>,
 }
