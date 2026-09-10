@@ -253,12 +253,22 @@ impl ScopeHandle {
     /// losing the connection. That is correct: the scope it belonged to
     /// is gone, and so is whatever it was answering.
     ///
-    /// # It consumes the handle
+    /// # Once, and last
     ///
-    /// Which makes *any number of responses, then exactly one finish,
-    /// then nothing* a property of the type rather than a line in a
-    /// document. There is no state in which a finished scope can be
-    /// answered again, because there is no handle left to answer with.
+    /// *Any number of responses, then exactly one finish, then
+    /// nothing.* It used to consume the handle, which made that a
+    /// property of the type; it takes `&self` now, because a container
+    /// scope is held behind an [`Arc`] by every task that serves it —
+    /// the relay, the channels, the directory a connector looks it up
+    /// in — and a finish that needed the last reference would wait on
+    /// all of them. So the rule is the handler's to keep, and every
+    /// handler keeps it the same way: the finish is the last thing it
+    /// does, after everything it started has been joined or told.
+    ///
+    /// Not while another task is inside
+    /// [`recv_channel_request`](Self::recv_channel_request): that holds
+    /// the inbox, and this closes it. A handler's serve loop has
+    /// returned before it finishes.
     ///
     /// [`client::handle::Handle`](crate::client::handle::Handle) cannot
     /// do this and does not try: a client does not decide when its
@@ -278,8 +288,8 @@ impl ScopeHandle {
     /// returns, and what it races is a round trip that has already
     /// begun. Closing before the frame goes out means the number reads
     /// as free from the moment the client could possibly act on it.
-    pub async fn send_response_finish(mut self) {
-        self.channel_request_receiver.get_mut().close();
+    pub async fn send_response_finish(&self) {
+        self.channel_request_receiver.lock().await.close();
         self.send_frame(ServerFrame::ResponseFinish { scope: self.scope })
             .await;
     }
