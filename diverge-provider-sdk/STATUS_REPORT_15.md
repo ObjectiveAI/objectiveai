@@ -3,16 +3,16 @@
 ## 1. Scope and method
 
 This report records the state of the provider protocol and its
-containers as of commit `bedf34975` (2026-09-09), stated as a
+containers as of commit `47b195df2` (2026-09-09), stated as a
 differential against the state report 14 recorded at commit
 `a8a982245` (2026-09-08). It was prepared from the complete
-`git diff a8a982245..bedf34975` and from the files as they stand at
+`git diff a8a982245..47b195df2` and from the files as they stand at
 the later commit. It reports final positions only. Intermediate
 designs that were adopted and then superseded within the range are
 not described, except where a settled position is explained by the
 alternative it replaced.
 
-The range comprises forty commits and touches 255 files
+The range comprises forty-two commits and touches 255 files
 (13,113 insertions, 837 deletions), distributed as follows:
 
 | area | files | insertions | deletions |
@@ -261,10 +261,10 @@ The client-side handling of the `FuseRead` and `FuseWrite` channels
 answers them. The provider-side translation of a request's
 `fuse_mounts` into the proxy's `MOUNTS_ENV` does not exist, because
 the provider's server handles for the container scopes do not exist
-(report 14, "What remains", unchanged). Neither the codex nor the cc
-container has been switched to obtain its credential file through a
-FUSE mount; both still describe a caller-provided file as an ordinary
-mount (sections 8.3 and 5).
+(report 14, "What remains", unchanged). The codex container's
+documentation names the FUSE mount as the source of its mounted
+`auth.json` (section 8.3); the cc container still describes its
+caller-provided credentials as an ordinary mount (section 5).
 
 ## 4. `container_proxy` reorganized: a module per path, a tree per prefix
 
@@ -567,15 +567,14 @@ harvests.
 ### 8.3 Authentication
 
 The agent says nothing about the login. At each run's start the
-harness looks, in order: a mounted `$CODEX_HOME/auth.json` (found, the
-vault is not consulted; a file this program wrote earlier from the
-vault is not treated as a mount); the vault's `OPENAI_CODEX_OAUTH`
-document, written verbatim as `auth.json`, read without a lock and
-never written back, on the ruling that the document does not refresh
-inside the container; the vault's `OPENAI_API_KEY`, placed in the
-process environment. All three absent refuses the run naming all
-three. The mounted-file case is stated in terms of an ordinary mount;
-it has not been restated in terms of a FUSE mount (section 3.7).
+harness looks, in order: a mounted `$CODEX_HOME/auth.json`, which the
+caller serves through a FUSE mount on the container request and the
+harness never reads (found, the vault is not consulted); then the
+vault's `OPENAI_API_KEY`, placed in the process environment. Both
+absent refuses the run naming both. The vault's `OPENAI_CODEX_OAUTH`
+document is not a source, by ruling: a login that refreshes is the
+caller's to serve live through the mount, and the harness writes no
+`auth.json` of its own.
 
 ### 8.4 The response vocabulary and the converter
 
@@ -742,8 +741,8 @@ behind them; the spec site's prose; a live run of anything.
 
 Added by this range: the caller-side handling of the `FuseRead` and
 `FuseWrite` channels; the provider-side rendering of `fuse_mounts`
-into `MOUNTS_ENV`; the codex and cc containers restated to obtain
-their credential files through FUSE mounts; the removal of the
+into `MOUNTS_ENV`; the cc container restated to obtain its credential
+file through a FUSE mount; the removal of the
 `codex` and `python` reference modules from the SDK now that both
 images own their types; `version.sh` entries for the codex and python
 crates; image builds and live runs of the eliza, codex and python
