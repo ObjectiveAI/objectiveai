@@ -1,23 +1,23 @@
-//! The answer to a write.
+//! Ok, or why not.
 
 use std::convert::Infallible;
 
-use super::super::super::ResponseError;
+use super::super::ResponseError;
 use crate::encode::{Encode, Writer};
 
-/// The one message that answers a write.
+/// The one message that answers a mutation.
 ///
 /// ```text
 /// [kind: u8][message…]
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Frame<'a> {
-    /// Kind `0`. It happened: the caller holds the bytes.
+    /// Kind `0`. It happened: the caller holds the result.
     Ok,
     /// Kind `1`. It did not, and this says why, for a reader rather
     /// than a program: what a caller can refuse — a read-only mount it
-    /// was written to anyway, above all — is its policy and not this
-    /// specification's.
+    /// was written to anyway, a directory it will not empty, a path it
+    /// will not serve — is its policy and not this specification's.
     Error(&'a str),
 }
 

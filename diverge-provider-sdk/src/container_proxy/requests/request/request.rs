@@ -25,8 +25,12 @@ use crate::encode::{Encode, Writer};
 /// | `9` | [`VaultUnlock`](Self::VaultUnlock) | `[key…]` | `/vault/unlock/{channel}` |
 /// | `10` | [`Command`](Self::Command) | the command, opaque | `/command/{channel}` |
 /// | `11` | [`Postgres`](Self::Postgres) | none | `/postgres/{channel}` |
-/// | `12` | [`FuseRead`](Self::FuseRead) | `[id…]` | `/fuse/read/{channel}` |
-/// | `13` | [`FuseWrite`](Self::FuseWrite) | `[id_len: u16][id…][bytes…]` | `/fuse/write/{channel}` |
+/// | `12` | [`FuseRead`](Self::FuseRead) | `[id_len: u16][id…][path…]` | `/fuse/read/{channel}` |
+/// | `13` | [`FuseWrite`](Self::FuseWrite) | `[id_len: u16][id…][path_len: u16][path…][bytes…]` | `/fuse/write/{channel}` |
+/// | `14` | [`FuseList`](Self::FuseList) | `[id_len: u16][id…][path…]` | `/fuse/list/{channel}` |
+/// | `15` | [`FuseRemove`](Self::FuseRemove) | `[id_len: u16][id…][path…]` | `/fuse/remove/{channel}` |
+/// | `16` | [`FuseRename`](Self::FuseRename) | `[id_len: u16][id…][from_len: u16][from…][to…]` | `/fuse/rename/{channel}` |
+/// | `17` | [`FuseMkdir`](Self::FuseMkdir) | `[id_len: u16][id…][path…]` | `/fuse/mkdir/{channel}` |
 ///
 /// What each answer path carries is its module's to say: [`mcp`],
 /// [`vault`], [`command`], [`postgres`], [`fuse`]. Every payload is that path's
@@ -77,12 +81,23 @@ pub enum Request<'a> {
     /// the bytes flow there. Carries nothing — pgwire is client-first
     /// and the driver's first bytes wait for the path. See [`postgres`].
     Postgres(postgres::request::Request),
-    /// Read a file the caller mounted live, by its id: the proxy's
-    /// own ask, for every open of the file. See [`fuse`].
+    /// Read a file the caller mounted live, by the mount's id and the
+    /// file's path in it: the proxy's own ask, for every open of the
+    /// file. See [`fuse`].
     FuseRead(fuse::read::request::Request<'a>),
     /// Write such a file, whole: every changed close of it, never on
     /// a read-only mount. See [`fuse`].
     FuseWrite(fuse::write::request::Request<'a>),
+    /// List a directory of a mounted tree: every lookup, stat and
+    /// listing in a directory mount. See [`fuse`].
+    FuseList(fuse::list::request::Request<'a>),
+    /// Remove a file or an empty directory of a mounted tree. See
+    /// [`fuse`].
+    FuseRemove(fuse::remove::request::Request<'a>),
+    /// Rename an entry within a mounted tree. See [`fuse`].
+    FuseRename(fuse::rename::request::Request<'a>),
+    /// Make a directory in a mounted tree. See [`fuse`].
+    FuseMkdir(fuse::mkdir::request::Request<'a>),
 }
 
 const MCP_LIST_TOOLS: u8 = 0;
@@ -99,11 +114,15 @@ const COMMAND: u8 = 10;
 const POSTGRES: u8 = 11;
 const FUSE_READ: u8 = 12;
 const FUSE_WRITE: u8 = 13;
+const FUSE_LIST: u8 = 14;
+const FUSE_REMOVE: u8 = 15;
+const FUSE_RENAME: u8 = 16;
+const FUSE_MKDIR: u8 = 17;
 
 impl Encode for Request<'_> {
     /// The payloads that can fail: MCP params are JSON, and a vault
-    /// `Set`'s key and a fuse `Write`'s id have a length prefix to
-    /// overflow. Everything else is bytes copied or nothing.
+    /// `Set`'s key and every fuse ask's id and path have a length
+    /// prefix to overflow. Everything else is bytes copied or nothing.
     type Error = RequestEncodeError;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), RequestEncodeError> {
@@ -160,10 +179,26 @@ impl Encode for Request<'_> {
             }
             Request::FuseRead(request) => {
                 out.extend_from_slice(&[FUSE_READ]);
-                request.encode(out).map_err(|error| match error {})
+                request.encode(out).map_err(RequestEncodeError::Fuse)
             }
             Request::FuseWrite(request) => {
                 out.extend_from_slice(&[FUSE_WRITE]);
+                request.encode(out).map_err(RequestEncodeError::Fuse)
+            }
+            Request::FuseList(request) => {
+                out.extend_from_slice(&[FUSE_LIST]);
+                request.encode(out).map_err(RequestEncodeError::Fuse)
+            }
+            Request::FuseRemove(request) => {
+                out.extend_from_slice(&[FUSE_REMOVE]);
+                request.encode(out).map_err(RequestEncodeError::Fuse)
+            }
+            Request::FuseRename(request) => {
+                out.extend_from_slice(&[FUSE_RENAME]);
+                request.encode(out).map_err(RequestEncodeError::Fuse)
+            }
+            Request::FuseMkdir(request) => {
+                out.extend_from_slice(&[FUSE_MKDIR]);
                 request.encode(out).map_err(RequestEncodeError::Fuse)
             }
         }
@@ -222,6 +257,18 @@ impl<'a> Request<'a> {
             FUSE_WRITE => fuse::write::request::Request::decode(rest)
                 .map(Request::FuseWrite)
                 .map_err(FrameError::Fuse),
+            FUSE_LIST => fuse::list::request::Request::decode(rest)
+                .map(Request::FuseList)
+                .map_err(FrameError::Fuse),
+            FUSE_REMOVE => fuse::remove::request::Request::decode(rest)
+                .map(Request::FuseRemove)
+                .map_err(FrameError::Fuse),
+            FUSE_RENAME => fuse::rename::request::Request::decode(rest)
+                .map(Request::FuseRename)
+                .map_err(FrameError::Fuse),
+            FUSE_MKDIR => fuse::mkdir::request::Request::decode(rest)
+                .map(Request::FuseMkdir)
+                .map_err(FrameError::Fuse),
             other => Err(FrameError::UnknownKind(other)),
         }
     }
@@ -234,7 +281,7 @@ pub enum RequestEncodeError {
     Mcp(serde_json::Error),
     /// A vault `Set` whose key would not fit its length prefix.
     Vault(vault::RequestEncodeError),
-    /// A fuse `Write` whose id would not fit its length prefix.
+    /// A fuse ask whose id or path would not fit its length prefix.
     Fuse(fuse::RequestEncodeError),
 }
 

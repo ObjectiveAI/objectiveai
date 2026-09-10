@@ -37,8 +37,12 @@ use crate::shared::mcp;
 /// | `17` | [`McpNotifications`](Self::McpNotifications) |
 /// | `18` | [`FuseRead`](Self::FuseRead) |
 /// | `19` | [`FuseWrite`](Self::FuseWrite) |
+/// | `20` | [`FuseList`](Self::FuseList) |
+/// | `21` | [`FuseRemove`](Self::FuseRemove) |
+/// | `22` | [`FuseRename`](Self::FuseRename) |
+/// | `23` | [`FuseMkdir`](Self::FuseMkdir) |
 ///
-/// The same twenty in both families, in the same order. The first
+/// The same twenty-four in both families, in the same order. The first
 /// six are the provider's own asks — the manifest and blobs of an
 /// image the caller holds, a connector's authorization, a write's
 /// content, mounted content it does not hold — and the rest are the
@@ -124,16 +128,28 @@ pub enum Frame<'a> {
     McpReadResource(mcp::read_resource::request::Request),
     /// Everything they say on their own account. Tag `17`.
     McpNotifications(mcp::notifications::request::Request),
-    /// Read a file the caller mounted live, by its id. Tag `18`.
+    /// Read a file the caller mounted live, by the mount's id and the
+    /// file's path in it. Tag `18`.
     ///
     /// The container's proxy asking on behalf of a FUSE mount: every
     /// open of the file. See [`fuse`](crate::shared::containers::fuse).
     FuseRead(fuse::read::request::Request<'a>),
-    /// Write a file the caller mounted live, whole, by its id. Tag
-    /// `19`.
+    /// Write a file the caller mounted live, whole. Tag `19`.
     ///
     /// Every changed close of the file; never for a read-only mount.
     FuseWrite(fuse::write::request::Request<'a>),
+    /// List a directory of a tree the caller mounted live. Tag `20`.
+    ///
+    /// Every lookup, stat and listing in a directory mount.
+    FuseList(fuse::list::request::Request<'a>),
+    /// Remove a file or an empty directory of such a tree. Tag `21`.
+    FuseRemove(fuse::remove::request::Request<'a>),
+    /// Rename an entry within such a tree. Tag `22`.
+    FuseRename(fuse::rename::request::Request<'a>),
+    /// Make a directory in such a tree. Tag `23`.
+    ///
+    /// The last four are never sent for a read-only mount.
+    FuseMkdir(fuse::mkdir::request::Request<'a>),
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -196,10 +212,22 @@ const FUSE_READ: u8 = 18;
 /// Tag for [`Frame::FuseWrite`].
 const FUSE_WRITE: u8 = 19;
 
+/// Tag for [`Frame::FuseList`].
+const FUSE_LIST: u8 = 20;
+
+/// Tag for [`Frame::FuseRemove`].
+const FUSE_REMOVE: u8 = 21;
+
+/// Tag for [`Frame::FuseRename`].
+const FUSE_RENAME: u8 = 22;
+
+/// Tag for [`Frame::FuseMkdir`].
+const FUSE_MKDIR: u8 = 23;
+
 impl Encode for Frame<'_> {
     /// The JSON failure from the asks that are JSON, or a vault key
-    /// or a mount id too long for its prefix; everything else is
-    /// bytes copied.
+    /// or a fuse id or path too long for its prefix; everything else
+    /// is bytes copied.
     type Error = FrameEncodeError;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), FrameEncodeError> {
@@ -281,10 +309,26 @@ impl Encode for Frame<'_> {
             }
             Frame::FuseRead(request) => {
                 out.extend_from_slice(&[FUSE_READ]);
-                request.encode(out).map_err(|error| match error {})
+                request.encode(out).map_err(FrameEncodeError::Fuse)
             }
             Frame::FuseWrite(request) => {
                 out.extend_from_slice(&[FUSE_WRITE]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::FuseList(request) => {
+                out.extend_from_slice(&[FUSE_LIST]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::FuseRemove(request) => {
+                out.extend_from_slice(&[FUSE_REMOVE]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::FuseRename(request) => {
+                out.extend_from_slice(&[FUSE_RENAME]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::FuseMkdir(request) => {
+                out.extend_from_slice(&[FUSE_MKDIR]);
                 request.encode(out).map_err(FrameEncodeError::Fuse)
             }
         }
@@ -298,7 +342,8 @@ pub enum FrameEncodeError {
     Json(serde_json::Error),
     /// A vault ask would not encode: a key too long for its prefix.
     Vault(vault::RequestEncodeError),
-    /// A fuse ask would not encode: an id too long for its prefix.
+    /// A fuse ask would not encode: an id or a path too long for its
+    /// prefix.
     Fuse(fuse::RequestEncodeError),
 }
 
@@ -397,6 +442,18 @@ impl<'a> Decode<'a> for Frame<'a> {
             FUSE_WRITE => fuse::write::request::Request::decode(rest)
                 .map(Frame::FuseWrite)
                 .map_err(FrameError::Fuse),
+            FUSE_LIST => fuse::list::request::Request::decode(rest)
+                .map(Frame::FuseList)
+                .map_err(FrameError::Fuse),
+            FUSE_REMOVE => fuse::remove::request::Request::decode(rest)
+                .map(Frame::FuseRemove)
+                .map_err(FrameError::Fuse),
+            FUSE_RENAME => fuse::rename::request::Request::decode(rest)
+                .map(Frame::FuseRename)
+                .map_err(FrameError::Fuse),
+            FUSE_MKDIR => fuse::mkdir::request::Request::decode(rest)
+                .map(Frame::FuseMkdir)
+                .map_err(FrameError::Fuse),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -407,7 +464,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's twenty.
+    /// A tag that is none of this frame's twenty-four.
     UnknownTag(u8),
     /// An image fetch did not parse.
     Oci(serde_json::Error),

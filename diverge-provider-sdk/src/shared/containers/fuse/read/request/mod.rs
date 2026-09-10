@@ -1,5 +1,5 @@
-//! The ask: an id.
+//! The ask: the mount, and the file's path in it — a
+//! [`Target`](super::super::Target), empty for a file mount.
 
-mod request;
-
-pub use request::*;
+/// Read this file, whole.
+pub type Request<'a> = super::super::Target<'a>;
