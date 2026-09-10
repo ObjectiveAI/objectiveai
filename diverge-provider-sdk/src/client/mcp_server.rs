@@ -1,7 +1,6 @@
 //! The caller's MCP servers, as one server the container calls.
 
 use std::future::Future;
-use std::pin::Pin;
 
 use futures_util::Stream;
 use rmcp::model::{
@@ -21,6 +20,10 @@ use rmcp::model::{
 /// `-32602` "the arguments were wrong" — and is not this crate's
 /// [`Error`](crate::shared::error::Error).
 pub trait McpServer: Send + Sync {
+    /// Everything the servers say on their own account, for as long
+    /// as the stream lives; an `Err` is the last thing it says.
+    type Notifications: Stream<Item = Result<ServerNotification, ErrorData>> + Send + 'static;
+
     /// `tools/list`.
     fn list_tools(
         &self,
@@ -45,11 +48,6 @@ pub trait McpServer: Send + Sync {
         params: ReadResourceRequestParams,
     ) -> impl Future<Output = Result<ReadResourceResult, ErrorData>> + Send;
 
-    /// Everything the servers say on their own account, for as long
-    /// as the stream lives; an `Err` is the last thing it says.
-    fn notifications(
-        &self,
-    ) -> impl Future<
-        Output = Pin<Box<dyn Stream<Item = Result<ServerNotification, ErrorData>> + Send + 'static>>,
-    > + Send;
+    /// The notification stream, opened for one channel.
+    fn notifications(&self) -> impl Future<Output = Self::Notifications> + Send;
 }

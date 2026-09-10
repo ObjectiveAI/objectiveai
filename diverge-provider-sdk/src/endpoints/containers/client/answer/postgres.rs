@@ -30,9 +30,10 @@ pub(crate) async fn postgres<P: PostgresDialer>(
     encoders: Encoders,
 ) -> Result<(), Stop> {
     let (from_container, receiver) = mpsc::unbounded_channel();
-    let Some(mut from_database) = dialer.dial(connection_id, receiver).await else {
+    let Some(from_database) = dialer.dial(connection_id, receiver).await else {
         return finish(handle, scope, channel).await;
     };
+    let mut from_database = std::pin::pin!(from_database);
     // This end's half. Without it the dialer never hears the
     // container, so a half that cannot open is a dial declined.
     let Some(half) = (encoders.postgres_half)(connection_id) else {

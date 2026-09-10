@@ -19,7 +19,8 @@ pub(crate) async fn command<C: CommandRunner>(
     command: Bytes,
     runner: Arc<C>,
 ) -> Result<(), Stop> {
-    let mut items = runner.run(command).await;
+    let items = runner.run(command).await;
+    let mut items = std::pin::pin!(items);
     while let Some(item) = items.next().await {
         match item {
             Ok(item) => respond(handle, scope, channel, &command::response::Frame::Item(&item)).await?,

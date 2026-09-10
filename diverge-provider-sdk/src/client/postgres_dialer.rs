@@ -1,7 +1,6 @@
 //! The database that lives with the caller, dialed for a container.
 
 use std::future::Future;
-use std::pin::Pin;
 
 use bytes::Bytes;
 use futures_util::Stream;
@@ -25,10 +24,14 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// is client-first, so the first bytes on `from_container` are the
 /// container's startup message, already waiting.
 pub trait PostgresDialer: Send + Sync {
+    /// What the database says, verbatim; its end is the connection
+    /// closed.
+    type Connection: Stream<Item = Bytes> + Send + 'static;
+
     /// Dial for one connection, or decline.
     fn dial(
         &self,
         connection_id: u32,
         from_container: UnboundedReceiver<Bytes>,
-    ) -> impl Future<Output = Option<Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>>> + Send;
+    ) -> impl Future<Output = Option<Self::Connection>> + Send;
 }
