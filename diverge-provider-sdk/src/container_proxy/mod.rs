@@ -32,6 +32,8 @@
 //! | `/agent/schema`                     | the container answers its agent's JSON Schema, or an error, then the close |
 //! | `/agent/enqueue`                    | the server sends a message for the loop's queue; the container answers its fate, when known, then the close |
 //! | `/agent/dequeue`                    | the container answers whether the queue held anything, then the close |
+//! | `/tool/list-tools` and its three siblings | the server sends MCP params; the container's own MCP server answers one result, or an error, then the close |
+//! | `/tool/notifications`               | what the container's MCP server says on its own account, as it comes |
 //!
 //! The program inside the container has a listener of its own,
 //! [`INSIDE_PORT`], `80`, on the loopback: `/mcp`, the agent's MCP
@@ -129,6 +131,7 @@ pub mod fuse;
 pub mod mcp;
 pub mod postgres;
 pub mod requests;
+pub mod tool;
 pub mod vault;
 
 /// The port the proxy listens for the SERVER on, inside the
