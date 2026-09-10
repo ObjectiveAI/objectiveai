@@ -82,7 +82,8 @@ pub(crate) async fn notifications<M: McpServer>(
     channel: u32,
     server: Arc<M>,
 ) -> Result<(), Stop> {
-    let mut notifications = server.notifications().await;
+    let notifications = server.notifications().await;
+    let mut notifications = std::pin::pin!(notifications);
     while let Some(notification) = notifications.next().await {
         match notification {
             Ok(notification) => {

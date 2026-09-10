@@ -1,7 +1,6 @@
 //! What a caller holds of an image it asked a provider to run.
 
 use std::future::Future;
-use std::pin::Pin;
 
 use bytes::Bytes;
 use futures_util::Stream;
@@ -28,14 +27,13 @@ pub struct Manifest {
 /// "could not serve". There is no error vocabulary on this exchange;
 /// a store that cannot read what it holds answers as if it did not.
 pub trait OciStore: Send + Sync {
+    /// A blob's pieces, in order. Piece sizes are the store's; the
+    /// executor re-splits at [`CHUNK_SIZE`](crate::CHUNK_SIZE).
+    type Blob: Stream<Item = Bytes> + Send + 'static;
+
     /// The manifest under `digest`, or `None` for one not held.
     fn manifest(&self, digest: &str) -> impl Future<Output = Option<Manifest>> + Send;
 
-    /// The blob under `digest` as its pieces in order, or `None` for
-    /// one not held. Piece sizes are the store's; the executor
-    /// re-splits at [`CHUNK_SIZE`](crate::CHUNK_SIZE).
-    fn blob(
-        &self,
-        digest: &str,
-    ) -> impl Future<Output = Option<Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>>> + Send;
+    /// The blob under `digest`, or `None` for one not held.
+    fn blob(&self, digest: &str) -> impl Future<Output = Option<Self::Blob>> + Send;
 }

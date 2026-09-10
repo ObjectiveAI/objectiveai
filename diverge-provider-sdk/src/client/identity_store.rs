@@ -1,7 +1,6 @@
 //! The mounted content a caller holds, by identity.
 
 use std::future::Future;
-use std::pin::Pin;
 
 use bytes::Bytes;
 use futures_util::Stream;
@@ -20,22 +19,18 @@ use futures_util::Stream;
 /// `None` is absence, sent as the empty finish — the wire's deliberate
 /// "could not serve"; there is no error vocabulary on these exchanges.
 pub trait IdentityStore: Send + Sync {
-    /// The file under `identity`, as its pieces in order, or `None`.
-    /// Piece sizes are the store's; the executor re-splits at
+    /// A file's pieces, in order. Piece sizes are the store's; the
+    /// executor re-splits at [`CHUNK_SIZE`](crate::CHUNK_SIZE).
+    type File: Stream<Item = Bytes> + Send + 'static;
+    /// A directory's files in any order — each a relative path in
+    /// components and the file's bytes, whole or in adjacent pieces.
+    /// The executor sends each piece under its path, split at
     /// [`CHUNK_SIZE`](crate::CHUNK_SIZE).
-    fn file(
-        &self,
-        identity: &str,
-    ) -> impl Future<Output = Option<Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>>> + Send;
+    type Directory: Stream<Item = (Vec<String>, Bytes)> + Send + 'static;
 
-    /// The directory under `identity`, as its files in any order —
-    /// each a relative path in components and the file's bytes, whole
-    /// or in adjacent pieces — or `None`. The executor sends each
-    /// piece under its path, split at [`CHUNK_SIZE`](crate::CHUNK_SIZE).
-    fn directory(
-        &self,
-        identity: &str,
-    ) -> impl Future<
-        Output = Option<Pin<Box<dyn Stream<Item = (Vec<String>, Bytes)> + Send + 'static>>>,
-    > + Send;
+    /// The file under `identity`, or `None`.
+    fn file(&self, identity: &str) -> impl Future<Output = Option<Self::File>> + Send;
+
+    /// The directory under `identity`, or `None`.
+    fn directory(&self, identity: &str) -> impl Future<Output = Option<Self::Directory>> + Send;
 }

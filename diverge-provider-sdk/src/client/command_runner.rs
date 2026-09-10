@@ -1,7 +1,6 @@
 //! Running a command a container asked for.
 
 use std::future::Future;
-use std::pin::Pin;
 
 use bytes::Bytes;
 use futures_util::Stream;
@@ -18,10 +17,9 @@ use crate::shared::error::Error;
 /// What a container may ask for is settled between it and the
 /// caller.
 pub trait CommandRunner: Send + Sync {
-    /// Run one command: its items in order, or the error that ends
-    /// them.
-    fn run(
-        &self,
-        command: Bytes,
-    ) -> impl Future<Output = Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send + 'static>>> + Send;
+    /// A command's items in order, or the error that ends them.
+    type Items: Stream<Item = Result<Bytes, Error>> + Send + 'static;
+
+    /// Run one command.
+    fn run(&self, command: Bytes) -> impl Future<Output = Self::Items> + Send;
 }

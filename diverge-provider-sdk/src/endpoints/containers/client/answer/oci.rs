@@ -38,7 +38,8 @@ pub(crate) async fn blob<O: OciStore>(
     digest: String,
     store: Arc<O>,
 ) -> Result<(), Stop> {
-    if let Some(mut pieces) = store.blob(&digest).await {
+    if let Some(pieces) = store.blob(&digest).await {
+        let mut pieces = std::pin::pin!(pieces);
         while let Some(piece) = pieces.next().await {
             respond_pieces(handle, scope, channel, &piece, |body| {
                 encoded(&oci::blob::response::Frame { body })

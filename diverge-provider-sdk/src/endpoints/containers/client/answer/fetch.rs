@@ -20,7 +20,8 @@ pub(crate) async fn file<I: IdentityStore>(
     identity: String,
     store: Arc<I>,
 ) -> Result<(), Stop> {
-    if let Some(mut pieces) = store.file(&identity).await {
+    if let Some(pieces) = store.file(&identity).await {
+        let mut pieces = std::pin::pin!(pieces);
         while let Some(piece) = pieces.next().await {
             respond_pieces(handle, scope, channel, &piece, |body| {
                 encoded(&fetch_file::response::Frame { body })
@@ -42,7 +43,8 @@ pub(crate) async fn directory<I: IdentityStore>(
     identity: String,
     store: Arc<I>,
 ) -> Result<(), Stop> {
-    if let Some(mut files) = store.directory(&identity).await {
+    if let Some(files) = store.directory(&identity).await {
+        let mut files = std::pin::pin!(files);
         while let Some((path, piece)) = files.next().await {
             respond_pieces(handle, scope, channel, &piece, |body| {
                 encoded(&fetch_directory::response::Frame {
