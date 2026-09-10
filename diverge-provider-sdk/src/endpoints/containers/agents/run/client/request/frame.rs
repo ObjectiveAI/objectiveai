@@ -29,10 +29,10 @@ pub struct Frame {
     /// is one object rather than a container inside a request.
     #[serde(flatten)]
     pub container: Container,
-    /// The agent, as the image defines it, for the container's life. The typed agents this
-    /// crate once carried are kept in
-    /// [`agent`](crate::endpoints::containers::agents::agent) for
-    /// reference; nothing here reads them.
+    /// The agent, as the image defines it, for the container's life.
+    /// Each image owns its agent type beside the loop that reads it,
+    /// and states it through
+    /// [`agent_schema`](crate::shared::containers::agent_schema).
     pub agent: Value,
 }
 

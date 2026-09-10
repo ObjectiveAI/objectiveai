@@ -16,10 +16,6 @@
 //! everything not yet taken withdrawn — neither touching the turn
 //! being run.
 //!
-//! [`agent`] is what that value USED to be — the typed configurations
-//! of the agents this crate once named — held for reference, and not
-//! on the wire.
-//!
 //! [`run`] owns the container, and there is no connect: an agent
 //! container is its runner's alone. A loop has one caller — the one
 //! that gave it its prompt and reads its chunks — and a second scope
@@ -27,5 +23,4 @@
 //! side. What a tool container's connect is for, joining a server
 //! somebody else runs, has no counterpart here.
 
-pub mod agent;
 pub mod run;
