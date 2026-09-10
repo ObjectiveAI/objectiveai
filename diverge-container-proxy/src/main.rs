@@ -5,7 +5,7 @@
 //! `14979`, where the container's asks go out on `/requests`, the
 //! server answers each on the ask's own path, and the paths the
 //! server opens on its own — the filetree, a file read, a file write,
-//! the agent's four — are served; and the program's side on `80`,
+//! the agent's five, the tool's five — are served; and the program's side on `80`,
 //! loopback only, where the program beside the proxy finds its MCP
 //! server, its vault and its commands, with no path having to say
 //! which side it faces.

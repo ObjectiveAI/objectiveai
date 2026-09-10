@@ -199,10 +199,11 @@ pub trait ContainerDeployer: Send + Sync {
     /// deploy failure needs a way to turn one of these into one, and
     /// this trait deliberately does not say how.
     ///
-    /// There is no handler yet, so requiring a conversion now would be
-    /// guessing at its shape — and an [`Into`] bound would be this
-    /// crate's error type back in the signature under a different name,
-    /// which is the thing an associated type was for.
+    /// The bound lives on [`handle`](super::handle::handle), which asks
+    /// `Into<Error>` of it, rather than here: an [`Into`] bound on the
+    /// trait would be this crate's error type back in the signature
+    /// under a different name, which is the thing an associated type
+    /// was for.
     type Error: Send + 'static;
 
     /// Deploy from an image the CALLER holds.

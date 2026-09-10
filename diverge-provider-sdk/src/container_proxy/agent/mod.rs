@@ -1,7 +1,7 @@
 //! The agent container's own server: what the proxy forwards to.
 //!
 //! An agent container's entrypoint is an HTTP server on the
-//! container's loopback, at [`port()`], and the four `/agent/*` paths
+//! container's loopback, at [`port()`], and the five `/agent/*` paths
 //! the provider's server opens on the proxy are each one call to it,
 //! forwarded. The proxy holds nothing of the loop's — no schema, no
 //! queue, no attachment — and dials this server only when the
