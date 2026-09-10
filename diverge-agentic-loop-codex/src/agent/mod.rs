@@ -14,11 +14,11 @@
 //! `model_verbosity`, `web_search`, and a `model_providers` entry —
 //! and nothing else made the cut. Nothing here is a secret, and
 //! nothing here says how Codex logs in: the run looks for an
-//! `auth.json` the caller MOUNTED at `$CODEX_HOME` first, and, absent
-//! one, at the vault — the well-known `OPENAI_CODEX_OAUTH` document
-//! written verbatim as that file, else the static `OPENAI_API_KEY`
-//! into the process environment — and refuses the run only when every
-//! one of those is missing.
+//! `auth.json` the caller MOUNTED at `$CODEX_HOME` first — a FUSE
+//! mount on the container request, served live by the caller — and,
+//! absent one, for the vault's static `OPENAI_API_KEY`, put into the
+//! process environment; it refuses the run only when both are
+//! missing.
 //!
 //! What is deliberately ABSENT, and why, so nobody re-opens it
 //! without a new fact:
@@ -44,8 +44,8 @@
 //!   `shell_environment_policy`: the harness's rendering of the
 //!   process, not the caller's vocabulary.
 //! - THE LOGIN (`forced_login_method`, any credential): a mount or
-//!   the vault's, above — the caller who mounted an `auth.json` chose
-//!   its kind, and the vault's documents are what they are.
+//!   the vault's key, above — the caller who mounted an `auth.json`
+//!   chose its kind, and the harness never reads it.
 //! - SKILLS: mounts, exactly as for Claude Code; a directory under
 //!   Codex's skills path is a skill, and no switch decides it.
 //! - `wire_api`: the configuration reference names one value,
