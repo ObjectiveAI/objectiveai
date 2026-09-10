@@ -8,7 +8,10 @@ use futures_util::StreamExt as _;
 
 use super::authorization::{self, Authorization};
 use super::container_deployer::ContainerDeployer;
+use super::content_store::ContentStore;
+use super::directory::Directory;
 use super::image_checker::ImageChecker;
+use super::image_registry::ImageRegistry;
 use super::received::Received;
 use super::session::Session;
 use super::unbrokered_authorizer::UnbrokeredAuthorizer;
@@ -40,9 +43,9 @@ use crate::shared::error::Error;
 ///
 /// The rest are the provider's capabilities, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
-/// boxed behind one pointer. `deployer` and `address` are held for the
-/// container handlers, which are not written yet: nothing dispatched
-/// today reaches either.
+/// boxed behind one pointer; and the [`Directory`], one per provider,
+/// through which a connect on this connection finds a run on any
+/// other.
 ///
 /// # The handshake comes first
 ///
@@ -100,13 +103,16 @@ use crate::shared::error::Error;
 /// every one of those teardowns — and it would end runs a caller had
 /// already paid for, which is the wrong way round: the work was real,
 /// and a caller that leaves does not un-spend it.
-pub async fn handle<D, V, I, U>(
+pub async fn handle<D, V, I, U, S, R>(
     mut session: Session,
     authorization: Authorization<U>,
-    _address: IpAddr,
-    _deployer: Arc<D>,
+    address: IpAddr,
+    deployer: Arc<D>,
     volume_manager: Arc<V>,
     image_checker: Arc<I>,
+    content_store: Arc<S>,
+    image_registry: Arc<R>,
+    directory: Arc<Directory>,
 ) -> Result<(), HandleError<U::Error>>
 where
     D: ContainerDeployer + 'static,
@@ -116,6 +122,10 @@ where
     I: ImageChecker + 'static,
     I::Error: Into<Error>,
     U: UnbrokeredAuthorizer,
+    S: ContentStore + 'static,
+    S::Error: Into<Error>,
+    R: ImageRegistry + 'static,
+    R::Error: Into<Error>,
 {
     // The handshake, before anything else. What comes out of it is the
     // identity everything downstream receives — shared rather than
@@ -194,13 +204,40 @@ where
         match ClientRequest::decode(&payload)
             .unwrap_or_else(|error| match error {})
         {
-            // The three container scopes have no handler yet: the
-            // wire is defined and the serving is not. Until it is, each
-            // is finished with nothing — the standing "could not serve".
-            ClientRequest::ContainersAgentsRun(_)
-            | ClientRequest::ContainersToolsRun(_)
-            | ClientRequest::ContainersToolsConnect(_) => {
-                scope.send_response_finish().await
+            ClientRequest::ContainersAgentsRun(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let deployer = Arc::clone(&deployer);
+                let store = Arc::clone(&content_store);
+                let registry = Arc::clone(&image_registry);
+                let directory = Arc::clone(&directory);
+                scopes.spawn(async move {
+                    endpoints::containers::agents::run::server::handle::handle(
+                        scope, frame, &identity, &*deployer, &*store, &*registry, &directory,
+                    )
+                    .await;
+                });
+            }
+            ClientRequest::ContainersToolsRun(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let deployer = Arc::clone(&deployer);
+                let store = Arc::clone(&content_store);
+                let registry = Arc::clone(&image_registry);
+                let directory = Arc::clone(&directory);
+                scopes.spawn(async move {
+                    endpoints::containers::tools::run::server::handle::handle(
+                        scope, frame, &identity, &*deployer, &*store, &*registry, &directory,
+                    )
+                    .await;
+                });
+            }
+            ClientRequest::ContainersToolsConnect(frame) => {
+                let directory = Arc::clone(&directory);
+                scopes.spawn(async move {
+                    endpoints::containers::tools::connect::server::handle::handle(
+                        scope, frame, address, &directory,
+                    )
+                    .await;
+                });
             }
             ClientRequest::VolumesList(_) => {
                 let identity = Arc::clone(&client_identity);
