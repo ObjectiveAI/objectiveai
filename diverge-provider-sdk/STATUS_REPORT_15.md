@@ -263,8 +263,10 @@ answers them. The provider-side translation of a request's
 the provider's server handles for the container scopes do not exist
 (report 14, "What remains", unchanged). The codex container's
 documentation names the FUSE mount as the source of its mounted
-`auth.json` (section 8.3); the cc container still describes its
-caller-provided credentials as an ordinary mount (section 5).
+`auth.json` (section 8.3). The cc container needs no change: by
+ruling it says nothing about credentials, and a mounted
+`.credentials.json` is an ordinary file to it; Claude Code rewrites
+that file in place on refresh, which a FUSE mount permits.
 
 ## 4. `container_proxy` reorganized: a module per path, a tree per prefix
 
@@ -741,10 +743,8 @@ behind them; the spec site's prose; a live run of anything.
 
 Added by this range: the caller-side handling of the `FuseRead` and
 `FuseWrite` channels; the provider-side rendering of `fuse_mounts`
-into `MOUNTS_ENV`; the cc container restated to obtain its credential
-file through a FUSE mount; the removal of the
-`codex` and `python` reference modules from the SDK now that both
-images own their types; `version.sh` entries for the codex and python
-crates; image builds and live runs of the eliza, codex and python
-containers, for which each `HARNESS.md` enumerates the facts to be
-established.
+into `MOUNTS_ENV`; the removal of the `codex` and `python` reference
+modules from the SDK now that both images own their types;
+`version.sh` entries for the codex and python crates; image builds
+and live runs of the eliza, codex and python containers, for which
+each `HARNESS.md` enumerates the facts to be established.
