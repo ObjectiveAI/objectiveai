@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 
+import { expandIncludes } from "../include.mjs";
 import { REVISION } from "../revision";
 import { absolute, overview } from "../spec";
 
@@ -9,7 +10,7 @@ import { absolute, overview } from "../spec";
 // belongs.
 export const GET: APIRoute = async () => {
   const page = await overview();
-  const body = (page.entry.body ?? "").trim();
+  const body = expandIncludes((page.entry.body ?? "").trim());
   const text = [
     `# Diverge Provider Protocol — Specification ${REVISION}`,
     "",

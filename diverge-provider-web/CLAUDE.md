@@ -98,6 +98,22 @@ of payload.
   specification and linked to docs.rs at the exact `rmcp` version the
   crate builds against, which the build reads from the crate's
   `Cargo.toml` and refuses to drift from.
+- **Crate files are included, never transcribed.** Where a page
+  shows a file of the crate — a declaration, a frame, an error — it
+  shows the whole file, read at build time by an empty fence whose
+  meta names the file relative to the workspace root:
+
+  ````text
+  ```rust include=diverge-provider-sdk/src/container_proxy/requests/request/frame.rs
+  ```
+  ````
+
+  The sentence before the fence names the path. The build fails on a
+  path that does not exist. The included text is the crate's, doc
+  comments included, and is not edited on the page; a requirement the
+  file does not state is stated in prose beside it. The dev server
+  does not watch the crate: a change to an included file shows after
+  a restart or a build.
 - **Tables** enumerate: tag values, type values, kinds, paths. A
   table never describes a payload's shape, and a table's cells hold
   values and links, not requirements. A requirement that a table
