@@ -1,26 +1,28 @@
 ---
 title: '/mcp/list-tools/{channel}'
-summary: 'Kind 0: The tools the caller’s servers offer, one page at a time. The ask is the params as JSON; the answer is one message, a result or an error, then the close.'
+summary: 'Kind 0: The tools the caller’s servers offer, one page at a time. The ask carries the params as JSON; the server sends exactly one message, a result or an error, and closes the connection.'
 order: 1
 draft: false
 ---
 
-The ask is kind `0` on [`/requests`](/proxy/requests/); its
-payload is the JSON of the params below, running to the end of the
-message. The server answers on `/mcp/list-tools/{channel}` with exactly
-one message — the response frame below, its first byte `0` for a
-result or `1` for an error, the rest that variant's JSON — and then
-the close. A path closed cleanly with no message is the exchange
-not served. An abrupt end, or a `/requests` connection that ended
-before the path was opened, is an exchange the container asks again
-— see [MCP Exchanges](/proxy/mcp/).
+The ask is kind `0` on [`/requests`](/proxy/requests/). Its
+payload is the JSON of the params defined below, running to the end
+of the message. The server answers on `/mcp/list-tools/{channel}` by
+sending exactly one message and closing the connection. The message
+is the response frame defined below: its first byte is `0`, followed
+by the result as JSON, or `1`, followed by the error as JSON.
+A path that the proxy or the server closes cleanly with no message
+before the close states that the ask was not served. An abrupt end of the path, and a `/requests` connection
+that ends before the server opens the path, leave the exchange
+unanswered, and the proxy asks it again, as
+[MCP Exchanges](/proxy/mcp/) provides.
 
-The params are `diverge-provider-sdk/src/shared/mcp/list_tools/request/request.rs`:
+The params are defined by `diverge-provider-sdk/src/shared/mcp/list_tools/request/request.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/mcp/list_tools/request/request.rs
 ```
 
-The answer is `diverge-provider-sdk/src/shared/mcp/list_tools/response/frame.rs`:
+The answer is defined by `diverge-provider-sdk/src/shared/mcp/list_tools/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/mcp/list_tools/response/frame.rs
 ```

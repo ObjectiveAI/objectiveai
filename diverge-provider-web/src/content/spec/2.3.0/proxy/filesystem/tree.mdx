@@ -1,69 +1,74 @@
 ---
 title: '/filesystem/tree'
-summary: 'The container’s filesystem, watched: the server names the paths to leave out in one message; the container answers a snapshot, then one message per change, a snapshot again after lost events, or one error last.'
+summary: 'The filesystem of the container, watched: the server sends exactly one message naming the paths to leave out; the proxy sends a snapshot, one message per change, a snapshot again after lost events, or one error as its last message.'
 order: 1
 draft: false
 ---
 
 The server opens `/filesystem/tree` and sends exactly one message,
-the request below as JSON, naming the paths the tree leaves out. A
-further binary message from the server ends the connection. The
-container answers with one message per event, for as long as the
-path lives.
+the request defined below as JSON, naming the paths the tree leaves
+out. The server sends no further message; a further binary message
+from the server ends the connection. The proxy sends one message per
+event for as long as the path lives.
 
 ```text
-server → container:   [request JSON]                              once
-container → server:   [0][postcard-encoded filetree frame …]      per event
-                      [1][message …]                              last, then the close
+server → proxy:   [request JSON]                              once
+proxy → server:   [0][postcard-encoded filetree frame …]      per event
+                  [1][message …]                              last
 ```
 
-- **What the tree leaves out.** Every path the request names, each
-  as components from the container's root, and `/proc`, `/sys` and
-  `/dev`. An ignored path is absent from every snapshot, and no
-  change under it is reported. An empty path is disregarded.
-- **Could not serve.** A close before the request, or a request that
-  does not decode, is answered with the clean close and nothing
-  before it.
-
+- **What the tree leaves out.** The tree leaves out every path the
+  request names, each given as components from the root of the
+  container, and the paths `/proc`, `/sys` and `/dev`. A path left
+  out is absent from every snapshot, and the proxy reports no change
+  under it. The proxy disregards an empty path in the request.
+- **Not served.** A close before the request, and a request that does
+  not decode, cause the proxy to close the connection with no message
+  before the close.
 - **A snapshot first.** The first message on every opening is a
-  snapshot of the whole tree, behind kind `0`. Every message after is
-  one change, behind kind `0`, as it happens.
-- **A snapshot again.** A watch that lost events sends a fresh
-  snapshot on the same path, which replaces the tree whole.
-- **One error, last.** Kind `1` and a message states that the watch
-  could not exist, and is the last message before the close. A
-  corner of the tree that could not be watched is not an error: it is
-  reported in the tree itself, with its directory's `changes` false.
-- **Every opening starts whole.** There is nothing to resume: an
-  opening after an ending, clean or abrupt, begins with a snapshot.
-- **The encoding.** Behind kind `0` the frame is the filetree
-  response frame below, encoded in the
+  snapshot of the whole tree, with first byte `0`. Every later
+  message with first byte `0` is one change, sent as it occurs.
+- **A snapshot again.** A watch that has lost events sends a fresh
+  snapshot on the same path, and the fresh snapshot replaces the tree
+  whole.
+- **One error, last.** A message with first byte `1`, followed by a
+  message, states that the watch could not exist. It is the last
+  message the proxy sends before the close. A part of the tree that
+  the proxy could not watch is not an error; the tree itself reports
+  it, with the `changes` field of its directory set to `false`.
+- **Every opening starts whole.** No opening resumes a previous one.
+  An opening after an ending, clean or abrupt, begins with a
+  snapshot.
+- **The encoding.** After the first byte `0`, the message is the
+  filetree response frame defined below, encoded in the
   [postcard wire format](https://postcard.jamesmunns.com/wire-format).
-  Variant order is the wire's discriminant.
+  The order of variants is the discriminant on the wire.
 
-The request is `diverge-provider-sdk/src/container_proxy/filesystem/tree/request/request.rs`:
+The message is defined by
+`diverge-provider-sdk/src/container_proxy/filesystem/tree/request/request.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/filesystem/tree/request/request.rs
 ```
 
-The message is `diverge-provider-sdk/src/container_proxy/filesystem/tree/response/frame.rs`:
+The messages the proxy sends are defined by
+`diverge-provider-sdk/src/container_proxy/filesystem/tree/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/filesystem/tree/response/frame.rs
 ```
 
-The ways it fails to read are
+The ways in which such a message fails to decode are defined by
 `diverge-provider-sdk/src/container_proxy/filesystem/tree/response/error.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/filesystem/tree/response/error.rs
 ```
 
-The filetree frame behind kind `0` is
+The filetree frame after the first byte `0` is defined by
 `diverge-provider-sdk/src/shared/filetree/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/filetree/response/frame.rs
 ```
 
-Its nodes are `diverge-provider-sdk/src/shared/filetree/response/node.rs`:
+Its nodes are defined by `diverge-provider-sdk/src/shared/filetree/response/node.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/filetree/response/node.rs
 ```

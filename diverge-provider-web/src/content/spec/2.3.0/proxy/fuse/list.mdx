@@ -1,6 +1,6 @@
 ---
 title: '/fuse/list/{channel}'
-summary: 'Kind 14: a directory’s entries. The answer is one message — 0, a count, and that many entries; 1 for no directory at the path; 2 and a message — then the close.'
+summary: 'Kind 14: the entries of a directory; the server sends exactly one message and closes the connection.'
 order: 4
 draft: false
 ---
@@ -11,16 +11,19 @@ The ask is kind `14` on [`/requests`](/proxy/requests/):
 [14][id_len: u16, big-endian][id …][path …]
 ```
 
-The server answers on `/fuse/list/{channel}` with exactly one
-message — `0`, a count, and that many entries; `1` for no directory at the path; `2` and a message — then the close. A path closed cleanly with no
-message is the operation not served; an abrupt end is the operation
-failed, and it is not asked again — see [FUSE](/proxy/fuse/).
+The server answers on `/fuse/list/{channel}` by sending exactly one
+message and closing the connection. In the message, a first byte of `0` is followed by a count and that many entries; a first byte of `1` states that no directory is held at the path; a first byte of `2` is followed by a message stating why the listing failed.
+A path that the proxy or the server closes cleanly with no message
+before the close states that the ask was not served. An abrupt end of the path leaves the operation failed, and
+the proxy does not ask it again, as [FUSE](/proxy/fuse/) provides.
 
-- **Names and kinds.** An entry is its name — one path component, never `.` or `..` — and its kind; a size is asked with `stat`.
+- **Names and kinds.** An entry carries its name, one path component
+  that is never `.` or `..`, and its kind. An entry's size is
+  obtained with `stat`.
 
-The ask is the target of [FUSE](/proxy/fuse/): the mount's id and the entry's path.
+The ask is the target defined on [FUSE](/proxy/fuse/): the id of the mount and the path of the entry.
 
-The answer is `diverge-provider-sdk/src/shared/containers/fuse/list/response/frame.rs`:
+The answer is defined by `diverge-provider-sdk/src/shared/containers/fuse/list/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/fuse/list/response/frame.rs
 ```

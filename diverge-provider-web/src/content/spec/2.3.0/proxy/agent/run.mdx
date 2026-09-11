@@ -1,45 +1,46 @@
 ---
 title: '/agent/run'
-summary: 'A prompt, then the loop: zero or more chunks, then the close, or one error and the close; the first message decides whether there was a loop at all.'
+summary: 'A prompt, and the loop that runs on it: the proxy sends zero or more chunks and closes the connection, or sends one error as its last message; the first message states whether a loop ran.'
 order: 2
 draft: false
 ---
 
-The server opens `/agent/run` and sends one message, the request
-below as JSON, carrying the prompt. The container answers with the
-loop.
+The server opens `/agent/run` and sends exactly one message, the
+request defined below as JSON, carrying the prompt. The proxy sends
+the loop as messages and closes the connection.
 
 ```text
-server → container:   [request JSON]                          once
-container → server:   [0][chunk JSON] … [0][chunk JSON]       then the close
-                   or [1][error JSON]                         then the close
-                   or [0][chunk JSON] … [1][error JSON]       then the close
+server → proxy:   [request JSON]                          once
+proxy → server:   [0][chunk JSON] … [0][chunk JSON]       the loop
+                  [1][error JSON]                         last, when there was no loop or it did not finish
 ```
 
-- **The first message decides.** An error as the first message
-  states that no loop ran; a chunk as the first message states that
-  one did. An error after chunks states that the loop ended without
-  finishing, and is the last message.
+- **The first message decides.** An error as the first message states
+  that no loop ran. A chunk as the first message states that a loop
+  ran. An error after one or more chunks states that the loop ended
+  without finishing, and it is the last message the proxy sends.
 - **A chunk is output.** A notification chunk marked fatal is the
-  loop's own last word, a chunk and not an error, and the close
-  follows it.
-- **One loop at a time.** A loop asked for while one runs is
+  last word of the loop. It is a chunk and not an error, and the
+  close follows it.
+- **One loop at a time.** A loop asked for while a loop runs is
   answered with an error as the first message.
-- **Not repeated.** A path that ended abruptly is a loop cut short;
-  nothing here asks again.
+- **No repetition.** An abrupt end of the path is a loop cut short.
+  No party retries it.
 
-The request is `diverge-provider-sdk/src/shared/containers/run_loop/request/request.rs`:
+The request is defined by
+`diverge-provider-sdk/src/shared/containers/run_loop/request/request.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/run_loop/request/request.rs
 ```
 
-The messages are `diverge-provider-sdk/src/shared/containers/run_loop/response/frame.rs`:
+The messages are defined by
+`diverge-provider-sdk/src/shared/containers/run_loop/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/frame.rs
 ```
 
-The chunks, behind kind `0`, are the following files of
-`diverge-provider-sdk/src/shared/containers/run_loop/response/`:
+The chunks that follow the first byte `0` are defined by the
+following files of `diverge-provider-sdk/src/shared/containers/run_loop/response/`:
 
 `diverge-provider-sdk/src/shared/containers/run_loop/response/chunk.rs`:
 
