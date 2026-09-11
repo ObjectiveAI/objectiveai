@@ -1,0 +1,24 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the client answers with, what ends it, what a finish with nothing before it means, and what the server does with the answer.'
+order: 2
+draft: false
+---
+
+```text
+[media_type_len: u16, big-endian][media_type: utf8 …][manifest bytes …]      at most once
+```
+
+- **The sequence.** At most one channel response, followed by the
+  channel response finish. A channel response finish that no channel
+  response precedes states that the client does not hold the digest,
+  and the run fails.
+- **The frame.** A `u16`, big-endian, the byte length of the media
+  type; the media type, UTF-8; the bytes of the manifest, verbatim,
+  running to the end of the payload. The server serves the bytes as
+  the manifest and the media type as its content type.
+
+The channel response is defined by `diverge-provider-sdk/src/shared/containers/oci/manifest/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/oci/manifest/response/frame.rs
+```

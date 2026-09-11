@@ -1,0 +1,24 @@
+---
+title: 'Write bytes'
+summary: 'Tag 3: the server asks the client for the content of a write the client opened, quoting the write id; the client answers with the bytes in zero or more channel responses, an error last, and the channel response finish, which ends the content.'
+order: 3
+draft: false
+---
+
+The server opens this channel in answer to a [write](/endpoints/containers-agents-run/client/write/)
+channel the client opened, quoting the client's write id. What
+arrives on it is the content of the file.
+
+- **The request.** The tag byte `3` followed by the write id,
+  four bytes. [Request](/endpoints/containers-agents-run/server/write-bytes/request/) states
+  its form.
+- **The response.** The content in zero or more channel responses,
+  an error last, and the channel response finish.
+  [Response](/endpoints/containers-agents-run/server/write-bytes/response/) states the
+  sequence.
+- **What the server does with it.** The server streams each piece
+  into the proxy's [`/filesystem/write`](/proxy/filesystem/write/)
+  for the path of the write, as it arrives, and ends the content
+  when the channel finishes. After the content has ended, it answers
+  the client's write channel. Content that ends in an error, or without a finish, is a
+  write that did not happen.

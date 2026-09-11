@@ -1,0 +1,24 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the tag byte 9 and the ask.'
+order: 1
+draft: false
+---
+
+```text
+[9][key_len: u16, big-endian][key …][value …]
+```
+
+- **The ask.** The bytes after the tag are the ask as the proxy's
+  [`/vault/set/{channel}`](/proxy/vault/set/) page defines them,
+  relayed verbatim.
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/vault/set/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/vault/set/request/request.rs
+```
