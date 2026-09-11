@@ -1,0 +1,34 @@
+---
+title: 'Response'
+summary: 'The server sends at most one response, an error as JSON with no tag; when the connector is attached it sends nothing, and the finish ends the connection without an error.'
+order: 2
+draft: false
+---
+
+The server sends at most one response on the scope, an error. When
+the connector is attached, the server sends no response; the response
+finish ends the scope. No frame bearing the scope follows the finish.
+
+```text
+[error JSON …]     at most once, when the connection is refused
+```
+
+- **The sequence.** An error, when the server sends one, is the only
+  response and is followed by the response finish: the container was
+  not found, or the runner refused the connector. When the server
+  sends no response, the connector is attached from the moment the
+  runner authorized it, and the finish ends the connection without
+  an error: the connector disconnected, the run ended, or the
+  connector's connection ended.
+- **The error.** The payload is exactly one JSON value, with no tag
+  before it, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  The server sends `{"kind":"missing"}` for an id that names no
+  running container and `{"kind":"denied"}` for a connector the
+  runner did not authorize.
+- **Malformed.** A payload that is not one JSON value is malformed.
+
+The response is defined by `diverge-provider-sdk/src/endpoints/containers/tools/connect/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/connect/server/response/frame.rs
+```

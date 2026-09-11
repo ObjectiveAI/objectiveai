@@ -1,0 +1,33 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 3 and the request of the channel.'
+order: 1
+draft: false
+---
+
+The payload of the channel request is the tag byte followed by the
+request as JSON, read as [Notation](/endpoints/#notation) provides:
+
+```text
+[3][request JSON …]
+```
+
+- **`write_id`.** A `u32` the client chose. The server quotes it in
+  the [write-bytes](/endpoints/containers-tools-connect/server/write-bytes/) channel it opens for the content. Two
+  writes with one id in flight at once are indistinguishable to the
+  server.
+- **`path`.** The destination, as components from the root of the
+  container.
+- **Malformed.** A channel request whose payload does not decode as
+  stated is answered by a channel response finish that no channel
+  response precedes, and the server does nothing else for it.
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/tools/connect/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/connect/client/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/write_path/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/write_path/request/request.rs
+```

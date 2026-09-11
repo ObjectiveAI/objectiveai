@@ -1,0 +1,33 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 2 followed by the id of a running container and an authorization as JSON.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte followed by the request as
+JSON, read as [Notation](/endpoints/#notation) provides:
+
+```text
+[2][connect JSON …]
+```
+
+- **`id`.** The id a run's response carried. The server resolves it
+  among the containers it is running; it means nothing outside the
+  server that minted it.
+- **`authorization`.** A string the server relays to the runner
+  verbatim and does not read. It may be empty.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is not `2`, and a payload whose bytes after the tag do not parse as
+  the request are malformed. [Endpoints](/endpoints/) states how a
+  server answers a request it cannot read.
+
+The request is defined by `diverge-provider-sdk/src/endpoints/containers/tools/connect/client/request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/connect/client/request/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/request/connect.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/request/connect.rs
+```

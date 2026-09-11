@@ -1,0 +1,19 @@
+---
+title: 'Disconnect'
+summary: 'Tag 0: the client ends the scope; the server sends nothing on the channel, stops nothing, and sends the response finish of the scope.'
+order: 0
+draft: false
+---
+
+The client ends the scope by opening this channel. The server sends
+no frame on the channel; the response finish of the scope is its
+answer.
+
+- **The request.** The payload is the tag byte `0` and nothing more.
+  [Request](/endpoints/containers-tools-connect/client/disconnect/request/) states its form.
+- **The response.** The server sends nothing on the channel.
+  [Response](/endpoints/containers-tools-connect/client/disconnect/response/) states the sequence.
+- **The effect.** When the server receives the channel request, it
+  ends the connection: it ends every channel task and sends the response finish of the scope; the container is not stopped. The server reads no further channel request on the scope.
+- **The volume and the mounts.** The disconnect does not alter a volume
+  or a mount.

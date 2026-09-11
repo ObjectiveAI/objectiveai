@@ -1,0 +1,71 @@
+---
+title: 'containers::tools::connect'
+summary: 'Tag 2: a connector names a running tool container by id and offers an authorization; the server asks the runner, and, when authorized, serves the connector’s channels on the container until the connector disconnects or the run ends.'
+order: 2
+draft: false
+---
+
+A client, the connector, opens the scope with a request whose payload
+is the tag byte `2` followed by the request as JSON: the id of a
+container another client, the runner, is running, and an
+authorization. The server asks the runner whether the connector may
+attach, and, when the runner says so, serves the connector's channels
+on the container for as long as the scope lives. The server sends at
+most one response on the scope, an error, and ends the scope by the
+response finish. This section states what the server does, in the
+order it does it. It states nothing about the connector or the
+runner.
+
+- **The request.** [Request](/endpoints/containers-tools-connect/request/) states its form.
+- **The response.** [Response](/endpoints/containers-tools-connect/response/) states the one
+  response and the sequence of the main stream.
+- **The channels.** The connector opens the channels that
+  [Channels the client opens](/endpoints/containers-tools-connect/client/) defines; the server
+  opens the one channel that [Channels the server opens](/endpoints/containers-tools-connect/server/)
+  defines.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Endpoints](/endpoints/) provides.
+2. **The server finds the container.** The server looks the `id` up
+   among the containers it is running. An id that names no running
+   container is answered by exactly one response, the error
+   `{"kind":"missing"}`, and the finish.
+3. **The server asks the runner.** The server opens an
+   [authorize](/endpoints/containers-tools-run/server/authorize/)
+   channel on the RUN scope of the container, carrying the peer
+   address of the connector's connection as the server observed it
+   and the `authorization` string of the request verbatim, and reads
+   the runner's answer. The byte `0`, a finish with no frame before
+   it, and a runner that is gone are each answered on the connect
+   scope by exactly one response, the error `{"kind":"denied"}`, and
+   the finish. The byte `1` opens the connection: the server sends
+   nothing on the main stream.
+4. **The server serves the scope.** The server connects to the
+   container's proxy at the address the run's deploy reported and
+   serves every channel the connector opens as its section defines,
+   with these differences from a run: a connector's
+   [postgres](/endpoints/containers-tools-connect/client/postgres/) channel is answered by a
+   channel response finish with no frame before it; the server opens
+   no channel on the connector except
+   [write-bytes](/endpoints/containers-tools-connect/server/write-bytes/), for the content of
+   a write the connector itself opened; a filetree the connector
+   opens leaves out every mount of the run, as the runner's does.
+5. **The server ends the scope.** When it receives the connector's
+   [disconnect](/endpoints/containers-tools-connect/client/disconnect/), when the run of the
+   container ends, or when the connector's connection ends, the
+   server ends every channel task and sends the response finish. The
+   server stops nothing and releases nothing: the container is the
+   runner's.
+
+## The rules that hold throughout
+
+- **No timeout.** The server times nothing out.
+- **The conduit.** The server relays the bytes of every relayed
+  exchange verbatim, unread, unaltered, unreordered within one
+  channel, and never twice.
+- **The container's own asks go to the runner.** Nothing the
+  container asks, on `/requests`, reaches a connector. The runner's
+  scope answers them.
