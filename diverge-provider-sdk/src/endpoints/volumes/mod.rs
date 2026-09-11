@@ -1,10 +1,11 @@
 //! Volumes — what a provider will let a caller look at, and the whole
 //! life of one.
 //!
-//! [`list`] says which volumes exist; [`watch`] names one and opens a
-//! scope that streams its tree; [`create`] makes one, [`edit`] changes
-//! how much it reserves, and [`delete`] destroys it. Every one of them
-//! but [`create`] names a volume rather than describing one: a caller
+//! [`list`] says which volumes exist; [`stat`] names one and says how
+//! much of it is used and what is in it; [`watch`] names one and opens
+//! a scope that streams its tree; [`create`] makes one, [`edit`]
+//! changes how much it reserves, and [`delete`] destroys it. Every one
+//! of them but [`create`] names a volume rather than describing one: a caller
 //! can only ask for what it was offered, and [`create`] is the move
 //! that puts something in the offering.
 //!
@@ -43,4 +44,5 @@ pub mod create;
 pub mod delete;
 pub mod edit;
 pub mod list;
+pub mod stat;
 pub mod watch;

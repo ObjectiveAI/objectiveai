@@ -4,12 +4,17 @@ use serde::{Deserialize, Serialize};
 
 /// A directory a caller may watch, under the name a provider gave it.
 ///
-/// [`name`](Self::name) is what to call it, [`bytes`](Self::bytes) and
-/// [`bytes_used`](Self::bytes_used) are how big it is and how much of
-/// that is gone, [`created`](Self::created) is how old it is, and
-/// [`dirhash`](Self::dirhash) is what is in it. That is the whole of
-/// what a listing says about one, and the omission is the interesting
-/// part.
+/// [`name`](Self::name) is what to call it, [`bytes`](Self::bytes) is
+/// how big it is, and [`created`](Self::created) is how old it is.
+/// That is the whole of what a listing says about one, and the
+/// omissions are the interesting part.
+///
+/// # What is inside it is a stat away
+///
+/// How much of it is used and the hash of its content are what a
+/// [`stat`](crate::endpoints::volumes::stat) reports, because each
+/// costs a walk of the volume and a listing does not pay for one. A
+/// listing is what a provider knows without looking.
 ///
 /// # Where it is, is not here
 ///
@@ -57,11 +62,6 @@ pub struct Volume {
     /// [`create`](crate::endpoints::volumes::create::client::request::Frame::bytes)
     /// made, the number that was asked for.
     pub bytes: u64,
-    /// How much of it is in use, in BYTES.
-    ///
-    /// The one field here that changes: writing inside the volume
-    /// moves it, and nothing in this protocol reports when.
-    pub bytes_used: u64,
     /// When the volume came into being, in SECONDS since the Unix
     /// epoch.
     ///
@@ -87,25 +87,4 @@ pub struct Volume {
     /// offers does, and the alternative is a signed field whose
     /// negative half exists to represent a state that never occurs.
     pub created: u64,
-    /// The hash of the volume's content, at the time of the listing.
-    ///
-    /// The base64url SHA-256, unpadded, of the volume's manifest: one
-    /// `<hash> <size> <path>` line per file, `<hash>` the base64url
-    /// SHA-256 of the file's bytes, `<size>` its length in bytes,
-    /// `<path>` relative to the volume's root and `/`-separated, the
-    /// lines sorted bytewise. It is the hash half of the directory
-    /// identity an
-    /// [`IdentityMount`](crate::shared::containers::request::IdentityMount)
-    /// carries, without the size — a listing already reports size.
-    ///
-    /// A volume with no file has the hash of the empty manifest,
-    /// `47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU`, which is what a
-    /// [`create`](crate::endpoints::volumes::create) just made.
-    ///
-    /// # Why a hash rather than a version
-    ///
-    /// Two listings with one `dirhash` have one content between them;
-    /// two with different ones do not. That is the whole of what it
-    /// says, and a counter could not say it across providers.
-    pub dirhash: String,
 }

@@ -6,23 +6,24 @@ use std::pin::Pin;
 use futures_util::Stream;
 
 use crate::endpoints::volumes::list::server::response::Volume;
+use crate::endpoints::volumes::stat::server::response::Stat;
 use crate::shared::filetree;
 
 /// A namespace of named directories, one per caller.
 ///
-/// The five [`volumes`](crate::endpoints::volumes) endpoints are five
+/// The six [`volumes`](crate::endpoints::volumes) endpoints are six
 /// verbs over one thing, and this is the thing. A provider that
 /// implements this can answer all of them; there is nothing else they
 /// need.
 ///
-/// # Why one trait rather than five
+/// # Why one trait rather than six
 ///
 /// Because they share the state, not merely the subject. What
 /// [`list`](Self::list) reports is what [`create`](Self::create) added
 /// and [`delete`](Self::delete) took away, and what
-/// [`watch`](Self::watch) looks inside is one of the same entries. Five
-/// traits would be five views of one map, with nothing saying they had
-/// to be the same map — and a provider free to implement four of them.
+/// [`watch`](Self::watch) looks inside is one of the same entries. Six
+/// traits would be six views of one map, with nothing saying they had
+/// to be the same map — and a provider free to implement five of them.
 ///
 /// The endpoints are separate for a different reason: they are separate
 /// SCOPES, because a caller asks them one at a time and a watch outlives
@@ -68,7 +69,7 @@ use crate::shared::filetree;
 /// about when it is sent, so whether a
 /// [`create`](Self::create) over an existing name fails, whether an
 /// [`edit`](Self::edit) below
-/// [`bytes_used`](crate::endpoints::volumes::list::server::response::Volume::bytes_used)
+/// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used)
 /// fails, and what a [`delete`](Self::delete) does to a volume
 /// something is using are all the provider's to answer. This trait
 /// gives each of them somewhere to say no and does not say when.
@@ -111,6 +112,24 @@ pub trait VolumeManager: Send + Sync {
         &self,
         client_identity: &str,
     ) -> impl Future<Output = Result<Vec<Volume>, Self::Error>> + Send;
+
+    /// One volume, examined: how much of it is used and what is in it.
+    ///
+    /// The two fields [`list`](Self::list) does not carry, because
+    /// each is a walk of the volume — a size to sum, a manifest to
+    /// hash — and a listing that paid for every volume's walk would
+    /// pay for the ones nobody asked about.
+    ///
+    /// # A name that is not there is a failure
+    ///
+    /// A stat has nothing to say about a volume the caller cannot
+    /// see, so the error is the answer, and this trait does not say
+    /// what the error carries.
+    fn stat(
+        &self,
+        client_identity: &str,
+        name: &str,
+    ) -> impl Future<Output = Result<Stat, Self::Error>> + Send;
 
     /// Make a new volume for this caller, of this size in BYTES.
     ///
@@ -164,7 +183,7 @@ pub trait VolumeManager: Send + Sync {
     /// promises that
     /// [`bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes)
     /// is ever at least
-    /// [`bytes_used`](crate::endpoints::volumes::list::server::response::Volume::bytes_used).
+    /// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used).
     fn edit(
         &self,
         client_identity: &str,

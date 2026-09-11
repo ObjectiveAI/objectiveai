@@ -38,17 +38,19 @@ pub enum ClientRequest<'a> {
     ContainersToolsConnect(containers::tools::connect::client::request::Frame),
     /// Tag `3`. List the volumes a provider offers.
     VolumesList(volumes::list::client::request::Frame),
-    /// Tag `4`. Watch one of them.
+    /// Tag `4`. Examine one of them.
+    VolumesStat(volumes::stat::client::request::Frame),
+    /// Tag `5`. Watch one of them.
     VolumesWatch(volumes::watch::client::request::Frame),
-    /// Tag `5`. Make a volume.
+    /// Tag `6`. Make a volume.
     VolumesCreate(volumes::create::client::request::Frame),
-    /// Tag `6`. Change how much one reserves.
+    /// Tag `7`. Change how much one reserves.
     VolumesEdit(volumes::edit::client::request::Frame),
-    /// Tag `7`. Destroy one.
+    /// Tag `8`. Destroy one.
     VolumesDelete(volumes::delete::client::request::Frame),
-    /// Tag `8`. Ask whether an image can be supplied.
+    /// Tag `9`. Ask whether an image can be supplied.
     ImagesCheck(images::check::client::request::Frame),
-    /// Tag `9`. Ask what the provider is.
+    /// Tag `10`. Ask what the provider is.
     Version(version::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -60,7 +62,7 @@ pub enum ClientRequest<'a> {
     /// # It is answered, not dropped
     ///
     /// A server finishes the scope over it, with nothing in front:
-    /// ten endpoints have ten error vocabularies, and an invalid
+    /// eleven endpoints have eleven error vocabularies, and an invalid
     /// request names none of them — where a finish with nothing before
     /// it is already what the wire means by a request that could not
     /// be served, and every executor reads it as its own "unanswered".
@@ -73,14 +75,14 @@ pub enum ClientRequest<'a> {
     /// A server that wants one has the bytes and can ask the specific
     /// request to decode them, which answers precisely: an unknown
     /// tag, a body that would not parse, or nothing at all. Storing a
-    /// reason here would mean this type choosing which of ten error
-    /// vocabularies to speak, and choosing wrong for nine of them.
+    /// reason here would mean this type choosing which of eleven error
+    /// vocabularies to speak, and choosing wrong for ten of them.
     Invalid(&'a [u8]),
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Two ways to fail, because ten requests use two encodings
-    /// between them — and one of the ten uses neither, having
+    /// Two ways to fail, because eleven requests use two encodings
+    /// between them — and two of the eleven use neither, having
     /// nothing to encode.
     type Error = ClientRequestEncodeError;
 
@@ -102,6 +104,9 @@ impl Encode for ClientRequest<'_> {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 frame.encode(out).map_err(|error| match error {})
+            }
+            ClientRequest::VolumesStat(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::VolumesWatch(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
@@ -159,22 +164,25 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             3 => volumes::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesList)
                 .ok(),
-            4 => volumes::watch::client::request::Frame::decode(bytes)
+            4 => volumes::stat::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesStat)
+                .ok(),
+            5 => volumes::watch::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesWatch)
                 .ok(),
-            5 => volumes::create::client::request::Frame::decode(bytes)
+            6 => volumes::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreate)
                 .ok(),
-            6 => volumes::edit::client::request::Frame::decode(bytes)
+            7 => volumes::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEdit)
                 .ok(),
-            7 => volumes::delete::client::request::Frame::decode(bytes)
+            8 => volumes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDelete)
                 .ok(),
-            8 => images::check::client::request::Frame::decode(bytes)
+            9 => images::check::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesCheck)
                 .ok(),
-            9 => version::client::request::Frame::decode(bytes)
+            10 => version::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Version)
                 .ok(),
             _ => None,
@@ -187,7 +195,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
 ///
 /// Named for the encoding rather than for the request, because nine
 /// requests share two of them and a variant per request would be seven
-/// names that mean the same failure.
+/// names that mean the same failure — nine, because the other two
+/// have nothing to encode.
 #[derive(Debug)]
 pub enum ClientRequestEncodeError {
     /// A JSON request did not serialize.

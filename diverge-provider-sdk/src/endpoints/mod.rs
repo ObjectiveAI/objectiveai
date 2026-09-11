@@ -8,7 +8,7 @@
 //! |----------|--------|
 //! | [`containers`] | run an agent or a tool server in a container; join a tool server |
 //! | [`images`] | ask whether an image can be supplied |
-//! | [`volumes`] | list what a provider offers; watch one; make, resize or destroy one |
+//! | [`volumes`] | list what a provider offers; examine one; watch one; make, resize or destroy one |
 //! | [`version`] | ask what a provider is |
 //!
 //! # The tags
@@ -24,25 +24,26 @@
 //! | `1` | [`containers::tools::run`] |
 //! | `2` | [`containers::tools::connect`] |
 //! | `3` | [`volumes::list`] |
-//! | `4` | [`volumes::watch`] |
-//! | `5` | [`volumes::create`] |
-//! | `6` | [`volumes::edit`] |
-//! | `7` | [`volumes::delete`] |
-//! | `8` | [`images::check`] |
-//! | `9` | [`version`] |
+//! | `4` | [`volumes::stat`] |
+//! | `5` | [`volumes::watch`] |
+//! | `6` | [`volumes::create`] |
+//! | `7` | [`volumes::edit`] |
+//! | `8` | [`volumes::delete`] |
+//! | `9` | [`images::check`] |
+//! | `10` | [`version`] |
 //!
-//! Ten, grouped by endpoint and ordered within it. The three container
-//! scopes lead: the agents' run, then the tools' run and the connect
-//! that joins one. The five volume scopes follow in the order a caller
-//! uses them: find one, watch it, make one, resize it, destroy it. Then
-//! the two that ask rather than do: [`images::check`], and
-//! [`version`].
+//! Eleven, grouped by endpoint and ordered within it. The three
+//! container scopes lead: the agents' run, then the tools' run and the
+//! connect that joins one. The six volume scopes follow in the order a
+//! caller uses them: find one, examine it, watch it, make one, resize
+//! it, destroy it. Then the two that ask rather than do:
+//! [`images::check`], and [`version`].
 //!
 //! Nothing derives meaning from adjacency, which [`version`] is the
 //! proof of — it is the one a client asks FIRST and it holds the
 //! highest tag, because tags are handed out in the order scopes were
 //! defined and nothing reads them in order. The grouping is for
-//! whoever reads the table, and a new scope takes `10` wherever it
+//! whoever reads the table, and a new scope takes `11` wherever it
 //! belongs conceptually.
 //!
 //! This table is the whole allocation. Each request states its own
