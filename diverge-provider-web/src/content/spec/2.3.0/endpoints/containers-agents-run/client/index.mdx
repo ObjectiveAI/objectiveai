@@ -1,0 +1,25 @@
+---
+title: 'Channels the client opens'
+summary: 'The channels the client opens on the scope, by tag; the server serves each as its section states and answers a channel request it cannot decode by a channel response finish with nothing before it.'
+order: 3
+draft: false
+---
+
+The client opens each of these channels on the scope, as [Channels](/frames/channels/) provides. The payload of the channel request begins with one tag byte designating the channel; the remainder is the channel's request. The server serves each as its section states, and answers a channel request that does not decode by a channel response finish that no channel response precedes.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [stop](/endpoints/containers-agents-run/client/stop/) |
+| `1` | [filetree](/endpoints/containers-agents-run/client/filetree/) |
+| `2` | [read](/endpoints/containers-agents-run/client/read/) |
+| `3` | [write](/endpoints/containers-agents-run/client/write/) |
+| `4` | [postgres](/endpoints/containers-agents-run/client/postgres/) |
+| `5` | [run-loop](/endpoints/containers-agents-run/client/run-loop/) |
+| `6` | [agent-schema](/endpoints/containers-agents-run/client/agent-schema/) |
+| `7` | [enqueue](/endpoints/containers-agents-run/client/enqueue/) |
+| `8` | [dequeue](/endpoints/containers-agents-run/client/dequeue/) |
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/client/channel_request/frame.rs
+```

@@ -1,0 +1,34 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][bytes …]         one or more, the file
+[1][error JSON …]    last, when the read failed
+```
+
+- **The sequence.** Zero or more channel responses whose first byte
+  is `0`, each carrying a piece of the file as the proxy sent it, in
+  order; the pieces concatenated are the file. An error, when the
+  server sends one, is the last channel response, and the file was
+  not read whole. The channel response finish follows the last
+  channel response. A channel response finish that no channel
+  response precedes states that the proxy did not serve the read.
+- **The bytes.** After the byte `0`, the bytes of the piece,
+  verbatim, running to the end of the payload. A file of zero bytes
+  is exactly one channel response with nothing after the byte `0`.
+- **The error.** After the byte `1`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page: the proxy's
+  error as the server received it, or the server's own.
+
+The channel response is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_response/read/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_response/read/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/read/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/read/response/frame.rs
+```

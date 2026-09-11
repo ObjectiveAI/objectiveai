@@ -1,0 +1,25 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the tag byte 21 and the ask.'
+order: 1
+draft: false
+---
+
+```text
+[21][id_len: u16, big-endian][id …][path …]
+```
+
+- **The ask.** The bytes after the tag are the ask as the proxy's
+  [`/fuse/remove/{channel}`](/proxy/fuse/remove/) page defines them,
+  relayed verbatim: the id of the mount, and the path of the entry
+  relative to the root of the mount.
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/fuse/target.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/fuse/target.rs
+```

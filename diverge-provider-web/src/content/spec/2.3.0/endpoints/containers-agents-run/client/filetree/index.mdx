@@ -1,0 +1,28 @@
+---
+title: 'Filetree'
+summary: 'Tag 1: the client asks for the filesystem of the container, watched; the server opens the proxy’s /filesystem/tree with every mount left out and relays a snapshot and one channel response per change until the proxy closes.'
+order: 1
+draft: false
+---
+
+The client opens this channel to watch the filesystem of the
+container. The server opens [`/filesystem/tree`](/proxy/filesystem/tree/)
+on the proxy and relays what the proxy sends.
+
+- **The request.** The payload is the tag byte `1` and nothing more.
+  [Request](/endpoints/containers-agents-run/client/filetree/request/) states its form.
+- **The response.** A snapshot, one channel response per change, and
+  the channel response finish when the proxy closes.
+  [Response](/endpoints/containers-agents-run/client/filetree/response/) states the
+  sequence.
+- **What the tree leaves out.** The server names, in the request it
+  sends to the proxy, the path of every mount of the container:
+  every volume mount, every identity mount, and every FUSE mount. The
+  tree the client receives contains none of them and reports no
+  change under them.
+- **Not before the mounts.** The server does not open
+  `/filesystem/tree` before the last FUSE mount of the container is
+  complete. A filetree channel opened earlier waits.
+- **Every channel is whole.** Each filetree channel is its own
+  opening of `/filesystem/tree`, beginning with a snapshot. Two
+  filetree channels are two watches.
