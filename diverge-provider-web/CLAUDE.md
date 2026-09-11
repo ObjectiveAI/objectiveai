@@ -318,6 +318,14 @@ build through `process.cwd()`. Dependency versions are never hand-written;
 routes; it is restarted after a route file is added. The layout's
 `<style>` is `is:global`.
 
+`Containerfile` is the site's container, built from the WORKSPACE
+ROOT (`podman build -f diverge-provider-web/Containerfile .`) because
+the build reads the crate: a `build` stage runs the same `pnpm build`
+gate on node 22, and a `serve` stage is unprivileged nginx on port
+8080 holding `dist/` under `nginx.conf` — Markdown twins served as
+`text/markdown`, trailing slashes canonical, a Content-Security-Policy
+that permits no script. Base images are pinned by digest with the date.
+
 ## The process
 
 The specification is written one section at a time, the section
