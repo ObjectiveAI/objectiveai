@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume has the size stated or the byte 1 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume has the size stated, exactly the byte 1 when the server has insufficient capacity for it, exactly the byte 2 when the content of the volume exceeds it, or the byte 3 followed by an error as one JSON value, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -10,7 +10,9 @@ finish follows the response, and no frame follows the finish.
 
 ```text
 [0]
-[1][error JSON …]
+[1]
+[2]
+[3][error JSON …]
 ```
 
 - **The sequence.** Exactly one response precedes the response
@@ -26,15 +28,27 @@ finish follows the response, and no frame follows the finish.
   `volumes::stat` request the client makes after receiving it
   reports that size as `bytes`. The server sends nothing after the
   byte `0`, and a client ignores every byte that follows it.
-- **The error.** A payload whose first byte is `1` carries an error
+- **Insufficient capacity.** A payload whose first byte is `1` states
+  that the server cannot reserve the size stated and did not change
+  the size. The volume has the size it had before the request. The
+  server sends nothing after the byte `1`, and a client ignores every
+  byte that follows it.
+- **Content too large.** A payload whose first byte is `2` states
+  that the content of the volume exceeds the size stated, so the
+  volume cannot be shrunk to it, and that the size was not changed.
+  The volume has the size it had before the request, and its content
+  is as it was. The server sends nothing after the byte `2`, and a
+  client ignores every byte that follows it.
+- **The error.** A payload whose first byte is `3` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content. The error
-  states that the volume has the size it had before the request.
+  states that the volume has the size it had before the request, and
+  that the reason is neither capacity nor content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, and a payload whose bytes after `1` are not
-  one JSON value are malformed.
+  is none of `0`, `1`, `2` and `3`, and a payload whose bytes after
+  `3` are not one JSON value are malformed.
 
 The response is defined by `diverge-provider-sdk/src/endpoints/volumes/edit/server/response/frame.rs`:
 
