@@ -66,7 +66,11 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, address: IpAddr
         return;
     }
 
-    let run = Arc::new(Run::new(Arc::clone(&scope), ContainerClient::new(attached.address)));
+    let run = Arc::new(Run::new(
+        Arc::clone(&scope),
+        ContainerClient::new(attached.address),
+        attached.ignore,
+    ));
     let mut ended = attached.ended;
     let over = Arc::clone(&run);
     run.spawn(async move {

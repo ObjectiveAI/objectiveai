@@ -24,7 +24,7 @@
 //! | `/fuse/read/{channel}` and its six siblings | one answer for a mounted file's or directory's ask, then the close |
 //! | `/command/{channel}`                | the command's items, then the close |
 //! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
-//! | `/filesystem/tree`                  | filetree frames, or why there are none, sent by the container; the server is silent |
+//! | `/filesystem/tree`                  | the server names what to leave out; filetree frames, or why there are none, sent by the container |
 //! | `/filesystem/read`                  | the server names a file; the container answers its bytes, or why not, then the close |
 //! | `/filesystem/write`                 | the server names a file and sends its content; the container answers ok or error |
 //! | `/agent/register`                   | the server sends the agent, once; the container answers registered, or an error, then the close |
@@ -80,9 +80,10 @@
 //! is the payload that rides `/requests` as `request::Request` (and,
 //! on postgres, the driver's bytes as `request::Frame`) and the
 //! answer is what the server sends on the path as `response::Frame`.
-//! For the paths the server opens — the three under [`filesystem`]
-//! and the five under [`agent`] — the ask is the server's message,
-//! or nothing but the opening, and the answer is the container's. A direction that carries
+//! For the paths the server opens — the three under [`filesystem`],
+//! the five under [`agent`] and the five under [`tool`] — the ask is
+//! the server's message, or nothing but the opening, and the answer
+//! is the container's. A direction that carries
 //! nothing has no folder; where a type is shared by several paths,
 //! each path's folder re-exports it rather than defining it again.
 //!

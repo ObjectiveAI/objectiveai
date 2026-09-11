@@ -10,7 +10,6 @@ use super::family::Runs;
 use super::own::Own;
 use super::render;
 use crate::container_proxy::filesystem;
-use crate::container_proxy::filesystem::tree::{IGNORE_ENV, Ignore};
 use crate::container_proxy::requests;
 use crate::server::container::Container as _;
 use crate::server::container_client::ContainerClient;
@@ -36,6 +35,9 @@ pub(crate) struct Prepared<C> {
     /// The registry repository serving its image, to release when the
     /// run is over; `None` for an image the caller does not hold.
     pub repository: Option<String>,
+    /// Every mount's path — volume, identity, FUSE — which every
+    /// filetree opened on the container leaves out.
+    pub ignore: Vec<Vec<String>>,
 }
 
 /// Everything before the id, in the only order that works:
@@ -45,7 +47,8 @@ pub(crate) struct Prepared<C> {
 ///    because a deploy binds it and cannot wait for it.
 /// 2. The deployment, built: limits, volumes stamped with the caller,
 ///    identities, and the environment the proxy reads — its FUSE
-///    mounts, and every mount's path for the filetree to leave alone.
+///    mounts. Every mount's path is kept beside it, for every
+///    filetree opened on the container to leave alone.
 /// 3. For an image the caller holds, the registry told to serve a
 ///    repository from this scope — before the deploy, because the
 ///    deploy is what pulls it.
@@ -75,6 +78,7 @@ where
 {
     content::ensure::<R, S>(scope, store, request).await?;
     let deployment = deployment(client_identity, request);
+    let ignore = ignored(request);
 
     let (container, repository) = match &request.image {
         Image::Client { name, digest } => {
@@ -109,6 +113,7 @@ where
             client,
             asks,
             repository,
+            ignore,
         }),
         Err(error) => {
             container.stop().await;
@@ -128,20 +133,6 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
         directories: request.fuse_directory_mounts.iter().map(fuse_mount).collect(),
     };
     environment.insert(filesystem::MOUNTS_ENV.to_string(), mounts.to_string());
-    // Every mount is somebody else's tree: the filetree reports the
-    // image's filesystem and what the container makes of it.
-    let ignore = Ignore(
-        request
-            .volume_mounts
-            .iter()
-            .map(|mount| mount.container_path.clone())
-            .chain(request.identity_file_mounts.iter().map(|mount| mount.container_path.clone()))
-            .chain(request.identity_directory_mounts.iter().map(|mount| mount.container_path.clone()))
-            .chain(request.fuse_file_mounts.iter().map(|mount| mount.container_path.clone()))
-            .chain(request.fuse_directory_mounts.iter().map(|mount| mount.container_path.clone()))
-            .collect(),
-    );
-    environment.insert(IGNORE_ENV.to_string(), ignore.to_string());
     Deployment {
         memory: request.memory,
         disk: request.disk,
@@ -159,6 +150,21 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
         identity_file_mounts: request.identity_file_mounts.clone(),
         identity_directory_mounts: request.identity_directory_mounts.clone(),
     }
+}
+
+/// Every mount's path. Every mount is somebody else's tree: the
+/// filetree reports the image's filesystem and what the container
+/// makes of it.
+fn ignored(request: &Container) -> Vec<Vec<String>> {
+    request
+        .volume_mounts
+        .iter()
+        .map(|mount| mount.container_path.clone())
+        .chain(request.identity_file_mounts.iter().map(|mount| mount.container_path.clone()))
+        .chain(request.identity_directory_mounts.iter().map(|mount| mount.container_path.clone()))
+        .chain(request.fuse_file_mounts.iter().map(|mount| mount.container_path.clone()))
+        .chain(request.fuse_directory_mounts.iter().map(|mount| mount.container_path.clone()))
+        .collect()
 }
 
 /// A FUSE mount as the proxy reads it.

@@ -3,7 +3,7 @@
 //!
 //! | path | carries |
 //! |------|---------|
-//! | [`/filesystem/tree`](tree) | the tree, watched: a snapshot, then every change, or why there is none |
+//! | [`/filesystem/tree`](tree) | the tree, watched: the server names what to leave out; a snapshot, then every change, or why there is none |
 //! | [`/filesystem/read`](read) | one file out: the server names it, the container answers its bytes, or why not |
 //! | [`/filesystem/write`](mod@write) | one file in: the server names it and sends its content, the container answers ok or error |
 //!

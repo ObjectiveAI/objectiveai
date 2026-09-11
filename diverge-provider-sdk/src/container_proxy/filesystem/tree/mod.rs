@@ -5,13 +5,14 @@
 //! and the container the source. The proxy watches the container's
 //! filesystem from its root and sends one [`Frame`](response::Frame)
 //! per event: first a snapshot of the whole tree, then one delta per
-//! change, for as long as the connection lives. The server's opening
-//! of the path is the whole ask — it carries nothing, so there is no
-//! `request` here — and the stream is the answer; the server sends
-//! NOTHING on it, and a message from it is a peer speaking something
-//! else, at which the proxy closes.
+//! change, for as long as the connection lives. The server sends
+//! exactly one message, first — the [`request::Request`], naming
+//! what the tree leaves out — and nothing after it; a further binary
+//! message from it is a peer speaking something else, at which the
+//! proxy closes.
 //!
 //! ```text
+//! server → container:  [request JSON]                             once
 //! container → server:  [0][postcard-encoded filetree frame…]   per event
 //!                   or [1][message…]                            last, then the close
 //! ```
@@ -35,21 +36,24 @@
 //!
 //! # Every connection is a fresh subscription
 //!
-//! A connection opens with a snapshot, so there is nothing to resume
-//! and nothing to ask: the server connects and reads. The path
+//! A connection opens with a snapshot, so there is nothing to resume:
+//! the server connects, says what to leave out, and reads. The path
 //! accepts as many connections as the server opens, each a watch of
 //! its own starting whole; one at a time is the expected use, and
 //! more is merely allowed. A connection the proxy could not begin —
 //! the watch would not arm, the root would not be watched — answers
 //! one [`Error`](response::Frame::Error) and closes, and the server
-//! starts over when it likes.
+//! starts over when it likes. A connection closed before the request,
+//! or whose request will not decode, is closed with nothing before
+//! it: the server sent nothing this is, and there is no watch to say
+//! anything about.
 //!
 //! # What the tree leaves out
 //!
 //! `/proc`, `/sys` and `/dev` — the pseudo-filesystems — and the
-//! MOUNTS the server placed, which it names in [`IGNORE_ENV`] as an
-//! [`Ignore`] when it starts the container. An ignored path does not
-//! exist as far as the stream is concerned: absent from the
+//! MOUNTS the server placed, every one, which it names in the
+//! [`request::Request`] that opens the watch. An ignored path does
+//! not exist as far as the stream is concerned: absent from the
 //! snapshot, never watched, an event under it dropped.
 //!
 //! Different from a corner the proxy could not WATCH — a subtree the
@@ -76,11 +80,8 @@
 //! with [`Root::update`](crate::shared::filetree::response::Root::update)
 //! and tolerates a frame it cannot apply.
 
-mod ignore;
-
+pub mod request;
 pub mod response;
-
-pub use ignore::*;
 
 #[cfg(feature = "server")]
 pub mod execute;
