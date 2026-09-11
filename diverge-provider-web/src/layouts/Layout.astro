@@ -138,6 +138,16 @@ const canonical = absolute(path);
         margin: 0 0 1.5rem;
         font-size: 0.875rem;
       }
+      /* The redirect page's content: in the document, out of sight,
+         so nothing flashes before the refresh is followed. */
+      .silent {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
       .versions {
         display: inline-block;
         position: relative;
