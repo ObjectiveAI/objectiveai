@@ -1,0 +1,34 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 5 followed by the name as a varint length and UTF-8 bytes and the size in bytes as a varint, in the postcard wire format.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte followed by the request in
+the postcard wire format, as the postcard reading of
+[Notation](/endpoints/#notation) provides:
+
+```text
+[5][name_len: varint][name: utf8 …][bytes: varint]
+```
+
+- **`name`.** The name of the volume, UTF-8, preceded by its byte
+  length as a varint. The name is the handle of the volume from the
+  moment it exists: every request of this specification that names
+  the volume names it by this string.
+- **`bytes`.** The size of the volume, in bytes, as a varint. It is
+  the size the client's listing reports as `bytes` for the volume. A
+  later `volumes::edit` request changes it; nothing else does.
+- **Bytes after the request.** A server ignores every byte that
+  follows the `bytes` field. A request whose payload extends past the
+  request is not malformed.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is not `5`, and a payload whose bytes after the tag do not decode
+  as the request are malformed. [Endpoints](/endpoints/) states how a
+  server answers a request it cannot read.
+
+The request is defined by `diverge-provider-sdk/src/endpoints/volumes/create/client/request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/volumes/create/client/request/frame.rs
+```
