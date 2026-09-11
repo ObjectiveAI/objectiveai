@@ -1,20 +1,25 @@
-//! What a client's request frame carries for a version request.
+//! What a client's request frame carries for a volume create-capacity
+//! question.
+
+use std::convert::Infallible;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Ask a provider what version it is.
+/// Ask a provider how large a volume it could make right now.
 ///
-/// Carries nothing. The tag is the whole request — there is no
-/// parameter because there is nothing to ask about beyond the asking,
-/// and a field that narrowed the question would be a field a provider
-/// had to interpret before it could say the one thing it knows.
+/// A unit struct, because the question has no parameters. There is
+/// nothing to narrow: the answer is one number for this caller, and a
+/// caller that wants to know whether a particular size would fit
+/// compares it to the number.
 ///
-/// # A struct, and still a tag byte
+/// # A frame that is only a tag
 ///
-/// The byte is what every scope-opening request spends to name itself,
-/// so this is not a cost this request chose. It is what makes an empty
-/// payload a REQUEST rather than an empty payload.
+/// It still has to go on the wire, because
+/// [`ClientFrame::Request`](crate::frame::client::ClientFrame::Request)
+/// carries one type of frame and the payload's leading byte is what
+/// says which request it is. So this encodes to exactly one byte and
+/// decodes by reading exactly one byte — the tag and nothing after it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Frame;
 
@@ -30,12 +35,11 @@ pub struct Frame;
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 12;
+const TAG: u8 = 6;
 
-/// One byte, and no serialization. There is nothing to serialize.
 impl Encode for Frame {
-    /// [`Infallible`](std::convert::Infallible): a known byte.
-    type Error = std::convert::Infallible;
+    /// [`Infallible`]: writing one known byte has no failure mode.
+    type Error = Infallible;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
@@ -44,25 +48,19 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Two ways to fail, and neither of them is a parse.
+    /// Only the tag can be wrong, because only the tag is read.
     type Error = FrameError;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
-        let (tag, _) = bytes.split_first().ok_or(FrameError::Empty)?;
-        if *tag != TAG {
-            return Err(FrameError::UnexpectedTag(*tag));
+        match bytes.first() {
+            Some(&TAG) => Ok(Frame),
+            Some(&tag) => Err(FrameError::UnexpectedTag(tag)),
+            None => Err(FrameError::Empty),
         }
-        Ok(Frame)
     }
 }
 
-/// A version request that could not be read.
-///
-/// Anything after the tag is ignored rather than refused. There is
-/// nothing defined to follow one, so bytes that do mean a peer knows
-/// something this version does not — and leaving room for it is
-/// cheaper than rejecting a request whose whole meaning already
-/// arrived.
+/// A volume create-capacity request that could not be read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -79,10 +77,14 @@ impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FrameError::Empty => {
-                f.write_str("version request frame is empty")
+                f.write_str("volume create-capacity request frame is empty")
             }
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected version request tag {TAG}, found {tag}")
+                write!(
+                    f,
+                    "expected volume create-capacity request tag {TAG}, \
+                     found {tag}"
+                )
             }
         }
     }
