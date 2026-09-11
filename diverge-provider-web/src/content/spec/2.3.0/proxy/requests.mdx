@@ -1,23 +1,25 @@
 ---
 title: '/requests'
-summary: 'The one path the container asks on: each message one frame carrying a channel the container minted, a kind byte, and the ask; nothing comes back on it.'
+summary: 'The one path on which the proxy sends its asks: each message is one frame carrying a channel the proxy minted, a kind byte, and the ask; the server sends no message on it.'
 order: 1
 draft: false
 ---
 
-`/requests` carries every ask the container makes. The server dials
-it, holds it open, and sends nothing on it; every message on it is
-from the container, and every answer arrives on another path.
+`/requests` carries every ask the proxy makes. The server opens the
+path and holds it open. The server sends no message on it; every
+message on the path is from the proxy, and every answer arrives on
+another path.
 
 ```text
 [channel: u32, big-endian][kind: u8][payload …]
 ```
 
-- **The channel.** A `u32` the container mints, counting up, unique
-  among its asks not yet answered. It names the answer path the
-  server opens: `/mcp/list-tools/{channel}` for kind `0`, and so on
-  through the table.
-- **The kind.** One byte designating the ask; the payload is the
+- **The channel.** A `u32` that the proxy mints in ascending order
+  and that is unique among the asks it has sent and the server has
+  not yet answered. The channel names the answer path the server
+  opens: `/mcp/list-tools/{channel}` for kind `0`, and so on through
+  the table below.
+- **The kind.** One byte designating the ask. The payload is the
   ask's own bytes in the form its page defines, running to the end of
   the message.
 
@@ -44,25 +46,27 @@ from the container, and every answer arrives on another path.
 | `18` | FUSE stat | [`/fuse/stat/{channel}`](/proxy/fuse/stat/) |
 
 - **One connection.** `/requests` accepts one connection at a time.
-  A second, while one is open, is refused with HTTP status `409`
-  before the upgrade.
-- **The connection ending.** Every ask announced on a connection and
-  not yet answered when the connection ends, cleanly or not, is lost
-  to the server; what the container then does with each is its
-  kind's rule, stated on its page. Asks made after the ending wait
-  for the next connection.
+  While one is open, the proxy refuses a second with HTTP status
+  `409` before the upgrade.
+- **The connection ending.** When the connection ends, cleanly or
+  abruptly, every ask announced on it and not yet answered is lost to
+  the server. Each kind's page states what the proxy does with such
+  an ask. An ask the proxy makes after the ending waits for the next
+  connection.
 
-The frame is `diverge-provider-sdk/src/container_proxy/requests/request/frame.rs`:
+The frame is defined by
+`diverge-provider-sdk/src/container_proxy/requests/request/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/requests/request/frame.rs
 ```
 
-The asks are `diverge-provider-sdk/src/container_proxy/requests/request/request.rs`:
+The asks are defined by
+`diverge-provider-sdk/src/container_proxy/requests/request/request.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/requests/request/request.rs
 ```
 
-The ways a frame fails to read are
+The ways in which a frame fails to decode are defined by
 `diverge-provider-sdk/src/container_proxy/requests/request/error.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/requests/request/error.rs

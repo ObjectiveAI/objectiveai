@@ -1,42 +1,45 @@
 ---
 title: 'Vault'
-summary: 'Kinds 5 to 9: the container reads, writes, deletes, locks and unlocks keys of a store the caller holds; each ask is answered by one message, and none is repeated.'
+summary: 'Kinds 5 to 9: the proxy reads, writes, deletes, locks and unlocks keys of a store the caller holds; the server answers each ask with exactly one message, and the proxy repeats no ask.'
 order: 3
 draft: false
 ---
 
-Five asks carry the container's operations on a key-value store the
-caller holds. Each is one ask and one one-message answer.
+Five asks carry the operations of the container on a key-value store
+the caller holds. The server answers each with exactly one message.
 
-| Kind | Ask | Payload after the kind | Answered on | With |
-|------|-----|------------------------|-------------|------|
-| `5` | get | `[key …]` | [`/vault/get/{channel}`](/proxy/vault/get/) | present, missing, or error |
-| `6` | set | `[key_len: u16, big-endian][key …][value …]` | [`/vault/set/{channel}`](/proxy/vault/set/) | ok or error |
-| `7` | delete | `[key …]` | [`/vault/delete/{channel}`](/proxy/vault/delete/) | ok or error |
-| `8` | lock | `[ttl: u32, big-endian][key …]` | [`/vault/lock/{channel}`](/proxy/vault/lock/) | ok, once held, or error |
-| `9` | unlock | `[key …]` | [`/vault/unlock/{channel}`](/proxy/vault/unlock/) | ok or error |
+| Kind | Ask | Payload after the kind | Answered on | Answer |
+|------|-----|------------------------|-------------|--------|
+| `5` | get | `[key …]` | [`/vault/get/{channel}`](/proxy/vault/get/) | the value, its absence, or an error |
+| `6` | set | `[key_len: u16, big-endian][key …][value …]` | [`/vault/set/{channel}`](/proxy/vault/set/) | ok or an error |
+| `7` | delete | `[key …]` | [`/vault/delete/{channel}`](/proxy/vault/delete/) | ok or an error |
+| `8` | lock | `[ttl: u32, big-endian][key …]` | [`/vault/lock/{channel}`](/proxy/vault/lock/) | ok, sent when the lock is held, or an error |
+| `9` | unlock | `[key …]` | [`/vault/unlock/{channel}`](/proxy/vault/unlock/) | ok or an error |
 
-- **Keys and values.** A key is UTF-8, running to the end of the
-  payload wherever nothing follows it; only `set` prefixes it with
-  its length, because a value follows. A value is bytes, verbatim.
-- **The namespace is the server's.** The payload names a key and no
-  store; which store the key lands in is the server's determination
-  for the container it serves, and the container has no way to name
-  another's.
-- **One message, then the close.** Every answer is exactly one
-  message — the frame its page shows — then the close. A path closed
-  cleanly with no message is the operation not served.
-- **Nothing is repeated.** An operation whose path ended abruptly, or
-  whose `/requests` connection ended before the path was opened, is
-  reported to the container as failed and is not asked again. A lock
-  the server granted outlives such an ending by its TTL.
+- **Keys and values.** A key is UTF-8. Where nothing follows the
+  key, it runs to the end of the payload; in `set`, a length prefix
+  precedes it because a value follows. A value is bytes, carried
+  verbatim.
+- **The namespace.** The payload names a key and no store. The server
+  determines which store the key belongs to, from what it knows of
+  the container it serves. The proxy has no means of naming another
+  container's store.
+- **One message.** The server sends exactly one message, the frame
+  its page defines, and closes the connection. A path that the proxy or the server closes cleanly with no message
+before the close states that the ask was not served.
+- **No repetition.** The proxy does not ask an operation again. An
+  operation whose path ended abruptly, and an operation whose
+  `/requests` connection ended before the server opened its path,
+  are reported inside the container as failed. A lock the server
+  granted survives such an ending until its TTL expires.
 
-Four of the five answer with `diverge-provider-sdk/src/shared/containers/vault/response/frame.rs`:
+Four of the five answers are defined by
+`diverge-provider-sdk/src/shared/containers/vault/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/vault/response/frame.rs
 ```
 
-The ways an ask or an answer fails to read are
+The ways in which an ask or an answer fails to decode are defined by
 `diverge-provider-sdk/src/shared/containers/vault/error.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/vault/error.rs

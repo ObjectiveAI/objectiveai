@@ -1,6 +1,6 @@
 ---
 title: '/postgres/{channel}'
-summary: 'Kind 11: one database connection the container opened, announced with nothing but its channel; the path is the connection, raw pgwire in both directions until either party closes.'
+summary: 'Kind 11: one database connection the container opened, announced with no payload; the path is that connection, and it carries the PostgreSQL wire protocol verbatim in both directions until either party closes it.'
 order: 6
 draft: false
 ---
@@ -12,37 +12,43 @@ payload is empty:
 [11]
 ```
 
-It announces one connection the container has opened to its
-database. The server opens `/postgres/{channel}`, and that path is
-the connection.
+The ask announces one connection that the container has opened to
+its database. The server opens `/postgres/{channel}`, and that path
+is the connection.
 
-- **Raw, both ways.** Every message in either direction is a chunk
-  of the PostgreSQL wire protocol, verbatim: no frame, no tag, no
-  acknowledgement. A pgwire message may span several WebSocket
-  messages and several may share one; each party reassembles as it
-  would from a socket. Nothing between the two ends reads the bytes.
-- **The path is the connection.** The opening is the connection
-  existing; the close, clean or abrupt and from either party, is the
-  connection ending. There is no message that opens or closes it.
-- **Before the path opens.** What the container's side wrote before
-  the server opened the path is held and sent first, in order. An
-  announcement whose `/requests` connection ended before its path was
-  opened is a connection ended.
-- **Nothing is repeated.** A connection that ended is not resumed
-  and its bytes are not replayed; a new connection is a new
+- **Verbatim, in both directions.** Every message in either
+  direction is a chunk of the PostgreSQL wire protocol, carried
+  verbatim: no frame, no tag, and no acknowledgement surrounds it. A
+  message of the wire protocol may span several WebSocket messages,
+  and several may share one; each party reassembles the bytes as it
+  would from a socket. Neither party reads the bytes.
+- **The path is the connection.** The opening of the path is the
+  existence of the connection. The close of the path, clean or
+  abrupt and by either party, is the end of the connection. No
+  message opens the connection and no message closes it.
+- **Before the path opens.** The proxy holds what the container's
+  side wrote before the server opened the path, and sends it first,
+  in order, once the path is open. An announcement whose `/requests`
+  connection ended before the server opened its path is a connection
+  that has ended.
+- **No repetition.** A connection that has ended is not resumed, and
+  its bytes are not sent again. A new connection is a new
   announcement and a new path.
 
-The announcement is `diverge-provider-sdk/src/container_proxy/postgres/request/request.rs`:
+The announcement is defined by
+`diverge-provider-sdk/src/container_proxy/postgres/request/request.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/postgres/request/request.rs
 ```
 
-A chunk from the container is `diverge-provider-sdk/src/container_proxy/postgres/request/frame.rs`:
+A chunk from the proxy is defined by
+`diverge-provider-sdk/src/container_proxy/postgres/request/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/postgres/request/frame.rs
 ```
 
-A chunk from the server is `diverge-provider-sdk/src/container_proxy/postgres/response/frame.rs`:
+A chunk from the server is defined by
+`diverge-provider-sdk/src/container_proxy/postgres/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/postgres/response/frame.rs
 ```

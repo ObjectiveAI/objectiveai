@@ -1,29 +1,31 @@
 ---
 title: '/agent/register'
-summary: 'The agent, sent once for the container’s life; the container answers registered, or an error, then the close.'
+summary: 'The agent, sent exactly once for the life of the container; the proxy sends exactly one answer, registered or an error, and closes the connection.'
 order: 1
 draft: false
 ---
 
-The server opens `/agent/register` and sends one message, the request
-below as JSON. The container answers with exactly one message — first
-byte `0`, registered; or first byte `1` and the error's JSON — then
-the close.
+The server opens `/agent/register` and sends exactly one message, the
+request defined below as JSON. The proxy sends exactly one message
+and closes the connection. In the message, a first byte of `0` states
+that the agent is registered; a first byte of `1` is followed by an
+error as JSON.
 
-- **Once.** The agent is fixed for the container's life. A
-  registration after a successful one is answered with an error. A
-  loop asked for before a registration is answered with an error on
-  [`/agent/run`](/proxy/agent/run/).
-- **Not repeated.** A registration whose path ended abruptly has an
-  answer the server did not hear; it is not asked again by anything
-  here.
+- **Once.** The agent is fixed for the life of the container. A
+  registration after a successful registration is answered with an
+  error. A loop asked for before a registration is answered with an
+  error on [`/agent/run`](/proxy/agent/run/).
+- **No repetition.** A registration whose path ended abruptly has an
+  answer the server did not receive. No party retries it.
 
-The request is `diverge-provider-sdk/src/container_proxy/agent/register/request/request.rs`:
+The request is defined by
+`diverge-provider-sdk/src/container_proxy/agent/register/request/request.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/agent/register/request/request.rs
 ```
 
-The answer is `diverge-provider-sdk/src/container_proxy/agent/register/response/frame.rs`:
+The answer is defined by
+`diverge-provider-sdk/src/container_proxy/agent/register/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/agent/register/response/frame.rs
 ```

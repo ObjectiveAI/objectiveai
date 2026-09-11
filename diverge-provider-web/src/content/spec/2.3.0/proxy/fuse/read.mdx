@@ -1,6 +1,6 @@
 ---
 title: '/fuse/read/{channel}'
-summary: 'Kind 12: a file, whole. The answer is one message — 0 and the file’s bytes, 1 for nothing held at the path, 2 and a message — then the close.'
+summary: 'Kind 12: a file, whole; the server sends exactly one message and closes the connection.'
 order: 2
 draft: false
 ---
@@ -11,16 +11,19 @@ The ask is kind `12` on [`/requests`](/proxy/requests/):
 [12][id_len: u16, big-endian][id …][path …]
 ```
 
-The server answers on `/fuse/read/{channel}` with exactly one
-message — `0` and the file’s bytes, `1` for nothing held at the path, `2` and a message — then the close. A path closed cleanly with no
-message is the operation not served; an abrupt end is the operation
-failed, and it is not asked again — see [FUSE](/proxy/fuse/).
+The server answers on `/fuse/read/{channel}` by sending exactly one
+message and closing the connection. In the message, a first byte of `0` is followed by the bytes of the file; a first byte of `1` states that nothing is held at the path; a first byte of `2` is followed by a message stating why the read failed.
+A path that the proxy or the server closes cleanly with no message
+before the close states that the ask was not served. An abrupt end of the path leaves the operation failed, and
+the proxy does not ask it again, as [FUSE](/proxy/fuse/) provides.
 
-- **Missing is empty.** `1` states that the caller holds nothing at the path; the file reads as empty, and the first `write` makes it. `0` with no bytes is a file of zero bytes.
+- **Absence.** `1` states that the caller holds nothing at the path;
+  the file reads as empty, and the first `write` creates it. `0`
+  followed by no bytes is a file of zero bytes.
 
-The ask is the target of [FUSE](/proxy/fuse/): the mount's id and the entry's path.
+The ask is the target defined on [FUSE](/proxy/fuse/): the id of the mount and the path of the entry.
 
-The answer is `diverge-provider-sdk/src/shared/containers/fuse/read/response/frame.rs`:
+The answer is defined by `diverge-provider-sdk/src/shared/containers/fuse/read/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/fuse/read/response/frame.rs
 ```

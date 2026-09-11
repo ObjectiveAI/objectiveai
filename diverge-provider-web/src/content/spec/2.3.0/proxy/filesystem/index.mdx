@@ -5,19 +5,19 @@ order: 7
 draft: false
 ---
 
-Three paths carry the server's view into the container's filesystem.
-The server opens each, as many times as it likes; every opening is
-its own exchange, and nothing is shared between openings.
+Three paths carry the server's access to the filesystem of the
+container. The server opens each path as often as it chooses. Every
+opening is its own exchange, and no state is shared between openings.
 
 | Path | Carries |
 |------|---------|
-| [`/filesystem/tree`](/proxy/filesystem/tree/) | the server names what to leave out; the tree as a snapshot, then every change, or why there is none |
-| [`/filesystem/read`](/proxy/filesystem/read/) | one file out: the server names it, the container answers its bytes, or why not |
-| [`/filesystem/write`](/proxy/filesystem/write/) | one file in: the server names it and sends its content, the container answers ok or an error |
+| [`/filesystem/tree`](/proxy/filesystem/tree/) | the paths to leave out; the tree as a snapshot and every change, or the reason there is none |
+| [`/filesystem/read`](/proxy/filesystem/read/) | the name of one file; its bytes, or the reason there are none |
+| [`/filesystem/write`](/proxy/filesystem/write/) | the name of one file and its content; ok or an error |
 
-- **Paths are components.** A file is named as an array of path
-  components from the container's root, as JSON.
-- **What the tree leaves out** is named by the server in the message
-  that opens the watch.
-- **Nothing is repeated.** A path that ended abruptly is that one
-  exchange failed; nothing on this side asks again.
+- **Paths are components.** A file is named as a JSON array of path
+  components from the root of the container.
+- **What the tree leaves out.** The server names the paths the tree
+  leaves out in the message that opens the watch.
+- **No repetition.** An exchange whose path ended abruptly has
+  failed. No party retries it.

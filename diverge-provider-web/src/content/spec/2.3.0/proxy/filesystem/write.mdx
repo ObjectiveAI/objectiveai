@@ -1,47 +1,52 @@
 ---
 title: '/filesystem/write'
-summary: 'One file into the container: the server names it, sends its content in pieces, and one empty message; the container answers ok or an error, then the close.'
+summary: 'One file into the container: the server sends the name of the file, its content in one or more pieces, and one empty message; the proxy sends exactly one answer, ok or an error, and closes the connection.'
 order: 3
 draft: false
 ---
 
-The server opens `/filesystem/write` and sends the request below as
-its first message, naming the destination; then the content, one
-piece per message; then **one empty message**, which ends the
-content. The container answers with exactly one message, then closes.
+The server opens `/filesystem/write` and sends, in order, the request
+defined below as JSON, naming the destination; the content, one piece
+per message; and exactly one empty message, which ends the content.
+The proxy sends exactly one message and closes the connection.
 
 ```text
-server → container:   [request JSON] [bytes …] … [bytes …] []
-container → server:   [kind: u8][message …]                   then the close
+server → proxy:   [request JSON] [bytes …] … [bytes …] []
+proxy → server:   [kind: u8][message …]                   once
 ```
 
-- **The empty message ends the content.** A piece is never empty;
-  the first empty message is the end. The file is the pieces
-  concatenated.
-- **One answer.** Kind `0` is the file written. Kind `1` and a
-  message is the file not written; a destination whose parent
-  directory does not exist is such an error.
-- **A close before the empty message abandons the write.** The
-  destination is left as it was. An abrupt end from either party is
-  a write that failed, and the destination is left as it was.
-- **Nothing is repeated.**
+- **The end of the content.** A piece is never empty. The first empty
+  message ends the content. The file is the pieces concatenated, in
+  order.
+- **The answer.** A first byte of `0` states that the file was
+  written. A first byte of `1` is followed by a message stating why
+  the file was not written; a destination whose parent directory does
+  not exist is such a case.
+- **An abandoned write.** A close by the server before the empty
+  message abandons the write, and the destination remains as it was.
+  An abrupt end by either party is a write that failed, and the
+  destination remains as it was.
+- **No repetition.** No party retries a write.
 
-The request is `diverge-provider-sdk/src/container_proxy/filesystem/write/request/request.rs`:
+The request is defined by
+`diverge-provider-sdk/src/container_proxy/filesystem/write/request/request.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/filesystem/write/request/request.rs
 ```
 
-A piece is `diverge-provider-sdk/src/container_proxy/filesystem/write/request/frame.rs`:
+A piece is defined by
+`diverge-provider-sdk/src/container_proxy/filesystem/write/request/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/filesystem/write/request/frame.rs
 ```
 
-The answer is `diverge-provider-sdk/src/container_proxy/filesystem/write/response/frame.rs`:
+The answer is defined by
+`diverge-provider-sdk/src/container_proxy/filesystem/write/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/filesystem/write/response/frame.rs
 ```
 
-The ways it fails to read are
+The ways in which the answer fails to decode are defined by
 `diverge-provider-sdk/src/container_proxy/filesystem/write/response/error.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/filesystem/write/response/error.rs

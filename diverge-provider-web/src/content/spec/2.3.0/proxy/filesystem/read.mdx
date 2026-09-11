@@ -1,43 +1,47 @@
 ---
 title: '/filesystem/read'
-summary: 'One file out of the container: the server names it in one message; the container answers its bytes in pieces, then the close, or an error last.'
+summary: 'One file out of the container: the server sends exactly one message naming the file; the proxy sends the bytes of the file in one or more messages and closes the connection, or sends an error as its last message.'
 order: 2
 draft: false
 ---
 
-The server opens `/filesystem/read` and sends exactly one message,
-the request below as JSON, naming the file. The container answers
-with the file's bytes, then closes.
+The server opens `/filesystem/read` and sends exactly one message, the
+request defined below as JSON, naming the file. The proxy sends the
+bytes of the file and closes the connection.
 
 ```text
-server → container:   [request JSON]                        once
-container → server:   [0][bytes …] … [0][bytes …]           then the close
-                   or [0][bytes …] … [1][message …]         then the close
+server → proxy:   [request JSON]                        once
+proxy → server:   [0][bytes …] … [0][bytes …]           the file
+                  [1][message …]                        last, when the read failed
 ```
 
 | The path ends with | Meaning |
 |--------------------|---------|
-| bodies, then the close | the bytes, concatenated, are the file |
-| an error, then the close | the file was not read, or not all of it |
-| the close, with nothing before it | the read could not be served |
+| one or more bodies and the close | the bytes of the bodies, concatenated, are the file |
+| an error and the close | the file was not read, or was not read whole |
+| the close and no message before it | the read was not served |
 
-- **Pieces.** Each body carries at most `2097152` bytes (2 MiB). A
-  file of zero bytes is one empty body, then the close.
-- **A file, never a directory.** A path naming a directory is
+- **Pieces.** Each body carries at most `2097152` bytes (2 MiB). The
+  proxy sends a file of zero bytes as exactly one empty body before
+  the close.
+- **A file, never a directory.** A path that names a directory is
   answered with an error.
-- **Nothing is repeated.** An abrupt end is a read that failed.
+- **No repetition.** An abrupt end of the path is a read that
+  failed. No party retries it.
 
-The request is `diverge-provider-sdk/src/shared/containers/read/request/request.rs`:
+The request is defined by
+`diverge-provider-sdk/src/shared/containers/read/request/request.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/read/request/request.rs
 ```
 
-The messages are `diverge-provider-sdk/src/container_proxy/filesystem/read/response/frame.rs`:
+The messages are defined by
+`diverge-provider-sdk/src/container_proxy/filesystem/read/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/filesystem/read/response/frame.rs
 ```
 
-The ways a message fails to read are
+The ways in which a message fails to decode are defined by
 `diverge-provider-sdk/src/container_proxy/filesystem/read/response/error.rs`:
 
 ```rust include=diverge-provider-sdk/src/container_proxy/filesystem/read/response/error.rs

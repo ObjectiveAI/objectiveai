@@ -1,16 +1,18 @@
 ---
 title: '/agent/schema'
-summary: 'Nothing sent; the container answers the JSON Schema of its agent value, or an error, then the close.'
+summary: 'The server sends nothing; the proxy sends exactly one answer, the JSON Schema of the agent value or an error, and closes the connection.'
 order: 3
 draft: false
 ---
 
-The server opens `/agent/schema` and sends nothing. The container
-answers with exactly one message — first byte `0` and a JSON Schema;
-or first byte `1` and the error's JSON — then the close. A path
-closed cleanly with no message is the schema not served.
+The server opens `/agent/schema` and sends no message. The proxy sends
+exactly one message and closes the connection. In the message, a
+first byte of `0` is followed by a JSON Schema; a first byte of `1`
+is followed by an error as JSON. A path that the proxy or the server closes cleanly with no message
+before the close states that the schema was not served.
 
-The answer is `diverge-provider-sdk/src/shared/containers/agent_schema/response/frame.rs`:
+The answer is defined by
+`diverge-provider-sdk/src/shared/containers/agent_schema/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/agent_schema/response/frame.rs
 ```

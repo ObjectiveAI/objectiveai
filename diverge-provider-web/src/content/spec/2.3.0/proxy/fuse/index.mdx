@@ -1,74 +1,79 @@
 ---
 title: 'FUSE'
-summary: 'A mount made on the server’s request, and kinds 12 to 18: the seven operations by which the files and directories the caller serves live are read, written, listed, made, renamed, removed and described, each answered by one message.'
+summary: 'A mount made on the server’s request, and kinds 12 to 18: the seven operations by which the server serves the files and directories the caller holds live, each answered with exactly one message.'
 order: 4
 draft: false
 ---
 
-The server makes every mount by one request each on
-[`/fuse/mount`](/proxy/fuse/mount/), and seven asks carry the
-operations of the mounts made. Every ask names a mount by its `id`
-and an entry by its path; every answer is one message.
+The server makes every mount by one request on
+[`/fuse/mount`](/proxy/fuse/mount/). Seven asks carry the operations
+of the mounts made. Every ask names a mount by its `id` and an entry
+by its path. The server answers every ask with exactly one message.
 
-| Kind | Ask | Payload after the kind | Answered on | With |
-|------|-----|------------------------|-------------|------|
-| `18` | stat | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/stat/{channel}`](/proxy/fuse/stat/) | `0` and nine bytes, `1` missing, `2` error |
-| `12` | read | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/read/{channel}`](/proxy/fuse/read/) | `0` the bytes, `1` missing, `2` error |
-| `13` | write | `[id_len: u16, big-endian][id …][path_len: u16, big-endian][path …][bytes …]` | [`/fuse/write/{channel}`](/proxy/fuse/write/) | `0` ok, `1` error |
-| `14` | list | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/list/{channel}`](/proxy/fuse/list/) | `0` the entries, `1` missing, `2` error |
-| `15` | remove | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/remove/{channel}`](/proxy/fuse/remove/) | `0` ok, `1` error |
-| `16` | rename | `[id_len: u16, big-endian][id …][from_len: u16, big-endian][from …][to …]` | [`/fuse/rename/{channel}`](/proxy/fuse/rename/) | `0` ok, `1` error |
-| `17` | mkdir | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/mkdir/{channel}`](/proxy/fuse/mkdir/) | `0` ok, `1` error |
+| Kind | Ask | Payload after the kind | Answered on | Answer |
+|------|-----|------------------------|-------------|--------|
+| `18` | stat | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/stat/{channel}`](/proxy/fuse/stat/) | `0` and nine bytes; `1`; or `2` and a message |
+| `12` | read | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/read/{channel}`](/proxy/fuse/read/) | `0` and the bytes; `1`; or `2` and a message |
+| `13` | write | `[id_len: u16, big-endian][id …][path_len: u16, big-endian][path …][bytes …]` | [`/fuse/write/{channel}`](/proxy/fuse/write/) | `0`; or `1` and a message |
+| `14` | list | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/list/{channel}`](/proxy/fuse/list/) | `0` and the entries; `1`; or `2` and a message |
+| `15` | remove | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/remove/{channel}`](/proxy/fuse/remove/) | `0`; or `1` and a message |
+| `16` | rename | `[id_len: u16, big-endian][id …][from_len: u16, big-endian][from …][to …]` | [`/fuse/rename/{channel}`](/proxy/fuse/rename/) | `0`; or `1` and a message |
+| `17` | mkdir | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/mkdir/{channel}`](/proxy/fuse/mkdir/) | `0`; or `1` and a message |
 
-- **The id.** The `id` the mount was requested with, UTF-8, echoed
-  on every ask for that mount.
-- **The path.** The entry's path relative to the mount's root:
-  `/`-separated UTF-8 with no leading `/`, no empty component, and no
-  `.` or `..` component; empty for a file mount and for a directory
-  mount's root. Where a path is the last field it runs to the end of
-  the payload; where bytes or a second path follow it, its length
+- **The id.** The `id` with which the mount was requested, UTF-8,
+  carried on every ask for that mount.
+- **The path.** The path of the entry relative to the root of the
+  mount: components separated by `/`, without a leading `/`, with no
+  empty component and no `.` or `..` component. The path is empty
+  for a file mount and for the root of a directory mount. Where the
+  path is the last field of the payload it runs to the end of the
+  payload; where bytes or a second path follow it, a length prefix
   precedes it.
-- **A file mount asks three.** For a mount requested with `kind`
-  `file`, the proxy asks only `stat`, `read` and `write`, each with
-  the empty path. For one requested with `kind` `directory`, it asks
-  all seven, with the entry's path.
-- **A read-only mount asks no mutation.** For a mount requested
-  `readonly`, the proxy asks no `write`, `remove`, `rename` or
+- **A file mount.** For a mount requested with `kind` `file`, the
+  proxy asks only `stat`, `read` and `write`, and every such ask
+  carries the empty path. For a mount requested with `kind`
+  `directory`, the proxy asks all seven operations, each carrying the
+  entry's path.
+- **A read-only mount.** For a mount requested with `readonly`
+  `true`, the proxy asks no `write`, no `remove`, no `rename` and no
   `mkdir`.
-- **One message, then the close.** Every answer is exactly one
-  message — the frame its page shows — then the close. A path closed
-  cleanly with no message is the operation not served.
-- **Nothing is repeated.** An operation whose path ended abruptly, or
-  whose `/requests` connection ended before the path was opened, is
-  reported inside the container as failed and is not asked again.
-- **A file is one message.** A `read` answers a file whole and a
-  `write` carries it whole; neither is paged or chunked.
+- **One message.** The server sends exactly one message, the frame
+  its page defines, and closes the connection. A path that the proxy or the server closes cleanly with no message
+before the close states that the ask was not served.
+- **No repetition.** The proxy does not ask an operation again. An
+  operation whose path ended abruptly, and an operation whose
+  `/requests` connection ended before the server opened its path,
+  are reported inside the container as failed.
+- **A file is one message.** A `read` answer carries the whole file
+  in one message, and a `write` ask carries the whole file in one
+  message. Neither is paged or split.
 
-The target of `stat`, `read`, `list`, `remove` and `mkdir` is
-`diverge-provider-sdk/src/shared/containers/fuse/target.rs`:
+The target of `stat`, `read`, `list`, `remove` and `mkdir` is defined
+by `diverge-provider-sdk/src/shared/containers/fuse/target.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/fuse/target.rs
 ```
 
 An entry of a listing, and the `Kind` — one byte on these answers,
-`"file"` or `"directory"` on a mount request — are
-`diverge-provider-sdk/src/shared/containers/fuse/entry.rs`:
+and the string `"file"` or `"directory"` on a mount request — are
+defined by `diverge-provider-sdk/src/shared/containers/fuse/entry.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/fuse/entry.rs
 ```
 
-The nine bytes a `stat` answers are `diverge-provider-sdk/src/shared/containers/fuse/stat/stat.rs`:
+The nine bytes of a `stat` answer are defined by
+`diverge-provider-sdk/src/shared/containers/fuse/stat/stat.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/fuse/stat/stat.rs
 ```
 
-The answer to `write`, `remove`, `rename` and `mkdir` is
+The answer to `write`, `remove`, `rename` and `mkdir` is defined by
 `diverge-provider-sdk/src/shared/containers/fuse/ack/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/fuse/ack/frame.rs
 ```
 
-The ways an ask or an answer fails to read are
+The ways in which an ask or an answer fails to decode are defined by
 `diverge-provider-sdk/src/shared/containers/fuse/error.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/fuse/error.rs
