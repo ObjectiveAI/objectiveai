@@ -1,0 +1,55 @@
+---
+title: 'Response'
+summary: 'One response: tag 0 and the answer, exactly {"type":"available"} or {"type":"unavailable"}, or tag 1 and an error; then the finish.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope, then the response
+finish.
+
+```text
+[0][answer JSON …]
+[1][error JSON …]
+```
+
+- **One response, then the finish.** The finish follows the response
+  and nothing else does. A finish with no response before it is the
+  request not served, as [Endpoints](/endpoints/) states.
+- **The answer.** Tag `0`, then one of two JSON objects and no other:
+  `{"type":"available"}` or `{"type":"unavailable"}`. Available
+  states that the server would supply the image — as the `server`
+  variant of a container request naming the requested name and
+  digest — at the time of the answer; it reserves nothing, and a
+  later container request may still fail. Unavailable states that it
+  would not, and says nothing of why: an image the server does not
+  hold and an image it holds and will not serve to this client are
+  one answer.
+- **The error.** Tag `1`, then an error as JSON: the question was not
+  answered, and nothing was determined about the image. An error is
+  not an unavailable.
+- **Malformed.** A payload with no tag, a tag other than `0` or `1`,
+  or JSON that does not parse as the answer or the error is
+  malformed.
+
+The frame is `diverge-provider-sdk/src/endpoints/images/check/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/images/check/server/response/frame.rs
+```
+
+The answer is `diverge-provider-sdk/src/endpoints/images/check/server/response/response.rs`,
+under the reading of [Notation](/endpoints/#notation) — an untagged
+enum is exactly one of its variants' shapes, and a one-variant enum
+is a constant:
+
+```rust include=diverge-provider-sdk/src/endpoints/images/check/server/response/response.rs
+```
+
+Its two shapes are `diverge-provider-sdk/src/endpoints/images/check/server/response/available.rs`
+and `diverge-provider-sdk/src/endpoints/images/check/server/response/unavailable.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/images/check/server/response/available.rs
+```
+
+```rust include=diverge-provider-sdk/src/endpoints/images/check/server/response/unavailable.rs
+```

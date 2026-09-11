@@ -1,0 +1,24 @@
+---
+title: 'images::check'
+summary: 'Tag 8: a client names an image by repository and digest; the server answers whether it can serve it as the server variant of a container’s image, then the finish.'
+order: 8
+draft: false
+---
+
+A request whose payload is the tag byte `8` followed by the image's
+name and digest opens the scope. The server answers with exactly one
+response — the answer, or an error — and then the response finish.
+
+- **The question.** A repository path and a manifest digest, and no
+  registry: the digest identifies the image, and where the server
+  obtains it is the server's; see
+  [Request](/endpoints/images-check/request/).
+- **The answer.** `{"type":"available"}`: the server would supply
+  the image as the `server` variant of a container request naming
+  that name and digest, at the time of the answer. `{"type":"unavailable"}`:
+  it would not. Neither says more; see
+  [Response](/endpoints/images-check/response/).
+- **An error is not an unavailable.** An error frame states that the
+  question was not answered and nothing was determined about the
+  image; an unavailable answer states that it was, and the answer is
+  no.
