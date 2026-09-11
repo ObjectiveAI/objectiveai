@@ -209,12 +209,14 @@ by a bare finish, that growth is new tag values, and the Notation.
 Each endpoint has its own section with, in this order, the request
 (the payload after the tag), the response (the frames of the scope's
 main stream, as a sequence: what may come, in what order, what ends
-it), the channels the client opens (each one page: request payload,
-response sequence), and the channels the server opens (each one page:
-request payload, response sequence). A channel page states the tag,
-the payload, the sequence of answers, what a finish with nothing
-means for that channel, and the identities of the party that asks and
-the party that answers. The container scopes further state what
+it), the channels the client opens, and the channels the server opens.
+A channel is its own section beneath the endpoint, shaped as the
+endpoint is: an index page stating the channel — who opens it, what it
+carries, what answers it, what ends it — a request page stating the
+payload of the channel request, and a response page stating the
+sequence of channel responses, what ends it, and what a finish with
+nothing before it means. `volumes::watch`'s `stop` section is the
+convention. The container scopes further state what
 their id is, what ends the scope, and how a connect scope relates to
 the run scope it joins.
 
