@@ -1,0 +1,22 @@
+---
+title: 'Fetch file'
+summary: 'Tag 4: the server asks the client for a file the client mounts by identity and the server does not hold; the client answers with the bytes in zero or more channel responses; the server verifies them against the identity before the deploy.'
+order: 4
+draft: false
+---
+
+The server opens this channel, before it deploys, for each entry of
+`identity_file_mounts` whose identity it does not hold. Every such
+channel is opened at once, one per identity.
+
+- **The request.** The tag byte `4` followed by the identity as JSON.
+  [Request](/endpoints/containers-tools-run/server/fetch-file/request/) states its form.
+- **The response.** The bytes of the file in zero or more channel
+  responses and the channel response finish.
+  [Response](/endpoints/containers-tools-run/server/fetch-file/response/) states the
+  sequence.
+- **Verification.** The server stores the bytes under the identity
+  only when their length is the size and their SHA-256, encoded as
+  base64url without padding, is the hash of the identity. Bytes that
+  do not match, a stream that ends short, and a finish with no
+  channel response are the run's error.

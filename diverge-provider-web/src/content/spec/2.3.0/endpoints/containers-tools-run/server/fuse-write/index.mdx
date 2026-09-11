@@ -1,0 +1,24 @@
+---
+title: 'FUSE write'
+summary: 'Tag 19: the server relays an ask of the container’s proxy that stores a file of a mount, whole the client serves live, by the mount’s id and the entry’s path; the client answers with exactly one channel response, which the server relays to the proxy.'
+order: 19
+draft: false
+---
+
+The server opens this channel when the container's proxy sends the
+FUSE ask on `/requests` that stores a file of a mount, whole the client serves live. The ask
+is relayed verbatim; the client's one answer is relayed back.
+
+- **The request.** The tag byte `19` followed by the ask in the form
+  the proxy's [`/fuse/write/{channel}`](/proxy/fuse/write/) page
+  defines. [Request](/endpoints/containers-tools-run/server/fuse-write/request/) states its
+  form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/endpoints/containers-tools-run/server/fuse-write/response/)
+  states the sequence.
+- **The conduit.** The server relays the one channel response to the
+  proxy's `/fuse/write/{channel}` as one message and closes that
+  connection. The server does not read the ask or the answer, and
+  does not send the ask twice.
+- **Never for a read-only mount.** The server does not open this channel for a mount whose `readonly` is `true`; the proxy sends no such ask.
+- **A file mount.** For a mount of `fuse_file_mounts`, the path of the ask is empty.

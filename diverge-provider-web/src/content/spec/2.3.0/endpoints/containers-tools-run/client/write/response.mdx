@@ -1,0 +1,32 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0]                  the file is at the path
+[1][error JSON …]    it is not
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish. The server sends it after the content has
+  ended and the proxy has answered. A channel response finish that
+  no channel response precedes states that the proxy did not serve
+  the write.
+- **Written.** The byte `0` and nothing after it: the proxy answered
+  that the file is at the path, whole.
+- **The error.** After the byte `1`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page: the error the
+  client sent on the content channel, the proxy's refusal, or the
+  server's own. The destination is as it was before the write.
+
+The channel response is defined by `diverge-provider-sdk/src/endpoints/containers/tools/run/server/channel_response/write_path/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/run/server/channel_response/write_path/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/write_path/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/write_path/response/frame.rs
+```
