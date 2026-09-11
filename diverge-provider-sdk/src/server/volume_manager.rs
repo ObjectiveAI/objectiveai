@@ -14,19 +14,20 @@ use crate::shared::filetree;
 
 /// A namespace of named directories, one per caller.
 ///
-/// The six [`volumes`](crate::endpoints::volumes) endpoints are six
-/// verbs over one thing, and this is the thing. A provider that
+/// The eight [`volumes`](crate::endpoints::volumes) endpoints are
+/// eight verbs over one thing, and this is the thing. A provider that
 /// implements this can answer all of them; there is nothing else they
 /// need.
 ///
-/// # Why one trait rather than six
+/// # Why one trait rather than eight
 ///
 /// Because they share the state, not merely the subject. What
 /// [`list`](Self::list) reports is what [`create`](Self::create) added
 /// and [`delete`](Self::delete) took away, and what
-/// [`watch`](Self::watch) looks inside is one of the same entries. Six
-/// traits would be six views of one map, with nothing saying they had
-/// to be the same map — and a provider free to implement five of them.
+/// [`watch`](Self::watch) looks inside is one of the same entries.
+/// Eight traits would be eight views of one map, with nothing saying
+/// they had to be the same map — and a provider free to implement
+/// seven of them.
 ///
 /// The endpoints are separate for a different reason: they are separate
 /// SCOPES, because a caller asks them one at a time and a watch outlives
@@ -140,6 +141,25 @@ pub trait VolumeManager: Send + Sync {
         name: &str,
     ) -> impl Future<Output = Result<Stat, Self::Error>> + Send;
 
+    /// The largest size, in BYTES, a new volume of this caller could
+    /// have right now.
+    ///
+    /// The largest single volume, not the sum of the provider's room:
+    /// a volume lives in one place, and the largest place is the
+    /// bound a [`create`](Self::create) is held to. A quota on this
+    /// caller is the provider's to fold in.
+    ///
+    /// # It reserves nothing
+    ///
+    /// A fact about now. A [`create`](Self::create) that arrives after
+    /// the room went elsewhere is answered
+    /// [`Creation::InsufficientCapacity`] on its own terms, and this
+    /// number does not bind it.
+    fn create_capacity(
+        &self,
+        client_identity: &str,
+    ) -> impl Future<Output = Result<u64, Self::Error>> + Send;
+
     /// Make a new volume for this caller, of this size in BYTES.
     ///
     /// The name is the caller's to choose, and it is chosen HERE — this
@@ -174,6 +194,26 @@ pub trait VolumeManager: Send + Sync {
         name: &str,
         bytes: u64,
     ) -> impl Future<Output = Result<Creation, Self::Error>> + Send;
+
+    /// How many BYTES this caller's volume could grow by right now.
+    ///
+    /// Headroom, not a size: what an [`edit`](Self::edit) could add to
+    /// the volume's current
+    /// [`bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes)
+    /// without being answered [`Edit::InsufficientCapacity`], as of
+    /// now. A name the caller cannot see is a failure.
+    ///
+    /// # It reserves nothing
+    ///
+    /// A fact about now, on the same terms as
+    /// [`create_capacity`](Self::create_capacity): an
+    /// [`edit`](Self::edit) that arrives after the room went elsewhere
+    /// is answered on its own terms.
+    fn edit_capacity(
+        &self,
+        client_identity: &str,
+        name: &str,
+    ) -> impl Future<Output = Result<u64, Self::Error>> + Send;
 
     /// Change how big an existing volume may be, in BYTES.
     ///

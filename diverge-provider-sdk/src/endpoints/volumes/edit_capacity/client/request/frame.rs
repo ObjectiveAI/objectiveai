@@ -1,21 +1,27 @@
-//! What a client's request frame carries for a volume edit.
+//! What a client's request frame carries for a volume edit-capacity
+//! question.
 
 use serde::{Deserialize, Serialize};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Change how many bytes a volume reserves.
+/// Ask how many bytes one volume could grow by right now.
 ///
-/// The only thing about a volume that can be edited. Its
-/// [`name`](Self::name) cannot — the name is the handle, and a handle
-/// that changed would leave every
-/// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
-/// and every [`watch`](crate::endpoints::volumes::watch) naming
-/// something that is no longer there.
+/// # A name, and the same access model as everything else
 ///
-/// So this names the volume and states the new size. Both fields, and
-/// only one of them is being set.
+/// The one field is a
+/// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
+/// from a listing. A caller cannot ask about a volume it was not
+/// offered, cannot reach one by naming components, and cannot probe
+/// for what exists by asking and reading the error — because a path
+/// it invents is not something this request can express.
+///
+/// Which is the same protection a
+/// [`stat`](crate::endpoints::volumes::stat) and an
+/// [`edit`](crate::endpoints::volumes::edit) have, for the same
+/// reason: a provider resolves a name it published, against the
+/// caller it published it to, and nothing else.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame {
     /// Which volume, by the name a listing gave it.
@@ -24,16 +30,6 @@ pub struct Frame {
     /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
     /// and mean nothing outside the provider that published them.
     pub name: String,
-    /// How many bytes it should reserve from now on.
-    ///
-    /// An absolute size, not a delta. A caller states what it wants
-    /// the volume to be rather than how far to move it, so two edits
-    /// that cross leave the volume at one of the two stated sizes
-    /// rather than at their sum.
-    ///
-    /// This is what a listing then reports as
-    /// [`Volume::bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes).
-    pub bytes: u64,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -48,7 +44,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 9;
+const TAG: u8 = 8;
 
 /// Postcard, matching the rest of [`volumes`](crate::endpoints::volumes).
 impl Encode for Frame {
@@ -75,7 +71,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A volume edit request that could not be read.
+/// A volume edit-capacity request that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -94,16 +90,17 @@ impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FrameError::Empty => {
-                f.write_str("volume edit request frame is empty")
+                f.write_str("volume edit-capacity request frame is empty")
             }
             FrameError::UnexpectedTag(tag) => {
                 write!(
                     f,
-                    "expected volume edit request tag {TAG}, found {tag}"
+                    "expected volume edit-capacity request tag {TAG}, \
+                     found {tag}"
                 )
             }
             FrameError::Body(error) => {
-                write!(f, "volume edit request did not parse: {error}")
+                write!(f, "volume edit-capacity request did not parse: {error}")
             }
         }
     }

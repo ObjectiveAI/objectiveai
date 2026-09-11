@@ -84,7 +84,7 @@ impl Handle {
     ///
     /// The payload is written as given, tag and all. This layer does
     /// not know what a request says and does not need to — see
-    /// [`ClientRequest`](crate::endpoints::ClientRequest) for the eleven
+    /// [`ClientRequest`](crate::endpoints::ClientRequest) for the thirteen
     /// it could be, and [`endpoints`](crate::endpoints) for what each
     /// one means.
     ///

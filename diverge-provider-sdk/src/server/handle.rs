@@ -86,7 +86,7 @@ use crate::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — eleven endpoints have eleven error vocabularies, and an
+/// answer — thirteen endpoints have thirteen error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -269,11 +269,31 @@ where
                     .await;
                 });
             }
+            ClientRequest::VolumesCreateCapacity(_) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&volume_manager);
+                scopes.spawn(async move {
+                    endpoints::volumes::create_capacity::server::handle::handle(
+                        scope, &identity, &*manager,
+                    )
+                    .await;
+                });
+            }
             ClientRequest::VolumesCreate(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
                 scopes.spawn(async move {
                     endpoints::volumes::create::server::handle::handle(
+                        scope, frame, &identity, &*manager,
+                    )
+                    .await;
+                });
+            }
+            ClientRequest::VolumesEditCapacity(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&volume_manager);
+                scopes.spawn(async move {
+                    endpoints::volumes::edit_capacity::server::handle::handle(
                         scope, frame, &identity, &*manager,
                     )
                     .await;

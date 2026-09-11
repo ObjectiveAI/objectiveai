@@ -3,9 +3,11 @@
 //!
 //! [`list`] says which volumes exist; [`stat`] names one and says how
 //! much of it is used and what is in it; [`watch`] names one and opens
-//! a scope that streams its tree; [`create`] makes one, [`edit`]
-//! changes how much it reserves, and [`delete`] destroys it. Every one
-//! of them but [`create`] names a volume rather than describing one: a caller
+//! a scope that streams its tree; [`create_capacity`] says how large a
+//! volume may be made and [`create`] makes one; [`edit_capacity`] says
+//! how far one may grow and [`edit`] changes how much it reserves; and
+//! [`delete`] destroys it. Every one of them but [`create`] and
+//! [`create_capacity`] names a volume rather than describing one: a caller
 //! can only ask for what it was offered, and [`create`] is the move
 //! that puts something in the offering.
 //!
@@ -41,8 +43,10 @@
 //! ends one.
 
 pub mod create;
+pub mod create_capacity;
 pub mod delete;
 pub mod edit;
+pub mod edit_capacity;
 pub mod list;
 pub mod stat;
 pub mod watch;
