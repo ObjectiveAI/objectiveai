@@ -215,7 +215,9 @@ endpoint is: an index page stating the channel — who opens it, what it
 carries, what answers it, what ends it — a request page stating the
 payload of the channel request, and a response page stating the
 sequence of channel responses, what ends it, and what a finish with
-nothing before it means. `volumes::watch`'s `stop` section is the
+nothing before it means. The channels a party opens are grouped under a `client/` or a
+`server/` section titled `Client Channels` or `Server Channels`, each
+with the tag table; `volumes::watch`'s `client/stop` section is the
 convention. The container scopes further state what
 their id is, what ends the scope, and how a connect scope relates to
 the run scope it joins.

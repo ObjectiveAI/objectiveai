@@ -27,7 +27,7 @@ the scope, and no frame bearing the scope follows it.
   of a node is reported as its removal followed by its insertion.
 - **The stop.** The client ends the watch by exactly one channel
   request on the scope, whose payload is empty.
-  [Stop](/endpoints/volumes-watch/stop/) states its form and effect.
+  [Stop](/endpoints/volumes-watch/client/stop/) states its form and effect.
 - **The end of the watch.** The server ends the scope by the response
   finish. It sends the finish after it receives the stop, after the
   client's connection ends, and after an error, which is in that case
