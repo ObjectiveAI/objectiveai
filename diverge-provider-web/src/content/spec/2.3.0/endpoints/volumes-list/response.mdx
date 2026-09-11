@@ -33,7 +33,7 @@ finish follows the response, and no frame follows the finish.
 - **`bytes`.** The size of the volume, in bytes. For a volume the
   client created, `bytes` is the size the client last stated for it,
   in its [volumes::create](/endpoints/volumes-create/) request or in
-  a later `volumes::edit` request. The number of bytes in use is
+  a later [volumes::edit](/endpoints/volumes-edit/) request. The number of bytes in use is
   reported by [volumes::stat](/endpoints/volumes-stat/).
 - **`created`.** The time at which the volume came into being, in
   seconds since `1970-01-01T00:00:00Z`, unsigned. What "came into

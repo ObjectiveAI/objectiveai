@@ -1,0 +1,43 @@
+---
+title: 'volumes::edit'
+summary: 'Tag 7: a client names a volume from its listing and states its size in bytes; the server sends exactly one response stating that the volume has that size or an error, and the scope finishes; the size is the only property an edit changes.'
+order: 7
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`7` followed by the name of a volume and a size. The server sends
+exactly one response, which states either that the volume has the
+size stated or an error. The response finish follows the response,
+and no frame follows the finish.
+
+- **The request.** The request carries the name of one volume and a
+  size in bytes. [Request](/endpoints/volumes-edit/request/) states
+  its form.
+- **The volume named.** The client names a volume by the `name` its
+  [volumes::list](/endpoints/volumes-list/) listing gave it. The
+  server resolves the name against the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. A name that is not in the client's listing is answered
+  with an error. A client cannot name another client's volume. A
+  server may refuse to edit a volume that it offered on its own
+  account and that the client did not create; the refusal is an
+  error.
+- **The size.** The size is absolute: the request states the size
+  the volume has after the edit, not a change to its size. When the
+  server sends the byte `0`, the volume has the size stated. From
+  that moment, every [volumes::list](/endpoints/volumes-list/)
+  listing and every [volumes::stat](/endpoints/volumes-stat/)
+  response of the client reports that size as `bytes`, until a later
+  edit changes it. The size is the only property an edit changes: the
+  name, the content, the bytes in use and the hash of the content are
+  as they were before the request.
+  [Response](/endpoints/volumes-edit/response/) states the form of
+  the response.
+- **A size below the bytes in use.** This revision does not prescribe
+  whether the server accepts a size smaller than the number of bytes
+  in use; a server may refuse such a request with an error. Nothing
+  in this specification requires `bytes` to be at least `bytes_used`.
+- **The error.** An error states that the size was not changed: the
+  volume has the size it had before the request, and every listing
+  and every stat reports that size.
