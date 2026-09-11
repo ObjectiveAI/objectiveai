@@ -1,6 +1,6 @@
 ---
 title: 'Endpoints'
-summary: 'A request’s payload begins with one tag byte designating the endpoint; ten endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
+summary: 'A request’s payload begins with one tag byte designating the endpoint; eleven endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
 order: 5
 draft: false
 ---
@@ -16,12 +16,13 @@ endpoint's request content, in the form the endpoint defines.
 | `1` | containers::tools::run |
 | `2` | containers::tools::connect |
 | `3` | [volumes::list](/endpoints/volumes-list/) |
-| `4` | volumes::watch |
-| `5` | [volumes::create](/endpoints/volumes-create/) |
-| `6` | volumes::edit |
-| `7` | volumes::delete |
-| `8` | [images::check](/endpoints/images-check/) |
-| `9` | [version](/endpoints/version/) |
+| `4` | [volumes::stat](/endpoints/volumes-stat/) |
+| `5` | volumes::watch |
+| `6` | [volumes::create](/endpoints/volumes-create/) |
+| `7` | volumes::edit |
+| `8` | volumes::delete |
+| `9` | [images::check](/endpoints/images-check/) |
+| `10` | [version](/endpoints/version/) |
 
 The tag values are normative as tabulated. Each endpoint's section
 follows; a section not yet present is defined, for this revision, by

@@ -1,0 +1,32 @@
+---
+title: 'volumes::stat'
+summary: 'Tag 4: a client names a volume from its listing; the server sends exactly one response carrying the volume as the listing reports it, its bytes in use and the hash of its content, or an error, and the scope finishes.'
+order: 4
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`4` followed by the name of a volume. The server sends exactly one
+response, which is either the volume examined or an error. The
+response finish follows the response, and no frame follows the
+finish.
+
+- **The request.** The request carries the name of one volume.
+  [Request](/endpoints/volumes-stat/request/) states its form.
+- **The volume named.** The client names a volume by the `name` its
+  [volumes::list](/endpoints/volumes-list/) listing gave it. The
+  server resolves the name against the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. A name that is not in the client's listing is answered
+  with an error. A client cannot name another client's volume.
+- **The answer.** The answer carries the three fields the listing
+  reports for the volume, and two more: the number of bytes in use
+  and the hash of the content.
+  [Response](/endpoints/volumes-stat/response/) states its form.
+- **At the time of the response.** The bytes in use and the hash are
+  those of the volume at the time of the response. No frame of this
+  specification reports a change in either; a client that needs the
+  current values sends another request.
+- **The error.** An error states that the volume was not examined,
+  and that nothing was determined about it. A volume absent from the
+  client's listing is answered with an error.

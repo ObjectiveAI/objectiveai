@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 8 followed by a JSON object that names the image by repository path and manifest digest and names no registry.'
+summary: 'The payload is the tag byte 9 followed by a JSON object that names the image by repository path and manifest digest and names no registry.'
 order: 1
 draft: false
 ---
@@ -9,7 +9,7 @@ The payload of the request is the tag byte followed by the request as
 JSON, running to the end of the payload:
 
 ```text
-[8][request JSON …]
+[9][request JSON …]
 ```
 
 - **`name`.** The repository path of the image, without a registry
@@ -21,7 +21,7 @@ JSON, running to the end of the payload:
   the source from which the server obtains the image is not the
   client's to state.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `8`, and a payload whose bytes after the tag do not parse as
+  is not `9`, and a payload whose bytes after the tag do not parse as
   the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 

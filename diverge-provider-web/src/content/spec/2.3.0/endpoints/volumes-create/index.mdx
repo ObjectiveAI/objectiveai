@@ -1,12 +1,12 @@
 ---
 title: 'volumes::create'
-summary: 'Tag 5: a client names a volume and its size in bytes; the server sends exactly one response stating that the volume exists or an error, and the scope finishes; the volume persists until the client deletes it.'
+summary: 'Tag 6: a client names a volume and its size in bytes; the server sends exactly one response stating that the volume exists or an error, and the scope finishes; the volume persists until the client deletes it.'
 order: 5
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`5` followed by the name and the size of the volume. The server sends
+`6` followed by the name and the size of the volume. The server sends
 exactly one response, which states either that the volume exists or
 an error. The response finish follows the response, and no frame
 follows the finish.
@@ -27,7 +27,8 @@ follows the finish.
   changed only by a container in which the client mounts it. The
   server does not write to the volume, does not remove from it, and
   does not otherwise alter its content, and no party other than such
-  a container does. Its `dirhash` in the listing is
+  a container does. Its `dirhash`, as
+  [volumes::stat](/endpoints/volumes-stat/) reports it, is
   `47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU`, the hash of the
   empty manifest, until a container changes its content.
 - **The client.** The client is the identity under which the

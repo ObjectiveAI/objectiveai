@@ -202,8 +202,8 @@ type shown is the crate's file, included.
 
 ### Layer 5 — Endpoints (`/endpoints/`)
 
-What a scope is for. It states the tag byte, the tag table (ten
-endpoints: the three container scopes, the five volume endpoints,
+What a scope is for. It states the tag byte, the tag table (eleven
+endpoints: the three container scopes, the six volume endpoints,
 the image check, the version), that an unreadable request is answered
 by a bare finish, that growth is new tag values, and the Notation.
 Each endpoint has its own section with, in this order, the request
