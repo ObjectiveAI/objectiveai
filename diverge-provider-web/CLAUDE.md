@@ -10,7 +10,7 @@ one.
 
 ## The register
 
-The `spec-prose` skill (`~/.claude/skills/spec-prose/SKILL.md`) is the
+The `spec-prose` skill (`skills/spec-prose/SKILL.md`, in this directory) is the
 register every page is written in, and it is loaded before any page
 is written or revised: complete sentences in the present indicative,
 sequence stated by verbs of order and never by "then", every
