@@ -14,6 +14,7 @@ use futures_util::StreamExt as _;
 use reqwest::header::CONTENT_TYPE;
 
 use super::{Upstream, upstream};
+use crate::ws;
 
 /// `/agent/enqueue`. Accepted as many times as the server opens it,
 /// each one message.
@@ -35,12 +36,9 @@ pub async fn enqueue(State(upstream): State<Arc<Upstream>>, upgrade: WebSocketUp
 /// a fate is `Error`. Then the close.
 async fn serve(socket: WebSocket, upstream: Arc<Upstream>) {
     let (sink, mut stream) = socket.split();
-    let request = match stream.next().await {
-        Some(Ok(Message::Binary(bytes))) => bytes,
-        _ => {
-            upstream::finish(sink, None).await;
-            return;
-        }
+    let Some(request) = ws::binary(&mut stream).await else {
+        upstream::finish(sink, None).await;
+        return;
     };
 
     let mut sending = pin!(
@@ -55,7 +53,7 @@ async fn serve(socket: WebSocket, upstream: Arc<Upstream>) {
         let reading = pin!(stream.next());
         match future::select(sending.as_mut(), reading).await {
             future::Either::Left((response, _)) => break response,
-            future::Either::Right((Some(Ok(Message::Ping(_) | Message::Pong(_))), _)) => {}
+            future::Either::Right((Some(Ok(Message::Text(_) | Message::Ping(_) | Message::Pong(_))), _)) => {}
             future::Either::Right(_) => return,
         }
     };

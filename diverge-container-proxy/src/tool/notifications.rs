@@ -55,7 +55,7 @@ async fn serve(socket: WebSocket, tool: Arc<Tool>) {
                 agent::finish(sink, None).await;
                 return;
             }
-            future::Either::Right((Some(Ok(Message::Ping(_) | Message::Pong(_))), _)) => {}
+            future::Either::Right((Some(Ok(Message::Text(_) | Message::Ping(_) | Message::Pong(_))), _)) => {}
             future::Either::Right(_) => return,
         }
     }
