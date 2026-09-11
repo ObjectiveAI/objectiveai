@@ -1,10 +1,16 @@
 //! One entry of a listed directory.
 
+use serde::{Deserialize, Serialize};
+
 use super::{ResponseEncodeError, ResponseError, prefixed};
 use crate::encode::Writer;
 
-/// What an entry is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// What an entry is — and, on a
+/// [`mount`](crate::container_proxy::fuse::mount) request, which kind
+/// of mount: one file, or a tree. One byte on the binary answers;
+/// `"file"` or `"directory"` where it rides JSON.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Kind {
     /// A regular file. Kind `0`.
     File,

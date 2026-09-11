@@ -21,6 +21,7 @@
 //! | `/mcp/list-tools/{channel}` and its three siblings | one MCP response, then the close |
 //! | `/mcp/notifications/{channel}`      | notifications as they come, then the close |
 //! | `/vault/get/{channel}` and its four siblings | one vault answer, then the close |
+//! | `/fuse/mount`                       | the server sends one mount; the container answers once it is made, or why not, then the close |
 //! | `/fuse/read/{channel}` and its six siblings | one answer for a mounted file's or directory's ask, then the close |
 //! | `/command/{channel}`                | the command's items, then the close |
 //! | `/postgres/{channel}`               | raw pgwire, both ways, until either side closes |
@@ -124,7 +125,9 @@
 //! nothing else, and nothing retries it. An `/agent/*` path dying is that one call to
 //! the agent's server failing — a loop cut short, a fate never heard,
 //! a registration whose answer never came — and nothing retries that
-//! either: the call was made, and what it did is done.
+//! either: the call was made, and what it did is done. A
+//! `/fuse/mount` dying is a mount whose fate the server did not hear,
+//! and the run that asked for it does not go on.
 
 pub mod agent;
 pub mod command;

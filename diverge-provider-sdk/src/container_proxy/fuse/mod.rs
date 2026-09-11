@@ -1,9 +1,11 @@
-//! The `/fuse/*` paths: the mounted files' and directories' asks,
-//! the shared vocabulary re-exported, and the executors that answer
-//! them.
+//! The `/fuse/*` paths: a mount made on the server's request, the
+//! mounted files' and directories' asks, the shared vocabulary
+//! re-exported, and the executors that make and answer them.
 //!
-//! Seven operations, each its own ask on `/requests` and its own
-//! answer path, exactly as the vault's are:
+//! One path the server opens — [`mount`], one mount per opening,
+//! answered once the mount is complete — and seven operations, each
+//! its own ask on `/requests` and its own answer path, exactly as
+//! the vault's are:
 //!
 //! | ask | kind | payload after the kind | answered on | with |
 //! |-----|------|------------------------|-------------|------|
@@ -15,6 +17,18 @@
 //! | [`mkdir`] | `17` | `[id_len: u16 BE][id…][path…]` | `/fuse/mkdir/{channel}` | one [`mkdir::response::Frame`] |
 //! | [`stat`] | `18` | `[id_len: u16 BE][id…][path…]` | `/fuse/stat/{channel}` | one [`stat::response::Frame`] |
 //!
+//! And the one the server opens:
+//!
+//! | path | the server sends | the container answers |
+//! |------|------------------|-----------------------|
+//! | [`/fuse/mount`](mount) | one [`mount::request::Request`] | one [`mount::response::Frame`], once the mount is complete, then the close |
+//!
+//! And the one the server opens:
+//!
+//! | path | the server sends | the container answers |
+//! |------|------------------|-----------------------|
+//! | [`/fuse/mount`](mount) | one [`mount::request::Request`] | one [`mount::response::Frame`], once the mount is complete, then the close |
+//!
 //! The answer is one message, raw, then the close. The shapes are
 //! [`shared::containers::fuse`](crate::shared::containers::fuse)'s,
 //! and that module says what the id and the path are, what a file's
@@ -23,11 +37,11 @@
 //!
 //! # Who asks
 //!
-//! The proxy itself, on behalf of what it mounted: the mounts it
-//! makes at its start are the
-//! [`filesystem::Mounts`](super::filesystem::Mounts) the server
-//! named, files and directories, each carrying its id and whether it
-//! is read-only. A file mount asks [`stat`] for every attribute,
+//! The proxy itself, on behalf of what it mounted: the mounts the
+//! server asked for on [`/fuse/mount`](mount), files and directories,
+//! each carrying its id and whether it is read-only, every one
+//! complete before the server opens anything else on the container.
+//! A file mount asks [`stat`] for every attribute,
 //! [`read`] on every open and [`mod@write`] on every changed close,
 //! with an empty path. A directory mount asks all seven, with the
 //! entry's path: [`stat`] for every lookup and attribute; [`list`]
@@ -44,6 +58,7 @@ pub use crate::shared::containers::fuse::*;
 // it.
 pub mod list;
 pub mod mkdir;
+pub mod mount;
 pub mod read;
 pub mod remove;
 pub mod rename;

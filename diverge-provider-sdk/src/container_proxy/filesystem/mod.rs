@@ -17,23 +17,24 @@
 //!
 //! # FUSE mounts: files and directories the caller serves
 //!
-//! Beside the three paths the proxy MOUNTS: the server names
-//! [`Mounts`] in the [`MOUNTS_ENV`] variable — the request's
+//! Beside the three paths the proxy MOUNTS: the server asks for each
+//! on [`/fuse/mount`](super::fuse::mount) — the request's
 //! [`fuse_file_mounts`](crate::shared::containers::request::Container::fuse_file_mounts)
 //! and
 //! [`fuse_directory_mounts`](crate::shared::containers::request::Container::fuse_directory_mounts),
-//! handed down — and at its start the proxy mounts, at each path, a
-//! FUSE filesystem whose contents are the CALLER's, asked by the
-//! mount's id over [`fuse`](super::fuse): the caller serves the file
-//! or the tree from wherever it keeps it, and nothing copies it in
-//! or reads it back. It is for the credential files vendor CLIs
-//! rewrite when they refresh a login. The mount needs `/dev/fuse` in
-//! the container and the proxy running as root in the container's
-//! user namespace, which is how the host runs it; a mount that
-//! cannot be made ends the proxy at its start, as an unbindable port
-//! does. The mount point — the file, or the directory — is made if
-//! absent, every missing parent directory made first, and the
-//! directory around it stays the image's own.
+//! one request each — and the proxy mounts, at the path, a FUSE
+//! filesystem whose contents are the CALLER's, asked by the mount's
+//! id over [`fuse`](super::fuse): the caller serves the file or the
+//! tree from wherever it keeps it, and nothing copies it in or reads
+//! it back. It is for the credential files vendor CLIs rewrite when
+//! they refresh a login. The mount needs `/dev/fuse` in the
+//! container and the proxy running as root in the container's user
+//! namespace, which is how the host runs it; a mount that cannot be
+//! made is the request's `Error`, and the run does not go on. The
+//! mount point — the file, or the directory — is made if absent,
+//! every missing parent directory made first, and the directory
+//! around it stays the image's own. A mount lives for the proxy's
+//! life.
 //!
 //! ## A file mount
 //!
@@ -102,7 +103,3 @@
 pub mod read;
 pub mod tree;
 pub mod write;
-
-mod mounts;
-
-pub use mounts::*;
