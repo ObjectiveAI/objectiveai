@@ -42,7 +42,8 @@ the response, and no frame follows the finish.
   listing are as they were before the request. The server does not
   send the byte `0` for a volume that is mounted at the time of the
   request.
-- **A volume watched.** A `volumes::watch` on the volume is not a
+- **A volume watched.** A
+  [volumes::watch](/endpoints/volumes-watch/) on the volume is not a
   mount. This revision does not prescribe whether the server deletes
   a volume under a watch, nor what such a watch observes when it
   does.
