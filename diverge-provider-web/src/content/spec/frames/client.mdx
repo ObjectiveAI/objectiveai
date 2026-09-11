@@ -24,22 +24,3 @@ A client sends five frame types.
 - **Type `6` — channel response finish.** Ends a channel the server
   opened, quoting its number. It carries no payload, and it is the
   only way such a channel ends.
-
-The Rust SDK models these frames as the following enumeration, one
-variant per type. The definitions above are normative; the code is an
-illustration.
-
-```rust
-pub enum ClientFrame<'a> {
-    /// Type 0.
-    Auth { payload: &'a [u8] },
-    /// Type 1.
-    Request { scope: u32, payload: &'a [u8] },
-    /// Type 4.
-    ChannelRequest { scope: u32, channel: u32, payload: &'a [u8] },
-    /// Type 5.
-    ChannelResponse { scope: u32, channel: u32, payload: &'a [u8] },
-    /// Type 6.
-    ChannelResponseFinish { scope: u32, channel: u32 },
-}
-```
