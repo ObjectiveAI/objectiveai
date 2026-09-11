@@ -16,12 +16,20 @@ use crate::shared::error::Error;
 /// a [`list`](crate::endpoints::volumes::list) would not describe
 /// better.
 ///
+/// # The manager says whether there was room
+///
+/// A size the provider cannot reserve is
+/// [`InsufficientCapacity`](response::Frame::InsufficientCapacity),
+/// and the manager is what knows it, so it answers
+/// [`Creation::InsufficientCapacity`](response::Creation::InsufficientCapacity)
+/// and this turns that into the frame.
+///
 /// # What a taken name does is the manager's
 ///
-/// This turns a refusal into an [`Error`](response::Frame::Error) and
-/// does not decide when one is owed. See
-/// [`VolumeManager`] for why: the wire has one error per endpoint and
-/// no vocabulary for the reasons.
+/// This turns any other refusal into an
+/// [`Error`](response::Frame::Error) and does not decide when one is
+/// owed. See [`VolumeManager`] for why: the wire has one error per
+/// endpoint and no vocabulary for the reasons.
 ///
 /// # The request arrives decoded
 ///
@@ -42,7 +50,10 @@ pub async fn handle<M>(
         .create(client_identity, &request.name, request.bytes)
         .await
     {
-        Ok(()) => response::Frame::Created,
+        Ok(response::Creation::Created) => response::Frame::Created,
+        Ok(response::Creation::InsufficientCapacity) => {
+            response::Frame::InsufficientCapacity
+        }
         Err(error) => response::Frame::Error(error.into()),
     };
 

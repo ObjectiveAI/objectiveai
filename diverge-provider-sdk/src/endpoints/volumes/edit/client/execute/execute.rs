@@ -29,9 +29,12 @@ use crate::shared::error::Error;
 /// # An answer and an error are two different things
 ///
 /// There is one answer and it carries nothing: the change is made.
-/// Everything else is an [`ExecuteError::Provider`], including the
-/// case a caller most wants to know about — a volume already holding
-/// more than the new reservation allows.
+/// Two refusals are the provider's defined answers rather than
+/// failures, and a caller acts on each:
+/// [`ExecuteError::InsufficientCapacity`] is a size to ask smaller,
+/// and [`ExecuteError::ContentTooLarge`] — a volume already holding
+/// more than the new size allows — is a volume to empty first.
+/// Everything else is an [`ExecuteError::Provider`].
 ///
 /// # It reads one frame and leaves
 ///
@@ -79,15 +82,19 @@ pub async fn execute(
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Edited => Ok(()),
+        response::Frame::InsufficientCapacity => {
+            Err(ExecuteError::InsufficientCapacity)
+        }
+        response::Frame::ContentTooLarge => Err(ExecuteError::ContentTooLarge),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
 
 /// An edit that did not produce an answer.
 ///
-/// All but the last are this end's view of something going wrong. The
-/// last is the provider saying so itself, and it is the only one that
-/// means the exchange worked.
+/// All but the last three are this end's view of something going
+/// wrong. The last three are the provider saying so itself, and they
+/// are the only ones that mean the exchange worked.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request never went out.
@@ -113,6 +120,12 @@ pub enum ExecuteError {
     Unanswered,
     /// The response frame did not parse.
     Response(response::FrameError),
+    /// The provider cannot reserve that many bytes. The size is as it
+    /// was.
+    InsufficientCapacity,
+    /// The volume holds more than the size asked for, so it cannot be
+    /// shrunk to it. The size is as it was.
+    ContentTooLarge,
     /// The provider could not do it, and said so.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -141,6 +154,12 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Response(error) => {
                 write!(f, "volume edit answer did not parse: {error}")
             }
+            ExecuteError::InsufficientCapacity => f.write_str(
+                "the provider has insufficient capacity for a volume of that size",
+            ),
+            ExecuteError::ContentTooLarge => f.write_str(
+                "the volume holds more than that size and cannot be shrunk to it",
+            ),
             ExecuteError::Provider(_) => {
                 f.write_str("the provider could not complete the volume edit")
             }
@@ -162,6 +181,8 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Response(error) => Some(error),
             ExecuteError::Closed
             | ExecuteError::Unanswered
+            | ExecuteError::InsufficientCapacity
+            | ExecuteError::ContentTooLarge
             | ExecuteError::Provider(_) => None,
         }
     }
