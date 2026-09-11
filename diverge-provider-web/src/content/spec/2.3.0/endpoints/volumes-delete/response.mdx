@@ -22,8 +22,11 @@ finish follows the response, and no frame follows the finish.
   [volumes::list](/endpoints/volumes-list/) request.
 - **Deleted.** A payload whose first byte is `0` states that the
   volume no longer exists. The server sends it after the volume is
-  gone, and a `volumes::list` request the client makes after
-  receiving it does not list the volume. The server sends nothing
+  gone. From the moment the server sends it, every `volumes::list`
+  request by the client omits the volume: a listing the client
+  receives after receiving the byte `0` never contains it, and no
+  interval in which the volume is deleted and still listed exists.
+  The server sends nothing
   after the byte `0`, and a client ignores every byte that follows
   it.
 - **Mounted.** A payload whose first byte is `1` states that the
