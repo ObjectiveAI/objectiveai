@@ -1,0 +1,25 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 9 and nothing else; bytes after the tag are ignored.'
+order: 1
+draft: false
+---
+
+The request's payload is one byte:
+
+```text
+[9]
+```
+
+- **Nothing follows the tag.** The request has no parameters.
+- **Bytes after the tag are ignored.** A server reads the tag and
+  disregards the remainder of the payload; a request with bytes after
+  the tag is not malformed.
+- **A payload without a tag is malformed.** An empty payload is not a
+  request of any endpoint; the [Endpoints](/endpoints/) layer states
+  how a server answers a request it cannot read.
+
+The request is `diverge-provider-sdk/src/endpoints/version/client/request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/version/client/request/frame.rs
+```
