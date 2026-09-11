@@ -183,7 +183,8 @@ rule, the openings and their refusals, the two kinds of ending and
 what each means per path, that nothing times out, the `/requests`
 frame and its kinds, one page per answer path and per path the
 server opens — each the ask, the answer as a sequence, the close —
-and the environment the provider sets. It states nothing internal:
+the mounts the provider requests among them. It states nothing
+internal:
 not the loopback listener, not the pgwire listener, not the
 forwarding to the program's own server, not `PORT`, not what a
 mounted file looks like from inside, not how a write lands. Every
