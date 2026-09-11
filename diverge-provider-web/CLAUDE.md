@@ -1,0 +1,255 @@
+# Writing the Diverge Provider Protocol specification
+
+This directory is the specification of the Diverge Provider Protocol,
+published at `https://provider.diverge.network`. The specification is
+the protocol's normative definition. `diverge-provider-sdk` implements
+it, and each revision of the specification is the version of that
+crate. This file governs how the specification is written. It binds
+every page under `src/content/spec/`, and it binds me whenever I write
+one.
+
+## The document
+
+The specification is a scientific article. It is written the way a
+statute or a standards document is written: every sentence states a
+fact of the protocol, and every fact stated is a requirement. It has
+no author's voice, no narrative, and no audience other than an
+implementer who must be able to build a conforming party from the
+text alone.
+
+- **Only requirements.** A page contains the legal requirements of
+  its layer and nothing else. It does not explain why a requirement
+  exists, what it replaced, how the crate implements it, or what a
+  reasonable implementation might do. A clause of reason is permitted
+  only when it is itself a fact of the protocol on which the
+  requirement's reading depends, as "there is no length field, because
+  WebSocket already delimits messages." Motivation, history, design
+  alternatives, and commentary on the crate are excluded without
+  exception.
+- **Declarative present indicative.** Requirements are stated as
+  facts: "A frame never spans messages." "Only a client sends type
+  `1`." The keywords of RFC 2119 are not used, because every sentence
+  of the specification is already a requirement and marking some
+  would unmark the rest. A permission is stated with "may". The
+  protocol has no recommendations, so nothing is "should".
+- **Precision over economy of words, economy of words over
+  everything else.** A requirement is stated once, in the layer that
+  owns it, in the fewest words that leave one reading. Nothing is
+  restated in a higher layer; the higher layer links to it. Nothing
+  is paraphrased in a summary; a summary is the requirement in
+  miniature.
+- **Every number is exact.** Byte widths, byte order, tag values,
+  counts, and limits are stated as numbers, with their units and
+  their endianness. "Nine bytes, fixed." "`u32`, big-endian." A value
+  that is not prescribed is said to be not prescribed; it is never
+  said to be zero.
+- **Every term is defined once and used as defined.** The roles are
+  *client* and *server*, fixed for a connection's life and independent
+  of which party dialled. The parties are *caller* and *provider*. At
+  the WebSocket, frame, and authorization layers only the roles are
+  named. From the endpoints layer up, a caller is a client and a
+  provider is a server, and the party words are used. *Scope*,
+  *channel*, *request*, *response*, *finish*, *requestor*,
+  *responder*, *ask*, *answer*, *exchange*, *stream* carry the
+  meanings the frames layer gives them and no other. "Run", "loop",
+  "container", "agent", "tool", "connector", "runner" carry the
+  meanings the endpoints layer gives them. A word is never used in a
+  loose sense on one page and a strict sense on another.
+- **No filler.** No introductions that announce what follows, no
+  transitions, no restatements at the end of a page, no "note that",
+  no "it is important to", no hedging. A page begins with its first
+  requirement's context and ends with its last requirement or its
+  links.
+- **Nothing is invented.** A requirement is written from the crate at
+  the specification's revision, from its type declarations, its
+  constants, and its documentation, and from the user's rulings. A
+  gap in the crate is not filled by conjecture; it is reported to the
+  user. Where a page's subject is not yet defined, the page carries
+  `draft: true` and the banner that the crate is normative for it,
+  and its body is empty. Where the crate and the specification
+  disagree, the disagreement is reported to the user before either is
+  changed.
+
+## The notation
+
+Two notations are normative, and each is used for exactly one kind
+of payload.
+
+- **Binary layouts** are written as bracketed field lists in a
+  `text` code block, the order of brackets the order of bytes:
+
+  ```text
+  [type: u8][scope: u32, big-endian][channel: u32, big-endian][payload …]
+  ```
+
+  A width is a Rust integer type; multi-byte integers state their
+  byte order; a run that continues to the end of the payload is
+  written with `…`; a run whose length precedes it names the prefix
+  (`[id_len: u16 BE][id…]`). Every binary layout is the layout of one
+  message, and a page states which message.
+- **JSON payloads** are written as Rust type declarations with serde
+  attributes, under the reading fixed in the "Notation" section of
+  `/endpoints/`. That section is the only place the reading is
+  stated; every page that uses the notation is governed by it and
+  does not restate it. A declaration is transcribed from the crate —
+  field names, attributes, and types verbatim — and is never
+  paraphrased into prose or a table. Types of `rmcp::model` are
+  incorporated by reference to the Model Context Protocol
+  specification and linked to docs.rs at the exact `rmcp` version the
+  crate builds against, which the build reads from the crate's
+  `Cargo.toml` and refuses to drift from.
+- **Tables** enumerate: tag values, type values, kinds, paths. A
+  table never describes a payload's shape, and a table's cells hold
+  values and links, not requirements. A requirement that a table
+  would carry is a bullet beneath it.
+- **Streams are stated as sequences.** A schema constrains one
+  message; the ordering and cardinality of messages on a scope or a
+  channel is stated in prose: how many frames, in what order, what
+  ends the sequence, and what a finish with nothing before it means.
+  Every channel page states its sequence.
+
+## The layers
+
+The specification is divided into layers, lowest first. Each layer
+defines what the layer beneath it leaves opaque, and no more. A page
+belongs to exactly one layer and states only that layer's
+requirements; what it needs from a lower layer, it links.
+
+### Layer 1 — WebSocket (`/websocket/`)
+
+The transport. It states the WebSocket version, the handshake as RFC
+6455 defines it and that this protocol adds nothing to it, that no
+subprotocol is negotiated and no extension required, that TLS is
+permitted and its use is outside the specification, and that all
+protocol data is binary data frames, text and control frames carrying
+no meaning beyond RFC 6455's. It names nothing above the message.
+
+### Layer 2 — Frames (`/frames/`)
+
+The header and the multiplexing. It states the nine-byte header, the
+seven type values and the direction each is defined for, the roles,
+that a frame's kind is its type and direction alone, that undefined
+types are malformed and disregarded without ending the connection,
+that unread header fields are ignored and never prescribed, that
+nothing is acknowledged, that a stream ends at its finish frame and
+nowhere else with no timeout at this layer, and that payloads are
+opaque here. Its sections: the client's frames, the server's frames,
+scopes (a request opens one; a client mints its number; a scope's
+number may be reused only after its finish; one request per scope;
+the server answers with responses and one finish), and channels
+(either party opens one inside a scope; each party numbers its own,
+and the numbering spaces are distinct; one request per channel; only
+the responder finishes a channel; a channel number is reusable only
+after its finish; a finish with nothing before it is the protocol's
+statement that the exchange could not be served). Payload contents
+are not described at this layer.
+
+### Layer 3 — Authorization (`/authorization/`)
+
+The handshake in front of everything. It states which party
+authenticates (the party that dialled), that the credential is the
+connection's first frame and nothing precedes it, the one mode
+defined (unbrokered: an opaque credential the other party judges),
+that an accepted credential is followed by the connection simply
+working and a rejected one by the connection's close with no frame
+answering it, that a credential after the handshake is a protocol
+violation the receiving party answers by ending the connection, and
+that the identity a server derives from a credential is opaque and
+is the identity every scope on the connection is served under.
+
+### Layer 4 — Endpoints (`/endpoints/`)
+
+What a scope is for. It states the tag byte, the tag table (ten
+endpoints: the three container scopes, the five volume endpoints,
+the image check, the version), that an unreadable request is answered
+by a bare finish, that growth is new tag values, and the Notation.
+Each endpoint has its own section with, in this order, the request
+(the payload after the tag), the response (the frames of the scope's
+main stream, as a sequence: what may come, in what order, what ends
+it), the channels the client opens (each one page: request payload,
+response sequence), and the channels the server opens (each one page:
+request payload, response sequence). A channel page states the tag,
+the payload, the sequence of answers, what a finish with nothing
+means for that channel, and the identities of the party that asks and
+the party that answers. The container scopes further state what
+their id is, what ends the scope, and how a connect scope relates to
+the run scope it joins.
+
+### Layer 5 — Shared vocabulary (`/shared/`)
+
+Payload forms that more than one endpoint carries, defined once and
+linked from every channel that carries them: the container request
+and its mounts; the error value; the OCI manifest and blob answers;
+the authorize question and its answer; write content; the fetches by
+identity; the Postgres pair; commands; the vault's five operations
+and its lock rule; the five MCP exchanges; the seven FUSE operations
+with the file-and-directory rule; the filetree, read, and write
+forms; the agent's loop, schema, enqueue, and dequeue forms. Each
+form's page states its layout or declaration and the rules that are
+the form's own — the vault's lock semantics, FUSE's no-retry rule and
+the empty path — and nothing about which endpoint carries it; the
+endpoint pages say that.
+
+### Layer 6 — The container proxy (`/proxy/`)
+
+The wire between a provider and the proxy inside a container it
+runs. It is part of the specification because the crate defines it
+and the container scopes cannot be served without it. It states the
+two listeners and their ports, the `/requests` connection and its
+frame, the request kinds and the answer path of each, that the server
+dials every path, that every message is one binary frame, that a
+clean close and an abrupt end are distinguished and what each kind
+of exchange does on each, that nothing times out, the filesystem
+paths and their sequences, the `/agent/*` and `/tool/*` paths and the
+loopback servers they forward to, the environment the proxy reads,
+and the FUSE mounts it makes. The program inside the container is
+addressed only through the loopback listener's paths, which this
+layer states.
+
+### Layer 7 — Container contracts (`/containers/`)
+
+What an image must provide for the proxy to forward to it: the agent
+container's HTTP server on `PORT` and its five paths with their
+bodies and statuses; the tool container's MCP server on `PORT` at
+`/mcp`; that registration is once and before any loop; that a stream
+of chunks carries no error and the first item decides; what a fate
+and an outcome are. These are requirements on image authors, stated
+as such.
+
+## The page
+
+Every page is `src/content/spec/<layer>/<section>.mdx` with
+frontmatter `title`, `summary`, `order`, `draft`. `order` alone sets
+sequence; filenames carry no prefix. The summary is one sentence, a
+requirement in miniature, YAML single-quoted, with `’` in place of an
+apostrophe. The body is Markdown with the two notations above and
+links; it uses no component beyond what the layout supplies, so the
+page's `.md` twin at the same URL reads as the page does. A page has
+one `h1`, supplied by its title. Links are root-relative and end in
+`/`. A page links its lower-layer dependencies and its adjacent
+sections; it does not link forward to pages that do not exist.
+
+## The site
+
+Astro with `@astrojs/react`; React is authoring only, rendered to
+static HTML; no JavaScript is shipped, and `pnpm build` runs
+`scripts/verify-static.mjs`, which fails the build on any `<script>`,
+resolves every `/llms.txt` link against `dist/`, and checks each
+page's anatomy. No component carries a `client:*` directive. The
+revision is read from `../diverge-provider-sdk/Cargo.toml` at build
+through `process.cwd()`. Dependency versions are never hand-written;
+`pnpm add` records them. The Astro dev server is a daemon that caches
+routes; it is restarted after a route file is added. The layout's
+`<style>` is `is:global`.
+
+## The process
+
+The specification is written one section at a time, the section
+named by the user, in the order the user gives. A section is written
+from the crate at the current revision and from the user's rulings,
+checked by `pnpm build`, and committed by pathspec with the standard
+trailers before the next is begun. A section already written is not
+touched while another is being written, except to add a link that
+the new section makes valid. When the crate changes under a written
+section, the section is revised to the crate and the revision is
+reported.
