@@ -1,0 +1,25 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the write id, four bytes, with no tag.'
+order: 1
+draft: false
+---
+
+```text
+[write_id: u32, big-endian]
+```
+
+- **No tag.** The server opens one kind of channel on a connect
+  scope, so its channel request carries no tag: the payload is the
+  write id of the connector's write channel request, four bytes,
+  big-endian.
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/tools/connect/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/connect/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/write_bytes/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/write_bytes/request/request.rs
+```

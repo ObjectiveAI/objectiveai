@@ -1,0 +1,43 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][filetree frame, postcard …]      the snapshot, or one change
+[1][error JSON …]                    last
+```
+
+- **The sequence.** The first channel response is the snapshot the
+  proxy sent, or an error. Zero or more channel responses follow,
+  each one change or a further snapshot, each relayed as the proxy
+  sent it. An error, when the server sends one, is the last channel
+  response. The channel response finish follows the last channel
+  response: the server sends it when the proxy closes the connection.
+  A channel response finish that no channel response precedes states
+  that the proxy did not serve the watch.
+- **The filetree frame.** After the byte `0`, the payload is the
+  filetree frame the proxy sent, verbatim: the form and the meaning
+  that the [volumes::watch response](/endpoints/volumes-watch/response/)
+  defines, with every path relative to the root of the container.
+  The server does not read it.
+- **The error.** After the byte `1`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page. The server
+  sends it when the proxy sent its error, or when the server could
+  not carry the watch.
+
+The channel response is defined by `diverge-provider-sdk/src/endpoints/containers/tools/connect/server/channel_response/filetree/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/connect/server/channel_response/filetree/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/filetree/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/filetree/response/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/filetree/response/node.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/filetree/response/node.rs
+```
