@@ -8,9 +8,11 @@ use serde::{Deserialize, Serialize};
 /// change it. Which of the two it is, is which list of the
 /// [`Container`](super::Container) it is on.
 ///
-/// The provider MUST mount every one before the container starts —
-/// the proxy inside the container does, at its start — as a
-/// filesystem the caller serves: the mount point is the file or the
+/// The provider MUST mount every one before it answers the run's id
+/// — one request to the proxy inside the container for each, on
+/// [`/fuse/mount`](crate::container_proxy::fuse::mount), each
+/// complete before the agent is registered and before any filetree
+/// is opened — as a filesystem the caller serves: the mount point is the file or the
 /// directory itself, made if absent with every missing parent
 /// directory made too, and the directory around it stays whatever
 /// the image or another mount made it. Nothing in the container or

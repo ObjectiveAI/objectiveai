@@ -32,6 +32,15 @@ pub(crate) fn missing_content(identity: &str) -> Error {
     }))
 }
 
+/// A FUSE mount the proxy did not make, or whose fate was not heard.
+pub(crate) fn mount_failed(id: &str, error: impl fmt::Display) -> Error {
+    Error(serde_json::json!({
+        "kind": "mount",
+        "id": id,
+        "error": error.to_string(),
+    }))
+}
+
 /// A caller's content stopped before its finish.
 pub(crate) fn content_stopped() -> Error {
     Error(serde_json::json!({

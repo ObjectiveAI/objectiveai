@@ -40,11 +40,10 @@ use crate::shared::containers::request::IdentityMount;
 /// environment "by its own reserved names", so a handler folds them in
 /// and what arrives here is [`environment`](Self::environment).
 ///
-/// The FUSE mounts are not here: the proxy makes those itself, from
-/// the [`MOUNTS_ENV`](crate::container_proxy::filesystem::MOUNTS_ENV)
-/// a handler puts in the environment, and all a deployer owes them is
-/// what every container gets — `/dev/fuse` and the privilege to mount
-/// in its own namespace.
+/// The FUSE mounts are not here: the proxy makes those itself, one
+/// request each from the handler once the container is up, and all a
+/// deployer owes them is what every container gets — `/dev/fuse` and
+/// the privilege to mount in its own namespace.
 ///
 /// Its ports are not here either, because there is exactly one and it
 /// is always the same: the proxy's

@@ -25,7 +25,7 @@ use crate::shared::error::Error;
 /// In order, and the order is the point:
 ///
 /// 1. [`setup::prepare`]: content, registry, deploy, the proxy
-///    dialled, every FUSE mount made. A failure is the run's `Error`,
+///    dialled, every FUSE mount made and serving. A failure is the run's `Error`,
 ///    then the finish, and nothing the caller may have opened
 ///    meanwhile is read — it is dropped with the scope, unanswered,
 ///    which is what a caller reads as the run never having been.
