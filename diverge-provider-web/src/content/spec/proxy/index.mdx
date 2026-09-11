@@ -18,8 +18,8 @@ here.
   nothing.
 - **Messages.** Every message on every path is one WebSocket binary
   data frame, carrying what the path defines and nothing around it:
-  no header, no scope, no channel, no finish. A text data frame from
-  either party ends the connection.
+  no header, no scope, no channel, no finish. A text data frame
+  carries nothing, and either party ignores one.
 - **No handshake.** The WebSocket upgrade is the whole of a path's
   opening. No message precedes the path's first.
 - **Asks and answers.** The container asks on [`/requests`](/proxy/requests/).
