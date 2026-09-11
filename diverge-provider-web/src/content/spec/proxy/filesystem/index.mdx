@@ -11,13 +11,13 @@ its own exchange, and nothing is shared between openings.
 
 | Path | Carries |
 |------|---------|
-| [`/filesystem/tree`](/proxy/filesystem/tree/) | the tree as a snapshot, then every change, or why there is none |
+| [`/filesystem/tree`](/proxy/filesystem/tree/) | the server names what to leave out; the tree as a snapshot, then every change, or why there is none |
 | [`/filesystem/read`](/proxy/filesystem/read/) | one file out: the server names it, the container answers its bytes, or why not |
 | [`/filesystem/write`](/proxy/filesystem/write/) | one file in: the server names it and sends its content, the container answers ok or an error |
 
 - **Paths are components.** A file is named as an array of path
   components from the container's root, as JSON.
-- **What the tree leaves out** is named by the server in
-  [the environment](/proxy/environment/).
+- **What the tree leaves out** is named by the server in the message
+  that opens the watch.
 - **Nothing is repeated.** A path that ended abruptly is that one
   exchange failed; nothing on this side asks again.

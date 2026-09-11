@@ -1,19 +1,29 @@
 ---
 title: '/filesystem/tree'
-summary: 'The container’s filesystem, watched: the server sends nothing; the container answers a snapshot, then one message per change, a snapshot again after lost events, or one error last.'
+summary: 'The container’s filesystem, watched: the server names the paths to leave out in one message; the container answers a snapshot, then one message per change, a snapshot again after lost events, or one error last.'
 order: 1
 draft: false
 ---
 
-The server opens `/filesystem/tree` and sends nothing on it: the
-opening is the whole ask, and a binary message from the server ends
-the connection. The container answers with one message per event, for as
-long as the path lives.
+The server opens `/filesystem/tree` and sends exactly one message,
+the request below as JSON, naming the paths the tree leaves out. A
+further binary message from the server ends the connection. The
+container answers with one message per event, for as long as the
+path lives.
 
 ```text
-[0][postcard-encoded filetree frame …]    per event
-[1][message …]                            last, then the close
+server → container:   [request JSON]                              once
+container → server:   [0][postcard-encoded filetree frame …]      per event
+                      [1][message …]                              last, then the close
 ```
+
+- **What the tree leaves out.** Every path the request names, each
+  as components from the container's root, and `/proc`, `/sys` and
+  `/dev`. An ignored path is absent from every snapshot, and no
+  change under it is reported. An empty path is disregarded.
+- **Could not serve.** A close before the request, or a request that
+  does not decode, is answered with the clean close and nothing
+  before it.
 
 - **A snapshot first.** The first message on every opening is a
   snapshot of the whole tree, behind kind `0`. Every message after is
@@ -30,6 +40,11 @@ long as the path lives.
   response frame below, encoded in the
   [postcard wire format](https://postcard.jamesmunns.com/wire-format).
   Variant order is the wire's discriminant.
+
+The request is `diverge-provider-sdk/src/container_proxy/filesystem/tree/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/tree/request/request.rs
+```
 
 The message is `diverge-provider-sdk/src/container_proxy/filesystem/tree/response/frame.rs`:
 
