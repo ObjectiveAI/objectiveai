@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 
+import { expandIncludes } from "../include.mjs";
 import { REVISION } from "../revision";
 import { absolute, ordered, type Section } from "../spec";
 
@@ -17,7 +18,7 @@ export async function getStaticPaths() {
 
 export const GET: APIRoute<{ section: Section }> = ({ props }) => {
   const { entry, url } = props.section;
-  const body = (entry.body ?? "").trim();
+  const body = expandIncludes((entry.body ?? "").trim());
   const text = [
     `# ${entry.data.title}`,
     "",

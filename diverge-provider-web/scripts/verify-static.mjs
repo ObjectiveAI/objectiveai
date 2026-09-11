@@ -17,6 +17,9 @@
 //    builds against. The links are the spec's incorporated type
 //    definitions; a version drift silently changes what the spec
 //    says, so the SDK's Cargo.toml is the authority.
+// 6. Every `include=` a specification page names is a file in the
+//    workspace. The build already stops on a missing one; this names
+//    the page that named it.
 
 import { readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -133,6 +136,26 @@ for (const page of html) {
   }
 }
 
+// 6. Included crate files exist.
+const workspace = new URL("../../", import.meta.url).pathname.replace(
+  /^\/([A-Za-z]:)/,
+  "$1",
+);
+const content = new URL("../src/content/spec/", import.meta.url).pathname.replace(
+  /^\/([A-Za-z]:)/,
+  "$1",
+);
+for (const page of walk(content).filter((f) => f.endsWith(".mdx"))) {
+  const text = readFileSync(page, "utf-8");
+  for (const match of text.matchAll(/^```\w+ include=(\S+)/gm)) {
+    try {
+      statSync(join(workspace, match[1]));
+    } catch {
+      failures.push(`${relative(content, page)}: include ${match[1]} does not exist`);
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error("verify-static: the build breaks its own claims:");
   for (const failure of failures) {
@@ -141,5 +164,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `verify-static: ${html.length} pages, zero scripts, llms.txt resolves, anatomy sound.`,
+  `verify-static: ${html.length} pages, zero scripts, llms.txt resolves, anatomy sound, includes exist.`,
 );

@@ -6,6 +6,8 @@ import { defineConfig } from "astro/config";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSlug from "rehype-slug";
 
+import { remarkInclude } from "./src/include.mjs";
+
 // The Diverge Provider Protocol specification.
 //
 // Everything renders to static HTML at build time and NOTHING ships
@@ -26,6 +28,10 @@ export default defineConfig({
     shikiConfig: {
       themes: { light: "github-light", dark: "github-dark" },
     },
+    // A fenced block whose meta names a crate file is that file, read
+    // at build time — see `src/include.mjs`. Before Shiki, so what is
+    // highlighted is the file.
+    remarkPlugins: [remarkInclude],
     rehypePlugins: [
       // Every heading gets a stable id, and a visible anchor link:
       // deep links are half of what makes a specification citable.
