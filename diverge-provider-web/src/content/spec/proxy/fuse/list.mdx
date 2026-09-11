@@ -1,0 +1,26 @@
+---
+title: '/fuse/list/{channel}'
+summary: 'Kind 14: a directory’s entries. The answer is one message — 0, a count, and that many entries; 1 for no directory at the path; 2 and a message — then the close.'
+order: 4
+draft: false
+---
+
+The ask is kind `14` on [`/requests`](/proxy/requests/):
+
+```text
+[14][id_len: u16, big-endian][id …][path …]
+```
+
+The server answers on `/fuse/list/{channel}` with exactly one
+message — `0`, a count, and that many entries; `1` for no directory at the path; `2` and a message — then the close. A path closed cleanly with no
+message is the operation not served; an abrupt end is the operation
+failed, and it is not asked again — see [FUSE](/proxy/fuse/).
+
+- **Names and kinds.** An entry is its name — one path component, never `.` or `..` — and its kind; a size is asked with `stat`.
+
+The ask is the target of [FUSE](/proxy/fuse/): the mount's id and the entry's path.
+
+The answer is `diverge-provider-sdk/src/shared/containers/fuse/list/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/fuse/list/response/frame.rs
+```

@@ -1,0 +1,18 @@
+---
+title: '/agent/dequeue'
+summary: 'Nothing sent; the container empties the loop’s queue and answers whether it held anything, then the close.'
+order: 5
+draft: false
+---
+
+The server opens `/agent/dequeue` and sends nothing. The container
+withdraws every message in the queue and answers with exactly one
+message — `0`, the queue held messages; `1`, it was empty; or `2` and
+the error's JSON — then the close. Each withdrawn message is also
+answered `1` on its own [`/agent/enqueue`](/proxy/agent/enqueue/)
+path.
+
+The answer is `diverge-provider-sdk/src/shared/containers/dequeue/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/dequeue/response/frame.rs
+```

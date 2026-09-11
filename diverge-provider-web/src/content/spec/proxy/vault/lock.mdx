@@ -1,0 +1,33 @@
+---
+title: '/vault/lock/{channel}'
+summary: 'Kind 8: a key locked. Ok once the lock is held, or an error, in one message, then the close.'
+order: 4
+draft: false
+---
+
+The ask is kind `8` on [`/requests`](/proxy/requests/):
+
+```text
+[8][ttl: u32, big-endian][key …]
+```
+
+The server answers on `/vault/lock/{channel}` with exactly one
+message, then the close. A path closed cleanly with no message is
+the operation not served; an abrupt end is the operation failed, and
+it is not asked again — see [Vault](/proxy/vault/).
+
+- **Held, then answered.** The answer `Ok` is sent when the lock is
+  held, however long that takes. The TTL, in seconds, runs from the
+  grant; a lock on a key the container already holds refreshes the
+  TTL and is answered `Ok` at once; a lock whose TTL expires is
+  released with no message. A TTL of `0` is answered with an error.
+- **The container is the holder.** A lock is held by the container,
+  not by a connection: it survives the ending of every path and of
+  `/requests`, until it is unlocked or its TTL expires.
+
+The ask is `diverge-provider-sdk/src/shared/containers/vault/lock/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/vault/lock/request/request.rs
+```
+
+The answer is the frame of [Vault](/proxy/vault/): `0` ok, or `1` and a message.

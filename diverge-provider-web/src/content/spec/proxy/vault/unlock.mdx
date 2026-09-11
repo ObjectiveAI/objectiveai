@@ -1,0 +1,27 @@
+---
+title: '/vault/unlock/{channel}'
+summary: 'Kind 9: a key unlocked. Ok, or an error, in one message, then the close.'
+order: 5
+draft: false
+---
+
+The ask is kind `9` on [`/requests`](/proxy/requests/):
+
+```text
+[9][key …]
+```
+
+The server answers on `/vault/unlock/{channel}` with exactly one
+message, then the close. A path closed cleanly with no message is
+the operation not served; an abrupt end is the operation failed, and
+it is not asked again — see [Vault](/proxy/vault/).
+
+- **Only the holder unlocks.** An unlock of a key the container does
+  not hold is answered with an error.
+
+The ask is `diverge-provider-sdk/src/shared/containers/vault/unlock/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/vault/unlock/request/request.rs
+```
+
+The answer is the frame of [Vault](/proxy/vault/): `0` ok, or `1` and a message.

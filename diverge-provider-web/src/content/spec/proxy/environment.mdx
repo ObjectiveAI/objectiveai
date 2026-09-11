@@ -1,0 +1,33 @@
+---
+title: 'Environment'
+summary: 'The two variables the provider sets in the container’s environment for the proxy to read at its start: the FUSE mounts it makes, and the paths the filetree leaves out.'
+order: 10
+draft: false
+---
+
+The proxy reads two variables from the container's environment at its
+start. The provider sets both when it creates the container.
+
+- **`DIVERGE_CONTAINER_PROXY_FILESYSTEM_MOUNTS`.** The FUSE mounts
+  the proxy makes before it listens: a JSON object with two arrays,
+  `files` and `directories`, each element a mount — its `path` as
+  components from the container's root, its `id`, and whether it is
+  `readonly`. Either array may be absent. Unset, the proxy makes no
+  mount. A value that does not parse is a proxy that does not start.
+  The asks a mount makes are defined in [FUSE](/proxy/fuse/).
+- **`DIVERGE_CONTAINER_PROXY_FILETREE_IGNORE`.** The paths
+  [`/filesystem/tree`](/proxy/filesystem/tree/) leaves out: a JSON
+  array of arrays of path components from the container's root. An
+  ignored path is absent from every snapshot, and no change under it
+  is reported. Unset, or a value that does not parse, is the empty
+  set.
+
+The mounts are `diverge-provider-sdk/src/container_proxy/filesystem/mounts.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/mounts.rs
+```
+
+The ignore set is `diverge-provider-sdk/src/container_proxy/filesystem/tree/ignore.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/tree/ignore.rs
+```

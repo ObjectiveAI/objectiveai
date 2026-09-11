@@ -1,0 +1,43 @@
+---
+title: '/command/{channel}'
+summary: 'Kind 10: a command the container asks the caller to run, its bytes opaque; the answer is one message per item, an error last when there is one, then the close; nothing is repeated.'
+order: 5
+draft: false
+---
+
+The ask is kind `10` on [`/requests`](/proxy/requests/):
+
+```text
+[10][command …]
+```
+
+The command is bytes, running to the end of the message; neither the
+proxy nor the server reads them. The server answers on
+`/command/{channel}` with one message per item the command produces,
+each the frame below with first byte `0` and the item's bytes; an
+error — first byte `1`, the rest the error's JSON — is the last
+message when there is one; then the close.
+
+- **The close is the end of the command.** Items arrive as they are
+  produced; the close, or the error, states there are no more. A path
+  closed cleanly with no message is the command not served.
+- **Nothing is repeated.** A command whose path ended abruptly, or
+  whose `/requests` connection ended before the path was opened, has
+  an outcome the container cannot know; it is reported inside the
+  container as failed and is not asked again.
+
+The ask is `diverge-provider-sdk/src/shared/containers/command/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/command/request/request.rs
+```
+
+The messages are `diverge-provider-sdk/src/shared/containers/command/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/command/response/frame.rs
+```
+
+The ways a message fails to read are
+`diverge-provider-sdk/src/shared/containers/command/response/error.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/command/response/error.rs
+```

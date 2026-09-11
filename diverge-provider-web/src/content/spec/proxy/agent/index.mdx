@@ -1,0 +1,27 @@
+---
+title: 'Agent'
+summary: 'Five paths the server opens on an agent container: the agent registered, a loop run, the agent’s schema, a message enqueued, the queue emptied.'
+order: 8
+draft: false
+---
+
+Five paths carry the server's exchanges with an agent container's
+loop. The server opens each; the proxy answers.
+
+| Path | The server sends | The container answers |
+|------|------------------|-----------------------|
+| [`/agent/register`](/proxy/agent/register/) | the agent, once | registered, or an error, then the close |
+| [`/agent/run`](/proxy/agent/run/) | a prompt | the loop's chunks, or an error, then the close |
+| [`/agent/schema`](/proxy/agent/schema/) | nothing | the agent's JSON Schema, or an error, then the close |
+| [`/agent/enqueue`](/proxy/agent/enqueue/) | a message for the queue | its fate, when known, then the close |
+| [`/agent/dequeue`](/proxy/agent/dequeue/) | nothing | whether the queue held anything, then the close |
+
+- **The first message is the ask**, where there is one, as JSON
+  under the reading of [Notation](/endpoints/#notation). A first
+  message that is not a binary data frame is answered with the close
+  and nothing before it.
+- **On an agent container only.** The server opens these paths only
+  on a container whose entrypoint is an agent.
+- **Nothing is repeated.** A path that ended abruptly is that one
+  exchange failed — a loop cut short, a fate not heard, a
+  registration not answered — and nothing asks again.

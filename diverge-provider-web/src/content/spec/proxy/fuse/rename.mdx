@@ -1,0 +1,26 @@
+---
+title: '/fuse/rename/{channel}'
+summary: 'Kind 16: an entry moved within its mount. The answer is one message — 0 ok, 1 and a message — then the close.'
+order: 6
+draft: false
+---
+
+The ask is kind `16` on [`/requests`](/proxy/requests/):
+
+```text
+[16][id_len: u16, big-endian][id …][from_len: u16, big-endian][from …][to …]
+```
+
+The server answers on `/fuse/rename/{channel}` with exactly one
+message — `0` ok, `1` and a message — then the close. A path closed cleanly with no
+message is the operation not served; an abrupt end is the operation
+failed, and it is not asked again — see [FUSE](/proxy/fuse/).
+
+- **Within one mount.** Neither path is empty. A file at `to` is replaced; a directory at `to` is the caller's to refuse, with `1` and a message. The proxy asks no rename across mounts.
+
+The ask is `diverge-provider-sdk/src/shared/containers/fuse/rename/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/fuse/rename/request/request.rs
+```
+
+The answer is the ack of [FUSE](/proxy/fuse/).

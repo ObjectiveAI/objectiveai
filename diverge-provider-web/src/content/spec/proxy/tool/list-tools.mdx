@@ -1,0 +1,23 @@
+---
+title: '/tool/list-tools'
+summary: 'The tools the container’s server offers, one page at a time. The server sends the params as JSON; the container answers one message, a result or an error, then the close.'
+order: 1
+draft: false
+---
+
+The server opens `/tool/list-tools` and sends one message, the params
+below as JSON — the params of MCP's `tools/list`. The container answers
+with exactly one message — the response frame below, its first byte
+`0` for a result or `1` for an error, the rest that variant's JSON —
+then the close. See [Tool](/proxy/tool/) for what is answered when
+the params do not parse or the container's server cannot be reached.
+
+The params are `diverge-provider-sdk/src/shared/mcp/list_tools/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/mcp/list_tools/request/request.rs
+```
+
+The answer is `diverge-provider-sdk/src/shared/mcp/list_tools/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/mcp/list_tools/response/frame.rs
+```

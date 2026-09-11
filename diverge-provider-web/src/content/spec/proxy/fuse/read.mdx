@@ -1,0 +1,26 @@
+---
+title: '/fuse/read/{channel}'
+summary: 'Kind 12: a file, whole. The answer is one message — 0 and the file’s bytes, 1 for nothing held at the path, 2 and a message — then the close.'
+order: 2
+draft: false
+---
+
+The ask is kind `12` on [`/requests`](/proxy/requests/):
+
+```text
+[12][id_len: u16, big-endian][id …][path …]
+```
+
+The server answers on `/fuse/read/{channel}` with exactly one
+message — `0` and the file’s bytes, `1` for nothing held at the path, `2` and a message — then the close. A path closed cleanly with no
+message is the operation not served; an abrupt end is the operation
+failed, and it is not asked again — see [FUSE](/proxy/fuse/).
+
+- **Missing is empty.** `1` states that the caller holds nothing at the path; the file reads as empty, and the first `write` makes it. `0` with no bytes is a file of zero bytes.
+
+The ask is the target of [FUSE](/proxy/fuse/): the mount's id and the entry's path.
+
+The answer is `diverge-provider-sdk/src/shared/containers/fuse/read/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/fuse/read/response/frame.rs
+```

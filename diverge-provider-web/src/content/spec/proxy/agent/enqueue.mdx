@@ -1,0 +1,28 @@
+---
+title: '/agent/enqueue'
+summary: 'A message for the loop’s queue; the container answers its fate — delivered, dequeued, or missed — when the fate is known, however long that takes, then the close.'
+order: 4
+draft: false
+---
+
+The server opens `/agent/enqueue` and sends one message, the request
+below as JSON. The container answers with exactly one message, when
+the message's fate is known — however long that takes — then the
+close.
+
+- **Three fates and an error.** `0` delivered: the loop took it up.
+  `1` dequeued: it was withdrawn before delivery. `2` missed: no loop
+  ran, or the run ended, before it could be delivered. `3` and the
+  error's JSON: the container could not queue it.
+- **Not repeated.** A path that ended abruptly is a fate the server
+  did not hear; nothing here asks again.
+
+The request is `diverge-provider-sdk/src/shared/containers/enqueue/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/enqueue/request/request.rs
+```
+
+The answer is `diverge-provider-sdk/src/shared/containers/enqueue/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/enqueue/response/frame.rs
+```

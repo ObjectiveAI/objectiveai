@@ -1,0 +1,26 @@
+---
+title: '/fuse/write/{channel}'
+summary: 'Kind 13: a file, stored whole. The answer is one message — 0 ok, 1 and a message — then the close.'
+order: 3
+draft: false
+---
+
+The ask is kind `13` on [`/requests`](/proxy/requests/):
+
+```text
+[13][id_len: u16, big-endian][id …][path_len: u16, big-endian][path …][bytes …]
+```
+
+The server answers on `/fuse/write/{channel}` with exactly one
+message — `0` ok, `1` and a message — then the close. A path closed cleanly with no
+message is the operation not served; an abrupt end is the operation
+failed, and it is not asked again — see [FUSE](/proxy/fuse/).
+
+- **Whole, and made if absent.** The bytes replace the file entire; a file not yet held is made by its first write.
+
+The ask is `diverge-provider-sdk/src/shared/containers/fuse/write/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/fuse/write/request/request.rs
+```
+
+The answer is the ack of [FUSE](/proxy/fuse/).

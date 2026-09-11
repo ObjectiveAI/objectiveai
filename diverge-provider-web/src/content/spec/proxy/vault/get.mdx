@@ -1,0 +1,30 @@
+---
+title: '/vault/get/{channel}'
+summary: 'Kind 5: a key read. The value under the key, that there is none, or an error, in one message, then the close.'
+order: 1
+draft: false
+---
+
+The ask is kind `5` on [`/requests`](/proxy/requests/):
+
+```text
+[5][key …]
+```
+
+The server answers on `/vault/get/{channel}` with exactly one
+message, then the close. A path closed cleanly with no message is
+the operation not served; an abrupt end is the operation failed, and
+it is not asked again — see [Vault](/proxy/vault/).
+
+- **Three answers.** `0` and the value, which may be empty; `1`, no
+  value under the key; `2` and a message.
+
+The ask is `diverge-provider-sdk/src/shared/containers/vault/get/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/vault/get/request/request.rs
+```
+
+The answer is `diverge-provider-sdk/src/shared/containers/vault/get/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/vault/get/response/frame.rs
+```

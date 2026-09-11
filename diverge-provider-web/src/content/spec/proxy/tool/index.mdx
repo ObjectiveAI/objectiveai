@@ -1,0 +1,32 @@
+---
+title: 'Tool'
+summary: 'Five paths the server opens on a tool container: the four MCP exchanges into the container’s own MCP server, answered once each, and its notifications as they come.'
+order: 9
+draft: false
+---
+
+Five paths carry the server's MCP exchanges into a tool container's
+own MCP server. The server opens each; the container answers.
+
+| Path | The server sends | The container answers |
+|------|------------------|-----------------------|
+| [`/tool/list-tools`](/proxy/tool/list-tools/) | the params | one result, or an error, then the close |
+| [`/tool/list-resources`](/proxy/tool/list-resources/) | the params | one result, or an error, then the close |
+| [`/tool/call-tool`](/proxy/tool/call-tool/) | the params | one result, or an error, then the close |
+| [`/tool/read-resource`](/proxy/tool/read-resource/) | the params | one result, or an error, then the close |
+| [`/tool/notifications`](/proxy/tool/notifications/) | nothing | one message per notification, for the path's life |
+
+- **The first message is the params**, where there is one, as JSON
+  under the reading of [Notation](/endpoints/#notation); the types
+  named from `rmcp::model` are those of the Model Context Protocol,
+  incorporated by reference.
+- **Always answered.** A first message that is not a binary data
+  frame, or params that do not parse, is answered with an error whose
+  code is invalid params. A container whose MCP server cannot be
+  reached answers an error whose code is internal error. An error the
+  container's server itself returned is answered as that error, code
+  and all.
+- **On a tool container only.** The server opens these paths only on
+  a container whose entrypoint is an MCP server.
+- **Not repeated.** A path that ended abruptly is that one exchange
+  failed; nothing here asks again.
