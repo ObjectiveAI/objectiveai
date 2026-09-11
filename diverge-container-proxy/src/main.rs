@@ -32,7 +32,11 @@
 //! `/requests` and answered on the seven `/fuse/<op>/{channel}` paths —
 //! a file readable and, unless read-only, overwritable in place; a
 //! tree whose every entry is the caller's to list, read, write, make,
-//! rename and remove.
+//! rename and remove. It mounts on request: each FUSE mount the
+//! server asks for on `/fuse/mount` is one regular file, or one
+//! directory tree, mounted at the path named, its contents the
+//! caller's, answered once it is serving and kept for the proxy's
+//! life.
 //! And for an
 //! agent container the proxy is the loop's door: `/agent/register`,
 //! `/agent/run`, `/agent/schema`, `/agent/enqueue` and
@@ -84,32 +88,6 @@ async fn run() {
 
     let upstream = Arc::new(agent::Upstream::new());
 
-    // The FUSE mounts, before anything listens: a file or a tree
-    // each, at the paths the server named, its contents the caller's
-    // by the id. Unset is none; a value that will not parse, or a
-    // mount that cannot be made, ends the proxy here, as loudly as a
-    // port that will not bind.
-    let mounts = match std::env::var_os(container_proxy::filesystem::MOUNTS_ENV) {
-        Some(value) => container_proxy::filesystem::Mounts::parse(&value.to_string_lossy())
-            .expect("the FUSE mounts would not parse"),
-        None => container_proxy::filesystem::Mounts::default(),
-    };
-    let _mounted: Vec<filesystem::Mounted> = mounts
-        .files
-        .iter()
-        .map(|mount| (mount, filesystem::Kind::File))
-        .chain(
-            mounts
-                .directories
-                .iter()
-                .map(|mount| (mount, filesystem::Kind::Directory)),
-        )
-        .map(|(mount, kind)| {
-            filesystem::mount(Arc::clone(&requests), tokio::runtime::Handle::current(), mount, kind)
-                .expect("a FUSE mount could not be made")
-        })
-        .collect();
-
     tokio::spawn(mcp::notifications(
         Arc::clone(&requests),
         Arc::clone(&peers),
@@ -137,6 +115,7 @@ async fn run() {
         requests: Arc::clone(&requests),
         upstream,
         tool: Arc::new(tool::Tool::new()),
+        mounts: Arc::new(filesystem::Mounts::new()),
     };
 
     // The server's side: every path of the wire.
@@ -180,6 +159,7 @@ async fn run() {
         .route("/fuse/rename/{channel}", axum::routing::any(ws::fuse_rename))
         .route("/fuse/mkdir/{channel}", axum::routing::any(ws::fuse_mkdir))
         .route("/fuse/stat/{channel}", axum::routing::any(ws::fuse_stat))
+        .route("/fuse/mount", axum::routing::any(filesystem::fuse_mount))
         .route("/command/{channel}", axum::routing::any(ws::command))
         .route("/postgres/{channel}", axum::routing::any(ws::postgres))
         .route("/filesystem/tree", axum::routing::any(ws::filesystem_tree))
