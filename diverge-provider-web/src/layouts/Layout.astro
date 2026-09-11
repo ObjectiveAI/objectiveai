@@ -12,9 +12,11 @@ interface Props {
   path: string;
   /** Site-relative path of the raw-markdown twin, if this page has one. */
   markdown?: string;
+  /** Where this page sends the reader at once, if it is a redirect. */
+  refresh?: string;
 }
 
-const { title, description, path, markdown } = Astro.props;
+const { title, description, path, markdown, refresh } = Astro.props;
 const canonical = absolute(path);
 ---
 
@@ -25,6 +27,7 @@ const canonical = absolute(path);
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title} — Diverge Provider Protocol</title>
     <meta name="description" content={description} />
+    {refresh && <meta http-equiv="refresh" content={`0; url=${refresh}`} />}
     <link rel="canonical" href={canonical} />
     {
       markdown && (
@@ -134,6 +137,36 @@ const canonical = absolute(path);
         padding: 0;
         margin: 0 0 1.5rem;
         font-size: 0.875rem;
+      }
+      .versions {
+        display: inline-block;
+        position: relative;
+      }
+      .versions summary {
+        cursor: pointer;
+        list-style: none;
+      }
+      .versions summary::-webkit-details-marker {
+        display: none;
+      }
+      .versions ul {
+        position: absolute;
+        left: 0;
+        z-index: 1;
+        margin: 0.25rem 0 0;
+        padding: 0.25rem 0;
+        list-style: none;
+        min-width: 100%;
+        border: 1px solid light-dark(#d0d0d0, #3a3a3a);
+        border-radius: 0.25rem;
+        background: light-dark(#ffffff, #1c1c1c);
+      }
+      .versions li {
+        padding: 0.15rem 0.75rem;
+        white-space: nowrap;
+      }
+      .versions a[aria-current="page"] {
+        font-weight: 600;
       }
       .crumbs li + li::before {
         content: "/";

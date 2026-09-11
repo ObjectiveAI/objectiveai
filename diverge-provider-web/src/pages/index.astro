@@ -1,49 +1,38 @@
 ---
-import { render } from "astro:content";
-
-import { Adjacent } from "../components/Adjacent";
-import { Breadcrumbs } from "../components/Breadcrumbs";
-import { MarkdownLink } from "../components/MarkdownLink";
-import { SpecNav } from "../components/SpecNav";
 import Layout from "../layouts/Layout.astro";
-import { REVISION } from "../revision";
-import { navigation, ordered, overview } from "../spec";
+import { latest, versions } from "../spec";
 
-const navNodes = await navigation();
-const all = await ordered();
-const next =
-  all.length > 0
-    ? { url: all[0].url, title: all[0].entry.data.title }
-    : null;
-
-const page = await overview();
-const { Content } = await render(page.entry);
+// The root is not a page of any revision: it sends the reader to the
+// latest, and lists every revision for a reader whose client did not
+// follow. Every path of the specification carries its revision first;
+// a path without one is nothing, and the 404 says so.
+const target = `/${latest()}/`;
+const all = await versions();
 ---
 
 <Layout
-  title={`Diverge Provider Protocol — Specification ${REVISION}`}
-  description={page.entry.data.summary}
-  path={page.url}
-  markdown={page.markdownUrl}
+  title="Diverge Provider Protocol"
+  description={`The Diverge Provider Protocol specification, by revision. The latest is ${latest()}.`}
+  path={target}
+  refresh={target}
 >
   <div class="page">
-    <Breadcrumbs
-      crumbs={[{ url: "/", label: `Specification ${REVISION}` }]}
-      current={page.entry.data.title}
-    />
-    <div class="columns">
-      <aside>
-        <SpecNav nodes={navNodes} current={page.url} />
-      </aside>
-      <main>
-        <article>
-          <h1>Diverge Provider Protocol — Specification {REVISION}</h1>
-          <p class="summary">{page.entry.data.summary}</p>
-          <Content />
-          <MarkdownLink url={page.markdownUrl} />
-        </article>
-        <Adjacent previous={null} next={next} />
-      </main>
-    </div>
+    <main>
+      <article>
+        <h1>Diverge Provider Protocol</h1>
+        <p>
+          The latest revision of the specification is
+          <a href={target}>{latest()}</a>. Every revision the site holds:
+        </p>
+        <ul>
+          {all.map((version) => (
+            <li>
+              <a href={`/${version}/`}>Specification {version}</a>
+              {version === latest() && " (latest)"}
+            </li>
+          ))}
+        </ul>
+      </article>
+    </main>
   </div>
 </Layout>

@@ -1,11 +1,13 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { REVISION } from "../revision";
+import { latest } from "../spec";
+
+const target = `/${latest()}/`;
 ---
 
 <Layout
   title="Not found"
-  description="There is nothing at this URL. The specification's table of contents lists every page that exists."
+  description="There is nothing at this URL. Every page of the specification lives under its revision."
   path="/404/"
 >
   <div class="page">
@@ -13,10 +15,11 @@ import { REVISION } from "../revision";
       <article>
         <h1>Not found</h1>
         <p>
-          There is nothing at this URL. Start from the
-          <a href="/">table of contents</a> — and if a link
-          brought you here, the page may belong to a different revision
-          than {REVISION}.
+          There is nothing at this URL. Every page of the specification
+          lives under its revision — the first part of its path — and
+          the latest is <a href={target}>Specification {latest()}</a>.
+          If a link brought you here, the page may belong to another
+          revision, or to none.
         </p>
       </article>
     </main>

@@ -114,11 +114,6 @@ of payload.
   file does not state is stated in prose beside it. The dev server
   does not watch the crate: a change to an included file shows after
   a restart or a build.
-- **The revision is a token, never typed.** Where a page must state
-  the specification's revision as a value — the version endpoint's
-  answer — it writes `%%REVISION%%`, which the build expands to the
-  crate's version in text, inline code, code blocks and the Markdown
-  twin alike. The string is never written by hand.
 - **Tables** enumerate: tag values, type values, kinds, paths. A
   table never describes a payload's shape, and a table's cells hold
   values and links, not requirements. A requirement that a table
@@ -237,18 +232,52 @@ registration is once and before any loop; what a fate and an outcome
 are. These are requirements on image authors, stated as such, and
 the one place the proxy's other side is described.
 
+## The versions
+
+The specification is versioned, and a version is a module:
+`src/content/spec/<version>/` holds the whole of one revision — its
+overview, its layers, its sections — and nothing outside a module
+belongs to any revision. The site around the modules (the pages, the
+components, the layout, `spec.ts`, `include.mjs`, the build checks)
+enumerates them and knows nothing of their text. Every revision looks
+the same; only its text differs.
+
+- **The latest module is the crate's version.** Its name is the
+  version in `diverge-provider-sdk/Cargo.toml`, and the build fails
+  when no module has that name. Only the latest module is written to;
+  every other is frozen.
+- **Only the latest module includes.** An `include=` fence reads the
+  crate at HEAD, which is the latest revision's crate; an include in
+  any other module fails the build. When a revision is superseded,
+  its includes are replaced by the text they resolved to, so the
+  module stands on its own.
+- **Links are version-relative.** A page writes `/proxy/fuse/`, never
+  `/2.3.0/proxy/fuse/`; the build prefixes the module's version on the
+  page and in the twin. So a new revision begins as a copy of the
+  latest module under the new version's name, edited from there.
+- **The revision is hard-coded where it is a value.** The version
+  endpoint's answer is written as the literal string in the module's
+  own pages, and the build checks that the latest module states the
+  crate's version.
+- **The version is the first path part.** `/2.3.0/websocket/`. The
+  root redirects to the latest revision; a path without a version is
+  a 404. The revision menu at the head of every page links the same
+  page in every revision that has it, and a revision's root where it
+  does not.
+
 ## The page
 
-Every page is `src/content/spec/<layer>/<section>.mdx` with
+Every page is `src/content/spec/<version>/<layer>/<section>.mdx` with
 frontmatter `title`, `summary`, `order`, `draft`. `order` alone sets
 sequence; filenames carry no prefix. The summary is one sentence, a
 requirement in miniature, YAML single-quoted, with `’` in place of an
 apostrophe. The body is Markdown with the two notations above and
 links; it uses no component beyond what the layout supplies, so the
 page's `.md` twin at the same URL reads as the page does. A page has
-one `h1`, supplied by its title. Links are root-relative and end in
-`/`. A page links its lower-layer dependencies and its adjacent
-sections; it does not link forward to pages that do not exist.
+one `h1`, supplied by its title. Links are root-relative,
+version-relative, and end in `/`. A page links its lower-layer
+dependencies and its adjacent sections; it does not link forward to
+pages that do not exist.
 
 ## The site
 
@@ -257,8 +286,8 @@ static HTML; no JavaScript is shipped, and `pnpm build` runs
 `scripts/verify-static.mjs`, which fails the build on any `<script>`,
 resolves every `/llms.txt` link against `dist/`, and checks each
 page's anatomy. No component carries a `client:*` directive. The
-revision is read from `../diverge-provider-sdk/Cargo.toml` at build
-through `process.cwd()`. Dependency versions are never hand-written;
+latest revision is read from `../diverge-provider-sdk/Cargo.toml` at
+build through `process.cwd()`. Dependency versions are never hand-written;
 `pnpm add` records them. The Astro dev server is a daemon that caches
 routes; it is restarted after a route file is added. The layout's
 `<style>` is `is:global`.
