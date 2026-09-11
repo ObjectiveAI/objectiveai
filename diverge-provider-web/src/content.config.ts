@@ -1,6 +1,8 @@
 import { glob } from "astro/loaders";
 import { defineCollection, z } from "astro:content";
 
+import { expandRevision } from "./include.mjs";
+
 // The specification's sections. The directory tree IS the spec's
 // outline: the first path segment is the layer, the second the section
 // (a layer's own page is its `index`). Order comes from frontmatter
@@ -15,7 +17,7 @@ const spec = defineCollection({
      * description, the llms.txt line, and the stub's opening — one
      * string, three jobs, no drift.
      */
-    summary: z.string(),
+    summary: z.string().transform(expandRevision),
     /** Position among siblings: layers against layers, sections within a layer. */
     order: z.number(),
     /**

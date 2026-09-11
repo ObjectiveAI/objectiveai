@@ -23,6 +23,26 @@ import { resolve, sep } from "node:path";
 
 const WORKSPACE = resolve(process.cwd(), "..");
 
+// The revision, read from the crate's manifest the way `revision.ts`
+// reads it, so a page that must STATE the revision — the version
+// endpoint's answer — states the crate's and never a copy. Written
+// as `%%REVISION%%` in a page; expanded in text, inline code and
+// code blocks alike, for the page and for its Markdown twin.
+const REVISION_TOKEN = "%%REVISION%%";
+const REVISION = (() => {
+  const manifest = readFileSync(resolve(WORKSPACE, "diverge-provider-sdk/Cargo.toml"), "utf-8");
+  const version = manifest.match(/^version = "([^"]+)"/m);
+  if (!version) {
+    throw new Error("diverge-provider-sdk/Cargo.toml has no version");
+  }
+  return version[1];
+})();
+
+/** Every revision token in `text`, replaced by the crate's version. */
+export function expandRevision(text) {
+  return text.split(REVISION_TOKEN).join(REVISION);
+}
+
 /** The file named by an include, verbatim, without a trailing newline. */
 export function readInclude(spec) {
   const path = resolve(WORKSPACE, spec);
@@ -39,9 +59,11 @@ const FENCE = /^```(\w+) include=(\S+)[ \t]*\n```[ \t]*$/gm;
 
 /** Every empty include fence in `markdown`, filled. */
 export function expandIncludes(markdown) {
-  return markdown.replace(
-    FENCE,
-    (_, lang, spec) => "```" + lang + "\n" + readInclude(spec) + "\n```",
+  return expandRevision(
+    markdown.replace(
+      FENCE,
+      (_, lang, spec) => "```" + lang + "\n" + readInclude(spec) + "\n```",
+    ),
   );
 }
 
@@ -55,6 +77,13 @@ export function remarkInclude() {
           node.value = readInclude(match[1]);
           node.meta = null;
         }
+      }
+      if (
+        (node.type === "text" || node.type === "inlineCode" || node.type === "code") &&
+        typeof node.value === "string" &&
+        node.value.includes(REVISION_TOKEN)
+      ) {
+        node.value = expandRevision(node.value);
       }
       if (Array.isArray(node.children)) {
         for (const child of node.children) {

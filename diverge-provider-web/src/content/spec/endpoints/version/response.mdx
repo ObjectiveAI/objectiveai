@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'One response whose payload is the specification revision the server implements, as UTF-8 with no tag, then the finish.'
+summary: 'One response whose payload is the string %%REVISION%%, the revision of this specification, as UTF-8 with no tag, then the finish.'
 order: 2
 draft: false
 ---
@@ -12,12 +12,13 @@ finish.
 [revision: utf8 …]
 ```
 
-- **The payload is the revision.** The whole payload is the string,
-  UTF-8, running to the end of the frame: no tag, no length. The
-  string is the revision of this specification the server implements,
-  `MAJOR.MINOR.PATCH` — at this revision, the string printed at the
-  top of this page. A server sends no other string, and not the
-  empty string.
+- **The payload is `%%REVISION%%`.** The whole payload is that string,
+  UTF-8, running to the end of the frame: no tag, no length. It is the
+  revision of this specification, `MAJOR.MINOR.PATCH`, and a server
+  that implements this revision answers exactly it. A server sends no
+  other string, and not the empty string. A server implementing
+  another revision answers that revision's string, as that revision
+  defines it.
 - **One response, then the finish.** The finish follows the response
   and nothing else does. A finish with no response before it is the
   request not served, as [Endpoints](/endpoints/) states.
