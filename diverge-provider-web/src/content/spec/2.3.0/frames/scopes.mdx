@@ -21,15 +21,14 @@ A **scope** is one client request and everything that follows from it.
 - **A finish with no response before it is meaningful.** It states
   that the request was received and could not be served. It is not an
   error frame, and no reason accompanies it at this layer.
-- **Numbering and reuse.** Scope numbers are the client's to choose,
-  subject to one prohibition: a client does not send a request whose
-  scope field names a scope that is still open on the connection. A
-  number may bear a new scope only after the server has ended the
-  scope that previously bore it, by that scope's response finish.
-- **A request naming an open scope is ignored.** The server
-  disregards any request whose scope field names a scope already in
-  use on the connection. The disregarded request is never answered,
-  and the scope it named continues, unaffected.
+- **Numbering.** The scope number is the client's to choose. A scope
+  number names one scope from that scope's request until that scope's
+  response finish; after the finish the number is free to bear a new
+  scope.
+- **A request naming an open scope is disregarded.** The server
+  disregards a request whose scope field names a scope that is open
+  on the connection. The disregarded request is never answered, and
+  the scope it named continues, unaffected.
 - **The scope's exchange is not a channel.** The frames that carry it
   — types `1`, `2`, and `3` — involve no channel, and their channel
   fields are ignored. Every other exchange within the scope is a

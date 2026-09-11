@@ -18,16 +18,16 @@ and the stream of responses that answers it.
   channel *n* in one scope, the client's channel *n* in another, and
   the server's channel *n* in each are four distinct channels, all
   four may be open at once, and none collides with any other.
-- **Uniqueness, mandated.** An opener does not send a channel request
-  whose channel field names a channel it still has open within the
-  named scope. A number may bear a new channel — for that opener, in
-  that scope — only after the responder has ended the channel that
-  previously bore it, by that channel's response finish.
-- **A channel request naming an open channel is ignored.** The
-  receiver — server and client alike — disregards any channel request
-  whose scope and channel fields name a channel its sender already
-  has open. The disregarded request is never answered, and the
-  channel it named continues, unaffected.
+- **Uniqueness.** A channel number names one channel, for its opener
+  in its scope, from that channel's request until that channel's
+  response finish; after the finish the number is free to bear a new
+  channel. The server does not send a channel request whose channel
+  field names a channel it still has open in the named scope.
+- **A channel request naming an open channel is disregarded.** The
+  server disregards a channel request from the client whose scope and
+  channel fields name a channel the client already has open. The
+  disregarded request is never answered, and the channel it named
+  continues, unaffected.
 - **One request per channel.** A channel carries exactly one request;
   a second request frame never appears on a live channel.
 - **Answering.** The responder — the party that received the channel
@@ -41,8 +41,8 @@ and the stream of responses that answers it.
 - **A finish with no response before it is meaningful.** It states
   that the request was received and could not be served, exactly as a
   scope's is.
-- **A bidirectional exchange is two channels.** Because a channel
-  carries one request and only its responder can end it, any exchange
-  in which both parties send substantive data is composed of two
-  channels — one opened by each party, each finished by its own
-  responder.
+- **A bidirectional exchange is two channels.** An exchange in which
+  both parties send data is composed of two channels, one opened by
+  each party and each finished by its own responder. **Remark.** A
+  channel carries one request, and only its responder ends it, so one
+  channel cannot carry data in both directions.

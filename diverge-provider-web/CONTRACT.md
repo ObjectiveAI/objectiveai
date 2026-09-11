@@ -219,7 +219,10 @@ permission and imposes no duty. A sentence stating that a matter "is
 not prescribed", "is the server's to decide", "is the server's own" or
 "is not stated" reserves that matter to the Provider's discretion,
 subject to every other Obligation. A sentence stating what the server
-"never" does, "does not" do, or "sends no" is a prohibition.
+"never" does, "does not" do, or "sends no" is a prohibition. A
+paragraph or clause of the Specification that begins with the word
+"Remark." is descriptive: it imposes no Obligation and grants no
+permission, and no Obligation is inferred from it.
 
 2.5 **Literal values.** Every byte value, tag, port number, byte order,
 width, string, JSON form and count the Specification states is exact.

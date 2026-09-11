@@ -18,6 +18,18 @@ quantifier exact, every value literal, no fragment, no contraction, no
 commentary. What follows here is the document's shape; the skill is
 its sentence.
 
+Two conventions bind every page. A sentence that states what the
+server or the proxy does is a requirement on the provider; a sentence
+that describes what the client does states the input the server
+serves and binds no client — the specification imposes no requirement
+on a client, ever. A descriptive sentence that the page keeps — a
+consequence, an example, an orientation — is set in a paragraph or
+clause that begins with **Remark.** and is thereby marked as imposing
+no requirement. `CONTRACT.md` at the root of this directory is the
+conformance agreement that incorporates the specification; a
+requirement the contract restates is stated on the page in the same
+terms.
+
 ## The document
 
 The specification is a scientific article. It is written the way a

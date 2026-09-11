@@ -5,14 +5,23 @@ order: 0
 draft: false
 ---
 
-This specification is the protocol's normative definition.
-[`diverge-provider-sdk`](https://docs.rs/diverge-provider-sdk) is a
-Rust SDK that implements it, versioned with this specification's
-revisions.
+This specification is the normative definition of the Diverge Provider
+Protocol at revision 2.3.0. [`diverge-provider-sdk`](https://docs.rs/diverge-provider-sdk)
+is a Rust crate that implements it and is versioned with it; where a
+page includes a file of the crate, the file is part of the
+specification.
 
-The whole specification is also available as
-[a single page](/full/), as
-[one plain-text file](/llms-full.txt), and section by section as raw
-Markdown — every page links its own `.md` twin, and
-[/llms.txt](/llms.txt) indexes them all. The crate and this site live
-in [one repository](https://github.com/ObjectiveAI/objectiveai).
+- **What binds.** Every sentence of this specification that states
+  what the server or the proxy does, does not do, sends, holds,
+  refuses, ignores, relays, verifies, mounts, stops or ends is a
+  requirement on the provider that operates the server. A sentence
+  stating what the server may do is a permission. A sentence stating
+  that a matter is not prescribed reserves it to the provider.
+- **The client is not bound.** This specification imposes no
+  requirement on a client. A sentence describing what a client sends
+  or does states the input the server serves.
+- **Remarks.** A paragraph that begins with **Remark.** is descriptive.
+  It imposes no requirement and grants no permission.
+- **The form.** Every page is also published as Markdown, at the
+  page's own path with the `.md` extension. The crate and this site
+  live in [one repository](https://github.com/ObjectiveAI/objectiveai).
