@@ -114,6 +114,11 @@ of payload.
   file does not state is stated in prose beside it. The dev server
   does not watch the crate: a change to an included file shows after
   a restart or a build.
+- **The revision is a token, never typed.** Where a page must state
+  the specification's revision as a value — the version endpoint's
+  answer — it writes `%%REVISION%%`, which the build expands to the
+  crate's version in text, inline code, code blocks and the Markdown
+  twin alike. The string is never written by hand.
 - **Tables** enumerate: tag values, type values, kinds, paths. A
   table never describes a payload's shape, and a table's cells hold
   values and links, not requirements. A requirement that a table
