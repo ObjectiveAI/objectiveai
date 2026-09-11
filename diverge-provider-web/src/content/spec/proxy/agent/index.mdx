@@ -16,10 +16,9 @@ loop. The server opens each; the proxy answers.
 | [`/agent/enqueue`](/proxy/agent/enqueue/) | a message for the queue | its fate, when known, then the close |
 | [`/agent/dequeue`](/proxy/agent/dequeue/) | nothing | whether the queue held anything, then the close |
 
-- **The first message is the ask**, where there is one, as JSON
-  under the reading of [Notation](/endpoints/#notation). A first
-  message that is not a binary data frame is answered with the close
-  and nothing before it.
+- **The first binary message is the ask**, where there is one, as
+  JSON under the reading of [Notation](/endpoints/#notation). A close
+  before it is answered with the close and nothing before it.
 - **On an agent container only.** The server opens these paths only
   on a container whose entrypoint is an agent.
 - **Nothing is repeated.** A path that ended abruptly is that one

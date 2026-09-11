@@ -16,14 +16,13 @@ own MCP server. The server opens each; the container answers.
 | [`/tool/read-resource`](/proxy/tool/read-resource/) | the params | one result, or an error, then the close |
 | [`/tool/notifications`](/proxy/tool/notifications/) | nothing | one message per notification, for the path's life |
 
-- **The first message is the params**, where there is one, as JSON
+- **The first binary message is the params**, where there is one, as JSON
   under the reading of [Notation](/endpoints/#notation); the types
   named from `rmcp::model` are those of the Model Context Protocol,
   incorporated by reference.
-- **Always answered.** A first message that is not a binary data
-  frame, or params that do not parse, is answered with an error whose
-  code is invalid params. A container whose MCP server cannot be
-  reached answers an error whose code is internal error. An error the
+- **Always answered.** Params that do not parse are answered with an
+  error whose code is invalid params. A container whose MCP server
+  cannot be reached answers an error whose code is internal error. An error the
   container's server itself returned is answered as that error, code
   and all.
 - **On a tool container only.** The server opens these paths only on
