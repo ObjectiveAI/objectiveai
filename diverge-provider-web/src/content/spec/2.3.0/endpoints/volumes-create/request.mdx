@@ -19,7 +19,8 @@ the postcard wire format, as the postcard reading of
   the volume names it by this string.
 - **`bytes`.** The size of the volume, in bytes, as a varint. It is
   the size the client's listing reports as `bytes` for the volume. A
-  later `volumes::edit` request changes it; nothing else does.
+  later [volumes::edit](/endpoints/volumes-edit/) request changes it;
+  nothing else does.
 - **Bytes after the request.** A server ignores every byte that
   follows the `bytes` field. A request whose payload extends past the
   request is not malformed.
