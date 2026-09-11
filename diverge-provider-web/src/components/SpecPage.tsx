@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Adjacent, type Neighbor } from "./Adjacent";
-import { Breadcrumbs, type Crumb } from "./Breadcrumbs";
+import { Breadcrumbs, type Crumb, type Menu } from "./Breadcrumbs";
 import { MarkdownLink } from "./MarkdownLink";
 import { SpecNav, type NavNode } from "./SpecNav";
 
@@ -28,6 +28,7 @@ export function SpecPage(props: {
   title: string;
   summary: string;
   markdownUrl: string;
+  menu: Menu;
   crumbs: Crumb[];
   nodes: NavNode[];
   current: string;
@@ -39,7 +40,7 @@ export function SpecPage(props: {
 }): ReactNode {
   return (
     <div className="page">
-      <Breadcrumbs crumbs={props.crumbs} current={props.title} />
+      <Breadcrumbs menu={props.menu} crumbs={props.crumbs} current={props.title} />
       <div className="columns">
         <aside>
           <SpecNav nodes={props.nodes} current={props.current} />

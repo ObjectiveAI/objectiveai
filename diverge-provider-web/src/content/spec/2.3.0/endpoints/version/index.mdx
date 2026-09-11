@@ -1,6 +1,6 @@
 ---
 title: 'version'
-summary: 'Tag 9: a client asks what a provider is; the provider answers one frame carrying the string %%REVISION%%, the revision of this specification, then the finish.'
+summary: 'Tag 9: a client asks what a provider is; the provider answers one frame carrying the string 2.3.0, the revision of this specification, then the finish.'
 order: 9
 draft: false
 ---
@@ -13,7 +13,7 @@ response finish.
 - **The question carries nothing.** The tag is the whole request; see
   [Request](/endpoints/version/request/).
 - **The answer is fixed.** The response is the string
-  `%%REVISION%%`: the revision of this specification, of the form
+  `2.3.0`: the revision of this specification, of the form
   `MAJOR.MINOR.PATCH`. Nothing else is a conforming answer; see
   [Response](/endpoints/version/response/).
 - **There is no error.** The scope carries one response and the

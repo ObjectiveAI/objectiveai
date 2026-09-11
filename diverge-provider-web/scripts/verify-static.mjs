@@ -18,8 +18,12 @@
 //    definitions; a version drift silently changes what the spec
 //    says, so the SDK's Cargo.toml is the authority.
 // 6. Every `include=` a specification page names is a file in the
-//    workspace. The build already stops on a missing one; this names
-//    the page that named it.
+//    workspace, and lives in the LATEST revision's module: an older
+//    module is frozen text. The build already stops on either; this
+//    names the page.
+// 7. The latest module's version endpoint states its own revision as
+//    the answer: the one string the specification hard-codes, checked
+//    against the crate's manifest.
 
 import { readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -136,7 +140,7 @@ for (const page of html) {
   }
 }
 
-// 6. Included crate files exist.
+// 6. Included crate files exist, and only the latest module includes.
 const workspace = new URL("../../", import.meta.url).pathname.replace(
   /^\/([A-Za-z]:)/,
   "$1",
@@ -145,14 +149,34 @@ const content = new URL("../src/content/spec/", import.meta.url).pathname.replac
   /^\/([A-Za-z]:)/,
   "$1",
 );
+const latest = cargo.match(/^version = "([^"]+)"/m)?.[1];
+if (!latest) {
+  failures.push("Cargo.toml: no version found in the SDK manifest");
+}
 for (const page of walk(content).filter((f) => f.endsWith(".mdx"))) {
   const text = readFileSync(page, "utf-8");
+  const module = relative(content, page).split(/[\\/]/)[0];
   for (const match of text.matchAll(/^```\w+ include=(\S+)/gm)) {
+    if (latest && module !== latest) {
+      failures.push(`${relative(content, page)}: module ${module} is frozen and includes ${match[1]}`);
+    }
     try {
       statSync(join(workspace, match[1]));
     } catch {
       failures.push(`${relative(content, page)}: include ${match[1]} does not exist`);
     }
+  }
+}
+
+// 7. The version endpoint answers with the revision it belongs to.
+if (latest) {
+  const response = join(content, latest, "endpoints", "version", "response.mdx");
+  try {
+    if (!readFileSync(response, "utf-8").includes("`" + latest + "`")) {
+      failures.push(`${latest}/endpoints/version/response.mdx: does not state \`${latest}\``);
+    }
+  } catch {
+    // The section is not written for this revision; nothing to check.
   }
 }
 
@@ -164,5 +188,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `verify-static: ${html.length} pages, zero scripts, llms.txt resolves, anatomy sound, includes exist.`,
+  `verify-static: ${html.length} pages, zero scripts, llms.txt resolves, anatomy sound, includes exist and only in ${latest}.`,
 );

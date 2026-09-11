@@ -1,14 +1,21 @@
 import { glob } from "astro/loaders";
 import { defineCollection, z } from "astro:content";
 
-import { expandRevision } from "./include.mjs";
-
 // The specification's sections. The directory tree IS the spec's
-// outline: the first path segment is the layer, the second the section
-// (a layer's own page is its `index`). Order comes from frontmatter
-// rather than from filename prefixes, so the slugs stay clean.
+// outline: the first path segment is the REVISION — one module per
+// revision, `src/content/spec/<version>/` — the second the layer, the
+// third the section (a layer's own page is its `index`). Order comes
+// from frontmatter rather than from filename prefixes, so the slugs
+// stay clean.
 const spec = defineCollection({
-  loader: glob({ pattern: "**/*.mdx", base: "./src/content/spec" }),
+  // Ids keep the file path as written: the loader's default slugs
+  // each segment and drops the dots out of `2.3.0`, and the version
+  // is the first segment of every id.
+  loader: glob({
+    pattern: "**/*.mdx",
+    base: "./src/content/spec",
+    generateId: ({ entry }) => entry.replace(/\\/g, "/").replace(/\.mdx$/, ""),
+  }),
   schema: z.object({
     /** The section's title, and its page's <h1>. */
     title: z.string(),
@@ -17,7 +24,7 @@ const spec = defineCollection({
      * description, the llms.txt line, and the stub's opening — one
      * string, three jobs, no drift.
      */
-    summary: z.string().transform(expandRevision),
+    summary: z.string(),
     /** Position among siblings: layers against layers, sections within a layer. */
     order: z.number(),
     /**

@@ -1,0 +1,64 @@
+---
+import { render } from "astro:content";
+
+import { Adjacent } from "../../components/Adjacent";
+import { Breadcrumbs } from "../../components/Breadcrumbs";
+import { MarkdownLink } from "../../components/MarkdownLink";
+import { SpecNav } from "../../components/SpecNav";
+import Layout from "../../layouts/Layout.astro";
+import { navigation, ordered, overview, switches, versions } from "../../spec";
+
+export async function getStaticPaths() {
+  const paths = [];
+  for (const version of await versions()) {
+    paths.push({ params: { version }, props: { version } });
+  }
+  return paths;
+}
+
+interface Props {
+  version: string;
+}
+
+const { version } = Astro.props;
+const navNodes = await navigation(version);
+const all = await ordered(version);
+const next =
+  all.length > 0
+    ? { url: all[0].url, title: all[0].entry.data.title }
+    : null;
+const menu = await switches([]);
+
+const page = await overview(version);
+const { Content } = await render(page.entry);
+const title = `Diverge Provider Protocol — Specification ${version}`;
+---
+
+<Layout
+  title={title}
+  description={page.entry.data.summary}
+  path={page.url}
+  markdown={page.markdownUrl}
+>
+  <div class="page">
+    <Breadcrumbs
+      menu={{ current: version, switches: menu }}
+      crumbs={[]}
+      current={page.entry.data.title}
+    />
+    <div class="columns">
+      <aside>
+        <SpecNav nodes={navNodes} current={page.url} />
+      </aside>
+      <main>
+        <article>
+          <h1>{title}</h1>
+          <p class="summary">{page.entry.data.summary}</p>
+          <Content />
+          <MarkdownLink url={page.markdownUrl} />
+        </article>
+        <Adjacent previous={null} next={next} />
+      </main>
+    </div>
+  </div>
+</Layout>
