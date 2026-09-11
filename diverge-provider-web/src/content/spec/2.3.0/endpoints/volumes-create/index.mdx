@@ -15,14 +15,19 @@ follows the finish.
   a size in bytes. [Request](/endpoints/volumes-create/request/)
   states its form.
 - **The volume.** When the server sends the byte `0`, the volume
-  exists. It is in the client's
-  [volumes::list](/endpoints/volumes-list/) listing under the name
-  the client gave, and its `bytes` there is the size the client gave.
-  The volume exists until a `volumes::delete` request by the client
-  deletes it. The end of the scope, and the end of every connection
-  of the client, leave the volume in existence.
+  exists. From that moment, every
+  [volumes::list](/endpoints/volumes-list/) request by the client
+  lists the volume, under the name the client gave and with `bytes`
+  equal to the size the client gave, until a `volumes::delete`
+  request by the client deletes it. The end of the scope, and the end
+  of every connection of the client, leave the volume in existence.
   [Response](/endpoints/volumes-create/response/) states the form of
   the response.
+- **The content.** The volume is created empty. Its content is
+  changed only by a container in which the client mounts it. The
+  server does not write to the volume, does not remove from it, and
+  does not otherwise alter its content, and no party other than such
+  a container does.
 - **The client.** The client is the identity under which the
   connection was authorized, as [Authorization](/authorization/)
   provides. The volume is created for that identity, and that
