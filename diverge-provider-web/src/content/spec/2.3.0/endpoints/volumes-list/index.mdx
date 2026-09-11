@@ -15,8 +15,9 @@ response, and no frame follows the finish.
   form.
 - **The listing.** The listing is zero or more volumes. The listing
   contains every volume that the client created by a
-  [volumes::create](/endpoints/volumes-create/) request and has not deleted by a `volumes::delete` request. The
-  listing may contain other volumes; which other volumes it contains
+  [volumes::create](/endpoints/volumes-create/) request and has not
+  deleted by a [volumes::delete](/endpoints/volumes-delete/) request.
+  The listing may contain other volumes; which other volumes it contains
   is the server's to decide. Every volume in the listing is available
   to the client to mount, and the client may name it wherever this
   specification names a volume by its name. A volume absent from the
