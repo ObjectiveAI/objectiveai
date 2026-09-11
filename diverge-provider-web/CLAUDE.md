@@ -325,6 +325,11 @@ gate on node 22, and a `serve` stage is unprivileged nginx on port
 8080 holding `dist/` under `nginx.conf` — Markdown twins served as
 `text/markdown`, trailing slashes canonical, a Content-Security-Policy
 that permits no script. Base images are pinned by digest with the date.
+`cloudbuild.yaml` builds that Containerfile from the repository root,
+pushes it to Artifact Registry under `objectiveai/diverge-provider-web`
+tagged `latest` and by commit, and deploys the commit's tag to the
+Cloud Run service `diverge-provider-web` in `us-central1` on port 8080
+with no environment and no secret; the service takes no configuration.
 
 ## The process
 

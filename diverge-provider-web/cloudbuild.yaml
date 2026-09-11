@@ -1,0 +1,65 @@
+# Cloud Build for the specification site: build the Containerfile from
+# the repository root, push the image, deploy it to Cloud Run.
+#
+# The site is static and takes no configuration: no build argument,
+# no runtime environment, no secret. Everything it needs is in the
+# repository at the commit that triggered the build — the pages, and
+# the crate they include. Submodules are not fetched: the build reads
+# nothing under one.
+#
+# The Containerfile pins its base images by digest and runs the same
+# `pnpm build` gate a developer runs, so a build that passes here is
+# the build a developer saw. Cloud Run sends traffic to port 8080,
+# which is the port the unprivileged nginx inside listens on; the
+# image's HEALTHCHECK is for podman and Cloud Run ignores it — Cloud
+# Run's own startup probe is the TCP check on that port.
+steps:
+  # build image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/diverge-provider-web:latest"
+      - "-t"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/diverge-provider-web:$SHORT_SHA"
+      - "-f"
+      - "diverge-provider-web/Containerfile"
+      - "."
+  # push image to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "--all-tags"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/diverge-provider-web"
+  # deploy to Cloud Run — nothing to configure; the site is its image
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "diverge-provider-web"
+      - "--image"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/diverge-provider-web:$SHORT_SHA"
+      - "--region"
+      - "us-central1"
+      - "--platform"
+      - "managed"
+      - "--port"
+      - "8080"
+      - "--allow-unauthenticated"
+      - "--cpu"
+      - "1"
+      - "--memory"
+      - "256Mi"
+      - "--concurrency"
+      - "250"
+      - "--min-instances"
+      - "0"
+      - "--max-instances"
+      - "4"
+images:
+  - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/diverge-provider-web:latest"
+  - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/diverge-provider-web:$SHORT_SHA"
+timeout: "1800s"
+options:
+  logging: "CLOUD_LOGGING_ONLY"
