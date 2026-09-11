@@ -1,52 +1,60 @@
 ---
 title: 'Response'
-summary: 'One response: tag 0 and the answer, exactly {"type":"available"} or {"type":"unavailable"}, or tag 1 and an error; then the finish.'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the answer or with the byte 1 followed by an error, and the response finish follows it.'
 order: 2
 draft: false
 ---
 
-The server sends exactly one response on the scope, then the response
-finish.
+The server sends exactly one response on the scope. The response
+finish follows the response, and no frame follows the finish.
 
 ```text
 [0][answer JSON …]
 [1][error JSON …]
 ```
 
-- **One response, then the finish.** The finish follows the response
-  and nothing else does. A finish with no response before it is the
-  request not served, as [Endpoints](/endpoints/) states.
-- **The answer.** Tag `0`, then one of two JSON objects and no other:
-  `{"type":"available"}` or `{"type":"unavailable"}`. Available
-  states that the server would supply the image — as the `server`
-  variant of a container request naming the requested name and
-  digest — at the time of the answer; it reserves nothing, and a
-  later container request may still fail. Unavailable states that it
-  would not, and says nothing of why: an image the server does not
-  hold and an image it holds and will not serve to this client are
-  one answer.
-- **The error.** Tag `1`, then an error as JSON: the question was not
-  answered, and nothing was determined about the image. An error is
-  not an unavailable.
-- **Malformed.** A payload with no tag, a tag other than `0` or `1`,
-  or JSON that does not parse as the answer or the error is
-  malformed.
+- **The sequence.** Exactly one response precedes the response
+  finish, and nothing follows the finish. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
+- **The answer.** A payload whose first byte is `0` carries the
+  answer as JSON after that byte. The answer is exactly one of two
+  objects: `{"type":"available"}` or `{"type":"unavailable"}`. The
+  available answer states that the server would supply the image as
+  the `server` variant of a container request naming the requested
+  name and digest, at the time of the answer. It reserves nothing,
+  and a later container request naming the image may fail. The
+  unavailable answer states that the server would not supply the
+  image. It states no reason: an image the server does not hold and
+  an image the server holds and will not serve to this client
+  receive the same answer.
+- **The error.** A payload whose first byte is `1` carries an error
+  as JSON after that byte. The error states that the server did not
+  answer the question and that nothing was determined about the
+  image. An error is not an unavailable answer.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is neither `0` nor `1`, and a payload whose bytes after the first
+  do not parse as the answer or as the error are malformed.
 
-The frame is `diverge-provider-sdk/src/endpoints/images/check/server/response/frame.rs`:
+The response frame is defined by
+`diverge-provider-sdk/src/endpoints/images/check/server/response/frame.rs`:
 
 ```rust include=diverge-provider-sdk/src/endpoints/images/check/server/response/frame.rs
 ```
 
-The answer is `diverge-provider-sdk/src/endpoints/images/check/server/response/response.rs`,
-under the reading of [Notation](/endpoints/#notation) — an untagged
-enum is exactly one of its variants' shapes, and a one-variant enum
-is a constant:
+The answer is defined by
+`diverge-provider-sdk/src/endpoints/images/check/server/response/response.rs`,
+read as [Notation](/endpoints/#notation) provides: an enum marked
+untagged is exactly one of its variants' shapes, and an enum of one
+variant is a constant.
 
 ```rust include=diverge-provider-sdk/src/endpoints/images/check/server/response/response.rs
 ```
 
-Its two shapes are `diverge-provider-sdk/src/endpoints/images/check/server/response/available.rs`
-and `diverge-provider-sdk/src/endpoints/images/check/server/response/unavailable.rs`:
+Its two shapes are defined by
+`diverge-provider-sdk/src/endpoints/images/check/server/response/available.rs`
+and
+`diverge-provider-sdk/src/endpoints/images/check/server/response/unavailable.rs`:
 
 ```rust include=diverge-provider-sdk/src/endpoints/images/check/server/response/available.rs
 ```

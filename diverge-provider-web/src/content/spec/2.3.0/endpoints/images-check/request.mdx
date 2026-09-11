@@ -1,31 +1,33 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 8, then a JSON object naming the image by repository path and manifest digest.'
+summary: 'The payload is the tag byte 8 followed by a JSON object that names the image by repository path and manifest digest and names no registry.'
 order: 1
 draft: false
 ---
 
-The request's payload is the tag byte, then the request as JSON,
-running to the end of the payload:
+The payload of the request is the tag byte followed by the request as
+JSON, running to the end of the payload:
 
 ```text
 [8][request JSON …]
 ```
 
-- **`name`.** The repository path, with no registry host:
-  `library/nginx`, `myorg/myimage`.
-- **`digest`.** The manifest digest, `<algorithm>:<hex>`, which
-  identifies the image.
-- **No registry.** The request names no registry. Any registry that
-  serves the bytes the digest names serves the image; where the
-  server obtains it is not the client's to say.
-- **Malformed.** A payload with no tag, a tag other than `8`, or JSON
-  after the tag that does not parse as the request is malformed, and
-  the [Endpoints](/endpoints/) layer states how a server answers a
-  request it cannot read.
+- **`name`.** The repository path of the image, without a registry
+  host: `library/nginx`, `myorg/myimage`.
+- **`digest`.** The manifest digest of the image, of the form
+  `<algorithm>:<hex>`. The digest identifies the image.
+- **No registry.** The request names no registry. Every registry
+  that serves the bytes the digest names serves the same image, and
+  the source from which the server obtains the image is not the
+  client's to state.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is not `8`, and a payload whose bytes after the tag do not parse as
+  the request are malformed. [Endpoints](/endpoints/) states how a
+  server answers a request it cannot read.
 
-The request is `diverge-provider-sdk/src/endpoints/images/check/client/request/frame.rs`,
-under the reading of [Notation](/endpoints/#notation):
+The request is defined by
+`diverge-provider-sdk/src/endpoints/images/check/client/request/frame.rs`,
+read as [Notation](/endpoints/#notation) provides:
 
 ```rust include=diverge-provider-sdk/src/endpoints/images/check/client/request/frame.rs
 ```
