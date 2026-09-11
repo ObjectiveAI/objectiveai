@@ -14,7 +14,8 @@ here.
 
 - **The listener.** The proxy listens on TCP port `14979` on every
   interface of the container. Every path below is a WebSocket path
-  on that listener. The server dials every path; the proxy dials
+  on that listener, carried as [WebSocket](/websocket/) states, under
+  the `ws` URI scheme. The server dials every path; the proxy dials
   nothing.
 - **Messages.** Every message on every path is one WebSocket binary
   data frame, carrying what the path defines and nothing around it:

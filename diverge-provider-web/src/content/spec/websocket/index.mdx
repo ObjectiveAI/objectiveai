@@ -1,6 +1,6 @@
 ---
 title: 'WebSocket'
-summary: 'The protocol is carried over the WebSocket Protocol, version 13, as specified by RFC 6455.'
+summary: 'The protocol, and the container proxy’s paths, are carried over the WebSocket Protocol, version 13, as specified by RFC 6455.'
 order: 1
 draft: false
 ---
@@ -27,3 +27,11 @@ over the WebSocket Protocol, as specified by
   frames. This protocol assigns no meaning to WebSocket text frames,
   and no meaning to WebSocket control frames beyond that given by
   RFC 6455.
+- **The container proxy.** The paths of the
+  [Container Proxy](/proxy/) are carried over the WebSocket Protocol
+  under the same requirements: version 13, the opening handshake as
+  RFC 6455 defines it with nothing added, no subprotocol, no
+  extension, and binary data frames alone, a text frame carrying no
+  meaning. They differ in two respects: the provider’s server is
+  always the party that initiates the connection, and the connection
+  is established under the `ws` URI scheme, without TLS.
