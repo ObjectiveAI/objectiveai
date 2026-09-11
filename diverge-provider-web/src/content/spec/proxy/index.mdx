@@ -69,7 +69,7 @@ here.
 | [`/fuse/mkdir/{channel}`](/proxy/fuse/mkdir/) | one answer for a mounted directory, then the close |
 | [`/command/{channel}`](/proxy/command/) | the command’s items, then the close |
 | [`/postgres/{channel}`](/proxy/postgres/) | raw pgwire, both ways, until either party closes |
-| [`/filesystem/tree`](/proxy/filesystem/tree/) | the container’s filesystem as a snapshot and its changes, or why there are none |
+| [`/filesystem/tree`](/proxy/filesystem/tree/) | the server names what to leave out; the container’s filesystem as a snapshot and its changes, or why there are none |
 | [`/filesystem/read`](/proxy/filesystem/read/) | one file out of the container |
 | [`/filesystem/write`](/proxy/filesystem/write/) | one file into the container |
 | [`/agent/register`](/proxy/agent/register/) | the agent, once; registered, or an error |
