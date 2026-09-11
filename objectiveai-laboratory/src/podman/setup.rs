@@ -22,6 +22,15 @@ use super::Error;
 /// (`podman --connection objectiveai ...`).
 pub const MACHINE_NAME: &str = "objectiveai";
 
+/// Memory (MiB) for the macOS machine. Podman's applehv default is 2048,
+/// which is not enough to compile the official Rust plugin scaffold — rustc
+/// is OOM-killed building `starlark`, and the kernel's SIGKILL surfaces four
+/// layers away as an MCP 502 that reads as a network fault. 6144 is the
+/// measured floor that builds it. Linux runs containers natively (no
+/// machine), and only macOS has the measured failure, so only macOS is
+/// gated onto this value.
+pub(crate) const MACHINE_MEMORY_MIB: u32 = 6144;
+
 /// Create the global podman machine (`podman machine init objectiveai`).
 ///
 /// Raw primitive — no existence pre-check, no lock: the caller
@@ -31,10 +40,14 @@ pub const MACHINE_NAME: &str = "objectiveai";
 /// callers. `exe` is the podman binary from [`super::install`]; `helper_dir`
 /// (podman's own dir) is wired in so it finds the bundled machine helpers.
 pub(crate) async fn machine_init(exe: &Path, helper_dir: Option<&Path>) -> Result<(), Error> {
-    let output = command(exe, helper_dir)
-        .arg("machine")
-        .arg("init")
-        .arg(MACHINE_NAME)
+    let mut cmd = command(exe, helper_dir);
+    cmd.arg("machine").arg("init").arg(MACHINE_NAME);
+    // See MACHINE_MEMORY_MIB — without this, a macOS machine gets podman's
+    // 2 GiB default and every plugin-scaffold build inside it is OOM-killed.
+    if std::env::consts::OS == "macos" {
+        cmd.arg("--memory").arg(MACHINE_MEMORY_MIB.to_string());
+    }
+    let output = cmd
         .output()
         .await
         .map_err(|e| Error(format!("spawn podman machine init: {e}")))?;
