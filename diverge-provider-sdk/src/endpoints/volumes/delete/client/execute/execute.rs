@@ -29,8 +29,12 @@ use crate::shared::error::Error;
 /// # An answer and an error are two different things
 ///
 /// There is one answer and it carries nothing: the volume is gone.
-/// Everything else is an [`ExecuteError::Provider`] — a volume still
-/// mounted somewhere, or one that was never there.
+/// A volume that is mounted in a running container is
+/// [`ExecuteError::Mounted`] — the provider's defined refusal, not a
+/// failure, and the one a caller acts on by stopping the container
+/// and asking again. Everything else is an
+/// [`ExecuteError::Provider`] — a volume that was never there, or a
+/// provider that could not do it.
 ///
 /// # It reads one frame and leaves
 ///
@@ -78,15 +82,16 @@ pub async fn execute(
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Deleted => Ok(()),
+        response::Frame::Mounted => Err(ExecuteError::Mounted),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
 
 /// A deletion that did not produce an answer.
 ///
-/// All but the last are this end's view of something going wrong. The
-/// last is the provider saying so itself, and it is the only one that
-/// means the exchange worked.
+/// All but the last two are this end's view of something going wrong.
+/// The last two are the provider saying so itself, and they are the
+/// only ones that mean the exchange worked.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request never went out.
@@ -112,6 +117,9 @@ pub enum ExecuteError {
     Unanswered,
     /// The response frame did not parse.
     Response(response::FrameError),
+    /// The volume is mounted in a running container, and the provider
+    /// does not delete a mounted volume. Nothing was changed.
+    Mounted,
     /// The provider could not do it, and said so.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -140,6 +148,9 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Response(error) => {
                 write!(f, "volume deletion answer did not parse: {error}")
             }
+            ExecuteError::Mounted => f.write_str(
+                "the volume is mounted in a running container and was not deleted",
+            ),
             ExecuteError::Provider(_) => {
                 f.write_str("the provider could not complete the volume deletion")
             }
@@ -161,6 +172,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Response(error) => Some(error),
             ExecuteError::Closed
             | ExecuteError::Unanswered
+            | ExecuteError::Mounted
             | ExecuteError::Provider(_) => None,
         }
     }

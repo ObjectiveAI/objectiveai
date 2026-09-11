@@ -10,14 +10,19 @@ use crate::shared::error::Error;
 
 /// Remove the volume and end the scope.
 ///
-/// # It does not check who is using it
+/// # The manager says whether it was mounted
 ///
-/// A volume may be [`mounted`](crate::server::mount::Mount) into a
-/// running container or under somebody's live
-/// [`watch`](crate::endpoints::volumes::watch), and this asks the
-/// manager either way. Whether that is refused, performed, or performed
-/// and left to break what was holding it is the manager's to decide —
-/// the protocol does not adjudicate it, so neither does this.
+/// A volume [`mounted`](crate::server::mount::Mount) into a running
+/// container is never deleted, and the wire has a word for it:
+/// [`Mounted`](response::Frame::Mounted). The manager is what knows
+/// whether the volume is mounted, so it answers
+/// [`Deletion::Mounted`](response::Deletion::Mounted) and this turns
+/// that into the frame. Nothing here checks anything itself.
+///
+/// A volume under somebody's live
+/// [`watch`](crate::endpoints::volumes::watch) is not mounted, and
+/// what the manager does about one is the manager's — the protocol
+/// does not adjudicate it, so neither does this.
 ///
 /// # The request arrives decoded
 ///
@@ -35,7 +40,8 @@ pub async fn handle<M>(
     M::Error: Into<Error>,
 {
     let frame = match manager.delete(client_identity, &request.name).await {
-        Ok(()) => response::Frame::Deleted,
+        Ok(response::Deletion::Deleted) => response::Frame::Deleted,
+        Ok(response::Deletion::Mounted) => response::Frame::Mounted,
         Err(error) => response::Frame::Error(error.into()),
     };
 
