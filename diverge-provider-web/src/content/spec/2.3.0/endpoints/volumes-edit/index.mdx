@@ -1,15 +1,16 @@
 ---
 title: 'volumes::edit'
-summary: 'Tag 7: a client names a volume from its listing and states its size in bytes; the server sends exactly one response stating that the volume has that size or an error, and the scope finishes; the size is the only property an edit changes.'
+summary: 'Tag 7: a client names a volume from its listing and states its size in bytes; the server sends exactly one response stating that the volume has that size, that the server has insufficient capacity for it, that the content of the volume exceeds it, or an error, and the scope finishes; the size is the only property an edit changes.'
 order: 7
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
 `7` followed by the name of a volume and a size. The server sends
-exactly one response, which states either that the volume has the
-size stated or an error. The response finish follows the response,
-and no frame follows the finish.
+exactly one response, which states that the volume has the size
+stated, that the server has insufficient capacity for it, that the
+content of the volume exceeds it, or an error. The response finish
+follows the response, and no frame follows the finish.
 
 - **The request.** The request carries the name of one volume and a
   size in bytes. [Request](/endpoints/volumes-edit/request/) states
@@ -34,10 +35,18 @@ and no frame follows the finish.
   as they were before the request.
   [Response](/endpoints/volumes-edit/response/) states the form of
   the response.
-- **A size below the bytes in use.** This revision does not prescribe
-  whether the server accepts a size smaller than the number of bytes
-  in use; a server may refuse such a request with an error. Nothing
-  in this specification requires `bytes` to be at least `bytes_used`.
-- **The error.** An error states that the size was not changed: the
-  volume has the size it had before the request, and every listing
-  and every stat reports that size.
+- **Insufficient capacity.** When the server cannot reserve the size
+  stated, it does not change the size and sends the byte `1`. The
+  volume has the size it had before the request. The server does not
+  send the byte `0` for a size it cannot reserve.
+- **Content too large.** When the size stated is smaller than the
+  number of bytes the volume holds, the server does not change the
+  size and sends the byte `2`. The volume has the size it had before
+  the request, and its content is as it was. The server does not send
+  the byte `0` for a size that the content of the volume exceeds. A
+  client that wants the smaller size removes content from the volume,
+  by a container in which the volume is mounted, and asks again.
+- **The error.** An error states that the size was not changed, for a
+  reason other than capacity or content: the volume has the size it
+  had before the request, and every listing and every stat reports
+  that size.

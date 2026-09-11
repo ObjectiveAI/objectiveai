@@ -1,15 +1,15 @@
 ---
 title: 'volumes::create'
-summary: 'Tag 6: a client names a volume and its size in bytes; the server sends exactly one response stating that the volume exists or an error, and the scope finishes; the volume persists until the client deletes it.'
+summary: 'Tag 6: a client names a volume and its size in bytes; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
 order: 5
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
 `6` followed by the name and the size of the volume. The server sends
-exactly one response, which states either that the volume exists or
-an error. The response finish follows the response, and no frame
-follows the finish.
+exactly one response, which states that the volume exists, that the
+server has insufficient capacity for it, or an error. The response
+finish follows the response, and no frame follows the finish.
 
 - **The request.** The request carries a name the client chooses and
   a size in bytes. [Request](/endpoints/volumes-create/request/)
@@ -43,7 +43,12 @@ follows the finish.
   is unchanged. A name is unique among the volumes of one client
   only: two clients may each hold a volume of one name, and neither
   can name the other's.
-- **The error.** An error states that the volume was not created:
-  no volume, and no part of one, exists by that name as a result of
-  the request, and the client's listing is as it was before the
-  request.
+- **Insufficient capacity.** When the server cannot reserve the size
+  stated, it does not create the volume and sends the byte `1`. No
+  volume, and no part of one, exists by that name as a result of the
+  request, and the client's listing is as it was before the request.
+  The server does not send the byte `0` for a size it cannot reserve.
+- **The error.** An error states that the volume was not created, for
+  a reason other than capacity: no volume, and no part of one, exists
+  by that name as a result of the request, and the client's listing
+  is as it was before the request.
