@@ -1,0 +1,27 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 6 and the request of the channel.'
+order: 1
+draft: false
+---
+
+```text
+[6][params JSON …]
+```
+
+- **The params.** The params of the MCP method `resources/list`, as JSON,
+  read as [Notation](/endpoints/#notation) provides, relayed to the
+  proxy verbatim.
+- **Malformed.** A channel request whose payload does not decode as
+  stated is answered by a channel response finish that no channel
+  response precedes, and the server does nothing else for it.
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/tools/run/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/run/client/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/mcp/list_resources/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/mcp/list_resources/request/request.rs
+```

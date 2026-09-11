@@ -1,0 +1,20 @@
+---
+title: 'MCP list tools'
+summary: 'Tag 5: the client sends the params of the MCP method; the server opens the proxy’s /tool/list-tools and relays exactly one channel response, the result or the MCP error, and the channel response finish.'
+order: 5
+draft: false
+---
+
+The client opens this channel for the tools the MCP server of the container offers. The server opens
+[`/tool/list-tools`](/proxy/tool/list-tools/) on the proxy with the params
+and relays its one answer.
+
+- **The request.** The tag byte `5` followed by the params as
+  JSON. [Request](/endpoints/containers-tools-run/client/mcp-list-tools/request/) states its form.
+- **The response.** Exactly one channel response, the result or an
+  MCP error, and the channel response finish.
+  [Response](/endpoints/containers-tools-run/client/mcp-list-tools/response/) states the sequence.
+- **Every exchange is answered.** An MCP error the container's server
+  returned, and the error the proxy sends for params that do not
+  parse or a server it cannot reach, are relayed as the one channel
+  response.
