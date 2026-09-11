@@ -27,7 +27,9 @@ follows the finish.
   changed only by a container in which the client mounts it. The
   server does not write to the volume, does not remove from it, and
   does not otherwise alter its content, and no party other than such
-  a container does.
+  a container does. Its `dirhash` in the listing is
+  `47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU`, the hash of the
+  empty manifest, until a container changes its content.
 - **The client.** The client is the identity under which the
   connection was authorized, as [Authorization](/authorization/)
   provides. The volume is created for that identity, and that
