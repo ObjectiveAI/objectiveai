@@ -5,7 +5,9 @@ use std::pin::Pin;
 
 use futures_util::Stream;
 
+use crate::endpoints::volumes::create::server::response::Creation;
 use crate::endpoints::volumes::delete::server::response::Deletion;
+use crate::endpoints::volumes::edit::server::response::Edit;
 use crate::endpoints::volumes::list::server::response::Volume;
 use crate::endpoints::volumes::stat::server::response::Stat;
 use crate::shared::filetree;
@@ -68,14 +70,18 @@ use crate::shared::filetree;
 /// What earns a failure. The wire has one
 /// [`Error`](crate::shared::error::Error) per endpoint and says nothing
 /// about when it is sent, so whether a
-/// [`create`](Self::create) over an existing name fails, whether an
-/// [`edit`](Self::edit) below
+/// [`create`](Self::create) over an existing name fails, and what a
+/// [`delete`](Self::delete) does to a volume under a watch, are the
+/// provider's to answer. This trait gives each of them somewhere to say
+/// no and does not say when.
+///
+/// The cases the wire does decide each have an answer of their own
+/// rather than a failure: a [`create`](Self::create) or an
+/// [`edit`](Self::edit) to a size the provider cannot reserve is
+/// insufficient capacity; an [`edit`](Self::edit) below
 /// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used)
-/// fails, and what a [`delete`](Self::delete) does to a volume under a
-/// watch are all the provider's to answer. This trait gives each of
-/// them somewhere to say no and does not say when. The one case the
-/// wire does decide is a [`delete`](Self::delete) of a mounted volume,
-/// which is refused, and it has its own answer rather than a failure.
+/// is content too large; a [`delete`](Self::delete) of a mounted
+/// volume is refused as mounted.
 pub trait VolumeManager: Send + Sync {
     /// Whatever this provider's volumes fail with.
     ///
@@ -150,6 +156,13 @@ pub trait VolumeManager: Send + Sync {
     /// [`list`](Self::list), which is the same round trip it would have
     /// spent anyway.
     ///
+    /// # Capacity is an answer
+    ///
+    /// A size the provider cannot reserve is
+    /// [`Creation::InsufficientCapacity`], not an error, and nothing
+    /// exists as a result. The provider is what knows its own room,
+    /// which is why the answer is the provider's to give.
+    ///
     /// # A name that is taken
     ///
     /// Is a failure or is not, and this trait does not say which. See
@@ -160,7 +173,7 @@ pub trait VolumeManager: Send + Sync {
         client_identity: &str,
         name: &str,
         bytes: u64,
-    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+    ) -> impl Future<Output = Result<Creation, Self::Error>> + Send;
 
     /// Change how big an existing volume may be, in BYTES.
     ///
@@ -179,20 +192,22 @@ pub trait VolumeManager: Send + Sync {
     ///
     /// A caller that wants a different name makes a volume with it.
     ///
-    /// # Shrinking below what is used
+    /// # Two refusals are answers
     ///
-    /// Is the provider's to allow or refuse, on the same terms as
-    /// everything else this trait declines to decide. Nothing here
-    /// promises that
-    /// [`bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes)
-    /// is ever at least
-    /// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used).
+    /// A size the provider cannot reserve is
+    /// [`Edit::InsufficientCapacity`]. A size below
+    /// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used)
+    /// — a volume holding more than it would then reserve — is
+    /// [`Edit::ContentTooLarge`]. Neither is an error, and in both the
+    /// size is as it was. The provider is what knows its room and the
+    /// volume's contents, which is why both answers are the provider's
+    /// to give.
     fn edit(
         &self,
         client_identity: &str,
         name: &str,
         bytes: u64,
-    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+    ) -> impl Future<Output = Result<Edit, Self::Error>> + Send;
 
     /// Remove a volume and everything in it, unless it is mounted.
     ///

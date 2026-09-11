@@ -29,9 +29,12 @@ use crate::shared::error::Error;
 /// # An answer and an error are two different things
 ///
 /// There is one answer and it carries nothing: the volume exists.
-/// Everything else is an [`ExecuteError::Provider`] — a name already
-/// taken, a quota, a disk — and this layer names none of them,
-/// because a provider knows what happened and this does not.
+/// A size the provider has no room for is
+/// [`ExecuteError::InsufficientCapacity`] — the provider's defined
+/// refusal, not a failure, and the one a caller acts on by asking
+/// smaller. Everything else is an [`ExecuteError::Provider`] — a name
+/// already taken, a disk — and this layer names none of them, because
+/// a provider knows what happened and this does not.
 ///
 /// # It reads one frame and leaves
 ///
@@ -79,15 +82,18 @@ pub async fn execute(
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Created => Ok(()),
+        response::Frame::InsufficientCapacity => {
+            Err(ExecuteError::InsufficientCapacity)
+        }
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
 
 /// A creation that did not produce an answer.
 ///
-/// All but the last are this end's view of something going wrong. The
-/// last is the provider saying so itself, and it is the only one that
-/// means the exchange worked.
+/// All but the last two are this end's view of something going wrong.
+/// The last two are the provider saying so itself, and they are the
+/// only ones that mean the exchange worked.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request never went out.
@@ -113,6 +119,8 @@ pub enum ExecuteError {
     Unanswered,
     /// The response frame did not parse.
     Response(response::FrameError),
+    /// The provider cannot reserve that many bytes. Nothing exists.
+    InsufficientCapacity,
     /// The provider could not do it, and said so.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -141,6 +149,9 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Response(error) => {
                 write!(f, "volume creation answer did not parse: {error}")
             }
+            ExecuteError::InsufficientCapacity => f.write_str(
+                "the provider has insufficient capacity for a volume of that size",
+            ),
             ExecuteError::Provider(_) => {
                 f.write_str("the provider could not complete the volume creation")
             }
@@ -162,6 +173,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Response(error) => Some(error),
             ExecuteError::Closed
             | ExecuteError::Unanswered
+            | ExecuteError::InsufficientCapacity
             | ExecuteError::Provider(_) => None,
         }
     }

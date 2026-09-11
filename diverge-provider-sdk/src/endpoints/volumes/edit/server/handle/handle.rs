@@ -15,12 +15,17 @@ use crate::shared::error::Error;
 /// different meaning: there the name is being made, here it is being
 /// found.
 ///
-/// # Shrinking below what is used is not decided here
+/// # The manager says why not
 ///
-/// A manager that refuses gets an [`Error`](response::Frame::Error) and
-/// one that allows it gets an [`Edited`](response::Frame::Edited).
-/// Nothing in this protocol promises `bytes` is ever at least
-/// `bytes_used`, and this does not start.
+/// Two refusals have their own frames:
+/// [`InsufficientCapacity`](response::Frame::InsufficientCapacity)
+/// when the provider cannot reserve the size, and
+/// [`ContentTooLarge`](response::Frame::ContentTooLarge) when the
+/// volume holds more than the size and so cannot be shrunk to it. The
+/// manager is what knows either, so it answers the matching
+/// [`Edit`](response::Edit) and this turns that into the frame. Any
+/// other refusal is an [`Error`](response::Frame::Error), and this does
+/// not decide when one is owed.
 ///
 /// # The request arrives decoded
 ///
@@ -41,7 +46,11 @@ pub async fn handle<M>(
         .edit(client_identity, &request.name, request.bytes)
         .await
     {
-        Ok(()) => response::Frame::Edited,
+        Ok(response::Edit::Edited) => response::Frame::Edited,
+        Ok(response::Edit::InsufficientCapacity) => {
+            response::Frame::InsufficientCapacity
+        }
+        Ok(response::Edit::ContentTooLarge) => response::Frame::ContentTooLarge,
         Err(error) => response::Frame::Error(error.into()),
     };
 
