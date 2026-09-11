@@ -1,6 +1,6 @@
 ---
 title: 'Container Proxy'
-summary: 'The external interface of the container proxy: the WebSocket paths a provider’s server dials on port 14979 of every container it runs, what each carries, and the environment the proxy reads at its start.'
+summary: 'The external interface of the container proxy: the WebSocket paths a provider’s server dials on port 14979 of every container it runs, and what each carries.'
 order: 4
 draft: false
 ---
@@ -36,8 +36,8 @@ here.
   has announced and the server has not yet opened; a channel the
   proxy does not know is refused with `404`, and a second opening of
   a known channel with `409`, both before the upgrade. The
-  `/filesystem/*`, `/agent/*` and `/tool/*` paths accept every
-  opening the server makes.
+  `/fuse/mount`, `/filesystem/*`, `/agent/*` and `/tool/*` paths
+  accept every opening the server makes.
 - **Endings.** A clean close — the WebSocket closing handshake — is
   an answer complete or a session over. An abrupt end is the
   connection dying. The two are distinguished, and what each means
@@ -60,6 +60,7 @@ here.
 | [`/vault/delete/{channel}`](/proxy/vault/delete/) | one vault answer, then the close |
 | [`/vault/lock/{channel}`](/proxy/vault/lock/) | one vault answer, when the lock is held, then the close |
 | [`/vault/unlock/{channel}`](/proxy/vault/unlock/) | one vault answer, then the close |
+| [`/fuse/mount`](/proxy/fuse/mount/) | one mount to make; ok once it is serving, or an error, then the close |
 | [`/fuse/stat/{channel}`](/proxy/fuse/stat/) | one answer for a mounted entry, then the close |
 | [`/fuse/read/{channel}`](/proxy/fuse/read/) | one answer for a mounted file, then the close |
 | [`/fuse/write/{channel}`](/proxy/fuse/write/) | one answer for a mounted file, then the close |
@@ -82,6 +83,3 @@ here.
 | [`/tool/call-tool`](/proxy/tool/call-tool/) | MCP params; one result, or an error |
 | [`/tool/read-resource`](/proxy/tool/read-resource/) | MCP params; one result, or an error |
 | [`/tool/notifications`](/proxy/tool/notifications/) | what the container’s MCP server says on its own account |
-
-The variables the proxy reads at its start are defined in
-[Environment](/proxy/environment/).

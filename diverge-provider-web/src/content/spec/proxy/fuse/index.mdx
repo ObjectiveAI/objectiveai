@@ -1,13 +1,14 @@
 ---
 title: 'FUSE'
-summary: 'Kinds 12 to 18: the seven operations by which the files and directories the caller serves live are read, written, listed, made, renamed, removed and described, each answered by one message.'
+summary: 'A mount made on the server’s request, and kinds 12 to 18: the seven operations by which the files and directories the caller serves live are read, written, listed, made, renamed, removed and described, each answered by one message.'
 order: 4
 draft: false
 ---
 
-Seven asks carry the operations of the mounts the proxy makes from
-[the environment](/proxy/environment/). Every ask names a mount by
-its `id` and an entry by its path; every answer is one message.
+The server makes every mount by one request each on
+[`/fuse/mount`](/proxy/fuse/mount/), and seven asks carry the
+operations of the mounts made. Every ask names a mount by its `id`
+and an entry by its path; every answer is one message.
 
 | Kind | Ask | Payload after the kind | Answered on | With |
 |------|-----|------------------------|-------------|------|
@@ -19,19 +20,19 @@ its `id` and an entry by its path; every answer is one message.
 | `16` | rename | `[id_len: u16, big-endian][id …][from_len: u16, big-endian][from …][to …]` | [`/fuse/rename/{channel}`](/proxy/fuse/rename/) | `0` ok, `1` error |
 | `17` | mkdir | `[id_len: u16, big-endian][id …][path …]` | [`/fuse/mkdir/{channel}`](/proxy/fuse/mkdir/) | `0` ok, `1` error |
 
-- **The id.** The `id` of a mount named in the environment, UTF-8,
-  echoed on every ask for that mount.
+- **The id.** The `id` the mount was requested with, UTF-8, echoed
+  on every ask for that mount.
 - **The path.** The entry's path relative to the mount's root:
   `/`-separated UTF-8 with no leading `/`, no empty component, and no
   `.` or `..` component; empty for a file mount and for a directory
   mount's root. Where a path is the last field it runs to the end of
   the payload; where bytes or a second path follow it, its length
   precedes it.
-- **A file mount asks three.** For a mount named under `files`, the
-  proxy asks only `stat`, `read` and `write`, each with the empty
-  path. For a mount named under `directories`, it asks all seven,
-  with the entry's path.
-- **A read-only mount asks no mutation.** For a mount named
+- **A file mount asks three.** For a mount requested with `kind`
+  `file`, the proxy asks only `stat`, `read` and `write`, each with
+  the empty path. For one requested with `kind` `directory`, it asks
+  all seven, with the entry's path.
+- **A read-only mount asks no mutation.** For a mount requested
   `readonly`, the proxy asks no `write`, `remove`, `rename` or
   `mkdir`.
 - **One message, then the close.** Every answer is exactly one
@@ -49,8 +50,9 @@ The target of `stat`, `read`, `list`, `remove` and `mkdir` is
 ```rust include=diverge-provider-sdk/src/shared/containers/fuse/target.rs
 ```
 
-An entry of a listing, and the kind byte every answer that names a
-kind uses, are `diverge-provider-sdk/src/shared/containers/fuse/entry.rs`:
+An entry of a listing, and the `Kind` — one byte on these answers,
+`"file"` or `"directory"` on a mount request — are
+`diverge-provider-sdk/src/shared/containers/fuse/entry.rs`:
 
 ```rust include=diverge-provider-sdk/src/shared/containers/fuse/entry.rs
 ```
