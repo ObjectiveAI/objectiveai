@@ -14,6 +14,7 @@ use futures_util::{SinkExt as _, StreamExt as _};
 use reqwest::header::CONTENT_TYPE;
 
 use super::{Upstream, upstream};
+use crate::ws;
 
 /// `/agent/run`. Accepted as many times as the server opens it; one
 /// loop at a time is the agent's server's rule, and its refusal is
@@ -28,9 +29,9 @@ pub async fn run(State(upstream): State<Arc<Upstream>>, upgrade: WebSocketUpgrad
 ///
 /// The rules, in order:
 ///
-/// 1. The first message is the request. It must be binary; anything
-///    else is the clean close with nothing before it — the server
-///    sent something this is not. Its bytes are not read here: they
+/// 1. The first binary message is the request; text frames are
+///    passed over. A close before it is the clean close with nothing
+///    before it — the server sent nothing this is. Its bytes are not read here: they
 ///    are the `POST /run` body, verbatim.
 /// 2. A server that cannot be dialed is `Error`, at once, then the
 ///    close. A non-`2xx` is `Error` with its body, then the close.
@@ -44,12 +45,9 @@ pub async fn run(State(upstream): State<Arc<Upstream>>, upgrade: WebSocketUpgrad
 ///    the response, which ends the call to the agent's server.
 async fn serve(socket: WebSocket, upstream: Arc<Upstream>) {
     let (sink, mut stream) = socket.split();
-    let request = match stream.next().await {
-        Some(Ok(Message::Binary(bytes))) => bytes,
-        _ => {
-            upstream::finish(sink, None).await;
-            return;
-        }
+    let Some(request) = ws::binary(&mut stream).await else {
+        upstream::finish(sink, None).await;
+        return;
     };
 
     let response = match upstream
@@ -101,7 +99,7 @@ async fn serve(socket: WebSocket, upstream: Arc<Upstream>) {
                 upstream::finish(sink, None).await;
                 return;
             }
-            future::Either::Right((Some(Ok(Message::Ping(_) | Message::Pong(_))), _)) => {}
+            future::Either::Right((Some(Ok(Message::Text(_) | Message::Ping(_) | Message::Pong(_))), _)) => {}
             future::Either::Right(_) => return,
         }
     }

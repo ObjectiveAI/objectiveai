@@ -6,20 +6,21 @@ use diverge_provider_sdk::container_proxy::filesystem::read;
 use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::encode::{Encode as _, Writer};
 use diverge_provider_sdk::shared::containers;
-use futures_util::{SinkExt as _, StreamExt as _};
+use futures_util::SinkExt as _;
 use tokio::io::AsyncReadExt as _;
 
 use crate::paths;
+use crate::ws;
 
 /// Serve one read until the file is sent or the read is over.
 ///
 /// The rules, in order:
 ///
 /// 1. The first message is the ask. It must be binary and decode as
-///    the request; a text message, a close, an error, the end, or a
-///    body that will not decode is the clean close with nothing before
-///    it — the server sent something this is not, and there is no
-///    read to say anything about.
+///    the request; a close, an error, the end, or a body that will
+///    not decode is the clean close with nothing before it — the
+///    server sent something this is not, and there is no read to say
+///    anything about. A text frame is passed over.
 /// 2. The path must name a file ([`paths::absolute`]), else `Error`.
 /// 3. The file is opened as the OS opens it, a symlink followed, and
 ///    must then be a regular file — a directory above all is never
@@ -36,12 +37,9 @@ use crate::paths;
 /// The server is silent after its one message, so nothing here
 /// listens for it: a server that went away is a send that fails.
 pub async fn serve(mut socket: WebSocket) {
-    let request = match socket.next().await {
-        Some(Ok(Message::Binary(bytes))) => {
-            read::request::Request::decode(&bytes).ok()
-        }
-        _ => None,
-    };
+    let request = ws::binary(&mut socket)
+        .await
+        .and_then(|bytes| read::request::Request::decode(&bytes).ok());
     let Some(request) = request else {
         let _ = socket.close().await;
         return;

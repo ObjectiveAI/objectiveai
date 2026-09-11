@@ -5,6 +5,8 @@ use std::pin::pin;
 use std::sync::{Arc, Mutex};
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use bytes::Bytes;
+use futures_util::Stream;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -69,9 +71,10 @@ async fn serve_requests(socket: WebSocket, requests: Arc<Requests>, claim: Claim
 
     while let Some(Ok(message)) = stream.next().await {
         match message {
-            Message::Binary(_) | Message::Text(_) | Message::Close(_) => break,
-            // Pings are answered by axum; pongs carry nothing.
-            Message::Ping(_) | Message::Pong(_) => {}
+            Message::Binary(_) | Message::Close(_) => break,
+            // Pings are answered by axum; pongs and text frames carry
+            // nothing this wire defines.
+            Message::Text(_) | Message::Ping(_) | Message::Pong(_) => {}
         }
     }
 
@@ -117,9 +120,8 @@ async fn answer(
 ///
 /// Every binary message is one message of the answer, delivered as
 /// it arrives. A `Close` is the answer whole; the stream ending any
-/// other way — dropped, errored, or a text message from a peer
-/// speaking something else — is the answer dead. The proxy never
-/// writes on an answer path.
+/// other way — dropped or errored — is the answer dead. A text frame
+/// is ignored. The proxy never writes on an answer path.
 async fn serve_answer(
     mut socket: WebSocket,
     requests: Arc<Requests>,
@@ -133,8 +135,7 @@ async fn serve_answer(
                 complete = true;
                 break;
             }
-            Message::Text(_) => break,
-            Message::Ping(_) | Message::Pong(_) => {}
+            Message::Text(_) | Message::Ping(_) | Message::Pong(_) => {}
         }
     }
     requests.finish(answering, complete).await;
@@ -361,8 +362,7 @@ async fn serve_postgres(
                     complete = true;
                     break;
                 }
-                Message::Text(_) => break,
-                Message::Ping(_) | Message::Pong(_) => {}
+                Message::Text(_) | Message::Ping(_) | Message::Pong(_) => {}
             },
             future::Either::Left((Some(Err(_)) | None, _)) => break,
             // The pump ended first: the driver hung up and the socket
@@ -500,7 +500,7 @@ async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
             // its channel cannot end first; if it somehow did, there
             // is nothing left to stream.
             future::Either::Left((None, _)) => break,
-            future::Either::Right((Some(Ok(Message::Ping(_) | Message::Pong(_))), _)) => {}
+            future::Either::Right((Some(Ok(Message::Text(_) | Message::Ping(_) | Message::Pong(_))), _)) => {}
             future::Either::Right(_) => break,
         }
     }
@@ -547,4 +547,20 @@ async fn send(
         return false;
     }
     sink.send(Message::Binary(bytes.into())).await.is_ok()
+}
+
+/// The next binary message, or `None` when there will be none: a
+/// close, an error, or the stream's end. Text frames, pings and
+/// pongs carry nothing this wire defines and are passed over.
+pub async fn binary<S>(stream: &mut S) -> Option<Bytes>
+where
+    S: Stream<Item = Result<Message, axum::Error>> + Unpin,
+{
+    loop {
+        match stream.next().await {
+            Some(Ok(Message::Binary(bytes))) => return Some(bytes),
+            Some(Ok(Message::Text(_) | Message::Ping(_) | Message::Pong(_))) => {}
+            Some(Ok(Message::Close(_))) | Some(Err(_)) | None => return None,
+        }
+    }
 }

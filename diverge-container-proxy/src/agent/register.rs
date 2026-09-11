@@ -4,13 +4,14 @@
 use std::sync::Arc;
 
 use axum::extract::State;
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::ws::{WebSocket, WebSocketUpgrade};
 use axum::response::{IntoResponse, Response};
 use diverge_provider_sdk::container_proxy::agent::register::response;
 use futures_util::StreamExt as _;
 use reqwest::header::CONTENT_TYPE;
 
 use super::{Upstream, upstream};
+use crate::ws;
 
 /// `/agent/register`. Accepted as many times as the server opens it;
 /// once is the agent's server's rule, and its refusal of a second is
@@ -28,12 +29,9 @@ pub async fn register(State(upstream): State<Arc<Upstream>>, upgrade: WebSocketU
 /// close.
 async fn serve(socket: WebSocket, upstream: Arc<Upstream>) {
     let (sink, mut stream) = socket.split();
-    let request = match stream.next().await {
-        Some(Ok(Message::Binary(bytes))) => bytes,
-        _ => {
-            upstream::finish(sink, None).await;
-            return;
-        }
+    let Some(request) = ws::binary(&mut stream).await else {
+        upstream::finish(sink, None).await;
+        return;
     };
     let response = upstream
         .http()

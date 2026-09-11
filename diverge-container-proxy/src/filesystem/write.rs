@@ -12,6 +12,7 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt as _;
 
 use crate::paths;
+use crate::ws;
 
 /// Counted up per temporary, so two writes to one destination at
 /// once get two temporaries; `create_new` catches whatever is left.
@@ -52,12 +53,9 @@ static TEMPORARIES: AtomicU64 = AtomicU64::new(0);
 ///    is sent and the socket closed cleanly. No fsync: durability
 ///    past the container's life is not this wire's promise.
 pub async fn serve(mut socket: WebSocket) {
-    let request = match socket.next().await {
-        Some(Ok(Message::Binary(bytes))) => {
-            write::request::Request::decode(&bytes).ok()
-        }
-        _ => None,
-    };
+    let request = ws::binary(&mut socket)
+        .await
+        .and_then(|bytes| write::request::Request::decode(&bytes).ok());
     let Some(request) = request else {
         let _ = socket.close().await;
         return;
@@ -96,7 +94,7 @@ pub async fn serve(mut socket: WebSocket) {
                     return;
                 }
             }
-            Some(Ok(Message::Ping(_) | Message::Pong(_))) => {}
+            Some(Ok(Message::Text(_) | Message::Ping(_) | Message::Pong(_))) => {}
             _ => {
                 drop(file);
                 discard(&temporary).await;
