@@ -51,15 +51,18 @@ No frame replies to an authorization frame.
   the connection, and by nothing else. A peer that has not been
   authorized is sent no frames of any kind.
 
-It follows that an invalid, an expired, and an unrecognized credential
-are indistinguishable from the connector's side: each is observed as a
+**Remark.** An invalid, an expired and an unrecognized credential are
+indistinguishable from the connector's side: each is observed as a
 connection that closed.
 
 ## What acceptance establishes
 
-Acceptance associates the connection with whatever the connectee
-determined from the credential — in particular, where the client is
-the connector, the identity under which the server thereafter serves
-the client's requests. The determination is the connectee's; the
-layers at which the identity bears on the protocol's exchanges
-identify it where it applies.
+Acceptance associates the connection with what the connectee
+determined from the credential. Where the client is the connector,
+that determination is the **identity**, and the server serves every
+scope on the connection under it. The identity is the server's own
+value: the server does not transmit it on the wire, does not derive a
+value it sends from it, and does not serve a scope under any identity
+other than that of the connection the scope was opened on. The
+determination is the connectee's; the layers at which the identity
+bears on an exchange name it where it applies.

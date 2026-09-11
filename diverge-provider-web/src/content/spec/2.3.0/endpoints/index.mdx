@@ -26,9 +26,10 @@ endpoint's request content, in the form the endpoint defines.
 | `11` | [images::check](/endpoints/images-check/) |
 | `12` | [version](/endpoints/version/) |
 
-The tag values are normative as tabulated. Each endpoint's section
-follows; a section not yet present is defined, for this revision, by
-the crate.
+The tag values are normative as tabulated. Each endpoint has its own
+section. Every section of this layer states requirements of the
+server only: a sentence describing what the client sends states the
+input the server serves, and imposes no requirement on the client.
 
 - **An unreadable request is answered, not dropped.** A request whose
   payload the server cannot read — a tag the server does not define,

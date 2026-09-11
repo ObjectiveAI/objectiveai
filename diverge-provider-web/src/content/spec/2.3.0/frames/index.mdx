@@ -42,8 +42,10 @@ never spans messages.
   client opens a scope; only a server sends types `2` and `3`, because
   only a server answers one.
 - **Undefined types are malformed.** A frame bearing a type its
-  direction does not define is malformed. A receiver disregards frames
-  it cannot interpret or cannot attribute; neither occurrence ends the
+  direction does not define is malformed. The server disregards a
+  malformed frame, and disregards a frame whose scope field names no
+  open scope or whose channel field names no open channel where the
+  frame's kind reads that field. Neither occurrence ends the
   connection.
 - **Unread fields are ignored.** Where a frame's kind involves no
   scope or no channel, the corresponding header field is ignored: no
@@ -55,8 +57,8 @@ never spans messages.
   scope or channel is one that is still open, however long it has been
   quiet. This layer defines no timeout.
 - **Payloads are opaque at this layer.** Their contents are defined by
-  higher layers, and the protocol grows inside payloads: new kinds of
-  exchange are new payload forms, not new frame types.
+  higher layers. This revision defines no frame type other than the
+  seven.
 
 The frame types each role sends are enumerated in
 [Client Frames](/frames/client/) and [Server Frames](/frames/server/);

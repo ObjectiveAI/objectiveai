@@ -64,10 +64,11 @@ about the client, which may open any channel at any time.
    authorized, descended by `host_relative_path`, at `container_path`;
    every identity mount read-only at its `container_path`; the
    container proxy injected into the container and started; and TCP
-   port `14979` of the container reachable to the server. The server
-   sets no environment from the request. The server does not start
-   the container before every identity mount's content is held. A
-   deploy that fails is the run's error.
+   port `14979` of the container reachable to the server. The deploy
+   is complete when the proxy accepts a connection at that port. The
+   server sets no environment from the request. The server does not
+   start the container before every identity mount's content is
+   held. A deploy that does not complete is the run's error.
 5. **The server connects to the proxy.** The server opens
    [`/requests`](/proxy/requests/) on the proxy. A proxy that does not
    accept the connection is a container that did not come up: the
@@ -87,7 +88,8 @@ about the client, which may open any channel at any time.
    FUSE mount is complete.
 8. **The server mints and sends the id.** The id is a string the
    server chooses, unique among the containers it is running, and
-   not derivable from the request or from any other id. The server
+   not derivable from the request, from the identity of the
+   connection, or from any other id. The server
    sends it as exactly one response. From that moment the container
    is running for the client, and a
    [containers::tools::connect](/endpoints/containers-tools-connect/)
@@ -108,6 +110,12 @@ about the client, which may open any channel at any time.
 
 ## The rules that hold throughout
 
+- **The means of deployment.** This revision prescribes no runtime,
+  no operating system, no virtualization, no network topology and no
+  vendor. The server may deploy the container on hardware it
+  operates, on infrastructure a third party supplies, or through an
+  intermediary, and every requirement of this section holds however
+  it deploys.
 - **No timeout.** The server times nothing out: not a fetch, not a
   deploy, not a channel, not the scope. A container whose entrypoint
   never listens is served as a container whose exchanges the proxy
