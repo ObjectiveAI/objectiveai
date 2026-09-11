@@ -81,14 +81,6 @@ async fn run() {
     let requests = Arc::new(requests::Requests::new());
     let peers = Arc::new(mcp::Peers::new());
     let gate = Arc::new(mcp::Gate::new());
-    // The server's mounts, or nothing: an unset or unreadable
-    // variable is the empty set, by the SDK's rule.
-    let ignore = Arc::new(filesystem::tree::Ignore::new(
-        container_proxy::filesystem::tree::Ignore::parse(
-            &std::env::var(container_proxy::filesystem::tree::IGNORE_ENV)
-                .unwrap_or_default(),
-        ),
-    ));
 
     let upstream = Arc::new(agent::Upstream::new());
 
@@ -143,7 +135,6 @@ async fn run() {
 
     let state = state::AppState {
         requests: Arc::clone(&requests),
-        ignore,
         upstream,
         tool: Arc::new(tool::Tool::new()),
     };

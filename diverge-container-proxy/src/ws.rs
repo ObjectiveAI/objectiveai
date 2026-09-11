@@ -11,6 +11,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use diverge_provider_sdk::container_proxy;
+use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::encode::{Encode as _, Writer};
 use diverge_provider_sdk::shared::filetree::response;
 use futures_util::future;
@@ -385,28 +386,28 @@ async fn serve_postgres(
 
 /// `/filesystem/tree`: the stream. Accepted as many times as the server
 /// opens it, each a watch of its own.
-pub async fn filesystem_tree(
-    State(ignore): State<Arc<Ignore>>,
-    upgrade: WebSocketUpgrade,
-) -> Response {
-    upgrade
-        .on_upgrade(move |socket| serve_filetree(socket, ignore))
-        .into_response()
+pub async fn filesystem_tree(upgrade: WebSocketUpgrade) -> Response {
+    upgrade.on_upgrade(serve_filetree).into_response()
 }
 
-/// Serve one subscription: arm, walk, snapshot, then deltas until the
-/// server ends it.
+/// Serve one subscription: read what to leave out, arm, walk,
+/// snapshot, then deltas until the server ends it.
 ///
-/// The watcher is armed BEFORE the walk, so a change during the walk
+/// The first binary message is the request, naming the paths the
+/// tree leaves out; a close before it, or a request that will not
+/// decode, is the clean close with nothing before it — the server
+/// sent nothing this is, and there is no watch to say anything
+/// about. The watcher is armed BEFORE the walk, so a change during the walk
 /// waits in the events queue and goes out as a delta after the
 /// snapshot — replayed onto a tree that may already show it, which
 /// the fold tolerates — rather than falling between the two. Arming,
 /// registering and walking are one blocking task; every event is
 /// mapped in another, one at a time, so the stream's frames are the
-/// events' order. The server sends nothing: its socket yielding
-/// anything but a ping or pong — a close, a message, an error, the
-/// end — ends the subscription, and the watch drops with this task,
-/// which unregisters everything it held. A corner the watch could
+/// events' order. The server sends nothing after its request: its
+/// socket yielding anything but a ping, a pong or a text frame — a
+/// close, a binary message, an error, the end — ends the
+/// subscription, and the watch drops with this task, which
+/// unregisters everything it held. A corner the watch could
 /// not cover is still walked, its directory's `changes` false.
 ///
 /// What is an error, per the wire: the watcher could not be made, the
@@ -415,8 +416,16 @@ pub async fn filesystem_tree(
 /// close, and the server starts over when it likes. Lost events — the
 /// queue overflowed, or notify reported an error — are not: they
 /// re-walk and send a fresh snapshot on the same connection.
-async fn serve_filetree(socket: WebSocket, ignore: Arc<Ignore>) {
+async fn serve_filetree(socket: WebSocket) {
     let (mut sink, mut stream) = socket.split();
+    let request = binary(&mut stream)
+        .await
+        .and_then(|bytes| container_proxy::filesystem::tree::request::Request::decode(&bytes).ok());
+    let Some(request) = request else {
+        let _ = sink.close().await;
+        return;
+    };
+    let ignore = Arc::new(Ignore::new(request.ignore));
     let (sender, mut events) = mpsc::unbounded_channel();
 
     let armed = tokio::task::spawn_blocking({
