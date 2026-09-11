@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume no longer exists or the byte 1 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'The server sends exactly one response, whose payload is exactly the byte 0 when the volume no longer exists, exactly the byte 1 when the volume is mounted and was not deleted, or the byte 2 followed by an error as one JSON value, and the response finish follows it.'
 order: 2
 draft: false
 ---
@@ -10,7 +10,8 @@ finish follows the response, and no frame follows the finish.
 
 ```text
 [0]
-[1][error JSON …]
+[1]
+[2][error JSON …]
 ```
 
 - **The sequence.** Exactly one response precedes the response
@@ -25,16 +26,22 @@ finish follows the response, and no frame follows the finish.
   receiving it does not list the volume. The server sends nothing
   after the byte `0`, and a client ignores every byte that follows
   it.
-- **The error.** A payload whose first byte is `1` carries an error
+- **Mounted.** A payload whose first byte is `1` states that the
+  volume is mounted in a running container at the time of the request
+  and was not deleted. The volume, its content, and the client's
+  listing are as they were before the request. The server sends
+  nothing after the byte `1`, and a client ignores every byte that
+  follows it.
+- **The error.** A payload whose first byte is `2` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content. The error
   states that the volume exists as a result of the request, as it
-  did before it.
+  did before it, and that the reason is not a mount.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, and a payload whose bytes after `1` are not
-  one JSON value are malformed.
+  is none of `0`, `1` and `2`, and a payload whose bytes after `2` are
+  not one JSON value are malformed.
 
 The response is defined by `diverge-provider-sdk/src/endpoints/volumes/delete/server/response/frame.rs`:
 
