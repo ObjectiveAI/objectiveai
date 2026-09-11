@@ -6,17 +6,30 @@ use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// The volume is gone, or it is not.
+/// The volume is gone, or it is mounted and stays, or it is not gone
+/// for some other reason.
 ///
 /// One of these on channel `0`, then the scope finishes. A payload
-/// leads with one byte saying which — `0` for [`Deleted`](Self::Deleted), `1`
-/// for [`Error`](Self::Error) — and for the first there is nothing
+/// leads with one byte saying which — `0` for
+/// [`Deleted`](Self::Deleted), `1` for [`Mounted`](Self::Mounted), `2`
+/// for [`Error`](Self::Error) — and for the first two there is nothing
 /// after it, because saying so IS the whole message.
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
 /// | [`Deleted`](Self::Deleted), then a finish | the volume is gone and a listing will not show it |
-/// | an [`Error`](Self::Error), then a finish | it is not, and a caller should assume it is intact |
+/// | [`Mounted`](Self::Mounted), then a finish | it is mounted in a running container, and nothing was changed |
+/// | an [`Error`](Self::Error), then a finish | it is not gone, for some other reason, and a caller should assume it is intact |
+///
+/// # Mounted is an answer, not an error
+///
+/// A provider MUST refuse to delete a volume that is mounted in a
+/// running container at the time of the request, and it says so with
+/// [`Mounted`](Self::Mounted) rather than with an
+/// [`Error`](Self::Error) a caller could not tell from any other
+/// failure. The distinction is what a caller acts on: a mounted
+/// volume is one to stop the container over and ask again, and a
+/// failure is not.
 ///
 /// # Gone means gone, not emptied
 ///
@@ -38,7 +51,13 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The volume is gone. Tag `0`.
     Deleted,
-    /// A failure. Tag `1`.
+    /// The volume is mounted in a running container, and was not
+    /// deleted. Tag `1`.
+    ///
+    /// Nothing was changed: the volume, its content, and the listing
+    /// are as they were.
+    Mounted,
+    /// A failure. Tag `2`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -48,8 +67,11 @@ pub enum Frame {
 /// Tag for [`Frame::Deleted`].
 const DELETED: u8 = 0;
 
+/// Tag for [`Frame::Mounted`].
+const MOUNTED: u8 = 1;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 1;
+const ERROR: u8 = 2;
 
 /// A tag, and for a failure the JSON after it. Postcard encodes the
 /// rest of [`volumes`](crate::endpoints::volumes) and encodes nothing
@@ -59,8 +81,8 @@ const ERROR: u8 = 1;
 /// self-description. The tag chooses the format, one variant at a
 /// time.
 impl Encode for Frame {
-    /// The ordinary JSON failure, from the half that has one. A lone
-    /// tag byte cannot fail.
+    /// The ordinary JSON failure, from the one variant that has one.
+    /// A lone tag byte cannot fail.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -72,6 +94,10 @@ impl Encode for Frame {
         match self {
             Frame::Deleted => {
                 out.extend_from_slice(&[DELETED]);
+                Ok(())
+            }
+            Frame::Mounted => {
+                out.extend_from_slice(&[MOUNTED]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -91,6 +117,7 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             DELETED => Ok(Frame::Deleted),
+            MOUNTED => Ok(Frame::Mounted),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -104,7 +131,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

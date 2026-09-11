@@ -5,6 +5,7 @@ use std::pin::Pin;
 
 use futures_util::Stream;
 
+use crate::endpoints::volumes::delete::server::response::Deletion;
 use crate::endpoints::volumes::list::server::response::Volume;
 use crate::endpoints::volumes::stat::server::response::Stat;
 use crate::shared::filetree;
@@ -70,9 +71,11 @@ use crate::shared::filetree;
 /// [`create`](Self::create) over an existing name fails, whether an
 /// [`edit`](Self::edit) below
 /// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used)
-/// fails, and what a [`delete`](Self::delete) does to a volume
-/// something is using are all the provider's to answer. This trait
-/// gives each of them somewhere to say no and does not say when.
+/// fails, and what a [`delete`](Self::delete) does to a volume under a
+/// watch are all the provider's to answer. This trait gives each of
+/// them somewhere to say no and does not say when. The one case the
+/// wire does decide is a [`delete`](Self::delete) of a mounted volume,
+/// which is refused, and it has its own answer rather than a failure.
 pub trait VolumeManager: Send + Sync {
     /// Whatever this provider's volumes fail with.
     ///
@@ -191,29 +194,38 @@ pub trait VolumeManager: Send + Sync {
         bytes: u64,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
-    /// Remove a volume and everything in it.
+    /// Remove a volume and everything in it, unless it is mounted.
     ///
     /// The name leaves the namespace, and a
     /// [`create`](Self::create) may use it again afterwards.
     ///
-    /// # What happens to whatever was using it
+    /// # A mounted volume is not deleted
     ///
-    /// Is not adjudicated here, and is not adjudicated on the wire
-    /// either. A volume may be
-    /// [`mounted`](super::mount::Mount) into a container that is still
-    /// running and may be under a
-    /// [`watch`](Self::watch) somebody is still reading, and a provider
-    /// may refuse the delete, perform it and let both fail, or perform
-    /// it and leave the container's mount intact until it stops.
+    /// A volume [`mounted`](super::mount::Mount) into a container that
+    /// is still running is never deleted. A provider answers
+    /// [`Deletion::Mounted`] and changes nothing — the one rule about
+    /// a volume in use that the wire fixes, and it has its own answer
+    /// rather than an error because a caller acts on it differently:
+    /// stop the container, ask again.
+    ///
+    /// The provider is what knows whether a volume is mounted, which
+    /// is why the answer is the provider's to give and not the
+    /// handler's to check.
+    ///
+    /// # A watched volume is the provider's
+    ///
+    /// A [`watch`](Self::watch) is not a mount. A provider may delete
+    /// a volume somebody is still watching and let the watch end, or
+    /// refuse with its own error; the wire does not say.
     ///
     /// Said plainly because the alternative is that it gets assumed.
     /// A caller that needs a volume gone AND needs nothing to be
-    /// holding it arranges the second itself.
+    /// watching it arranges the second itself.
     fn delete(
         &self,
         client_identity: &str,
         name: &str,
-    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+    ) -> impl Future<Output = Result<Deletion, Self::Error>> + Send;
 
     /// Watch a volume's tree, and report what changes in it.
     ///

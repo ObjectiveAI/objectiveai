@@ -28,19 +28,18 @@ use crate::encode::{Encode, Writer};
 /// answers the second time exactly as it answered the first.
 /// Confirmation belongs where a person is, which is above this.
 ///
-/// # What it does to whatever is using it
+/// # A mounted volume is refused
 ///
-/// Nothing here says, because nothing here can. A volume may be
+/// A volume
 /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)ed
-/// into a running laboratory, or being
-/// [`watch`](crate::endpoints::volumes::watch)ed, or both, by this
-/// caller and by nobody else — and what a provider does about that is
-/// the provider's: refuse while it is in use, or delete it and let the
-/// mount fail the way a yanked disk fails.
+/// into a running container is never deleted: a provider answers
+/// [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted)
+/// and changes nothing. A caller that wants it gone stops the
+/// container first and asks again.
 ///
-/// A caller that cares stops using it first. That is not a courtesy
-/// this protocol can enforce, and pretending otherwise would be
-/// promising a coordination it has no frame for.
+/// A volume being [`watch`](crate::endpoints::volumes::watch)ed is
+/// not mounted, and what a provider does about one is the provider's:
+/// delete it and let the watch end, or refuse with an error.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame {
     /// Which volume, by the name a listing gave it.
