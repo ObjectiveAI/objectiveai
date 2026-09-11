@@ -8,6 +8,16 @@ crate. This file governs how the specification is written. It binds
 every page under `src/content/spec/`, and it binds me whenever I write
 one.
 
+## The register
+
+The `spec-prose` skill (`~/.claude/skills/spec-prose/SKILL.md`) is the
+register every page is written in, and it is loaded before any page
+is written or revised: complete sentences in the present indicative,
+sequence stated by verbs of order and never by "then", every
+quantifier exact, every value literal, no fragment, no contraction, no
+commentary. What follows here is the document's shape; the skill is
+its sentence.
+
 ## The document
 
 The specification is a scientific article. It is written the way a

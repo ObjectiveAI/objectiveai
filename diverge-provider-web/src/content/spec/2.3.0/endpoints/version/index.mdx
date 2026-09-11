@@ -1,24 +1,25 @@
 ---
 title: 'version'
-summary: 'Tag 9: a client asks what a provider is; the provider answers one frame carrying the string 2.3.0, the revision of this specification, then the finish.'
+summary: 'Tag 9: a client asks which revision of this specification a server implements; the server sends exactly one response carrying the string 2.3.0, and the scope finishes.'
 order: 9
 draft: false
 ---
 
-A request whose payload is the tag byte `9` alone opens the scope.
-The server answers with exactly one response, whose payload is the
-revision of this specification the server implements, and then the
-response finish.
+A client opens the scope with a request whose payload is the tag byte
+`9` and nothing more. The server sends exactly one response, whose
+payload is the string `2.3.0`, the revision of this specification. The
+response finish follows the response, and no frame follows the
+finish.
 
-- **The question carries nothing.** The tag is the whole request; see
-  [Request](/endpoints/version/request/).
-- **The answer is fixed.** The response is the string
-  `2.3.0`: the revision of this specification, of the form
-  `MAJOR.MINOR.PATCH`. Nothing else is a conforming answer; see
-  [Response](/endpoints/version/response/).
-- **There is no error.** The scope carries one response and the
-  finish. No frame of this endpoint reports a failure.
-- **It assumes nothing but frames.** The request and its answer
-  depend on no other exchange, so a client that does not yet know
-  which revision a server implements learns it here before composing
-  any other request.
+- **The request.** The request carries no parameter; the tag is the
+  whole of it. [Request](/endpoints/version/request/) states its
+  form.
+- **The response.** The response carries the string `2.3.0`, and a
+  server that implements this revision sends no other string.
+  [Response](/endpoints/version/response/) states its form.
+- **No error.** This endpoint defines no error frame. The scope
+  carries exactly one response and the response finish.
+- **Independence.** The request and its response depend on no other
+  exchange. A client that does not know which revision a server
+  implements learns it from this exchange before it composes any
+  other request.
