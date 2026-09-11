@@ -417,7 +417,11 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                         // complete on these.
                         RunnerUpdate::End(StdioEndStatus::Ok) => break,
                         RunnerUpdate::End(StdioEndStatus::Error { error }) => {
-                            yield Err(super::Error::Stderr(error));
+                            // A structured end-frame error, not stderr —
+                            // labeling it `Stderr` sent debuggers to the
+                            // wrong stream. Classified so an auth lapse
+                            // stops surfacing as a 500 reading "success".
+                            yield Err(super::Error::runner(error));
                             had_error = true;
                             break;
                         }

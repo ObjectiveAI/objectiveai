@@ -115,7 +115,24 @@ impl SDKResultMessage {
     ) -> objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         let upstream_id = self.session_id().to_string();
         let (total_cost_usd, usage, error) = match &self {
-            SDKResultMessage::Success(s) => (s.total_cost_usd, &s.usage, None),
+            // The CLI can emit an error-flagged result whose subtype is
+            // still "success" — an auth lapse does exactly this — and the
+            // untagged enum lands it here because `Success.subtype` is an
+            // unconstrained String. `is_error` decides; `result` carries
+            // the real text. Ignoring the flag turned those failures into
+            // silent successes with the message dropped.
+            SDKResultMessage::Success(s) => (
+                s.total_cost_usd,
+                &s.usage,
+                s.is_error.then(|| {
+                    objectiveai_sdk::error::ResponseError {
+                        code: 500,
+                        message: serde_json::Value::String(
+                            s.result.clone(),
+                        ),
+                    }
+                }),
+            ),
             SDKResultMessage::Error(e) => (
                 e.total_cost_usd,
                 &e.usage,

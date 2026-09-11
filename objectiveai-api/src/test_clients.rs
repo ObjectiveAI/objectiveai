@@ -265,19 +265,22 @@ static AGENT_RETRIEVE_ROUTER: LazyLock<Arc<AgentRetrieveRouter>> = LazyLock::new
 
 // MCP backoff + timeout config used by both the singleton MCP client
 // (api → proxy) and the in-process proxy spawner (proxy → upstream).
-// Values match `objectiveai-api/src/run.rs::ConfigBuilder::build`'s
-// production defaults — i.e. the "no env vars set" steady state — so
-// tests exercise the same retry policy operators see by default.
 //
-// EXCEPTION: `MCP_CALL_TIMEOUT_MS` is doubled (60s vs the 30s
-// production default). Under the full concurrent integration suite,
-// single test slots have been observed to lose ~40s+ of wall time to
-// scheduler pressure mid-`list_tools`, which surfaces as a flaky
-// "operation timed out" failure on whichever seed gets unlucky. The
-// production budget is the right shape; doubling it under test
-// avoids the load-induced flake without papering over a real
-// performance regression (a >60s `list_tools` against the local
-// mock would still surface).
+// These do NOT mirror production. Production
+// (`objectiveai-api/src/run.rs::ConfigBuilder::build`) has no call
+// timeout at all — `mcp_call_timeout` defaults to `None`, and the env
+// that once set it was removed in 6f95884c9 ("wait forever on the CLI
+// client") — and its connect timeout is 30 minutes. Tests pin finite
+// values instead, because an unbounded wait turns a hung mock into a
+// hung suite, and fixed backoff numbers keep the retry policy
+// deterministic.
+//
+// `MCP_CALL_TIMEOUT_MS` is 60s because single test slots under the
+// full concurrent integration suite have been observed to lose ~40s+
+// of wall time to scheduler pressure mid-`list_tools`; a shorter
+// budget surfaces as a flaky "operation timed out" on whichever seed
+// gets unlucky, while a genuinely >60s `list_tools` against the local
+// mock would still surface as the regression it is.
 const MCP_CONNECT_TIMEOUT_MS: u64 = 30_000;
 pub(crate) const MCP_CALL_TIMEOUT_MS: u64 = 60_000;
 const MCP_BACKOFF_CURRENT_INTERVAL_MS: u64 = 100;

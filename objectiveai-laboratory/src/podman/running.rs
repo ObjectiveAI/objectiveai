@@ -100,13 +100,63 @@ pub async fn ensure_running(
 async fn reconcile(exe: &Path, helper_dir: Option<&Path>) -> Result<(), Error> {
     match machine_state(exe, helper_dir).await {
         MachineState::Running => Ok(()),
-        MachineState::Stopped => machine_start(exe, helper_dir).await,
+        MachineState::Stopped => {
+            // A machine created before [`setup::MACHINE_MEMORY_MIB`] existed
+            // keeps podman's 2 GiB default forever — `machine init` never
+            // re-runs once a machine exists — so the init-time flag alone
+            // would fix only brand-new hosts. Upgrade undersized machines
+            // here, where they are already Stopped (`machine set` requires
+            // that) and both locks are held. The Running arm stays
+            // untouched: zero cost on the hot path, and a live machine
+            // picks this up at its next stop (typically the next reboot).
+            if std::env::consts::OS == "macos" {
+                machine_upgrade_memory(exe, helper_dir).await;
+            }
+            machine_start(exe, helper_dir).await
+        }
         // `machine init` does NOT auto-start (no `--now`), so start after it.
         MachineState::Absent => {
             setup::machine_init(exe, helper_dir).await?;
             machine_start(exe, helper_dir).await
         }
     }
+}
+
+/// Raise an undersized stopped machine to [`setup::MACHINE_MEMORY_MIB`] via
+/// `podman machine set`. Best-effort by design: a failed probe or set must
+/// not block [`machine_start`] — an old-size machine still works, it is
+/// merely OOM-prone for scaffold builds — so every failure path returns
+/// silently and the start proceeds. Caller holds both machine locks and has
+/// probed the machine `Stopped` (`machine set` requires a stopped machine).
+async fn machine_upgrade_memory(exe: &Path, helper_dir: Option<&Path>) {
+    let output = setup::command(exe, helper_dir)
+        .arg("machine")
+        .arg("inspect")
+        .arg(MACHINE_NAME)
+        .arg("--format")
+        .arg("{{.Resources.Memory}}")
+        .output()
+        .await;
+    let Ok(output) = output else { return };
+    if !output.status.success() {
+        return;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let current: u64 = match stdout.trim().parse() {
+        Ok(mib) => mib,
+        Err(_) => return,
+    };
+    if current >= u64::from(setup::MACHINE_MEMORY_MIB) {
+        return;
+    }
+    let _ = setup::command(exe, helper_dir)
+        .arg("machine")
+        .arg("set")
+        .arg(MACHINE_NAME)
+        .arg("--memory")
+        .arg(setup::MACHINE_MEMORY_MIB.to_string())
+        .output()
+        .await;
 }
 
 /// Probe the global machine's lifecycle state via `podman machine inspect`.
