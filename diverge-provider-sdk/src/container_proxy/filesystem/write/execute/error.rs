@@ -27,8 +27,6 @@ pub enum ExecuteError<E> {
     Answer(FrameError),
     /// A close with no answer: could not serve, nothing said.
     Unserved,
-    /// A text message: the far side speaking something else.
-    Text,
     /// The socket failed: the write died, its outcome unknown.
     Socket(tungstenite::Error),
     /// The socket ended without a Close: the write died, its outcome
@@ -49,7 +47,6 @@ impl<E: fmt::Display> fmt::Display for ExecuteError<E> {
             }
             ExecuteError::Answer(error) => write!(f, "{error}"),
             ExecuteError::Unserved => f.write_str("the proxy could not serve the write"),
-            ExecuteError::Text => f.write_str("/filesystem/write carried a text message"),
             ExecuteError::Socket(error) => write!(f, "/filesystem/write failed: {error}"),
             ExecuteError::Closed => f.write_str("/filesystem/write ended without a close"),
         }
@@ -66,7 +63,7 @@ impl<E: std::error::Error + 'static> std::error::Error for ExecuteError<E> {
             ExecuteError::Socket(error) => Some(error),
             ExecuteError::Refused(_)
             | ExecuteError::Unserved
-            | ExecuteError::Text
+           
             | ExecuteError::Closed => None,
         }
     }

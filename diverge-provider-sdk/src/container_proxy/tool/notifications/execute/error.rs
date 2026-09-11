@@ -41,8 +41,6 @@ pub enum ExecuteStreamError {
     Refused(ErrorData),
     /// A message that would not decode.
     Frame(FrameError),
-    /// A text message: the far side speaking something else.
-    Text,
     /// The socket failed.
     Socket(tungstenite::Error),
     /// The socket ended without a Close: the proxy died.
@@ -54,7 +52,6 @@ impl fmt::Display for ExecuteStreamError {
         match self {
             ExecuteStreamError::Refused(error) => write!(f, "the subscription was refused: {}", error.message),
             ExecuteStreamError::Frame(error) => write!(f, "{error}"),
-            ExecuteStreamError::Text => f.write_str("/tool/notifications carried a text message"),
             ExecuteStreamError::Socket(error) => write!(f, "/tool/notifications failed: {error}"),
             ExecuteStreamError::Closed => f.write_str("/tool/notifications ended without a close"),
         }
@@ -66,7 +63,7 @@ impl std::error::Error for ExecuteStreamError {
         match self {
             ExecuteStreamError::Frame(error) => Some(error),
             ExecuteStreamError::Socket(error) => Some(error),
-            ExecuteStreamError::Refused(_) | ExecuteStreamError::Text | ExecuteStreamError::Closed => None,
+            ExecuteStreamError::Refused(_) | ExecuteStreamError::Closed => None,
         }
     }
 }

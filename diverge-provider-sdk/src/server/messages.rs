@@ -64,7 +64,9 @@ where
                     continue;
                 }
                 Some(Ok(Message::Close(_))) => None,
-                Some(Ok(Message::Text(_))) => Some(Err(MessageError::Text)),
+                // A text frame carries nothing this wire defines; it is
+                // ignored, as a ping is.
+                Some(Ok(Message::Text(_))) => continue,
                 Some(Err(error)) => Some(Err(MessageError::Socket(error))),
                 None => Some(Err(MessageError::Closed)),
             };
@@ -79,8 +81,6 @@ where
 /// Why a proxy socket ended other than cleanly.
 #[derive(Debug)]
 pub(crate) enum MessageError {
-    /// A text message: the far side speaking something else.
-    Text,
     /// The socket failed.
     Socket(tungstenite::Error),
     /// The socket ended without a Close: the far side died.

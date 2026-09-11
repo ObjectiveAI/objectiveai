@@ -26,7 +26,6 @@ pub async fn execute(
     let mut messages = Messages::new(socket);
     let answer = match messages.next().await {
         None => return Err(ExecuteError::Unserved),
-        Some(Err(MessageError::Text)) => return Err(ExecuteError::Text),
         Some(Err(MessageError::Socket(error))) => return Err(ExecuteError::Socket(error)),
         Some(Err(MessageError::Closed)) => return Err(ExecuteError::Closed),
         Some(Ok(bytes)) => bytes,
