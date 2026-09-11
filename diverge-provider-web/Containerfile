@@ -1,0 +1,55 @@
+# The specification site: built once, served static.
+#
+# Build from the WORKSPACE ROOT — the site's build reads the crate it
+# documents: the revision from diverge-provider-sdk/Cargo.toml, and
+# every `include=` fence from diverge-provider-sdk/src:
+#
+#     podman build -f diverge-provider-web/Containerfile \
+#         -t localhost/diverge-provider-web:2.3.0 .
+#
+# Two stages. The first is the same `pnpm build` a developer runs,
+# gate included: zero scripts in the HTML, every include resolved,
+# every page's anatomy checked. The second is nginx, unprivileged,
+# holding nothing but dist/. Digests pinned from Docker Hub on
+# 2026-09-11; bump deliberately.
+
+# node:22-alpine.
+FROM docker.io/library/node:22-alpine@sha256:76789712cd1ae89a1225eac9077010d68987a423588042dac30446f502f1858c AS build
+
+# The workspace's pnpm, by the version the root manifest names.
+RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
+
+WORKDIR /build
+
+# The workspace manifests and every member's package.json: the one
+# lockfile lists every importer, and a frozen install checks them.
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY diverge-provider-web/package.json diverge-provider-web/
+COPY objectiveai-sdk-js/package.json objectiveai-sdk-js/
+COPY objectiveai-web/package.json objectiveai-web/
+COPY objectiveai-viewer/package.json objectiveai-viewer/
+COPY tests/objectiveai-sdk-js-tests/package.json tests/objectiveai-sdk-js-tests/
+RUN pnpm install --frozen-lockfile --filter diverge-provider-web
+
+# What the site reads of the crate, and nothing else of it.
+COPY diverge-provider-sdk/Cargo.toml diverge-provider-sdk/Cargo.toml
+COPY diverge-provider-sdk/src diverge-provider-sdk/src
+
+COPY diverge-provider-web diverge-provider-web
+# `pnpm --filter` runs the script with the package as its working
+# directory, which is where the build resolves the workspace from.
+RUN pnpm --filter diverge-provider-web run build
+
+# nginxinc/nginx-unprivileged:1.29-alpine: nginx as uid 101, listening
+# on 8080, writing only under /tmp — so the container runs read-only
+# with a tmpfs there and no capability at all.
+FROM docker.io/nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6 AS serve
+
+COPY diverge-provider-web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /build/diverge-provider-web/dist /usr/share/nginx/html
+
+EXPOSE 8080
+
+# The latest revision's root answers, or the container is unhealthy.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
+    CMD wget -q --spider http://127.0.0.1:8080/2.3.0/ || exit 1
