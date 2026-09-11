@@ -1,0 +1,33 @@
+---
+title: '/mcp/notifications/{channel}'
+summary: 'Kind 4: what the caller’s servers say on their own account, one message per notification for as long as the path lives, an error last when there is one.'
+order: 5
+draft: false
+---
+
+The ask is kind `4` on [`/requests`](/proxy/requests/); its payload
+is empty. The server answers on `/mcp/notifications/{channel}` with
+one message per notification, for as long as the path lives: each
+the response frame below, its first byte `0` and the rest the
+notification's JSON. An error — first byte `1`, the rest the error's
+JSON — is the last message when there is one. The close ends the
+stream. A path closed cleanly with no message is the stream not
+served.
+
+- **Asked once the container has exchanged.** The container asks for
+  notifications after its first exchange of kinds `0` to `3`, and
+  keeps one such ask open for the rest of its life.
+- **A stream that ended is asked again**, on the next `/requests`
+  connection, whether it ended cleanly, by an error, or abruptly.
+  Notifications that occurred while no stream was open are not
+  replayed.
+
+The ask is `diverge-provider-sdk/src/shared/mcp/notifications/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/mcp/notifications/request/request.rs
+```
+
+The messages are `diverge-provider-sdk/src/shared/mcp/notifications/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/mcp/notifications/response/frame.rs
+```

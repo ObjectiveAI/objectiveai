@@ -1,0 +1,23 @@
+---
+title: '/tool/notifications'
+summary: 'Nothing sent; the container answers one message per notification its MCP server sends, for as long as the path lives, or one error when that server cannot be reached.'
+order: 5
+draft: false
+---
+
+The server opens `/tool/notifications` and sends nothing. The
+container answers with one message per notification its MCP server
+sends from then on, each the response frame below with first byte
+`0` and the notification's JSON, for as long as the path lives. A
+container whose MCP server cannot be reached answers one message —
+first byte `1` and the error's JSON — then the close.
+
+- **From then on.** Notifications sent before the path was opened
+  are not delivered on it.
+- **The server closes.** The path lives until the server closes it;
+  the container closes it only for the error above.
+
+The messages are `diverge-provider-sdk/src/shared/mcp/notifications/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/mcp/notifications/response/frame.rs
+```

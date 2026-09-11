@@ -1,0 +1,86 @@
+---
+title: 'Container Proxy'
+summary: 'The external interface of the container proxy: the WebSocket paths a provider’s server dials on port 14979 of every container it runs, what each carries, and the environment the proxy reads at its start.'
+order: 5
+draft: false
+---
+
+A provider places one program, the **container proxy**, beside the
+entrypoint of every container it runs, and reaches the container
+through it alone. The proxy is not a layer of the protocol; it is a
+binary whose external interface this section defines at this
+revision. What the proxy offers the program beside it is not defined
+here.
+
+- **The listener.** The proxy listens on TCP port `14979` on every
+  interface of the container. Every path below is a WebSocket path
+  on that listener. The server dials every path; the proxy dials
+  nothing.
+- **Messages.** Every message on every path is one WebSocket binary
+  data frame, carrying what the path defines and nothing around it:
+  no header, no scope, no channel, no finish. A text data frame from
+  either party ends the connection.
+- **No handshake.** The WebSocket upgrade is the whole of a path's
+  opening. No message precedes the path's first.
+- **Asks and answers.** The container asks on [`/requests`](/proxy/requests/).
+  Each ask carries a **channel**, a `u32` the container mints, unique
+  among its asks not yet answered. The server answers an ask by
+  opening the ask's own path with that channel in it, sending the
+  answer as the path's messages, and closing. The clean close is the
+  end of the answer. A path opened and closed cleanly with no message
+  before the close states that the ask could not be served.
+- **Openings.** `/requests` accepts one connection at a time; a
+  second, while one is open, is refused with HTTP status `409` before
+  the upgrade. An answer path is accepted for a channel the container
+  has announced and the server has not yet opened; a channel the
+  proxy does not know is refused with `404`, and a second opening of
+  a known channel with `409`, both before the upgrade. The
+  `/filesystem/*`, `/agent/*` and `/tool/*` paths accept every
+  opening the server makes.
+- **Endings.** A clean close — the WebSocket closing handshake — is
+  an answer complete or a session over. An abrupt end is the
+  connection dying. The two are distinguished, and what each means
+  on a path is stated on that path's page. `/requests` ending, either
+  way, loses every ask not yet answered; what follows for each is
+  its kind's rule, stated on its page.
+- **Nothing times out.** A quiet connection is a connection still
+  open, on every path.
+
+| Path | Carries |
+|------|---------|
+| [`/requests`](/proxy/requests/) | every ask the container makes; nothing comes back on it |
+| [`/mcp/list-tools/{channel}`](/proxy/mcp/list-tools/) | one MCP response, then the close |
+| [`/mcp/list-resources/{channel}`](/proxy/mcp/list-resources/) | one MCP response, then the close |
+| [`/mcp/call-tool/{channel}`](/proxy/mcp/call-tool/) | one MCP response, then the close |
+| [`/mcp/read-resource/{channel}`](/proxy/mcp/read-resource/) | one MCP response, then the close |
+| [`/mcp/notifications/{channel}`](/proxy/mcp/notifications/) | notifications as they come, then the close |
+| [`/vault/get/{channel}`](/proxy/vault/get/) | one vault answer, then the close |
+| [`/vault/set/{channel}`](/proxy/vault/set/) | one vault answer, then the close |
+| [`/vault/delete/{channel}`](/proxy/vault/delete/) | one vault answer, then the close |
+| [`/vault/lock/{channel}`](/proxy/vault/lock/) | one vault answer, when the lock is held, then the close |
+| [`/vault/unlock/{channel}`](/proxy/vault/unlock/) | one vault answer, then the close |
+| [`/fuse/stat/{channel}`](/proxy/fuse/stat/) | one answer for a mounted entry, then the close |
+| [`/fuse/read/{channel}`](/proxy/fuse/read/) | one answer for a mounted file, then the close |
+| [`/fuse/write/{channel}`](/proxy/fuse/write/) | one answer for a mounted file, then the close |
+| [`/fuse/list/{channel}`](/proxy/fuse/list/) | one answer for a mounted directory, then the close |
+| [`/fuse/remove/{channel}`](/proxy/fuse/remove/) | one answer for a mounted entry, then the close |
+| [`/fuse/rename/{channel}`](/proxy/fuse/rename/) | one answer for a mounted entry, then the close |
+| [`/fuse/mkdir/{channel}`](/proxy/fuse/mkdir/) | one answer for a mounted directory, then the close |
+| [`/command/{channel}`](/proxy/command/) | the command’s items, then the close |
+| [`/postgres/{channel}`](/proxy/postgres/) | raw pgwire, both ways, until either party closes |
+| [`/filesystem/tree`](/proxy/filesystem/tree/) | the container’s filesystem as a snapshot and its changes, or why there are none |
+| [`/filesystem/read`](/proxy/filesystem/read/) | one file out of the container |
+| [`/filesystem/write`](/proxy/filesystem/write/) | one file into the container |
+| [`/agent/register`](/proxy/agent/register/) | the agent, once; registered, or an error |
+| [`/agent/run`](/proxy/agent/run/) | a prompt; the loop’s chunks, or an error |
+| [`/agent/schema`](/proxy/agent/schema/) | the agent’s JSON Schema, or an error |
+| [`/agent/enqueue`](/proxy/agent/enqueue/) | a message for the loop’s queue; its fate, when known |
+| [`/agent/dequeue`](/proxy/agent/dequeue/) | whether the queue held anything |
+| [`/tool/list-tools`](/proxy/tool/list-tools/) | MCP params; one result, or an error |
+| [`/tool/list-resources`](/proxy/tool/list-resources/) | MCP params; one result, or an error |
+| [`/tool/call-tool`](/proxy/tool/call-tool/) | MCP params; one result, or an error |
+| [`/tool/read-resource`](/proxy/tool/read-resource/) | MCP params; one result, or an error |
+| [`/tool/notifications`](/proxy/tool/notifications/) | what the container’s MCP server says on its own account |
+
+The variables the proxy reads at its start are defined in
+[Environment](/proxy/environment/).

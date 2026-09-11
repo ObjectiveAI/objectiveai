@@ -1,0 +1,44 @@
+---
+title: '/filesystem/read'
+summary: 'One file out of the container: the server names it in one message; the container answers its bytes in pieces, then the close, or an error last.'
+order: 2
+draft: false
+---
+
+The server opens `/filesystem/read` and sends exactly one message,
+the request below as JSON, naming the file. The container answers
+with the file's bytes, then closes.
+
+```text
+server → container:   [request JSON]                        once
+container → server:   [0][bytes …] … [0][bytes …]           then the close
+                   or [0][bytes …] … [1][message …]         then the close
+```
+
+| The path ends with | Meaning |
+|--------------------|---------|
+| bodies, then the close | the bytes, concatenated, are the file |
+| an error, then the close | the file was not read, or not all of it |
+| the close, with nothing before it | the read could not be served |
+
+- **Pieces.** Each body carries at most `2097152` bytes (2 MiB). A
+  file of zero bytes is one empty body, then the close.
+- **A file, never a directory.** A path naming a directory is
+  answered with an error.
+- **Nothing is repeated.** An abrupt end is a read that failed.
+
+The request is `diverge-provider-sdk/src/shared/containers/read/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/read/request/request.rs
+```
+
+The messages are `diverge-provider-sdk/src/container_proxy/filesystem/read/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/read/response/frame.rs
+```
+
+The ways a message fails to read are
+`diverge-provider-sdk/src/container_proxy/filesystem/read/response/error.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/read/response/error.rs
+```

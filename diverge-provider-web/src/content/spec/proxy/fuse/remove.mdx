@@ -1,0 +1,23 @@
+---
+title: '/fuse/remove/{channel}'
+summary: 'Kind 15: a file or an empty directory, removed. The answer is one message — 0 ok, 1 and a message — then the close.'
+order: 5
+draft: false
+---
+
+The ask is kind `15` on [`/requests`](/proxy/requests/):
+
+```text
+[15][id_len: u16, big-endian][id …][path …]
+```
+
+The server answers on `/fuse/remove/{channel}` with exactly one
+message — `0` ok, `1` and a message — then the close. A path closed cleanly with no
+message is the operation not served; an abrupt end is the operation
+failed, and it is not asked again — see [FUSE](/proxy/fuse/).
+
+- **A non-empty directory is the caller's to refuse**, with `1` and a message.
+
+The ask is the target of [FUSE](/proxy/fuse/): the mount's id and the entry's path.
+
+The answer is the ack of [FUSE](/proxy/fuse/).

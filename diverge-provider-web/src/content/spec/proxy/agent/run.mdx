@@ -1,0 +1,102 @@
+---
+title: '/agent/run'
+summary: 'A prompt, then the loop: zero or more chunks, then the close, or one error and the close; the first message decides whether there was a loop at all.'
+order: 2
+draft: false
+---
+
+The server opens `/agent/run` and sends one message, the request
+below as JSON, carrying the prompt. The container answers with the
+loop.
+
+```text
+server → container:   [request JSON]                          once
+container → server:   [0][chunk JSON] … [0][chunk JSON]       then the close
+                   or [1][error JSON]                         then the close
+                   or [0][chunk JSON] … [1][error JSON]       then the close
+```
+
+- **The first message decides.** An error as the first message
+  states that no loop ran; a chunk as the first message states that
+  one did. An error after chunks states that the loop ended without
+  finishing, and is the last message.
+- **A chunk is output.** A notification chunk marked fatal is the
+  loop's own last word, a chunk and not an error, and the close
+  follows it.
+- **One loop at a time.** A loop asked for while one runs is
+  answered with an error as the first message.
+- **Not repeated.** A path that ended abruptly is a loop cut short;
+  nothing here asks again.
+
+The request is `diverge-provider-sdk/src/shared/containers/run_loop/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/request/request.rs
+```
+
+The messages are `diverge-provider-sdk/src/shared/containers/run_loop/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/frame.rs
+```
+
+The chunks, behind kind `0`, are the following files of
+`diverge-provider-sdk/src/shared/containers/run_loop/response/`:
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/user_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/user_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_text_content_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_text_content_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_reasoning_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_reasoning_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_refusal_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_refusal_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_tool_call_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_tool_call_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_image_content_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_image_content_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_audio_content_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_audio_content_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/tool_response_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/tool_response_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/notification_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/notification_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/usage_chunk.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/usage_chunk.rs
+```
+
+`diverge-provider-sdk/src/shared/containers/run_loop/response/logprobs.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/logprobs.rs
+```

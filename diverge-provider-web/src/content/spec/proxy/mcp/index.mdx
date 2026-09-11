@@ -1,0 +1,47 @@
+---
+title: 'MCP Exchanges'
+summary: 'Kinds 0 to 4: the five MCP exchanges the container asks, each answered by one message on its own path, and a notification stream answered for as long as it lives.'
+order: 2
+draft: false
+---
+
+Five asks carry the container's MCP exchanges: four that are
+answered once, and a fifth that is answered for as long as its path
+lives.
+
+| Kind | Ask | Payload | Answered on | With |
+|------|-----|---------|-------------|------|
+| `0` | list tools | the params as JSON | [`/mcp/list-tools/{channel}`](/proxy/mcp/list-tools/) | one message |
+| `1` | list resources | the params as JSON | [`/mcp/list-resources/{channel}`](/proxy/mcp/list-resources/) | one message |
+| `2` | call tool | the params as JSON | [`/mcp/call-tool/{channel}`](/proxy/mcp/call-tool/) | one message |
+| `3` | read resource | the params as JSON | [`/mcp/read-resource/{channel}`](/proxy/mcp/read-resource/) | one message |
+| `4` | notifications | nothing | [`/mcp/notifications/{channel}`](/proxy/mcp/notifications/) | one message per notification |
+
+- **The payloads are JSON.** A params payload is the JSON of the
+  request type its page shows, under the reading of
+  [Notation](/endpoints/#notation); the types named from `rmcp::model`
+  are those of the Model Context Protocol, incorporated by reference.
+- **An answer is one message, then the close.** For kinds `0` to
+  `3`, the path carries exactly one message — the exchange's response
+  frame, a result or an error — and then the close. For kind `4`, it
+  carries one message per notification for as long as the path
+  lives, an error being the last message when there is one, and then
+  the close.
+- **An exchange is answered when its message arrived and its path
+  closed cleanly.** An exchange whose `/requests` connection ended
+  before its path was opened, or whose path ended abruptly, is
+  unanswered: the container asks it again on the next `/requests`
+  connection, as a fresh channel. A server may therefore receive one
+  logical exchange more than once. A path opened and closed cleanly
+  with no message is an answer — the exchange could not be served —
+  and is not asked again.
+- **A notification stream that ended is asked again**, on the next
+  `/requests` connection, and notifications that occurred between are
+  not replayed. The container asks for notifications only after it
+  has made its first exchange.
+
+The ways a response fails to read are shared by the five,
+`diverge-provider-sdk/src/shared/mcp/frame_error.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/mcp/frame_error.rs
+```

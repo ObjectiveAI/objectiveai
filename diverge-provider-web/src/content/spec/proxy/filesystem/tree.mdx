@@ -1,0 +1,54 @@
+---
+title: '/filesystem/tree'
+summary: 'The container’s filesystem, watched: the server sends nothing; the container answers a snapshot, then one message per change, a snapshot again after lost events, or one error last.'
+order: 1
+draft: false
+---
+
+The server opens `/filesystem/tree` and sends nothing on it: the
+opening is the whole ask, and a message from the server ends the
+connection. The container answers with one message per event, for as
+long as the path lives.
+
+```text
+[0][postcard-encoded filetree frame …]    per event
+[1][message …]                            last, then the close
+```
+
+- **A snapshot first.** The first message on every opening is a
+  snapshot of the whole tree, behind kind `0`. Every message after is
+  one change, behind kind `0`, as it happens.
+- **A snapshot again.** A watch that lost events sends a fresh
+  snapshot on the same path, which replaces the tree whole.
+- **One error, last.** Kind `1` and a message states that the watch
+  could not exist, and is the last message before the close. A
+  corner of the tree that could not be watched is not an error: it is
+  reported in the tree itself, with its directory's `changes` false.
+- **Every opening starts whole.** There is nothing to resume: an
+  opening after an ending, clean or abrupt, begins with a snapshot.
+- **The encoding.** Behind kind `0` the frame is the filetree
+  response frame below, encoded in the
+  [postcard wire format](https://postcard.jamesmunns.com/wire-format).
+  Variant order is the wire's discriminant.
+
+The message is `diverge-provider-sdk/src/container_proxy/filesystem/tree/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/tree/response/frame.rs
+```
+
+The ways it fails to read are
+`diverge-provider-sdk/src/container_proxy/filesystem/tree/response/error.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/tree/response/error.rs
+```
+
+The filetree frame behind kind `0` is
+`diverge-provider-sdk/src/shared/filetree/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/filetree/response/frame.rs
+```
+
+Its nodes are `diverge-provider-sdk/src/shared/filetree/response/node.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/filetree/response/node.rs
+```

@@ -1,0 +1,16 @@
+---
+title: '/agent/schema'
+summary: 'Nothing sent; the container answers the JSON Schema of its agent value, or an error, then the close.'
+order: 3
+draft: false
+---
+
+The server opens `/agent/schema` and sends nothing. The container
+answers with exactly one message — first byte `0` and a JSON Schema;
+or first byte `1` and the error's JSON — then the close. A path
+closed cleanly with no message is the schema not served.
+
+The answer is `diverge-provider-sdk/src/shared/containers/agent_schema/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/agent_schema/response/frame.rs
+```

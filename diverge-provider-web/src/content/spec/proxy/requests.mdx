@@ -1,0 +1,69 @@
+---
+title: '/requests'
+summary: 'The one path the container asks on: each message one frame carrying a channel the container minted, a kind byte, and the ask; nothing comes back on it.'
+order: 1
+draft: false
+---
+
+`/requests` carries every ask the container makes. The server dials
+it, holds it open, and sends nothing on it; every message on it is
+from the container, and every answer arrives on another path.
+
+```text
+[channel: u32, big-endian][kind: u8][payload …]
+```
+
+- **The channel.** A `u32` the container mints, counting up, unique
+  among its asks not yet answered. It names the answer path the
+  server opens: `/mcp/list-tools/{channel}` for kind `0`, and so on
+  through the table.
+- **The kind.** One byte designating the ask; the payload is the
+  ask's own bytes in the form its page defines, running to the end of
+  the message.
+
+| Kind | Ask | Answered on |
+|------|-----|-------------|
+| `0` | MCP list tools | [`/mcp/list-tools/{channel}`](/proxy/mcp/list-tools/) |
+| `1` | MCP list resources | [`/mcp/list-resources/{channel}`](/proxy/mcp/list-resources/) |
+| `2` | MCP call tool | [`/mcp/call-tool/{channel}`](/proxy/mcp/call-tool/) |
+| `3` | MCP read resource | [`/mcp/read-resource/{channel}`](/proxy/mcp/read-resource/) |
+| `4` | MCP notifications | [`/mcp/notifications/{channel}`](/proxy/mcp/notifications/) |
+| `5` | vault get | [`/vault/get/{channel}`](/proxy/vault/get/) |
+| `6` | vault set | [`/vault/set/{channel}`](/proxy/vault/set/) |
+| `7` | vault delete | [`/vault/delete/{channel}`](/proxy/vault/delete/) |
+| `8` | vault lock | [`/vault/lock/{channel}`](/proxy/vault/lock/) |
+| `9` | vault unlock | [`/vault/unlock/{channel}`](/proxy/vault/unlock/) |
+| `10` | command | [`/command/{channel}`](/proxy/command/) |
+| `11` | postgres | [`/postgres/{channel}`](/proxy/postgres/) |
+| `12` | FUSE read | [`/fuse/read/{channel}`](/proxy/fuse/read/) |
+| `13` | FUSE write | [`/fuse/write/{channel}`](/proxy/fuse/write/) |
+| `14` | FUSE list | [`/fuse/list/{channel}`](/proxy/fuse/list/) |
+| `15` | FUSE remove | [`/fuse/remove/{channel}`](/proxy/fuse/remove/) |
+| `16` | FUSE rename | [`/fuse/rename/{channel}`](/proxy/fuse/rename/) |
+| `17` | FUSE mkdir | [`/fuse/mkdir/{channel}`](/proxy/fuse/mkdir/) |
+| `18` | FUSE stat | [`/fuse/stat/{channel}`](/proxy/fuse/stat/) |
+
+- **One connection.** `/requests` accepts one connection at a time.
+  A second, while one is open, is refused with HTTP status `409`
+  before the upgrade.
+- **The connection ending.** Every ask announced on a connection and
+  not yet answered when the connection ends, cleanly or not, is lost
+  to the server; what the container then does with each is its
+  kind's rule, stated on its page. Asks made after the ending wait
+  for the next connection.
+
+The frame is `diverge-provider-sdk/src/container_proxy/requests/request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/requests/request/frame.rs
+```
+
+The asks are `diverge-provider-sdk/src/container_proxy/requests/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/requests/request/request.rs
+```
+
+The ways a frame fails to read are
+`diverge-provider-sdk/src/container_proxy/requests/request/error.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/requests/request/error.rs
+```

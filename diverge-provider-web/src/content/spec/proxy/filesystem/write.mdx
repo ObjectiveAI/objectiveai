@@ -1,0 +1,48 @@
+---
+title: '/filesystem/write'
+summary: 'One file into the container: the server names it, sends its content in pieces, and one empty message; the container answers ok or an error, then the close.'
+order: 3
+draft: false
+---
+
+The server opens `/filesystem/write` and sends the request below as
+its first message, naming the destination; then the content, one
+piece per message; then **one empty message**, which ends the
+content. The container answers with exactly one message, then closes.
+
+```text
+server → container:   [request JSON] [bytes …] … [bytes …] []
+container → server:   [kind: u8][message …]                   then the close
+```
+
+- **The empty message ends the content.** A piece is never empty;
+  the first empty message is the end. The file is the pieces
+  concatenated.
+- **One answer.** Kind `0` is the file written. Kind `1` and a
+  message is the file not written; a destination whose parent
+  directory does not exist is such an error.
+- **A close before the empty message abandons the write.** The
+  destination is left as it was. An abrupt end from either party is
+  a write that failed, and the destination is left as it was.
+- **Nothing is repeated.**
+
+The request is `diverge-provider-sdk/src/container_proxy/filesystem/write/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/write/request/request.rs
+```
+
+A piece is `diverge-provider-sdk/src/container_proxy/filesystem/write/request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/write/request/frame.rs
+```
+
+The answer is `diverge-provider-sdk/src/container_proxy/filesystem/write/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/write/response/frame.rs
+```
+
+The ways it fails to read are
+`diverge-provider-sdk/src/container_proxy/filesystem/write/response/error.rs`:
+
+```rust include=diverge-provider-sdk/src/container_proxy/filesystem/write/response/error.rs
+```
