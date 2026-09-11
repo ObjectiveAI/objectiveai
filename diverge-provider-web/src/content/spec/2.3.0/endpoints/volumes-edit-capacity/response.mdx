@@ -1,0 +1,39 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the available increase in bytes as a varint or with the byte 1 followed by an error as one JSON value, and the response finish follows it.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope. The response
+finish follows the response, and no frame follows the finish.
+
+```text
+[0][capacity: varint]
+[1][error JSON …]
+```
+
+- **The sequence.** Exactly one response precedes the response
+  finish, and nothing follows the finish. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
+- **The capacity.** A payload whose first byte is `0` carries the
+  capacity after that byte: one `u64`, the number of bytes by which
+  the size of the volume could be increased, encoded as a varint as
+  the postcard reading of [Notation](/endpoints/#notation) provides.
+  The server sends nothing after the varint, and a client ignores
+  every byte that follows it.
+- **The error.** A payload whose first byte is `1` carries an error
+  after that byte, running to the end of the payload. The error is
+  exactly one JSON value, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  This revision prescribes nothing about its content.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is neither `0` nor `1`, a payload whose bytes after `0` do not
+  decode as a varint, and a payload whose bytes after `1` are not one
+  JSON value are malformed.
+
+The response is defined by `diverge-provider-sdk/src/endpoints/volumes/edit_capacity/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/volumes/edit_capacity/server/response/frame.rs
+```

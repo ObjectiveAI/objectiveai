@@ -1,12 +1,12 @@
 ---
 title: 'volumes::edit'
-summary: 'Tag 7: a client names a volume from its listing and states its size in bytes; the server sends exactly one response stating that the volume has that size, that the server has insufficient capacity for it, that the content of the volume exceeds it, or an error, and the scope finishes; the size is the only property an edit changes.'
+summary: 'Tag 9: a client names a volume from its listing and states its size in bytes; the server sends exactly one response stating that the volume has that size, that the server has insufficient capacity for it, that the content of the volume exceeds it, or an error, and the scope finishes; the size is the only property an edit changes.'
 order: 7
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`7` followed by the name of a volume and a size. The server sends
+`9` followed by the name of a volume and a size. The server sends
 exactly one response, which states that the volume has the size
 stated, that the server has insufficient capacity for it, that the
 content of the volume exceeds it, or an error. The response finish
@@ -38,7 +38,9 @@ follows the response, and no frame follows the finish.
 - **Insufficient capacity.** When the server cannot reserve the size
   stated, it does not change the size and sends the byte `1`. The
   volume has the size it had before the request. The server does not
-  send the byte `0` for a size it cannot reserve.
+  send the byte `0` for a size it cannot reserve. The number of bytes
+  by which the volume can grow at a given time is reported by
+  [volumes::edit_capacity](/endpoints/volumes-edit-capacity/).
 - **Content too large.** When the size stated is smaller than the
   number of bytes the volume holds, the server does not change the
   size and sends the byte `2`. The volume has the size it had before
