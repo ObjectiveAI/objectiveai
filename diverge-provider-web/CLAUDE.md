@@ -173,7 +173,23 @@ violation the receiving party answers by ending the connection, and
 that the identity a server derives from a credential is opaque and
 is the identity every scope on the connection is served under.
 
-### Layer 4 — Endpoints (`/endpoints/`)
+### Layer 4 — Container proxy (`/proxy/`)
+
+The external interface of the proxy binary a provider places beside
+every container's entrypoint: not a layer of the protocol but the
+de-facto API of a program, defined at the revision. It states the
+listener and its port, that the server dials every path, the message
+rule, the openings and their refusals, the two kinds of ending and
+what each means per path, that nothing times out, the `/requests`
+frame and its kinds, one page per answer path and per path the
+server opens — each the ask, the answer as a sequence, the close —
+and the environment the provider sets. It states nothing internal:
+not the loopback listener, not the pgwire listener, not the
+forwarding to the program's own server, not `PORT`, not what a
+mounted file looks like from inside, not how a write lands. Every
+type shown is the crate's file, included.
+
+### Layer 5 — Endpoints (`/endpoints/`)
 
 What a scope is for. It states the tag byte, the tag table (ten
 endpoints: the three container scopes, the five volume endpoints,
@@ -191,7 +207,7 @@ the party that answers. The container scopes further state what
 their id is, what ends the scope, and how a connect scope relates to
 the run scope it joins.
 
-### Layer 5 — Shared vocabulary (`/shared/`)
+### Layer 6 — Shared vocabulary (`/shared/`)
 
 Payload forms that more than one endpoint carries, defined once and
 linked from every channel that carries them: the container request
@@ -206,31 +222,14 @@ the form's own — the vault's lock semantics, FUSE's no-retry rule and
 the empty path — and nothing about which endpoint carries it; the
 endpoint pages say that.
 
-### Layer 6 — The container proxy (`/proxy/`)
-
-The wire between a provider and the proxy inside a container it
-runs. It is part of the specification because the crate defines it
-and the container scopes cannot be served without it. It states the
-two listeners and their ports, the `/requests` connection and its
-frame, the request kinds and the answer path of each, that the server
-dials every path, that every message is one binary frame, that a
-clean close and an abrupt end are distinguished and what each kind
-of exchange does on each, that nothing times out, the filesystem
-paths and their sequences, the `/agent/*` and `/tool/*` paths and the
-loopback servers they forward to, the environment the proxy reads,
-and the FUSE mounts it makes. The program inside the container is
-addressed only through the loopback listener's paths, which this
-layer states.
-
 ### Layer 7 — Container contracts (`/containers/`)
 
-What an image must provide for the proxy to forward to it: the agent
-container's HTTP server on `PORT` and its five paths with their
-bodies and statuses; the tool container's MCP server on `PORT` at
-`/mcp`; that registration is once and before any loop; that a stream
-of chunks carries no error and the first item decides; what a fate
-and an outcome are. These are requirements on image authors, stated
-as such.
+What an image must provide beside the proxy: the agent container's
+HTTP server on `PORT` and its five paths with their bodies and
+statuses; the tool container's MCP server on `PORT` at `/mcp`; that
+registration is once and before any loop; what a fate and an outcome
+are. These are requirements on image authors, stated as such, and
+the one place the proxy's other side is described.
 
 ## The page
 
