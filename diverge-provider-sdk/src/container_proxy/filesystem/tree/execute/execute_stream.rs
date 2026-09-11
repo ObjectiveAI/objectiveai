@@ -45,7 +45,6 @@ impl Stream for ExecuteStream {
         let this = self.get_mut();
         let item = match ready!(Pin::new(&mut this.messages).poll_next(cx)) {
             None => None,
-            Some(Err(MessageError::Text)) => Some(Err(ExecuteStreamError::Text)),
             Some(Err(MessageError::Socket(error))) => {
                 Some(Err(ExecuteStreamError::Socket(error)))
             }

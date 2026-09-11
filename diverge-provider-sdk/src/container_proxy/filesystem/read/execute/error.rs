@@ -51,8 +51,6 @@ pub enum ExecuteStreamError {
     Unserved,
     /// A message that would not decode.
     Frame(FrameError),
-    /// A text message: the far side speaking something else.
-    Text,
     /// The socket failed.
     Socket(tungstenite::Error),
     /// The socket ended without a Close: the read died.
@@ -67,7 +65,6 @@ impl fmt::Display for ExecuteStreamError {
             }
             ExecuteStreamError::Unserved => f.write_str("the proxy could not serve the read"),
             ExecuteStreamError::Frame(error) => write!(f, "{error}"),
-            ExecuteStreamError::Text => f.write_str("/filesystem/read carried a text message"),
             ExecuteStreamError::Socket(error) => write!(f, "/filesystem/read failed: {error}"),
             ExecuteStreamError::Closed => f.write_str("/filesystem/read ended without a close"),
         }
@@ -81,7 +78,7 @@ impl std::error::Error for ExecuteStreamError {
             ExecuteStreamError::Socket(error) => Some(error),
             ExecuteStreamError::Refused(_)
             | ExecuteStreamError::Unserved
-            | ExecuteStreamError::Text
+           
             | ExecuteStreamError::Closed => None,
         }
     }

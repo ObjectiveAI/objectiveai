@@ -57,8 +57,6 @@ impl std::error::Error for HandleError {
 /// terminal.
 #[derive(Debug)]
 pub enum ExecuteStreamError {
-    /// A text message: the far side speaking something else.
-    Text,
     /// The socket failed.
     Socket(tungstenite::Error),
     /// The socket ended without a Close: the proxy died.
@@ -68,7 +66,6 @@ pub enum ExecuteStreamError {
 impl fmt::Display for ExecuteStreamError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ExecuteStreamError::Text => f.write_str("/postgres carried a text message"),
             ExecuteStreamError::Socket(error) => write!(f, "/postgres failed: {error}"),
             ExecuteStreamError::Closed => f.write_str("/postgres ended without a close"),
         }
@@ -79,7 +76,7 @@ impl std::error::Error for ExecuteStreamError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             ExecuteStreamError::Socket(error) => Some(error),
-            ExecuteStreamError::Text | ExecuteStreamError::Closed => None,
+            ExecuteStreamError::Closed => None,
         }
     }
 }

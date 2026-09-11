@@ -49,7 +49,6 @@ fn failed(error: write::execute::ExecuteError<Error>) -> Option<Error> {
         ExecuteError::Open(error) => render::proxy(error),
         ExecuteError::Encode(error) => render::proxy(error),
         ExecuteError::Answer(error) => render::proxy(error),
-        ExecuteError::Text => render::proxy("/filesystem/write carried a text message"),
         ExecuteError::Socket(error) => render::proxy(error),
         ExecuteError::Closed => render::proxy("/filesystem/write ended without a close"),
     })

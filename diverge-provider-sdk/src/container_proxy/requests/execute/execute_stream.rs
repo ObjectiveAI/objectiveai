@@ -59,7 +59,6 @@ impl Stream for ExecuteStream {
 impl From<MessageError> for ExecuteStreamError {
     fn from(error: MessageError) -> Self {
         match error {
-            MessageError::Text => ExecuteStreamError::Text,
             MessageError::Socket(error) => ExecuteStreamError::Socket(error),
             MessageError::Closed => ExecuteStreamError::Closed,
         }

@@ -88,8 +88,9 @@
 //!
 //! # The rules every path shares
 //!
-//! - Every message is one WebSocket BINARY frame. Text is a peer
-//!   speaking something else, and the connection ends.
+//! - Every message is one WebSocket BINARY frame. A text frame
+//!   carries nothing this wire defines, and either party ignores
+//!   one, as it ignores a ping.
 //! - The SERVER dials. `/requests` accepts exactly one connection
 //!   at a time, a second refused with `409` before the upgrade;
 //!   the `/filesystem/*` paths accept as many as the server opens —

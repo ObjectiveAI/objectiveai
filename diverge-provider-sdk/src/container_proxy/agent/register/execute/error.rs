@@ -22,8 +22,6 @@ pub enum ExecuteError {
     Frame(FrameError),
     /// A close with nothing before it: could not serve, nothing said.
     Unserved,
-    /// A text message: the far side speaking something else.
-    Text,
     /// The socket failed.
     Socket(tungstenite::Error),
     /// The socket ended without a Close: the proxy died.
@@ -42,7 +40,6 @@ impl fmt::Display for ExecuteError {
             }
             ExecuteError::Frame(error) => write!(f, "{error}"),
             ExecuteError::Unserved => f.write_str("the proxy could not serve the registration"),
-            ExecuteError::Text => f.write_str("/agent/register carried a text message"),
             ExecuteError::Socket(error) => write!(f, "/agent/register failed: {error}"),
             ExecuteError::Closed => f.write_str("/agent/register ended without a close"),
         }
@@ -58,7 +55,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Socket(error) => Some(error),
             ExecuteError::Refused(_)
             | ExecuteError::Unserved
-            | ExecuteError::Text
+           
             | ExecuteError::Closed => None,
         }
     }

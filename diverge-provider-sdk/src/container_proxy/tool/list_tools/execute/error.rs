@@ -19,8 +19,6 @@ pub enum ExecuteError {
     Frame(FrameError),
     /// A close with nothing before it: could not serve, nothing said.
     Unserved,
-    /// A text message: the far side speaking something else.
-    Text,
     /// The socket failed.
     Socket(tungstenite::Error),
     /// The socket ended without a Close: the proxy died.
@@ -34,7 +32,6 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Encode(error) => write!(f, "/tool/list-tools params did not serialize: {error}"),
             ExecuteError::Frame(error) => write!(f, "{error}"),
             ExecuteError::Unserved => f.write_str("the proxy could not serve /tool/list-tools"),
-            ExecuteError::Text => f.write_str("/tool/list-tools carried a text message"),
             ExecuteError::Socket(error) => write!(f, "/tool/list-tools failed: {error}"),
             ExecuteError::Closed => f.write_str("/tool/list-tools ended without a close"),
         }
@@ -48,7 +45,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Encode(error) => Some(error),
             ExecuteError::Frame(error) => Some(error),
             ExecuteError::Socket(error) => Some(error),
-            ExecuteError::Unserved | ExecuteError::Text | ExecuteError::Closed => None,
+            ExecuteError::Unserved | ExecuteError::Closed => None,
         }
     }
 }

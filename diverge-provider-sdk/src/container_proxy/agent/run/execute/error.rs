@@ -50,8 +50,6 @@ pub enum ExecuteStreamError {
     Refused(Error),
     /// A message that would not decode.
     Frame(FrameError),
-    /// A text message: the far side speaking something else.
-    Text,
     /// The socket failed.
     Socket(tungstenite::Error),
     /// The socket ended without a Close: the proxy died.
@@ -65,7 +63,6 @@ impl fmt::Display for ExecuteStreamError {
                 write!(f, "the container refused the loop: {}", error.0)
             }
             ExecuteStreamError::Frame(error) => write!(f, "{error}"),
-            ExecuteStreamError::Text => f.write_str("/agent/run carried a text message"),
             ExecuteStreamError::Socket(error) => write!(f, "/agent/run failed: {error}"),
             ExecuteStreamError::Closed => f.write_str("/agent/run ended without a close"),
         }
@@ -78,7 +75,7 @@ impl std::error::Error for ExecuteStreamError {
             ExecuteStreamError::Frame(error) => Some(error),
             ExecuteStreamError::Socket(error) => Some(error),
             ExecuteStreamError::Refused(_)
-            | ExecuteStreamError::Text
+           
             | ExecuteStreamError::Closed => None,
         }
     }

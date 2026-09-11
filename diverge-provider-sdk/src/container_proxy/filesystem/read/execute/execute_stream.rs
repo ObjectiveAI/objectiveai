@@ -52,7 +52,6 @@ impl Stream for ExecuteStream {
                 this.received = true;
                 Some(Err(ExecuteStreamError::Unserved))
             }
-            Some(Err(MessageError::Text)) => Some(Err(ExecuteStreamError::Text)),
             Some(Err(MessageError::Socket(error))) => {
                 Some(Err(ExecuteStreamError::Socket(error)))
             }
