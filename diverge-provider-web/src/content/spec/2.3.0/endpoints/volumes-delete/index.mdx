@@ -23,9 +23,10 @@ the response, and no frame follows the finish.
   account and that the client did not create; the refusal is an
   error.
 - **The deletion.** When the server sends the byte `0`, the volume no
-  longer exists: its content is gone, and no
-  [volumes::list](/endpoints/volumes-list/) listing of the client
-  shows it. The name then names no volume of the client, and every
+  longer exists, and its content is gone. From that moment, every
+  [volumes::list](/endpoints/volumes-list/) request by the client
+  omits the volume: no listing the server sends after the byte `0`
+  contains it. The name then names no volume of the client, and every
   request naming it is answered with an error, until a
   [volumes::create](/endpoints/volumes-create/) request by the client
   makes a new volume of that name. Deletion is not emptying: a client
