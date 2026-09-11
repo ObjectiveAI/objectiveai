@@ -15,7 +15,7 @@ endpoint's request content, in the form the endpoint defines.
 | `0` | containers::agents::run |
 | `1` | containers::tools::run |
 | `2` | containers::tools::connect |
-| `3` | volumes::list |
+| `3` | [volumes::list](/endpoints/volumes-list/) |
 | `4` | volumes::watch |
 | `5` | volumes::create |
 | `6` | volumes::edit |
@@ -69,3 +69,22 @@ reading:
   definition in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2 — the MCP
   implementation this revision builds against — is linked beneath the
   declaration.
+
+The binary payloads of this layer that a page marks as postcard are
+defined by the same type declarations, under the following reading,
+which is the [postcard wire format](https://postcard.jamesmunns.com/wire-format):
+
+- A `struct` is its fields, in declaration order, with no delimiter
+  between them and no name before them.
+- `u16`, `u32`, `u64` and `usize` are unsigned LEB128 varints: seven
+  bits of the value per byte, least significant first, the high bit
+  of every byte but the last set. A `u64` occupies at most 10 bytes.
+  `u8` is one byte. `bool` is one byte, `0` or `1`.
+- `String` is a varint byte length followed by that many bytes of
+  UTF-8.
+- `Vec<T>` is a varint count followed by that many elements, each
+  encoded as `T`.
+- An enum is a varint discriminant, the index of the variant in
+  declaration order counted from `0`, followed by the variant's
+  fields in declaration order.
+- `Option<T>` is the byte `0`, or the byte `1` followed by `T`.
