@@ -1,5 +1,6 @@
 //! FUSE mounts: a single regular file, or a directory tree, mounted
-//! at the proxy's start, its contents the caller's.
+//! on the server's request and kept for the proxy's life, its
+//! contents the caller's.
 //!
 //! The SDK's [`filesystem`](diverge_provider_sdk::container_proxy::filesystem)
 //! module states the semantics of both kinds; `file` and
@@ -24,16 +25,21 @@ mod directory;
 mod file;
 #[cfg(unix)]
 mod handles;
+mod mounts;
+mod serve;
 
 use std::io;
 use std::sync::Arc;
 
-use diverge_provider_sdk::container_proxy::filesystem::Mount;
+use diverge_provider_sdk::container_proxy::fuse::mount::request::Request;
 use tokio::runtime::Handle;
+
+pub use mounts::*;
+pub use serve::*;
 
 use crate::requests::Requests;
 
-/// Which kind of mount: which list of the server's it was on.
+/// Which kind of mount: what the server's request said.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     /// One regular file, the mount point the file itself.
@@ -52,7 +58,7 @@ pub struct Mounted {
 /// absent — the file, or the directory — and mount over it:
 /// read-only at the kernel too when the mount says so.
 #[cfg(unix)]
-pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Mount, kind: Kind) -> io::Result<Mounted> {
+pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Request, kind: Kind) -> io::Result<Mounted> {
     use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
     use std::path::PathBuf;
 
@@ -101,7 +107,7 @@ pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Mount, kind: Kind)
 
 /// Not the container: there is no FUSE here, and a mount is refused.
 #[cfg(not(unix))]
-pub fn mount(_requests: Arc<Requests>, _handle: Handle, mount: &Mount, _kind: Kind) -> io::Result<Mounted> {
+pub fn mount(_requests: Arc<Requests>, _handle: Handle, mount: &Request, _kind: Kind) -> io::Result<Mounted> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         format!("FUSE mounts need FUSE, which this host has not: {}", mount.id),
