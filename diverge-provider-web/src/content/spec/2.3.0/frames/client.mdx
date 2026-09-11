@@ -1,0 +1,26 @@
+---
+title: 'Client Frames'
+summary: 'The five frame types a client sends: authorization, request, channel request, channel response, and channel response finish.'
+order: 1
+draft: false
+---
+
+A client sends five frame types.
+
+- **Type `0` — authorization.** The scope and channel fields are
+  ignored. The payload is a credential. Sent only when the client is
+  the connection's initiator, only as the connection's first frame —
+  see [Authorization](/authorization/).
+- **Type `1` — request.** Opens a [scope](/frames/scopes/). The scope
+  field carries a number of the client's choosing; the channel field
+  is ignored. The payload is the request.
+- **Type `4` — channel request.** Opens a
+  [channel](/frames/channels/) within an existing scope. The scope
+  field names that scope; the channel field carries a number of the
+  client's choosing. The payload is the channel's one request.
+- **Type `5` — channel response.** Answers a channel *the server
+  opened*. The channel field quotes the server's channel number. The
+  payload is one piece of the answer.
+- **Type `6` — channel response finish.** Ends a channel the server
+  opened, quoting its number. It carries no payload, and it is the
+  only way such a channel ends.

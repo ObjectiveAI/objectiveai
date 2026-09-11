@@ -1,0 +1,23 @@
+---
+title: 'Authorize'
+summary: 'Tag 2: the server asks the runner whether a connector may attach, carrying the connector’s peer address as the server observed it and the connector’s authorization verbatim; the runner answers with exactly one byte.'
+order: 2
+draft: false
+---
+
+The server opens this channel on the run scope when a
+[containers::tools::connect](/endpoints/containers-tools-connect/)
+request names the container of this run. The runner's answer decides
+whether the connect scope opens.
+
+- **The request.** The tag byte `2` followed by the address and the
+  authorization as JSON. [Request](/endpoints/containers-agents-run/server/authorize/request/)
+  states its form.
+- **The response.** Exactly one channel response of one byte and the
+  channel response finish. [Response](/endpoints/containers-agents-run/server/authorize/response/)
+  states the sequence.
+- **Two claims.** The address is attested: the server observed it on
+  the connector's connection. The authorization is asserted: the
+  server relays what the connector sent and does not read it.
+- **The connect scope waits.** The server sends nothing on the connect
+  scope, and serves no channel of it, before the runner has answered.

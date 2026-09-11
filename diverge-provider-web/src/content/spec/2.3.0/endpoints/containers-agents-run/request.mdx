@@ -1,0 +1,84 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 0 followed by the request as JSON: the image, the limits and the mounts, and the agent value.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte followed by the request as
+JSON, read as [Notation](/endpoints/#notation) provides. The request
+is one object: the members of the container, flattened, and `agent`.
+
+```text
+[0][request JSON …]
+```
+
+- **`image`.** Exactly one of three objects: `{"client":{"name":…,"digest":…}}`,
+  an image the client holds, which the server pulls from its own
+  registry and fetches from the client by digest;
+  `{"server":{"name":…,"digest":…}}`, an image the server obtains
+  from a source of its own; `{"registry":{"reference":…}}`, a
+  reference the server pulls. `name` is a repository path without a
+  host; `digest` is `<algorithm>:<hex>`; `reference` is what the
+  server's runtime accepts.
+- **`memory`, `disk`.** Limits in bytes: the memory the container may
+  use, and the bytes the container may write to its own filesystem.
+  Neither governs a mount.
+- **`volume_mounts`.** Ordered; the server applies them in order.
+  `host_name` is a `name` in the client's listing; `host_relative_path`
+  and `container_path` are components. An empty `container_path`
+  names the root, which the server refuses.
+- **`identity_file_mounts`, `identity_directory_mounts`.** Each names
+  content by `identity`, `<size>:<base64url sha256>` with the hash of
+  the bytes for a file and of the manifest for a directory, as the
+  [volumes::stat response](/endpoints/volumes-stat/response/)
+  defines the manifest. Every one is mounted read-only before the
+  container starts.
+- **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path,
+  an `id` the client chose, and `readonly`, absent meaning `false`.
+  Every one is mounted before the id is sent.
+- **Paths.** No component of any mount's path is empty, `.` or `..`.
+  No two mounts have one path. No mount lies inside a FUSE directory
+  mount. A FUSE file mount may lie inside a directory another mount
+  provides. No mount's path is the root.
+- **Ids.** No two FUSE mounts, on either list, have one `id`.
+
+- **`agent`.** Any JSON value. The server relays it verbatim to the
+  proxy's `/agent/register` and does not read it. What the value may
+  be is what the container's [agent-schema](/endpoints/containers-agents-run/client/agent-schema/)
+  channel answers.
+
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is not `0`, and a payload whose bytes after the tag do not
+  parse as the request are malformed. [Endpoints](/endpoints/) states
+  how a server answers a request it cannot read.
+
+The request is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/client/request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/client/request/frame.rs
+```
+
+The container is defined by `diverge-provider-sdk/src/shared/containers/request/container.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/request/container.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/request/image.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/request/image.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/request/volume_mount.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/request/volume_mount.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/request/identity_mount.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/request/identity_mount.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/request/fuse_mount.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/request/fuse_mount.rs
+```

@@ -1,0 +1,20 @@
+---
+title: 'MCP read resource'
+summary: 'Tag 16: the server relays an MCP exchange the container asked of the client’s servers, its params verbatim; the client answers with exactly one channel response, a result or an error, which the server relays to the container.'
+order: 16
+draft: false
+---
+
+The server opens this channel when the container's proxy sends the
+corresponding MCP ask on `/requests`. The params are relayed
+verbatim; the client's one answer is relayed back.
+
+- **The request.** The tag byte `16` followed by the params as JSON.
+  [Request](/endpoints/containers-tools-run/server/mcp-read-resource/request/) states its form.
+- **The response.** Exactly one channel response, a result or an
+  MCP error, and the channel response finish.
+  [Response](/endpoints/containers-tools-run/server/mcp-read-resource/response/) states the sequence.
+- **The conduit.** The server relays the one channel response to the
+  proxy's [`/mcp/read-resource/{channel}`](/proxy/mcp/read-resource/) as one
+  message and closes that connection. The server does not read the
+  params or the answer, and does not send the ask twice.

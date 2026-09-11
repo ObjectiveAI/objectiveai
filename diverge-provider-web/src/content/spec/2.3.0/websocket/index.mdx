@@ -1,0 +1,37 @@
+---
+title: 'WebSocket'
+summary: 'The protocol, and the container proxy’s paths, are carried over the WebSocket Protocol, version 13, as specified by RFC 6455.'
+order: 1
+draft: false
+---
+
+The Diverge Provider Protocol is an application-layer protocol carried
+over the WebSocket Protocol, as specified by
+[RFC 6455](https://www.rfc-editor.org/rfc/rfc6455).
+
+- **Version.** Every connection uses WebSocket protocol version 13, the
+  version defined by RFC 6455 and conveyed in the
+  `Sec-WebSocket-Version` header field of the opening handshake. No
+  other WebSocket version is defined for use with this protocol.
+- **Establishment.** The opening handshake is as defined by RFC 6455,
+  Section 4. Either party may initiate the connection; this protocol
+  attaches no requirements of its own to the handshake.
+- **Subprotocol.** No WebSocket subprotocol is negotiated.
+  `Sec-WebSocket-Protocol` is not used.
+- **Extensions.** No WebSocket extension is required by this protocol.
+- **Secure transport.** A connection may be established over TLS,
+  under the `wss` URI scheme (RFC 6455, Section 3). Whether TLS is
+  used, and how the connection is addressed and authenticated at the
+  HTTP layer, are outside this specification.
+- **Data.** All protocol data is conveyed in WebSocket binary data
+  frames. This protocol assigns no meaning to WebSocket text frames,
+  and no meaning to WebSocket control frames beyond that given by
+  RFC 6455.
+- **The container proxy.** The paths of the
+  [Container Proxy](/proxy/) are carried over the WebSocket Protocol
+  under the same requirements: version 13, the opening handshake as
+  RFC 6455 defines it with nothing added, no subprotocol, no
+  extension, and binary data frames alone, a text frame carrying no
+  meaning. They differ in two respects: the provider’s server is
+  always the party that initiates the connection, and the connection
+  is established under the `ws` URI scheme, without TLS.

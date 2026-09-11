@@ -2,3 +2,9 @@ node_modules
 **/node_modules
 .git
 .gitignore
+target
+target-*
+**/target
+**/dist
+objectiveai-api/assets
+**/.astro

@@ -1,0 +1,67 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the stat in the postcard wire format or with the byte 1 followed by an error as one JSON value, and the response finish follows it.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope. The response
+finish follows the response, and no frame follows the finish.
+
+```text
+[0][stat, postcard …]
+[1][error JSON …]
+```
+
+- **The sequence.** Exactly one response precedes the response
+  finish, and nothing follows the finish. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
+- **The stat.** A payload whose first byte is `0` carries the stat
+  after that byte, running to the end of the payload. The stat is the
+  `Stat` defined below, encoded as the postcard reading of
+  [Notation](/endpoints/#notation) provides: `name` as a varint byte
+  length followed by that many bytes of UTF-8, followed by `bytes` as
+  a varint, followed by `created` as a varint, followed by
+  `bytes_used` as a varint, followed by `dirhash` as a varint byte
+  length followed by that many bytes of UTF-8.
+- **`name`, `bytes`, `created`.** The volume as the client's listing
+  reports it, in the form the
+  [volumes::list response](/endpoints/volumes-list/response/) defines.
+  The three values equal those the listing reports for the volume at
+  the time of the response.
+- **`bytes_used`.** The number of bytes of the volume in use, at the
+  time of the response.
+- **`dirhash`.** The hash of the content of the volume, at the time
+  of the response. It is the SHA-256 of the manifest of the volume,
+  encoded as base64url without padding. The manifest is one line per
+  file of the volume, each line `<hash> <size> <path>`: `<hash>` is
+  the SHA-256 of the bytes of the file, encoded as base64url without
+  padding; `<size>` is the length of the file in bytes, in decimal;
+  `<path>` is the path of the file relative to the root of the
+  volume, its components separated by `/`. The lines are sorted
+  bytewise. A volume with no file has the manifest of zero bytes, and
+  its `dirhash` is `47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU`. Two
+  volumes with one `dirhash` have one content; two volumes with
+  different `dirhash` values have different content.
+- **The error.** A payload whose first byte is `1` carries an error
+  after that byte, running to the end of the payload. The error is
+  exactly one JSON value, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  This revision prescribes nothing about its content.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is neither `0` nor `1`, a payload whose bytes after `0` do not
+  decode as the stat, and a payload whose bytes after `1` are not one
+  JSON value are malformed.
+
+The response frame is defined by `diverge-provider-sdk/src/endpoints/volumes/stat/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/volumes/stat/server/response/frame.rs
+```
+
+The stat is defined by `diverge-provider-sdk/src/endpoints/volumes/stat/server/response/stat.rs`. Its `volume`
+field is the `Volume` defined on the
+[volumes::list response](/endpoints/volumes-list/response/) page:
+
+```rust include=diverge-provider-sdk/src/endpoints/volumes/stat/server/response/stat.rs
+```

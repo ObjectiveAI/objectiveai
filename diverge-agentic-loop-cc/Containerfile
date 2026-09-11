@@ -1,0 +1,81 @@
+# The Claude Code agent image: the harness alone, Claude Code itself
+# spawned per run — everything as root.
+#
+# The container proxy is NOT in this image. The host injects it at
+# runtime, and it may not be up at all until a request comes — which
+# is why the harness touches nothing of the proxy's until `POST /run`
+# arrives: no database, no MCP, before then.
+#
+# The image ships NO Claude Code, for licensing reasons: the harness
+# installs the pinned version itself the moment it starts (the pin
+# lives in src/spawn/install.rs), so a starting container needs the
+# npm registry reachable.
+#
+# Build from the WORKSPACE ROOT — the crates ride path dependencies:
+#
+#     podman build -f diverge-agentic-loop-cc/Containerfile .
+#
+# Debian, deliberately: skills carry scripts, and scripts want a real
+# distro underneath — apt, glibc, and a first-class Python — not
+# musl's approximation of one. The runner is Debian UNSTABLE (sid),
+# pinned by digest: the newest userland for skill scripts, frozen at
+# a known image. The builder is the stock Debian-based rust image —
+# any of them works, because sid's glibc is always at least as new as
+# the builder's.
+#
+# Digests pinned from Docker Hub on 2026-08-29; sid shipped
+# nodejs 24.19 and python3 3.14.7 on the pin date. Bump deliberately.
+
+FROM docker.io/library/rust:1.98.0@sha256:271849e998ffce5776454bbf98c5dc21baafc854ff8e566197908d3aca9a81e8 AS build
+
+WORKDIR /build
+
+# Only the crates this image needs, in their workspace layout — the
+# workspace manifest itself is NOT copied, so the crate builds as its
+# own root and the absent sibling members are never asked for. The
+# workspace lockfile rides into the crate so resolved versions hold;
+# cargo prunes what the crate does not use, which is why the build
+# does not pass --locked.
+COPY diverge-provider-sdk diverge-provider-sdk
+COPY diverge-container-proxy-sdk diverge-container-proxy-sdk
+COPY diverge-agentic-loop-cc diverge-agentic-loop-cc
+COPY Cargo.lock diverge-agentic-loop-cc/Cargo.lock
+
+RUN cargo build --release \
+    --manifest-path diverge-agentic-loop-cc/Cargo.toml
+
+# debian:sid, by digest.
+FROM docker.io/library/debian:sid@sha256:c1acdb109bacb5adf0f2078892ac177ee2e2ce6f88e96c5b743998b5489d36a9
+
+# The agent's world: node and npm for the Claude Code the harness
+# installs at startup (sid's node is 24.x, past the >=22 engines
+# floor), Python with pip and venv for skill scripts, git and curl
+# because agentic work reaches for both, and CA certificates so TLS
+# works at all.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        nodejs \
+        npm \
+        python3 \
+        python3-pip \
+        python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# Debian's PEP 668 guard refuses bare `pip install` into the system
+# interpreter. This container IS the disposable environment that
+# guard exists to protect elsewhere — skills installing their own
+# dependencies inline is the point — so the guard stands down.
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
+COPY --from=build \
+    /build/diverge-agentic-loop-cc/target/release/diverge-agentic-loop-cc \
+    /usr/local/bin/diverge-agentic-loop-cc
+
+# The harness's own server, on the loopback: 8080, or whatever `PORT`
+# names. Nothing is exposed — the proxy the host injects is the only
+# thing that dials it, and it is beside it.
+
+ENTRYPOINT ["/usr/local/bin/diverge-agentic-loop-cc"]

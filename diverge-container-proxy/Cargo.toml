@@ -1,0 +1,57 @@
+[package]
+name = "diverge-container-proxy"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The proxy inside a Diverge container — the container's asks out over one WebSocket, the caller's answers back, one path each"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# `ws` on top of the defaults: one listener serves `/requests`, every
+# answer path, and the agent's MCP server, and axum's upgrade is the
+# listener half the wire needs.
+axum = { version = "0.8.9", features = ["ws"] }
+# What a WebSocket message carries, and what an answer's messages are
+# routed as — the frame's own bytes, not copied.
+bytes = { version = "1.11.1", default-features = false }
+# Path-only: this crate rides the workspace and is never published, so
+# the SDK is named by where it lives rather than by a version pin
+# version.sh would have to chase.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+# `Sink`/`Stream` on the split socket, the fan-out's `join_all`, the
+# conduit's `select` between a read and its pump, and the two binds
+# joined.
+futures-util = { version = "0.3.33", default-features = false }
+# The filesystem watch behind `/filetree`: inotify, on the images this
+# runs in. The daemon's line.
+notify = "8.2"
+# The MCP server the agent talks to: a compliant Streamable HTTP
+# server whose handler is this crate's relay. And the MCP client the
+# `/tool/*` paths call a tool container's own server through, over
+# Streamable HTTP on the loopback.
+rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server", "client", "transport-streamable-http-client-reqwest"] }
+# A refusal the far side sent, rendered whole into a tool result.
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# The agent's server, dialed: `/agent/*` is one HTTP call each to the
+# loopback. No TLS — it is the loopback. `json` reads a fate or an
+# outcome; `stream` reads the loop's events as they land.
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream"] }
+# The loop's events, parsed out of that stream.
+eventsource-stream = "0.2.3"
+# The runtime under the listeners. No `macros` — the runtime is built
+# in main, not attributed onto it. `io-util` reads and writes the
+# driver's socket; `time` paces an accept loop that keeps failing;
+# `fs` opens and reads the files the server asks for.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "rt-multi-thread", "sync", "time"] }
+
+# The vault mounts: one FUSE file per key, mounted by the proxy itself.
+# Pure Rust — `fuser` talks to /dev/fuse and mounts through the syscall
+# as the namespace's root — and Unix only, which the container is and
+# the check host is not. `libc` for the one open flag the trait hands
+# over raw (`O_TRUNC`).
+[target.'cfg(unix)'.dependencies]
+fuser = { version = "0.18.0" }
+libc = { version = "0.2.186" }

@@ -1,0 +1,60 @@
+[package]
+name = "diverge-agentic-loop-cc"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Claude Code agent container of the Diverge provider protocol"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# The run, as a generator.
+async-stream = { version = "0.3.6" }
+# The loop's door: an HTTP server on the loopback the proxy forwards
+# to — `/run` as server-sent events, the queue's two verbs, the
+# schema. Default features carry the JSON extractor and the HTTP/1
+# server; SSE is axum's own.
+axum = { version = "0.8.9" }
+# The Stream trait the generator implements.
+futures-util = { version = "0.3.33", default-features = false }
+# The pending-fate map: resolved beside the session lock, not under
+# it.
+dashmap = { version = "6.1.0" }
+# Path-only: this crate rides the workspace and is never published, so
+# the SDKs are named by where they live rather than by version pins
+# version.sh would have to chase. The provider SDK is the vocabulary —
+# the chunks, the fates; the container SDK is the proxy beside this
+# program — the database URL, and the MCP URL Claude Code is handed.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk" }
+# The agent's JSON Schema, derived from the agent types for
+# `GET /schema`.
+schemars = { version = "1.2.1" }
+# The continuation's row, through the proxy's loopback pgwire. `json`
+# binds the state as jsonb.
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "json"] }
+# Response records carry order-bearing maps (per-model usage, tool
+# inputs); insertion order survives a round trip.
+indexmap = { version = "2.14.0", features = ["serde"] }
+# The chunk vocabulary's content types (tool responses, text/image
+# content) — model types only, no transport.
+rmcp = { version = "3.1.2", default-features = false }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+# `fs` for the continuation's files; `process`, `io-util` and `sync`
+# for the subprocess and the tasks around it; `macros` for the
+# dequeue's joined lock acquisition; `net` and `rt-multi-thread` for
+# the server.
+tokio = { version = "1.53.1", default-features = false, features = [
+    "fs",
+    "io-util",
+    "macros",
+    "net",
+    "process",
+    "rt-multi-thread",
+    "sync",
+] }
+# The enqueue correlation keys and cancel request ids.
+uuid = { version = "1.22.0", features = ["v4"] }

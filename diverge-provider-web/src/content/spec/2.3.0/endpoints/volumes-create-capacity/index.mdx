@@ -1,0 +1,37 @@
+---
+title: 'volumes::create_capacity'
+summary: 'Tag 6: a client asks how large a volume it could create; the server sends exactly one response carrying the largest size, in bytes, of a volume the client could create at that time, or an error, and the scope finishes; the answer reserves nothing.'
+order: 6
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`6` and nothing more. The server sends exactly one response, which
+carries either a number of bytes or an error. The response finish
+follows the response, and no frame follows the finish.
+
+- **The request.** The request carries no parameter; the tag is the
+  whole of it. [Request](/endpoints/volumes-create-capacity/request/)
+  states its form.
+- **The capacity.** The number is the largest size, in bytes, of a
+  volume that the client could create by a
+  [volumes::create](/endpoints/volumes-create/) request at the time
+  of the response. It is the size of the largest single volume the
+  server could make for the client, and not the sum of the server's
+  room. The number `0` states that the client can create no volume at
+  the time of the response.
+  [Response](/endpoints/volumes-create-capacity/response/) states its
+  form.
+- **No reservation.** The answer is a fact about the time of the
+  response and reserves nothing. A `volumes::create` request stating
+  a size not greater than the number answered may be answered with
+  insufficient capacity when the room has been taken between the two
+  responses. A `volumes::create` request stating a size greater than
+  the number answered, made while the capacity is unchanged, is not
+  answered with the byte `0`.
+- **The client.** The client is the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. The number is the capacity available to that identity.
+- **The error.** An error states that the server did not answer the
+  question, and that nothing was determined about the capacity. An
+  error is not the number `0`.

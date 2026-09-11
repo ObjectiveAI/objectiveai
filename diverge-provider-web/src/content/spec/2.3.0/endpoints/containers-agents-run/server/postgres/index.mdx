@@ -1,0 +1,28 @@
+---
+title: 'Postgres'
+summary: 'Tag 6: the server announces a database connection the container opened, under a connection id it minted; the client answers with everything the database says, which the server relays into the container’s socket, and its channel response finish closes the socket.'
+order: 6
+draft: false
+---
+
+The server opens this channel when the container's proxy announces a
+database connection on `/requests`. It is the server's half of the
+connection; the client's half is a [postgres](/endpoints/containers-agents-run/client/postgres/)
+channel the client opens, quoting the same id.
+
+- **The request.** The tag byte `6` followed by a connection id, four
+  bytes, that the server minted.
+  [Request](/endpoints/containers-agents-run/server/postgres/request/) states its form.
+- **The response.** What the database says, as channel responses,
+  and the channel response finish, which closes the container's
+  socket. [Response](/endpoints/containers-agents-run/server/postgres/response/) states the
+  sequence.
+- **The id.** The server chooses the id and keeps it unique among the
+  connections open on the scope. It may reuse an id after both
+  halves of its connection have finished.
+- **What the server holds.** From the moment it opens this channel,
+  the server holds every byte the container's driver writes until
+  the client opens its half, and sends them on that half first, in
+  order.
+- **The conduit.** The server relays each channel response into the
+  container's socket verbatim and in order, and does not read it.

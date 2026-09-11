@@ -1,0 +1,66 @@
+[package]
+name = "diverge-agentic-loop-hermes"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Hermes agent container of the Diverge provider protocol"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# The loop's door: an HTTP server on the loopback the proxy forwards
+# to — `/run` as server-sent events, the queue's two verbs, the
+# schema. Default features carry the JSON extractor and the HTTP/1
+# server; SSE is axum's own.
+axum = { version = "0.8.9" }
+# Path-only: this crate rides the workspace and is never published, so
+# the SDKs are named by where they live rather than by version pins
+# version.sh would have to chase. The provider SDK is the vocabulary —
+# the chunks, the fates, the vault's well-known keys; the container
+# SDK is the proxy beside this program — the vault, the database URL,
+# and the MCP URL the gateway is configured with.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk" }
+# The agent's JSON Schema, derived from the agent types for
+# `GET /schema`.
+schemars = { version = "1.2.1" }
+# The continuation's outbound stream, as a generator.
+async-stream = { version = "0.3.6" }
+# `Stream` and its combinators, for the chunk stream the response is.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The SSE parser over the gateway's event stream: comments dropped,
+# data frames surfaced, no reconnect of its own.
+eventsource-stream = { version = "0.2.3" }
+# The HTTP client for the gateway's API server, on loopback: no TLS,
+# `json` for the request and the 202, `stream` for the events body.
+reqwest = { version = "0.12.28", default-features = false, features = ["json", "stream"] }
+# The chunk vocabulary's content types (tool results, text content)
+# — model types only, no transport; Hermes is driven over HTTP.
+rmcp = { version = "3.1.2", default-features = false }
+# The derives under the response module — the gateway's run-event
+# vocabulary is read with them — and under run::raw's request.
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+# Two databases, one driver. SQLite for the continuation's fold and
+# check — the async driver on tokio with the vendored libsqlite3
+# (`sqlite` = sqlx-sqlite/bundled — compiles sqlite3.c with cc, no
+# bindgen, no system library). Postgres, through the proxy's loopback
+# pgwire, for the continuation's rows: `postgres` and the rustls TLS
+# the driver wants at compile time, though the loopback negotiates
+# none. No macros. Version: the workspace lock's.
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "tls-rustls"] }
+# The API server key: two v4 uuids, minted per run.
+uuid = { version = "1.22.0", features = ["v4"] }
+# The runtime under the listener, `sync` for the queue's mutex and
+# the claim's Notify, `fs` + `io-util` for the continuation's files,
+# read and appended a piece at a time, `time` for the vault lock's
+# refresh. No `macros` — the runtime is built in main, not attributed
+# onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync", "time"] }
+
+# SIGTERM for the gateway: a graceful stop before the fold. Unix
+# only — the container is; the check host is not.
+[target.'cfg(unix)'.dependencies]
+libc = { version = "0.2.186" }

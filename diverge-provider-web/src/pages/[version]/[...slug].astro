@@ -1,0 +1,81 @@
+---
+import { render } from "astro:content";
+
+import { SpecPage } from "../../components/SpecPage";
+import Layout from "../../layouts/Layout.astro";
+import {
+  flattened,
+  navigation,
+  switches,
+  versions,
+  type Located,
+  type Switch,
+} from "../../spec";
+
+export async function getStaticPaths() {
+  const paths = [];
+  for (const version of await versions()) {
+    const all = await flattened(version);
+    const nodes = await navigation(version);
+    for (const [position, located] of all.entries()) {
+      paths.push({
+        params: { version, slug: located.section.segments.join("/") },
+        props: {
+          located,
+          nodes,
+          menu: await switches(located.section.segments),
+          previous: position > 0 ? all[position - 1].section : null,
+          next: position + 1 < all.length ? all[position + 1].section : null,
+        },
+      });
+    }
+  }
+  return paths;
+}
+
+interface Props {
+  located: Located;
+  nodes: Awaited<ReturnType<typeof navigation>>;
+  menu: Switch[];
+  previous: Located["section"] | null;
+  next: Located["section"] | null;
+}
+
+const { located, nodes, menu, previous, next } = Astro.props;
+const { section, trail, children } = located;
+const { Content } = await render(section.entry);
+
+const crumbs = trail.map((ancestor) => ({
+  url: ancestor.url,
+  label: ancestor.entry.data.title,
+}));
+---
+
+<Layout
+  title={section.entry.data.title}
+  description={section.entry.data.summary}
+  path={section.url}
+  markdown={section.markdownUrl}
+>
+  <SpecPage
+    title={section.entry.data.title}
+    summary={section.entry.data.summary}
+    markdownUrl={section.markdownUrl}
+    menu={{ current: section.version, switches: menu }}
+    crumbs={crumbs}
+    nodes={nodes}
+    current={section.url}
+    previous={previous
+      ? { url: previous.url, title: previous.entry.data.title }
+      : { url: `/${section.version}/`, title: "Overview" }}
+    next={next && { url: next.url, title: next.entry.data.title }}
+    draft={section.entry.data.draft}
+    subsections={children.map((child) => ({
+      url: child.url,
+      title: child.entry.data.title,
+      summary: child.entry.data.summary,
+    }))}
+  >
+    <Content />
+  </SpecPage>
+</Layout>

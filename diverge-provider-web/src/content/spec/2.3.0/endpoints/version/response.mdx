@@ -1,0 +1,33 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, whose payload is the string 2.3.0 as UTF-8 with no tag and no length, and the response finish follows it.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope. The response
+finish follows the response, and no frame follows the finish.
+
+```text
+[revision: utf8 …]
+```
+
+- **The payload.** The payload of the response is the string
+  `2.3.0`, encoded as UTF-8, running to the end of the frame. No tag
+  precedes it and no length prefixes it. The string is the revision
+  of this specification, of the form `MAJOR.MINOR.PATCH`. A server
+  that implements this revision sends exactly this string. It sends
+  no other string, and it does not send the empty string. A server
+  that implements another revision sends that revision's string, as
+  that revision defines it.
+- **The sequence.** Exactly one response precedes the response
+  finish, and nothing follows the finish. A response finish that no
+  response precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides.
+- **Malformed.** A payload that is not valid UTF-8 is malformed.
+
+The response is defined by
+`diverge-provider-sdk/src/endpoints/version/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/version/server/response/frame.rs
+```

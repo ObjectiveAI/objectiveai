@@ -1,0 +1,116 @@
+# The /v1/runs event stream, whole
+
+From the pinned source (`sources/hermes-agent`, v0.20.6). The
+complete contract of `GET /v1/runs/{run_id}/events`
+(`gateway/platforms/api_server.py:8037`) — every frame the server
+can write, and the stream mechanics a consumer must respect. This
+is the record behind the container's `response` module.
+
+## Framing: data-only, discriminated inside the JSON
+
+The stream's ONE writer is `_sse_frame(event)` with no `event=`
+kwarg (`api_server.py:8077`; `_sse_frame` at `:297-316`) — so
+every frame is `data: {json}\n\n`. No `event:` lines, no `id:`, no
+`retry:`, ever. Discrimination is entirely the payload's own
+`"event"` string key, which every producer sets. `ensure_ascii`
+defaults true: non-ASCII arrives `\uXXXX`-escaped, frames are
+single-line JSON. Every typed event carries `run_id` (string) and
+`timestamp` (`time.time()` float).
+
+Two SSE COMMENTS ride the stream beside the events:
+- `: keepalive\n\n` — every 30s with nothing queued
+  (`api_server.py:8069-8071`).
+- `: stream closed\n\n` — the termination sentinel, written when
+  the run task's finally-block enqueues `None`
+  (`:7993-7997`, reader `:8072-8075`), then the socket closes.
+  It is a COMMENT: a strict SSE reader that discards comments
+  sees only EOF. And a mid-stream exception closes the socket
+  with NO terminal frame at all (`:8078-8080`) — so EOF must
+  always terminate, sentinel or not.
+
+## The 12 events
+
+Corrections to folklore first: there is NO `run.started`,
+`message.started`, `assistant.delta`, `error`, or `done` event.
+Deltas are `message.delta`; failure is `run.failed`; termination
+is the comment above.
+
+| event | beyond `event`/`run_id`/`timestamp` | producer |
+|---|---|---|
+| `tool.started` | `tool` (string OR null), `preview` (string OR null — the ARGS preview, unlimited by default) | `:7518-7525` |
+| `tool.completed` | `tool` (string OR null), `duration` (number — `round(x,3)`, a bare int `0` when unset), `error` (bool, `is_error` passthrough) | `:7526-7534`; the `result=` kwarg is dropped (`gateway-tool-response.md`) |
+| `reasoning.available` | `text` (string, ≤500 chars — `_think_text[:500]` at `agent/conversation_loop.py:6920`) | `:7535-7541` |
+| `subagent.start` | allowlisted optionals, see below | `:7542-7585` |
+| `subagent.complete` | same allowlist | same branch |
+| `message.delta` | `delta` (string — token chunks, or one whole final response) | `:7704-7717` |
+| `approval.request` | `choices` (array of `once`/`session`/`always`/`deny`) + THE PRODUCER'S WHOLE DICT passed through unfiltered | `:7766-7794` |
+| `approval.responded` | `choice` (normalized to once/session/always/deny), `resolved` (int ≥1) | `POST …/approval`, `:8156-8168` |
+| `run.steered` | `accepted` (always literally `true` — a refused steer is HTTP 409, no event) | `POST …/steer`, `:8225-8234` |
+| `run.cancelled` | nothing more | `:7740-7751`, `:7872-7882`, `:7924-7938` |
+| `run.failed` | `error` (always a plain string; three producers — structured failure, provider-auth with a leading warning emoji, generic exception) | `:7886-7893`, `:7939-7961`, `:7964-7978` |
+| `run.completed` | `output` (string, `""` fallback), `usage`, `pending_steer` (string, ABSENT unless leftover steer text) | `:7900-7923` |
+
+`usage` is EXACTLY three keys (`:7864-7868`): `input_tokens`,
+`output_tokens`, `total_tokens` — raw attribute passthrough with
+no `int()` coercion, so a consumer should read them tolerantly.
+No cost, no reasoning tokens, no runtime sub-object on this path.
+
+The `subagent.*` allowlist (`:7551-7585`): `preview`, `goal`,
+`model`, `status`, `summary`, `subagent_id`, `child_session_id`,
+`parent_id` (strings, the texty ones redacted and capped);
+`task_count`, `task_index`, `depth`, `tool_count`,
+`input_tokens`, `output_tokens`, `reasoning_tokens`, `api_calls`
+(ints, explicitly coerced); `duration_seconds`, `cost_usd`
+(floats); `files_read`, `files_written` (string arrays, ≤40);
+`output_tail` (array of `{tool, preview, is_error}` objects
+today, forwarded raw — no schema enforced at the gateway). Every
+key is ABSENT when None, never null. Anything off the list —
+including `toolsets`, which the producer sends — is dropped;
+`subagent.text`, `subagent.tool`, `subagent_progress` and
+`_thinking` are dropped wholesale (`:7586-7589`).
+
+CORRELATING start with complete is an equality match on
+`subagent_id`: each child gets `sa-<task_index>-<8 hex>` at spawn
+(`tools/delegate_tool.py:1658`), and the child's progress relay
+merges the identity block (`subagent_id`, `task_index`,
+`task_count`, `goal`, `parent_id`, `depth`, `model`,
+`child_session_id`) into EVERY event it forwards, the complete-side
+producers' own kwargs overriding only status/duration/summary
+(`delegate_tool.py:1438-1441`). No ordinal games — unlike the tool
+events, this id is deliberately on the wire. `child_session_id` is
+filled once the child exists, so it can be absent on the first
+`start` and present on `complete`.
+
+`approval.request` is the one open payload: the guard's dict goes
+to the wire whole (`event = dict(approval_data or {})`, `:7767`),
+with `event`/`run_id`/`timestamp`/`choices` overwritten. Known
+passthrough keys today: `request_id` (injected uuid,
+`tools/approval.py:2790`), `command` (redacted), `description`,
+`pattern_key`, `pattern_keys`, `allow_permanent`,
+`allow_session`, `smart_denied` (only when true). A consumer
+needs a catch-all for the rest.
+
+## Stream mechanics
+
+- The queue is created at `POST /v1/runs` time, UNBOUNDED, and
+  events land in it whether anyone is subscribed or not
+  (`:7690-7693`) — so a late `GET` receives the whole history in
+  order, then the close. Buffering, not replay: consumption is
+  destructive, and ONE subscriber is the design — two readers
+  split the events between them, and the first to disconnect pops
+  the queue for everybody (`:8083-8086`).
+- 300s unsubscribed TTL (`_RUN_STREAM_TTL`, `:7482`; sweep
+  `:8275-8306`): connect later and the events are gone, 404.
+  Status records live 3600s (`:7483`).
+- Subscribe race: the GET polls up to 20×50ms for the run to
+  exist, else 404 `run_not_found` (`:8045-8051`).
+- No resume: no `id:` lines, no `Last-Event-ID`.
+- `POST …/stop` emits NOTHING at stop time — status goes
+  `stopping`, and `run.cancelled` arrives only when the run task
+  notices (`:8250-8251`, then the cancel producers above).
+- `POST /v1/runs` itself emits nothing (202 `{"run_id",
+  "status": "started"}`); run state between events is polled at
+  `GET /v1/runs/{id}` (`queued`/`running`/`waiting_for_approval`/
+  `stopping`/`completed`/`failed`/`cancelled`).
+- Pre-stream failures are plain HTTP JSON (401 gateway auth, 404
+  run_not_found) — never SSE.

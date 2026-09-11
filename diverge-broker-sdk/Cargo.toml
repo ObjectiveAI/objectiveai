@@ -1,0 +1,17 @@
+[package]
+name = "diverge-broker-sdk"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "Wire types for the Diverge broker API — the normative artifact of the broker specification"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+documentation = "https://docs.rs/diverge-broker-sdk"
+readme = "README.md"
+keywords = ["llm", "ai", "swarm", "broker"]
+publish = true
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }

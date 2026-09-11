@@ -1,0 +1,41 @@
+---
+title: 'volumes::watch'
+summary: 'Tag 5: a client names a volume from its listing; the server sends the tree of the volume as a snapshot and one response per change to it for as long as the scope lives, or an error; the client ends the watch by one channel request, the stop, and the response finish ends the scope.'
+order: 5
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`5` followed by the name of a volume. The server sends the tree of
+the volume as a snapshot, and one response per change to the tree for
+as long as the scope lives, or an error. The client ends the watch by
+opening one channel on the scope, the stop. The response finish ends
+the scope, and no frame bearing the scope follows it.
+
+- **The request.** The request carries the name of one volume.
+  [Request](/endpoints/volumes-watch/request/) states its form.
+- **The volume named.** The client names a volume by the `name` its
+  [volumes::list](/endpoints/volumes-list/) listing gave it. The
+  server resolves the name against the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. A name that is not in the client's listing is answered
+  with an error. A client cannot name another client's volume.
+- **The watch.** The server watches the filesystem of the volume from
+  the snapshot on, and it reports every change to that filesystem as
+  a response, in the form and under the rules that
+  [Response](/endpoints/volumes-watch/response/) states. A relocation
+  of a node is reported as its removal followed by its insertion.
+- **The stop.** The client ends the watch by exactly one channel
+  request on the scope, whose payload is empty.
+  [Stop](/endpoints/volumes-watch/client/stop/) states its form and effect.
+- **The end of the watch.** The server ends the scope by the response
+  finish. It sends the finish after it receives the stop, after the
+  client's connection ends, and after an error, which is in that case
+  the last response. The server may also end the watch at a time this
+  revision does not prescribe, by the finish with no error preceding
+  it; a deletion of the volume under the watch, as
+  [volumes::delete](/endpoints/volumes-delete/) provides, is such a
+  case.
+- **The volume is not changed.** A watch reads the volume. No frame of
+  this scope writes to the volume, and the end of the watch leaves
+  the volume and its content as they were.

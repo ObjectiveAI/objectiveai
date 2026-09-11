@@ -1,0 +1,48 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, the id or an error; after the id it sends nothing until the finish, and the finish that ends a running container carries no error.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope: the id, or an
+error. The response finish ends the scope. No frame bearing the scope
+follows the finish.
+
+```text
+[0][id JSON …]        once, when the container is running
+[1][error JSON …]     once, when it is not
+```
+
+- **The sequence.** Before the id, the server sends no response.
+  The first response is the id or an error. An error is followed by
+  the response finish, and the container is not running and will not
+  be. After the id, the server sends no response until the finish,
+  and the finish carries no error: a run that ended after its id
+  ended by the client's stop, by the container's own end, or by the
+  client's connection ending. A response finish that no response
+  precedes states that the request was not served, as
+  [Endpoints](/endpoints/) provides, or that the run ended before the
+  server had an id to send.
+- **The id.** A payload whose first byte is `0` carries the id after
+  that byte as JSON, an object with the member `id`, a string. The
+  server sends it after every FUSE mount is complete and, for an
+  agent container, after the agent is registered.
+- **The error.** A payload whose first byte is `1` carries an error
+  after that byte, exactly one JSON value in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  This revision prescribes nothing about its content.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is neither `0` nor `1`, a payload whose bytes after `0` do not
+  parse as the id, and a payload whose bytes after `1` are not one
+  JSON value are malformed.
+
+The response is defined by `diverge-provider-sdk/src/endpoints/containers/tools/run/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/run/server/response/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/response/id.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/response/id.rs
+```

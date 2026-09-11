@@ -1,0 +1,56 @@
+---
+title: 'volumes::create'
+summary: 'Tag 7: a client names a volume and its size in bytes; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
+order: 5
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`7` followed by the name and the size of the volume. The server sends
+exactly one response, which states that the volume exists, that the
+server has insufficient capacity for it, or an error. The response
+finish follows the response, and no frame follows the finish.
+
+- **The request.** The request carries a name the client chooses and
+  a size in bytes. [Request](/endpoints/volumes-create/request/)
+  states its form.
+- **The volume.** When the server sends the byte `0`, the volume
+  exists. From that moment, every
+  [volumes::list](/endpoints/volumes-list/) request by the client
+  lists the volume, under the name the client gave and with `bytes`
+  equal to the size the client gave, until a
+  [volumes::delete](/endpoints/volumes-delete/) request by the client
+  deletes it. The end of the scope, and the end
+  of every connection of the client, leave the volume in existence.
+  [Response](/endpoints/volumes-create/response/) states the form of
+  the response.
+- **The content.** The volume is created empty. Its content is
+  changed only by a container in which the client mounts it. The
+  server does not write to the volume, does not remove from it, and
+  does not otherwise alter its content, and no party other than such
+  a container does. Its `dirhash`, as
+  [volumes::stat](/endpoints/volumes-stat/) reports it, is
+  `47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU`, the hash of the
+  empty manifest, until a container changes its content.
+- **The client.** The client is the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. The volume is created for that identity, and that
+  identity alone can name it.
+- **The name.** The name is the client's choice. This revision
+  prescribes no form for it. A server may refuse a name; the refusal
+  is an error. A request whose name is the name of a volume already
+  in the client's listing is answered with an error, and the listing
+  is unchanged. A name is unique among the volumes of one client
+  only: two clients may each hold a volume of one name, and neither
+  can name the other's.
+- **Insufficient capacity.** When the server cannot reserve the size
+  stated, it does not create the volume and sends the byte `1`. No
+  volume, and no part of one, exists by that name as a result of the
+  request, and the client's listing is as it was before the request.
+  The server does not send the byte `0` for a size it cannot reserve.
+  The largest size the server can reserve at a given time is reported
+  by [volumes::create_capacity](/endpoints/volumes-create-capacity/).
+- **The error.** An error states that the volume was not created, for
+  a reason other than capacity: no volume, and no part of one, exists
+  by that name as a result of the request, and the client's listing
+  is as it was before the request.

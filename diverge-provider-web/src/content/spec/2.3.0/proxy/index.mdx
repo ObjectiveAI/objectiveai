@@ -1,0 +1,88 @@
+---
+title: 'Container Proxy'
+summary: 'The external interface of the container proxy: the WebSocket paths a provider’s server opens on port 14979 of every container it runs, the messages each carries, and the rules under which each opens and ends.'
+order: 4
+draft: false
+---
+
+A provider places one program, the **container proxy**, beside the
+entrypoint of every container it runs, and it reaches the container
+through the proxy alone. The proxy is not a layer of the protocol; it
+is a binary whose external interface this section defines at this
+revision. This section does not define what the proxy offers the
+program beside it.
+
+- **The listener.** The proxy listens on TCP port `14979` on every
+  interface of the container. Every path this section defines is a
+  WebSocket path on that listener, carried as [WebSocket](/websocket/)
+  provides, under the `ws` URI scheme. The server opens every path.
+  The proxy opens no connection.
+- **Messages.** Every message on every path is exactly one WebSocket
+  binary data frame. A message carries what its path defines and
+  nothing more: no header, no scope, no channel, and no finish. Each
+  party ignores a text data frame.
+- **No handshake.** The WebSocket upgrade is the whole of a path's
+  opening. No message precedes the first message the path defines.
+- **Asks and answers.** The proxy sends every ask on
+  [`/requests`](/proxy/requests/). Each ask carries a **channel**, a
+  `u32` that the proxy mints and that is unique among the asks it has
+  sent and the server has not yet answered. The server answers an ask
+  by opening the ask's own path with that channel in the path, by
+  sending the answer as the messages that path defines, and by
+  closing the connection. The clean close is the end of the answer.
+  A path that the proxy or the server closes cleanly with no message
+before the close states that the ask was not served.
+- **Openings.** `/requests` accepts one connection at a time; while
+  one is open, the proxy refuses a second with HTTP status `409`
+  before the upgrade. The proxy accepts an answer path for a channel
+  that it has announced and that the server has not yet opened; it
+  refuses a channel it does not know with `404`, and a second opening
+  of a known channel with `409`, each before the upgrade. The
+  `/fuse/mount`, `/filesystem/*`, `/agent/*` and `/tool/*` paths
+  accept every opening the server makes.
+- **Endings.** A clean close — the WebSocket closing handshake —
+  states that an answer is complete or that a session is over. An
+  abrupt end states that the connection died. The two are
+  distinguished, and each path's page states what each means there.
+  When `/requests` ends, cleanly or abruptly, every ask announced on
+  it and not yet answered is lost to the server; each kind's page
+  states what the proxy does with such an ask.
+- **No timeout.** No path defines a timeout. A connection on which
+  no message has arrived for any length of time remains open.
+
+| Path | Carries |
+|------|---------|
+| [`/requests`](/proxy/requests/) | every ask the proxy makes; no message in return |
+| [`/mcp/list-tools/{channel}`](/proxy/mcp/list-tools/) | exactly one MCP response frame |
+| [`/mcp/list-resources/{channel}`](/proxy/mcp/list-resources/) | exactly one MCP response frame |
+| [`/mcp/call-tool/{channel}`](/proxy/mcp/call-tool/) | exactly one MCP response frame |
+| [`/mcp/read-resource/{channel}`](/proxy/mcp/read-resource/) | exactly one MCP response frame |
+| [`/mcp/notifications/{channel}`](/proxy/mcp/notifications/) | one frame per notification, for the life of the path |
+| [`/vault/get/{channel}`](/proxy/vault/get/) | exactly one vault answer |
+| [`/vault/set/{channel}`](/proxy/vault/set/) | exactly one vault answer |
+| [`/vault/delete/{channel}`](/proxy/vault/delete/) | exactly one vault answer |
+| [`/vault/lock/{channel}`](/proxy/vault/lock/) | exactly one vault answer, sent when the lock is held |
+| [`/vault/unlock/{channel}`](/proxy/vault/unlock/) | exactly one vault answer |
+| [`/fuse/mount`](/proxy/fuse/mount/) | one mount to make; exactly one answer, sent when the mount is serving |
+| [`/fuse/stat/{channel}`](/proxy/fuse/stat/) | exactly one answer for a mounted entry |
+| [`/fuse/read/{channel}`](/proxy/fuse/read/) | exactly one answer for a mounted file |
+| [`/fuse/write/{channel}`](/proxy/fuse/write/) | exactly one answer for a mounted file |
+| [`/fuse/list/{channel}`](/proxy/fuse/list/) | exactly one answer for a mounted directory |
+| [`/fuse/remove/{channel}`](/proxy/fuse/remove/) | exactly one answer for a mounted entry |
+| [`/fuse/rename/{channel}`](/proxy/fuse/rename/) | exactly one answer for a mounted entry |
+| [`/fuse/mkdir/{channel}`](/proxy/fuse/mkdir/) | exactly one answer for a mounted directory |
+| [`/command/{channel}`](/proxy/command/) | one frame per item the command produces |
+| [`/postgres/{channel}`](/proxy/postgres/) | the bytes of one database connection, in both directions |
+| [`/filesystem/tree`](/proxy/filesystem/tree/) | the paths to leave out; the tree as a snapshot and its changes |
+| [`/filesystem/read`](/proxy/filesystem/read/) | one file out of the container |
+| [`/filesystem/write`](/proxy/filesystem/write/) | one file into the container |
+| [`/agent/register`](/proxy/agent/register/) | the agent, once; exactly one answer |
+| [`/agent/run`](/proxy/agent/run/) | a prompt; the chunks of one loop |
+| [`/agent/schema`](/proxy/agent/schema/) | exactly one answer carrying the agent’s JSON Schema |
+| [`/agent/enqueue`](/proxy/agent/enqueue/) | a message for the loop’s queue; exactly one answer, its fate |
+| [`/agent/dequeue`](/proxy/agent/dequeue/) | exactly one answer stating whether the queue held anything |
+| [`/tool/list-tools`](/proxy/tool/list-tools/) | MCP params; exactly one MCP response frame |
+| [`/tool/list-resources`](/proxy/tool/list-resources/) | MCP params; exactly one MCP response frame |
+| [`/tool/call-tool`](/proxy/tool/call-tool/) | MCP params; exactly one MCP response frame |
+| [`/tool/read-resource`](/proxy/tool/read-resource/) | MCP params; exactly one MCP response frame |
+| [`/tool/notifications`](/proxy/tool/notifications/) | one frame per notification of the container’s MCP server, for the life of the path |

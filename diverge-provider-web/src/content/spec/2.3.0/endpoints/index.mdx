@@ -1,0 +1,94 @@
+---
+title: 'Endpoints'
+summary: 'A request’s payload begins with one tag byte designating the endpoint; thirteen endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
+order: 5
+draft: false
+---
+
+A [request](/frames/scopes/) opens a scope for exactly one
+**endpoint**. The request's payload begins with a single tag byte
+designating the endpoint; the remainder of the payload is the
+endpoint's request content, in the form the endpoint defines.
+
+| Tag | Endpoint |
+|-----|----------|
+| `0` | [containers::agents::run](/endpoints/containers-agents-run/) |
+| `1` | [containers::tools::run](/endpoints/containers-tools-run/) |
+| `2` | [containers::tools::connect](/endpoints/containers-tools-connect/) |
+| `3` | [volumes::list](/endpoints/volumes-list/) |
+| `4` | [volumes::stat](/endpoints/volumes-stat/) |
+| `5` | [volumes::watch](/endpoints/volumes-watch/) |
+| `6` | [volumes::create_capacity](/endpoints/volumes-create-capacity/) |
+| `7` | [volumes::create](/endpoints/volumes-create/) |
+| `8` | [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) |
+| `9` | [volumes::edit](/endpoints/volumes-edit/) |
+| `10` | [volumes::delete](/endpoints/volumes-delete/) |
+| `11` | [images::check](/endpoints/images-check/) |
+| `12` | [version](/endpoints/version/) |
+
+The tag values are normative as tabulated. Each endpoint has its own
+section. Every section of this layer states requirements of the
+server only: a sentence describing what the client sends states the
+input the server serves, and imposes no requirement on the client.
+
+- **An unreadable request is answered, not dropped.** A request whose
+  payload the server cannot read — a tag the server does not define,
+  or content that does not conform to the endpoint's form — is
+  answered by a response finish with no response preceding it. The
+  scope opens and closes; the client observes an unanswered request.
+- **Growth is new tag values.** A future endpoint is a new tag value
+  in this table. The frame types of the [Frames](/frames/) layer are
+  unaffected by the addition of endpoints.
+
+## Notation
+
+The JSON payloads of this layer are defined by type declarations,
+written as Rust with serde attributes. The declarations are normative
+for the JSON they describe — the protocol is not Rust, and the
+notation binds no implementation language — under the following
+reading:
+
+- A `struct` is a JSON object. A field is a member of the same name,
+  unless `#[serde(rename = "…")]` states the wire name; `r#type` is
+  the member `type`.
+- A field marked `#[serde(default, skip_serializing_if = …)]` may be
+  absent, and absence has the marked default's meaning. An `Option`
+  field without that marking is present, and may be `null`.
+- An enum marked `#[serde(untagged)]` is exactly one of its variants'
+  shapes, with no wrapper naming the variant.
+- An enum of unit variants is a string: each variant's
+  `#[serde(rename = "…")]` value, or its name in `snake_case` where
+  `#[serde(rename_all = "snake_case")]` is stated. A one-variant enum
+  is thereby a constant.
+- A field marked `#[serde(flatten)]` contributes its members to the
+  containing object; the field's own name never appears.
+- `String` is a string; `bool` is a boolean; `u64` and `i64` are
+  integers; `f64` and `Decimal` are numbers; `Vec<T>` is an array;
+  `Vec<u8>` is an array of integers; a map is an object;
+  `serde_json::Value` is any JSON value.
+- Types named from `rmcp::model` are the types of the
+  [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25),
+  serialized as MCP defines them; they are incorporated by reference
+  and not restated. Wherever a declaration references one, its
+  definition in [rmcp](https://docs.rs/rmcp/3.1.2/rmcp/) 3.1.2 — the MCP
+  implementation this revision builds against — is linked beneath the
+  declaration.
+
+The binary payloads of this layer that a page marks as postcard are
+defined by the same type declarations, under the following reading,
+which is the [postcard wire format](https://postcard.jamesmunns.com/wire-format):
+
+- A `struct` is its fields, in declaration order, with no delimiter
+  between them and no name before them.
+- `u16`, `u32`, `u64` and `usize` are unsigned LEB128 varints: seven
+  bits of the value per byte, least significant first, the high bit
+  of every byte but the last set. A `u64` occupies at most 10 bytes.
+  `u8` is one byte. `bool` is one byte, `0` or `1`.
+- `String` is a varint byte length followed by that many bytes of
+  UTF-8.
+- `Vec<T>` is a varint count followed by that many elements, each
+  encoded as `T`.
+- An enum is a varint discriminant, the index of the variant in
+  declaration order counted from `0`, followed by the variant's
+  fields in declaration order.
+- `Option<T>` is the byte `0`, or the byte `1` followed by `T`.

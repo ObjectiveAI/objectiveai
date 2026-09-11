@@ -1,0 +1,68 @@
+---
+title: 'Frames'
+summary: 'Every WebSocket binary message carries exactly one frame: a fixed nine-byte header — type, scope, channel — followed by an opaque payload.'
+order: 2
+draft: false
+---
+
+Above the [WebSocket layer](/websocket/), all communication is framed.
+Every WebSocket binary message carries exactly one frame, and a frame
+never spans messages.
+
+```text
+[type: u8][scope: u32, big-endian][channel: u32, big-endian][payload …]
+```
+
+- **Header.** Nine bytes, fixed. The first byte is the frame's type.
+  The following eight bytes are two 32-bit unsigned integers in
+  big-endian byte order: the scope number, then the channel number.
+  The payload is everything after the ninth byte, running to the end
+  of the message; there is no length field, because WebSocket already
+  delimits messages.
+- **Roles.** A connection has exactly two parties: one acts as the
+  **client** and one as the **server**. The roles are fixed for the
+  life of the connection and are independent of which party initiated
+  it.
+- **Types.** Seven type values are defined. Which of them a party may
+  send depends on its role:
+
+| Type | Client → Server | Server → Client |
+|------|-----------------|-----------------|
+| `0` | [authorization](/authorization/) | [authorization](/authorization/) |
+| `1` | [request](/frames/scopes/) | — |
+| `2` | — | [response](/frames/scopes/) |
+| `3` | — | [response finish](/frames/scopes/) |
+| `4` | [channel request](/frames/channels/) | [channel request](/frames/channels/) |
+| `5` | [channel response](/frames/channels/) | [channel response](/frames/channels/) |
+| `6` | [channel response finish](/frames/channels/) | [channel response finish](/frames/channels/) |
+
+- **A frame's kind is determined by its type and direction alone.**
+  Where both directions define a type value, it denotes the same kind
+  of frame in each. Only a client sends type `1`, because only a
+  client opens a scope; only a server sends types `2` and `3`, because
+  only a server answers one.
+- **Undefined types are malformed.** A frame bearing a type its
+  direction does not define is malformed. The server disregards a
+  malformed frame, and disregards a frame whose scope field names no
+  open scope or whose channel field names no open channel where the
+  frame's kind reads that field. Neither occurrence ends the
+  connection.
+- **Unread fields are ignored.** Where a frame's kind involves no
+  scope or no channel, the corresponding header field is ignored: no
+  value is prescribed for the sender to set, and the receiver does not
+  read it.
+- **Nothing is acknowledged.** No frame acknowledges the receipt of
+  another. A party learns that its request arrived by being answered.
+- **A stream ends at its finish frame, and nowhere else.** A quiet
+  scope or channel is one that is still open, however long it has been
+  quiet. This layer defines no timeout.
+- **Payloads are opaque at this layer.** Their contents are defined by
+  higher layers. This revision defines no frame type other than the
+  seven.
+
+The frame types each role sends are enumerated in
+[Client Frames](/frames/client/) and [Server Frames](/frames/server/);
+the requirements governing scopes and channels are
+[Scopes](/frames/scopes/) and [Channels](/frames/channels/). The
+authorization frame is governed by the next layer,
+[Authorization](/authorization/).

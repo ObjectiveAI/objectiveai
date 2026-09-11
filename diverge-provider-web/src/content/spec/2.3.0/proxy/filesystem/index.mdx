@@ -1,0 +1,23 @@
+---
+title: 'Filesystem'
+summary: 'Three paths the server opens into the container’s filesystem: the tree, watched; one file read; one file written.'
+order: 7
+draft: false
+---
+
+Three paths carry the server's access to the filesystem of the
+container. The server opens each path as often as it chooses. Every
+opening is its own exchange, and no state is shared between openings.
+
+| Path | Carries |
+|------|---------|
+| [`/filesystem/tree`](/proxy/filesystem/tree/) | the paths to leave out; the tree as a snapshot and every change, or the reason there is none |
+| [`/filesystem/read`](/proxy/filesystem/read/) | the name of one file; its bytes, or the reason there are none |
+| [`/filesystem/write`](/proxy/filesystem/write/) | the name of one file and its content; ok or an error |
+
+- **Paths are components.** A file is named as a JSON array of path
+  components from the root of the container.
+- **What the tree leaves out.** The server names the paths the tree
+  leaves out in the message that opens the watch.
+- **No repetition.** An exchange whose path ended abruptly has
+  failed. No party retries it.

@@ -1,0 +1,26 @@
+---
+title: 'Client Channels'
+summary: 'The channels the client opens on the scope, by tag; the server serves each as its section states and answers a channel request it cannot decode by a channel response finish with nothing before it.'
+order: 3
+draft: false
+---
+
+The client opens each of these channels on the scope, as [Channels](/frames/channels/) provides. The payload of the channel request begins with one tag byte designating the channel; the remainder is the channel's request. The server serves each as its section states, and answers a channel request that does not decode by a channel response finish that no channel response precedes.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [disconnect](/endpoints/containers-tools-connect/client/disconnect/) |
+| `1` | [filetree](/endpoints/containers-tools-connect/client/filetree/) |
+| `2` | [read](/endpoints/containers-tools-connect/client/read/) |
+| `3` | [write](/endpoints/containers-tools-connect/client/write/) |
+| `4` | [postgres](/endpoints/containers-tools-connect/client/postgres/) |
+| `5` | [mcp-list-tools](/endpoints/containers-tools-connect/client/mcp-list-tools/) |
+| `6` | [mcp-list-resources](/endpoints/containers-tools-connect/client/mcp-list-resources/) |
+| `7` | [mcp-call-tool](/endpoints/containers-tools-connect/client/mcp-call-tool/) |
+| `8` | [mcp-read-resource](/endpoints/containers-tools-connect/client/mcp-read-resource/) |
+| `9` | [mcp-notifications](/endpoints/containers-tools-connect/client/mcp-notifications/) |
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/tools/connect/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/connect/client/channel_request/frame.rs
+```

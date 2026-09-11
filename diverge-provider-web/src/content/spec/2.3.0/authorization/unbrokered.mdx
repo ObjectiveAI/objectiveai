@@ -1,0 +1,23 @@
+---
+title: 'Unbrokered'
+summary: 'Mode 0: the credential is an opaque UTF-8 string whose meaning the two parties agreed upon before the connection existed.'
+order: 1
+draft: false
+---
+
+The unbrokered mode is designated by mode byte `0`. No third party
+vouches for the connector.
+
+- **Form.** The credential is the remainder of the payload after the
+  mode byte: a UTF-8 string, running to the end of the payload. There
+  is no length field, and the empty string is a well-formed
+  credential.
+- **Opacity.** The connectee does not parse the string, and this
+  revision constrains neither its length nor its content beyond valid
+  UTF-8. The manner in which the connectee judges it is the
+  connectee's own. **Remark.** The string is whatever the two parties
+  agreed before the connection existed, such as a bearer token or a
+  signed assertion.
+- **Malformation.** A credential that is not valid UTF-8 cannot be
+  read, and is treated as any rejected credential is: closure of the
+  connection, and nothing else.

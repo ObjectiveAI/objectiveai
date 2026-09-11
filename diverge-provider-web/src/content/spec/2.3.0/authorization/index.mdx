@@ -1,0 +1,68 @@
+---
+title: 'Authorization'
+summary: 'The first frame of every connection is an authorization frame, sent by the connector to the connectee; its payload is a credential in one of the defined modes, and it is never answered.'
+order: 3
+draft: false
+---
+
+The party that initiated the WebSocket connection is the
+**connector**; the party that accepted it is the **connectee**. Either
+protocol role may occupy either position — a client may connect to a
+server, and a server may connect to a client — and for this reason
+both directions define frame type `0`.
+
+## The requirement
+
+- **The first frame.** The first frame of every connection is an
+  authorization frame (type `0`), sent by the connector to the
+  connectee. No frame precedes it.
+- **Exactly one.** A connection carries exactly one authorization
+  frame. An authorization frame arriving at any later point, or from
+  the connectee, is a protocol violation; the party receiving it
+  ceases the connection.
+- **The connectee judges.** The connectee alone determines whether
+  the credential is acceptable. The criteria of acceptability are not
+  part of this protocol.
+
+## The credential
+
+The authorization frame's payload is the credential, in the following
+form: a single leading byte designating the credential's **mode**,
+followed by the mode's own content, which runs to the end of the
+payload.
+
+| Mode | Name | Definition |
+|------|------|------------|
+| `0` | [Unbrokered](/authorization/unbrokered/) | This revision |
+| `1` | Brokered | Reserved; a future revision |
+
+Mode `1` is reserved for a brokered credential, in which a third party
+vouches for the connector. Its content is not defined by this
+revision. A credential presented in a mode the connectee does not
+recognize is rejected.
+
+## There is no answer
+
+No frame replies to an authorization frame.
+
+- A credential the connectee **accepts** is followed by the
+  connection operating. Acceptance is observable only as service.
+- A credential the connectee **rejects** is followed by closure of
+  the connection, and by nothing else. A peer that has not been
+  authorized is sent no frames of any kind.
+
+**Remark.** An invalid, an expired and an unrecognized credential are
+indistinguishable from the connector's side: each is observed as a
+connection that closed.
+
+## What acceptance establishes
+
+Acceptance associates the connection with what the connectee
+determined from the credential. Where the client is the connector,
+that determination is the **identity**, and the server serves every
+scope on the connection under it. The identity is the server's own
+value: the server does not transmit it on the wire, does not derive a
+value it sends from it, and does not serve a scope under any identity
+other than that of the connection the scope was opened on. The
+determination is the connectee's; the layers at which the identity
+bears on an exchange name it where it applies.
