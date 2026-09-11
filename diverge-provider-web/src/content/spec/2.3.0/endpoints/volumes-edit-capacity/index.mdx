@@ -1,0 +1,40 @@
+---
+title: 'volumes::edit_capacity'
+summary: 'Tag 8: a client names a volume from its listing; the server sends exactly one response carrying the number of bytes by which the size of that volume could be increased at that time, or an error, and the scope finishes; the answer reserves nothing.'
+order: 8
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`8` followed by the name of a volume. The server sends exactly one
+response, which carries either a number of bytes or an error. The
+response finish follows the response, and no frame follows the
+finish.
+
+- **The request.** The request carries the name of one volume.
+  [Request](/endpoints/volumes-edit-capacity/request/) states its
+  form.
+- **The volume named.** The client names a volume by the `name` its
+  [volumes::list](/endpoints/volumes-list/) listing gave it. The
+  server resolves the name against the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. A name that is not in the client's listing is answered
+  with an error. A client cannot name another client's volume.
+- **The capacity.** The number is the number of bytes by which the
+  size of the volume could be increased by a
+  [volumes::edit](/endpoints/volumes-edit/) request at the time of
+  the response. It is the increase available, and not the size the
+  volume would then have: the largest size the client could state in
+  a `volumes::edit` request at that time is the volume's `bytes` plus
+  the number. The number `0` states that the size of the volume
+  cannot be increased at the time of the response.
+  [Response](/endpoints/volumes-edit-capacity/response/) states its
+  form.
+- **No reservation.** The answer is a fact about the time of the
+  response and reserves nothing. A `volumes::edit` request stating a
+  size not greater than the volume's `bytes` plus the number answered
+  may be answered with insufficient capacity when the room has been
+  taken between the two responses.
+- **The error.** An error states that the server did not answer the
+  question, and that nothing was determined about the capacity. An
+  error is not the number `0`.

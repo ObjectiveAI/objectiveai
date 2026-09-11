@@ -1,12 +1,12 @@
 ---
 title: 'volumes::delete'
-summary: 'Tag 8: a client names a volume from its listing; the server sends exactly one response stating that the volume no longer exists, that it is mounted and was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
+summary: 'Tag 10: a client names a volume from its listing; the server sends exactly one response stating that the volume no longer exists, that it is mounted and was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
 order: 8
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`8` followed by the name of a volume. The server sends exactly one
+`10` followed by the name of a volume. The server sends exactly one
 response, which states that the volume is deleted, that the volume is
 mounted and was not deleted, or an error. The response finish follows
 the response, and no frame follows the finish.
