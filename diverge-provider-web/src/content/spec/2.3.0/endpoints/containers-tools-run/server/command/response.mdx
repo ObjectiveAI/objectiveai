@@ -1,0 +1,25 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the client answers with, what ends it, what a finish with nothing before it means, and what the server does with the answer.'
+order: 2
+draft: false
+---
+
+```text
+[0][item …]          zero or more, one per item
+[1][error JSON …]    last, the command did not finish
+```
+
+- **The sequence.** Zero or more channel responses whose first byte
+  is `0`, each one item verbatim, in order. An error, when the client
+  sends one, is the last channel response. The channel response
+  finish follows the last channel response.
+- **A finish with nothing.** A channel response finish that no
+  channel response precedes states that the client did not serve the
+  ask. The server relays that to the proxy as the ask not served, and
+  does not ask again.
+
+The channel response is defined by `diverge-provider-sdk/src/shared/containers/command/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/command/response/frame.rs
+```

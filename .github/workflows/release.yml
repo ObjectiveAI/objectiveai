@@ -27,9 +27,16 @@ name: Release
 # the previously-failed pieces are produced. (Deleting the release and
 # re-running also works, but force avoids the delete.)
 
+# AUTOMATIC RELEASE IS DISABLED. A push to main releases nothing: the
+# only trigger is a manual dispatch (Actions UI, or
+# `gh workflow run release.yml --ref main`), which still runs through the
+# release-exists gate above. To restore the automatic release, put back
+#
+#   push:
+#     branches: [main]
+#
+# under `on:`.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       force:

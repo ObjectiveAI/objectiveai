@@ -1,0 +1,27 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { latest } from "../spec";
+
+const target = `/${latest()}/`;
+---
+
+<Layout
+  title="Not found"
+  description="There is nothing at this URL. Every page of the specification lives under its revision."
+  path="/404/"
+>
+  <div class="page">
+    <main>
+      <article>
+        <h1>Not found</h1>
+        <p>
+          There is nothing at this URL. Every page of the specification
+          lives under its revision — the first part of its path — and
+          the latest is <a href={target}>Specification {latest()}</a>.
+          If a link brought you here, the page may belong to another
+          revision, or to none.
+        </p>
+      </article>
+    </main>
+  </div>
+</Layout>

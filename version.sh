@@ -239,6 +239,14 @@ CARGO_TOMLS=(
   objectiveai-mcp-plugin-framework-rs/Cargo.toml
   objectiveai-mcp-plugin-scaffold-rs/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml
+  diverge-agentic-loop-cc/Cargo.toml
+  diverge-agentic-loop-eliza/Cargo.toml
+  diverge-agentic-loop-hermes/Cargo.toml
+  diverge-container-proxy/Cargo.toml
+  diverge-container-proxy-sdk/Cargo.toml
+  diverge-agentic-loop-openrouter/Cargo.toml
+  diverge-broker-sdk/Cargo.toml
+  diverge-provider-sdk/Cargo.toml
   objectiveai-sdk-rs/Cargo.toml
   objectiveai-sdk-rs-cffi/Cargo.toml
   objectiveai-sdk-rs-macros/Cargo.toml
@@ -253,6 +261,7 @@ PYPROJECT_TOMLS=(
 )
 
 PACKAGE_JSONS=(
+  diverge-provider-web/package.json
   objectiveai-sdk-js/package.json
   objectiveai-viewer/package.json
 )

@@ -1,0 +1,25 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the tag byte 2 and the ask.'
+order: 1
+draft: false
+---
+
+```text
+[2][request JSON …]
+```
+
+- **`address`.** The peer IP address of the connector's connection as
+  the server observed it, as a string.
+- **`authorization`.** The `authorization` of the connect request,
+  verbatim. It may be empty.
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/authorize/request/authorize.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/authorize/request/authorize.rs
+```

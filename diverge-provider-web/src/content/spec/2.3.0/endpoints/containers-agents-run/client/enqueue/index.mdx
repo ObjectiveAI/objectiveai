@@ -1,0 +1,17 @@
+---
+title: 'Enqueue'
+summary: 'Tag 7: the client sends a message for the queue of the running loop; the server opens the proxy’s /agent/enqueue and relays exactly one channel response, the fate of the message, when the fate is known.'
+order: 7
+draft: false
+---
+
+The client opens this channel to place a message in the queue of the
+running loop. The server opens [`/agent/enqueue`](/proxy/agent/enqueue/)
+on the proxy with the message and relays the fate the proxy answers.
+
+- **The request.** The tag byte `7` followed by the message as JSON.
+  [Request](/endpoints/containers-agents-run/client/enqueue/request/) states its form.
+- **The response.** Exactly one channel response, sent when the fate
+  of the message is known, however long that takes, and the channel
+  response finish. [Response](/endpoints/containers-agents-run/client/enqueue/response/)
+  states the sequence.

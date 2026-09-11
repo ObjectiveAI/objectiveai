@@ -1,0 +1,35 @@
+---
+title: 'Scopes'
+summary: 'A scope is one client request and everything that follows from it, numbered by the client and ended only by the server.'
+order: 3
+draft: false
+---
+
+A **scope** is one client request and everything that follows from it.
+
+- **Opening.** A client opens a scope by sending a request (type
+  `1`). The client chooses the scope number, and every subsequent
+  frame belonging to the scope — in both directions — carries that
+  number in its scope field.
+- **Answering.** The server answers with zero or more responses (type
+  `2`) and ends the scope with exactly one response finish (type `3`).
+  The responses to a scope's request form one stream: their order is
+  significant, and the finish is its end.
+- **Only the server ends a scope.** The client has no frame that
+  closes, cancels, or abandons one. A scope is open from its request
+  until its finish.
+- **A finish with no response before it is meaningful.** It states
+  that the request was received and could not be served. It is not an
+  error frame, and no reason accompanies it at this layer.
+- **Numbering.** The scope number is the client's to choose. A scope
+  number names one scope from that scope's request until that scope's
+  response finish; after the finish the number is free to bear a new
+  scope.
+- **A request naming an open scope is disregarded.** The server
+  disregards a request whose scope field names a scope that is open
+  on the connection. The disregarded request is never answered, and
+  the scope it named continues, unaffected.
+- **The scope's exchange is not a channel.** The frames that carry it
+  — types `1`, `2`, and `3` — involve no channel, and their channel
+  fields are ignored. Every other exchange within the scope is a
+  [channel](/frames/channels/).

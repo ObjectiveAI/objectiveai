@@ -1,0 +1,24 @@
+---
+title: 'Write'
+summary: 'Tag 3: the client names a write by an id and a destination path; the server opens a write-bytes channel for the content, streams it into the proxy’s /filesystem/write, and answers exactly once, written or an error.'
+order: 3
+draft: false
+---
+
+The client opens this channel to write one file into the container.
+The channel carries the destination and an id; the content travels
+on a channel the server opens.
+
+- **The request.** The tag byte `3` followed by the write id and the
+  path as JSON. [Request](/endpoints/containers-agents-run/client/write/request/) states its
+  form.
+- **The content.** The server opens a [write-bytes](/endpoints/containers-agents-run/server/write-bytes/) channel
+  quoting the write id, and streams what arrives on it into the
+  proxy's [`/filesystem/write`](/proxy/filesystem/write/) for the
+  path.
+- **The response.** Exactly one channel response, written or an
+  error, and the channel response finish.
+  [Response](/endpoints/containers-agents-run/client/write/response/) states the sequence.
+- **Content that stops.** Content that ends without a finish, on
+  either side, is a write that did not happen: the server answers
+  with an error, and the destination is as it was.

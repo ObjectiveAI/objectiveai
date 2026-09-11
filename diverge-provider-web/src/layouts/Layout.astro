@@ -1,0 +1,255 @@
+---
+// The one non-React shim: routes render React into this shell, and
+// this owns the <head>. Every page is complete on first byte — no
+// scripts, no external fonts, no analytics, no cookies, nothing
+// fetched from anywhere else.
+import { absolute } from "../spec";
+
+interface Props {
+  title: string;
+  description: string;
+  /** Site-relative canonical path for this page, with trailing slash. */
+  path: string;
+  /** Site-relative path of the raw-markdown twin, if this page has one. */
+  markdown?: string;
+  /** Where this page sends the reader at once, if it is a redirect. */
+  refresh?: string;
+}
+
+const { title, description, path, markdown, refresh } = Astro.props;
+const canonical = absolute(path);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Diverge Provider Protocol</title>
+    <meta name="description" content={description} />
+    {refresh && <meta http-equiv="refresh" content={`0; url=${refresh}`} />}
+    <link rel="canonical" href={canonical} />
+    {
+      markdown && (
+        <link
+          rel="alternate"
+          type="text/markdown"
+          href={absolute(markdown)}
+          title={`${title} (Markdown)`}
+        />
+      )
+    }
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <style is:global>
+      /* System fonts, a readable measure, and nothing loaded from
+         anywhere. The whole presentation is this block — global on
+         purpose: the markup it styles is rendered by React components
+         through the slot, which Astro's scoped styles cannot see. */
+      :root {
+        color-scheme: light dark;
+        /* On the root, so the canvas paints it across the whole
+           viewport however short a page runs — a background on body
+           alone stops where the content does the moment anything
+           interferes with its propagation to the canvas. */
+        background: light-dark(#ffffff, #131313);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.6;
+        color: light-dark(#1a1a1a, #d6d6d6);
+      }
+      code,
+      pre {
+        font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+        font-size: 0.925em;
+      }
+      pre {
+        padding: 0.75rem 1rem;
+        overflow-x: auto;
+        background: light-dark(#f5f5f4, #1e1e1e);
+        border-radius: 4px;
+      }
+      /* Shiki emits both themes; this picks the dark one when the
+         viewer's scheme does. */
+      @media (prefers-color-scheme: dark) {
+        .astro-code,
+        .astro-code span {
+          color: var(--shiki-dark) !important;
+          background-color: var(--shiki-dark-bg) !important;
+        }
+      }
+      a {
+        color: light-dark(#0d5fae, #6cb2f0);
+      }
+      .page {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: 1.5rem 1.25rem 4rem;
+      }
+      .columns {
+        display: grid;
+        grid-template-columns: 16rem minmax(0, 46rem);
+        gap: 3rem;
+      }
+      @media (max-width: 55rem) {
+        .columns {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      aside nav ol {
+        list-style: none;
+        padding-left: 0;
+        font-size: 0.925rem;
+      }
+      aside nav ol ol {
+        padding-left: 1rem;
+      }
+      aside nav li {
+        margin: 0.2rem 0;
+      }
+      aside nav a {
+        text-decoration: none;
+      }
+      aside nav a[aria-current="page"] {
+        font-weight: 600;
+        text-decoration: underline;
+      }
+      .crumbs {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        padding: 0;
+        margin: 0 0 1.5rem;
+        font-size: 0.875rem;
+      }
+      /* The redirect page's content: in the document, out of sight,
+         so nothing flashes before the refresh is followed. */
+      .silent {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      .versions {
+        display: inline-block;
+        position: relative;
+      }
+      .versions summary {
+        cursor: pointer;
+        list-style: none;
+      }
+      .versions summary::-webkit-details-marker {
+        display: none;
+      }
+      .versions ul {
+        position: absolute;
+        left: 0;
+        z-index: 1;
+        margin: 0.25rem 0 0;
+        padding: 0.25rem 0;
+        list-style: none;
+        min-width: 100%;
+        border: 1px solid light-dark(#d0d0d0, #3a3a3a);
+        border-radius: 0.25rem;
+        background: light-dark(#ffffff, #1c1c1c);
+      }
+      .versions li {
+        padding: 0.15rem 0.75rem;
+        white-space: nowrap;
+      }
+      .versions a[aria-current="page"] {
+        font-weight: 600;
+      }
+      .crumbs li + li::before {
+        content: "/";
+        margin-right: 0.4rem;
+        opacity: 0.5;
+      }
+      article h1 {
+        margin-top: 0;
+        line-height: 1.2;
+      }
+      article .summary {
+        font-size: 1.075rem;
+        opacity: 0.85;
+      }
+      article .draft {
+        padding: 0.75rem 1rem;
+        border-left: 3px solid light-dark(#b98600, #d8a72c);
+        background: light-dark(#fdf6e3, #24200f);
+        border-radius: 0 4px 4px 0;
+      }
+      /* rehype-autolink-headings appends these. */
+      article a.anchor {
+        margin-left: 0.35rem;
+        text-decoration: none;
+        opacity: 0;
+      }
+      article h2:hover a.anchor,
+      article h3:hover a.anchor,
+      article h4:hover a.anchor,
+      article a.anchor:focus {
+        opacity: 0.6;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.95rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.35rem 0.75rem 0.35rem 0;
+        border-bottom: 1px solid light-dark(#e4e4e4, #2c2c2c);
+        vertical-align: top;
+      }
+      .adjacent {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 3rem;
+        padding-top: 1rem;
+        border-top: 1px solid light-dark(#e4e4e4, #2c2c2c);
+      }
+      article footer {
+        margin-top: 2.5rem;
+        font-size: 0.875rem;
+      }
+      @media print {
+        aside,
+        .crumbs,
+        .adjacent,
+        article footer {
+          display: none;
+        }
+        .columns {
+          grid-template-columns: 1fr;
+        }
+        a {
+          color: inherit;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

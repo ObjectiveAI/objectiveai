@@ -1,0 +1,24 @@
+---
+title: 'FUSE list'
+summary: 'Tag 20: the server relays an ask of the container’s proxy that lists a directory of a mount the client serves live, by the mount’s id and the entry’s path; the client answers with exactly one channel response, which the server relays to the proxy.'
+order: 20
+draft: false
+---
+
+The server opens this channel when the container's proxy sends the
+FUSE ask on `/requests` that lists a directory of a mount the client serves live. The ask
+is relayed verbatim; the client's one answer is relayed back.
+
+- **The request.** The tag byte `20` followed by the ask in the form
+  the proxy's [`/fuse/list/{channel}`](/proxy/fuse/list/) page
+  defines. [Request](/endpoints/containers-tools-run/server/fuse-list/request/) states its
+  form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/endpoints/containers-tools-run/server/fuse-list/response/)
+  states the sequence.
+- **The conduit.** The server relays the one channel response to the
+  proxy's `/fuse/list/{channel}` as one message and closes that
+  connection. The server does not read the ask or the answer, and
+  does not send the ask twice.
+
+- **A directory mount only.** The proxy sends this ask only for a mount of `fuse_directory_mounts`.

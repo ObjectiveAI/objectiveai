@@ -1,0 +1,23 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the tag byte 6 and the ask.'
+order: 1
+draft: false
+---
+
+```text
+[6][connection_id: u32, big-endian]
+```
+
+- **`connection_id`.** Four bytes, big-endian, the id of the
+  connection.
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/postgres/request/postgres.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/postgres/request/postgres.rs
+```

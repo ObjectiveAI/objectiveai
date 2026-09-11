@@ -1,0 +1,28 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 2 and the request of the channel.'
+order: 1
+draft: false
+---
+
+The payload of the channel request is the tag byte followed by the
+request as JSON, read as [Notation](/endpoints/#notation) provides:
+
+```text
+[2][request JSON …]
+```
+
+- **`path`.** The file, as components from the root of the container.
+- **Malformed.** A channel request whose payload does not decode as
+  stated is answered by a channel response finish that no channel
+  response precedes, and the server does nothing else for it.
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/tools/connect/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/connect/client/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/read/request/request.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/read/request/request.rs
+```

@@ -1,0 +1,63 @@
+[package]
+name = "diverge-agentic-loop-openrouter"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The OpenRouter agent container of the Diverge provider protocol"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# Path-only: this crate rides the workspace and is never published, so
+# the SDKs are named by where they live rather than by version pins
+# version.sh would have to chase. The provider SDK is the vocabulary —
+# the agent, the chunks; the container SDK is the proxy beside this
+# program — the request, the chunks' way out, the vault, the database.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk" }
+# The loop's door: an HTTP server on the loopback the proxy forwards
+# to — `/run` as server-sent events, the queue's two verbs, the
+# schema. Default features carry the JSON extractor and the HTTP/1
+# server; SSE is axum's own.
+axum = { version = "0.8.9" }
+# `Stream` and its combinators, for the chunk stream the response is.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The MCP types the tool calls are made of; the session itself is the
+# container SDK's.
+rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
+# The agent's JSON Schema, derived from the agent types for
+# `GET /schema`; `indexmap2` for the `logit_bias` map.
+schemars = { version = "1.2.1", features = ["indexmap2"] }
+# The map types the OpenRouter shapes carry: ordered, so the same
+# request always serializes identically.
+indexmap = { version = "2.14.0", features = ["serde"] }
+# OpenRouter's audio `format` is the bare token ("wav", "mp3"); this
+# maps a mime type to it, correctly even where a prefix-strip would
+# not ("audio/mpeg" is mp3).
+mime2ext = { version = "0.1.54" }
+# Costs and prices in the OpenRouter response are decimals, never
+# floats.
+rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# The runtime under the listener. No `macros` — the runtime is built
+# in main, not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "sync"] }
+# The SSE client over reqwest.
+reqwest-eventsource = "0.6.0"
+# The SSE event type reqwest-eventsource yields.
+eventsource-stream = "0.2.3"
+# The SSE loop as a generator.
+async-stream = "0.3.6"
+# Deserialization failures that say WHERE.
+serde_path_to_error = "0.1.20"
+# The error type, in the api crate's idiom this ports.
+thiserror = "2.0.20"
+# 0.12: the latest line reqwest-eventsource accepts. rustls, no
+# default TLS.
+reqwest = { version = "0.12", default-features = false, features = ["charset", "http2", "rustls-tls", "json"] }
+# The continuation's store: the caller's database, through the proxy's
+# loopback pgwire. `json` for the one jsonb column it keeps.
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "json"] }

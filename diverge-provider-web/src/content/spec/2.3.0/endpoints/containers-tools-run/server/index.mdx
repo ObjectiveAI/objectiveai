@@ -1,0 +1,41 @@
+---
+title: 'Server Channels'
+summary: 'The channels the server opens on the scope, by tag: what it asks the client for on its own account, and every ask of the container relayed as a channel.'
+order: 4
+draft: false
+---
+
+The server opens each of these channels on the scope, as [Channels](/frames/channels/) provides, when its section states. The payload of the channel request begins with one tag byte designating the channel; the remainder is the channel's request. The client answers on the channel; what the server does with the answer, its section states.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [oci-manifest](/endpoints/containers-tools-run/server/oci-manifest/) |
+| `1` | [oci-blob](/endpoints/containers-tools-run/server/oci-blob/) |
+| `2` | [authorize](/endpoints/containers-tools-run/server/authorize/) |
+| `3` | [write-bytes](/endpoints/containers-tools-run/server/write-bytes/) |
+| `4` | [fetch-file](/endpoints/containers-tools-run/server/fetch-file/) |
+| `5` | [fetch-directory](/endpoints/containers-tools-run/server/fetch-directory/) |
+| `6` | [postgres](/endpoints/containers-tools-run/server/postgres/) |
+| `7` | [command](/endpoints/containers-tools-run/server/command/) |
+| `8` | [vault-get](/endpoints/containers-tools-run/server/vault-get/) |
+| `9` | [vault-set](/endpoints/containers-tools-run/server/vault-set/) |
+| `10` | [vault-delete](/endpoints/containers-tools-run/server/vault-delete/) |
+| `11` | [vault-lock](/endpoints/containers-tools-run/server/vault-lock/) |
+| `12` | [vault-unlock](/endpoints/containers-tools-run/server/vault-unlock/) |
+| `13` | [mcp-list-tools](/endpoints/containers-tools-run/server/mcp-list-tools/) |
+| `14` | [mcp-list-resources](/endpoints/containers-tools-run/server/mcp-list-resources/) |
+| `15` | [mcp-call-tool](/endpoints/containers-tools-run/server/mcp-call-tool/) |
+| `16` | [mcp-read-resource](/endpoints/containers-tools-run/server/mcp-read-resource/) |
+| `17` | [mcp-notifications](/endpoints/containers-tools-run/server/mcp-notifications/) |
+| `18` | [fuse-read](/endpoints/containers-tools-run/server/fuse-read/) |
+| `19` | [fuse-write](/endpoints/containers-tools-run/server/fuse-write/) |
+| `20` | [fuse-list](/endpoints/containers-tools-run/server/fuse-list/) |
+| `21` | [fuse-remove](/endpoints/containers-tools-run/server/fuse-remove/) |
+| `22` | [fuse-rename](/endpoints/containers-tools-run/server/fuse-rename/) |
+| `23` | [fuse-mkdir](/endpoints/containers-tools-run/server/fuse-mkdir/) |
+| `24` | [fuse-stat](/endpoints/containers-tools-run/server/fuse-stat/) |
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/tools/run/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/run/server/channel_request/frame.rs
+```

@@ -1,0 +1,22 @@
+---
+title: 'MCP notifications'
+summary: 'Tag 9: the client subscribes to the notifications of the MCP server of the container; the server opens the proxy’s /tool/notifications and relays one channel response per notification, an error last when the server could not be reached, and the channel response finish.'
+order: 9
+draft: false
+---
+
+The client opens this channel to receive the notifications of the MCP
+server of the container. The server opens
+[`/tool/notifications`](/proxy/tool/notifications/) on the proxy and
+relays every notification the proxy sends.
+
+- **The request.** The tag byte `9` and nothing more.
+  [Request](/endpoints/containers-tools-connect/client/mcp-notifications/request/) states its
+  form.
+- **The response.** One channel response per notification, an error
+  last when the proxy sent one, and the channel response finish when
+  the proxy closes. [Response](/endpoints/containers-tools-connect/client/mcp-notifications/response/)
+  states the sequence.
+- **From the opening on.** The server relays no notification that
+  the proxy sent before this channel's `/tool/notifications` was
+  opened.

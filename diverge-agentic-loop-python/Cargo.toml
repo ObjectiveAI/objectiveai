@@ -1,0 +1,53 @@
+[package]
+name = "diverge-agentic-loop-python"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Python agent container of the Diverge provider protocol"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# Path-only: this crate rides the workspace and is never published, so
+# the SDKs are named by where they live rather than by version pins
+# version.sh would have to chase. The provider SDK is the vocabulary —
+# the chunks; the container SDK is the proxy beside this program — the
+# request, the chunks' way out, the MCP session, the database.
+diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk" }
+# The loop's door: an HTTP server on the loopback the proxy forwards
+# to — `/run` as server-sent events, the queue's two verbs, the
+# schema. Default features carry the JSON extractor and the HTTP/1
+# server; SSE is axum's own.
+axum = { version = "0.8.9" }
+# `Stream` and its combinators, for the chunk stream the response is;
+# `join`, for the two listings a turn opens with.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The MCP types the tool list, the resource list and the tool calls
+# are made of; the session itself is the container SDK's.
+rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
+# The agent's JSON Schema, derived from the agent types for
+# `GET /schema`; `indexmap2` for the `requirements` map.
+schemars = { version = "1.2.1", features = ["indexmap2"] }
+# The requirements map: ordered, so the same set always serializes —
+# and installs — identically.
+indexmap = { version = "2.14.0", features = ["serde"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# The runtime under the listener, and the Python process: `process`
+# to spawn it, `io-util` to feed its stdin, `fs` for the files
+# registration writes. No `macros` — the runtime is built in main,
+# not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync"] }
+# The loop as a generator.
+async-stream = "0.3.6"
+# Deserialization failures that say WHERE — the script's output is
+# the caller's, and a wrong shape wants a path.
+serde_path_to_error = "0.1.20"
+# The error type, in the api crate's idiom this ports.
+thiserror = "2.0.20"
+# The continuation's store: the caller's database, through the proxy's
+# loopback pgwire. `json` for the one jsonb column it keeps.
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "json"] }

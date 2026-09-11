@@ -1,0 +1,24 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][notification JSON …]    zero or more
+[1][error JSON …]           last, when the server could not be reached
+```
+
+- **The sequence.** Zero or more channel responses whose first byte
+  is `0`, each one notification as the proxy sent it, in order. An
+  error, when the server sends one, is the last channel response.
+  The channel response finish follows the last channel response,
+  when the proxy closes the connection. A channel response finish
+  that no channel response precedes states that the proxy did not
+  serve the subscription.
+
+The channel response is defined by `diverge-provider-sdk/src/shared/mcp/notifications/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/mcp/notifications/response/frame.rs
+```

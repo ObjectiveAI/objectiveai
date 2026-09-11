@@ -1,0 +1,17 @@
+---
+title: 'Server Channels'
+summary: 'The channels the server opens on the scope, by tag: what it asks the client for on its own account, and every ask of the container relayed as a channel.'
+order: 4
+draft: false
+---
+
+The server opens exactly one kind of channel on a connect scope. Its channel request carries no tag: the payload is the request itself.
+
+| Tag | Channel |
+|-----|---------|
+| — | [write-bytes](/endpoints/containers-tools-connect/server/write-bytes/) |
+
+The channel request is defined by `diverge-provider-sdk/src/endpoints/containers/tools/connect/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/connect/server/channel_request/frame.rs
+```

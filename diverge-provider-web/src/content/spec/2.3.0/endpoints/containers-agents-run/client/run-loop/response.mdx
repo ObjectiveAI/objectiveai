@@ -1,0 +1,29 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][chunk JSON …]     zero or more, the loop
+[1][error JSON …]     last, when there was no loop or it did not finish
+```
+
+- **The sequence.** Zero or more channel responses whose first byte
+  is `0`, each one chunk as the proxy sent it, in order. An error,
+  when the server sends one, is the last channel response: as the
+  first channel response it states that no loop ran; after chunks it
+  states that the loop ended without finishing. The channel response
+  finish follows the last channel response. A channel response
+  finish that no channel response precedes states that the proxy did
+  not serve the loop.
+- **The chunk.** After the byte `0`, the chunk as JSON, in the form
+  the proxy's [`/agent/run`](/proxy/agent/run/) page defines. The
+  server does not read it.
+- **The error.** After the byte `1`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page.
+
+The channel response is defined by `diverge-provider-sdk/src/shared/containers/run_loop/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/frame.rs
+```

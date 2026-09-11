@@ -1,0 +1,37 @@
+---
+title: 'volumes::list'
+summary: 'Tag 3: a client asks which volumes are available to it; the server sends exactly one response carrying every such volume by name, size and age, or an error, and the scope finishes.'
+order: 3
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`3` and nothing more. The server sends exactly one response, which is
+either the listing or an error. The response finish follows the
+response, and no frame follows the finish.
+
+- **The request.** The request carries no parameter; the tag is the
+  whole of it. [Request](/endpoints/volumes-list/request/) states its
+  form.
+- **The listing.** The listing is zero or more volumes. The listing
+  contains every volume that the client created by a
+  [volumes::create](/endpoints/volumes-create/) request and has not
+  deleted by a [volumes::delete](/endpoints/volumes-delete/) request.
+  The listing may contain other volumes; which other volumes it contains
+  is the server's to decide. Every volume in the listing is available
+  to the client to mount, and the client may name it wherever this
+  specification names a volume by its name. A volume absent from the
+  listing is one the client cannot name. What a volume holds — the
+  number of bytes in use and the hash of its content — is reported
+  by [volumes::stat](/endpoints/volumes-stat/), one volume at a time.
+  [Response](/endpoints/volumes-list/response/) states the form of
+  the listing.
+- **The client.** The client is the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. The listing is that identity's listing.
+- **An empty listing.** An empty listing is an answer. It states that
+  no volume is available to the client. An empty listing is not an
+  error.
+- **The error.** An error states that the server did not list, and
+  that nothing was determined about the volumes available to the
+  client. An error is not an empty listing.

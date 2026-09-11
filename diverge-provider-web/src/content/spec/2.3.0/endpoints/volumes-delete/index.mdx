@@ -1,0 +1,53 @@
+---
+title: 'volumes::delete'
+summary: 'Tag 10: a client names a volume from its listing; the server sends exactly one response stating that the volume no longer exists, that it is mounted and was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
+order: 8
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`10` followed by the name of a volume. The server sends exactly one
+response, which states that the volume is deleted, that the volume is
+mounted and was not deleted, or an error. The response finish follows
+the response, and no frame follows the finish.
+
+- **The request.** The request carries the name of one volume.
+  [Request](/endpoints/volumes-delete/request/) states its form.
+- **The volume named.** The client names a volume by the `name` its
+  [volumes::list](/endpoints/volumes-list/) listing gave it. The
+  server resolves the name against the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. A name that is not in the client's listing is answered
+  with an error. A client cannot name another client's volume. A
+  server may refuse to delete a volume that it offered on its own
+  account and that the client did not create; the refusal is an
+  error.
+- **The deletion.** When the server sends the byte `0`, the volume no
+  longer exists, and its content is gone. From that moment, every
+  [volumes::list](/endpoints/volumes-list/) request by the client
+  omits the volume: no listing the server sends after the byte `0`
+  contains it. The name then names no volume of the client, and every
+  request naming it is answered with an error, until a
+  [volumes::create](/endpoints/volumes-create/) request by the client
+  makes a new volume of that name. Deletion is not emptying: a client
+  that wants an empty volume of the same name deletes the volume and
+  creates one. [Response](/endpoints/volumes-delete/response/) states
+  the form of the response.
+- **One request.** The request is the whole of the exchange. No frame
+  precedes it, no confirmation follows it, and the deletion is not
+  reversible.
+- **A volume mounted.** When, at the time of the request, the volume
+  is mounted in a running container, the server does not delete it
+  and sends the byte `1`. The volume, its content, and the client's
+  listing are as they were before the request. The server does not
+  send the byte `0` for a volume that is mounted at the time of the
+  request.
+- **A volume watched.** A
+  [volumes::watch](/endpoints/volumes-watch/) on the volume is not a
+  mount. This revision does not prescribe whether the server deletes
+  a volume under a watch, nor what such a watch observes when it
+  does.
+- **The error.** An error states that the server did not delete the
+  volume, for a reason other than a mount. The volume remains in
+  existence, its content is as it was, and the client's listing shows
+  it as before the request.

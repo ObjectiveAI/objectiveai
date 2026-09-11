@@ -1,0 +1,49 @@
+# The openrouter agent image: the loop alone, a musl binary on Alpine.
+#
+# The container proxy is NOT in this image. The host injects it at
+# runtime, and it may not be up at all until a request comes — which
+# is why the loop touches nothing of the proxy's until `POST /run`
+# arrives: no vault, no database, no MCP session before then.
+#
+# Build from the WORKSPACE ROOT — the crates ride path dependencies:
+#
+#     podman build -f diverge-agentic-loop-openrouter/Containerfile .
+#
+# Digests pinned from Docker Hub on 2026-08-26; bump deliberately.
+
+# rust:1.98.0-alpine3.24 — the musl toolchain is the image's default
+# target, so what it builds runs on the Alpine below.
+FROM docker.io/library/rust:1.98.0-alpine3.24@sha256:a10e64dd139b7387337c7fbe8aca31b959b57b2fd4c8ae20a02cf1d6ea424dce AS build
+
+# `ring` (rustls' crypto) compiles C; build-base is the whole musl C
+# toolchain.
+RUN apk add --no-cache build-base
+
+WORKDIR /build
+
+# Only the crates this image needs, in their workspace layout — the
+# workspace manifest itself is NOT copied, so the crate builds as its
+# own root and the absent sibling members are never asked for. The
+# workspace lockfile rides into the crate so the resolved versions
+# hold; cargo prunes the entries the crate does not use, which is why
+# the build does not pass --locked.
+COPY diverge-provider-sdk diverge-provider-sdk
+COPY diverge-container-proxy-sdk diverge-container-proxy-sdk
+COPY diverge-agentic-loop-openrouter diverge-agentic-loop-openrouter
+COPY Cargo.lock diverge-agentic-loop-openrouter/Cargo.lock
+
+RUN cargo build --release \
+    --manifest-path diverge-agentic-loop-openrouter/Cargo.toml
+
+# alpine:latest, by digest.
+FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+
+COPY --from=build \
+    /build/diverge-agentic-loop-openrouter/target/release/diverge-agentic-loop-openrouter \
+    /usr/local/bin/diverge-agentic-loop-openrouter
+
+# The loop's own server, on the loopback: 8080, or whatever `PORT`
+# names. Nothing is exposed — the proxy the host injects is the only
+# thing that dials it, and it is beside it.
+
+ENTRYPOINT ["/usr/local/bin/diverge-agentic-loop-openrouter"]

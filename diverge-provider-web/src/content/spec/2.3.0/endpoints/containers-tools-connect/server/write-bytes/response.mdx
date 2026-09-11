@@ -1,0 +1,30 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the client answers with, what ends it, what a finish with nothing before it means, and what the server does with the answer.'
+order: 2
+draft: false
+---
+
+```text
+[0][bytes …]         zero or more, the content
+[1][error JSON …]    last, the content was not streamed whole
+```
+
+- **The sequence.** Zero or more channel responses whose first byte
+  is `0`, each a piece of the content, in order; the pieces
+  concatenated are the file. An error, when the client sends one, is
+  the last channel response, and the write does not happen. The
+  channel response finish ends the content. A channel response
+  finish that no channel response precedes is a file of zero bytes.
+- **The error.** After the byte `1`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page. The server
+  relays it as the error of the client's write channel.
+
+The channel response is defined by `diverge-provider-sdk/src/endpoints/containers/tools/connect/client/channel_response/write_bytes/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/containers/tools/connect/client/channel_response/write_bytes/frame.rs
+```
+
+and by `diverge-provider-sdk/src/shared/containers/write_bytes/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/write_bytes/response/frame.rs
+```

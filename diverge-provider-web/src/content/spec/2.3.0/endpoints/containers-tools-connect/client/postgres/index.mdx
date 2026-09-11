@@ -1,0 +1,16 @@
+---
+title: 'Postgres'
+summary: 'Tag 4: a connector has no database connection to open; the server answers every such channel by a channel response finish that no channel response precedes.'
+order: 4
+draft: false
+---
+
+A connector has no half of a database connection to open: the
+container's connections go to its runner. The server answers every
+channel request of this tag on a connect scope by a channel response
+finish that no channel response precedes.
+
+- **The request.** The tag byte `4` followed by four bytes.
+  [Request](/endpoints/containers-tools-connect/client/postgres/request/) states its form.
+- **The response.** No channel response.
+  [Response](/endpoints/containers-tools-connect/client/postgres/response/) states it.

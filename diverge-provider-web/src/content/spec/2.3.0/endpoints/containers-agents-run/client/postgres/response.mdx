@@ -1,0 +1,23 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[bytes …]      zero or more, what the driver wrote
+```
+
+- **The sequence.** Zero or more channel responses, each the bytes
+  the container's driver wrote, verbatim, with no tag and no header,
+  in the order written; a message of the PostgreSQL wire protocol may
+  span several channel responses and several may share one. The
+  channel response finish follows when the driver's socket ends. A
+  channel response finish that no channel response precedes states
+  that the id names no connection whose half is open.
+
+The channel response is defined by `diverge-provider-sdk/src/shared/containers/postgres/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/postgres/response/frame.rs
+```

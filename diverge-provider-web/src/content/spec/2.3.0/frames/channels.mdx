@@ -1,0 +1,48 @@
+---
+title: 'Channels'
+summary: 'A channel is one exchange within a scope: one request, a stream of responses, and a finish that only the responder sends.'
+order: 4
+draft: false
+---
+
+A **channel** is one exchange within an existing scope: one request,
+and the stream of responses that answers it.
+
+- **Opening.** Either party may open a channel, by sending a channel
+  request (type `4`) naming the scope. The opener chooses the
+  channel's number.
+- **Numbering is per opener, per scope.** A channel number identifies
+  a channel only together with the scope it was opened in and the
+  party that opened it. The same number therefore names distinct
+  channels across scopes, across openers, or both: the client's
+  channel *n* in one scope, the client's channel *n* in another, and
+  the server's channel *n* in each are four distinct channels, all
+  four may be open at once, and none collides with any other.
+- **Uniqueness.** A channel number names one channel, for its opener
+  in its scope, from that channel's request until that channel's
+  response finish; after the finish the number is free to bear a new
+  channel. The server does not send a channel request whose channel
+  field names a channel it still has open in the named scope.
+- **A channel request naming an open channel is disregarded.** The
+  server disregards a channel request from the client whose scope and
+  channel fields name a channel the client already has open. The
+  disregarded request is never answered, and the channel it named
+  continues, unaffected.
+- **One request per channel.** A channel carries exactly one request;
+  a second request frame never appears on a live channel.
+- **Answering.** The responder — the party that received the channel
+  request — answers with zero or more channel responses (type `5`) and
+  ends the channel with exactly one channel response finish (type
+  `6`), each quoting the opener's channel number. The responses form
+  one ordered stream, and the finish is its end.
+- **Only the responder ends a channel.** The opener has no frame with
+  which to stop asking, cancel, or abandon the exchange. A channel is
+  open from its request until its finish.
+- **A finish with no response before it is meaningful.** It states
+  that the request was received and could not be served, exactly as a
+  scope's is.
+- **A bidirectional exchange is two channels.** An exchange in which
+  both parties send data is composed of two channels, one opened by
+  each party and each finished by its own responder. **Remark.** A
+  channel carries one request, and only its responder ends it, so one
+  channel cannot carry data in both directions.

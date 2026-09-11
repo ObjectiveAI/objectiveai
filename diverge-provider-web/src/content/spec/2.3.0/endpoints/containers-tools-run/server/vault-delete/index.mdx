@@ -1,0 +1,24 @@
+---
+title: 'Vault delete'
+summary: 'Tag 10: the server relays an ask of the container that deletes a key of the vault the client holds; the client answers with exactly one channel response, ok or an error, which the server relays to the container.'
+order: 10
+draft: false
+---
+
+The server opens this channel when the container's proxy sends a
+vault ask on `/requests` that deletes a key. The ask is relayed verbatim;
+the client's one answer is relayed back.
+
+- **The request.** The tag byte `10` followed by the ask in the form
+  the proxy's [`/vault/delete/{channel}`](/proxy/vault/delete/) page
+  defines. [Request](/endpoints/containers-tools-run/server/vault-delete/request/) states its
+  form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/endpoints/containers-tools-run/server/vault-delete/response/)
+  states the sequence.
+- **The conduit.** The server relays the one channel response to the
+  proxy's `/vault/delete/{channel}` as one message and closes that
+  connection. The server does not read the key or the value, and
+  does not send the ask twice.
+- **The namespace.** The server determines which vault the key
+  belongs to; the ask names no vault.

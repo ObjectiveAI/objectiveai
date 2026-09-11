@@ -1,0 +1,23 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the server sends, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0]                  delivered: the loop took the message
+[1]                  dequeued: the message was withdrawn first
+[2]                  missed: no loop ran, or the run ended, first
+[3][error JSON …]    the message was not queued
+```
+
+- **The sequence.** Exactly one channel response, relayed as the
+  proxy sent it, followed by the channel response finish. A channel
+  response finish that no channel response precedes states that the
+  proxy did not serve the message.
+
+The channel response is defined by `diverge-provider-sdk/src/shared/containers/enqueue/response/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/shared/containers/enqueue/response/frame.rs
+```
