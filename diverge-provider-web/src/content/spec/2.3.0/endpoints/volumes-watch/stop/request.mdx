@@ -1,0 +1,26 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request is empty; the server ignores every byte of a payload that is not empty.'
+order: 1
+draft: false
+---
+
+The payload of the channel request is empty:
+
+```text
+[]
+```
+
+- **No parameter.** The channel request carries nothing. The frame
+  itself, on a channel of this scope, is the whole of the stop.
+- **Bytes in the payload.** A server ignores every byte of a payload
+  that is not empty. A channel request with a payload is not
+  malformed, and it is the stop.
+- **Not malformed.** No payload of a channel request on this scope is
+  malformed.
+
+The channel request is defined by
+`diverge-provider-sdk/src/endpoints/volumes/watch/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk/src/endpoints/volumes/watch/client/channel_request/frame.rs
+```
