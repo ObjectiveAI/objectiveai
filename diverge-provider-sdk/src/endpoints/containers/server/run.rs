@@ -19,6 +19,9 @@ pub(crate) struct Run {
     /// The proxy inside the container, at the address the deploy
     /// reported — or, for a connector, the one the directory holds.
     pub client: ContainerClient,
+    /// Every mount's path, which every filetree opened on the
+    /// container leaves out.
+    pub ignore: Vec<Vec<String>>,
     /// Database connections whose caller's half has not opened yet.
     pub pairs: Pairs,
     /// The container is gone — its `/requests` connection ended — or,
@@ -29,10 +32,11 @@ pub(crate) struct Run {
 }
 
 impl Run {
-    pub(crate) fn new(scope: Arc<ScopeHandle>, client: ContainerClient) -> Self {
+    pub(crate) fn new(scope: Arc<ScopeHandle>, client: ContainerClient, ignore: Vec<Vec<String>>) -> Self {
         Run {
             scope,
             client,
+            ignore,
             pairs: Pairs::new(),
             over: Notify::new(),
             tasks: Mutex::new(JoinSet::new()),

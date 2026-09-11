@@ -12,12 +12,18 @@ use crate::server::container_client::OpenError;
 pub enum ExecuteError {
     /// The path could not be opened.
     Open(OpenError),
+    /// The request would not serialize.
+    Encode(serde_json::Error),
+    /// The socket failed before the request went out.
+    Socket(tungstenite::Error),
 }
 
 impl fmt::Display for ExecuteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ExecuteError::Open(error) => write!(f, "/filesystem/tree: {error}"),
+            ExecuteError::Encode(error) => write!(f, "tree request did not serialize: {error}"),
+            ExecuteError::Socket(error) => write!(f, "/filesystem/tree failed: {error}"),
         }
     }
 }
@@ -26,6 +32,8 @@ impl std::error::Error for ExecuteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             ExecuteError::Open(error) => Some(error),
+            ExecuteError::Encode(error) => Some(error),
+            ExecuteError::Socket(error) => Some(error),
         }
     }
 }
@@ -62,9 +70,7 @@ impl std::error::Error for ExecuteStreamError {
         match self {
             ExecuteStreamError::Frame(error) => Some(error),
             ExecuteStreamError::Socket(error) => Some(error),
-            ExecuteStreamError::Refused(_)
-           
-            | ExecuteStreamError::Closed => None,
+            ExecuteStreamError::Refused(_) | ExecuteStreamError::Closed => None,
         }
     }
 }

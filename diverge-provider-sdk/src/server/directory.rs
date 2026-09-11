@@ -36,6 +36,7 @@ pub struct Directory {
 struct Entry {
     scope: Arc<ScopeHandle>,
     address: String,
+    ignore: Vec<Vec<String>>,
     ended: watch::Sender<bool>,
 }
 
@@ -46,6 +47,9 @@ pub struct Attached {
     pub scope: Arc<ScopeHandle>,
     /// The container's proxy, as the run's deployer reported it.
     pub address: String,
+    /// Every mount's path, which a filetree the connector opens
+    /// leaves out as the runner's does.
+    pub ignore: Vec<Vec<String>>,
     /// `true` once the run is over. A receiver whose sender is gone
     /// reads the same.
     pub ended: watch::Receiver<bool>,
@@ -65,9 +69,17 @@ impl Directory {
 
     /// The container is running: from now until
     /// [`remove`](Self::remove), connectors may find it.
-    pub fn insert(&self, id: String, scope: Arc<ScopeHandle>, address: String) {
+    pub fn insert(&self, id: String, scope: Arc<ScopeHandle>, address: String, ignore: Vec<Vec<String>>) {
         let (ended, _) = watch::channel(false);
-        self.lock().insert(id, Entry { scope, address, ended });
+        self.lock().insert(
+            id,
+            Entry {
+                scope,
+                address,
+                ignore,
+                ended,
+            },
+        );
     }
 
     /// The run is over: nothing finds it any more, and every
@@ -86,6 +98,7 @@ impl Directory {
         self.lock().get(id).map(|entry| Attached {
             scope: Arc::clone(&entry.scope),
             address: entry.address.clone(),
+            ignore: entry.ignore.clone(),
             ended: entry.ended.subscribe(),
         })
     }
