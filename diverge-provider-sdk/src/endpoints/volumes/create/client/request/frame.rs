@@ -59,8 +59,9 @@ pub struct Frame {
     ///
     /// This is what a listing reports back as
     /// [`Volume::bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes),
+    /// and what a [`stat`](crate::endpoints::volumes::stat) reports
     /// beside a
-    /// [`bytes_used`](crate::endpoints::volumes::list::server::response::Volume::bytes_used)
+    /// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used)
     /// that says how much of it is in use.
     ///
     /// Bytes rather than megabytes because a unit that has to be
@@ -80,7 +81,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 5;
+const TAG: u8 = 6;
 
 /// Postcard, matching the rest of [`volumes`](crate::endpoints::volumes).
 impl Encode for Frame {
