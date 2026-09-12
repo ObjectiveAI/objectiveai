@@ -12,9 +12,7 @@ use super::{Error, MANIFEST, Manifest};
 
 /// Run the hook `name` once on `input` and read its output.
 ///
-/// In order: the name is checked — one path component, not empty,
-/// not `.` or `..`, no `/` or `\` — and refused before the filesystem
-/// is touched; `hooks_dir/<name>/hook.yaml` is read and parsed; this
+/// In order: `hooks_dir/<name>/hook.yaml` is read and parsed; this
 /// platform's command is taken, or the hook is refused as
 /// unsupported here; the input is serialized as one line of JSON;
 /// the program is started with the hook's folder as its working
@@ -30,7 +28,7 @@ where
     I: Serialize + ?Sized,
     O: DeserializeOwned,
 {
-    let folder = folder(hooks_dir, name)?;
+    let folder = hooks_dir.join(name);
     let manifest = folder.join(MANIFEST);
     let bytes = tokio::fs::read(&manifest)
         .await
@@ -90,26 +88,13 @@ where
     serde_path_to_error::deserialize(&mut deserializer).map_err(Error::Parse)
 }
 
-/// `hooks_dir/<name>`, for a name that is one path component.
-///
-/// A name that is empty, `.`, `..`, or holds a separator could name
-/// something outside `hooks/`, and is refused instead.
-fn folder(hooks_dir: &Path, name: &str) -> Result<PathBuf, Error> {
-    let component = !name.is_empty()
-        && name != "."
-        && name != ".."
-        && !name.contains(['/', '\\']);
-    if !component {
-        return Err(Error::Name(name.to_owned()));
-    }
-    Ok(hooks_dir.join(name))
-}
-
-/// The program to start: a relative first element that exists in the
-/// folder is that file, so "in here" holds on Windows too, where a
-/// relative program resolves against the parent's directory rather
-/// than the child's; anything else is passed as written — an
-/// absolute path, or a bare name the OS resolves on `PATH`.
+/// The program to start, as the manifest wrote it — except that a
+/// relative first element which exists in the folder is that file,
+/// which is what makes the working directory hold for the program
+/// itself on Windows, where the OS resolves a relative program against
+/// the parent's directory rather than the child's. Anything else is
+/// passed as written: an absolute path, or a bare name the OS resolves
+/// on `PATH`.
 fn program(folder: &Path, first: &str) -> PathBuf {
     let first = Path::new(first);
     if first.is_relative() {

@@ -7,8 +7,8 @@ use std::process::ExitStatus;
 
 /// A hook that did not answer.
 ///
-/// The first five are found before the hook runs: the name, the
-/// folder and its manifest, the platform. The next four are this
+/// The first four are found before the hook runs: the manifest and
+/// the platform. The next four are this
 /// end's failure to run it or to hand it the input.
 /// [`Status`](Self::Status) is the hook's own: it exited non-zero,
 /// and what it wrote is carried so the operator can read why.
@@ -17,9 +17,6 @@ use std::process::ExitStatus;
 /// document where the mismatch is.
 #[derive(Debug)]
 pub enum Error {
-    /// The name is not one path component, so it cannot name a folder
-    /// under `hooks/`.
-    Name(String),
     /// The manifest could not be read: the folder or the file is
     /// absent, or unreadable.
     Read {
@@ -76,9 +73,6 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Name(name) => {
-                write!(f, "`{name}` is not a hook name: one path component is required")
-            }
             Error::Read { path, source } => {
                 write!(f, "the hook manifest `{}` could not be read: {source}", path.display())
             }
@@ -135,8 +129,7 @@ impl std::error::Error for Error {
             Error::Encode(error) => Some(error),
             Error::Stdin(error) | Error::Wait(error) => Some(error),
             Error::Parse(error) => Some(error),
-            Error::Name(_)
-            | Error::Unsupported { .. }
+            Error::Unsupported { .. }
             | Error::Empty { .. }
             | Error::Status { .. } => None,
         }
