@@ -4,8 +4,6 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::hook::Hook;
-
 /// A volume that exists already, under a name the provider chose.
 ///
 /// What a listing reports beside the name is read, not configured:
@@ -22,8 +20,10 @@ pub struct Fixed {
     /// An ABSOLUTE path to the directory that is the volume. A
     /// relative path is refused when the configuration is loaded.
     pub path: PathBuf,
-    /// The command that says which identities the volume is listed
-    /// to. Absent means every identity.
+    /// The hook, by name, that says which identities the volume is
+    /// listed to: the folder `hooks/<name>/` of the provider's
+    /// directory, run as [`hook`](crate::hook) provides. Absent means
+    /// every identity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub authorize: Option<Hook>,
+    pub authorize: Option<String>,
 }

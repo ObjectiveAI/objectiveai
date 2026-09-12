@@ -9,11 +9,11 @@
 //! - Every path inside `config.yaml` resolves relative to `<dir>`,
 //!   never to the working directory.
 //! - `<dir>/hooks/`, `<dir>/logs/`, `<dir>/data/` and `<dir>/run/` sit
-//!   beside it; `data` is the one the file may move.
+//!   beside it; `data` is the one the file may move. Every folder
+//!   under `hooks/` is a hook, and the file names one by that
+//!   folder's name alone — see [`hook`](crate::hook).
 //!
-//! [`Config`] is the document; [`volumes`] its one section so far;
-//! [`Hook`](crate::hook::Hook) the shape of every command the operator
-//! supplies.
+//! [`Config`] is the document; [`volumes`] its one section so far.
 //!
 //! ```yaml
 //! volumes:
@@ -23,7 +23,7 @@
 //!   fixed:
 //!     - name: datasets
 //!       path: /srv/datasets
-//!       authorize: ["python", "datasets.py", "--strict"]
+//!       authorize: datasets
 //! ```
 //!
 //! Finding the directory, reading the file, validating it, and running

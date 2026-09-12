@@ -3,7 +3,7 @@
 //! Two kinds of thing: the [`Store`]s new volumes are created in, each
 //! with a capacity in bytes, and the [`Fixed`] volumes that exist
 //! before any client asks, each offered to every identity or to those
-//! a [`Hook`](crate::hook::Hook) vouches for. [`Volumes`] holds both.
+//! a [hook](crate::hook) vouches for. [`Volumes`] holds both.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
