@@ -32,7 +32,7 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clients: Option<Clients>,
     /// What containers may reach between them, and where their
-    /// storage lives. Absent means every setting's own default.
+    /// storage lives. Absent means the provider runs no container.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub containers: Option<Containers>,
     /// Where volumes may be created, and which exist already. Absent
