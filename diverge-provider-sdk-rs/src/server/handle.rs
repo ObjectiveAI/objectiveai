@@ -37,9 +37,11 @@ use crate::shared::error::Error;
 /// [`Authorization`] is which side of this connection authenticates,
 /// and with what — see the handshake below, which is where the
 /// `client_identity` every handler receives now comes from. `address`
-/// is the peer the socket came from, which rides a connector's
-/// [`Authorize`](crate::shared::containers::authorize::request::Authorize)
-/// and is a signal rather than an identity.
+/// is the peer the socket came from: it is handed to the
+/// [`UnbrokeredAuthorizer`] beside the credential, and it rides a
+/// connector's
+/// [`Authorize`](crate::shared::containers::authorize::request::Authorize).
+/// It is a signal rather than an identity.
 ///
 /// The rest are the provider's capabilities, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
@@ -163,7 +165,7 @@ where
                 Ok(auth::Auth::Unbrokered(credential)) => credential,
                 Err(error) => return Err(HandleError::Auth(error)),
             };
-            match unbrokered.authorize(credential).await {
+            match unbrokered.authorize(credential, address).await {
                 Ok(identity) => identity.into(),
                 Err(error) => {
                     return Err(HandleError::Unauthorized(error));
