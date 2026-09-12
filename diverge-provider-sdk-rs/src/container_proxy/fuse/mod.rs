@@ -39,17 +39,16 @@
 //!
 //! The proxy itself, on behalf of what it mounted: the mounts the
 //! server asked for on [`/fuse/mount`](mount), files and directories,
-//! each carrying its id and whether it is read-only, every one
-//! complete before the server opens anything else on the container.
+//! each carrying its id, every one complete before the server opens
+//! anything else on the container.
 //! A file mount asks [`stat`] for every attribute,
 //! [`read`] on every open and [`mod@write`] on every changed close,
 //! with an empty path. A directory mount asks all seven, with the
 //! entry's path: [`stat`] for every lookup and attribute; [`list`]
 //! for every listing; [`read`] and [`mod@write`] for its files;
 //! [`remove`], [`rename`] and [`mkdir`] for what a program does to
-//! its entries. A read-only mount never asks a mutation. The
-//! program beside the proxy never asks these directly — it opens the
-//! files.
+//! its entries. The program beside the proxy never asks these
+//! directly — it opens the files.
 
 pub use crate::shared::containers::fuse::*;
 

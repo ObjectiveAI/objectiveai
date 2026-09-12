@@ -20,5 +20,5 @@ is relayed verbatim; the client's one answer is relayed back.
   proxy's `/fuse/write/{channel}` as one message and closes that
   connection. The server does not read the ask or the answer, and
   does not send the ask twice.
-- **Never for a read-only mount.** The server does not open this channel for a mount whose `readonly` is `true`; the proxy sends no such ask.
+- **Refusal is the client's.** A client that answers this ask with an error refuses the change, and the proxy reports the operation to the program as failed. The server relays the answer and decides nothing.
 - **A file mount.** For a mount of `fuse_file_mounts`, the path of the ask is empty.

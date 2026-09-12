@@ -34,9 +34,17 @@ by its path. The server answers every ask with exactly one message.
   carries the empty path. For a mount requested with `kind`
   `directory`, the proxy asks all seven operations, each carrying the
   entry's path.
-- **A read-only mount.** For a mount requested with `readonly`
-  `true`, the proxy asks no `write`, no `remove`, no `rename` and no
-  `mkdir`.
+- **The root alone is fixed.** In a mount of kind `directory`, every
+  entry beneath the mount point may be created, written, renamed and
+  removed by the program in the container, and the proxy asks the
+  server for each such change; the mount point itself cannot be
+  removed or renamed. A mount of kind `file` is overwritten in place;
+  it cannot be removed, renamed or replaced.
+- **Refusal is the client's.** The proxy sends every mutation the
+  program attempts. A server that answers a `write`, `remove`,
+  `rename` or `mkdir` with an error refuses that change, and the
+  proxy reports the operation to the program as failed. The proxy
+  refuses nothing on its own account.
 - **One message.** The server sends exactly one message, the frame
   its page defines, and closes the connection. A path that the proxy or the server closes cleanly with no message
 before the close states that the ask was not served.

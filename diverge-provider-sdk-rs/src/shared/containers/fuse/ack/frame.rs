@@ -15,9 +15,9 @@ pub enum Frame<'a> {
     /// Kind `0`. It happened: the caller holds the result.
     Ok,
     /// Kind `1`. It did not, and this says why, for a reader rather
-    /// than a program: what a caller can refuse — a read-only mount it
-    /// was written to anyway, a directory it will not empty, a path it
-    /// will not serve — is its policy and not this specification's.
+    /// than a program: what a caller can refuse — a mount it keeps
+    /// unchangeable, a directory it will not empty, a path it will not
+    /// serve — is its policy and not this specification's.
     Error(&'a str),
 }
 

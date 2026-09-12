@@ -4,9 +4,8 @@
 use serde::{Deserialize, Serialize};
 
 /// A file or a directory the caller keeps, mounted into the container
-/// over FUSE: where, under what id, and whether the container may
-/// change it. Which of the two it is, is which list of the
-/// [`Container`](super::Container) it is on.
+/// over FUSE: where, and under what id. Which of the two it is, is
+/// which list of the [`Container`](super::Container) it is on.
 ///
 /// The provider MUST mount every one before it answers the run's id
 /// — one request to the proxy inside the container for each, on
@@ -22,9 +21,9 @@ use serde::{Deserialize, Serialize};
 /// caller serves it from wherever it keeps the thing. It is for the
 /// credential files vendor CLIs rewrite when they refresh a login.
 ///
-/// A FILE mount is one regular file that can be read and, unless
-/// [`readonly`](Self::readonly), overwritten in place — opened,
-/// truncated, written, closed — but never deleted or moved, and
+/// A FILE mount is one regular file that can be read and overwritten
+/// in place — opened, truncated, written, closed — but never deleted
+/// or moved, and
 /// never replaced by a rename: the mount point is the file itself,
 /// and the kernel refuses to unlink or rename a mount point, so a
 /// program that saves by writing a temporary beside the file and
@@ -32,6 +31,12 @@ use serde::{Deserialize, Serialize};
 /// is for that program: a whole tree the caller serves, whose every
 /// entry can be created, overwritten by either method, renamed and
 /// deleted, and whose root alone is fixed.
+///
+/// Nothing here says a mount may not change. A caller that wants one
+/// unchangeable refuses the mutation asks it receives — a `write`, a
+/// `remove`, a `rename`, a `mkdir` — one at a time, with the error of
+/// its answer, and the program in the container sees that operation
+/// fail. The provider enforces nothing on the caller's behalf.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FuseMount {
     /// Where the mount appears inside the container, as path
@@ -51,12 +56,4 @@ pub struct FuseMount {
     /// provider sends for it. Two mounts on one request, on either
     /// list, may not share an id.
     pub id: String,
-    /// Whether the container may change it. `true`: every open for
-    /// writing, truncate, write, create, rename, removal and new
-    /// directory inside the container fails, and the provider never
-    /// sends a mutation for this id. `false`: the file is overwritable
-    /// in place, or the tree fully editable, every change stored with
-    /// the caller as it lands.
-    #[serde(default)]
-    pub readonly: bool,
 }

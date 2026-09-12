@@ -55,8 +55,8 @@ pub struct Mounted {
 }
 
 /// Make every missing parent directory, the mount point itself if
-/// absent — the file, or the directory — and mount over it:
-/// read-only at the kernel too when the mount says so.
+/// absent — the file, or the directory — and mount over it, writable:
+/// what may change is the caller's to answer, ask by ask.
 #[cfg(unix)]
 pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Request, kind: Kind) -> io::Result<Mounted> {
     use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
@@ -73,23 +73,19 @@ pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Request, kind: Kin
         fuser::MountOption::FSName("diverge-fuse".to_string()),
         fuser::MountOption::DefaultPermissions,
         fuser::MountOption::NoAtime,
-        if mount.readonly {
-            fuser::MountOption::RO
-        } else {
-            fuser::MountOption::RW
-        },
+        fuser::MountOption::RW,
     ];
     config.acl = fuser::SessionACL::All;
     config.n_threads = Some(1);
 
-    let asks = asks::Asks::new(requests, handle, &mount.id, mount.readonly);
+    let asks = asks::Asks::new(requests, handle, &mount.id);
     let session = match kind {
         Kind::File => {
             std::fs::OpenOptions::new()
                 .create(true)
                 .write(true)
                 .truncate(false)
-                .mode(file_mode(mount.readonly))
+                .mode(FILE_MODE)
                 .open(&path)?;
             fuser::Session::new(file::MountedFile::new(asks), &path, &config)?.spawn()?
         }
@@ -97,7 +93,7 @@ pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Request, kind: Kin
             std::fs::create_dir_all(&path)?;
             std::fs::set_permissions(
                 &path,
-                std::fs::Permissions::from_mode(directory_mode(mount.readonly)),
+                std::fs::Permissions::from_mode(DIRECTORY_MODE),
             )?;
             fuser::Session::new(directory::MountedDirectory::new(asks), &path, &config)?.spawn()?
         }
@@ -114,15 +110,10 @@ pub fn mount(_requests: Arc<Requests>, _handle: Handle, mount: &Request, _kind: 
     ))
 }
 
-/// A mounted file's mode: owner read, and write unless read-only.
+/// A mounted file's mode: owner read and write.
 #[cfg(unix)]
-fn file_mode(readonly: bool) -> u32 {
-    if readonly { 0o400 } else { 0o600 }
-}
+pub const FILE_MODE: u32 = 0o600;
 
-/// A mounted directory's mode: owner read and search, and write
-/// unless read-only.
+/// A mounted directory's mode: owner read, write and search.
 #[cfg(unix)]
-fn directory_mode(readonly: bool) -> u32 {
-    if readonly { 0o500 } else { 0o700 }
-}
+pub const DIRECTORY_MODE: u32 = 0o700;

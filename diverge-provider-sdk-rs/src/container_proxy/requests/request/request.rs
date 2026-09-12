@@ -86,8 +86,8 @@ pub enum Request<'a> {
     /// file's path in it: the proxy's own ask, for every open of the
     /// file. See [`fuse`].
     FuseRead(fuse::read::request::Request<'a>),
-    /// Write such a file, whole: every changed close of it, never on
-    /// a read-only mount. See [`fuse`].
+    /// Write such a file, whole: every changed close of it. See
+    /// [`fuse`].
     FuseWrite(fuse::write::request::Request<'a>),
     /// List a directory of a mounted tree: every listing in a
     /// directory mount. See [`fuse`].

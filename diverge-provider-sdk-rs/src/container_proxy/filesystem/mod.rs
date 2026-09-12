@@ -42,7 +42,7 @@
 //! file itself.
 //!
 //! - The file is root's, one link, its size the caller's answer's
-//!   length; mode `0600`, or `0400` when read-only. `stat` asks the
+//!   length; mode `0600`. `stat` asks the
 //!   caller; a caller that holds nothing under the id yet answers an
 //!   empty file.
 //! - `open` reads the file into a buffer of the handle's own, so a
@@ -68,7 +68,7 @@
 //!
 //! A real filesystem rooted at the path, the whole tree the caller's.
 //!
-//! - The root is a directory, root's, mode `0700` (`0500` read-only),
+//! - The root is a directory, root's, mode `0700`,
 //!   that cannot be deleted or moved — it is the mount point. Every
 //!   entry under it is the caller's: `lookup`, `stat` and `readdir`
 //!   are a [`list`](super::fuse::list) of the entry's directory; a
@@ -91,14 +91,12 @@
 //! - Files are read and written whole, as on a file mount: the tree
 //!   is for credentials and configuration, not data.
 //!
-//! ## Read-only
+//! ## Refusal is the caller's
 //!
-//! Read-only means read-only: the mount carries the kernel's `ro`
-//! option, so mutations are turned away before they reach the proxy,
-//! AND every mutation path in the proxy answers `EROFS` regardless —
-//! an open for writing or with `O_TRUNC`, a truncate, a write, a
-//! create, a mkdir, an unlink, a rename. The caller never sees a
-//! mutation for a read-only id.
+//! Every mutation the program attempts reaches the caller as an ask,
+//! and a caller that answers the error refuses it: the program sees
+//! `EIO`, as it does for any ask the caller would not serve. The proxy
+//! enforces no policy of its own on a mount.
 
 pub mod read;
 pub mod tree;

@@ -32,8 +32,8 @@ pub struct Listed {
 /// caller holds nothing for yet (it reads as empty, and the first
 /// write makes it), or an entry that is not there; from
 /// [`list`](Self::list) it is no such directory. A caller that
-/// receives a mutation for an id it mounted read-only may answer the
-/// error: the container was told not to send one.
+/// wants a mount unchangeable answers every mutation for its id with
+/// the error: nothing else refuses one on its behalf.
 pub trait FuseServer: Send + Sync {
     /// What the entry is and how long, or `None` for one not held.
     fn stat(&self, id: &str, path: &str) -> impl Future<Output = Result<Option<Stat>, String>> + Send;

@@ -569,7 +569,15 @@ request to the Proxy and shall wait for its answer before sending the
 next. The Provider shall treat a mount the Proxy does not make as the
 run's error and shall stop the Container. The Provider shall send no
 `/agent/register` request, open no `/filesystem/tree`, and send no
-Response on the Scope before the last FUSE Mount is complete.
+Response on the Scope before the last FUSE Mount is complete. Inside
+a FUSE directory mount, every entry beneath the mount point shall be
+creatable, writable, renamable and removable from inside the
+Container, each change relayed to the Client as the Specification
+provides; the mount point itself is not removable or renamable. A
+FUSE file mount is overwritable in place and is not removable,
+renamable or replaceable. Whether a change is allowed is the Client's
+answer to the ask that carries it; the Provider shall enforce no
+restriction of its own on a FUSE Mount.
 
 (g) **Hold what the Client opened.** The Provider shall serve a
 Channel the Client opened before the id was sent only after the id is
@@ -672,21 +680,21 @@ has answered.
 
 ### 5.11 Prohibitions
 
-The Provider shall never: (a) open a `fuse-write`, `fuse-remove`,
-`fuse-rename` or `fuse-mkdir` Channel for a FUSE Mount whose
-`readonly` is `true`; (b) write to a Volume or a mount on its own
-account; (c) send a second id on a run Scope; (d) send an error on the
-main stream of a run Scope after the id; (e) retry any ask; (f) read,
-inspect, parse, log the content of, or act upon the content of a
-Relayed Exchange, save to the extent necessary to relay it; (g) impose
-a timeout on any fetch, Deployment, Channel, Scope or Connection; (h)
-send a Response where the Specification states a Bare Finish, or a
-Bare Finish where the Specification states a Response; (i) mint a
-container id or a connection id that is derivable from anything a
-Client chose; (j) serve a Scope under an Identity other than that of
-the Connection on which the Scope was opened; or (k) mount an Identity
-Mount read-only, or otherwise cause a write to it from inside the
-Container to fail. Whether a write to an Identity Mount outlives the
+The Provider shall never: (a) refuse, alter or withhold a FUSE ask on
+its own account, whether a change to a FUSE Mount is allowed being the
+Client's answer to that ask; (b) write to a Volume or a mount on its
+own account; (c) send a second id on a run Scope; (d) send an error on
+the main stream of a run Scope after the id; (e) retry any ask; (f)
+read, inspect, parse, log the content of, or act upon the content of
+a Relayed Exchange, save to the extent necessary to relay it; (g)
+impose a timeout on any fetch, Deployment, Channel, Scope or
+Connection; (h) send a Response where the Specification states a Bare
+Finish, or a Bare Finish where the Specification states a Response;
+(i) mint a container id or a connection id that is derivable from
+anything a Client chose; (j) serve a Scope under an Identity other
+than that of the Connection on which the Scope was opened; or (k)
+mount an Identity Mount read-only, or otherwise cause a write to it
+from inside the Container to fail. Whether a write to an Identity Mount outlives the
 Container is not prescribed.
 
 ### 5.12 The Container Proxy
