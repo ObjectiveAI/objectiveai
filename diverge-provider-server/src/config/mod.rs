@@ -23,7 +23,7 @@
 //!   fixed:
 //!     - name: datasets
 //!       path: /srv/datasets
-//!       authorize: datasets
+//!       authorize_hook: datasets
 //! ```
 //!
 //! Finding the directory, reading the file, validating it, and running

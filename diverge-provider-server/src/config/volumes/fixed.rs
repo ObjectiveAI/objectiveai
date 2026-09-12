@@ -25,5 +25,5 @@ pub struct Fixed {
     /// directory, run as [`hook`](crate::hook) provides. Absent means
     /// every identity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub authorize: Option<String>,
+    pub authorize_hook: Option<String>,
 }
