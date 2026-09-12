@@ -10,7 +10,7 @@ use super::run::Run;
 use crate::container_proxy::requests::request::Request;
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::shared::containers::response::Id;
+use crate::shared::containers::response::{Id, VolumeMounted};
 use crate::shared::error::Error;
 use crate::shared::filetree;
 
@@ -83,6 +83,10 @@ pub(crate) trait Runs: Family {
 
     /// The main stream's first and only good word: the container's id.
     fn id(id: &Id) -> Option<Vec<u8>>;
+
+    /// The refusal that is not an error: a volume the request names
+    /// is mounted in another container of the caller's.
+    fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>>;
 }
 
 /// A channel the caller opened, read as what it asks.

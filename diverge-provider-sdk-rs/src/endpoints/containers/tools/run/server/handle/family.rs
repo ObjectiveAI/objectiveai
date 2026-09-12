@@ -16,7 +16,7 @@ use crate::endpoints::containers::server::run::Run;
 use crate::endpoints::containers::server::serve::tool;
 use crate::endpoints::containers::server::{encoded::encoded, render};
 use crate::shared;
-use crate::shared::containers::response::Id;
+use crate::shared::containers::response::{Id, VolumeMounted};
 use crate::shared::containers::{fetch_directory, fetch_file, oci, postgres};
 use crate::shared::error::Error;
 use crate::shared::filetree as tree;
@@ -123,6 +123,10 @@ impl Runs for Tools {
 
     fn id(id: &Id) -> Option<Vec<u8>> {
         encoded(&response::Frame::Id(id.clone()))
+    }
+
+    fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>> {
+        encoded(&response::Frame::VolumeMounted(refused.clone()))
     }
 }
 

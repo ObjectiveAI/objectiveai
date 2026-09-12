@@ -4,20 +4,24 @@
 use super::super::response;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::volumes::delete::client::request;
+use crate::server::directory::Directory;
 use crate::server::scope_handle::ScopeHandle;
 use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
 /// Remove the volume and end the scope.
 ///
-/// # The manager says whether it was mounted
+/// # Mounted is known here first
 ///
 /// A volume [`mounted`](crate::server::mount::Mount) into a running
 /// container is never deleted, and the wire has a word for it:
-/// [`Mounted`](response::Frame::Mounted). The manager is what knows
-/// whether the volume is mounted, so it answers
-/// [`Deletion::Mounted`](response::Deletion::Mounted) and this turns
-/// that into the frame. Nothing here checks anything itself.
+/// [`Mounted`](response::Frame::Mounted). The [`Directory`] holds
+/// every volume a running container of this caller mounts, so this
+/// answers `Mounted` from it before asking the manager at all; a
+/// manager that knows of a mount the directory does not — one made
+/// outside the protocol — answers
+/// [`Deletion::Mounted`](response::Deletion::Mounted) and is believed
+/// the same way.
 ///
 /// A volume under somebody's live
 /// [`watch`](crate::endpoints::volumes::watch) is not mounted, and
@@ -35,14 +39,19 @@ pub async fn handle<M>(
     request: request::Frame,
     client_identity: &str,
     manager: &M,
+    directory: &Directory,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let frame = match manager.delete(client_identity, &request.name).await {
-        Ok(response::Deletion::Deleted) => response::Frame::Deleted,
-        Ok(response::Deletion::Mounted) => response::Frame::Mounted,
-        Err(error) => response::Frame::Error(error.into()),
+    let frame = if directory.mounted(client_identity, &request.name) {
+        response::Frame::Mounted
+    } else {
+        match manager.delete(client_identity, &request.name).await {
+            Ok(response::Deletion::Deleted) => response::Frame::Deleted,
+            Ok(response::Deletion::Mounted) => response::Frame::Mounted,
+            Err(error) => response::Frame::Error(error.into()),
+        }
     };
 
     let mut buffer = Vec::new();

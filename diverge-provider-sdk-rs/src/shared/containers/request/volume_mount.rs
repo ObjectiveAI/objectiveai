@@ -43,4 +43,16 @@ pub struct VolumeMount {
     /// Empty means the root itself, which a provider will almost
     /// certainly refuse — the image's own filesystem is there.
     pub container_path: Vec<String>,
+    /// Whether the container's changes to the volume outlive the
+    /// container.
+    ///
+    /// `true`: every change the container makes is in the volume
+    /// when the container ends. `false`: the volume is as it was
+    /// before the run when the container ends. Either way the
+    /// container sees the volume's content as of its start. How a
+    /// provider makes `false` hold — an overlay, a copy — is its own.
+    ///
+    /// Present, always: a request states it and a provider never
+    /// infers it.
+    pub persist: bool,
 }

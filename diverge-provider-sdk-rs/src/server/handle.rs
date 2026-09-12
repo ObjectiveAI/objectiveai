@@ -312,9 +312,10 @@ where
             ClientRequest::VolumesDelete(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
+                let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::volumes::delete::server::handle::handle(
-                        scope, frame, &identity, &*manager,
+                        scope, frame, &identity, &*manager, &directory,
                     )
                     .await;
                 });

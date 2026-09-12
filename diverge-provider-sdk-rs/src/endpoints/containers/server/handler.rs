@@ -17,13 +17,18 @@ use crate::server::directory::Directory;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::scope_handle::ScopeHandle;
 use crate::shared::containers::request::Container;
-use crate::shared::containers::response::Id;
+use crate::shared::containers::response::{Id, VolumeMounted};
 use crate::shared::error::Error;
 
 /// Serve one run scope, whole, for either family.
 ///
 /// In order, and the order is the point:
 ///
+/// 0. The volumes leased: every `host_name` the request names, held
+///    for this caller from now until the run ends, or — one of them
+///    mounted in another running container of the caller's, or named
+///    twice — the run's `VolumeMounted`, then the finish, with nothing
+///    fetched and nothing deployed.
 /// 1. [`setup::prepare`]: content, registry, deploy, the proxy
 ///    dialled, every FUSE mount made and serving. A failure is the run's `Error`,
 ///    then the finish, and nothing the caller may have opened
@@ -65,9 +70,16 @@ pub(crate) async fn run<R, D, S, G>(
     G::Error: Into<Error>,
 {
     let scope = Arc::new(scope);
+    let volumes: Vec<String> = request.volume_mounts.iter().map(|mount| mount.host_name.clone()).collect();
+    if let Err(name) = directory.lease(client_identity, &volumes) {
+        send(&scope, R::volume_mounted(&VolumeMounted { name })).await;
+        scope.send_response_finish().await;
+        return;
+    }
     let prepared = match setup::prepare::<R, D, S, G>(&scope, client_identity, request, deployer, store, registry).await {
         Ok(prepared) => prepared,
         Err(error) => {
+            directory.release(client_identity, &volumes);
             send(&scope, R::error(&error)).await;
             scope.send_response_finish().await;
             return;
@@ -85,6 +97,7 @@ pub(crate) async fn run<R, D, S, G>(
             if let Some(repository) = &prepared.repository {
                 registry.release(repository).await;
             }
+            directory.release(client_identity, &volumes);
             send(&scope, R::error(&error)).await;
             scope.send_response_finish().await;
             return;
@@ -109,6 +122,7 @@ pub(crate) async fn run<R, D, S, G>(
     if let Some(repository) = &prepared.repository {
         registry.release(repository).await;
     }
+    directory.release(client_identity, &volumes);
     run.shutdown().await;
     scope.send_response_finish().await;
 }

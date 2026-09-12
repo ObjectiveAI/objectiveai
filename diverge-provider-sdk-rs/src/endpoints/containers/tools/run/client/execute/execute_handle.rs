@@ -66,7 +66,9 @@ impl ExecuteHandle {
         self.0
             .wait(|payload| {
                 Ok(match server::response::Frame::decode(payload)? {
-                    server::response::Frame::Id(_) => None,
+                    // Sent only as the first response, before the
+                    // id; after it, neither is a fact of the run.
+                    server::response::Frame::Id(_) | server::response::Frame::VolumeMounted(_) => None,
                     server::response::Frame::Error(error) => Some(error),
                 })
             })
