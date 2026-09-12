@@ -19,8 +19,10 @@
 //! auth:
 //!   unbrokered:
 //!     - key: 5f1c…
+//!       identity: acme
 //!       address: 203.0.113.7
 //!     - key: 9a0e…
+//!       identity: bolt
 //!     - authorize_hook: peers
 //! volumes:
 //!   stores:
