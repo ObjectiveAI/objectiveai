@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::auth::Auth;
+use super::clients::Clients;
 use super::volumes::Volumes;
 
 /// The whole of `config.yaml`.
@@ -23,6 +24,8 @@ use super::volumes::Volumes;
 pub struct Config {
     /// How a peer that dials the provider is judged.
     pub auth: Auth,
+    /// The peers the provider dials.
+    pub clients: Clients,
     /// Where volumes may be created, and which exist already.
     pub volumes: Volumes,
 }
