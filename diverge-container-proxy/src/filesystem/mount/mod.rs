@@ -14,21 +14,19 @@
 //! FUSE calls a filesystem on the session's own thread, and the
 //! caller is asked on the runtime: every ask is the runtime handle's
 //! `block_on`, which is what a handle is for from a thread that is
-//! not the runtime's. Unix only — the check host is not the
-//! container — and [`mount()`] on anything else refuses.
+//! not the runtime's. The proxy is Unix, as the container is; nothing
+//! here is built for anything else.
 
-#[cfg(unix)]
 mod asks;
-#[cfg(unix)]
 mod directory;
-#[cfg(unix)]
 mod file;
-#[cfg(unix)]
 mod handles;
 mod mounts;
 mod serve;
 
 use std::io;
+use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use diverge_provider_sdk::container_proxy::fuse::mount::request::Request;
@@ -50,18 +48,13 @@ pub enum Kind {
 
 /// A mount, held: dropping it unmounts.
 pub struct Mounted {
-    #[cfg(unix)]
     _session: fuser::BackgroundSession,
 }
 
 /// Make every missing parent directory, the mount point itself if
 /// absent — the file, or the directory — and mount over it, writable:
 /// what may change is the caller's to answer, ask by ask.
-#[cfg(unix)]
 pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Request, kind: Kind) -> io::Result<Mounted> {
-    use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
-    use std::path::PathBuf;
-
     let mut path = PathBuf::from("/");
     path.extend(&mount.path);
     if let Some(parent) = path.parent() {
@@ -101,19 +94,8 @@ pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Request, kind: Kin
     Ok(Mounted { _session: session })
 }
 
-/// Not the container: there is no FUSE here, and a mount is refused.
-#[cfg(not(unix))]
-pub fn mount(_requests: Arc<Requests>, _handle: Handle, mount: &Request, _kind: Kind) -> io::Result<Mounted> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        format!("FUSE mounts need FUSE, which this host has not: {}", mount.id),
-    ))
-}
-
 /// A mounted file's mode: owner read and write.
-#[cfg(unix)]
 pub const FILE_MODE: u32 = 0o600;
 
 /// A mounted directory's mode: owner read, write and search.
-#[cfg(unix)]
 pub const DIRECTORY_MODE: u32 = 0o700;
