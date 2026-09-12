@@ -31,9 +31,12 @@ pub struct HookInput {
 
 /// What the hook writes to stdout, as one JSON document, on exit `0`.
 ///
-/// Anything else — a non-zero exit, a stdout that is not this — is a
-/// [`hook::Error`](crate::hook::Error): the hook has not answered, and
-/// the credential is refused.
+/// An object whose `authorized` is `true` or `false`, and which
+/// carries `identity` exactly when it is `true`. `true` without an
+/// identity, `false` with one, or any other key, is refused as not
+/// this type. Anything else — a non-zero exit, a stdout that is not
+/// this — is a [`hook::Error`](crate::hook::Error): the hook has not
+/// answered, and the credential is refused.
 ///
 /// ```json
 /// {"authorized": true, "identity": "acme"}
@@ -42,15 +45,67 @@ pub struct HookInput {
 /// ```json
 /// {"authorized": false}
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// Serde has no boolean tag, so the discriminating is written out:
+/// the document is read as its two fields and the pair is judged.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HookOutput {
+    /// The credential is accepted, and this is who presented it: the
+    /// string every handler and every capability receives as the
+    /// client's identity.
+    Authorized {
+        /// The peer's identity.
+        identity: String,
+    },
+    /// The credential is refused, and nothing of that reaches the
+    /// peer.
+    Refused,
+}
+
+/// The document as written: the two fields, before the pair is
+/// judged.
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct HookOutput {
-    /// `true`, the credential is accepted; `false`, it is refused, and
-    /// nothing of that reaches the peer.
-    pub authorized: bool,
-    /// Who presented it: the string every handler and every capability
-    /// receives as the client's identity. Read only when `authorized`
-    /// is `true`.
+struct Fields {
+    authorized: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub identity: Option<String>,
+    identity: Option<String>,
+}
+
+impl Serialize for HookOutput {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let fields = match self {
+            HookOutput::Authorized { identity } => Fields {
+                authorized: true,
+                identity: Some(identity.clone()),
+            },
+            HookOutput::Refused => Fields {
+                authorized: false,
+                identity: None,
+            },
+        };
+        fields.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for HookOutput {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error as _;
+
+        let fields = Fields::deserialize(deserializer)?;
+        match (fields.authorized, fields.identity) {
+            (true, Some(identity)) => Ok(HookOutput::Authorized { identity }),
+            (true, None) => Err(D::Error::missing_field("identity")),
+            (false, None) => Ok(HookOutput::Refused),
+            (false, Some(_)) => Err(D::Error::custom(
+                "`identity` is present but `authorized` is false",
+            )),
+        }
+    }
 }
