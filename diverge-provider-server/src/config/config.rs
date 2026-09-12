@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::auth::Auth;
 use super::volumes::Volumes;
 
 /// The whole of `config.yaml`.
@@ -20,6 +21,8 @@ use super::volumes::Volumes;
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct Config {
+    /// How a peer that dials the provider is judged.
+    pub auth: Auth,
     /// Where volumes may be created, and which exist already.
     pub volumes: Volumes,
 }
