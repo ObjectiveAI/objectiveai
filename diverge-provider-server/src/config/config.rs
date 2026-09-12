@@ -22,12 +22,16 @@ use super::volumes::Volumes;
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct Config {
-    /// How a peer that dials the provider is judged.
-    pub auth: Auth,
+    /// How a peer that dials the provider is judged. Absent means no
+    /// dialling peer is accepted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<Auth>,
     /// The peers the provider dials. Absent means the provider dials
     /// no one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clients: Option<Clients>,
-    /// Where volumes may be created, and which exist already.
-    pub volumes: Volumes,
+    /// Where volumes may be created, and which exist already. Absent
+    /// means no volume can be created and none exists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub volumes: Option<Volumes>,
 }

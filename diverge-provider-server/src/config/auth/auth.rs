@@ -9,7 +9,8 @@ use super::Unbrokered;
 #[serde(deny_unknown_fields, default)]
 pub struct Auth {
     /// The ways an unbrokered credential is judged, tried in order:
-    /// the first that accepts it decides. Empty means no dialling
-    /// peer is accepted.
-    pub unbrokered: Vec<Unbrokered>,
+    /// the first that accepts it decides. Absent, or empty, means no
+    /// dialling peer is accepted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unbrokered: Option<Vec<Unbrokered>>,
 }
