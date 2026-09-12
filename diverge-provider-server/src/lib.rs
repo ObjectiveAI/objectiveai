@@ -25,3 +25,5 @@
 //!
 //! Nothing is implemented yet. The crate is the place the
 //! implementation goes, named and in the workspace.
+
+pub mod config;

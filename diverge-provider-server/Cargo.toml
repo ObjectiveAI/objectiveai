@@ -22,3 +22,5 @@ path = "src/main.rs"
 # version.sh would have to chase. `server` is the half that holds the
 # socket and hands this crate the scopes to serve.
 diverge-provider-sdk = { path = "../diverge-provider-sdk-rs", default-features = false, features = ["server"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_yaml_ng = "0.10.0"
