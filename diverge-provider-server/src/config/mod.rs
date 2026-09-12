@@ -32,8 +32,8 @@
 //!       identity: hub
 //! containers:
 //!   memory: 34359738368
-//!   container_disk: 214748364800
-//!   image_cache: 107374182400
+//!   container_overlay_disk: 214748364800
+//!   image_cache_disk: 107374182400
 //!   path: /mnt/containers
 //! volumes:
 //!   stores:
