@@ -9,9 +9,16 @@ use serde::{Deserialize, Serialize};
 /// it sits in says ([`identity_file_mounts`](super::Container::identity_file_mounts) or
 /// [`identity_directory_mounts`](super::Container::identity_directory_mounts)), and the
 /// [`identity`](Self::identity) grammar agrees. The server MUST mount every
-/// one — read-only — before the container starts: the request
-/// naming it IS the requirement. What the server does not hold it
-/// MAY fetch from the client, by the hash, over the fetch exchanges.
+/// one before the container starts: the request naming it IS the
+/// requirement. What the server does not hold it MAY fetch from the
+/// client, by the hash, over the fetch exchanges.
+///
+/// Two requirements on the mount, and only two. At the start of the
+/// container's life the content at the path MUST match the identity
+/// — the size and the hash — exactly. Inside the container the
+/// content MUST be writable: a mount the container cannot change is
+/// a violation. Whether a change outlives the container is not
+/// specified, and neither is how the server makes either hold.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentityMount {
     /// Where it appears inside the container, as path components

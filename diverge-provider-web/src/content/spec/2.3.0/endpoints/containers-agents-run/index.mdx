@@ -62,8 +62,10 @@ about the client, which may open any channel at any time.
    with `memory` and `disk` as limits; every volume mount resolved by
    `host_name` against the identity under which the connection was
    authorized, descended by `host_relative_path`, at `container_path`;
-   every identity mount read-only at its `container_path`; the
-   container proxy injected into the container and started; and TCP
+   every identity mount at its `container_path`, its content
+   matching the identity in size and hash when the container starts
+   and writable from inside the container; the container proxy
+   injected into the container and started; and TCP
    port `14979` of the container reachable to the server. The deploy
    is complete when the proxy accepts a connection at that port. The
    server sets no environment from the request. The server does not
@@ -134,6 +136,6 @@ about the client, which may open any channel at any time.
   before the finish is relayed to the proxy as an ask not served.
 - **What the server never does.** The server never opens a
   `fuse-write`, `fuse-remove`, `fuse-rename` or `fuse-mkdir` channel
-  for a mount whose `readonly` is `true`. The server never writes to
-  a volume or a mount on its own account. The server never sends a
-  second id.
+  for a mount whose `readonly` is `true`. The server never mounts an
+  identity mount read-only. The server never writes to a volume or a
+  mount on its own account. The server never sends a second id.

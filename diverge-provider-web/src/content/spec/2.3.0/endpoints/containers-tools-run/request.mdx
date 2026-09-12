@@ -31,8 +31,11 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   content by `identity`, `<size>:<base64url sha256>` with the hash of
   the bytes for a file and of the manifest for a directory, as the
   [volumes::stat response](/endpoints/volumes-stat/response/)
-  defines the manifest. Every one is mounted read-only before the
-  container starts.
+  defines the manifest. Every one is mounted before the container
+  starts. Its content matches the identity, in size and hash, at the
+  start of the container's life, and is writable from inside the
+  container: a mount that refuses a write is a violation. Whether a
+  write outlives the container is not prescribed.
 - **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path,
   an `id` the client chose, and `readonly`, absent meaning `false`.
   Every one is mounted before the id is sent.
