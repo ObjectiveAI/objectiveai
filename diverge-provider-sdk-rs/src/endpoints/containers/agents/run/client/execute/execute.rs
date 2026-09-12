@@ -18,6 +18,7 @@ use crate::frame;
 use crate::shared::containers::postgres;
 use crate::shared::containers::response::Id;
 use crate::shared::containers::write_bytes;
+use crate::shared::containers::response::VolumeMounted;
 use crate::shared::error::Error;
 
 /// Run an agent container, and hold it.
@@ -84,6 +85,9 @@ where
     };
     let id = match server::response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         server::response::Frame::Id(id) => id,
+        server::response::Frame::VolumeMounted(refused) => {
+            return Err(ExecuteError::VolumeMounted(refused));
+        }
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
     };
 
@@ -128,8 +132,10 @@ fn write_error(error: &Error) -> Option<Vec<u8>> {
 /// A run that never started.
 ///
 /// Seven of these are this end's view of something going wrong. The
-/// last is the provider saying so itself, and it is the only one that
-/// means the exchange worked.
+/// last two are the provider saying so itself, and they are the only
+/// ones that mean the exchange worked: a volume the request named is
+/// mounted in another container of this caller's, or the provider
+/// could not run the container.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request never went out.
@@ -147,6 +153,11 @@ pub enum ExecuteError {
     Misrouted,
     /// The response frame did not parse.
     Response(server::response::FrameError),
+    /// The provider refused the run: the named volume is mounted in
+    /// another container of this caller's. Nothing was fetched and
+    /// nothing was deployed; stop that container, or name another
+    /// volume, and ask again.
+    VolumeMounted(VolumeMounted),
     /// The provider could not run the container, and said so.
     Provider(Error),
 }
@@ -163,6 +174,11 @@ impl fmt::Display for ExecuteError {
                 f.write_str("a frame arrived that does not belong on the main stream")
             }
             ExecuteError::Response(error) => write!(f, "agents run answer did not parse: {error}"),
+            ExecuteError::VolumeMounted(refused) => write!(
+                f,
+                "the volume `{}` is mounted in another container of this caller's",
+                refused.name
+            ),
             ExecuteError::Provider(_) => f.write_str("the provider could not run the container"),
         }
     }
@@ -181,6 +197,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Closed
             | ExecuteError::Unanswered
             | ExecuteError::Misrouted
+            | ExecuteError::VolumeMounted(_)
             | ExecuteError::Provider(_) => None,
         }
     }

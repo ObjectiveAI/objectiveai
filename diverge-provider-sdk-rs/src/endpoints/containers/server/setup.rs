@@ -186,6 +186,7 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
                 host_name: mount.host_name.clone(),
                 host_relative_path: mount.host_relative_path.clone(),
                 container_path: mount.container_path.clone(),
+                persist: mount.persist,
             })
             .collect(),
         identity_file_mounts: request.identity_file_mounts.clone(),

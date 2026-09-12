@@ -88,4 +88,13 @@ pub struct Mount {
     /// Empty means the root itself, which a provider will almost
     /// certainly refuse — the image's own filesystem is there.
     pub container_path: Vec<String>,
+    /// Whether the container's changes to the volume outlive it, as
+    /// the caller asked.
+    ///
+    /// `true`: bind the volume, and what the container writes is in
+    /// it when the container ends. `false`: the container sees the
+    /// volume as of its start and its changes are gone when it ends
+    /// — an overlay over the volume, a copy, whatever the runtime
+    /// offers; the volume itself is not written.
+    pub persist: bool,
 }
