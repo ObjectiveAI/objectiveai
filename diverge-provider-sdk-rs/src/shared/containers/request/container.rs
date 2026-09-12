@@ -47,9 +47,10 @@ pub struct Container {
     ///
     /// A volume is storage that already existed, with a size of its
     /// own that a [`volume`](crate::endpoints::volumes) stated when it
-    /// was made, and hash-mounted content is read-only. A number here
-    /// that silently applied to either would be this request deciding
-    /// how much of somebody else's storage a container may fill.
+    /// was made, and identity-mounted content is content that already
+    /// existed. A number here that silently applied to either would be
+    /// this request deciding how much of somebody else's storage a
+    /// container may fill.
     ///
     /// Bytes rather than megabytes, for the reason
     /// [`memory`](Self::memory) gives.
@@ -60,15 +61,16 @@ pub struct Container {
     /// [`VolumeMount`] for how one is named without a host path.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub volume_mounts: Vec<VolumeMount>,
-    /// Files the caller holds, by content, mounted read-only.
+    /// Files the caller holds, by content, mounted writable.
     ///
     /// Each names a file by its identity — see [`IdentityMount`].
     /// The provider MUST mount every one before the container starts,
     /// fetching what it does not hold from the caller by that
-    /// identity.
+    /// identity; the content MUST match the identity when the
+    /// container starts, and MUST be writable inside it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identity_file_mounts: Vec<IdentityMount>,
-    /// Directories the caller holds, by content, mounted read-only.
+    /// Directories the caller holds, by content, mounted writable.
     ///
     /// Each names a directory by its identity — see
     /// [`IdentityMount`]. No mount's path, in any of the three lists, is

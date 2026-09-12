@@ -546,8 +546,11 @@ obtain the image from a source of its own. For an image of kind
 Section 1.12 defines it, with `memory` and `disk` of the request as
 ceilings; every Volume Mount resolved by `host_name` against the
 Identity, descended by `host_relative_path`, and made present at
-`container_path`; every Identity Mount made present read-only at its
-`container_path`; the Container Proxy placed inside and started; and
+`container_path`; every Identity Mount made present at its
+`container_path`, with content that matches its Content Identity in
+size and hash at the start of the Container's life and that is
+writable from inside the Container; the Container Proxy placed inside
+and started; and
 TCP port 14979 reachable to the Provider's Server. The Provider shall
 set no environment variable in the Container from the request, shall
 expose no port of the Container other than port 14979, and shall not
@@ -680,8 +683,11 @@ a timeout on any fetch, Deployment, Channel, Scope or Connection; (h)
 send a Response where the Specification states a Bare Finish, or a
 Bare Finish where the Specification states a Response; (i) mint a
 container id or a connection id that is derivable from anything a
-Client chose; or (j) serve a Scope under an Identity other than that
-of the Connection on which the Scope was opened.
+Client chose; (j) serve a Scope under an Identity other than that of
+the Connection on which the Scope was opened; or (k) mount an Identity
+Mount read-only, or otherwise cause a write to it from inside the
+Container to fail. Whether a write to an Identity Mount outlives the
+Container is not prescribed.
 
 ### 5.12 The Container Proxy
 
