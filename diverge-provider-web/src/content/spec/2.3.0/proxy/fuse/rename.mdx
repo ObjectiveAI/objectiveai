@@ -21,9 +21,9 @@ the proxy does not ask it again, as [FUSE](/proxy/fuse/) provides.
   replaced. The caller refuses a directory at `to` with `1` and a
   message. The proxy asks no rename across mounts.
 
-The ask is defined by `diverge-provider-sdk/src/shared/containers/fuse/rename/request/request.rs`:
+The ask is defined by `diverge-provider-sdk-rs/src/shared/containers/fuse/rename/request/request.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/fuse/rename/request/request.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/fuse/rename/request/request.rs
 ```
 
 The answer is the ack defined on [FUSE](/proxy/fuse/).

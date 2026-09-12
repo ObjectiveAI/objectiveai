@@ -126,7 +126,7 @@ of payload.
   meta names the file relative to the workspace root:
 
   ````text
-  ```rust include=diverge-provider-sdk/src/container_proxy/requests/request/frame.rs
+  ```rust include=diverge-provider-sdk-rs/src/container_proxy/requests/request/frame.rs
   ```
   ````
 
@@ -269,7 +269,7 @@ enumerates them and knows nothing of their text. Every revision looks
 the same; only its text differs.
 
 - **The latest module is the crate's version.** Its name is the
-  version in `diverge-provider-sdk/Cargo.toml`, and the build fails
+  version in `diverge-provider-sdk-rs/Cargo.toml`, and the build fails
   when no module has that name. Only the latest module is written to;
   every other is frozen.
 - **Only the latest module includes.** An `include=` fence reads the
@@ -312,7 +312,7 @@ static HTML; no JavaScript is shipped, and `pnpm build` runs
 `scripts/verify-static.mjs`, which fails the build on any `<script>`,
 resolves every `/llms.txt` link against `dist/`, and checks each
 page's anatomy. No component carries a `client:*` directive. The
-latest revision is read from `../diverge-provider-sdk/Cargo.toml` at
+latest revision is read from `../diverge-provider-sdk-rs/Cargo.toml` at
 build through `process.cwd()`. Dependency versions are never hand-written;
 `pnpm add` records them. The Astro dev server is a daemon that caches
 routes; it is restarted after a route file is added. The layout's

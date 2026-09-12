@@ -17,7 +17,7 @@ members = [
     "diverge-agentic-loop-openrouter",
     "diverge-agentic-loop-python",
     "diverge-broker-sdk",
-    "diverge-provider-sdk",
+    "diverge-provider-sdk-rs",
     "objectiveai-sdk-rs",
     "objectiveai-json-schema/builder",
     "objectiveai-sdk-rs-wasm-js",

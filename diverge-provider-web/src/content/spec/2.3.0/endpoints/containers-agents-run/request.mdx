@@ -53,32 +53,32 @@ is one object: the members of the container, flattened, and `agent`.
   parse as the request are malformed. [Endpoints](/endpoints/) states
   how a server answers a request it cannot read.
 
-The request is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/client/request/frame.rs`:
+The request is defined by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/client/request/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/client/request/frame.rs
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/client/request/frame.rs
 ```
 
-The container is defined by `diverge-provider-sdk/src/shared/containers/request/container.rs`:
+The container is defined by `diverge-provider-sdk-rs/src/shared/containers/request/container.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/container.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/container.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/request/image.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/request/image.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/image.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/image.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/request/volume_mount.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/volume_mount.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/request/identity_mount.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/request/identity_mount.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/identity_mount.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/identity_mount.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/request/fuse_mount.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/request/fuse_mount.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/fuse_mount.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/fuse_mount.rs
 ```

@@ -20,7 +20,7 @@ bytes = { version = "1.11.1", default-features = false }
 # Path-only: this crate rides the workspace and is never published, so
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.
-diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+diverge-provider-sdk = { path = "../diverge-provider-sdk-rs" }
 # `Sink`/`Stream` on the split socket, the fan-out's `join_all`, the
 # conduit's `select` between a read and its pump, and the two binds
 # joined.

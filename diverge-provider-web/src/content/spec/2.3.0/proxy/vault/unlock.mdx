@@ -20,9 +20,9 @@ again, as [Vault](/proxy/vault/) provides.
 - **Only the holder unlocks.** An unlock of a key the container does
   not hold is refused, and the server sends `1` and a message.
 
-The ask is defined by `diverge-provider-sdk/src/shared/containers/vault/unlock/request/request.rs`:
+The ask is defined by `diverge-provider-sdk-rs/src/shared/containers/vault/unlock/request/request.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/vault/unlock/request/request.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/vault/unlock/request/request.rs
 ```
 
 The answer is the frame defined on [Vault](/proxy/vault/): a first byte of `0` states that the operation was done; a first byte of `1` is followed by a message stating why it was not.

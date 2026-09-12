@@ -14,7 +14,7 @@ publish = false
 # the provider SDK is named by where it lives rather than by a version
 # pin version.sh would have to chase. It supplies the proxy's port —
 # one source of truth for the number.
-diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+diverge-provider-sdk = { path = "../diverge-provider-sdk-rs" }
 # The MCP CLIENT half only: the agent's tool calls go to the
 # in-container proxy over Streamable HTTP, and nothing here serves MCP.
 rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }

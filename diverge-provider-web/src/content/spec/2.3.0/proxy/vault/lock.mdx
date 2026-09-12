@@ -28,9 +28,9 @@ again, as [Vault](/proxy/vault/) provides.
   The lock survives the ending of every path and of `/requests` until
   the container unlocks it or its TTL expires.
 
-The ask is defined by `diverge-provider-sdk/src/shared/containers/vault/lock/request/request.rs`:
+The ask is defined by `diverge-provider-sdk-rs/src/shared/containers/vault/lock/request/request.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/vault/lock/request/request.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/vault/lock/request/request.rs
 ```
 
 The answer is the frame defined on [Vault](/proxy/vault/): a first byte of `0` states that the operation was done; a first byte of `1` is followed by a message stating why it was not.
