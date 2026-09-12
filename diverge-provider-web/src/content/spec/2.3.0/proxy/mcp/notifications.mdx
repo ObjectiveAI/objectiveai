@@ -23,12 +23,12 @@ before the close states that the ask was not served.
   the next `/requests` connection. The server does not replay a
   notification that occurred while no notification path was open.
 
-The ask is defined by `diverge-provider-sdk/src/shared/mcp/notifications/request/request.rs`:
+The ask is defined by `diverge-provider-sdk-rs/src/shared/mcp/notifications/request/request.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/mcp/notifications/request/request.rs
+```rust include=diverge-provider-sdk-rs/src/shared/mcp/notifications/request/request.rs
 ```
 
-The messages are defined by `diverge-provider-sdk/src/shared/mcp/notifications/response/frame.rs`:
+The messages are defined by `diverge-provider-sdk-rs/src/shared/mcp/notifications/response/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/mcp/notifications/response/frame.rs
+```rust include=diverge-provider-sdk-rs/src/shared/mcp/notifications/response/frame.rs
 ```

@@ -27,7 +27,7 @@ dashmap = { version = "6.1.0" }
 # version.sh would have to chase. The provider SDK is the vocabulary —
 # the chunks, the fates; the container SDK is the proxy beside this
 # program — the database URL, and the MCP URL Claude Code is handed.
-diverge-provider-sdk = { path = "../diverge-provider-sdk" }
+diverge-provider-sdk = { path = "../diverge-provider-sdk-rs" }
 diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk" }
 # The agent's JSON Schema, derived from the agent types for
 # `GET /schema`.

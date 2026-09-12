@@ -20,9 +20,9 @@ the proxy does not ask it again, as [FUSE](/proxy/fuse/) provides.
 - **Whole.** The bytes replace the file entire. A file not yet held
   is created by its first write.
 
-The ask is defined by `diverge-provider-sdk/src/shared/containers/fuse/write/request/request.rs`:
+The ask is defined by `diverge-provider-sdk-rs/src/shared/containers/fuse/write/request/request.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/fuse/write/request/request.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/fuse/write/request/request.rs
 ```
 
 The answer is the ack defined on [FUSE](/proxy/fuse/).

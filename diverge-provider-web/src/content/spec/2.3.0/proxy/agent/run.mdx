@@ -28,76 +28,76 @@ proxy → server:   [0][chunk JSON] … [0][chunk JSON]       the loop
   No party retries it.
 
 The request is defined by
-`diverge-provider-sdk/src/shared/containers/run_loop/request/request.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/request/request.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/request/request.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/request/request.rs
 ```
 
 The messages are defined by
-`diverge-provider-sdk/src/shared/containers/run_loop/response/frame.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/frame.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/frame.rs
 ```
 
 The chunks that follow the first byte `0` are defined by the
-following files of `diverge-provider-sdk/src/shared/containers/run_loop/response/`:
+following files of `diverge-provider-sdk-rs/src/shared/containers/run_loop/response/`:
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/user_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/user_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/user_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/user_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_text_content_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_text_content_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_text_content_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_text_content_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_reasoning_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_reasoning_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_reasoning_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_reasoning_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_refusal_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_refusal_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_refusal_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_refusal_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_tool_call_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_tool_call_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_tool_call_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_tool_call_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_image_content_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_image_content_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_image_content_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_image_content_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_audio_content_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_audio_content_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/assistant_audio_content_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/assistant_audio_content_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/tool_response_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/tool_response_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/tool_response_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/tool_response_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/notification_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/notification_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/notification_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/notification_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/usage_chunk.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/usage_chunk.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/usage_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/usage_chunk.rs
 ```
 
-`diverge-provider-sdk/src/shared/containers/run_loop/response/logprobs.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/run_loop/response/logprobs.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/run_loop/response/logprobs.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/run_loop/response/logprobs.rs
 ```

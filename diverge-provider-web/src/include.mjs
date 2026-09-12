@@ -5,7 +5,7 @@
 // whole, read at build time: an empty fenced block whose meta names
 // the file relative to the workspace root —
 //
-//     ```rust include=diverge-provider-sdk/src/container_proxy/requests/request/frame.rs
+//     ```rust include=diverge-provider-sdk-rs/src/container_proxy/requests/request/frame.rs
 //     ```
 //
 // — is replaced by that file's contents. Only the LATEST module may
@@ -37,10 +37,10 @@ const WORKSPACE = resolve(process.cwd(), "..");
 
 /** The latest revision: the crate's version. */
 export const LATEST = (() => {
-  const manifest = readFileSync(resolve(WORKSPACE, "diverge-provider-sdk/Cargo.toml"), "utf-8");
+  const manifest = readFileSync(resolve(WORKSPACE, "diverge-provider-sdk-rs/Cargo.toml"), "utf-8");
   const version = manifest.match(/^version = "([^"]+)"/m);
   if (!version) {
-    throw new Error("diverge-provider-sdk/Cargo.toml has no version");
+    throw new Error("diverge-provider-sdk-rs/Cargo.toml has no version");
   }
   return version[1];
 })();

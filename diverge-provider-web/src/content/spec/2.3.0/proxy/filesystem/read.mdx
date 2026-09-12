@@ -30,19 +30,19 @@ proxy → server:   [0][bytes …] … [0][bytes …]           the file
   failed. No party retries it.
 
 The request is defined by
-`diverge-provider-sdk/src/shared/containers/read/request/request.rs`:
+`diverge-provider-sdk-rs/src/shared/containers/read/request/request.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/read/request/request.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/read/request/request.rs
 ```
 
 The messages are defined by
-`diverge-provider-sdk/src/container_proxy/filesystem/read/response/frame.rs`:
+`diverge-provider-sdk-rs/src/container_proxy/filesystem/read/response/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/container_proxy/filesystem/read/response/frame.rs
+```rust include=diverge-provider-sdk-rs/src/container_proxy/filesystem/read/response/frame.rs
 ```
 
 The ways in which a message fails to decode are defined by
-`diverge-provider-sdk/src/container_proxy/filesystem/read/response/error.rs`:
+`diverge-provider-sdk-rs/src/container_proxy/filesystem/read/response/error.rs`:
 
-```rust include=diverge-provider-sdk/src/container_proxy/filesystem/read/response/error.rs
+```rust include=diverge-provider-sdk-rs/src/container_proxy/filesystem/read/response/error.rs
 ```

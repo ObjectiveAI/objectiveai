@@ -54,14 +54,14 @@ finish follows the response, and no frame follows the finish.
   decode as the stat, and a payload whose bytes after `1` are not one
   JSON value are malformed.
 
-The response frame is defined by `diverge-provider-sdk/src/endpoints/volumes/stat/server/response/frame.rs`:
+The response frame is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/stat/server/response/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/endpoints/volumes/stat/server/response/frame.rs
+```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/stat/server/response/frame.rs
 ```
 
-The stat is defined by `diverge-provider-sdk/src/endpoints/volumes/stat/server/response/stat.rs`. Its `volume`
+The stat is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/stat/server/response/stat.rs`. Its `volume`
 field is the `Volume` defined on the
 [volumes::list response](/endpoints/volumes-list/response/) page:
 
-```rust include=diverge-provider-sdk/src/endpoints/volumes/stat/server/response/stat.rs
+```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/stat/server/response/stat.rs
 ```
