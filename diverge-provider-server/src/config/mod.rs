@@ -12,7 +12,8 @@
 //!   beside it; `data` is the one the file may move.
 //!
 //! [`Config`] is the document; [`volumes`] its one section so far;
-//! [`Hook`] the shape of every command the operator supplies.
+//! [`Hook`](crate::hook::Hook) the shape of every command the operator
+//! supplies.
 //!
 //! ```yaml
 //! volumes:
@@ -29,8 +30,6 @@
 //! a hook are not written yet.
 
 mod config;
-mod hook;
 pub mod volumes;
 
 pub use config::*;
-pub use hook::*;

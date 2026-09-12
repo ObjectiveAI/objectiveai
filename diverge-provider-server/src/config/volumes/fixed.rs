@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::super::Hook;
+use crate::hook::Hook;
 
 /// A volume that exists already, under a name the provider chose.
 ///
