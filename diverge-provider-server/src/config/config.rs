@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::auth::Auth;
 use super::clients::Clients;
+use super::containers::Containers;
 use super::volumes::Volumes;
 
 /// The whole of `config.yaml`.
@@ -30,6 +31,10 @@ pub struct Config {
     /// no one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clients: Option<Clients>,
+    /// What containers may reach between them, and where their
+    /// storage lives. Absent means every setting's own default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub containers: Option<Containers>,
     /// Where volumes may be created, and which exist already. Absent
     /// means no volume can be created and none exists.
     #[serde(default, skip_serializing_if = "Option::is_none")]
