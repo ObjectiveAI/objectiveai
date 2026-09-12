@@ -16,7 +16,7 @@ publish = false
 # the chunks; the container SDK is the proxy beside this program — the
 # request, the chunks' way out, the MCP session, the database.
 diverge-provider-sdk = { path = "../diverge-provider-sdk-rs" }
-diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk" }
+diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk-rs" }
 # The loop's door: an HTTP server on the loopback the proxy forwards
 # to — `/run` as server-sent events, the queue's two verbs, the
 # schema. Default features carry the JSON extractor and the HTTP/1
