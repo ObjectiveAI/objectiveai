@@ -24,8 +24,10 @@ use super::volumes::Volumes;
 pub struct Config {
     /// How a peer that dials the provider is judged.
     pub auth: Auth,
-    /// The peers the provider dials.
-    pub clients: Clients,
+    /// The peers the provider dials. Absent means the provider dials
+    /// no one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clients: Option<Clients>,
     /// Where volumes may be created, and which exist already.
     pub volumes: Volumes,
 }
