@@ -1,6 +1,7 @@
 //! Judging an unbrokered credential, and saying who presented it.
 
 use std::future::Future;
+use std::net::IpAddr;
 
 /// How a provider decides whether a dialling peer may connect, and who
 /// it is.
@@ -14,6 +15,14 @@ use std::future::Future;
 /// assertion — it means whatever the two ends agreed it means before
 /// either of them dialled, and the party that made that agreement is
 /// the party implementing this.
+///
+/// # The address is a signal
+///
+/// `address` is the peer the socket came from, as the OS reported it:
+/// what a provider needs to refuse a source, to slow one down, or to
+/// write down who presented a credential that did not pass. It is not
+/// an identity and it does not become one — the identity is the
+/// answer, and the answer comes from the credential.
 ///
 /// # The answer is an identity
 ///
@@ -54,7 +63,7 @@ pub trait UnbrokeredAuthorizer: Send + Sync {
     /// to be, and it outlives the call that produced it.
     type Error: Send + 'static;
 
-    /// Judge one credential.
+    /// Judge one credential, presented from `address`.
     ///
     /// [`Ok`] names the peer; [`Err`] refuses it, and the connection is
     /// over. There is no third answer, because the wire has no frame
@@ -62,5 +71,6 @@ pub trait UnbrokeredAuthorizer: Send + Sync {
     fn authorize(
         &self,
         credential: &str,
+        address: IpAddr,
     ) -> impl Future<Output = Result<String, Self::Error>> + Send;
 }
