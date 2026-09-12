@@ -1872,6 +1872,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-provider-server"
+version = "2.3.0"
+dependencies = [
+ "diverge-provider-sdk",
+]
+
+[[package]]
 name = "dlopen2"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
