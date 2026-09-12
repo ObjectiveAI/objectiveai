@@ -517,7 +517,15 @@ Finish, a request that names a Volume not in the Identity's listing;
 a mount whose path is the root of the Container; two mounts with one
 path; a mount inside a FUSE directory mount; two FUSE mounts with one
 `id`; a mount path with a component that is empty, `.` or `..`; or an
-image source the Provider's policy does not allow.
+image source the Provider's policy does not allow. The Provider shall
+hold every Volume a run request names in `volume_mounts` from the
+moment it accepts the request until the run ends, and shall answer a
+request that names a Volume so held by another running Container of
+the same Identity, or that names one Volume twice, by exactly one
+Response, the byte `1` followed by the name of that Volume as JSON,
+and the Response Finish, fetching nothing and deploying nothing for
+it. A Volume is mounted in at most one Container of its Identity at a
+time, whatever its `persist`.
 
 (b) **Hold every Identity Mount's content.** For each Identity Mount,
 the Provider shall, before Deployment, either hold content it has
@@ -546,7 +554,10 @@ obtain the image from a source of its own. For an image of kind
 Section 1.12 defines it, with `memory` and `disk` of the request as
 ceilings; every Volume Mount resolved by `host_name` against the
 Identity, descended by `host_relative_path`, and made present at
-`container_path`; every Identity Mount made present at its
+`container_path`, the Container's changes to it being in the Volume
+when the Container ends if `persist` is `true` and the Volume being as
+it was before the run when the Container ends if `persist` is
+`false`; every Identity Mount made present at its
 `container_path`, with content that matches its Content Identity in
 size and hash at the start of the Container's life and that is
 writable from inside the Container; the Container Proxy placed inside
@@ -593,7 +604,10 @@ refuses is the run's error, and the Provider shall stop the Container.
 (i) **Mint and send the id.** The Provider shall choose an id that is
 unique among the Containers it is running and not derivable from the
 request, from the Identity, or from any other id, and shall send it as
-exactly one Response. From that moment the Container is running for
+exactly one Response — the only Response of a run that runs; a run
+refused for a held Volume has the byte `1` and the name as its only
+Response, and a run that fails has the error as its only Response.
+From that moment the Container is running for
 the Client and shall be findable by a `containers::tools::connect`
 request naming the id. The Provider shall send no further Response on
 the Scope.
