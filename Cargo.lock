@@ -1877,7 +1877,10 @@ version = "2.3.0"
 dependencies = [
  "diverge-provider-sdk",
  "serde",
+ "serde_json",
+ "serde_path_to_error",
  "serde_yaml_ng",
+ "tokio",
 ]
 
 [[package]]

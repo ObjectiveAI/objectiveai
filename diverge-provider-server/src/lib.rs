@@ -27,3 +27,4 @@
 //! implementation goes, named and in the workspace.
 
 pub mod config;
+pub mod hook;
