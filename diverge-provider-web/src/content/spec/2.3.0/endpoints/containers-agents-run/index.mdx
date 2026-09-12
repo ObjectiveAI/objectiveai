@@ -32,7 +32,12 @@ about the client, which may open any channel at any time.
    client's [volumes::list](/endpoints/volumes-list/) listing, a mount
    whose path is the root of the container, two mounts with one path,
    a mount inside a FUSE directory mount, two FUSE mounts with one
-   `id`, or an image source that its policy does not allow.
+   `id`, or an image source that its policy does not allow. A request
+   that names in `volume_mounts` a volume mounted in a container the
+   client is running at the time of the request, or that names one
+   volume twice, is answered by exactly one response, the byte `1`
+   followed by the name of that volume, and the finish; the server
+   fetches nothing and deploys nothing for it.
 2. **The server holds every identity mount's content before it
    deploys.** For each entry of `identity_file_mounts` and
    `identity_directory_mounts`, the server either holds content it has
@@ -119,6 +124,11 @@ about the client, which may open any channel at any time.
 
 ## The rules that hold throughout
 
+- **One container per volume.** A volume is mounted in at most one
+  container of its client at a time, whatever `persist`. The server
+  holds every volume a request names from the moment it accepts the
+  request until the run ends, and a second request naming one is
+  refused for as long as the first run runs.
 - **The means of deployment.** This revision prescribes no runtime,
   no operating system, no virtualization, no network topology and no
   vendor. The server may deploy the container on hardware it

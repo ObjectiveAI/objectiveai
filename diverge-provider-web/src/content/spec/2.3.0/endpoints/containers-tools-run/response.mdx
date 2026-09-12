@@ -1,23 +1,25 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, the id or an error; after the id it sends nothing until the finish, and the finish that ends a running container carries no error.'
+summary: 'The server sends exactly one response: the id, the volume that refused the run, or an error; after the id it sends nothing until the finish, and the finish that ends a running container carries no error.'
 order: 2
 draft: false
 ---
 
-The server sends exactly one response on the scope: the id, or an
-error. The response finish ends the scope. No frame bearing the scope
-follows the finish.
+The server sends exactly one response on the scope: the id, the
+volume that refused the run, or an error. The response finish ends
+the scope. No frame bearing the scope follows the finish.
 
 ```text
-[0][id JSON …]        once, when the container is running
-[1][error JSON …]     once, when it is not
+[0][id JSON …]                  once, when the container is running
+[1][volume-mounted JSON …]      once, when a named volume is in another container
+[2][error JSON …]               once, when it is not running for another reason
 ```
 
 - **The sequence.** Before the id, the server sends no response.
-  The first response is the id or an error. An error is followed by
-  the response finish, and the container is not running and will not
-  be. After the id, the server sends no response until the finish,
+  The first response is the id, the volume that refused the run, or
+  an error. A refusal and an error are each followed by the response
+  finish, and the container is not running and will not be. After
+  the id, the server sends no response until the finish,
   and the finish carries no error: a run that ended after its id
   ended by the client's stop, by the container's own end, or by the
   client's connection ending. A response finish that no response
@@ -28,14 +30,22 @@ follows the finish.
   that byte as JSON, an object with the member `id`, a string. The
   server sends it after every FUSE mount is complete and, for an
   agent container, after the agent is registered.
-- **The error.** A payload whose first byte is `1` carries an error
+- **Volume mounted.** A payload whose first byte is `1` carries,
+  after that byte as JSON, an object with the member `name`, a
+  string: the `host_name` of a volume the request named that is
+  mounted in another container the client is running, or that the
+  request named twice. The server sends it before it fetches or
+  deploys anything, and the finish follows. The container was not
+  started.
+- **The error.** A payload whose first byte is `2` carries an error
   after that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, a payload whose bytes after `0` do not
-  parse as the id, and a payload whose bytes after `1` are not one
-  JSON value are malformed.
+  is none of `0`, `1` and `2`, a payload whose bytes after `0` do not
+  parse as the id, a payload whose bytes after `1` do not parse as
+  the refusal, and a payload whose bytes after `2` are not one JSON
+  value are malformed.
 
 The response is defined by `diverge-provider-sdk-rs/src/endpoints/containers/tools/run/server/response/frame.rs`:
 
@@ -45,4 +55,9 @@ The response is defined by `diverge-provider-sdk-rs/src/endpoints/containers/too
 and by `diverge-provider-sdk-rs/src/shared/containers/response/id.rs`:
 
 ```rust include=diverge-provider-sdk-rs/src/shared/containers/response/id.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/response/volume_mounted.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/response/volume_mounted.rs
 ```
