@@ -22,8 +22,12 @@ pub struct Fixed {
     pub path: PathBuf,
     /// The hook, by name, that says which identities the volume is
     /// listed to: the folder `hooks/<name>/` of the provider's
-    /// directory, run as [`hook`](crate::hook) provides. Absent means
-    /// every identity.
+    /// directory, run as [`hook`](crate::hook) provides. It reads the
+    /// identity and this volume's name, an
+    /// [`Input`](super::authorize_hook::Input), and writes whether the
+    /// volume is listed to it, an
+    /// [`Output`](super::authorize_hook::Output). Absent means every
+    /// identity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authorize_hook: Option<String>,
 }
