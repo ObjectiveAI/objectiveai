@@ -1,9 +1,8 @@
 //! FUSE mounts: files and directories the caller serves live.
 //!
 //! A [`FuseMount`](super::request::FuseMount) on a container request
-//! names a path, an id the caller minted, and whether the mount is
-//! read-only — on one of two lists, a FILE mount or a DIRECTORY
-//! mount. The provider mounts, at that path, a FUSE filesystem the
+//! names a path and an id the caller minted — on one of two lists, a
+//! FILE mount or a DIRECTORY mount. The provider mounts, at that path, a FUSE filesystem the
 //! proxy inside the container serves — of exactly one regular file,
 //! or of a whole directory tree — and everything behind it is the
 //! CALLER's: every `stat` asks what an entry is with [`stat`], every
@@ -80,12 +79,14 @@
 //! as the proxy sends it — and one the caller will not serve is
 //! answered with the error.
 //!
-//! # Read-only never writes
+//! # Refusal is the caller's
 //!
-//! A mount named read-only refuses every mutation inside the
-//! container, so the caller never sees a `write`, `remove`, `rename`
-//! or `mkdir` for that id. A caller that gets one anyway — a
-//! container that ignored the flag — may answer the error.
+//! The proxy sends every mutation the program attempts — a `write`,
+//! a `remove`, a `rename`, a `mkdir` — and a caller that will not
+//! have one answers the error. The program sees the operation fail,
+//! and nothing between them enforces a policy of its own: a mount
+//! the caller keeps unchangeable is one whose every mutation it
+//! refuses.
 //!
 //! # No retry
 //!

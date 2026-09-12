@@ -30,7 +30,7 @@
 //! one regular file, or one directory tree, mounted at the proxy's
 //! start, its contents the caller's, asked by the mount's id on
 //! `/requests` and answered on the seven `/fuse/<op>/{channel}` paths —
-//! a file readable and, unless read-only, overwritable in place; a
+//! a file readable and overwritable in place; a
 //! tree whose every entry is the caller's to list, read, write, make,
 //! rename and remove. It mounts on request: each FUSE mount the
 //! server asks for on `/fuse/mount` is one regular file, or one

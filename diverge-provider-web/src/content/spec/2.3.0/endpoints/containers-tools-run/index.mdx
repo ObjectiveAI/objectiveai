@@ -127,8 +127,9 @@ about the client, which may open any channel at any time.
   does not reorder frames within one channel, and does not send an
   ask a second time. A channel the client finishes with no frame
   before the finish is relayed to the proxy as an ask not served.
-- **What the server never does.** The server never opens a
-  `fuse-write`, `fuse-remove`, `fuse-rename` or `fuse-mkdir` channel
-  for a mount whose `readonly` is `true`. The server never mounts an
-  identity mount read-only. The server never writes to a volume or a
-  mount on its own account. The server never sends a second id.
+- **What the server never does.** The server never mounts an
+  identity mount read-only. The server never refuses or alters a
+  FUSE ask on its own account: whether a change to a FUSE mount is
+  allowed is the client's answer to that ask. The server never
+  writes to a volume or a mount on its own account. The server never
+  sends a second id.

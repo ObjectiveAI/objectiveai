@@ -137,7 +137,7 @@ pub enum Frame<'a> {
     FuseRead(fuse::read::request::Request<'a>),
     /// Write a file the caller mounted live, whole. Tag `19`.
     ///
-    /// Every changed close of the file; never for a read-only mount.
+    /// Every changed close of the file.
     FuseWrite(fuse::write::request::Request<'a>),
     /// List a directory of a tree the caller mounted live. Tag `20`.
     ///
@@ -148,8 +148,6 @@ pub enum Frame<'a> {
     /// Rename an entry within such a tree. Tag `22`.
     FuseRename(fuse::rename::request::Request<'a>),
     /// Make a directory in such a tree. Tag `23`.
-    ///
-    /// The four before this are never sent for a read-only mount.
     FuseMkdir(fuse::mkdir::request::Request<'a>),
     /// What an entry the caller mounted live is, and how long. Tag
     /// `24`.

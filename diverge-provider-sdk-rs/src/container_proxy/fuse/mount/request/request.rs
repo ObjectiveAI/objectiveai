@@ -14,9 +14,7 @@ use crate::shared::containers::fuse::Kind;
 /// the request, with which list it was on made explicit as the
 /// [`kind`](Self::kind). The path is components from the container's
 /// root, never empty, no component empty or `.` or `..`; the id is
-/// the caller's, echoed on every ask the mount makes; `readonly`
-/// refuses every mutation inside the container, and the mount never
-/// asks one.
+/// the caller's, echoed on every ask the mount makes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Request {
     /// Where the mount goes, as components from the container's
@@ -24,9 +22,6 @@ pub struct Request {
     pub path: Vec<String>,
     /// The mount's id, the caller's.
     pub id: String,
-    /// Whether every mutation is refused.
-    #[serde(default)]
-    pub readonly: bool,
     /// One regular file, or a directory tree.
     pub kind: Kind,
 }

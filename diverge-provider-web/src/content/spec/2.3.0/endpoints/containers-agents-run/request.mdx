@@ -37,9 +37,15 @@ is one object: the members of the container, flattened, and `agent`.
   start of the container's life, and is writable from inside the
   container: a mount that refuses a write is a violation. Whether a
   write outlives the container is not prescribed.
-- **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path,
-  an `id` the client chose, and `readonly`, absent meaning `false`.
-  Every one is mounted before the id is sent.
+- **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path
+  and an `id` the client chose. Every one is mounted before the id
+  is sent. A directory mount is a tree the client serves: every entry
+  beneath its root is created, written, renamed and removed by the
+  container, each change one ask to the client, and the root alone
+  cannot be removed or renamed. A file mount is one file, overwritten
+  in place and never removed, renamed or replaced. Whether a change
+  is allowed is the client's answer to the ask; the server enforces
+  nothing.
 - **Paths.** No component of any mount's path is empty, `.` or `..`.
   No two mounts have one path. No mount lies inside a FUSE directory
   mount. A FUSE file mount may lie inside a directory another mount

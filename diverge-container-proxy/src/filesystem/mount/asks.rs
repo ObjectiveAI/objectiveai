@@ -4,9 +4,8 @@
 //! answer, through [`crate::ask`], made from the FUSE thread over the
 //! runtime handle's `block_on`. Every failure of the transport, and
 //! every error the caller answers, is `EIO` to the program: what the
-//! caller refused is not the program's to know. A read-only mount
-//! never asks a mutation: the four that change something answer
-//! `EROFS` here, before any ask.
+//! caller refused is not the program's to know, and nothing here
+//! refuses anything on the caller's behalf.
 
 use std::sync::Arc;
 
@@ -25,8 +24,6 @@ pub struct Asks {
     handle: Handle,
     /// The mount's id, echoed on every ask.
     id: String,
-    /// Whether every mutation is refused.
-    readonly: bool,
 }
 
 /// One entry of a listed directory, owned: what a `readdir` shows.
@@ -45,18 +42,12 @@ pub enum Stat {
 }
 
 impl Asks {
-    pub fn new(requests: Arc<Requests>, handle: Handle, id: &str, readonly: bool) -> Self {
+    pub fn new(requests: Arc<Requests>, handle: Handle, id: &str) -> Self {
         Asks {
             requests,
             handle,
             id: id.to_string(),
-            readonly,
         }
-    }
-
-    /// Whether every mutation is refused.
-    pub fn readonly(&self) -> bool {
-        self.readonly
     }
 
     /// One ask, and its one message.
@@ -64,11 +55,6 @@ impl Asks {
         self.handle
             .block_on(ask::ask(&self.requests, request))
             .map_err(|_| Errno::EIO)
-    }
-
-    /// The gate every mutation passes first.
-    fn mutation(&self) -> Result<(), Errno> {
-        if self.readonly { Err(Errno::EROFS) } else { Ok(()) }
     }
 
     /// An ok-or-error answer, read.
@@ -109,7 +95,6 @@ impl Asks {
 
     /// A file, stored whole; made if absent.
     pub fn write(&self, path: &str, bytes: &[u8]) -> Result<(), Errno> {
-        self.mutation()?;
         let request = fuse::write::request::Request {
             id: &self.id,
             path,
@@ -141,7 +126,6 @@ impl Asks {
 
     /// A file or an empty directory, removed.
     pub fn remove(&self, path: &str) -> Result<(), Errno> {
-        self.mutation()?;
         let request = fuse::remove::request::Request { id: &self.id, path };
         let answer = self.ask(Request::FuseRemove(request))?;
         Self::ack(&answer)
@@ -149,7 +133,6 @@ impl Asks {
 
     /// An entry, moved within the mount.
     pub fn rename(&self, from: &str, to: &str) -> Result<(), Errno> {
-        self.mutation()?;
         let request = fuse::rename::request::Request {
             id: &self.id,
             from,
@@ -161,7 +144,6 @@ impl Asks {
 
     /// A directory, made.
     pub fn mkdir(&self, path: &str) -> Result<(), Errno> {
-        self.mutation()?;
         let request = fuse::mkdir::request::Request { id: &self.id, path };
         let answer = self.ask(Request::FuseMkdir(request))?;
         Self::ack(&answer)

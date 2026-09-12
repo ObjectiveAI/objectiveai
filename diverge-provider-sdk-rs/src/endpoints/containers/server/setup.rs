@@ -165,7 +165,6 @@ fn mount_request(mount: &FuseMount, kind: Kind) -> mount::request::Request {
     mount::request::Request {
         path: mount.container_path.clone(),
         id: mount.id.clone(),
-        readonly: mount.readonly,
         kind,
     }
 }

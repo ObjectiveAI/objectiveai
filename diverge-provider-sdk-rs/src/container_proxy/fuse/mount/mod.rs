@@ -2,7 +2,7 @@
 //!
 //! The one path under `/fuse/` the server opens rather than answers.
 //! It sends one message, the [`request::Request`] — the path, the
-//! id, whether it is read-only, and which kind: a file or a tree —
+//! id, and which kind: a file or a tree —
 //! and the proxy mounts, at that path, a FUSE filesystem whose
 //! contents are the caller's, asked by the id over the six siblings.
 //! The answer is one [`response::Frame`], sent only once the mount
