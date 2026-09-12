@@ -13,7 +13,8 @@
 //!   under `hooks/` is a hook, and the file names one by that
 //!   folder's name alone — see [`hook`](crate::hook).
 //!
-//! [`Config`] is the document; [`auth`] and [`volumes`] its sections.
+//! [`Config`] is the document; [`auth`], [`clients`] and [`volumes`]
+//! its sections.
 //!
 //! ```yaml
 //! auth:
@@ -24,6 +25,11 @@
 //!     - key: 9a0e…
 //!       identity: bolt
 //!     - authorize_hook: peers
+//! clients:
+//!   unbrokered:
+//!     - address: hub.example.com:7000
+//!       key: c31d…
+//!       identity: hub
 //! volumes:
 //!   stores:
 //!     - path: /mnt/volumes-a
@@ -39,6 +45,7 @@
 
 mod config;
 pub mod auth;
+pub mod clients;
 pub mod volumes;
 
 pub use config::*;
