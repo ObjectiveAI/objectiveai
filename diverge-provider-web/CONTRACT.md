@@ -604,13 +604,15 @@ refuses is the run's error, and the Provider shall stop the Container.
 (i) **Mint and send the id.** The Provider shall choose an id that is
 unique among the Containers it is running and not derivable from the
 request, from the Identity, or from any other id, and shall send it as
-exactly one Response — the only Response of a run that runs; a run
-refused for a held Volume has the byte `1` and the name as its only
-Response, and a run that fails has the error as its only Response.
-From that moment the Container is running for
+exactly one Response; a run refused for a held Volume has the byte `1`
+and the name as its only Response, and a run that fails has the error
+as its only Response. From that moment the Container is running for
 the Client and shall be findable by a `containers::tools::connect`
-request naming the id. The Provider shall send no further Response on
-the Scope.
+request naming the id. After the id the Provider shall send, for a
+tool container, no further Response on the Scope, and, for an agent
+container, every chunk the Proxy sends as one Response, the byte `3`
+followed by the chunk verbatim, in the order the Proxy sent them, and
+no other Response.
 
 (j) **Serve the Scope.** For as long as the Scope lives, and
 concurrently, the Provider shall relay every ask the Container makes
