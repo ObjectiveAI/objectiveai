@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The proxy sends the bytes of the file as responses of at most CHUNK_SIZE bytes each and the finish; a file of zero bytes is one empty response; an error is the last response.'
+summary: 'The server sends the bytes of the file as responses of at most CHUNK_SIZE bytes each and the finish; a file of zero bytes is one empty response; an error is the last response.'
 order: 2
 draft: false
 ---
@@ -21,7 +21,7 @@ draft: false
   `diverge-provider-sdk-rs/src/lib.rs` defines; the pieces
   concatenated are the file, and a receiver measures none.
 - **A finish with nothing.** A response finish that no response
-  precedes states that the proxy could not read the request.
+  precedes states that the server could not read the request.
 
 The response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/filesystem/read/server/response/frame.rs`:
 

@@ -1,0 +1,23 @@
+---
+title: 'Postgres'
+summary: 'Tag 0: the client opens its half of a database connection the server announced, quoting the connection id; the server sends everything the driver wrote, and the channel response finish when the driver’s socket ends.'
+order: 0
+draft: false
+---
+
+The client opens this channel as its half of a database connection
+the server announced on a [postgres](/container-proxy-endpoints/tools-begin/server/postgres/)
+channel of its own, quoting the connection id. The server sends on it
+everything the driver writes.
+
+- **The request.** The tag byte `0` followed by the connection id,
+  four bytes. [Request](/container-proxy-endpoints/tools-begin/server/postgres/request/) states its form.
+- **The response.** The bytes the driver wrote, as channel responses,
+  and the channel response finish when the driver's socket ends.
+  [Response](/container-proxy-endpoints/tools-begin/server/postgres/response/) states the sequence.
+- **Nothing is lost.** The server reads nothing from the driver before
+  this channel opens, and sends what the driver wrote from the
+  moment it does, in order.
+- **One half per connection.** A connection id the server did not
+  announce, and an id whose half was already opened, are answered by
+  a channel response finish that no channel response precedes.

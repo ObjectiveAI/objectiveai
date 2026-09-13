@@ -1,0 +1,27 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 4 and the request of the channel.'
+order: 1
+draft: false
+---
+
+```text
+[4][from_len: u16, big-endian][from …][to …]
+```
+
+- **The path.** UTF-8, `/`-separated, with no leading `/`; empty is
+  the mount itself. Where the path is the last thing in the payload
+  it runs to the end of the payload; where bytes or a second path
+  follow it, a two-byte length precedes it.
+- **`from` and `to`.** Neither is empty: the root of the mount is never moved.
+- **A directory mount only.** The server sends this ask only for a mount of kind `directory`.
+
+The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/rename.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/rename.rs
+```

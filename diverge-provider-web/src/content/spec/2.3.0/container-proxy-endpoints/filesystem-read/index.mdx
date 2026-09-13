@@ -1,12 +1,12 @@
 ---
 title: 'filesystem::read'
-summary: 'Tag 4: the server names one file of the container; the proxy sends its bytes as responses and the finish, or an error and the finish.'
+summary: 'Tag 4: the client names one file of the container; the server sends its bytes as responses and the finish, or an error and the finish.'
 order: 4
 draft: false
 ---
 
-The server opens the scope with a request whose payload is the tag
-byte `4` followed by the path of one file, as JSON. The proxy sends
+The client opens the scope with a request whose payload is the tag
+byte `4` followed by the path of one file, as JSON. The server sends
 the bytes of the file as zero or more responses, or an error, and
 ends the scope by the response finish. Neither party opens a channel
 on a read scope.
@@ -17,19 +17,19 @@ on a read scope.
 
 ## The order
 
-1. **The proxy reads the request.** A request whose payload does not
+1. **The server reads the request.** A request whose payload does not
    decode is answered by a response finish that no response precedes,
    as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A path that is
    the root, or that has a component that is empty, `.`, `..`, or
    contains `/` or NUL, is answered by exactly one error response and
    the finish.
-2. **The proxy opens the file.** As the operating system opens it, a
+2. **The server opens the file.** As the operating system opens it, a
    symbolic link followed. A file that cannot be opened, and a path
    that is not a regular file once opened, are answered by exactly
    one error response and the finish.
-3. **The proxy sends the bytes.** As responses, each at most
+3. **The server sends the bytes.** As responses, each at most
    `CHUNK_SIZE` bytes, in order, until the file is read. A file of
    zero bytes is sent as exactly one response of zero bytes. A read
    that fails is answered by exactly one error response after the
    responses already sent.
-4. **The proxy finishes the scope.**
+4. **The server finishes the scope.**

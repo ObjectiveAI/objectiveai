@@ -202,8 +202,10 @@ every container's entrypoint: not a layer of the protocol but the
 de-facto API of a program, defined at the revision. It states the
 listener and its port, that the server opens exactly one connection
 to it for the container's life and that a second is refused, that
-every message on it is one frame of Layer 2 with the server as the
-client, that no authorization frame is sent, the order in which the
+every message on it is one frame of Layer 2 with the provider's
+server as the client and the proxy as the server — the two words the
+proxy layers use for the two parties — that no authorization frame
+is sent, the order in which the
 server opens scopes, that an unreadable request is answered by a bare
 finish, what ends a channel, a scope and the connection, that text
 frames are ignored, and that nothing times out. The scopes themselves
@@ -217,10 +219,11 @@ from inside, not how a write lands.
 What a scope on the proxy connection is for: the six endpoints —
 the two begins, the mount, the tree, the read, the write — their
 tag table, and each endpoint's section shaped as a Layer 6 endpoint's
-is: the request, the response as a sequence, the channels the server
-opens (`server/`, titled `Server Channels`) and the channels the proxy
-opens (`proxy/`, titled `Proxy Channels`), each channel its own
-section with a request page and a response page. Every type shown is
+is: the request, the response as a sequence, the channels the client
+opens (`client/`, titled `Client Channels`) and the channels the
+server opens (`server/`, titled `Server Channels`), each channel its
+own section with a request page and a response page. The client is
+the provider's server and the server is the proxy, throughout. Every type shown is
 the crate's file under `container_proxy_endpoints`, included, beside
 the shared frame it aliases. What an ask means is stated once, on the
 Layer 6 channel that relays it; this layer states only how it is

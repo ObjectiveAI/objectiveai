@@ -1,0 +1,23 @@
+---
+title: 'FUSE rename'
+summary: 'Tag 4: the server renames an entry within the mount the client serves live, by the path of the entry within the mount; the client answers with exactly one channel response, ok or an error.'
+order: 4
+draft: false
+---
+
+The server opens this channel when a program in the container performs
+the operation on the mount. The ask names the entry by its path
+within the mount, and names no mount: the scope is the mount.
+
+- **The request.** The tag byte `4` followed by the ask.
+  [Request](/container-proxy-endpoints/fuse-mount/server/rename/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/container-proxy-endpoints/fuse-mount/server/rename/response/) states the
+  sequence.
+- **The meaning.** What the ask means, and what its answer means,
+  [FUSE rename](/endpoints/containers-agents-run/server/fuse-rename/) states; the client relays the ask
+  to its client with the mount's id in front of it.
+- **No repetition.** The server sends the ask exactly once. A channel
+  that ends without a finish, and a channel response finish that no
+  channel response precedes, are reported to the program as the
+  operation failed.

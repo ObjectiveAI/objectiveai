@@ -1,0 +1,20 @@
+---
+title: 'Client Channels'
+summary: 'The one channel the client opens on a tree scope: the stop, whose channel request carries no tag and no payload, and which the finish of the scope answers.'
+order: 3
+draft: false
+---
+
+The client opens each of these channels on the scope, as
+[Channels](/frames/channels/) provides. A tree defines one channel, and its channel request carries no tag: the payload is empty. The server serves each as
+its section states, and answers a channel request that does not decode
+by a channel response finish that no channel response precedes.
+
+| Tag | Channel |
+|-----|---------|
+| — | [stop](/container-proxy-endpoints/filesystem-tree/client/stop/) |
+
+The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/filesystem/tree/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/filesystem/tree/client/channel_request/frame.rs
+```

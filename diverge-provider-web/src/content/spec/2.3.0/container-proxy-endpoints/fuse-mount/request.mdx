@@ -14,7 +14,7 @@ draft: false
   `.` or `..`.
 - **`kind`.** The string `file` or the string `directory`.
 - **No id.** The request carries no id. The scope is the mount, and
-  the server, which relays each ask to its client with the id the
+  the client, which relays each ask to its client with the id the
   client gave the mount, knows the scope by that id.
 - **Malformed.** A payload that does not decode as stated is answered
   by a response finish that no response precedes.

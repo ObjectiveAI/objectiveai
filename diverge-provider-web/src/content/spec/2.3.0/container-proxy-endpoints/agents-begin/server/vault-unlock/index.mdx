@@ -1,0 +1,21 @@
+---
+title: 'Vault unlock'
+summary: 'Tag 6: the server relays an ask of a program in the container that unlocks a key of the vault the caller holds; the client answers with exactly one channel response, ok or an error, which the server relays to the program.'
+order: 6
+draft: false
+---
+
+The server opens this channel when a program in the container unlocks a key
+of the vault. The ask is sent verbatim; the client's one answer is
+relayed back to the program verbatim.
+
+- **The request.** The tag byte `6` followed by the ask.
+  [Request](/container-proxy-endpoints/agents-begin/server/vault-unlock/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/container-proxy-endpoints/agents-begin/server/vault-unlock/response/) states the
+  sequence.
+- **No repetition.** The server sends the ask exactly once. A channel
+  that ends without a finish is not asked again.
+- **The meaning.** What the ask means, and what its answer means,
+  [Vault unlock](/endpoints/containers-agents-run/server/vault-unlock/) states; the server decides nothing
+  about a key.
