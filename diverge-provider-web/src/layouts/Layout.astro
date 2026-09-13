@@ -112,11 +112,17 @@ const canonical = absolute(path);
         padding-left: 0;
         font-size: 0.925rem;
       }
-      aside nav ol ol {
+      aside nav details > ol {
         padding-left: 1rem;
       }
       aside nav li {
         margin: 0.2rem 0;
+      }
+      /* The marker stays: it is what tells a section with children
+         from a leaf, and the whole of the toggle. The title inside is
+         an ordinary link, so a click on it navigates. */
+      aside nav summary {
+        cursor: pointer;
       }
       aside nav a {
         text-decoration: none;
