@@ -1,0 +1,26 @@
+---
+title: 'Response'
+summary: 'The proxy sends Begun once and nothing more until the finish, which it sends only when it ends; or an error and the finish.'
+order: 2
+draft: false
+---
+
+```text
+[0]                  begun
+[1][error JSON …]    not begun: the connection had begun
+```
+
+- **The sequence.** Exactly one response whose first byte is `0`,
+  followed by the response finish when the proxy ends; or exactly one
+  response whose first byte is `1`, followed by the response finish.
+  No other response is sent on the scope.
+- **The error.** After the byte `1`, exactly one JSON value in the
+  form defined on the [volumes::list response](/endpoints/volumes-list/response/)
+  page.
+- **A finish with nothing.** A response finish that no response
+  precedes states that the proxy could not read the request.
+
+The response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/server/response/frame.rs
+```

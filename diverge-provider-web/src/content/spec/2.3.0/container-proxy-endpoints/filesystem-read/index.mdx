@@ -1,0 +1,35 @@
+---
+title: 'filesystem::read'
+summary: 'Tag 4: the server names one file of the container; the proxy sends its bytes as responses and the finish, or an error and the finish.'
+order: 4
+draft: false
+---
+
+The server opens the scope with a request whose payload is the tag
+byte `4` followed by the path of one file, as JSON. The proxy sends
+the bytes of the file as zero or more responses, or an error, and
+ends the scope by the response finish. Neither party opens a channel
+on a read scope.
+
+- **The request.** [Request](/container-proxy-endpoints/filesystem-read/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/filesystem-read/response/) states the sequence of
+  the main stream.
+
+## The order
+
+1. **The proxy reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A path that is
+   the root, or that has a component that is empty, `.`, `..`, or
+   contains `/` or NUL, is answered by exactly one error response and
+   the finish.
+2. **The proxy opens the file.** As the operating system opens it, a
+   symbolic link followed. A file that cannot be opened, and a path
+   that is not a regular file once opened, are answered by exactly
+   one error response and the finish.
+3. **The proxy sends the bytes.** As responses, each at most
+   `CHUNK_SIZE` bytes, in order, until the file is read. A file of
+   zero bytes is sent as exactly one response of zero bytes. A read
+   that fails is answered by exactly one error response after the
+   responses already sent.
+4. **The proxy finishes the scope.**

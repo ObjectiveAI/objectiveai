@@ -1,0 +1,23 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 7 and the request of the channel.'
+order: 1
+draft: false
+---
+
+```text
+[7][params JSON …]
+```
+
+- **The params.** The params of the MCP method `tools/list`, as JSON,
+  verbatim.
+
+The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/mcp/list_tools/request/request.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/mcp/list_tools/request/request.rs
+```

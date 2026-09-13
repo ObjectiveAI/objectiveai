@@ -1,0 +1,50 @@
+---
+title: 'filesystem::tree'
+summary: 'Tag 3: the server names the paths to leave out; the proxy sends the filesystem of the container from its root as a snapshot and one response per change, until the server stops it or the proxy ends.'
+order: 3
+draft: false
+---
+
+The server opens the scope with a request whose payload is the tag
+byte `3` followed by the paths to leave out, as JSON. The proxy sends
+the tree as a snapshot, one response, and after it one response per
+change, for as long as the scope lives; the server ends the scope by
+opening one channel on it, the stop, and the proxy answers the stop
+by the response finish.
+
+- **The request.** [Request](/container-proxy-endpoints/filesystem-tree/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/filesystem-tree/response/) states the sequence of
+  the main stream.
+- **The channels.** The server opens the channel that
+  [Server Channels](/container-proxy-endpoints/filesystem-tree/server/) defines. The proxy opens no channel
+  on a tree scope.
+
+## The order
+
+1. **The proxy reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Container Proxy Endpoints](/container-proxy-endpoints/) provides.
+2. **The proxy watches, and walks.** The watch is armed before the
+   walk, so that a change during the walk is sent after the snapshot
+   rather than lost. A watch that cannot be made, a root that cannot
+   be watched, or a walk that dies is answered by exactly one error
+   response and the finish.
+3. **The proxy sends the snapshot.** Exactly one response carrying the
+   whole tree, first.
+4. **The proxy sends every change.** One response per change, in the
+   order the changes were observed. A directory the proxy could not
+   watch is present in the tree with `changes` false, and no change
+   under it is sent. Lost events — an overflowed queue — are answered
+   by a fresh snapshot on the same scope, not by an error.
+5. **The proxy answers the stop.** It sends the response finish after
+   it receives the stop, and drops the watch.
+
+## The rules that hold throughout
+
+- **Left out.** `/proc`, `/sys` and `/dev` are left out of every tree,
+  and every path the request names. A path left out is absent from
+  the snapshot, never watched, and a change under it is not sent.
+- **The form.** Each response carries one frame of the
+  [filetree](/endpoints/containers-agents-run/client/filetree/)
+  stream, as that channel defines it, over the root of the container.
+- **No timeout.** The proxy imposes no timeout on the scope.

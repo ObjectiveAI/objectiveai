@@ -1,0 +1,27 @@
+---
+title: 'Enqueue'
+summary: 'Tag 2: the server sends a message to the agent, which starts a loop when none runs and joins the queue when one does; the proxy answers with exactly one channel response, the fate of the message, when the fate is known.'
+order: 2
+draft: false
+---
+
+The server opens this channel to send a message to the agent. A
+message sent while no loop runs starts one, as its prompt; a message
+sent while one runs is placed in its queue, and the agent takes it at
+a seam of its own choosing. Nothing interrupts a loop. What the agent
+says in reply is the main stream of the scope, as
+[Response](/container-proxy-endpoints/agents-begin/response/) states.
+
+- **The request.** The tag byte `2` followed by the message as JSON.
+  [Request](/container-proxy-endpoints/agents-begin/server/enqueue/request/) states its form.
+- **The response.** Exactly one channel response, sent when the fate
+  of the message is known, however long that takes, and the channel
+  response finish. [Response](/container-proxy-endpoints/agents-begin/server/enqueue/response/) states the
+  sequence.
+- **Order.** Messages are taken in the order the server sent them.
+- **A loop ending.** A loop that ends with a message still waiting
+  does not lose it: the proxy starts the next loop on every message
+  still waiting, joined into one prompt with a blank line between
+  them, in the order sent.
+- **No timeout.** The proxy holds the channel open until the fate is
+  known.

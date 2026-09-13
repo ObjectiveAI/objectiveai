@@ -1,0 +1,33 @@
+---
+title: 'Endings'
+summary: 'Only a finish ends a channel or a scope, however long it has been quiet; the begin scope’s finish is the proxy ending; a mount scope stays open for the proxy’s life; the connection ending ends everything on it.'
+order: 3
+draft: false
+---
+
+Nothing but a finish ends a channel or a scope. The rule the
+[Frames](/frames/) layer states holds on this connection without
+exception, and no page of the Container Proxy Endpoints layer adds
+an ending to it.
+
+- **A channel.** A channel ends at its channel response finish, sent
+  by the party that answers it, and nowhere else. A channel on which
+  no frame has arrived for any length of time remains open.
+- **A scope.** A scope ends at its response finish, sent by the proxy,
+  and nowhere else. The server ends no scope; a
+  [filesystem::tree](/container-proxy-endpoints/filesystem-tree/)
+  scope is ended by the proxy after the server's stop.
+- **The begin scope.** The proxy sends the response finish of the
+  begin scope when the proxy ends, and at no other time. A begin
+  answered by an error is finished at once.
+- **A mount scope.** The proxy holds a mount, and the scope it was
+  made on, for the proxy's life. It sends no response finish on a
+  mount scope it answered `Ok`.
+- **A finish with nothing before it.** A response finish that no
+  response precedes, and a channel response finish that no channel
+  response precedes, state that the request or the ask was not
+  served. Each endpoint states what that means for it.
+- **The connection.** The connection ending ends every scope on it and
+  every channel with them, without a finish. Nothing is re-asked, and
+  there is no second connection, as
+  [Connection](/container-proxy/connection/) provides.

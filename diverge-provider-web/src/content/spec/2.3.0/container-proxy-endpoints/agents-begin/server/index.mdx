@@ -1,0 +1,23 @@
+---
+title: 'Server Channels'
+summary: 'The channels the server opens on an agent container’s begin scope, by tag: its half of a database connection, the agent’s schema, and the two verbs of the queue.'
+order: 3
+draft: false
+---
+
+The server opens each of these channels on the scope, as
+[Channels](/frames/channels/) provides. The payload of the channel request begins with one tag byte designating the channel; the remainder is the channel's request. The server opens no channel on the scope before the `Begun` response. The proxy serves each as
+its section states, and answers a channel request that does not decode
+by a channel response finish that no channel response precedes.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [postgres](/container-proxy-endpoints/agents-begin/server/postgres/) |
+| `1` | [agent-schema](/container-proxy-endpoints/agents-begin/server/agent-schema/) |
+| `2` | [enqueue](/container-proxy-endpoints/agents-begin/server/enqueue/) |
+| `3` | [dequeue](/container-proxy-endpoints/agents-begin/server/dequeue/) |
+
+The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/client/channel_request/frame.rs
+```

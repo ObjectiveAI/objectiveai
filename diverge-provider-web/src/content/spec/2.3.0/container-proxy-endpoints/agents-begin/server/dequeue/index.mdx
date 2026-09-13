@@ -1,0 +1,18 @@
+---
+title: 'Dequeue'
+summary: 'Tag 3: the server withdraws every message waiting for the agent; the proxy answers with exactly one channel response stating whether anything was withdrawn, and answers each withdrawn message on its own enqueue channel.'
+order: 3
+draft: false
+---
+
+The server opens this channel to withdraw every message waiting for
+the agent: those the proxy holds, and those the loop in flight holds
+and has not taken. A message the loop has taken stays taken.
+
+- **The request.** The tag byte `3` and nothing more.
+  [Request](/container-proxy-endpoints/agents-begin/server/dequeue/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/container-proxy-endpoints/agents-begin/server/dequeue/response/) states the
+  sequence.
+- **The messages withdrawn.** Each message withdrawn is answered on
+  its own [enqueue](/container-proxy-endpoints/agents-begin/server/enqueue/) channel with the byte `1`.

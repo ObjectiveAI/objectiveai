@@ -1,0 +1,23 @@
+---
+title: 'FUSE list'
+summary: 'Tag 2: the proxy lists a directory of the mount the client serves live, by the path of the entry within the mount; the server answers with exactly one channel response, the entries, the absence of the directory, or an error.'
+order: 2
+draft: false
+---
+
+The proxy opens this channel when a program in the container performs
+the operation on the mount. The ask names the entry by its path
+within the mount, and names no mount: the scope is the mount.
+
+- **The request.** The tag byte `2` followed by the ask.
+  [Request](/container-proxy-endpoints/fuse-mount/proxy/list/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/container-proxy-endpoints/fuse-mount/proxy/list/response/) states the
+  sequence.
+- **The meaning.** What the ask means, and what its answer means,
+  [FUSE list](/endpoints/containers-agents-run/server/fuse-list/) states; the server relays the ask
+  to its client with the mount's id in front of it.
+- **No repetition.** The proxy sends the ask exactly once. A channel
+  that ends without a finish, and a channel response finish that no
+  channel response precedes, are reported to the program as the
+  operation failed.

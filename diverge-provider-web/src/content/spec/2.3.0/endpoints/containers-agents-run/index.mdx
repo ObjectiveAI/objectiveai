@@ -78,8 +78,9 @@ about the client, which may open any channel at any time.
    held. A deploy that does not complete is the run's error.
 5. **The server connects to the proxy.** The server opens exactly
    one WebSocket to port `14979` of the container, the connection of
-   the [Container Proxy](/proxy/) layer, and on it, before anything
-   else, the begin scope of the container's family — carrying the `agent` value of the request verbatim.
+   the [Container Proxy](/container-proxy/) layer, and on it, before
+   anything else, the begin scope of the container's family —
+   [agents::begin](/container-proxy-endpoints/agents-begin/), carrying the `agent` value of the request verbatim.
    A proxy that does not accept the connection, or that answers the
    begin with an error, is a container that did not come up: the
    server stops the container, and the failure is the run's error.

@@ -1,0 +1,29 @@
+---
+title: 'Response'
+summary: 'The proxy sends Ok once the mount is serving and nothing more on the scope for its own life, or an error, UTF-8, and the finish.'
+order: 2
+draft: false
+---
+
+```text
+[0]             ok: the mount is serving
+[1][message …]  not made: why not, UTF-8
+```
+
+- **The sequence.** Exactly one response whose first byte is `0`, and
+  no response finish for the life of the proxy; or exactly one
+  response whose first byte is `1`, followed by the response finish.
+- **The message.** The bytes after the byte `1` are UTF-8, not JSON:
+  the reason the mount was not made.
+- **A finish with nothing.** A response finish that no response
+  precedes states that the proxy could not read the request.
+
+The response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/response/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/fuse/ack/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/fuse/ack/frame.rs
+```

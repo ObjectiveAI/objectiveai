@@ -1,0 +1,21 @@
+---
+title: 'Vault get'
+summary: 'Tag 2: the proxy relays an ask of a program in the container that reads a key of the vault the server’s client holds; the server answers with exactly one channel response, the value, its absence, or an error, which the proxy relays to the program.'
+order: 2
+draft: false
+---
+
+The proxy opens this channel when a program in the container reads a key
+of the vault. The ask is sent verbatim; the server's one answer is
+relayed back to the program verbatim.
+
+- **The request.** The tag byte `2` followed by the ask.
+  [Request](/container-proxy-endpoints/tools-begin/proxy/vault-get/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/container-proxy-endpoints/tools-begin/proxy/vault-get/response/) states the
+  sequence.
+- **No repetition.** The proxy sends the ask exactly once. A channel
+  that ends without a finish is not asked again.
+- **The meaning.** What the ask means, and what its answer means,
+  [Vault get](/endpoints/containers-agents-run/server/vault-get/) states; the proxy decides nothing
+  about a key.

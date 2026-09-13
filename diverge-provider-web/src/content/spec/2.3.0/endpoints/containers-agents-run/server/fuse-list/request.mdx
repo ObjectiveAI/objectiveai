@@ -10,9 +10,10 @@ draft: false
 ```
 
 - **The ask.** The bytes after the tag are the id of the mount, which
-  the server adds, and the ask as the [Container Proxy](/proxy/)
-  layer defines it, relayed verbatim: the path of the entry relative
-  to the root of the mount, and what the ask carries.
+  the server adds, and the ask as the
+  [Container Proxy Endpoints](/container-proxy-endpoints/) layer
+  defines it, relayed verbatim: the path of the entry relative to the
+  root of the mount, and what the ask carries.
 
 The channel request is defined by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/channel_request/frame.rs`:
 

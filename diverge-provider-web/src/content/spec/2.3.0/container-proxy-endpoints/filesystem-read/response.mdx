@@ -1,0 +1,34 @@
+---
+title: 'Response'
+summary: 'The proxy sends the bytes of the file as responses of at most CHUNK_SIZE bytes each and the finish; a file of zero bytes is one empty response; an error is the last response.'
+order: 2
+draft: false
+---
+
+```text
+[0][bytes …]         a piece of the file
+[1][error JSON …]    the file was not read, or not all of it
+```
+
+- **The sequence.** Zero or more responses whose first byte is `0`,
+  each a piece of the file in order, followed by the response finish;
+  or the responses sent so far, exactly one response whose first byte
+  is `1`, and the response finish. A file of zero bytes is exactly
+  one response whose first byte is `0` and nothing after it.
+- **The piece.** After the byte `0`, the bytes of the piece,
+  verbatim, running to the end of the payload. Each piece is at most
+  `CHUNK_SIZE` bytes, `2 * 1024 * 1024`, the constant
+  `diverge-provider-sdk-rs/src/lib.rs` defines; the pieces
+  concatenated are the file, and a receiver measures none.
+- **A finish with nothing.** A response finish that no response
+  precedes states that the proxy could not read the request.
+
+The response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/filesystem/read/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/filesystem/read/server/response/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/read/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/read/response/frame.rs
+```

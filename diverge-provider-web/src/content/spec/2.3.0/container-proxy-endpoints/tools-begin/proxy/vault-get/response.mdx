@@ -1,0 +1,28 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][value …]    the value; empty is a value
+[1]             the key holds nothing
+[2][message …]  an error, UTF-8
+```
+
+- **The sequence.** Exactly one channel response, the value, its absence, or an error, followed
+  by the channel response finish.
+- **A finish with nothing.** A channel response finish that no
+  channel response precedes states that the server did not serve the
+  ask. The proxy does not ask again.
+
+The channel response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_response/vault_get/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_response/vault_get/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/vault/get/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/vault/get/response/frame.rs
+```

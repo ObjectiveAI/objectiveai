@@ -1,0 +1,30 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][notification JSON …]    zero or more
+[1][error JSON …]           the server of the container cannot be reached
+```
+
+- **The sequence.** Zero or more channel responses whose first byte
+  is `0`, each one notification, in order, and no finish while the
+  connection lives; or exactly one channel response whose first byte
+  is `1`, sent before any notification, followed by the channel
+  response finish.
+- **Lost notifications.** A notification the container's MCP server
+  sent while the channel could not keep pace is not sent; the
+  sequence does not report the loss.
+
+The channel response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/server/channel_response/mcp_notifications/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/server/channel_response/mcp_notifications/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/mcp/notifications/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/mcp/notifications/response/frame.rs
+```

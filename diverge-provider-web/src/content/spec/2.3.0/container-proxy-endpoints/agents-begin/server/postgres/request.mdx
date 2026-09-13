@@ -1,0 +1,26 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 0 and the request of the channel.'
+order: 1
+draft: false
+---
+
+```text
+[0][connection_id: u32, big-endian]
+```
+
+- **`connection_id`.** The id the proxy announced on its own postgres
+  channel, as four bytes, big-endian.
+- **Malformed.** A channel request whose payload does not decode as
+  stated is answered by a channel response finish that no channel
+  response precedes, and the proxy does nothing else for it.
+
+The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/client/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/postgres/request/postgres.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/postgres/request/postgres.rs
+```

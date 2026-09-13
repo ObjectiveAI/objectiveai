@@ -1,0 +1,34 @@
+---
+title: 'Response'
+summary: 'The proxy sends Begun once, or an error and the finish; after Begun it sends every chunk of the agent’s conversation as a response, and the finish only when the proxy ends.'
+order: 2
+draft: false
+---
+
+```text
+[0]                  begun: the container holds its agent
+[1][error JSON …]    not begun: the connection had begun, or the agent was refused
+[2][chunk JSON …]    one chunk of the conversation
+```
+
+- **The sequence.** Exactly one response whose first byte is `0`,
+  followed by zero or more responses whose first byte is `2`, in the
+  order the agent's server produced them, followed by the response
+  finish when the proxy ends; or exactly one response whose first
+  byte is `1`, followed by the response finish. The proxy sends no
+  response whose first byte is `2` before `Begun`, and none after the
+  finish.
+- **The chunk.** The bytes after the byte `2` are one chunk as the
+  [containers::agents::run response](/endpoints/containers-agents-run/response/)
+  defines it, as JSON, which the proxy sends exactly as the agent's
+  server produced it.
+- **The error.** After the byte `1`, exactly one JSON value in the
+  form defined on the [volumes::list response](/endpoints/volumes-list/response/)
+  page. A refused agent carries the container's own words.
+- **A finish with nothing.** A response finish that no response
+  precedes states that the proxy could not read the request.
+
+The response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/server/response/frame.rs
+```

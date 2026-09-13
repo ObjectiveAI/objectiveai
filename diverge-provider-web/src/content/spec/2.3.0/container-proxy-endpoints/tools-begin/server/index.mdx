@@ -1,0 +1,25 @@
+---
+title: 'Server Channels'
+summary: 'The channels the server opens on a tool container’s begin scope, by tag: its half of a database connection, and the five MCP exchanges into the container’s own MCP server.'
+order: 3
+draft: false
+---
+
+The server opens each of these channels on the scope, as
+[Channels](/frames/channels/) provides. The payload of the channel request begins with one tag byte designating the channel; the remainder is the channel's request. The server opens no channel on the scope before the `Begun` response. The proxy serves each as
+its section states, and answers a channel request that does not decode
+by a channel response finish that no channel response precedes.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [postgres](/container-proxy-endpoints/tools-begin/server/postgres/) |
+| `1` | [mcp-list-tools](/container-proxy-endpoints/tools-begin/server/mcp-list-tools/) |
+| `2` | [mcp-list-resources](/container-proxy-endpoints/tools-begin/server/mcp-list-resources/) |
+| `3` | [mcp-call-tool](/container-proxy-endpoints/tools-begin/server/mcp-call-tool/) |
+| `4` | [mcp-read-resource](/container-proxy-endpoints/tools-begin/server/mcp-read-resource/) |
+| `5` | [mcp-notifications](/container-proxy-endpoints/tools-begin/server/mcp-notifications/) |
+
+The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_request/frame.rs
+```
