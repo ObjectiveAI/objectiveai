@@ -21,7 +21,7 @@ use crate::shared::containers::{dequeue, enqueue, read, write_path};
 /// Every channel a caller may open into an agent container is a
 /// method here: the tree watched, a file read or written, the agent's
 /// schema, the queue's two verbs, and the stop. What the agent says
-/// is not: it is the [`Chunks`](super::Chunks) `execute` handed back
+/// is not: it is the [`ExecuteStream`](super::ExecuteStream) `execute` handed back
 /// beside this. Each opens its own channel, so several may be in flight
 /// at once. Clones share the scope, and [`wait`](Self::wait) on any
 /// of them reports the same end.
@@ -60,7 +60,7 @@ impl ExecuteHandle {
     /// # It reads nothing
     ///
     /// The main stream is the conversation, and the
-    /// [`Chunks`](super::Chunks) `execute` handed back are its reader.
+    /// [`ExecuteStream`](super::ExecuteStream) `execute` handed back is its reader.
     /// This waits for that reader to reach the end, so that no chunk
     /// is lost to a caller who only wanted to know the run is over; a
     /// caller that wants the end and not the conversation drains the
