@@ -13,9 +13,14 @@ both directions define frame type `0`.
 
 ## The requirement
 
-- **The first frame.** The first frame of every connection is an
-  authorization frame (type `0`), sent by the connector to the
-  connectee. No frame precedes it.
+- **Every connection of the Protocol.** This layer governs every
+  connection on which the Protocol is served. A connection that a
+  layer of this specification declares to be no connection of the
+  Protocol is not governed by this layer, and carries no authorization
+  frame.
+- **The first frame.** The first frame of every connection of the
+  Protocol is an authorization frame (type `0`), sent by the connector
+  to the connectee. No frame precedes it.
 - **Exactly one.** A connection carries exactly one authorization
   frame. An authorization frame arriving at any later point, or from
   the connectee, is a protocol violation; the party receiving it

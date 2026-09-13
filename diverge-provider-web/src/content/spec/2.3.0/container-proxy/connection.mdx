@@ -1,35 +1,47 @@
 ---
 title: 'Connection'
-summary: 'The client opens exactly one connection to the server, for the life of the container; the first frame on it opens the begin scope; the connection ending ends every scope on it, and nothing is re-asked.'
+summary: 'The client opens exactly one connection to the server, for the life of the container; the begin scope comes first and once, every mount before the rest; the connection ending ends every scope on it, and nothing is re-asked.'
 order: 1
 draft: false
 ---
 
 The client opens the connection, and the connection is the life of
-the container: everything the client and the server say to each
-other rides it, and nothing survives it.
+the container: every scope the client opens rides it, in the order
+this page states, and nothing survives it.
 
 - **The opening.** The client performs the WebSocket opening handshake
-  against port `14979` of the container, at the path `/`, as
-  [WebSocket](/websocket/) provides. The server sends no frame before
-  the client's first frame.
+  against port `14979` of the container, at the path `/`. The server
+  sends no frame before the client's first frame.
+- **One connection.** The server accepts exactly one connection in its
+  life. It refuses every later upgrade with HTTP status `409` before
+  the upgrade, whether the first connection is open or has ended.
+  There is no second connection to a proxy.
 - **The first frame.** The first frame the client sends is a request,
   type `1`, opening the begin scope of the container's family:
   [agents::begin](/container-proxy-endpoints/agents-begin/) on an
   agent container, [tools::begin](/container-proxy-endpoints/tools-begin/)
-  on a tool container. The client sends no other request before it,
-  and sends it exactly once on the connection.
-- **One connection.** The server accepts one connection in its life.
-  A second upgrade, whether the first connection is open or has
-  ended, is refused with HTTP status `409` before the upgrade. There
-  is no second connection to a proxy.
+  on a tool container. The client sends it exactly once on the
+  connection and before any other request. A second begin is answered
+  by exactly one error response and the response finish, and the
+  first begin continues.
+- **The mounts.** After the begin has been answered, the client opens
+  one [fuse::mount](/container-proxy-endpoints/fuse-mount/) scope per
+  mount, and opens no other scope until every mount has been
+  answered.
+- **The rest.** After every mount has been answered, the client opens
+  [filesystem::tree](/container-proxy-endpoints/filesystem-tree/),
+  [filesystem::read](/container-proxy-endpoints/filesystem-read/) and
+  [filesystem::write](/container-proxy-endpoints/filesystem-write/)
+  scopes, and channels on the begin scope, in any order and in
+  parallel. Neither party opens a channel on the begin scope before
+  the server has sent its `Begun` response.
 - **The end.** The connection ends when either party closes it, by
-  the WebSocket closing handshake or otherwise. When the connection
-  ends, every scope on it is over and every channel with it. The
-  server re-asks nothing that was in flight, and the client re-sends
-  nothing. What was in flight when the connection ended is what was
-  in flight when the container ended.
+  the WebSocket closing handshake or otherwise. When it ends, every
+  scope on it is over and every channel with it, without a finish.
+  The server re-asks nothing that was in flight, and the client
+  re-sends nothing: what was in flight when the connection ended is
+  what was in flight when the container ended.
 - **The server does not close.** The server closes the connection
-  only on a frame of type `0`, as [Container Proxy](/container-proxy/)
-  provides. It does not close the connection on a frame it cannot
-  read, on a scope it cannot serve, or after any length of quiet.
+  only on a frame of type `0`. It does not close the connection on a
+  frame it cannot read, on a request it cannot read, on a scope it
+  cannot serve, or after any length of quiet.

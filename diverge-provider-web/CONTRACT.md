@@ -139,9 +139,13 @@ external interface the Specification's Container Proxy layer defines
 and whose scopes and channels its Container Proxy Endpoints layer
 states:
 the program that listens on TCP port 14979 of a Container, accepts one
-WebSocket connection there from the Provider's Server, and speaks over
-it, framed as the Protocol's own frames, the scopes and channels that
-layer states. The Provider satisfies the requirement to use the
+WebSocket connection there from the Provider's Server — a connection
+that is no connection of the Protocol, to which the Specification's
+WebSocket and Frames layers apply as the Container Proxy layer
+incorporates them, with the Provider's Server as the client and the
+Proxy as the server, and to which the Authorization layer does not
+apply — and speaks over it the scopes and channels that layer
+states. The Provider satisfies the requirement to use the
 Container Proxy by placing inside every Container a program that
 conforms to that layer in full; the program published by Diverge under
 the name `diverge-container-proxy` at version 2.3.0 is such a
