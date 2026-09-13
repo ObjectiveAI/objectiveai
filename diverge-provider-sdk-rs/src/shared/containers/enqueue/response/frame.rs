@@ -10,7 +10,7 @@ use crate::shared;
 /// One frame, then the finish: what became of the enqueued message.
 ///
 /// A payload leads with one byte saying which; only
-/// [`Error`](Self::Error) carries anything after it. The three fates
+/// [`Error`](Self::Error) carries anything after it. The two fates
 /// are data-free deliberately — the fate IS the answer, and the
 /// message's content is the client's own to remember.
 ///
@@ -20,8 +20,11 @@ use crate::shared;
 /// takes to reach a seam, so this answer can arrive long after the
 /// ask. Nothing times it out — nothing in this protocol times
 /// anything out — and every enqueued message gets exactly one of
-/// these eventually, because every queue ends: taken, withdrawn, or
-/// outlived.
+/// these eventually: taken by a run, the one in flight or the one
+/// that starts when it ends with messages still waiting; withdrawn
+/// by a dequeue; or the error, when no run could start on it. A run
+/// ending does not lose a message: what it left waiting starts the
+/// next.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The agent took the message into the conversation. Tag `0`.
@@ -34,15 +37,13 @@ pub enum Frame {
     /// The caller withdrew the message before the agent took it.
     /// Tag `1`.
     Dequeued,
-    /// The run ended before the message could be taken. Tag `2`.
+    /// No run could start on the message. Tag `2`.
     ///
-    /// Nothing malfunctioned and nobody withdrew it — there was no
-    /// conversation left for it to enter.
-    Missed,
-    /// The message's fate could not be determined. Tag `3`.
-    ///
-    /// The provider's own failure, in the protocol's one error shape
-    /// — not a fate of the message but the absence of one.
+    /// The one way a message is lost: it was to start a run, and the
+    /// agent's server refused or could not be reached — its own
+    /// words, in the protocol's one error shape. A message queued
+    /// behind a running loop never gets this; a delivery that loop
+    /// refuses waits for the loop to end and starts the next.
     Error(shared::error::Error),
 }
 
@@ -52,15 +53,12 @@ const DELIVERED: u8 = 0;
 /// Tag for [`Frame::Dequeued`].
 const DEQUEUED: u8 = 1;
 
-/// Tag for [`Frame::Missed`].
-const MISSED: u8 = 2;
-
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 3;
+const ERROR: u8 = 2;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
-    /// The ordinary JSON failure. Three variants cannot fail at all.
+    /// The ordinary JSON failure. Two variants cannot fail at all.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -73,10 +71,6 @@ impl Encode for Frame {
             }
             Frame::Dequeued => {
                 out.extend_from_slice(&[DEQUEUED]);
-                Ok(())
-            }
-            Frame::Missed => {
-                out.extend_from_slice(&[MISSED]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -97,7 +91,6 @@ impl Decode<'_> for Frame {
         match *tag {
             DELIVERED => Ok(Frame::Delivered),
             DEQUEUED => Ok(Frame::Dequeued),
-            MISSED => Ok(Frame::Missed),
             ERROR => shared::error::Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameError::Body),
@@ -111,7 +104,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's three.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not

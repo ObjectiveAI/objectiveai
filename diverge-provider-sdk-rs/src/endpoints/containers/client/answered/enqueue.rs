@@ -8,8 +8,8 @@ use super::Answered;
 use crate::decode::Decode as _;
 use crate::shared::containers::enqueue;
 
-/// The fate of an enqueued message, whole — delivered, dequeued,
-/// missed, or the error — whenever it is known. The frame is the
+/// The fate of an enqueued message, whole — delivered, dequeued, or
+/// the error — whenever it is known. The frame is the
 /// answer, `Error` included: nothing refuses an enqueue, it is only
 /// fated.
 #[derive(Debug, Clone, Copy)]
