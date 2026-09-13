@@ -38,9 +38,11 @@
 //!   image_cache_disk: 107374182400
 //!   podman_storage_path: /mnt/podman
 //!   registries:
-//!     - docker.io
-//!     - ghcr.io
-//!     - quay.io
+//!     - host: docker.io
+//!     - host: ghcr.io
+//!       credential:
+//!         username: bolt
+//!         password: ghp_…
 //! volumes:
 //!   stores:
 //!     - path: /mnt/volumes-a

@@ -12,5 +12,9 @@
 //! through this module and not through the file it lives in.
 
 mod containers;
+mod credential;
+mod registry;
 
 pub use containers::*;
+pub use credential::*;
+pub use registry::*;
