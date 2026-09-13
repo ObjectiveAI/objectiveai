@@ -33,16 +33,17 @@
 //!       key: c31d…
 //!       identity: hub
 //! containers:
-//!   memory: 34359738368
-//!   container_overlay_disk: 214748364800
-//!   image_cache_disk: 107374182400
-//!   podman_storage_path: /mnt/podman
-//!   registries:
-//!     - host: docker.io
-//!     - host: ghcr.io
-//!       credential:
-//!         username: bolt
-//!         password: ghp_…
+//!   podman:
+//!     registries:
+//!       - host: docker.io
+//!       - host: ghcr.io
+//!         credential:
+//!           username: bolt
+//!           password: ghp_…
+//!     storage_path: /mnt/podman
+//!     image_cache_disk: 107374182400
+//!     container_overlay_disk: 214748364800
+//!     memory: 34359738368
 //! volumes:
 //!   stores:
 //!     - path: /mnt/volumes-a

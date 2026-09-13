@@ -35,10 +35,9 @@ pub struct Config {
     /// no one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clients: Option<Clients>,
-    /// What containers may reach between them, where their storage
-    /// lives, and which registries a caller may name. Absent from the
-    /// file means its [`Default`]: a provider runs containers before
-    /// it has configured anything.
+    /// The runtime the provider runs containers with, and what it
+    /// gives it. Absent from the file means its [`Default`]: a
+    /// provider runs containers before it has configured anything.
     #[serde(default)]
     pub containers: Containers,
     /// Where volumes may be created, and which exist already. Absent
