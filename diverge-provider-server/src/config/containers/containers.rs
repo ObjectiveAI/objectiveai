@@ -30,13 +30,16 @@ pub struct Containers {
     /// removes images no running container uses to stay under it,
     /// and an image larger than it alone cannot be pulled.
     pub image_cache_disk: u64,
-    /// The directory container storage is kept under: the image
-    /// cache, what a container writes over its image, and what holds
-    /// a volume's changes apart while `persist` is `false`. A path
-    /// that is not absolute is resolved relative to the directory
+    /// The directory podman's data is kept under: the image cache,
+    /// what a container writes over its image, and what holds a
+    /// volume's changes apart while `persist` is `false`. On Linux it
+    /// is podman's storage root, the `graphroot`, and the data lies in
+    /// it directly; on macOS and Windows it is where the podman
+    /// machine's disk lives, and the data lies inside that disk. A
+    /// path that is not absolute is resolved relative to the directory
     /// that contains `config.yaml` itself, never to the working
     /// directory; an absolute path stands as written.
-    pub path: PathBuf,
+    pub podman_storage_path: PathBuf,
     /// The registries a caller may pull from by naming them in an
     /// image reference: host names, `docker.io`, `ghcr.io`, with no
     /// scheme and no path. A reference whose host is not listed is
@@ -49,7 +52,7 @@ pub struct Containers {
 
 /// What a provider runs with before it has written a line of
 /// configuration: 8 GiB of memory, 32 GiB of overlay disk, a 32 GiB
-/// image cache, `data/containers` beside `config.yaml`, and
+/// image cache, podman's data under `data/podman` beside `config.yaml`, and
 /// the three registries a caller may name, `docker.io` first.
 impl Default for Containers {
     fn default() -> Self {
@@ -60,7 +63,7 @@ impl Default for Containers {
             container_overlay_disk: 32 * 1024 * 1024 * 1024,
             // 32 GiB.
             image_cache_disk: 32 * 1024 * 1024 * 1024,
-            path: PathBuf::from("data/containers"),
+            podman_storage_path: PathBuf::from("data/podman"),
             registries: ["docker.io", "ghcr.io", "quay.io"]
                 .iter()
                 .map(|host| host.to_string())
