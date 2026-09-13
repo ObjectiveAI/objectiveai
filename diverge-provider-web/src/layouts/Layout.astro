@@ -49,7 +49,12 @@ const canonical = absolute(path);
       /* System fonts, a readable measure, and nothing loaded from
          anywhere. The whole presentation is this block — global on
          purpose: the markup it styles is rendered by React components
-         through the slot, which Astro's scoped styles cannot see. */
+         through the slot, which Astro's scoped styles cannot see.
+
+         The palette is the mark's: ground #280022, ink #fbeacd, links
+         #ffb2ff, titles #eba52a. Surfaces that sit on the ground are
+         tints of it, never neutral grays — #391330 for a raised block
+         (code, menus), #4e2a41 for a rule. */
       :root {
         color-scheme: dark;
         /* On the root, so the canvas paints it across the whole
@@ -81,13 +86,13 @@ const canonical = absolute(path);
       pre {
         padding: 0.75rem 1rem;
         overflow-x: auto;
-        background: #1e1e1e;
+        background: #391330;
         border-radius: 4px;
       }
-      .astro-code,
-      .astro-code span {
-        color: var(--shiki-dark) !important;
-        background-color: var(--shiki-dark-bg) !important;
+      /* Shiki writes its theme's background inline on the block; the
+         page's raised tint wins, the token colors stay the theme's. */
+      .astro-code {
+        background-color: #391330 !important;
       }
       a {
         color: #ffb2ff;
@@ -193,9 +198,9 @@ const canonical = absolute(path);
         padding: 0.25rem 0;
         list-style: none;
         min-width: 100%;
-        border: 1px solid #3a3a3a;
+        border: 1px solid #4e2a41;
         border-radius: 0.25rem;
-        background: #1c1c1c;
+        background: #391330;
       }
       .versions li {
         padding: 0.15rem 0.75rem;
@@ -220,8 +225,8 @@ const canonical = absolute(path);
       }
       article .draft {
         padding: 0.75rem 1rem;
-        border-left: 3px solid #d8a72c;
-        background: #24200f;
+        border-left: 3px solid #eba52a;
+        background: #431723;
         border-radius: 0 4px 4px 0;
       }
       /* rehype-autolink-headings appends these. */
@@ -245,7 +250,7 @@ const canonical = absolute(path);
       td {
         text-align: left;
         padding: 0.35rem 0.75rem 0.35rem 0;
-        border-bottom: 1px solid #2c2c2c;
+        border-bottom: 1px solid #4e2a41;
         vertical-align: top;
       }
       .adjacent {
@@ -254,7 +259,7 @@ const canonical = absolute(path);
         gap: 1rem;
         margin-top: 3rem;
         padding-top: 1rem;
-        border-top: 1px solid #2c2c2c;
+        border-top: 1px solid #4e2a41;
       }
       article footer {
         margin-top: 2.5rem;
