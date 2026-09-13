@@ -1,43 +1,59 @@
-//! One ask with a one-message answer — the vault's, a mounted
-//! file's — and that answer.
+//! One ask, one answer: the relay every one-message exchange rides.
 
-use axum::body::Bytes;
-use diverge_provider_sdk::container_proxy::requests::request::Request;
+use bytes::Bytes;
+use diverge_provider_sdk::server::channel::Channel;
+use diverge_provider_sdk::server::scope_handle::ScopeHandle;
 
-use crate::requests::{Event, Requests};
+use crate::answer::{self, Answer};
+use crate::own::Own;
+use crate::proxy::{Begun, Proxy};
 
-/// Ask once and take the answer: the first message on the answer
-/// path, then the clean close. Extras are ignored rather than
-/// obeyed; a path that dies, or closes with nothing, is the failure
-/// it is. No retry, per the wire: neither a vault operation nor a
-/// mounted file's write is safe to repeat.
-pub async fn ask(requests: &Requests, request: Request<'_>) -> Result<Bytes, Asked> {
-    let Ok((_, mut receiver)) = requests.ask(request).await else {
-        return Err(Asked::Encode);
-    };
-    let mut answer: Option<Bytes> = None;
+/// Why an ask has no answer.
+pub enum Asked {
+    /// The ask would not encode — the one failure that is this side's
+    /// own, which asking again cannot change.
+    Encode,
+    /// The finish with nothing before it: the caller could not serve
+    /// the ask.
+    Empty,
+    /// The channel closed without a finish: the connection went, or
+    /// the scope did, and nothing is re-asked.
+    Died,
+}
+
+/// Ask once on `scope` and take the answer: the first message on the
+/// channel, then the finish. Extras are ignored rather than obeyed; a
+/// channel that dies, or finishes with nothing, is the failure it is.
+/// No retry, per the wire: neither a vault operation nor a mounted
+/// file's write is safe to repeat.
+pub async fn ask(scope: &ScopeHandle, payload: &[u8]) -> Result<Bytes, Asked> {
+    let mut channel = scope.send_channel_request(payload).await;
+    let mut first: Option<Bytes> = None;
     loop {
-        match receiver.recv().await {
-            Some(Event::Message(bytes)) => {
-                answer.get_or_insert(bytes);
+        match answer::next(&mut channel).await {
+            Some(Answer::Frame(bytes)) => {
+                first.get_or_insert(bytes);
             }
-            Some(Event::Complete) => {
-                return answer.ok_or(Asked::Empty);
-            }
-            Some(Event::Died) | None => return Err(Asked::Died),
-            // The postgres path's alone; never on a one-answer path.
-            Some(Event::Opened(_)) => {}
+            Some(Answer::Finish) => return first.ok_or(Asked::Empty),
+            None => return Err(Asked::Died),
         }
     }
 }
 
-/// Why no answer came.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Asked {
-    /// The ask would not encode — the proxy's own fault.
-    Encode,
-    /// The answer path closed with no message.
-    Empty,
-    /// The answer path died, or `/requests` did before it opened.
-    Died,
+/// Open one of the proxy's own asks on the begin scope, waiting for
+/// the scope if the connection has not begun — the park — and hand
+/// back the channel its answer arrives on, with the scope it rides.
+pub async fn open(proxy: &Proxy, own: Own<'_>) -> Result<(Begun, Channel), Asked> {
+    let begun = proxy.begun().await.ok_or(Asked::Died)?;
+    let payload = own.encoded(begun.family).ok_or(Asked::Encode)?;
+    let channel = begun.scope.send_channel_request(&payload).await;
+    Ok((begun, channel))
+}
+
+/// One of the proxy's own asks on the begin scope, and its one
+/// answer: [`open`] and [`ask`] in one.
+pub async fn own(proxy: &Proxy, own: Own<'_>) -> Result<Bytes, Asked> {
+    let begun = proxy.begun().await.ok_or(Asked::Died)?;
+    let payload = own.encoded(begun.family).ok_or(Asked::Encode)?;
+    ask(&begun.scope, &payload).await
 }

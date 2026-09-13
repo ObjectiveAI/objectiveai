@@ -1,51 +1,33 @@
-//! `/agent/register`: the agent, forwarded to the agent's `POST
-//! /register`.
+//! The agent, told to the agent's server once: `POST /register`.
 
-use std::sync::Arc;
-
-use axum::extract::State;
-use axum::extract::ws::{WebSocket, WebSocketUpgrade};
-use axum::response::{IntoResponse, Response};
-use diverge_provider_sdk::container_proxy::agent::register::response;
-use futures_util::StreamExt as _;
+use diverge_container_proxy_sdk::agent::register::request::Request;
+use diverge_provider_sdk::shared::error::Error;
 use reqwest::header::CONTENT_TYPE;
+use serde_json::Value;
 
-use super::{Upstream, upstream};
-use crate::ws;
+use super::{Upstream, refused, status_error};
 
-/// `/agent/register`. Accepted as many times as the server opens it;
-/// once is the agent's server's rule, and its refusal of a second is
-/// forwarded like any other.
-pub async fn register(State(upstream): State<Arc<Upstream>>, upgrade: WebSocketUpgrade) -> Response {
-    upgrade
-        .on_upgrade(move |socket| serve(socket, upstream))
-        .into_response()
-}
-
-/// Serve one registration: the first message is the request,
-/// forwarded as the `POST /register` body verbatim — anything else is
-/// the clean close with nothing before it; a `2xx` is `Registered`; a
-/// non-`2xx`, or a server that cannot be dialed, is `Error`. Then the
-/// close.
-async fn serve(socket: WebSocket, upstream: Arc<Upstream>) {
-    let (sink, mut stream) = socket.split();
-    let Some(request) = ws::binary(&mut stream).await else {
-        upstream::finish(sink, None).await;
-        return;
-    };
+/// Register `agent` with the agent's server. A `2xx` is the agent
+/// held for the container's life; a non-`2xx` is the image refusing
+/// it, in its own words, and a server that cannot be reached is the
+/// refusal too.
+pub async fn register(upstream: &Upstream, agent: Value) -> Result<(), Error> {
+    let body = serde_json::to_vec(&Request { agent }).map_err(|error| {
+        Error(serde_json::json!({
+            "kind": "agent",
+            "error": format!("the agent did not serialize: {error}"),
+        }))
+    })?;
     let response = upstream
         .http()
         .post(upstream.url("/register"))
         .header(CONTENT_TYPE, "application/json")
-        .body(request)
+        .body(body)
         .send()
         .await;
-    let frame = match response {
-        Err(error) => response::Frame::Error(upstream::refused(&error)),
-        Ok(response) if !response.status().is_success() => {
-            response::Frame::Error(upstream::status_error(response).await)
-        }
-        Ok(_) => response::Frame::Registered,
-    };
-    upstream::finish(sink, upstream::encoded(&frame)).await;
+    match response {
+        Err(error) => Err(refused(&error)),
+        Ok(response) if !response.status().is_success() => Err(status_error(response).await),
+        Ok(_) => Ok(()),
+    }
 }

@@ -1,75 +1,82 @@
-//! `/agent/enqueue`: a message's fate, forwarded from `POST /enqueue`.
+//! A message for the agent: the server's enqueue channel, and the
+//! delivery of one queued message to the loop in flight.
 
-use std::pin::pin;
 use std::sync::Arc;
 
-use axum::extract::State;
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::response::{IntoResponse, Response};
-use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
+use diverge_container_proxy_sdk::agent;
+use diverge_provider_sdk::server::scope_handle::ScopeHandle;
 use diverge_provider_sdk::shared::containers::enqueue::response;
-use diverge_provider_sdk::shared::error::Error;
-use futures_util::future;
-use futures_util::StreamExt as _;
 use reqwest::header::CONTENT_TYPE;
+use tokio::sync::oneshot;
 
-use super::{Upstream, upstream};
-use crate::ws;
+use super::{Cmd, Queued};
+use crate::encode::encoded;
+use crate::proxy::Proxy;
+use crate::reply::reply;
 
-/// `/agent/enqueue`. Accepted as many times as the server opens it,
-/// each one message.
-pub async fn enqueue(State(upstream): State<Arc<Upstream>>, upgrade: WebSocketUpgrade) -> Response {
-    upgrade
-        .on_upgrade(move |socket| serve(socket, upstream))
-        .into_response()
+/// Serve one enqueue channel: the message goes to the driver, and the
+/// channel is answered with its fate whenever that is known — one
+/// frame, then the finish. Nothing times it out. A driver that is
+/// gone, or one that never was, is the finish with nothing before it.
+pub async fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, prompt: String) {
+    let (fate, heard) = oneshot::channel();
+    let sent = proxy
+        .commands()
+        .is_some_and(|commands| commands.send(Cmd::Enqueue(Queued { prompt, fate })).is_ok());
+    if !sent {
+        reply(&scope, channel, None).await;
+        return;
+    }
+    let payload = match heard.await {
+        Ok(fate) => encoded(&response::Frame::from(fate)),
+        Err(_) => None,
+    };
+    reply(&scope, channel, payload).await;
 }
 
-/// Serve one enqueue.
-///
-/// The first message is the request, forwarded as the `POST /enqueue`
-/// body verbatim; anything else is the clean close with nothing
-/// before it. The call is then held for as long as the agent's server
-/// holds it — the fate comes when it is known, and nothing times it
-/// out — with the server's socket watched meanwhile: a server that
-/// leaves drops the call. A `2xx` is the fate, as the frame; a
-/// non-`2xx`, a server that cannot be dialed, or a body that is not
-/// a fate is `Error`. Then the close.
-async fn serve(socket: WebSocket, upstream: Arc<Upstream>) {
-    let (sink, mut stream) = socket.split();
-    let Some(request) = ws::binary(&mut stream).await else {
-        upstream::finish(sink, None).await;
-        return;
-    };
+/// What one `POST /enqueue` came to.
+pub enum Outcome {
+    /// The loop took the message.
+    Delivered,
+    /// The agent's server withdrew it on a `/dequeue`.
+    Dequeued,
+    /// The loop ended under it: the message is the proxy's again.
+    Missed,
+    /// A non-`2xx`, a server that could not be reached, or a fate
+    /// that did not parse: the loop in flight did not take it, and
+    /// the message is the proxy's again.
+    Failed,
+}
 
-    let mut sending = pin!(
-        upstream
+/// Offer one message to the loop in flight, on a task of its own:
+/// `POST /enqueue`, held until the agent's server says what became of
+/// it. The driver reads the outcome when it arrives and never waits
+/// on it.
+pub fn deliver(proxy: Arc<Proxy>, prompt: String) -> oneshot::Receiver<Outcome> {
+    let (sender, receiver) = oneshot::channel();
+    tokio::spawn(async move {
+        let Ok(body) = serde_json::to_vec(&agent::enqueue::request::Request { prompt }) else {
+            let _ = sender.send(Outcome::Failed);
+            return;
+        };
+        let response = proxy
+            .upstream
             .http()
-            .post(upstream.url("/enqueue"))
+            .post(proxy.upstream.url("/enqueue"))
             .header(CONTENT_TYPE, "application/json")
-            .body(request)
+            .body(body)
             .send()
-    );
-    let response = loop {
-        let reading = pin!(stream.next());
-        match future::select(sending.as_mut(), reading).await {
-            future::Either::Left((response, _)) => break response,
-            future::Either::Right((Some(Ok(Message::Text(_) | Message::Ping(_) | Message::Pong(_))), _)) => {}
-            future::Either::Right(_) => return,
-        }
-    };
-
-    let frame = match response {
-        Err(error) => response::Frame::Error(upstream::refused(&error)),
-        Ok(response) if !response.status().is_success() => {
-            response::Frame::Error(upstream::status_error(response).await)
-        }
-        Ok(response) => match response.json::<Fate>().await {
-            Ok(fate) => response::Frame::from(fate),
-            Err(error) => response::Frame::Error(Error(serde_json::json!({
-                "kind": "agent",
-                "error": format!("the fate did not parse: {error}"),
-            }))),
-        },
-    };
-    upstream::finish(sink, upstream::encoded(&frame)).await;
+            .await;
+        let outcome = match response {
+            Ok(response) if response.status().is_success() => match response.json::<agent::enqueue::Fate>().await {
+                Ok(agent::enqueue::Fate::Delivered) => Outcome::Delivered,
+                Ok(agent::enqueue::Fate::Dequeued) => Outcome::Dequeued,
+                Ok(agent::enqueue::Fate::Missed) => Outcome::Missed,
+                Err(_) => Outcome::Failed,
+            },
+            Ok(_) | Err(_) => Outcome::Failed,
+        };
+        let _ = sender.send(outcome);
+    });
+    receiver
 }

@@ -1,16 +1,15 @@
-//! The agent's server as a client, and the answers every path shares.
+//! The agent's server as a client, and the errors every call shares.
 
-use axum::extract::ws::Message;
-use diverge_provider_sdk::container_proxy::agent;
-use diverge_provider_sdk::encode::{Encode, Writer};
+use diverge_container_proxy_sdk::agent;
 use diverge_provider_sdk::shared::error::Error;
-use futures_util::{Sink, SinkExt as _};
 
-/// The HTTP client the four paths dial the agent's server with.
+/// The HTTP client the five calls dial the agent's server with.
 ///
 /// One client, so the connections it pools are shared; nothing else
 /// is kept. The port is read from the environment on every call,
-/// per the SDK's rule, so the number lives in one place.
+/// per the SDK's rule, so the number lives in one place. No timeouts
+/// anywhere: an `/enqueue` is held until its fate, and a run's
+/// stream is as long as the loop.
 pub struct Upstream {
     http: reqwest::Client,
 }
@@ -55,26 +54,4 @@ pub fn refused(error: &reqwest::Error) -> Error {
         "kind": "agent",
         "error": error.to_string(),
     }))
-}
-
-/// One frame, as the bytes a message carries; `None` is a frame that
-/// would not serialize, which a JSON value never is.
-pub fn encoded<F: Encode>(frame: &F) -> Option<Vec<u8>> {
-    let mut out = Vec::new();
-    frame.encode(&mut Writer::new(&mut out)).ok()?;
-    Some(out)
-}
-
-/// The last message, then the clean close. A send that fails is the
-/// server gone, and there is nobody left to close for.
-pub async fn finish<S>(mut sink: S, frame: Option<Vec<u8>>)
-where
-    S: Sink<Message> + Unpin,
-{
-    if let Some(bytes) = frame {
-        if sink.send(Message::Binary(bytes.into())).await.is_err() {
-            return;
-        }
-    }
-    let _ = sink.close().await;
 }
