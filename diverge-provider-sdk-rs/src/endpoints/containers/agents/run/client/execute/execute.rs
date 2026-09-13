@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use super::super::{channel_request, channel_response, request};
 use super::execute_handle::ExecuteHandle;
-use super::Chunks;
+use super::ExecuteStream;
 use crate::client::handle::{Handle, SendError};
 use crate::client::{
     Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, IdentityStore, McpServer, OciStore,
@@ -38,7 +38,7 @@ use crate::shared::error::Error;
 /// later request — and the handle is the scope: for as long as it is
 /// held the container runs, and every channel a caller may open into
 /// the container is a method on it. The main stream carries the
-/// agent's conversation after the id, which the [`Chunks`] hand out
+/// agent's conversation after the id, which the [`ExecuteStream`] hands out
 /// chunk by chunk until the run ends — the end
 /// [`ExecuteHandle::wait`] reports.
 ///
@@ -55,7 +55,7 @@ pub async fn execute<O, A, I, P, C, V, M, F>(
     handle: &Handle,
     request: &request::Frame,
     answerers: Answerers<O, A, I, P, C, V, M, F>,
-) -> Result<(Id, ExecuteHandle, Chunks), ExecuteError>
+) -> Result<(Id, ExecuteHandle, ExecuteStream), ExecuteError>
 where
     O: OciStore + 'static,
     A: ConnectionAuthorizer + 'static,
@@ -119,7 +119,7 @@ where
         ENCODERS,
     ));
     let scoped = Arc::new(Scoped::new(handle.clone(), scope.scope, writes, scope.response_receiver));
-    Ok((id, ExecuteHandle::new(Arc::clone(&scoped)), Chunks::new(scoped)))
+    Ok((id, ExecuteHandle::new(Arc::clone(&scoped)), ExecuteStream::new(scoped)))
 }
 
 /// The stop, sent for a run this end cannot hold.

@@ -30,11 +30,11 @@ use crate::endpoints::containers::client::{Decoded, Scoped, WaitError};
 /// heard — `wait` waits for this. A caller that wants the end and not
 /// the conversation drains this to the end.
 #[must_use = "a conversation that is not polled grows a queue nobody reads, and the run's end is never heard"]
-pub struct Chunks {
+pub struct ExecuteStream {
     inner: Pin<Box<dyn Stream<Item = Result<AgenticLoopChunk, WaitError<response::FrameError>>> + Send>>,
 }
 
-impl Chunks {
+impl ExecuteStream {
     pub(super) fn new(scoped: Arc<Scoped>) -> Self {
         let inner = stream::unfold((scoped, false), |(scoped, done)| async move {
             if done {
@@ -46,7 +46,7 @@ impl Chunks {
                 Err(error) => Some((Err(error), (scoped, true))),
             }
         });
-        Chunks {
+        ExecuteStream {
             inner: Box::pin(inner),
         }
     }
@@ -63,7 +63,7 @@ fn decode(payload: &[u8]) -> Result<Decoded<AgenticLoopChunk>, response::FrameEr
     })
 }
 
-impl Stream for Chunks {
+impl Stream for ExecuteStream {
     type Item = Result<AgenticLoopChunk, WaitError<response::FrameError>>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -71,8 +71,8 @@ impl Stream for Chunks {
     }
 }
 
-impl fmt::Debug for Chunks {
+impl fmt::Debug for ExecuteStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Chunks")
+        f.write_str("ExecuteStream")
     }
 }
