@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::agent::Agent;
-use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use eventsource_stream::Event as MessageEvent;
 use futures_util::{Stream, StreamExt as _};
 use reqwest_eventsource::{Event, RequestBuilderExt as _};

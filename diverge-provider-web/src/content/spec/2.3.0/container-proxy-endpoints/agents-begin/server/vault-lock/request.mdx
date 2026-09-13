@@ -1,0 +1,23 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 5 and the request of the channel.'
+order: 1
+draft: false
+---
+
+```text
+[5][ttl: u32, big-endian][key …]
+```
+
+- **The ask.** The bytes after the tag are the ask, in the form the
+  included file defines.
+
+The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/vault/lock/request/request.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/vault/lock/request/request.rs
+```

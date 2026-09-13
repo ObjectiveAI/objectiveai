@@ -20,7 +20,7 @@ pub use feed::*;
 pub use output::*;
 pub use process::*;
 
-use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 
 /// Run the script once, and read what it answered.
 pub async fn run(feed: &Feed<'_>) -> Result<Vec<AgenticLoopChunk>, Error> {

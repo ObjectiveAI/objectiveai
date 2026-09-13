@@ -1,0 +1,29 @@
+[package]
+name = "diverge-provider-server"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The reference provider of the Diverge provider protocol — a server that serves callers as the specification requires"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "diverge-provider-server"
+path = "src/main.rs"
+
+[dependencies]
+# Path-only: this crate rides the workspace and is never published, so
+# the SDK is named by where it lives rather than by a version pin
+# version.sh would have to chase. `server` is the half that holds the
+# socket and hands this crate the scopes to serve.
+diverge-provider-sdk = { path = "../diverge-provider-sdk-rs", default-features = false, features = ["server"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+serde_path_to_error = "0.1.20"
+serde_yaml_ng = "0.10.0"
+tokio = { version = "1.53.1", features = ["process", "io-util", "fs"] }

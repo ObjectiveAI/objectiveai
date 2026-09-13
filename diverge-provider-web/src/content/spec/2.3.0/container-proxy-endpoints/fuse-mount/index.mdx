@@ -1,0 +1,54 @@
+---
+title: 'fuse::mount'
+summary: 'Tag 2: the client names a path and a kind; the server makes one FUSE mount there, answers Ok once it is serving, and holds the scope open for its own life, asking on channels of the scope for everything the mount needs.'
+order: 2
+draft: false
+---
+
+The client opens the scope with a request whose payload is the tag
+byte `2` followed by the mount as JSON: a path and a kind. The server
+makes the mount and answers with exactly one `Ok` response once the
+mount is serving, and holds the scope open for as long as the server
+lives; or answers with exactly one error response and the finish. The
+scope is the mount: every ask the mount makes rides it, and no ask
+names the mount.
+
+- **The request.** [Request](/container-proxy-endpoints/fuse-mount/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/fuse-mount/response/) states the one response
+  and what follows it.
+- **The channels.** The server opens the channels that
+  [Server Channels](/container-proxy-endpoints/fuse-mount/server/) defines. The client opens no channel
+  on a mount scope.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A path that is
+   the root of the container, or that has a component that is empty,
+   `.`, `..`, or contains `/` or NUL, is answered by the error. A path
+   at which the server already holds a mount is answered by the error.
+2. **The server makes the mount point.** Every missing parent directory
+   is made; a file mount's file is made if absent, with mode `0600`;
+   a directory mount's directory is made if absent and given mode
+   `0700`.
+3. **The server mounts.** A mount the host or the kernel refuses is
+   answered by the error.
+4. **The server answers `Ok`.** Exactly once, once the mount is
+   serving. From that moment every operation a program performs on
+   the mount is one ask on a channel of this scope.
+5. **The scope stays open.** The server holds the mount, and the scope,
+   for its own life. It sends no response finish on a mount scope it
+   answered `Ok`.
+
+## The rules that hold throughout
+
+- **The meaning of a mount.** What a file mount and a directory mount
+  are to a program in the container, and what each ask means, the
+  [containers::agents::run](/endpoints/containers-agents-run/) request
+  and its [FUSE read](/endpoints/containers-agents-run/server/fuse-read/) and sibling channels
+  state; this layer states only how the asks are carried.
+- **No repetition.** The server sends every ask exactly once. A channel
+  that ends without a finish is not asked again, and the operation is
+  reported to the program as failed.
+- **No timeout.** The server imposes no timeout on any ask.

@@ -1,0 +1,21 @@
+---
+title: 'MCP list tools'
+summary: 'Tag 7: the server relays an MCP `tools/list` exchange a program in the container asked of the caller’s MCP servers, its params verbatim; the client answers with exactly one channel response, the result or the MCP error, which the server relays to the program.'
+order: 7
+draft: false
+---
+
+The server opens this channel when a program in the container asks
+for the tools the MCP servers of the caller offer. The params are sent
+verbatim; the client's one answer is relayed back.
+
+- **The request.** The tag byte `7` followed by the params of the
+  MCP method `tools/list` as JSON. [Request](/container-proxy-endpoints/tools-begin/server/mcp-list-tools/request/)
+  states its form.
+- **The response.** Exactly one channel response, the result or an
+  error, and the channel response finish.
+  [Response](/container-proxy-endpoints/tools-begin/server/mcp-list-tools/response/) states the sequence.
+- **No repetition.** The server sends the exchange exactly once. A
+  channel that ends without a finish is not asked again.
+- **The meaning.** What the exchange is,
+  [MCP list tools](/endpoints/containers-agents-run/server/mcp-list-tools/) states.

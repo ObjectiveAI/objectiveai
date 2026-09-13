@@ -1,0 +1,62 @@
+---
+title: 'agents::begin'
+summary: 'Tag 0: the client begins its work on an agent container, once, first, and hands over the agent; the server answers Begun and, for the life of the connection, every chunk the agent says on the scope; every channel of the container’s life rides this scope.'
+order: 0
+draft: false
+---
+
+The client opens the scope with a request whose payload is the tag
+byte `0` followed by the agent as JSON. The server answers with exactly
+one `Begun` response once the container holds its agent, and after it
+sends every chunk of the agent's conversation as a response, for as
+long as the connection lives; the server ends the scope by the
+response finish only when the server ends. This section states what
+the server does. It states nothing about the client beyond the order
+[Connection](/container-proxy/connection/) provides.
+
+- **The request.** [Request](/container-proxy-endpoints/agents-begin/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/agents-begin/response/) states the one response
+  and the sequence of the main stream.
+- **The channels.** The client opens the channels that
+  [Client Channels](/container-proxy-endpoints/agents-begin/client/) defines; the server opens the
+  channels that [Server Channels](/container-proxy-endpoints/agents-begin/server/) defines. Each channel is
+  its own section. Neither party opens a channel on the scope before
+  the `Begun` response.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A begin on a
+   connection that has begun is answered by exactly one response, the
+   error, and the finish; the first begin continues.
+2. **The server hands the agent to the container.** The agent value is
+   held for the life of the container. A container that refuses the
+   value is answered by exactly one response, the error in the
+   container's own words, and the finish; the connection has not
+   begun.
+3. **The server answers `Begun`.** Exactly once, and before any chunk.
+4. **The server relays the conversation.** Each chunk the agent
+   produces is one response, in the order produced. A message the
+   server sends on an [enqueue](/container-proxy-endpoints/agents-begin/client/enqueue/) channel is the
+   only thing that starts a loop or joins its queue; the scope carries
+   no marker between one loop and the next, and a scope on which no
+   response has arrived for any length of time is a scope whose agent
+   has nothing to say.
+5. **The scope ends with the server.** The server sends the response
+   finish when it ends, and at no other time.
+
+## The rules that hold throughout
+
+- **One begin.** The server serves exactly one begin scope per
+  connection.
+- **Both directions.** The server opens channels on this scope for
+  everything the container asks of the world outside it — its
+  database connections, its commands, its vault, its tool calls
+  outward — and the client opens channels on it for the schema, the
+  queue, and its half of each database connection.
+- **No error on the stream after `Begun`.** After `Begun`, the server
+  sends no error response on the scope. A loop that ends, however it
+  ends, is not reported on the scope.
+- **No timeout.** The server imposes no timeout on any channel or on
+  the scope.

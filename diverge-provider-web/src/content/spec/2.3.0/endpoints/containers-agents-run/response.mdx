@@ -1,24 +1,29 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, the id or an error; after the id it sends nothing until the finish, and the finish that ends a running container carries no error.'
+summary: 'The server sends the id, the volume that refused the run, or an error; after the id it sends the agent’s chunks as they come, and nothing else until the finish, which carries no error.'
 order: 2
 draft: false
 ---
 
-The server sends exactly one response on the scope: the id, or an
-error. The response finish ends the scope. No frame bearing the scope
-follows the finish.
+The server sends the id, the volume that refused the run, or an
+error, and, after the id, zero or more chunks: what the agent says,
+for the life of the run. The response finish ends the scope. No frame
+bearing the scope follows the finish.
 
 ```text
-[0][id JSON …]        once, when the container is running
-[1][error JSON …]     once, when it is not
+[0][id JSON …]                  once, when the container is running
+[1][volume-mounted JSON …]      once, when a named volume is in another container
+[2][error JSON …]               once, when it is not running for another reason
+[3][chunk JSON …]               zero or more, after the id, for the life of the run
 ```
 
 - **The sequence.** Before the id, the server sends no response.
-  The first response is the id or an error. An error is followed by
-  the response finish, and the container is not running and will not
-  be. After the id, the server sends no response until the finish,
-  and the finish carries no error: a run that ended after its id
+  The first response is the id, the volume that refused the run, or
+  an error. A refusal and an error are each followed by the response
+  finish, and the container is not running and will not be. After
+  the id, the server sends zero or more chunks, each as one response,
+  in the order the proxy sent them, and no other response until the
+  finish, and the finish carries no error: a run that ended after its id
   ended by the client's stop, by the container's own end, or by the
   client's connection ending. A response finish that no response
   precedes states that the request was not served, as
@@ -28,21 +33,104 @@ follows the finish.
   that byte as JSON, an object with the member `id`, a string. The
   server sends it after every FUSE mount is complete and, for an
   agent container, after the agent is registered.
-- **The error.** A payload whose first byte is `1` carries an error
+- **Volume mounted.** A payload whose first byte is `1` carries,
+  after that byte as JSON, an object with the member `name`, a
+  string: the `host_name` of a volume the request named that is
+  mounted in another container the client is running, or that the
+  request named twice. The server sends it before it fetches or
+  deploys anything, and the finish follows. The container was not
+  started.
+- **The error.** A payload whose first byte is `2` carries an error
   after that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
+- **The chunk.** A payload whose first byte is `3` carries, after
+  that byte as JSON, one chunk of the agent's conversation, exactly as
+  the proxy sent it; the server does not read it. The server sends a
+  chunk only after the id. A chunk is one of the forms the included
+  files below define, told apart by its `type` member. There is no
+  chunk that marks the end of a turn: a `user` chunk marks a message
+  landing, a `notification` chunk whose `is_fatal` is `true` marks a
+  loop that ended in failure, and quiet is an agent with nothing to
+  say.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, a payload whose bytes after `0` do not
-  parse as the id, and a payload whose bytes after `1` are not one
-  JSON value are malformed.
+  is none of `0`, `1`, `2` and `3`, a payload whose bytes after `0` do not
+  parse as the id, a payload whose bytes after `1` do not parse as
+  the refusal,, a payload whose bytes after `3` do not parse as a
+  chunk, and a payload whose bytes after `2` are not one JSON
+  value are malformed.
 
-The response is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/server/response/frame.rs`:
+The response is defined by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/server/response/frame.rs
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/frame.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/response/id.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/response/id.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/response/id.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/response/id.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/response/volume_mounted.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/response/volume_mounted.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_text_content_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_text_content_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_reasoning_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_reasoning_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_refusal_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_refusal_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_tool_call_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_tool_call_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_image_content_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_image_content_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_audio_content_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_audio_content_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/tool_response_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/tool_response_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/notification_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/notification_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/usage_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/usage_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/logprobs.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/logprobs.rs
 ```

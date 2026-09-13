@@ -1,13 +1,13 @@
 ---
 title: 'MCP read resource'
-summary: 'Tag 8: the client sends the params of the MCP method; the server opens the proxy’s /tool/read-resource and relays exactly one channel response, the result or the MCP error, and the channel response finish.'
+summary: 'Tag 8: the client sends the params of the MCP method; the server opens the channel of that exchange on the container’s begin scope and relays exactly one channel response, the result or the MCP error, and the channel response finish.'
 order: 8
 draft: false
 ---
 
-The client opens this channel for one resource of the MCP server of the container, read. The server opens
-[`/tool/read-resource`](/proxy/tool/read-resource/) on the proxy with the params
-and relays its one answer.
+The client opens this channel for one resource of the MCP server of the container, read. The server opens the
+channel of that exchange on the begin scope of the container's proxy
+with the params and relays its one answer.
 
 - **The request.** The tag byte `8` followed by the params as
   JSON. [Request](/endpoints/containers-tools-connect/client/mcp-read-resource/request/) states its form.

@@ -8,16 +8,18 @@ draft: false
 ```text
 [0]                  delivered: the loop took the message
 [1]                  dequeued: the message was withdrawn first
-[2]                  missed: no loop ran, or the run ended, first
-[3][error JSON …]    the message was not queued
+[2][error JSON …]    no loop could start on the message
 ```
 
 - **The sequence.** Exactly one channel response, relayed as the
   proxy sent it, followed by the channel response finish. A channel
   response finish that no channel response precedes states that the
   proxy did not serve the message.
+- **A loop ending.** A loop that ends with the message still waiting
+  does not lose it: the message starts the next loop. The byte `2`
+  states only that a loop the message was to start did not start.
 
-The channel response is defined by `diverge-provider-sdk/src/shared/containers/enqueue/response/frame.rs`:
+The channel response is defined by `diverge-provider-sdk-rs/src/shared/containers/enqueue/response/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/enqueue/response/frame.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/enqueue/response/frame.rs
 ```

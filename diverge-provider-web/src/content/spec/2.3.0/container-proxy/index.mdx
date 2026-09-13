@@ -1,0 +1,49 @@
+---
+title: 'Container Proxy'
+summary: 'The one WebSocket connection a provider’s server opens to port 14979 of every container it runs: no connection of the Protocol, but governed by the WebSocket and Frames layers as this layer incorporates them, with the provider’s server as the client and the proxy as the server, and no authorization frame.'
+order: 4
+draft: false
+---
+
+A provider places one program, the **container proxy**, beside the
+entrypoint of every container it runs, and it reaches the container
+through the proxy alone. The proxy is not a layer of the Protocol; it
+is a program whose external interface this layer and the
+[Container Proxy Endpoints](/container-proxy-endpoints/) layer define
+at this revision. This layer defines the connection; that layer
+defines the scopes on it.
+
+- **The connection is not a connection of the Protocol.** No endpoint
+  of the [Endpoints](/endpoints/) layer is served on it, and no layer
+  of this specification governs it except as this layer provides.
+- **Incorporation.** The [WebSocket](/websocket/) layer and the
+  [Frames](/frames/) layer apply to the connection by this provision,
+  in full and without modification, as they apply to a connection of
+  the Protocol. Every requirement of those two layers is a
+  requirement on the connection. Where those layers speak of a
+  connection, they are read of this connection; where they speak of a
+  client or a server, they are read of the two parties as this layer
+  names them.
+- **The parties.** The provider's server is the **client** and the
+  proxy is the **server**, in the sense of the Frames layer. This
+  layer and the Container Proxy Endpoints layer use the two words so,
+  and no other way.
+- **Authorization does not apply.** The [Authorization](/authorization/)
+  layer is not incorporated. No party sends a frame of type `0` on
+  the connection. The server closes a connection on which a frame of
+  type `0` arrives, and sends nothing on it after.
+- **The listener.** The server listens on TCP port `14979` on every
+  interface of the container. The connection is a WebSocket
+  connection to the path `/` on that listener, under the `ws` URI
+  scheme, without TLS. The client opens the connection. The server
+  opens no connection.
+- **No timeout.** The server imposes no timeout on the connection, on
+  a scope, or on a channel.
+- **Nothing internal.** This layer and the Container Proxy Endpoints
+  layer define what the proxy offers the client. What the proxy
+  offers the program beside it is not defined by this specification.
+
+[Connection](/container-proxy/connection/) states what the connection
+carries, in what order, and how it ends.
+[Container Proxy Endpoints](/container-proxy-endpoints/) states each
+scope.

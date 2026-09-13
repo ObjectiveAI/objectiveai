@@ -8,9 +8,9 @@ draft: false
 A client sends five frame types.
 
 - **Type `0` — authorization.** The scope and channel fields are
-  ignored. The payload is a credential. Sent only when the client is
-  the connection's initiator, only as the connection's first frame —
-  see [Authorization](/authorization/).
+  ignored. The payload is a credential. Whether a connection carries
+  one, which party sends it, and when, are the
+  [Authorization](/authorization/) layer's to state.
 - **Type `1` — request.** Opens a [scope](/frames/scopes/). The scope
   field carries a number of the client's choosing; the channel field
   is ignored. The payload is the request.

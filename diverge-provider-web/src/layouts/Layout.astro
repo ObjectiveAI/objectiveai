@@ -112,11 +112,41 @@ const canonical = absolute(path);
         padding-left: 0;
         font-size: 0.925rem;
       }
-      aside nav ol ol {
+      aside nav details > ol {
         padding-left: 1rem;
       }
       aside nav li {
         margin: 0.2rem 0;
+      }
+      /* The marker is the toggle, and it is wide: a fixed column at
+         the left of every summary, so a finger lands on it and not on
+         the title. The title inside is an ordinary link, so a click
+         on it navigates; the summary around it, marker and slack
+         alike, toggles. A leaf's link is padded by the same column,
+         so every title in a list lines up whether or not it toggles. */
+      aside nav summary {
+        display: flex;
+        align-items: baseline;
+        cursor: pointer;
+        list-style: none;
+      }
+      aside nav summary::-webkit-details-marker {
+        display: none;
+      }
+      aside nav summary::before {
+        content: "▸";
+        flex: none;
+        width: 1.75rem;
+      }
+      aside nav details[open] > summary::before {
+        content: "▾";
+      }
+      aside nav summary a {
+        flex: none;
+      }
+      aside nav li > a {
+        display: inline-block;
+        padding-left: 1.75rem;
       }
       aside nav a {
         text-decoration: none;

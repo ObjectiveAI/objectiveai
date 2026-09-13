@@ -54,8 +54,8 @@ WORKDIR /build
 # workspace lockfile rides into the crate so the resolved versions
 # hold; cargo prunes the entries the crate does not use, which is why
 # the build does not pass --locked.
-COPY diverge-provider-sdk diverge-provider-sdk
-COPY diverge-container-proxy-sdk diverge-container-proxy-sdk
+COPY diverge-provider-sdk-rs diverge-provider-sdk-rs
+COPY diverge-container-proxy-sdk-rs diverge-container-proxy-sdk-rs
 COPY diverge-agentic-loop-hermes diverge-agentic-loop-hermes
 COPY Cargo.lock diverge-agentic-loop-hermes/Cargo.lock
 
