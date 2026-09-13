@@ -1,14 +1,14 @@
 ---
 title: 'Enqueue'
-summary: 'Tag 6: the client sends a message to the agent, which starts a loop when none runs and joins the queue when one does; the server opens the proxy’s /agent/enqueue and relays exactly one channel response, the fate of the message, when the fate is known.'
+summary: 'Tag 6: the client sends a message to the agent, which starts a loop when none runs and joins the queue when one does; the server opens an enqueue channel on the container’s begin scope and relays exactly one channel response, the fate of the message, when the fate is known.'
 order: 6
 draft: false
 ---
 
 The client opens this channel to send a message to the agent. A
 message sent while no loop runs starts one, as its prompt; a message
-sent while one runs is placed in its queue. The server opens
-[`/agent/enqueue`](/proxy/agent/enqueue/) on the proxy with the
+sent while one runs is placed in its queue. The server opens an
+enqueue channel on the begin scope of the container's proxy with the
 message and relays the fate the proxy answers. What the agent says in
 reply is the main stream of the scope, as
 [Response](/endpoints/containers-agents-run/response/) states.

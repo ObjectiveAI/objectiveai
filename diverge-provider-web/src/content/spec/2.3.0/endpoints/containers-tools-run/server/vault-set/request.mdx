@@ -9,9 +9,8 @@ draft: false
 [9][key_len: u16, big-endian][key …][value …]
 ```
 
-- **The ask.** The bytes after the tag are the ask as the proxy's
-  [`/vault/set/{channel}`](/proxy/vault/set/) page defines them,
-  relayed verbatim.
+- **The ask.** The bytes after the tag are the ask as the
+  [Container Proxy](/proxy/) layer defines it, relayed verbatim.
 
 The channel request is defined by `diverge-provider-sdk-rs/src/endpoints/containers/tools/run/server/channel_request/frame.rs`:
 

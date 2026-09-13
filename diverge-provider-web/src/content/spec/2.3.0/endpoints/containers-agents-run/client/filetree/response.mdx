@@ -15,9 +15,9 @@ draft: false
   each one change or a further snapshot, each relayed as the proxy
   sent it. An error, when the server sends one, is the last channel
   response. The channel response finish follows the last channel
-  response: the server sends it when the proxy closes the connection.
-  A channel response finish that no channel response precedes states
-  that the proxy did not serve the watch.
+  response: the server sends it when the proxy finishes the tree
+  scope. A channel response finish that no channel response precedes
+  states that the proxy did not serve the watch.
 - **The filetree frame.** After the byte `0`, the payload is the
   filetree frame the proxy sent, verbatim: the form and the meaning
   that the [volumes::watch response](/endpoints/volumes-watch/response/)

@@ -1,18 +1,18 @@
 ---
 title: 'Filetree'
-summary: 'Tag 1: the client asks for the filesystem of the container, watched; the server opens the proxy’s /filesystem/tree with every mount left out and relays a snapshot and one channel response per change until the proxy closes.'
+summary: 'Tag 1: the client asks for the filesystem of the container, watched; the server opens a tree scope on the proxy with every mount left out and relays a snapshot and one channel response per change until the scope ends.'
 order: 1
 draft: false
 ---
 
 The client opens this channel to watch the filesystem of the
-container. The server opens [`/filesystem/tree`](/proxy/filesystem/tree/)
-on the proxy and relays what the proxy sends.
+container. The server opens a tree scope on the container's proxy
+and relays what the proxy sends.
 
 - **The request.** The payload is the tag byte `1` and nothing more.
   [Request](/endpoints/containers-tools-connect/client/filetree/request/) states its form.
 - **The response.** A snapshot, one channel response per change, and
-  the channel response finish when the proxy closes.
+  the channel response finish when the scope ends.
   [Response](/endpoints/containers-tools-connect/client/filetree/response/) states the
   sequence.
 - **What the tree leaves out.** The server names, in the request it
@@ -20,9 +20,11 @@ on the proxy and relays what the proxy sends.
   every volume mount, every identity mount, and every FUSE mount. The
   tree the client receives contains none of them and reports no
   change under them.
-- **Not before the mounts.** The server does not open
-  `/filesystem/tree` before the last FUSE mount of the container is
-  complete. A filetree channel opened earlier waits.
-- **Every channel is whole.** Each filetree channel is its own
-  opening of `/filesystem/tree`, beginning with a snapshot. Two
-  filetree channels are two watches.
+- **Not before the mounts.** The server does not open a tree scope
+  before the last FUSE mount of the container is complete. A
+  filetree channel opened earlier waits.
+- **Every channel is whole.** Each filetree channel is its own tree
+  scope on the proxy, beginning with a snapshot. Two filetree
+  channels are two scopes.
+- **Stopped with the scope.** When this scope ends, the server stops
+  the tree scope it opened for the channel.

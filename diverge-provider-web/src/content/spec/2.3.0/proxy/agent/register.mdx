@@ -17,15 +17,3 @@ error as JSON.
   error on [`/agent/run`](/proxy/agent/run/).
 - **No repetition.** A registration whose path ended abruptly has an
   answer the server did not receive. No party retries it.
-
-The request is defined by
-`diverge-provider-sdk-rs/src/container_proxy/agent/register/request/request.rs`:
-
-```rust include=diverge-provider-sdk-rs/src/container_proxy/agent/register/request/request.rs
-```
-
-The answer is defined by
-`diverge-provider-sdk-rs/src/container_proxy/agent/register/response/frame.rs`:
-
-```rust include=diverge-provider-sdk-rs/src/container_proxy/agent/register/response/frame.rs
-```

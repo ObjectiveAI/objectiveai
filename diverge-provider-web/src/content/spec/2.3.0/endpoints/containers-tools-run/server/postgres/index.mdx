@@ -1,12 +1,13 @@
 ---
 title: 'Postgres'
-summary: 'Tag 6: the server announces a database connection the container opened, under a connection id it minted; the client answers with everything the database says, which the server relays into the container’s socket, and its channel response finish closes the socket.'
+summary: 'Tag 6: the server announces a database connection the container opened, under a connection id it minted; the client answers with everything the database says, which the server relays onto the proxy’s channel, and its channel response finish finishes it.'
 order: 6
 draft: false
 ---
 
 The server opens this channel when the container's proxy announces a
-database connection on `/requests`. It is the server's half of the
+database connection, its own half of it, on the begin scope. It is
+the server's half of the
 connection; the client's half is a [postgres](/endpoints/containers-tools-run/client/postgres/)
 channel the client opens, quoting the same id.
 

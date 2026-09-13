@@ -37,12 +37,6 @@ proxy → server:   [0] | [1][message …]      once the mount is complete
   the program in the container finds the mount at the path and a tree
   never reports one.
 
-The request is defined by
-`diverge-provider-sdk-rs/src/container_proxy/fuse/mount/request/request.rs`:
-
-```rust include=diverge-provider-sdk-rs/src/container_proxy/fuse/mount/request/request.rs
-```
-
 Its `kind` is the `Kind` defined on [FUSE](/proxy/fuse/), as JSON:
 the string `"file"` or the string `"directory"`. The answer is the ack
 defined on [FUSE](/proxy/fuse/).

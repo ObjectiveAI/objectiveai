@@ -5,8 +5,8 @@ order: 13
 draft: false
 ---
 
-The server opens this channel when the container's proxy sends the
-corresponding MCP ask on `/requests`. The params are relayed
+The server opens this channel when the container's proxy opens the
+corresponding MCP channel on the begin scope. The params are relayed
 verbatim; the client's one answer is relayed back.
 
 - **The request.** The tag byte `13` followed by the params as JSON.
@@ -14,7 +14,7 @@ verbatim; the client's one answer is relayed back.
 - **The response.** Exactly one channel response, a result or an
   MCP error, and the channel response finish.
   [Response](/endpoints/containers-agents-run/server/mcp-list-tools/response/) states the sequence.
-- **The conduit.** The server relays the one channel response to the
-  proxy's [`/mcp/list-tools/{channel}`](/proxy/mcp/list-tools/) as one
-  message and closes that connection. The server does not read the
-  params or the answer, and does not send the ask twice.
+- **The conduit.** The server relays the one channel response onto
+  the proxy's channel as one channel response and finishes it. The
+  server does not read the params or the answer, and does not send
+  the ask twice.
