@@ -1,5 +1,6 @@
 //! What every task of a run shares.
 
+use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 
@@ -9,6 +10,7 @@ use tokio::task::JoinSet;
 use super::begin::Begin;
 use super::pairs::Pairs;
 use crate::client::handle::Handle;
+use crate::container_proxy_endpoints::filesystem::tree::client::execute as tree;
 use crate::server::scope_handle::ScopeHandle;
 
 /// One container being served: the scope it was asked for on, the
@@ -35,10 +37,11 @@ pub(crate) struct Run {
     /// The container is gone: the proxy's asks ended, or the run a
     /// connector joined is over.
     pub over: Notify,
-    /// The run is ending: a task holding a scope on the proxy that
-    /// does not end by itself — a tree — stops it on hearing this,
-    /// before it is aborted.
-    pub ending: Notify,
+    /// Every tree scope open on the proxy for this run, by its scope
+    /// number: the one kind of scope this end opens that does not end
+    /// by itself, stopped by [`shutdown`](Self::shutdown) before the
+    /// task serving it is aborted.
+    pub trees: Mutex<HashMap<u32, tree::ExecuteHandle>>,
     tasks: Mutex<JoinSet<()>>,
 }
 
@@ -51,7 +54,7 @@ impl Run {
             ignore,
             pairs: Pairs::new(),
             over: Notify::new(),
-            ending: Notify::new(),
+            trees: Mutex::new(HashMap::new()),
             tasks: Mutex::new(JoinSet::new()),
         }
     }
@@ -61,16 +64,20 @@ impl Run {
         self.tasks.lock().await.spawn(task);
     }
 
-    /// End every task: tell them the run is ending, abort them, and
-    /// wait for the aborts.
+    /// End every task: stop every tree scope still open on the
+    /// proxy, then abort the tasks and wait for the aborts.
     ///
     /// Aborted rather than drained, because a task waiting on the
     /// caller — a fate that never comes, a channel nobody finishes —
-    /// would otherwise hold the finish hostage. The notice first is
-    /// for the tasks that have something to say to the proxy on the
-    /// way out.
+    /// would otherwise hold the finish hostage. The trees are stopped
+    /// here, on the way out, rather than by the tasks on a signal: a
+    /// task woken and then aborted before it runs would never have
+    /// sent the stop, and a connector that leaves would leave its
+    /// trees watching a container that goes on.
     pub(crate) async fn shutdown(&self) {
-        self.ending.notify_waiters();
+        for (_, handle) in self.trees.lock().await.drain() {
+            let _ = handle.stop().await;
+        }
         let mut tasks = self.tasks.lock().await;
         tasks.abort_all();
         while tasks.join_next().await.is_some() {}
