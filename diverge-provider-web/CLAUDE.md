@@ -199,20 +199,20 @@ is the identity every scope on the connection is served under.
 
 The external interface of the proxy binary a provider places beside
 every container's entrypoint: not a layer of the protocol but the
-de-facto API of a program, defined at the revision. It states the
-listener and its port, that the server opens exactly one connection
-to it for the container's life and that a second is refused, that
-every message on it is one frame of Layer 2 with the provider's
-server as the client and the proxy as the server — the two words the
-proxy layers use for the two parties — that no authorization frame
-is sent, the order in which the
-server opens scopes, that an unreadable request is answered by a bare
-finish, what ends a channel, a scope and the connection, that text
-frames are ignored, and that nothing times out. The scopes themselves
-are Layer 5's. It states nothing internal: not the loopback
-listeners, not the pgwire listener, not the forwarding to the
-program's own server, not `PORT`, not what a mounted file looks like
-from inside, not how a write lands.
+de-facto API of a program, defined at the revision. It declares the
+connection to be no connection of the Protocol; incorporates Layer 1
+and Layer 2 onto it in full, with the provider's server as the client
+and the proxy as the server — the two words the proxy layers use for
+the two parties — and excludes Layer 3, so no authorization frame is
+sent; and states only what is its own: the listener and its port,
+that the server accepts exactly one connection in its life and
+refuses a second, the begin scope first and once, the mounts before
+the rest, what the connection ending means, and that nothing times
+out. It restates nothing Layer 1 or Layer 2 states. The scopes
+themselves are Layer 5's. It states nothing internal: not the
+loopback listeners, not the pgwire listener, not the forwarding to
+the program's own server, not `PORT`, not what a mounted file looks
+like from inside, not how a write lands.
 
 ### Layer 5 — Container proxy endpoints (`/container-proxy-endpoints/`)
 
