@@ -126,7 +126,7 @@ of payload.
   meta names the file relative to the workspace root:
 
   ````text
-  ```rust include=diverge-provider-sdk-rs/src/container_proxy/requests/request/frame.rs
+  ```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/client_request.rs
   ```
   ````
 
@@ -195,24 +195,38 @@ violation the receiving party answers by ending the connection, and
 that the identity a server derives from a credential is opaque and
 is the identity every scope on the connection is served under.
 
-### Layer 4 — Container proxy (`/proxy/`)
+### Layer 4 — Container proxy (`/container-proxy/`)
 
 The external interface of the proxy binary a provider places beside
 every container's entrypoint: not a layer of the protocol but the
 de-facto API of a program, defined at the revision. It states the
-listener and its port, that the server dials every path, the message
-rule, the openings and their refusals, the two kinds of ending and
-what each means per path, that nothing times out, the `/requests`
-frame and its kinds, one page per answer path and per path the
-server opens — each the ask, the answer as a sequence, the close —
-the mounts the provider requests among them. It states nothing
-internal:
-not the loopback listener, not the pgwire listener, not the
-forwarding to the program's own server, not `PORT`, not what a
-mounted file looks like from inside, not how a write lands. Every
-type shown is the crate's file, included.
+listener and its port, that the server opens exactly one connection
+to it for the container's life and that a second is refused, that
+every message on it is one frame of Layer 2 with the server as the
+client, that no authorization frame is sent, the order in which the
+server opens scopes, that an unreadable request is answered by a bare
+finish, what ends a channel, a scope and the connection, that text
+frames are ignored, and that nothing times out. The scopes themselves
+are Layer 5's. It states nothing internal: not the loopback
+listeners, not the pgwire listener, not the forwarding to the
+program's own server, not `PORT`, not what a mounted file looks like
+from inside, not how a write lands.
 
-### Layer 5 — Endpoints (`/endpoints/`)
+### Layer 5 — Container proxy endpoints (`/container-proxy-endpoints/`)
+
+What a scope on the proxy connection is for: the six endpoints —
+the two begins, the mount, the tree, the read, the write — their
+tag table, and each endpoint's section shaped as a Layer 6 endpoint's
+is: the request, the response as a sequence, the channels the server
+opens (`server/`, titled `Server Channels`) and the channels the proxy
+opens (`proxy/`, titled `Proxy Channels`), each channel its own
+section with a request page and a response page. Every type shown is
+the crate's file under `container_proxy_endpoints`, included, beside
+the shared frame it aliases. What an ask means is stated once, on the
+Layer 6 channel that relays it; this layer states only how it is
+carried.
+
+### Layer 6 — Endpoints (`/endpoints/`)
 
 What a scope is for. It states the tag byte, the tag table (thirteen
 endpoints: the three container scopes, the eight volume endpoints,
@@ -234,7 +248,7 @@ convention. The container scopes further state what
 their id is, what ends the scope, and how a connect scope relates to
 the run scope it joins.
 
-### Layer 6 — Shared vocabulary (`/shared/`)
+### Layer 7 — Shared vocabulary (`/shared/`)
 
 Payload forms that more than one endpoint carries, defined once and
 linked from every channel that carries them: the container request
@@ -249,7 +263,7 @@ the form's own — the vault's lock semantics, FUSE's no-retry rule and
 the empty path — and nothing about which endpoint carries it; the
 endpoint pages say that.
 
-### Layer 7 — Container contracts (`/containers/`)
+### Layer 8 — Container contracts (`/containers/`)
 
 What an image must provide beside the proxy: the agent container's
 HTTP server on `PORT` and its five paths with their bodies and
@@ -277,8 +291,8 @@ the same; only its text differs.
   any other module fails the build. When a revision is superseded,
   its includes are replaced by the text they resolved to, so the
   module stands on its own.
-- **Links are version-relative.** A page writes `/proxy/fuse/`, never
-  `/2.3.0/proxy/fuse/`; the build prefixes the module's version on the
+- **Links are version-relative.** A page writes `/container-proxy-endpoints/fuse-mount/`, never
+  `/2.3.0/container-proxy-endpoints/fuse-mount/`; the build prefixes the module's version on the
   page and in the twin. So a new revision begins as a copy of the
   latest module under the new version's name, edited from there.
 - **The revision is hard-coded where it is a value.** The version

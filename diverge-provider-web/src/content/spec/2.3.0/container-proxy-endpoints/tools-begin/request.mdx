@@ -1,0 +1,20 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 1 and nothing more.'
+order: 1
+draft: false
+---
+
+```text
+[1]
+```
+
+- **No content.** The request carries nothing after the tag. The
+  proxy ignores every byte that follows the tag.
+- **Once, and first.** The server sends this request before any other
+  request on the connection, and never again on it.
+
+The request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/request/frame.rs
+```

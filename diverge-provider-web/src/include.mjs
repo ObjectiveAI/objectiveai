@@ -5,7 +5,7 @@
 // whole, read at build time: an empty fenced block whose meta names
 // the file relative to the workspace root —
 //
-//     ```rust include=diverge-provider-sdk-rs/src/container_proxy/requests/request/frame.rs
+//     ```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/client_request.rs
 //     ```
 //
 // — is replaced by that file's contents. Only the LATEST module may

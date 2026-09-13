@@ -48,7 +48,8 @@ each define a term, this Agreement governs.
 Specification, revision 2.3.0, as published at
 `https://provider.diverge.network/2.3.0/` on the Effective Date,
 comprising every page of that revision under the layers Overview,
-WebSocket, Frames, Authorization, Container Proxy and Endpoints, and
+WebSocket, Frames, Authorization, Container Proxy, Container Proxy
+Endpoints and Endpoints, and
 every Rust source file of the Reference Crate that those pages
 include by reference. A copy of the Specification as of the Effective
 Date is attached as Exhibit A and is incorporated into this Agreement
@@ -134,7 +135,9 @@ owned by the Provider, leased by it, or supplied by a third party
 under contract with it.
 
 1.14 **"Container Proxy"** or **"Proxy"** means the program whose
-external interface the Specification's Container Proxy layer defines:
+external interface the Specification's Container Proxy layer defines
+and whose scopes and channels its Container Proxy Endpoints layer
+states:
 the program that listens on TCP port 14979 of a Container, accepts one
 WebSocket connection there from the Provider's Server, and speaks over
 it, framed as the Protocol's own frames, the scopes and channels that
@@ -733,7 +736,8 @@ Container is not prescribed.
 ### 5.12 The Container Proxy
 
 The Provider shall place inside every Container a Container Proxy
-that conforms in full to the Specification's Container Proxy layer:
+that conforms in full to the Specification's Container Proxy and
+Container Proxy Endpoints layers:
 that listens on TCP port 14979 and accepts one WebSocket connection
 there; that speaks the Protocol's own frames on it and sends no auth
 frame; that answers exactly one begin Scope per connection, holding

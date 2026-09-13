@@ -1,0 +1,23 @@
+---
+title: 'FUSE remove'
+summary: 'Tag 3: the proxy removes a file or an empty directory of the mount the client serves live, by the path of the entry within the mount; the server answers with exactly one channel response, ok or an error.'
+order: 3
+draft: false
+---
+
+The proxy opens this channel when a program in the container performs
+the operation on the mount. The ask names the entry by its path
+within the mount, and names no mount: the scope is the mount.
+
+- **The request.** The tag byte `3` followed by the ask.
+  [Request](/container-proxy-endpoints/fuse-mount/proxy/remove/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/container-proxy-endpoints/fuse-mount/proxy/remove/response/) states the
+  sequence.
+- **The meaning.** What the ask means, and what its answer means,
+  [FUSE remove](/endpoints/containers-agents-run/server/fuse-remove/) states; the server relays the ask
+  to its client with the mount's id in front of it.
+- **No repetition.** The proxy sends the ask exactly once. A channel
+  that ends without a finish, and a channel response finish that no
+  channel response precedes, are reported to the program as the
+  operation failed.

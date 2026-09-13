@@ -1,0 +1,19 @@
+---
+title: 'MCP read resource'
+summary: 'Tag 4: the server sends the params of the MCP method `resources/read`; the proxy makes the exchange of the container’s own MCP server and answers with exactly one channel response, the result or the MCP error, and the channel response finish.'
+order: 4
+draft: false
+---
+
+The server opens this channel for one resource of the MCP server of the container, read. The proxy makes the
+exchange of the container's MCP server and answers with its result.
+
+- **The request.** The tag byte `4` followed by the params of the
+  MCP method `resources/read` as JSON. [Request](/container-proxy-endpoints/tools-begin/server/mcp-read-resource/request/)
+  states its form.
+- **The response.** Exactly one channel response, the result or an
+  error, and the channel response finish.
+  [Response](/container-proxy-endpoints/tools-begin/server/mcp-read-resource/response/) states the sequence.
+- **The server of the container.** A container whose MCP server
+  cannot be reached is answered by the error. The error an MCP server
+  states is sent as itself, its code included.

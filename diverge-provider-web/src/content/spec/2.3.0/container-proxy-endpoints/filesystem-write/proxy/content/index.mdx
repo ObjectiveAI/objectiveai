@@ -1,0 +1,18 @@
+---
+title: 'Content'
+summary: 'The proxy asks for the content of the file by opening one channel; the server answers with the bytes as channel responses and the finish, or an error and the finish.'
+order: 0
+draft: false
+---
+
+The proxy opens exactly one channel on the scope, once the temporary
+file exists: the content. The server answers on it with the bytes of
+the file.
+
+- **The request.** The payload of the channel request is empty.
+  [Request](/container-proxy-endpoints/filesystem-write/proxy/content/request/) states its form.
+- **The response.** Zero or more channel responses carrying bytes and
+  the channel response finish, or an error last.
+  [Response](/container-proxy-endpoints/filesystem-write/proxy/content/response/) states the sequence.
+- **The scope answers after.** The proxy sends the scope's response
+  only once this channel has finished.
