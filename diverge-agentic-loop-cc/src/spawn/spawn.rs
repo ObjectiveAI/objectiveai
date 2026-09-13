@@ -4,7 +4,7 @@ use std::io;
 use std::process::Stdio;
 
 use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
-use diverge_provider_sdk::shared::containers::run_loop::response::{
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, UserChunk,
 };
 use futures_util::Stream;

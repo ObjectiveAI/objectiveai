@@ -67,7 +67,7 @@ use diverge_provider_sdk::container_proxy;
 use diverge_provider_sdk::container_proxy::agent::dequeue::Outcome;
 use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
 use diverge_provider_sdk::shared::containers::enqueue;
-use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::{Stream, StreamExt as _};
 use serde_json::Value;
 

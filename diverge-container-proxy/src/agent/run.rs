@@ -6,7 +6,7 @@ use std::sync::Arc;
 use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::response::{IntoResponse, Response};
-use diverge_provider_sdk::shared::containers::run_loop::response;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
 use diverge_provider_sdk::shared::error::Error;
 use eventsource_stream::Eventsource as _;
 use futures_util::future;

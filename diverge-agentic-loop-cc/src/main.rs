@@ -72,7 +72,7 @@ use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
 use diverge_provider_sdk::container_proxy::agent::register;
 use diverge_provider_sdk::container_proxy::agent::run;
 use diverge_provider_sdk::shared::containers::enqueue;
-use diverge_provider_sdk::shared::containers::run_loop::response::{
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, NotificationChunk,
 };
 use futures_util::{Stream, StreamExt as _};
