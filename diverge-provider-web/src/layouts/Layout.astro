@@ -39,7 +39,12 @@ const canonical = absolute(path);
         />
       )
     }
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {/* The Diverge mark, as a vector; the PNGs are rendered from it
+        for Safari, which ignores SVG favicons, and for the iOS home
+        screen. */}
+    <link rel="icon" href="/diverge-icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:title" content={title} />
