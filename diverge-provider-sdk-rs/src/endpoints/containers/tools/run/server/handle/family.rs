@@ -111,10 +111,11 @@ impl Runs for Tools {
         let _ = agent;
         async move {
             match begin::execute(&proxy).await {
-                Ok((handle, asks)) => Ok(Begun {
+                Ok((handle, asks, finish)) => Ok(Begun {
                     begin: Begin::Tools(handle),
                     asks,
                     chunks: None,
+                    finish: Some(finish),
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),

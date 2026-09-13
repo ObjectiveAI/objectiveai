@@ -36,7 +36,8 @@ use crate::shared::error::Error;
 ///    caller.
 /// 3. The relays are spawned: the proxy's asks on the begin scope,
 ///    each mount's asks, and — on an agent container — the agent's
-///    chunks onto the main stream.
+///    chunks onto the main stream; on a tool container, the begin's
+///    own end is listened for.
 /// 4. The caller's channels are served until the run ends: a stop,
 ///    the container leaving, or the caller going away.
 /// 5. The teardown, the same for every ending: the directory entry
@@ -89,7 +90,12 @@ pub(crate) async fn run<R, D, S, G>(
     );
     send(&scope, R::id(&Id { id: id.clone() })).await;
 
-    let Begun { begin, asks, chunks } = prepared.begun;
+    let Begun {
+        begin,
+        asks,
+        chunks,
+        finish,
+    } = prepared.begun;
     let run = Arc::new(Run::new(Arc::clone(&scope), prepared.proxy, begin, prepared.ignore));
     run.spawn(relay::relay::<R>(Arc::clone(&run), asks)).await;
     for mount in prepared.mounts {
@@ -97,6 +103,16 @@ pub(crate) async fn run<R, D, S, G>(
     }
     if let Some(chunks) = chunks {
         run.spawn(relay::chunks(Arc::clone(&run), chunks)).await;
+    }
+    if let Some(finish) = finish {
+        // The begin scope ending, however it ends, is the container
+        // gone.
+        let over = Arc::clone(&run);
+        run.spawn(async move {
+            let _ = finish.await;
+            over.over.notify_one();
+        })
+        .await;
     }
     let _end = serve::serve::<R>(&run).await;
 

@@ -18,7 +18,7 @@ use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::client::answered::{
     McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource,
 };
-use crate::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
+use crate::endpoints::containers::client::{ChannelStream, Decoded, OpenError, Scoped, UnaryError, WaitError};
 use crate::endpoints::containers::tools::connect::server;
 use crate::shared::containers::{read, write_path};
 use crate::shared::mcp;
@@ -66,7 +66,7 @@ impl ExecuteHandle {
     /// same way again after.
     pub async fn wait(&self) -> Result<(), WaitError<serde_json::Error>> {
         self.0
-            .wait(|payload| server::response::Frame::decode(payload).map(|frame| Some(frame.0)))
+            .wait(|payload| server::response::Frame::decode(payload).map(|frame| Decoded::Error(frame.0)))
             .await
     }
 

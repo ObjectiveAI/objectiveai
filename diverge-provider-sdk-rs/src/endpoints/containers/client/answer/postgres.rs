@@ -20,7 +20,10 @@ use crate::shared::containers::postgres;
 /// dialer's receiver until it finishes, while everything the database
 /// says goes out on the provider's channel until the dialer's stream
 /// ends; then the finish, which is the database closing the
-/// connection.
+/// connection. The forwarder is then waited for, not aborted: the
+/// provider closes the driver's socket on that finish, so this end's
+/// half ends too, and every byte the container wrote before it did
+/// reaches the dialer.
 pub(crate) async fn postgres<P: PostgresDialer>(
     handle: &Handle,
     scope: u32,
@@ -67,6 +70,8 @@ pub(crate) async fn postgres<P: PostgresDialer>(
         finish(handle, scope, channel).await
     }
     .await;
-    forward.abort();
+    // Not aborted: whatever the container wrote before its socket
+    // closed is still in this end's half, and the dialer is owed it.
+    let _ = forward.await;
     sent
 }

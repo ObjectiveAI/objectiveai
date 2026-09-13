@@ -13,8 +13,10 @@ use crate::frame;
 
 /// Read every channel request the provider opens on the connect
 /// scope and answer it: each is a write's content, served from the
-/// pending writes on a task of its own. Anything else on the stream
-/// is dropped, unanswered.
+/// pending writes on a task of its own. A frame that is not a channel
+/// request is dropped — there is no channel to answer. A request that
+/// is not a write's content ask is a channel this end cannot serve,
+/// and is answered as such: the finish with nothing before it.
 pub(super) async fn serve(
     mut requests: UnboundedReceiver<Bytes>,
     handle: Handle,
@@ -30,6 +32,10 @@ pub(super) async fn serve(
         };
         let Ok(server::channel_request::Frame(request)) = server::channel_request::Frame::decode(payload)
         else {
+            let handle = handle.clone();
+            tokio::spawn(async move {
+                let _ = handle.send_channel_response_finish(scope, channel).await;
+            });
             continue;
         };
         let handle = handle.clone();

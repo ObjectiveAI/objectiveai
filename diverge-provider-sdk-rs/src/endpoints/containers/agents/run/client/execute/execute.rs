@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use super::super::{channel_request, channel_response, request};
 use super::execute_handle::ExecuteHandle;
+use super::Chunks;
 use crate::client::handle::{Handle, SendError};
 use crate::client::{
     Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, IdentityStore, McpServer, OciStore,
@@ -36,9 +37,10 @@ use crate::shared::error::Error;
 /// The id names the container to anything outside — a connector, a
 /// later request — and the handle is the scope: for as long as it is
 /// held the container runs, and every channel a caller may open into
-/// the container is a method on it. The main stream carries nothing
-/// after the id until the run ends, which [`ExecuteHandle::wait`]
-/// reports.
+/// the container is a method on it. The main stream carries the
+/// agent's conversation after the id, which the [`Chunks`] hand out
+/// chunk by chunk until the run ends — the end
+/// [`ExecuteHandle::wait`] reports.
 ///
 /// # Dropping the handle ends nothing
 ///
@@ -53,7 +55,7 @@ pub async fn execute<O, A, I, P, C, V, M, F>(
     handle: &Handle,
     request: &request::Frame,
     answerers: Answerers<O, A, I, P, C, V, M, F>,
-) -> Result<(Id, ExecuteHandle), ExecuteError>
+) -> Result<(Id, ExecuteHandle, Chunks), ExecuteError>
 where
     O: OciStore + 'static,
     A: ConnectionAuthorizer + 'static,
@@ -83,7 +85,18 @@ where
         frame::server::ServerFrame::ResponseFinish { .. } => return Err(ExecuteError::Unanswered),
         _ => return Err(ExecuteError::Misrouted),
     };
-    let id = match server::response::Frame::decode(payload).map_err(ExecuteError::Response)? {
+    let frame = match server::response::Frame::decode(payload) {
+        Ok(frame) => frame,
+        Err(error) => {
+            // The provider believes the run started. A caller that
+            // cannot read the id cannot name the container either, so
+            // the run is stopped rather than left to the connection's
+            // end.
+            stop(handle, scope.scope).await;
+            return Err(ExecuteError::Response(error));
+        }
+    };
+    let id = match frame {
         server::response::Frame::Id(id) => id,
         server::response::Frame::VolumeMounted(refused) => {
             return Err(ExecuteError::VolumeMounted(refused));
@@ -105,8 +118,16 @@ where
         decode_ask,
         ENCODERS,
     ));
-    let scoped = Scoped::new(handle.clone(), scope.scope, writes, scope.response_receiver);
-    Ok((id, ExecuteHandle::new(Arc::new(scoped))))
+    let scoped = Arc::new(Scoped::new(handle.clone(), scope.scope, writes, scope.response_receiver));
+    Ok((id, ExecuteHandle::new(Arc::clone(&scoped)), Chunks::new(scoped)))
+}
+
+/// The stop, sent for a run this end cannot hold.
+async fn stop(handle: &Handle, scope: u32) {
+    let mut payload = Vec::new();
+    if channel_request::Frame::Stop.encode(&mut Writer::new(&mut payload)).is_ok() {
+        let _ = handle.send_channel_request(scope, &payload).await;
+    }
 }
 
 /// This family's server-opened ask, read into the one owned form.
