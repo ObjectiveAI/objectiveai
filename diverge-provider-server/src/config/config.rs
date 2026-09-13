@@ -9,9 +9,13 @@ use super::volumes::Volumes;
 
 /// The whole of `config.yaml`.
 ///
-/// Every section is optional, and an absent section is its defaults;
-/// an absent file is this type's [`Default`]. An unknown key is an
-/// error, so a misspelled setting is refused rather than ignored.
+/// An absent file is this type's [`Default`], and the provider runs
+/// on it: no peer accepted, no peer dialled, no volume, and the
+/// [`Containers`] defaults. `containers` is always present — absent
+/// from the file, it is its [`Default`] — and the other three sections
+/// are optional, an absent one meaning what its doc says. An unknown
+/// key is an error, so a misspelled setting is refused rather than
+/// ignored.
 ///
 /// Every path inside the file resolves relative to the provider's
 /// directory, the one that holds the file, and never to the working
@@ -31,10 +35,12 @@ pub struct Config {
     /// no one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clients: Option<Clients>,
-    /// What containers may reach between them, and where their
-    /// storage lives. Absent means the provider runs no container.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub containers: Option<Containers>,
+    /// What containers may reach between them, where their storage
+    /// lives, and which registries a caller may name. Absent from the
+    /// file means its [`Default`]: a provider runs containers before
+    /// it has configured anything.
+    #[serde(default)]
+    pub containers: Containers,
     /// Where volumes may be created, and which exist already. Absent
     /// means no volume can be created and none exists.
     #[serde(default, skip_serializing_if = "Option::is_none")]
