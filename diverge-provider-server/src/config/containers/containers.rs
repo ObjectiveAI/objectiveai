@@ -46,33 +46,21 @@ pub struct Containers {
     pub registries: Vec<String>,
 }
 
-/// The memory the running containers may hold between them when the
-/// file does not say: 8 GiB.
-pub const DEFAULT_MEMORY: u64 = 8 * 1024 * 1024 * 1024;
-
-/// The overlay disk the running containers may write between them
-/// when the file does not say: 32 GiB.
-pub const DEFAULT_CONTAINER_OVERLAY_DISK: u64 = 32 * 1024 * 1024 * 1024;
-
-/// The image cache's cap when the file does not say: 32 GiB.
-pub const DEFAULT_IMAGE_CACHE_DISK: u64 = 32 * 1024 * 1024 * 1024;
-
-/// Where container storage is kept when the file does not say:
-/// `data/containers` under the provider's directory.
-pub const DEFAULT_PATH: &str = "data/containers";
-
-/// The registries a caller may name when the file does not say. The
-/// first is what a reference with no host means.
-pub const DEFAULT_REGISTRIES: [&str; 3] = ["docker.io", "ghcr.io", "quay.io"];
-
+/// What a provider runs with before it has written a line of
+/// configuration: 8 GiB of memory, 32 GiB of overlay disk, a 32 GiB
+/// image cache, `data/containers` under the provider's directory, and
+/// the three registries a caller may name, `docker.io` first.
 impl Default for Containers {
     fn default() -> Self {
         Containers {
-            memory: DEFAULT_MEMORY,
-            container_overlay_disk: DEFAULT_CONTAINER_OVERLAY_DISK,
-            image_cache_disk: DEFAULT_IMAGE_CACHE_DISK,
-            path: PathBuf::from(DEFAULT_PATH),
-            registries: DEFAULT_REGISTRIES.iter().map(|host| host.to_string()).collect(),
+            memory: 8 * 1024 * 1024 * 1024,
+            container_overlay_disk: 32 * 1024 * 1024 * 1024,
+            image_cache_disk: 32 * 1024 * 1024 * 1024,
+            path: PathBuf::from("data/containers"),
+            registries: ["docker.io", "ghcr.io", "quay.io"]
+                .iter()
+                .map(|host| host.to_string())
+                .collect(),
         }
     }
 }
