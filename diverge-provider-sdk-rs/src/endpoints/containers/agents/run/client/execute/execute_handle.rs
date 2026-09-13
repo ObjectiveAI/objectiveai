@@ -13,19 +13,15 @@ use super::{Filetree, FiletreeStream, Read, ReadStream, WritePath};
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::agents::run::server;
-use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue, AgentRun};
-use crate::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
-use crate::shared::containers::{dequeue, enqueue, read, run_loop, write_path};
-
-/// The loop's chunks, for as long as it runs.
-pub type AgentRunStream = ChannelStream<AgentRun>;
+use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue};
+use crate::endpoints::containers::client::{OpenError, Scoped, UnaryError, WaitError};
+use crate::shared::containers::{dequeue, enqueue, read, write_path};
 
 /// The scope a run opened, held for the container's life.
 ///
 /// Every channel a caller may open into an agent container is a
-/// method here: the tree watched, a file read or written, the loop
-/// run on a prompt, the agent's schema, the queue's two verbs, and
-/// the stop. Each opens its own channel, so several may be in flight
+/// method here: the tree watched, a file read or written, the agent's
+/// schema, the queue's two verbs, and the stop. Each opens its own channel, so several may be in flight
 /// at once. Clones share the scope, and [`wait`](Self::wait) on any
 /// of them reports the same end.
 ///
@@ -63,9 +59,13 @@ impl ExecuteHandle {
         self.0
             .wait(|payload| {
                 Ok(match server::response::Frame::decode(payload)? {
-                    // Sent only as the first response, before the
-                    // id; after it, neither is a fact of the run.
-                    server::response::Frame::Id(_) | server::response::Frame::VolumeMounted(_) => None,
+                    // The id and the refusal come only first; a
+                    // chunk is the agent speaking, which this
+                    // executor does not yet surface — that is its
+                    // retrofit. None of the three ends the run.
+                    server::response::Frame::Id(_)
+                    | server::response::Frame::VolumeMounted(_)
+                    | server::response::Frame::Chunk(_) => None,
                     server::response::Frame::Error(error) => Some(error),
                 })
             })
@@ -115,22 +115,16 @@ impl ExecuteHandle {
             .await
     }
 
-    /// Run one loop on `prompt`, and read its chunks.
-    pub async fn run_loop(&self, prompt: String) -> Result<AgentRunStream, OpenError> {
-        let payload = payload(&channel_request::Frame::AgentRun(run_loop::request::Request { prompt }))
-            .map_err(OpenError::Request)?;
-        self.0.open::<AgentRun>(&payload).await.map_err(OpenError::Send)
-    }
-
     /// What the agent value may be: the image's JSON Schema for it.
     pub async fn agent_schema(&self) -> Result<Value, UnaryError<AgentSchema>> {
         let payload = payload(&channel_request::Frame::AgentSchema).map_err(UnaryError::Request)?;
         self.0.unary::<AgentSchema>(&payload).await
     }
 
-    /// A message for the running loop's queue, answered with its fate
-    /// whenever that is known — which may be long after the ask, and
-    /// nothing times it out.
+    /// A message for the agent — starting a loop when none runs,
+    /// queued when one does — answered with its fate whenever that
+    /// is known, which may be long after the ask; nothing times it
+    /// out. What the agent says arrives on the scope's main stream.
     pub async fn enqueue(&self, prompt: String) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
         let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { prompt }))
             .map_err(UnaryError::Request)?;

@@ -1,7 +1,7 @@
 //! Asking an agent container what its agent may be.
 //!
-//! The agents family's second exchange, and the one that makes the
-//! first usable without knowing the image: the caller opens a channel
+//! The agents family's exchange that makes the agent usable without
+//! knowing the image: the caller opens a channel
 //! that carries nothing — a direction with nothing to say has no
 //! request here, as everywhere in this crate — and the provider
 //! answers with one [`response::Frame`] — the JSON Schema of the

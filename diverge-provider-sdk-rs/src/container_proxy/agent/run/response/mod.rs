@@ -1,5 +1,8 @@
-//! The answer: the loop's chunks, or why there are none, as
-//! [`shared::containers::run_loop::response`](crate::shared::containers::run_loop::response)
-//! defines them, re-exported.
+//! The answer: the loop's chunks, or why there are none. The chunks
+//! themselves are defined where the provider protocol reads them,
+//! [`agents::run::server::response`](crate::endpoints::containers::agents::run::server::response);
+//! [`Frame`] is this path's envelope around one.
 
-pub use crate::shared::containers::run_loop::response::*;
+mod frame;
+
+pub use frame::*;

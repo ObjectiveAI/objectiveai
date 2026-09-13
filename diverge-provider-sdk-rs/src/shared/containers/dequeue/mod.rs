@@ -1,4 +1,4 @@
-//! Clearing a running loop's queue.
+//! Clearing the agent's queue.
 //!
 //! The caller opens a channel that carries nothing — there is no
 //! request type, the whole queue being the only thing there is to

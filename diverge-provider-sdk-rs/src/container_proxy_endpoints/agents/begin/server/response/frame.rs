@@ -4,27 +4,42 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use crate::shared::error::Error;
 
-/// A begin's answer: that the connection has begun, and then nothing,
-/// for as long as the connection lives — or a failure.
+/// A begin's answer: that the connection has begun, then the agent's
+/// conversation for as long as the connection lives — or a failure.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Begun`](Self::Begun), `1` for [`Error`](Self::Error) — and only
-/// the error carries anything after it.
+/// [`Begun`](Self::Begun), `1` for [`Error`](Self::Error), `2` for
+/// [`Chunk`](Self::Chunk) — and the rest is that variant's own JSON;
+/// `Begun` carries nothing after it.
 ///
-/// # Silence is the good case
+/// # Begun, then the conversation
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | a begun, then nothing, and stays open | the connection has begun and the container holds its agent; either side may open channels on it |
-/// | an error, then a finish | it has not — this connection had already begun, or the agent was refused |
+/// | a begun, then chunks, and stays open | the container holds its agent, and the agent is speaking |
+/// | a begun, then quiet, and stays open | the container holds its agent, and it has nothing to say until the next message |
+/// | an error, then a finish | it has not begun — this connection had already begun, or the agent was refused |
 /// | a finish, with no error | the proxy is ending |
 ///
-/// Everything the server reads from the container — the family's own
-/// exchange, the asks the container makes — is a channel, not this
-/// stream. It carries no readiness signal beyond the one word: the
-/// proxy is here, and channels may be opened.
+/// # The conversation is this stream
+///
+/// What the agent says arrives here, chunk by chunk, in the order
+/// the agent's server streams them, and the server carries each one
+/// on to the caller as the run scope's own
+/// [`Chunk`](crate::endpoints::containers::agents::run::server::response::Frame::Chunk). Nothing opens a
+/// loop: an [`Enqueue`](super::super::super::client::channel_request::Frame::Enqueue)
+/// with no loop running starts one on its message, and one while a
+/// loop runs joins the queue. There is no marker between one turn and
+/// the next, and quiet is an agent with nothing left to say. The
+/// tools family's stream carries nothing after `Begun`.
+///
+/// The asks the container makes, and the family's other exchanges,
+/// are channels, not this stream. It carries no readiness signal
+/// beyond the one word: the proxy is here, the agent is held, and
+/// channels may be opened.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The connection has begun, and the container holds its agent
@@ -42,6 +57,13 @@ pub enum Frame {
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.
     Error(Error),
+    /// One chunk of the agent's conversation. Tag `2`.
+    ///
+    /// After `Begun`, zero or more, for as long as the connection
+    /// lives, exactly as the agent's server streamed them; never
+    /// before `Begun`, and never after a finish. See
+    /// [`AgenticLoopChunk`] for what one is.
+    Chunk(AgenticLoopChunk),
 }
 
 /// Tag for [`Frame::Begun`].
@@ -50,7 +72,11 @@ const BEGUN: u8 = 0;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 1;
 
-/// A tag, and — for the error alone — that variant's own JSON.
+/// Tag for [`Frame::Chunk`]. Public, so a relay that carries a
+/// chunk's JSON without reading it can frame it.
+pub const CHUNK: u8 = 2;
+
+/// A tag, and — for the error and a chunk — that variant's own JSON.
 impl Encode for Frame {
     /// The ordinary JSON failure. `Begun` cannot fail at all.
     type Error = serde_json::Error;
@@ -70,12 +96,16 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
             }
+            Frame::Chunk(chunk) => {
+                out.extend_from_slice(&[CHUNK]);
+                serde_json::to_writer(out, chunk)
+            }
         }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail, and only one of them is JSON.
+    /// Four ways to fail, and two of them are JSON.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
@@ -86,31 +116,41 @@ impl Decode<'_> for Frame {
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
+            CHUNK => serde_json::from_slice(rest)
+                .map(Frame::Chunk)
+                .map_err(FrameError::Chunk),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
 }
 
-/// A agents begin response frame that could not be read.
+/// An agents begin response frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),
+    /// The chunk did not parse.
+    Chunk(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("agents begin response frame is empty"),
+            FrameError::Empty => {
+                f.write_str("agents begin response frame is empty")
+            }
             FrameError::UnknownTag(tag) => {
                 write!(f, "unknown agents begin response frame tag {tag}")
             }
             FrameError::Error(error) => {
                 write!(f, "agents begin error did not parse: {error}")
+            }
+            FrameError::Chunk(error) => {
+                write!(f, "agents begin chunk did not parse: {error}")
             }
         }
     }
@@ -119,7 +159,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Error(error) => Some(error),
+            FrameError::Error(error) | FrameError::Chunk(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

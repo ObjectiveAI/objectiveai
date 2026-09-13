@@ -29,10 +29,12 @@
 //! [`fetch_directory`] for mounted content it does not hold, and
 //! [`authorize`] whether a connector may join.
 //!
-//! [`run_loop`], [`agent_schema`], [`enqueue`] and [`dequeue`] are
-//! the agents family's own exchanges — the loop, its agent's schema,
-//! and the two verbs against a running loop's queue — here beside the
-//! rest of the wire they ride.
+//! [`agent_schema`], [`enqueue`] and [`dequeue`] are the agents
+//! family's own exchanges — its agent's schema, and the two verbs
+//! against its queue — here beside the rest of the wire they ride.
+//! What the agent says is no exchange: it rides the run scope's own
+//! main stream, and its chunks are defined beside that stream, in
+//! [`agents::run::server::response`](crate::endpoints::containers::agents::run::server::response).
 //!
 //! [`filetree`](crate::shared::filetree) and [`mcp`](crate::shared::mcp)
 //! stay beside this module rather than inside it: each is ridden by
@@ -53,7 +55,6 @@ pub mod postgres;
 pub mod read;
 pub mod request;
 pub mod response;
-pub mod run_loop;
 pub mod vault;
 pub mod write_bytes;
 pub mod write_path;

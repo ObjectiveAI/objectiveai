@@ -13,7 +13,7 @@ use crate::server::messages::{MessageError, Messages};
 
 /// The loop as it happens.
 ///
-/// Yields zero or more [`AgenticLoopChunk`](response::AgenticLoopChunk)s
+/// Yields zero or more [`AgenticLoopChunk`](crate::endpoints::containers::agents::run::server::response::AgenticLoopChunk)s
 /// and then either ends — the proxy closed cleanly, the loop over —
 /// or yields exactly one [`Err`] and ends: the container's own
 /// `Error` frame ([`Refused`](ExecuteStreamError::Refused), first
@@ -35,7 +35,7 @@ impl ExecuteStream {
 }
 
 impl Stream for ExecuteStream {
-    type Item = Result<response::AgenticLoopChunk, ExecuteStreamError>;
+    type Item = Result<crate::endpoints::containers::agents::run::server::response::AgenticLoopChunk, ExecuteStreamError>;
 
     fn poll_next(
         self: Pin<&mut Self>,

@@ -12,11 +12,11 @@ use crate::shared::containers::request::Container;
 ///
 /// A [`Container`] — the image, the limits, the mounts — and the
 /// agent. The agent is on the request rather than on the channel
-/// that starts a loop because it is FIXED: a container is one agent
-/// for its whole life, registered with it once, and every loop it
-/// runs is that agent. What a loop is asked is each loop's own, and
-/// rides the [`AgentRun`](super::super::channel_request::Frame::AgentRun)
-/// channel as its prompt.
+/// that speaks to it because it is FIXED: a container is one agent
+/// for its whole life, registered with it once, and every message it
+/// takes is taken by that agent. What the agent is told rides the
+/// [`Enqueue`](super::super::channel_request::Frame::Enqueue)
+/// channel, and what it says rides the scope's own main stream.
 ///
 /// The agent is a JSON value, because this crate does not know what
 /// an agent is — a model, a set of tools, a personality, a harness's

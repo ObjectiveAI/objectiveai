@@ -42,7 +42,7 @@
 //! close: there was no loop to report on. A failure after output is a
 //! fatal notification chunk, part of the output, then the close —
 //! the loop's own vocabulary, as
-//! [`shared::containers::run_loop`](crate::shared::containers::run_loop)
+//! [`agents::run::server::response`](crate::endpoints::containers::agents::run::server::response)
 //! states it. The stream from the agent's server never carries an
 //! error event; the two ways it can fail are the status before it
 //! and the notification within it.

@@ -6,9 +6,10 @@ use serde_json::Error;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Enqueue a message into the running loop.
+/// Send a message to the agent.
 ///
-/// The verb is the mechanism's: the message is QUEUED, not injected —
+/// With no loop running, the message starts one, and is its prompt.
+/// With one running, the verb is the mechanism's: the message is QUEUED, not injected —
 /// the turn in flight always runs to completion, and the agent picks
 /// the message up at a seam of its own choosing: folded in beside the
 /// next tool results, or opening the next turn when the assistant has
@@ -17,7 +18,7 @@ use crate::encode::{Encode, Writer};
 /// # The content is a string
 ///
 /// Plain text, deliberately: a mid-run steer is text. The
-/// [`UserChunk`](crate::shared::containers::run_loop::response::UserChunk)
+/// [`UserChunk`](crate::endpoints::containers::agents::run::server::response::UserChunk)
 /// that marks this message's delivery carries the same string back,
 /// verbatim, at the position it landed.
 ///
@@ -25,9 +26,8 @@ use crate::encode::{Encode, Writer};
 ///
 /// One frame, then the finish: `delivered` when the agent has taken
 /// the message into the conversation, `dequeued` when the caller
-/// withdrew it first, `missed` when the run ended — or none was
-/// running — before it could be taken, and an error for everything
-/// else. The first three carry nothing — the fate is the answer.
+/// withdrew it first, `missed` when the run ended before it could be
+/// taken, and an error for everything else. The first three carry nothing — the fate is the answer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Request {
     /// The message's text.
