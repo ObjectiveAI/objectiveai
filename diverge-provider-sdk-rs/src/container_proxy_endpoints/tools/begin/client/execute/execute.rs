@@ -2,7 +2,7 @@
 
 use super::super::request;
 use super::super::super::server::{self, response};
-use super::{ExecuteError, ExecuteHandle};
+use super::{ExecuteError, ExecuteHandle, Finish};
 use crate::client::handle::Handle;
 use crate::container_proxy_endpoints::client::{Ask, Asks};
 use crate::decode::Decode as _;
@@ -15,10 +15,10 @@ use crate::frame;
 /// Reads exactly one frame off the main stream before returning,
 /// because nothing may be opened on the scope before its `Begun`: a
 /// refusal is [`Refused`](ExecuteError::Refused); a finish first is
-/// [`Unanswered`](ExecuteError::Unanswered). The main stream is then
-/// left unread — a tool container's carries nothing more — and the
-/// proxy's leaving is heard through the asks ending.
-pub async fn execute(handle: &Handle) -> Result<(ExecuteHandle, Asks<Ask>), ExecuteError> {
+/// [`Unanswered`](ExecuteError::Unanswered). The main stream then
+/// carries nothing more on a tool container, and the [`Finish`] is
+/// how its end is heard.
+pub async fn execute(handle: &Handle) -> Result<(ExecuteHandle, Asks<Ask>, Finish), ExecuteError> {
     let mut payload = Vec::new();
     request::Frame
         .encode(&mut Writer::new(&mut payload))
@@ -40,6 +40,7 @@ pub async fn execute(handle: &Handle) -> Result<(ExecuteHandle, Asks<Ask>), Exec
     Ok((
         ExecuteHandle::new(handle.clone(), scope.scope),
         Asks::new(scope.request_receiver, decode_ask),
+        Finish::new(scope.response_receiver),
     ))
 }
 

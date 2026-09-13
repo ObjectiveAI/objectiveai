@@ -17,7 +17,7 @@ use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::client::answered::{
     McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource,
 };
-use crate::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
+use crate::endpoints::containers::client::{ChannelStream, Decoded, OpenError, Scoped, UnaryError, WaitError};
 use crate::endpoints::containers::tools::run::server;
 use crate::shared::containers::{read, write_path};
 use crate::shared::mcp;
@@ -67,9 +67,10 @@ impl ExecuteHandle {
             .wait(|payload| {
                 Ok(match server::response::Frame::decode(payload)? {
                     // Sent only as the first response, before the
-                    // id; after it, neither is a fact of the run.
-                    server::response::Frame::Id(_) | server::response::Frame::VolumeMounted(_) => None,
-                    server::response::Frame::Error(error) => Some(error),
+                    // id; after it, neither is a fact of the run, and
+                    // the wire forbids them.
+                    server::response::Frame::Id(_) | server::response::Frame::VolumeMounted(_) => Decoded::Skip,
+                    server::response::Frame::Error(error) => Decoded::Error(error),
                 })
             })
             .await

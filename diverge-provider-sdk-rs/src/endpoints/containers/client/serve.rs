@@ -21,12 +21,15 @@ use crate::frame;
 ///
 /// `decode` is the family's: its `server::channel_request::Frame`
 /// read into the one owned [`Ask`]. A frame that is not a channel
-/// request, or an ask that will not decode, is dropped — the wire
-/// says nothing else can be on this stream, and a provider that sent
-/// it anyway gets no answer, which it reads as the channel dying.
-/// Each answer runs on its own task so several can be in flight at
-/// once: answers may be given in any order, and an agent making
-/// several calls at once is the ordinary case.
+/// request is dropped — the wire says nothing else can be on this
+/// stream, and there is no channel to answer. An ask that will not
+/// decode is a channel this end cannot serve, and is answered as
+/// such: the finish with nothing before it, the wire's
+/// could-not-serve, so the provider is never left waiting on a
+/// channel nobody will finish. Each answer runs on its own task so
+/// several can be in flight at once: answers may be given in any
+/// order, and an agent making several calls at once is the ordinary
+/// case.
 pub(crate) async fn serve<O, A, I, P, C, V, M, F>(
     mut requests: UnboundedReceiver<Bytes>,
     handle: Handle,
@@ -52,6 +55,10 @@ pub(crate) async fn serve<O, A, I, P, C, V, M, F>(
             continue;
         };
         let Some(ask) = decode(payload) else {
+            let handle = handle.clone();
+            tokio::spawn(async move {
+                let _ = handle.send_channel_response_finish(scope, channel).await;
+            });
             continue;
         };
         tokio::spawn(answer::answer(

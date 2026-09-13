@@ -3,7 +3,7 @@
 use crate::client::handle::SendError;
 use crate::container_proxy_endpoints::agents::begin::client::execute::{Chunks, ExecuteHandle as AgentsBegin};
 use crate::container_proxy_endpoints::client::{Ask, Asks};
-use crate::container_proxy_endpoints::tools::begin::client::execute::ExecuteHandle as ToolsBegin;
+use crate::container_proxy_endpoints::tools::begin::client::execute::{ExecuteHandle as ToolsBegin, Finish};
 use crate::endpoints::containers::client::answered::Postgres;
 use crate::endpoints::containers::client::{ChannelStream, OpenError};
 
@@ -72,4 +72,8 @@ pub(crate) struct Begun {
     /// The agent's chunks, off the begin's main stream; [`None`] for
     /// a tool container, whose main stream carries nothing more.
     pub chunks: Option<Chunks>,
+    /// The begin's end, for a tool container, whose main stream is
+    /// read for nothing else; [`None`] for an agent container, whose
+    /// chunks end at the same finish.
+    pub finish: Option<Finish>,
 }

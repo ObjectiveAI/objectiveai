@@ -31,6 +31,9 @@ use crate::shared::error::Error;
 /// content — a missing parent, a destination it cannot replace — is
 /// read the same way, and the content is not sent.
 ///
+/// A second channel the proxy opens on the scope is one this end
+/// cannot serve, and is finished with nothing before the finish.
+///
 /// A piece of `content` that is an error is the write abandoned: the
 /// error goes to the proxy as the content channel's own, the channel
 /// finishes, and this returns [`Content`](ExecuteError::Content)
@@ -80,6 +83,16 @@ where
         .send_channel_response_finish(scope.scope, channel)
         .await
         .map_err(ExecuteError::Send)?;
+
+    // A second channel the proxy opened on this scope is one this end
+    // cannot serve: the finish with nothing before it.
+    while let Ok(bytes) = scope.request_receiver.try_recv() {
+        if let Ok(frame::server::ServerFrame::ChannelRequest { channel: stray, .. }) =
+            frame::server::ServerFrame::decode(&bytes)
+        {
+            let _ = handle.send_channel_response_finish(scope.scope, stray).await;
+        }
+    }
 
     let bytes = scope.response_receiver.recv().await.ok_or(ExecuteError::Closed)?;
     answer(&bytes)

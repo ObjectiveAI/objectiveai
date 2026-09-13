@@ -36,8 +36,10 @@ use crate::shared::error::Error;
 ///
 /// The scope's queues are unbounded and this takes one thing off one of
 /// them, so nothing about depth arises. The request stream is dropped
-/// unread: nothing is supposed to arrive on it, and a provider that
-/// opened a channel anyway finds the far end already gone.
+/// unread: nothing is supposed to arrive on it, and a channel a
+/// provider opens anyway dead-letters at the router — the provider
+/// hears nothing, which is what the wire says of a scope nobody
+/// opens channels on.
 ///
 /// # What ends the wait
 ///

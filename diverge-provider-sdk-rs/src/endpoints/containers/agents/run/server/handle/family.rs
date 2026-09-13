@@ -111,6 +111,7 @@ impl Runs for Agents {
                     begin: Begin::Agents(handle),
                     asks,
                     chunks: Some(chunks),
+                    finish: None,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),

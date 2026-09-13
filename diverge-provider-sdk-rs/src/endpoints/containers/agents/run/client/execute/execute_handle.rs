@@ -10,7 +10,6 @@ use serde_json::Value;
 
 use super::super::channel_request;
 use super::{Filetree, FiletreeStream, Read, ReadStream, WritePath};
-use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::agents::run::server;
 use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue};
@@ -21,7 +20,9 @@ use crate::shared::containers::{dequeue, enqueue, read, write_path};
 ///
 /// Every channel a caller may open into an agent container is a
 /// method here: the tree watched, a file read or written, the agent's
-/// schema, the queue's two verbs, and the stop. Each opens its own channel, so several may be in flight
+/// schema, the queue's two verbs, and the stop. What the agent says
+/// is not: it is the [`Chunks`](super::Chunks) `execute` handed back
+/// beside this. Each opens its own channel, so several may be in flight
 /// at once. Clones share the scope, and [`wait`](Self::wait) on any
 /// of them reports the same end.
 ///
@@ -55,21 +56,17 @@ impl ExecuteHandle {
     /// stop, or the container's own end — and the provider's error
     /// when it ended that way. Resolves once and answers the same way
     /// again after.
+    ///
+    /// # It reads nothing
+    ///
+    /// The main stream is the conversation, and the
+    /// [`Chunks`](super::Chunks) `execute` handed back are its reader.
+    /// This waits for that reader to reach the end, so that no chunk
+    /// is lost to a caller who only wanted to know the run is over; a
+    /// caller that wants the end and not the conversation drains the
+    /// chunks.
     pub async fn wait(&self) -> Result<(), WaitError<server::response::FrameError>> {
-        self.0
-            .wait(|payload| {
-                Ok(match server::response::Frame::decode(payload)? {
-                    // The id and the refusal come only first; a
-                    // chunk is the agent speaking, which this
-                    // executor does not yet surface — that is its
-                    // retrofit. None of the three ends the run.
-                    server::response::Frame::Id(_)
-                    | server::response::Frame::VolumeMounted(_)
-                    | server::response::Frame::Chunk(_) => None,
-                    server::response::Frame::Error(error) => Some(error),
-                })
-            })
-            .await
+        self.0.ended().await
     }
 
     /// Stop the container. Nothing answers on the channel this opens;
