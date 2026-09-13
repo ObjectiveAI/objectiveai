@@ -67,11 +67,13 @@ impl Default for Containers {
             // 32 GiB.
             image_cache_disk: 32 * 1024 * 1024 * 1024,
             podman_storage_path: PathBuf::from("podman_data"),
-            registries: vec![
-                Registry::anonymous("docker.io"),
-                Registry::anonymous("ghcr.io"),
-                Registry::anonymous("quay.io"),
-            ],
+            registries: ["docker.io", "ghcr.io", "quay.io"]
+                .iter()
+                .map(|host| Registry {
+                    host: host.to_string(),
+                    credential: None,
+                })
+                .collect(),
         }
     }
 }

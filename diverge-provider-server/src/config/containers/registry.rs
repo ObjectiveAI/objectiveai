@@ -31,13 +31,3 @@ pub struct Registry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub credential: Option<Credential>,
 }
-
-impl Registry {
-    /// A registry pulled from anonymously.
-    pub fn anonymous(host: &str) -> Self {
-        Registry {
-            host: host.to_string(),
-            credential: None,
-        }
-    }
-}
