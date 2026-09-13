@@ -2,14 +2,14 @@
 //! on the server's request and kept for the proxy's life, its
 //! contents the caller's.
 //!
-//! The SDK's [`filesystem`](diverge_provider_sdk::container_proxy::filesystem)
+//! The SDK's [`fuse`](diverge_provider_sdk::shared::containers::fuse)
 //! module states the semantics of both kinds; `file` and
 //! `directory` are the filesystems that keep them, `asks` the
-//! six exchanges with the caller they are built on — each one
-//! [`fuse`](diverge_provider_sdk::container_proxy::fuse) ask on
-//! `/requests`, carrying the mount's id — and `handles` the open
-//! file handles both keep the same way: a buffer of the handle's own,
-//! read whole on open and stored whole on a changed close.
+//! seven exchanges with the caller they are built on — each one
+//! channel request on the scope the mount was made on — and
+//! `handles` the open file handles both keep the same way: a buffer
+//! of the handle's own, read whole on open and stored whole on a
+//! changed close.
 //!
 //! FUSE calls a filesystem on the session's own thread, and the
 //! caller is asked on the runtime: every ask is the runtime handle's
@@ -22,20 +22,16 @@ mod directory;
 mod file;
 mod handles;
 mod mounts;
-mod serve;
 
 use std::io;
 use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 
-use diverge_provider_sdk::container_proxy::fuse::mount::request::Request;
+use diverge_provider_sdk::server::scope_handle::ScopeHandle;
 use tokio::runtime::Handle;
 
 pub use mounts::*;
-pub use serve::*;
-
-use crate::requests::Requests;
 
 /// Which kind of mount: what the server's request said.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,10 +49,8 @@ pub struct Mounted {
 
 /// Make every missing parent directory, the mount point itself if
 /// absent — the file, or the directory — and mount over it, writable:
-/// what may change is the caller's to answer, ask by ask.
-pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Request, kind: Kind) -> io::Result<Mounted> {
-    let mut path = PathBuf::from("/");
-    path.extend(&mount.path);
+/// what may change is the caller's to answer, ask by ask, on `scope`.
+pub fn mount(scope: Arc<ScopeHandle>, handle: Handle, path: &Path, kind: Kind) -> io::Result<Mounted> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -71,7 +65,7 @@ pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Request, kind: Kin
     config.acl = fuser::SessionACL::All;
     config.n_threads = Some(1);
 
-    let asks = asks::Asks::new(requests, handle, &mount.id);
+    let asks = asks::Asks::new(scope, handle);
     let session = match kind {
         Kind::File => {
             std::fs::OpenOptions::new()
@@ -79,16 +73,16 @@ pub fn mount(requests: Arc<Requests>, handle: Handle, mount: &Request, kind: Kin
                 .write(true)
                 .truncate(false)
                 .mode(FILE_MODE)
-                .open(&path)?;
-            fuser::Session::new(file::MountedFile::new(asks), &path, &config)?.spawn()?
+                .open(path)?;
+            fuser::Session::new(file::MountedFile::new(asks), path, &config)?.spawn()?
         }
         Kind::Directory => {
-            std::fs::create_dir_all(&path)?;
+            std::fs::create_dir_all(path)?;
             std::fs::set_permissions(
-                &path,
+                path,
                 std::fs::Permissions::from_mode(DIRECTORY_MODE),
             )?;
-            fuser::Session::new(directory::MountedDirectory::new(asks), &path, &config)?.spawn()?
+            fuser::Session::new(directory::MountedDirectory::new(asks), path, &config)?.spawn()?
         }
     };
     Ok(Mounted { _session: session })
