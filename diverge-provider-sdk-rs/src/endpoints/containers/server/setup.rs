@@ -3,76 +3,80 @@
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use serde_json::Value;
 
+use super::begin::Begun;
 use super::content;
 use super::encoded::encoded;
 use super::family::Runs;
 use super::own::Own;
 use super::render;
-use crate::container_proxy::fuse::mount;
-use crate::container_proxy::requests;
-use crate::server::container::Container as _;
-use crate::server::container_client::ContainerClient;
+use crate::client::handle::Handle;
+use crate::container_proxy_endpoints::client::Asks;
+use crate::container_proxy_endpoints::fuse::mount::client::execute::{self as mount, Ask as MountAsk};
+use crate::server::container::{self, Container as _};
 use crate::server::container_deployer::ContainerDeployer;
 use crate::server::content_store::ContentStore;
 use crate::server::deployment::Deployment;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::image_source::ImageSource;
-use crate::server::mount::Mount;
+use crate::server::mount::Mount as DeployedMount;
+use crate::server::proxy;
 use crate::server::scope_handle::ScopeHandle;
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::request::{Container, FuseMount, Image};
 use crate::shared::error::Error;
 
-/// A container that is up: running, its proxy dialled, its asks
-/// arriving.
+/// A container brought up and ready to serve.
 pub(crate) struct Prepared<C> {
     /// The container, to stop when the run is over.
     pub container: C,
-    /// The client every exchange with it goes through.
-    pub client: ContainerClient,
-    /// Its asks, from the one `/requests` connection.
-    pub asks: requests::execute::ExecuteStream,
-    /// The registry repository serving its image, to release when the
-    /// run is over; `None` for an image the caller does not hold.
+    /// The one connection to its proxy.
+    pub proxy: Handle,
+    /// The begin scope on it, and what rides it.
+    pub begun: Begun,
+    /// Every FUSE mount, made, with the asks each will make.
+    pub mounts: Vec<Mount>,
+    /// The registry repository serving the image, to release; [`None`]
+    /// unless the image is the caller's.
     pub repository: Option<String>,
-    /// Every mount's path — volume, identity, FUSE — which every
-    /// filetree opened on the container leaves out.
+    /// Every mount's path, which a filetree leaves out.
     pub ignore: Vec<Vec<String>>,
 }
 
-/// Everything before the id, in the only order that works:
+/// One FUSE mount, made: the caller's id for it, the scope it lives
+/// on, and the asks it makes there.
+pub(crate) struct Mount {
+    /// The caller's id, put back on every ask relayed.
+    pub id: String,
+    /// The scope, to answer the asks on.
+    pub handle: mount::ExecuteHandle,
+    /// The asks, as the mount makes them.
+    pub asks: Asks<MountAsk>,
+}
+
+/// Bring the container up, in the order the specification states.
 ///
-/// 1. The content the caller mounts by identity, in the store — what
-///    it lacks fetched from the caller now, on the scope's channels,
-///    because a deploy binds it and cannot wait for it.
-/// 2. The deployment, built: limits, volumes stamped with the caller,
-///    identities. Every mount's path — volume, identity, FUSE — is
-///    kept beside it, for every filetree opened on the container to
-///    leave alone.
-/// 3. For an image the caller holds, the registry told to serve a
-///    repository from this scope — before the deploy, because the
-///    deploy is what pulls it.
-/// 4. The deploy.
-/// 5. The proxy dialled: `/requests`, the one connection that carries
-///    the container's asks. A proxy that does not answer is a
-///    container that never came up.
-/// 6. Every FUSE mount made, one request each on `/fuse/mount`, the
-///    files then the directories, each answered only once it is
-///    serving. A mount the proxy does not make is the run never
-///    coming up.
+/// 1. The content every identity mount names is held — fetched from
+///    the caller where the store lacks it, on channels this end
+///    opens.
+/// 2. A caller-held image is put on the provider's registry, fed by
+///    digest from the caller.
+/// 3. The container is deployed, its proxy listening.
+/// 4. The proxy is dialled: one WebSocket, for the container's life.
+/// 5. The family's `begin` is opened on it — an agent container's
+///    carrying the agent — and its `Begun` awaited.
+/// 6. One `fuse::mount` scope per mount, file mounts first, each
+///    answered before the next is opened.
 ///
-/// The mounts are complete when this returns — which is before the
-/// agent is registered and before the id, and so before any channel
-/// the caller opened is read: a filetree asked for early waits in the
-/// scope's inbox, as everything the caller opens does.
-///
-/// An [`Err`] is the run's `Error`, and whatever was made before the
-/// failure is unmade: a container stopped, a repository released.
+/// Every failure after the deploy stops the container and releases
+/// the repository; the error is the run's. Nothing the caller opened
+/// has been read yet, and the id is not out.
 pub(crate) async fn prepare<R, D, S, G>(
     scope: &Arc<ScopeHandle>,
     client_identity: &str,
     request: &Container,
+    agent: Option<Value>,
     deployer: &D,
     store: &S,
     registry: &G,
@@ -107,81 +111,108 @@ where
             }
         }
         Image::Server { name, digest } => (
-            deployer.server(client_identity, &deployment, name, digest).await.map_err(Into::into)?,
+            deployer
+                .server(client_identity, &deployment, name, digest)
+                .await
+                .map_err(Into::into)?,
             None,
         ),
         Image::Registry { reference } => (
-            deployer.registry(client_identity, &deployment, reference).await.map_err(Into::into)?,
+            deployer
+                .registry(client_identity, &deployment, reference)
+                .await
+                .map_err(Into::into)?,
             None,
         ),
     };
 
-    let client = ContainerClient::new(container.address());
-    let asks = match requests::execute::execute(&client).await {
-        Ok(asks) => asks,
+    let proxy = match proxy::dial(container.address()).await {
+        Ok(proxy) => proxy,
         Err(error) => {
-            container.stop().await;
-            if let Some(repository) = &repository {
-                registry.release(repository).await;
-            }
+            undo(&container, &repository, registry).await;
             return Err(render::proxy(error));
         }
     };
 
-    if let Err(error) = mounts(&client, request).await {
-        container.stop().await;
-        if let Some(repository) = &repository {
-            registry.release(repository).await;
+    let begun = match R::begin(&proxy, agent).await {
+        Ok(begun) => begun,
+        Err(error) => {
+            undo(&container, &repository, registry).await;
+            return Err(error);
         }
-        return Err(error);
-    }
+    };
+
+    let mounts = match mounts(&proxy, request).await {
+        Ok(mounts) => mounts,
+        Err(error) => {
+            undo(&container, &repository, registry).await;
+            return Err(error);
+        }
+    };
 
     Ok(Prepared {
         container,
-        client,
-        asks,
+        proxy,
+        begun,
+        mounts,
         repository,
         ignore,
     })
 }
 
-/// Every FUSE mount, made in turn: the files, then the directories.
-/// Each request returns once its mount is serving, so the last
-/// returning is every mount complete.
-async fn mounts(client: &ContainerClient, request: &Container) -> Result<(), Error> {
-    let files = request.fuse_file_mounts.iter().map(|mount| (mount, Kind::File));
-    let directories = request.fuse_directory_mounts.iter().map(|mount| (mount, Kind::Directory));
-    for (mount, kind) in files.chain(directories) {
-        let request = mount_request(mount, kind);
-        mount::execute::execute(client, &request)
-            .await
-            .map_err(|error| render::mount_failed(&mount.id, error))?;
-    }
-    Ok(())
-}
-
-/// A FUSE mount of the request, as the proxy is asked for it.
-fn mount_request(mount: &FuseMount, kind: Kind) -> mount::request::Request {
-    mount::request::Request {
-        path: mount.container_path.clone(),
-        id: mount.id.clone(),
-        kind,
+/// A failure after the deploy: the container stopped, the repository
+/// released.
+async fn undo<C, G>(container: &C, repository: &Option<String>, registry: &G)
+where
+    C: container::Container,
+    G: ImageRegistry,
+{
+    container.stop().await;
+    if let Some(repository) = repository {
+        registry.release(repository).await;
     }
 }
 
-/// The deployment a request asks for, plus what the provider adds.
+/// Every FUSE mount, made in order: the file mounts, then the
+/// directory mounts, each complete before the next is opened. A mount
+/// the proxy does not make is the run's error.
+async fn mounts(proxy: &Handle, request: &Container) -> Result<Vec<Mount>, Error> {
+    let mut mounts = Vec::with_capacity(request.fuse_file_mounts.len() + request.fuse_directory_mounts.len());
+    for (fuse_mount, kind) in request
+        .fuse_file_mounts
+        .iter()
+        .map(|mount| (mount, Kind::File))
+        .chain(request.fuse_directory_mounts.iter().map(|mount| (mount, Kind::Directory)))
+    {
+        mounts.push(one_mount(proxy, fuse_mount, kind).await?);
+    }
+    Ok(mounts)
+}
+
+/// One mount, complete.
+async fn one_mount(proxy: &Handle, fuse_mount: &FuseMount, kind: Kind) -> Result<Mount, Error> {
+    match mount::execute(proxy, fuse_mount.container_path.clone(), kind).await {
+        Ok((handle, asks)) => Ok(Mount {
+            id: fuse_mount.id.clone(),
+            handle,
+            asks,
+        }),
+        Err(error) => Err(render::mount_failed(&fuse_mount.id, error)),
+    }
+}
+
+/// The deployment, from the request: what the deployer is handed.
 fn deployment(client_identity: &str, request: &Container) -> Deployment {
     Deployment {
         memory: request.memory,
         disk: request.disk,
         // Nothing of the handler's: the proxy reads no environment
-        // the handler sets. What a provider reserves for its own use
-        // it adds in the deployer.
+        // the handler sets.
         environment: IndexMap::new(),
         mounts: request
             .volume_mounts
             .iter()
-            .map(|mount| Mount {
+            .map(|mount| DeployedMount {
                 client_identity: client_identity.to_string(),
                 host_name: mount.host_name.clone(),
                 host_relative_path: mount.host_relative_path.clone(),
@@ -194,9 +225,7 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
     }
 }
 
-/// Every mount's path. Every mount is somebody else's tree: the
-/// filetree reports the image's filesystem and what the container
-/// makes of it.
+/// Every mount's path: what a filetree of this container leaves out.
 fn ignored(request: &Container) -> Vec<Vec<String>> {
     request
         .volume_mounts
@@ -209,13 +238,14 @@ fn ignored(request: &Container) -> Vec<Vec<String>> {
         .collect()
 }
 
-/// The manifest ask, as the family spells it. A digest is a string
-/// and a string always serializes.
+/// The ask for a manifest the registry does not hold, as this
+/// family's frame.
 fn manifest_ask<R: Runs>(digest: &str) -> Vec<u8> {
     encoded(&R::Ask::from(Own::OciManifest(digest))).unwrap_or_default()
 }
 
-/// The blob ask, likewise.
+/// The ask for a blob the registry does not hold, as this family's
+/// frame.
 fn blob_ask<R: Runs>(digest: &str) -> Vec<u8> {
     encoded(&R::Ask::from(Own::OciBlob(digest))).unwrap_or_default()
 }

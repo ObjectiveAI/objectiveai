@@ -23,7 +23,7 @@
 //! throughout: keys are UTF-8 strings, values are bytes and travel
 //! verbatim. The same shapes ride both wires this crate defines: the
 //! provider's channel toward the caller, and the
-//! [`proxy`](crate::container_proxy::vault) inside the container.
+//! [`proxy`](crate::container_proxy_endpoints::agents::begin) inside the container.
 //!
 //! # Keys are the container's; the namespace is the caller's
 //!

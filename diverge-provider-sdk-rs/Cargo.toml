@@ -16,7 +16,9 @@ publish = true
 # The provider half. Off by default so a client, and a tool that only
 # inspects the protocol, compiles messages and nothing else.
 # `connect` is the server half dialing the proxy inside a container —
-# the one place this crate dials; see `server::container_client`.
+# the one place this crate dials; see `server::proxy`. The server
+# also compiles the frame-level client core under `client`, because
+# it is that wire's client.
 server = ["__websocket", "dep:uuid", "tokio-tungstenite/connect"]
 # The caller half. Same bargain in the other direction.
 client = ["__websocket"]

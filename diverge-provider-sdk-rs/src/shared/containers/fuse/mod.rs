@@ -31,7 +31,7 @@
 //! prefix. Binary throughout: ids and paths are UTF-8 strings, bytes
 //! travel verbatim. The same shapes ride both wires this crate
 //! defines: the provider's channel toward the caller, and the
-//! [`proxy`](crate::container_proxy::fuse) inside the container.
+//! [`proxy`](crate::container_proxy_endpoints::fuse) inside the container.
 //!
 //! # The id is the caller's, and opaque
 //!

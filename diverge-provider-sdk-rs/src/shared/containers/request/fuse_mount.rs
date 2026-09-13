@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 /// which list of the [`Container`](super::Container) it is on.
 ///
 /// The provider MUST mount every one before it answers the run's id
-/// — one request to the proxy inside the container for each, on
-/// [`/fuse/mount`](crate::container_proxy::fuse::mount), each
-/// complete before the agent is registered and before any filetree
+/// — one `fuse::mount` scope on the proxy for each, see
+/// [`fuse::mount`](crate::container_proxy_endpoints::fuse::mount), each
+/// complete before the next and before any filetree
 /// is opened — as a filesystem the caller serves: the mount point is the file or the
 /// directory itself, made if absent with every missing parent
 /// directory made too, and the directory around it stays whatever

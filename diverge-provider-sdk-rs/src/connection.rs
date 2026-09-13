@@ -46,10 +46,10 @@ use futures_util::{Sink, Stream};
 /// finished making: a provider upgrades a request its own server
 /// received, a caller connects with its own tokio-tungstenite. The one
 /// thing this crate dials is the proxy inside a container, through
-/// [`ContainerClient`](crate::server::container_client::ContainerClient)
-/// behind the `server` feature — and that socket never becomes one of
-/// these, because the proxy's wire needs a clean close and an abrupt
-/// end told apart, which this type folds into one ending.
+/// [`proxy::dial`](crate::server::proxy::dial) behind the `server`
+/// feature — and that socket becomes an [`Outgoing`](Self::Outgoing)
+/// like any other, because the proxy's wire is this protocol's own
+/// frame and reads every ending from a finish, never from the socket.
 ///
 /// Which keeps every question about the transport where it belongs:
 /// what the URL is, what the TLS story is, what authenticates the

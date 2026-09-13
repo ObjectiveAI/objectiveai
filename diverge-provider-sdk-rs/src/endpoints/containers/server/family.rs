@@ -1,107 +1,113 @@
-//! What a family says about its own frames.
+//! What a container scope supplies to the shared machinery.
+//!
+//! The three scopes' frames are byte-identical and distinct types,
+//! and their containers begin differently, so the machinery is
+//! generic over a [`Family`] — every scope — and over [`Runs`] — the
+//! two that deploy — and each scope's `handle` names its own.
 
 use std::future::Future;
 use std::sync::Arc;
 
 use bytes::Bytes;
+use serde_json::Value;
 
+use super::begin::Begun;
 use super::own::Own;
 use super::run::Run;
-use crate::container_proxy::requests::request::Request;
+use crate::client::handle::Handle;
+use crate::container_proxy_endpoints::client::Ask;
+use crate::container_proxy_endpoints::fuse::mount::client::execute::Ask as MountAsk;
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::shared::containers::response::{Id, VolumeMounted};
 use crate::shared::error::Error;
 use crate::shared::filetree;
 
-/// One container scope's frames, named once.
+/// What every container scope supplies: its frames.
 ///
-/// The three scopes carry the same exchanges under types of their
-/// own: a filetree answer is `agents::run`'s `filetree::Frame` or
-/// `tools::run`'s or `tools::connect`'s, byte-identical and distinct.
-/// The machinery is written against this, and a handler's `family`
-/// module says which types those are — every method here is a
-/// construction or a decode of one of them, and nothing else.
-///
-/// Encoders answer `None` for a frame that would not serialize, which
-/// the machinery sends as nothing; a decode that fails is the error
-/// the exchange's own vocabulary has for it.
+/// Each method encodes one frame of this family's own types, or
+/// decodes one, so the machinery can speak them without knowing which
+/// scope it serves. Every encoder answers [`None`] when the frame
+/// would not encode, which the machinery treats as an answer it
+/// cannot give.
 pub(crate) trait Family: Send + Sync + 'static {
-    /// The channel request the caller opens: the family's
-    /// `client::channel_request::Frame`.
+    /// The caller's channel request frame.
     type Request: for<'a> Decode<'a> + Send;
-
-    /// The family's own exchanges, once the shared five are taken off.
+    /// The family's own exchanges, past the shared five.
     type Exchange: Send + 'static;
 
-    /// Read one opened channel as what it asks.
+    /// Which channel the caller opened.
     fn classify(request: Self::Request) -> Opened<Self::Exchange>;
-
-    /// Serve one of the family's own exchanges on `channel`, to the
-    /// end: every response, then the finish.
+    /// Serve one of the family's own exchanges, to the end.
     fn serve(run: Arc<Run>, channel: u32, exchange: Self::Exchange) -> impl Future<Output = ()> + Send + 'static;
 
-    /// The main stream's error: the scope ending badly.
+    /// The scope's error, on channel `0`.
     fn error(error: &Error) -> Option<Vec<u8>>;
-
-    /// The one ask every family makes: the content of a write the
-    /// caller started, by the id it gave.
+    /// The ask for a write's content, quoting the caller's write id.
     fn write_ask(write_id: u32) -> Option<Vec<u8>>;
-
-    /// One answer on that channel: a piece of the content, or the
-    /// caller saying it stopped.
+    /// One piece of a write's content, or the caller's error.
     fn content(payload: &Bytes) -> Result<Bytes, Error>;
 
-    /// A filetree answer: one frame of the tree.
+    /// One filetree frame, as this family's channel response.
     fn filetree(frame: filetree::response::Frame) -> Option<Vec<u8>>;
-    /// A filetree answer: the tree cannot be had.
+    /// A filetree channel's error.
     fn filetree_error(error: &Error) -> Option<Vec<u8>>;
-    /// A read answer: a piece of the file.
+    /// One piece of a read.
     fn read_body(bytes: &[u8]) -> Option<Vec<u8>>;
-    /// A read answer: the file cannot be had.
+    /// A read channel's error.
     fn read_error(error: &Error) -> Option<Vec<u8>>;
-    /// A write answer: the file landed.
+    /// A write that landed.
     fn written() -> Option<Vec<u8>>;
-    /// A write answer: it did not.
+    /// A write channel's error.
     fn write_error(error: &Error) -> Option<Vec<u8>>;
 }
 
-/// What a family that RUNS a container adds: the asks it makes of the
-/// caller, its own and the container's relayed, and the id it
-/// answers with.
+/// What the two scopes that deploy supply besides: how their container
+/// begins, and how the proxy's asks are put to the caller.
 pub(crate) trait Runs: Family {
-    /// The channel request this end opens: the family's
-    /// `server::channel_request::Frame`, with every provider's-own ask
-    /// spelled in it.
+    /// The channel request frame this end opens on the caller.
     type Ask<'a>: Encode + From<Own<'a>>;
 
-    /// A container's ask as this family's frame, to carry to the
-    /// caller. `None` for the one that is not carried as it came:
-    /// a database connection, which this end re-asks under an id of
-    /// its own — see [`Own::Postgres`].
-    fn relayed<'a>(request: Request<'a>) -> Option<Self::Ask<'a>>;
+    /// Begin the container's proxy: the family's begin scope on the
+    /// connection `proxy`, carrying `agent` where the family takes
+    /// one. What comes back is the scope and what rides it; an error
+    /// is the run's, in the proxy's words where it refused.
+    fn begin(proxy: &Handle, agent: Option<Value>) -> impl Future<Output = Result<Begun, Error>> + Send;
 
-    /// The main stream's first and only good word: the container's id.
+    /// The proxy's ask on the begin scope, as this family's frame to
+    /// the caller — or [`None`] for the one that is not carried as it
+    /// came: a database connection, which this end re-asks under an
+    /// id of its own. See [`Own::Postgres`].
+    fn relayed<'a>(ask: &'a Ask) -> Option<Self::Ask<'a>>;
+
+    /// A mount's ask, as this family's frame to the caller, with the
+    /// caller's id for the mount put back in front of it.
+    fn fuse<'a>(mount_id: &'a str, ask: &'a MountAsk) -> Self::Ask<'a>;
+
+    /// The container's id, on channel `0`.
     fn id(id: &Id) -> Option<Vec<u8>>;
-
-    /// The refusal that is not an error: a volume the request names
-    /// is mounted in another container of the caller's.
+    /// The run refused for a held volume, on channel `0`.
     fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>>;
 }
 
-/// A channel the caller opened, read as what it asks.
+/// What a caller opened, classified.
 #[derive(Debug)]
 pub(crate) enum Opened<E> {
-    /// Stop the container, or leave it: the scope is over.
+    /// Stop the container, or leave it.
     Stop,
-    /// The container's filesystem, watched.
+    /// The container's tree, watched.
     Filetree,
-    /// One file out of the container.
+    /// One file, read.
     Read(Vec<String>),
-    /// One file into it: the content follows on a channel this end
-    /// opens for `write_id`.
-    Write { write_id: u32, path: Vec<String> },
-    /// The caller's half of a database connection this end asked for.
+    /// One file, written.
+    Write {
+        /// The caller's id for the write, quoted on the content ask.
+        write_id: u32,
+        /// The destination.
+        path: Vec<String>,
+    },
+    /// The caller's half of a database connection, by the id this end
+    /// minted.
     Postgres(u32),
     /// The family's own.
     Exchange(E),

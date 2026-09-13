@@ -47,7 +47,7 @@ use crate::shared::containers::request::IdentityMount;
 ///
 /// Its ports are not here either, because there is exactly one and it
 /// is always the same: the proxy's
-/// [`OUTSIDE_PORT`](crate::container_proxy::OUTSIDE_PORT), which a
+/// [`OUTSIDE_PORT`](crate::container_proxy_endpoints::OUTSIDE_PORT), which a
 /// deployer makes reachable on every container it deploys and reports
 /// as the container's [`address`](super::container::Container::address).
 /// The entrypoint's own port is the proxy's to reach, on the loopback

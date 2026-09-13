@@ -1,6 +1,9 @@
 //! This scope's frames, named for the machinery.
 
+use std::future::Future;
 use std::sync::Arc;
+
+use serde_json::Value;
 
 use bytes::Bytes;
 
@@ -8,16 +11,21 @@ use super::super::super::client::channel_request;
 use super::super::super::client::channel_response::write_bytes;
 use super::super::channel_response::{filetree, read, write_path};
 use super::super::{channel_request as ask, response};
-use crate::container_proxy::requests::request::Request;
+use crate::client::handle::Handle;
+use crate::container_proxy_endpoints::client::Ask;
+use crate::container_proxy_endpoints::fuse::mount::client::execute::Ask as MountAsk;
 use crate::decode::Decode as _;
+use crate::endpoints::containers::server::begin::{Begin, Begun};
 use crate::endpoints::containers::server::family::{Family, Opened, Runs};
 use crate::endpoints::containers::server::own::Own;
 use crate::endpoints::containers::server::run::Run;
 use crate::endpoints::containers::server::serve::agent;
 use crate::endpoints::containers::server::{encoded::encoded, render};
+use crate::container_proxy_endpoints::agents::begin::client::execute as begin;
 use crate::shared;
 use crate::shared::containers::response::{Id, VolumeMounted};
-use crate::shared::containers::{fetch_directory, fetch_file, oci, postgres};
+use crate::shared::containers::{command, fetch_directory, fetch_file, fuse, oci, postgres, vault};
+use crate::shared::mcp;
 use crate::shared::error::Error;
 use crate::shared::filetree as tree;
 
@@ -92,29 +100,30 @@ impl Family for Agents {
 impl Runs for Agents {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn relayed<'a>(request: Request<'a>) -> Option<ask::Frame<'a>> {
-        Some(match request {
-            Request::McpListTools(request) => ask::Frame::McpListTools(request),
-            Request::McpListResources(request) => ask::Frame::McpListResources(request),
-            Request::McpCallTool(request) => ask::Frame::McpCallTool(request),
-            Request::McpReadResource(request) => ask::Frame::McpReadResource(request),
-            Request::McpNotifications(request) => ask::Frame::McpNotifications(request),
-            Request::VaultGet(request) => ask::Frame::VaultGet(request),
-            Request::VaultSet(request) => ask::Frame::VaultSet(request),
-            Request::VaultDelete(request) => ask::Frame::VaultDelete(request),
-            Request::VaultLock(request) => ask::Frame::VaultLock(request),
-            Request::VaultUnlock(request) => ask::Frame::VaultUnlock(request),
-            Request::Command(request) => ask::Frame::Command(request),
-            // Re-asked under this end's own id: see `Own::Postgres`.
-            Request::Postgres(_) => return None,
-            Request::FuseRead(request) => ask::Frame::FuseRead(request),
-            Request::FuseWrite(request) => ask::Frame::FuseWrite(request),
-            Request::FuseList(request) => ask::Frame::FuseList(request),
-            Request::FuseRemove(request) => ask::Frame::FuseRemove(request),
-            Request::FuseRename(request) => ask::Frame::FuseRename(request),
-            Request::FuseMkdir(request) => ask::Frame::FuseMkdir(request),
-            Request::FuseStat(request) => ask::Frame::FuseStat(request),
-        })
+    fn begin(proxy: &Handle, agent: Option<Value>) -> impl Future<Output = Result<Begun, Error>> + Send {
+        let proxy = proxy.clone();
+        async move {
+            // The agents handle always passes one; an absent agent is
+            // `null`, which the image is free to refuse.
+            let agent = agent.unwrap_or_default();
+            match begin::execute(&proxy, agent).await {
+                Ok((handle, asks, chunks)) => Ok(Begun {
+                    begin: Begin::Agents(handle),
+                    asks,
+                    chunks: Some(chunks),
+                }),
+                Err(begin::ExecuteError::Refused(error)) => Err(error),
+                Err(error) => Err(render::proxy(error)),
+            }
+        }
+    }
+
+    fn relayed<'a>(ask: &'a Ask) -> Option<ask::Frame<'a>> {
+        Some(relayed(ask)?)
+    }
+
+    fn fuse<'a>(mount_id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {
+        fuse(mount_id, ask)
     }
 
     fn id(id: &Id) -> Option<Vec<u8>> {
@@ -123,6 +132,38 @@ impl Runs for Agents {
 
     fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>> {
         encoded(&response::Frame::VolumeMounted(refused.clone()))
+    }
+}
+
+/// The proxy's ask as this family's frame; a database connection is
+/// re-asked under this end's own id, see `Own::Postgres`.
+fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
+    Some(match ask {
+        Ask::Postgres(_) => return None,
+        Ask::Command(bytes) => ask::Frame::Command(command::request::Request(bytes)),
+        Ask::VaultGet { key } => ask::Frame::VaultGet(vault::get::request::Request { key }),
+        Ask::VaultSet { key, value } => ask::Frame::VaultSet(vault::set::request::Request { key, value }),
+        Ask::VaultDelete { key } => ask::Frame::VaultDelete(vault::delete::request::Request { key }),
+        Ask::VaultLock { key, ttl } => ask::Frame::VaultLock(vault::lock::request::Request { key, ttl: *ttl }),
+        Ask::VaultUnlock { key } => ask::Frame::VaultUnlock(vault::unlock::request::Request { key }),
+        Ask::McpListTools(request) => ask::Frame::McpListTools(request.clone()),
+        Ask::McpListResources(request) => ask::Frame::McpListResources(request.clone()),
+        Ask::McpCallTool(request) => ask::Frame::McpCallTool(request.clone()),
+        Ask::McpReadResource(request) => ask::Frame::McpReadResource(request.clone()),
+        Ask::McpNotifications => ask::Frame::McpNotifications(mcp::notifications::request::Request),
+    })
+}
+
+/// A mount's ask as this family's frame, the caller's id in front.
+fn fuse<'a>(id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {
+    match ask {
+        MountAsk::Read { path } => ask::Frame::FuseRead(fuse::Target { id, path }),
+        MountAsk::Write { path, bytes } => ask::Frame::FuseWrite(fuse::write::request::Request { id, path, bytes }),
+        MountAsk::List { path } => ask::Frame::FuseList(fuse::Target { id, path }),
+        MountAsk::Remove { path } => ask::Frame::FuseRemove(fuse::Target { id, path }),
+        MountAsk::Rename { from, to } => ask::Frame::FuseRename(fuse::rename::request::Request { id, from, to }),
+        MountAsk::Mkdir { path } => ask::Frame::FuseMkdir(fuse::Target { id, path }),
+        MountAsk::Stat { path } => ask::Frame::FuseStat(fuse::Target { id, path }),
     }
 }
 

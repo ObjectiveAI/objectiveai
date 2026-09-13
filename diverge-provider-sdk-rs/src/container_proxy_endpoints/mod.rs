@@ -2,9 +2,8 @@
 //! over one connection.
 //!
 //! Every container the provider runs carries one proxy program beside
-//! its own entrypoint, listening for the server on
-//! [`OUTSIDE_PORT`](crate::container_proxy::OUTSIDE_PORT). The server
-//! dials it ONCE, and everything the two say to each other for the
+//! its own entrypoint, listening for the server on [`OUTSIDE_PORT`].
+//! The server dials it ONCE, and everything the two say to each other for the
 //! container's life rides that one WebSocket, framed exactly as the
 //! provider protocol frames its own wire: [`frame`](crate::frame),
 //! nine bytes of header — a type, a scope, a channel — and a payload.
@@ -83,12 +82,27 @@
 //! # And what stays
 //!
 //! The program inside the container still has the proxy's own
-//! listeners — [`INSIDE_PORT`](crate::container_proxy::INSIDE_PORT)
-//! and the Postgres loopback — which are the program's surfaces and
-//! not wires of this module; what arrives on them becomes a channel
+//! listeners on the loopback — its HTTP surface, and the Postgres
+//! port its driver dials — which are the program's surfaces and not
+//! wires of this module; what arrives on them becomes a channel
 //! request on `begin`.
+//!
+//! # And, behind the `server` feature, a way to speak it
+//!
+//! Every scope's `client::execute` performs the exchange rather than
+//! describing it, for the provider's server: hand it the
+//! [`Handle`](crate::client::handle::Handle) that
+//! [`proxy::dial`](crate::server::proxy::dial) made and what the
+//! request carries, and get back the scope's answer — the begin's
+//! asks and chunks, a mount's asks, a tree's frames, a file's bytes,
+//! a write's fate. It is the `server` feature, not `client`, because
+//! the party that executes here is the provider; what it uses is the
+//! frame-level client [`client`](crate::client) keeps on under either.
 
 mod client_request;
+
+#[cfg(feature = "server")]
+pub mod client;
 
 pub use client_request::*;
 
@@ -96,3 +110,14 @@ pub mod agents;
 pub mod filesystem;
 pub mod fuse;
 pub mod tools;
+
+/// The port the proxy listens for the server on, inside the
+/// container: the one WebSocket of this module is dialled here, from
+/// outside, at the root path.
+///
+/// One port, always the same one, so a
+/// [`Deployment`](crate::server::deployment::Deployment) names none:
+/// a deployer makes it reachable on every container it deploys and
+/// reports where, and the entrypoint's own port is behind the proxy,
+/// on the loopback inside, never published.
+pub const OUTSIDE_PORT: u16 = 14979;

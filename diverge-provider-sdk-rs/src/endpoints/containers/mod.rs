@@ -64,16 +64,16 @@
 //!
 //! Each scope's `server::handle` answers the request: a run brings
 //! the container up in order — content, registry, deploy, the proxy
-//! dialled, the agent registered — sends the id, and then relays
-//! everything the container asks and serves everything the caller
-//! opens until the run ends; a connect asks the runner and, on a yes,
+//! dialled and begun, every mount made — sends the id, and then
+//! relays everything the container asks and serves everything the
+//! caller opens until the run ends; a connect asks the runner and, on a yes,
 //! serves the connector the same way. What the three share is
 //! [`server`], written once.
 
 pub mod agents;
 pub mod tools;
 
-#[cfg(feature = "client")]
+#[cfg(any(feature = "client", feature = "server"))]
 pub mod client;
 
 #[cfg(feature = "server")]
