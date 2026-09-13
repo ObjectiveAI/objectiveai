@@ -21,7 +21,7 @@
 //! has the container inside asking a caller's servers; a
 //! [`tools`](crate::endpoints::containers::tools) scope also has the
 //! caller asking a server the provider is holding; and the
-//! [`proxy`](crate::container_proxy::mcp) inside the container relays
+//! [`proxy`](crate::container_proxy_endpoints::agents::begin) inside the container relays
 //! the first of those one hop earlier.
 //!
 //! Same five exchanges, opposite ways round. A shape defined once per

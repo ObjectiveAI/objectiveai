@@ -13,7 +13,7 @@ use crate::endpoints::containers::server::serve;
 use crate::endpoints::containers::tools::connect::client::request;
 use crate::endpoints::containers::tools::run::server::handle::Tools;
 use crate::server::answer::{Answer, answer};
-use crate::server::container_client::ContainerClient;
+use crate::endpoints::containers::server::begin::Begin;
 use crate::server::directory::Directory;
 use crate::server::scope_handle::ScopeHandle;
 use crate::shared::containers::authorize;
@@ -66,9 +66,17 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, address: IpAddr
         return;
     }
 
+    // An agent container is its runner's alone: it has no begin a
+    // connector's exchanges could ride, and is not found.
+    let Some(begin) = attached.begin else {
+        send(&scope, Connect::error(&missing())).await;
+        scope.send_response_finish().await;
+        return;
+    };
     let run = Arc::new(Run::new(
         Arc::clone(&scope),
-        ContainerClient::new(attached.address),
+        attached.proxy,
+        Begin::Tools(begin),
         attached.ignore,
     ));
     let mut ended = attached.ended;

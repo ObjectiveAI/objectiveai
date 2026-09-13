@@ -1,8 +1,17 @@
-//! The caller half, behind the `client` feature.
+//! The frame-level client: the caller half, and the core the
+//! provider's server speaks toward its proxies.
 //!
-//! The mirror of [`server`](crate::server), and off for the same
-//! reason: a provider should not have to compile a caller to answer a
-//! frame.
+//! The mirror of [`server`](crate::server). The caller's own parts —
+//! the handshake, the answerers — are behind the `client` feature,
+//! off for the reason that half is: a provider should not have to
+//! compile a caller to answer a frame. The core — a
+//! [`handle`], a [`router`], the [`scope`]s and [`channel`]s they
+//! hand back — is on under either feature, because a provider's
+//! server IS a frame-level client on one wire: the
+//! [`container_proxy_endpoints`](crate::container_proxy_endpoints)
+//! connection it dials into every container, where it mints the
+//! scopes and the proxy answers. Same frame, same machinery, one
+//! implementation.
 //!
 //! # What a caller supplies
 //!
@@ -92,31 +101,53 @@
 //! under either half, because which end dialled is not a fact about
 //! the protocol.
 
-pub mod authorization;
-pub mod authorize;
 pub mod channel;
 pub mod handle;
 pub mod registration;
 pub mod router;
 pub mod scope;
+
+#[cfg(feature = "client")]
+pub mod authorization;
+#[cfg(feature = "client")]
+pub mod authorize;
+#[cfg(feature = "client")]
 pub mod unbrokered_authorizer;
 
+#[cfg(feature = "client")]
 mod answerers;
+#[cfg(feature = "client")]
 mod command_runner;
+#[cfg(feature = "client")]
 mod connection_authorizer;
+#[cfg(feature = "client")]
 mod fuse_server;
+#[cfg(feature = "client")]
 mod identity_store;
+#[cfg(feature = "client")]
 mod mcp_server;
+#[cfg(feature = "client")]
 mod oci_store;
+#[cfg(feature = "client")]
 mod postgres_dialer;
+#[cfg(feature = "client")]
 mod vault;
 
+#[cfg(feature = "client")]
 pub use answerers::*;
+#[cfg(feature = "client")]
 pub use command_runner::*;
+#[cfg(feature = "client")]
 pub use connection_authorizer::*;
+#[cfg(feature = "client")]
 pub use fuse_server::*;
+#[cfg(feature = "client")]
 pub use identity_store::*;
+#[cfg(feature = "client")]
 pub use mcp_server::*;
+#[cfg(feature = "client")]
 pub use oci_store::*;
+#[cfg(feature = "client")]
 pub use postgres_dialer::*;
+#[cfg(feature = "client")]
 pub use vault::*;

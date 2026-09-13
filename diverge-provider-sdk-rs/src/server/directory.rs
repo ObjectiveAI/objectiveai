@@ -6,6 +6,8 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::watch;
 
 use super::scope_handle::ScopeHandle;
+use crate::client::handle::Handle;
+use crate::container_proxy_endpoints::tools::begin::client::execute::ExecuteHandle as ToolsBegin;
 
 /// Every container running under this provider, by the
 /// [`Id`](crate::shared::containers::response::Id) its run was
@@ -19,9 +21,10 @@ use super::scope_handle::ScopeHandle;
 /// map cannot live in a connection. A run handler inserts its
 /// container once the id is minted and removes it when the run ends,
 /// and a connect handler looks its id up — getting the run scope, to
-/// ask the runner whether the connector may attach; the address, to
-/// dial the container; and a signal for the run ending, which ends
-/// every connection to it.
+/// ask the runner whether the connector may attach; the connection to
+/// the container's proxy and the begin scope on it, which the
+/// connector's channels ride; and a signal for the run ending, which
+/// ends every connection to it.
 ///
 /// # The id is a capability
 ///
@@ -49,7 +52,8 @@ pub struct Directory {
 /// One running container.
 struct Entry {
     scope: Arc<ScopeHandle>,
-    address: String,
+    proxy: Handle,
+    begin: Option<ToolsBegin>,
     ignore: Vec<Vec<String>>,
     ended: watch::Sender<bool>,
 }
@@ -59,8 +63,13 @@ struct Entry {
 pub struct Attached {
     /// The run scope: where the runner is asked.
     pub scope: Arc<ScopeHandle>,
-    /// The container's proxy, as the run's deployer reported it.
-    pub address: String,
+    /// The one connection to the container's proxy, which the
+    /// connector's tree, read and write scopes are opened on.
+    pub proxy: Handle,
+    /// The run's begin scope, on which a connector's MCP exchanges
+    /// are channels — [`None`] for an agent container, which is its
+    /// runner's alone and takes no connector.
+    pub begin: Option<ToolsBegin>,
     /// Every mount's path, which a filetree the connector opens
     /// leaves out as the runner's does.
     pub ignore: Vec<Vec<String>>,
@@ -120,13 +129,21 @@ impl Directory {
 
     /// The container is running: from now until
     /// [`remove`](Self::remove), connectors may find it.
-    pub fn insert(&self, id: String, scope: Arc<ScopeHandle>, address: String, ignore: Vec<Vec<String>>) {
+    pub fn insert(
+        &self,
+        id: String,
+        scope: Arc<ScopeHandle>,
+        proxy: Handle,
+        begin: Option<ToolsBegin>,
+        ignore: Vec<Vec<String>>,
+    ) {
         let (ended, _) = watch::channel(false);
         self.lock().insert(
             id,
             Entry {
                 scope,
-                address,
+                proxy,
+                begin,
                 ignore,
                 ended,
             },
@@ -148,7 +165,8 @@ impl Directory {
     pub fn lookup(&self, id: &str) -> Option<Attached> {
         self.lock().get(id).map(|entry| Attached {
             scope: Arc::clone(&entry.scope),
-            address: entry.address.clone(),
+            proxy: entry.proxy.clone(),
+            begin: entry.begin.clone(),
             ignore: entry.ignore.clone(),
             ended: entry.ended.subscribe(),
         })

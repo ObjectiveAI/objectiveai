@@ -14,16 +14,6 @@ pub(crate) fn proxy(error: impl fmt::Display) -> Error {
         "error": error.to_string(),
     }))
 }
-
-/// The container refused, in its own words: the proxy's `Error`
-/// frame with a message, relayed.
-pub(crate) fn refused(message: &str) -> Error {
-    Error(serde_json::json!({
-        "kind": "container",
-        "error": message,
-    }))
-}
-
 /// Content the caller mounts by identity, and does not hold.
 pub(crate) fn missing_content(identity: &str) -> Error {
     Error(serde_json::json!({

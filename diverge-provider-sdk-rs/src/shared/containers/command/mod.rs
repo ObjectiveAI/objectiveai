@@ -27,7 +27,7 @@
 //!
 //! The same shapes ride both wires this crate defines: the provider's
 //! channel toward the caller, and the
-//! [`proxy`](crate::container_proxy::command) inside the container.
+//! [`proxy`](crate::container_proxy_endpoints::agents::begin) inside the container.
 
 pub mod request;
 pub mod response;

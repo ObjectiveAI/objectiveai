@@ -58,11 +58,10 @@
 //!
 //! Under construction. The types land as the provider API is defined.
 
-#[cfg(feature = "client")]
+#[cfg(any(feature = "client", feature = "server"))]
 pub mod client;
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod connection;
-pub mod container_proxy;
 pub mod container_proxy_endpoints;
 pub mod decode;
 pub mod encode;

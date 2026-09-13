@@ -1,66 +1,45 @@
-//! The agents family's own exchanges: the schema and the queue.
+//! The agents family's own exchanges: the schema and the queue,
+//! channels on the begin scope.
 
 use std::sync::Arc;
 
+use super::super::begin::Begin;
 use super::super::encoded::encoded;
 use super::super::run::Run;
-use crate::container_proxy::agent;
-use crate::shared::containers::{agent_schema, dequeue, enqueue};
+use crate::endpoints::containers::client::UnaryError;
+use crate::shared::containers::agent_schema;
 
 /// What an agent container's caller opens, past the shared five.
 #[derive(Debug)]
 pub(crate) enum Exchange {
     /// The schema of the agent value.
     AgentSchema,
-    /// A message for the loop's queue.
+    /// A message for the agent.
     Enqueue(String),
     /// Empty the queue.
     Dequeue,
 }
 
-/// Serve one, to the end.
+/// Serve one, to the end: the proxy's one answer on the caller's
+/// channel, then the finish — or the finish alone where the proxy
+/// could not serve it. What the agent says in reply is not here: it
+/// rides the main stream, relayed by `relay::chunks`.
 pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
-    match exchange {
-        Exchange::AgentSchema => schema(run, channel).await,
-        Exchange::Enqueue(prompt) => enqueue(run, channel, prompt).await,
-        Exchange::Dequeue => dequeue(run, channel).await,
-    }
-}
-
-/// The schema, or the container's `Error`, then the finish.
-async fn schema(run: Arc<Run>, channel: u32) {
-    let answer = match agent::schema::execute::execute(&run.client).await {
-        Ok(schema) => encoded(&agent_schema::response::Frame::AgentSchema(schema)),
-        Err(agent::schema::execute::ExecuteError::Refused(error)) => {
-            encoded(&agent_schema::response::Frame::Error(error))
-        }
-        Err(_) => None,
+    let Begin::Agents(begin) = &run.begin else {
+        // A tool container has no agent; nothing classifies into
+        // this on one.
+        run.finish(channel).await;
+        return;
     };
-    run.respond(channel, answer).await;
-    run.finish(channel).await;
-}
-
-/// The message's fate, however long it takes, then the finish.
-///
-/// Relayed to the old proxy's `/agent/enqueue` as it stands. Starting
-/// a loop on a message when none runs, and carrying the agent's
-/// chunks to the scope's main stream, wait on the proxy's rewrite.
-async fn enqueue(run: Arc<Run>, channel: u32, prompt: String) {
-    let request = enqueue::request::Request { prompt };
-    let answer = agent::enqueue::execute::execute(&run.client, &request)
-        .await
-        .ok()
-        .and_then(|frame: enqueue::response::Frame| encoded(&frame));
-    run.respond(channel, answer).await;
-    run.finish(channel).await;
-}
-
-/// Whether the queue held anything, then the finish.
-async fn dequeue(run: Arc<Run>, channel: u32) {
-    let answer = agent::dequeue::execute::execute(&run.client)
-        .await
-        .ok()
-        .and_then(|frame: dequeue::response::Frame| encoded(&frame));
+    let answer = match exchange {
+        Exchange::AgentSchema => match begin.agent_schema().await {
+            Ok(schema) => encoded(&agent_schema::response::Frame::AgentSchema(schema)),
+            Err(UnaryError::Refused(error)) => encoded(&agent_schema::response::Frame::Error(error)),
+            Err(_) => None,
+        },
+        Exchange::Enqueue(prompt) => begin.enqueue(prompt).await.ok().and_then(|frame| encoded(&frame)),
+        Exchange::Dequeue => begin.dequeue().await.ok().and_then(|frame| encoded(&frame)),
+    };
     run.respond(channel, answer).await;
     run.finish(channel).await;
 }

@@ -53,7 +53,7 @@ use super::deployment::Deployment;
 /// # And its proxy is LISTENING when a method returns
 ///
 /// Deploying is also injecting the
-/// [`container_proxy`](crate::container_proxy) into the container and
+/// [`container_proxy_endpoints`](crate::container_proxy_endpoints) into the container and
 /// starting it — the image never carries it, and nothing else in this
 /// crate can put it there. By the time this is [`Ok`], the proxy
 /// accepts a connection at the container's
@@ -61,7 +61,7 @@ use super::deployment::Deployment;
 /// first act after a deploy is to dial it, and it dials once.
 ///
 /// One port, always the same one: the proxy's
-/// [`OUTSIDE_PORT`](crate::container_proxy::OUTSIDE_PORT). A
+/// [`OUTSIDE_PORT`](crate::container_proxy_endpoints::OUTSIDE_PORT). A
 /// [`Deployment`] names none, because there is nothing to choose. How
 /// a provider makes it reachable — published to a loopback port it
 /// picked, routed to a bridge address, something a cloud runtime does

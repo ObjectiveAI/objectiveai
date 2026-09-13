@@ -29,11 +29,12 @@
 //! statuses and header maps, which only moved the problem up a level.
 //!
 //! Now a [`Container`](container::Container) is an address and a way
-//! to stop it, and every exchange with one is spoken to the
-//! [`container_proxy`](crate::container_proxy) at that address by the
-//! executors under it — one WebSocket client, this crate's own, and
-//! nothing the provider has to speak. Whatever else the provider does
-//! to reach a container is on its side of that line.
+//! to stop it, and every exchange with one is spoken over the one
+//! WebSocket [`proxy`] dials to that address, in the frames of
+//! [`container_proxy_endpoints`](crate::container_proxy_endpoints) —
+//! this crate's own wire, with the server as its client, and nothing
+//! the provider has to speak. Whatever else the provider does to
+//! reach a container is on its side of that line.
 //!
 //! # Nothing is re-exported
 //!
@@ -237,12 +238,14 @@
 //! for nothing at all, its answer being a compile-time constant. It is
 //! the one request a provider can serve without supplying anything.
 //!
-//! [`container_client`] faces the other way: not something a provider
-//! supplies, but the one thing this crate dials — the proxy inside a
-//! container, at the URL a provider composes for it. Every executor
-//! under [`container_proxy`](crate::container_proxy) takes one and
-//! opens the path it serves, which is how a provider answers what a
-//! container asks and asks what it wants to know.
+//! [`proxy`] faces the other way: not something a provider supplies,
+//! but the one thing this crate dials — the proxy inside a container,
+//! at the address a deployer reported. What comes back is the
+//! frame-level client's [`Handle`](crate::client::handle::Handle),
+//! and every executor under
+//! [`container_proxy_endpoints`](crate::container_proxy_endpoints)
+//! takes it and opens the scope it serves, which is how a provider
+//! answers what a container asks and asks what it wants to know.
 //!
 //! And in front of all of them stands [`handle`]: take a
 //! [`Session`](session::Session), the connection's identity and
@@ -256,7 +259,6 @@ pub(crate) mod answers;
 pub mod authorization;
 pub mod channel;
 pub mod container;
-pub mod container_client;
 pub mod container_deployer;
 pub mod content_store;
 pub mod deployment;
@@ -265,9 +267,9 @@ pub mod handle;
 pub mod image_checker;
 pub mod image_registry;
 pub mod image_source;
-pub(crate) mod messages;
 pub mod mount;
 mod notice;
+pub mod proxy;
 pub mod received;
 pub mod scope_handle;
 pub mod session;

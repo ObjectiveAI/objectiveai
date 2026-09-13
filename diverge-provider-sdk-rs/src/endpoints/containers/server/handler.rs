@@ -1,15 +1,13 @@
-//! A run, from the request to the finish.
+//! One run, from its request to its finish.
 
 use std::sync::Arc;
 
 use serde_json::Value;
 
+use super::begin::Begun;
 use super::family::Runs;
-use super::relay;
 use super::run::{Run, send};
-use super::serve;
-use super::setup;
-use crate::container_proxy::agent;
+use super::{relay, serve, setup};
 use crate::server::container::Container as _;
 use crate::server::container_deployer::ContainerDeployer;
 use crate::server::content_store::ContentStore;
@@ -20,37 +18,30 @@ use crate::shared::containers::request::Container;
 use crate::shared::containers::response::{Id, VolumeMounted};
 use crate::shared::error::Error;
 
-/// Serve one run scope, whole, for either family.
+/// Run the container the request describes for as long as the scope
+/// lives, and end the scope.
 ///
-/// In order, and the order is the point:
+/// In order:
 ///
-/// 0. The volumes leased: every `host_name` the request names, held
-///    for this caller from now until the run ends, or — one of them
-///    mounted in another running container of the caller's, or named
-///    twice — the run's `VolumeMounted`, then the finish, with nothing
-///    fetched and nothing deployed.
-/// 1. [`setup::prepare`]: content, registry, deploy, the proxy
-///    dialled, every FUSE mount made and serving. A failure is the run's `Error`,
-///    then the finish, and nothing the caller may have opened
-///    meanwhile is read — it is dropped with the scope, unanswered,
-///    which is what a caller reads as the run never having been.
-/// 2. For an agent container, the agent registered — `agent` is
-///    `Some` — with the proxy's `/agent/register`; a refusal is the
-///    container's own `Error`, and the container is stopped. Never
-///    before every mount is complete: a registration, like every
-///    channel the caller opens and every filetree above all, waits on
-///    the last mount.
-/// 3. The id minted, the container entered in the directory, the id
-///    sent: from here the run is real to the caller and to any
-///    connector.
-/// 4. The container's asks relayed, and everything the caller opened
-///    — from the start, held in the inbox until now — served, in the
-///    order it was opened, until the caller stops, the container
-///    leaves, or the caller goes away.
-/// 5. Teardown, the same for every ending: the directory entry
-///    removed, which ends every connector; the container stopped; the
-///    repository released; the tasks ended; and the finish — bare,
-///    because an ending after the id is never an error.
+/// 0. Every volume the request names is leased, or the run is refused
+///    with the name that is held — before anything is fetched or
+///    deployed.
+/// 1. The container is brought up — see
+///    [`setup::prepare`](super::setup::prepare): content, registry,
+///    deploy, the proxy dialled, the family's begin, every mount. A
+///    failure is the run's error, and the scope finishes on it.
+/// 2. The id is minted, the container is entered in the directory —
+///    with its proxy connection and its begin scope, for connectors —
+///    and the id is sent. From here the container is running for the
+///    caller.
+/// 3. The relays are spawned: the proxy's asks on the begin scope,
+///    each mount's asks, and — on an agent container — the agent's
+///    chunks onto the main stream.
+/// 4. The caller's channels are served until the run ends: a stop,
+///    the container leaving, or the caller going away.
+/// 5. The teardown, the same for every ending: the directory entry
+///    removed, the container stopped, the repository released, the
+///    volumes released, every task ended, and the finish.
 pub(crate) async fn run<R, D, S, G>(
     scope: ScopeHandle,
     client_identity: &str,
@@ -70,13 +61,15 @@ pub(crate) async fn run<R, D, S, G>(
     G::Error: Into<Error>,
 {
     let scope = Arc::new(scope);
+
     let volumes: Vec<String> = request.volume_mounts.iter().map(|mount| mount.host_name.clone()).collect();
     if let Err(name) = directory.lease(client_identity, &volumes) {
         send(&scope, R::volume_mounted(&VolumeMounted { name })).await;
         scope.send_response_finish().await;
         return;
     }
-    let prepared = match setup::prepare::<R, D, S, G>(&scope, client_identity, request, deployer, store, registry).await {
+
+    let prepared = match setup::prepare::<R, D, S, G>(&scope, client_identity, request, agent, deployer, store, registry).await {
         Ok(prepared) => prepared,
         Err(error) => {
             directory.release(client_identity, &volumes);
@@ -86,35 +79,25 @@ pub(crate) async fn run<R, D, S, G>(
         }
     };
 
-    if let Some(agent) = agent {
-        let request = agent::register::request::Request { agent };
-        if let Err(error) = agent::register::execute::execute(&prepared.client, &request).await {
-            let error = match error {
-                agent::register::execute::ExecuteError::Refused(error) => error,
-                other => super::render::proxy(other),
-            };
-            prepared.container.stop().await;
-            if let Some(repository) = &prepared.repository {
-                registry.release(repository).await;
-            }
-            directory.release(client_identity, &volumes);
-            send(&scope, R::error(&error)).await;
-            scope.send_response_finish().await;
-            return;
-        }
-    }
-
     let id = Directory::mint();
     directory.insert(
         id.clone(),
         Arc::clone(&scope),
-        prepared.container.address().to_string(),
+        prepared.proxy.clone(),
+        prepared.begun.begin.tools(),
         prepared.ignore.clone(),
     );
     send(&scope, R::id(&Id { id: id.clone() })).await;
 
-    let run = Arc::new(Run::new(Arc::clone(&scope), prepared.client, prepared.ignore));
-    run.spawn(relay::relay::<R>(Arc::clone(&run), prepared.asks)).await;
+    let Begun { begin, asks, chunks } = prepared.begun;
+    let run = Arc::new(Run::new(Arc::clone(&scope), prepared.proxy, begin, prepared.ignore));
+    run.spawn(relay::relay::<R>(Arc::clone(&run), asks)).await;
+    for mount in prepared.mounts {
+        run.spawn(relay::fuse::<R>(Arc::clone(&run), mount)).await;
+    }
+    if let Some(chunks) = chunks {
+        run.spawn(relay::chunks(Arc::clone(&run), chunks)).await;
+    }
     let _end = serve::serve::<R>(&run).await;
 
     directory.remove(&id);

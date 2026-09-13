@@ -1,5 +1,13 @@
-//! What the three container scopes' executors share, behind the
-//! `client` feature.
+//! What the three container scopes' executors share — and what the
+//! provider's server borrows of it to speak the proxy's wire.
+//!
+//! Behind the `client` feature in full. Behind `server` alone, the
+//! family-agnostic part: [`Answered`] and its readers, and the error
+//! types, which the executors under
+//! [`container_proxy_endpoints`](crate::container_proxy_endpoints)
+//! use as the caller's do — the server is the client on that wire.
+//! The asks, the answerers' dispatch, the family encoders, the
+//! running scope and its pending writes are the caller's alone.
 //!
 //! Every server-opened ask's request and answer is a `shared` type,
 //! and every client-opened channel's answer is either shared or one
@@ -23,21 +31,33 @@
 pub mod answered;
 pub mod streams;
 
-mod ask;
-mod encoders;
 mod open_error;
-mod scoped;
 mod unary;
+
+#[cfg(feature = "client")]
+mod scoped;
+#[cfg(feature = "client")]
 mod writes;
 
+#[cfg(feature = "client")]
+mod ask;
+#[cfg(feature = "client")]
+mod encoders;
+
+#[cfg(feature = "client")]
 pub(crate) mod answer;
+#[cfg(feature = "client")]
 pub(crate) mod serve;
 
 pub use answered::Answered;
+#[cfg(feature = "client")]
 pub use ask::*;
+#[cfg(feature = "client")]
 pub use encoders::*;
 pub use open_error::*;
+#[cfg(feature = "client")]
 pub use scoped::*;
 pub use streams::*;
 pub use unary::*;
+#[cfg(feature = "client")]
 pub use writes::*;

@@ -6,7 +6,7 @@ use super::{ResponseEncodeError, ResponseError, prefixed};
 use crate::encode::Writer;
 
 /// What an entry is — and, on a
-/// [`mount`](crate::container_proxy::fuse::mount) request, which kind
+/// [`mount`](crate::container_proxy_endpoints::fuse::mount) request, which kind
 /// of mount: one file, or a tree. One byte on the binary answers;
 /// `"file"` or `"directory"` where it rides JSON.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
