@@ -3,7 +3,7 @@
 use std::sync::LazyLock;
 
 use dashmap::DashMap;
-use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
+use diverge_container_proxy_sdk::agent::enqueue::Fate;
 use tokio::sync::oneshot;
 
 /// Every enqueued message's fate wire, by uuid, from the write that
