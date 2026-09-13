@@ -1,4 +1,4 @@
-//! What opens a begin: nothing but the tag.
+//! What opens a begin: the agent.
 
 mod frame;
 

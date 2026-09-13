@@ -4,7 +4,7 @@
 //! agent on its
 //! [`request`](crate::endpoints::containers::agents::run::client::request::Frame),
 //! fixed for its life; what each loop is asked is the loop's own, so
-//! the caller's [`RunLoop`](crate::endpoints::containers::agents::run::client::channel_request::Frame::RunLoop)
+//! the caller's [`AgentRun`](crate::endpoints::containers::agents::run::client::channel_request::Frame::AgentRun)
 //! carries a [`request::Request`] — the prompt — and the provider
 //! answers with the loop as it happens: one [`response::Frame`] per
 //! chunk, then the finish, or an [`Error`](response::Frame::Error)

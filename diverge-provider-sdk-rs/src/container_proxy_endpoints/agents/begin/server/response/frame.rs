@@ -17,8 +17,8 @@ use crate::shared::error::Error;
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | a begun, then nothing, and stays open | the connection has begun; either side may open channels on it |
-/// | an error, then a finish | it has not — this connection had already begun |
+/// | a begun, then nothing, and stays open | the connection has begun and the container holds its agent; either side may open channels on it |
+/// | an error, then a finish | it has not — this connection had already begun, or the agent was refused |
 /// | a finish, with no error | the proxy is ending |
 ///
 /// Everything the server reads from the container — the family's own
@@ -27,15 +27,18 @@ use crate::shared::error::Error;
 /// proxy is here, and channels may be opened.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The connection has begun. Tag `0`.
+    /// The connection has begun, and the container holds its agent
+    /// for its life. Tag `0`.
     ///
-    /// Arrives once, at once. A channel on this scope is opened only
-    /// after it.
+    /// Arrives once, when the agent's server has taken the agent. A
+    /// channel on this scope is opened only after it.
     Begun,
     /// A failure. Tag `1`.
     ///
-    /// A second begin on a connection that had one. It is the one
-    /// variant that ends the scope rather than adding to it. See
+    /// A second begin on a connection that had one, or an agent the
+    /// container refused — the agent's server's own words: a value
+    /// the image will not take. It is the one variant that ends the
+    /// scope rather than adding to it. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.
     Error(Error),

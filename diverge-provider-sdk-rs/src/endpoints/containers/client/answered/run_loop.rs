@@ -11,9 +11,9 @@ use crate::shared::error::Error;
 /// One chunk per frame until the loop ends; an `Error` is the loop
 /// that never ran, first, or the loop that failed, last.
 #[derive(Debug, Clone, Copy)]
-pub struct RunLoop;
+pub struct AgentRun;
 
-impl Answered for RunLoop {
+impl Answered for AgentRun {
     type Item = AgenticLoopChunk;
     type Error = run_loop::response::FrameError;
     type Refusal = Error;

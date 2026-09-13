@@ -13,12 +13,12 @@ use super::{Filetree, FiletreeStream, Read, ReadStream, WritePath};
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::agents::run::server;
-use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue, RunLoop};
+use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue, AgentRun};
 use crate::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
 use crate::shared::containers::{dequeue, enqueue, read, run_loop, write_path};
 
 /// The loop's chunks, for as long as it runs.
-pub type RunLoopStream = ChannelStream<RunLoop>;
+pub type AgentRunStream = ChannelStream<AgentRun>;
 
 /// The scope a run opened, held for the container's life.
 ///
@@ -116,10 +116,10 @@ impl ExecuteHandle {
     }
 
     /// Run one loop on `prompt`, and read its chunks.
-    pub async fn run_loop(&self, prompt: String) -> Result<RunLoopStream, OpenError> {
-        let payload = payload(&channel_request::Frame::RunLoop(run_loop::request::Request { prompt }))
+    pub async fn run_loop(&self, prompt: String) -> Result<AgentRunStream, OpenError> {
+        let payload = payload(&channel_request::Frame::AgentRun(run_loop::request::Request { prompt }))
             .map_err(OpenError::Request)?;
-        self.0.open::<RunLoop>(&payload).await.map_err(OpenError::Send)
+        self.0.open::<AgentRun>(&payload).await.map_err(OpenError::Send)
     }
 
     /// What the agent value may be: the image's JSON Schema for it.

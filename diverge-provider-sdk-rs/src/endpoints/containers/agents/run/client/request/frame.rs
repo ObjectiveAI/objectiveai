@@ -15,7 +15,7 @@ use crate::shared::containers::request::Container;
 /// that starts a loop because it is FIXED: a container is one agent
 /// for its whole life, registered with it once, and every loop it
 /// runs is that agent. What a loop is asked is each loop's own, and
-/// rides the [`RunLoop`](super::super::channel_request::Frame::RunLoop)
+/// rides the [`AgentRun`](super::super::channel_request::Frame::AgentRun)
 /// channel as its prompt.
 ///
 /// The agent is a JSON value, because this crate does not know what

@@ -38,7 +38,7 @@ impl Family for Agents {
                 path: request.path,
             },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
-            channel_request::Frame::RunLoop(request) => Opened::Exchange(agent::Exchange::RunLoop(request.prompt)),
+            channel_request::Frame::AgentRun(request) => Opened::Exchange(agent::Exchange::AgentRun(request.prompt)),
             channel_request::Frame::AgentSchema => Opened::Exchange(agent::Exchange::AgentSchema),
             channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.prompt)),
             channel_request::Frame::Dequeue => Opened::Exchange(agent::Exchange::Dequeue),
