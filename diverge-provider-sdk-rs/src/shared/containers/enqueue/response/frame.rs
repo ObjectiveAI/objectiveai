@@ -26,19 +26,18 @@ use crate::shared;
 pub enum Frame {
     /// The agent took the message into the conversation. Tag `0`.
     ///
-    /// Folded in beside tool results mid-loop, or opening the next
-    /// turn — WHERE it landed is visible in the loop's stream; this
-    /// says only that it did.
+    /// Folded in beside tool results mid-loop, opening the next
+    /// turn, or starting a loop when none ran — WHERE it landed is
+    /// visible in the scope's main stream; this says only that it
+    /// did.
     Delivered,
     /// The caller withdrew the message before the agent took it.
     /// Tag `1`.
     Dequeued,
-    /// The run ended before the message could be taken, or none was
-    /// running. Tag `2`.
+    /// The run ended before the message could be taken. Tag `2`.
     ///
     /// Nothing malfunctioned and nobody withdrew it — there was no
-    /// conversation left for it to enter. A caller that still wants
-    /// it heard sends it as the next loop's prompt.
+    /// conversation left for it to enter.
     Missed,
     /// The message's fate could not be determined. Tag `3`.
     ///

@@ -6,8 +6,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::postgres;
-use crate::shared::containers::{enqueue, run_loop};
+use crate::shared::containers::{enqueue, postgres};
 
 /// What the server asks the proxy for once an agent container has
 /// begun.
@@ -18,15 +17,16 @@ use crate::shared::containers::{enqueue, run_loop};
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
-/// | `1` | [`AgentRun`](Self::AgentRun) |
-/// | `2` | [`AgentSchema`](Self::AgentSchema) |
-/// | `3` | [`Enqueue`](Self::Enqueue) |
-/// | `4` | [`Dequeue`](Self::Dequeue) |
+/// | `1` | [`AgentSchema`](Self::AgentSchema) |
+/// | `2` | [`Enqueue`](Self::Enqueue) |
+/// | `3` | [`Dequeue`](Self::Dequeue) |
 ///
 /// The first is the same in both begin scopes, so a reader of one is
 /// a reader of both; what follows is this family's own exchange. All
 /// of them reach INTO the container: the last hop of what a caller
-/// opened on the provider.
+/// opened on the provider. What comes OUT of the agent — its
+/// conversation — is no channel: it rides the begin's own main
+/// stream.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The server's half of a database connection. Tag `0`.
@@ -36,27 +36,23 @@ pub enum Frame {
     /// driver wrote. See
     /// [`postgres`](crate::shared::containers::postgres) for the pair.
     Postgres(postgres::request::Postgres),
-    /// Run a loop. Tag `1`.
-    ///
-    /// The family's own exchange. Carries the prompt — the agent was
-    /// on the request that began the connection, and never changes —
-    /// and answers with the loop's chunks. See
-    /// [`run_loop`](crate::shared::containers::run_loop).
-    AgentRun(run_loop::request::Request),
-    /// What the agent may be. Tag `2`.
+    /// What the agent may be. Tag `1`.
     ///
     /// Carries nothing — the variant is bare — and the proxy answers
     /// with the JSON Schema of the agent value. See
     /// [`agent_schema`](crate::shared::containers::agent_schema).
     AgentSchema,
-    /// A message for the running loop's queue. Tag `3`.
+    /// A message for the agent. Tag `2`.
     ///
-    /// Answered once — by an
+    /// The one way into it: a message with no loop running starts
+    /// one, on that message, and a message while one runs joins its
+    /// queue. Answered once — by an
     /// [`enqueue::response::Frame`](crate::shared::containers::enqueue::response::Frame)
     /// naming the message's fate, whenever that is known — and then
-    /// the finish. See [`enqueue`](crate::shared::containers::enqueue).
+    /// the finish. What the agent says in reply is the begin's main
+    /// stream. See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),
-    /// Withdraw every message still waiting in the queue. Tag `4`.
+    /// Withdraw every message still waiting in the queue. Tag `3`.
     ///
     /// Carries nothing — the variant is bare. Answered once — by a
     /// [`dequeue::response::Frame`](crate::shared::containers::dequeue::response::Frame)
@@ -69,17 +65,14 @@ pub enum Frame {
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 0;
 
-/// Tag for [`Frame::AgentRun`].
-const AGENT_RUN: u8 = 1;
-
 /// Tag for [`Frame::AgentSchema`].
-const AGENT_SCHEMA: u8 = 2;
+const AGENT_SCHEMA: u8 = 1;
 
 /// Tag for [`Frame::Enqueue`].
-const ENQUEUE: u8 = 3;
+const ENQUEUE: u8 = 2;
 
 /// Tag for [`Frame::Dequeue`].
-const DEQUEUE: u8 = 4;
+const DEQUEUE: u8 = 3;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever ask has one.
@@ -92,10 +85,6 @@ impl Encode for Frame {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
-            }
-            Frame::AgentRun(request) => {
-                out.extend_from_slice(&[AGENT_RUN]);
-                request.encode(out)
             }
             Frame::AgentSchema => {
                 out.extend_from_slice(&[AGENT_SCHEMA]);
@@ -123,9 +112,6 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            AGENT_RUN => run_loop::request::Request::decode(rest)
-                .map(Frame::AgentRun)
-                .map_err(FrameError::AgentRun),
             AGENT_SCHEMA => Ok(Frame::AgentSchema),
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
@@ -145,8 +131,6 @@ pub enum FrameError {
     UnknownTag(u8),
     /// The connection id was not four bytes.
     Postgres(postgres::request::PostgresError),
-    /// The loop's prompt did not parse as JSON.
-    AgentRun(serde_json::Error),
     /// The enqueued message did not parse as JSON.
     Enqueue(serde_json::Error),
 }
@@ -161,9 +145,6 @@ impl fmt::Display for FrameError {
                 write!(f, "unknown agents begin channel request tag {tag}")
             }
             FrameError::Postgres(error) => write!(f, "{error}"),
-            FrameError::AgentRun(error) => {
-                write!(f, "run loop request did not parse: {error}")
-            }
             FrameError::Enqueue(error) => {
                 write!(f, "enqueue request did not parse: {error}")
             }
@@ -174,8 +155,7 @@ impl fmt::Display for FrameError {
 impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameError::AgentRun(error)
-            | FrameError::Enqueue(error) => Some(error),
+            FrameError::Enqueue(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }

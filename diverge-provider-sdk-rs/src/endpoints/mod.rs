@@ -61,8 +61,8 @@
 //! # One substrate, two families
 //!
 //! [`containers`] is the substrate, and the two families under it are
-//! told apart by the one exchange a caller makes into the container:
-//! a loop, or MCP. Everything else a container scope carries is the
+//! told apart by what a caller says into the container: a message
+//! for an agent, or MCP. Everything else a container scope carries is the
 //! same wire in all four, defined once in
 //! [`shared::containers`](crate::shared::containers).
 

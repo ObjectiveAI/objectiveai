@@ -89,6 +89,10 @@ where
             return Err(ExecuteError::VolumeMounted(refused));
         }
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
+        // The agent speaks only after the id; a chunk first is a
+        // provider out of order, which is a frame this end cannot
+        // place.
+        server::response::Frame::Chunk(_) => return Err(ExecuteError::Misrouted),
     };
 
     let writes = Arc::new(Writes::new());

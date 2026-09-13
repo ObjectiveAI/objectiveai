@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use super::AgenticLoopChunk;
+use crate::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
@@ -22,11 +22,11 @@ use crate::shared::error::Error;
 /// would mean a provider's error text could be read as a chunk, and
 /// the failure would look like output.
 ///
-/// # This is not [`NotificationChunk`](super::NotificationChunk)
+/// # This is not [`NotificationChunk`](crate::endpoints::containers::agents::run::server::response::NotificationChunk)
 ///
 /// They are both failures and they are not the same failure. A
-/// [`NotificationChunk`](super::NotificationChunk) with
-/// [`is_fatal`](super::NotificationChunk::is_fatal) set is part of the
+/// [`NotificationChunk`](crate::endpoints::containers::agents::run::server::response::NotificationChunk) with
+/// [`is_fatal`](crate::endpoints::containers::agents::run::server::response::NotificationChunk::is_fatal) set is part of the
 /// loop's OUTPUT: it arrives as a [`Chunk`](Self::Chunk) like any
 /// other, and exists because a loop can fail after producing output —
 /// ending the stream silently would leave a caller unable to tell a

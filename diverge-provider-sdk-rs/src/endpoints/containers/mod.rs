@@ -5,13 +5,13 @@
 //! caller's mounts — and the caller then works with what runs inside.
 //! Two families, told apart by what that is:
 //!
-//! - [`agents`]: an agentic loop. The request that makes the
+//! - [`agents`]: a conversation. The request that makes the
 //!   container carries the agent — a JSON value the image defines,
-//!   fixed for the container's life — and a `run_loop` channel,
-//!   carrying a prompt, runs one loop and reads its chunks back; an
-//!   `agent_schema` channel says
-//!   what the agent value may be, and `enqueue` and `dequeue` add to
-//!   the running loop's queue and clear it.
+//!   fixed for the container's life — and the agent's chunks ride the
+//!   scope's own main stream after the id; an `enqueue` channel sends
+//!   it a message, starting a loop when none runs and queueing one
+//!   when it does, `dequeue` clears what is waiting, and
+//!   `agent_schema` says what the agent value may be.
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
@@ -27,15 +27,17 @@
 //! so the shared part comes first and identically, and the family's
 //! own exchange takes the tags after it.
 //!
-//! # The main stream is quiet
+//! # The main stream is the id, and then the agent
 //!
 //! A run answers with the container's
-//! [`Id`](crate::shared::containers::response::Id) and then nothing,
-//! for as long as the container runs; a connect answers with nothing
-//! at all. An error ends the scope. Everything that used to ride
-//! channel `0` — a filetree, a loop's chunks — is a channel the caller
-//! opens, so a caller that wants none of it pays for none of it, and
-//! two callers on one container can each subscribe to what they want.
+//! [`Id`](crate::shared::containers::response::Id). An agent
+//! container's stream then carries the agent's chunks for as long as
+//! the container runs; a tool container's carries nothing more, and a
+//! connect answers with nothing at all. An error ends the scope.
+//! Everything else a caller reads — a filetree, a file — is a channel
+//! the caller opens, so a caller that wants none of it pays for none
+//! of it, and two callers on one tool container can each subscribe
+//! to what they want.
 //!
 //! # Why one family is not enough
 //!
