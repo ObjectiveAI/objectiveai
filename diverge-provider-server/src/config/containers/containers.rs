@@ -4,6 +4,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use super::Registry;
+
 /// The `containers` section: what the running containers may reach
 /// between them, where their storage lives, and which registries a
 /// caller may name.
@@ -41,19 +43,20 @@ pub struct Containers {
     /// directory; an absolute path stands as written.
     pub podman_storage_path: PathBuf,
     /// The registries a caller may pull from by naming them in an
-    /// image reference: host names, `docker.io`, `ghcr.io`, with no
-    /// scheme and no path. A reference whose host is not listed is
-    /// refused, and the run with it; a reference naming no host is
+    /// image reference, each with the credential the provider
+    /// presents to it, if any. A reference whose host is not listed
+    /// is refused, and the run with it; a reference naming no host is
     /// read as the first entry's. The provider's own registry, which
     /// serves the images a caller holds, is not listed here and needs
     /// no entry.
-    pub registries: Vec<String>,
+    pub registries: Vec<Registry>,
 }
 
 /// What a provider runs with before it has written a line of
 /// configuration: 8 GiB of memory, 32 GiB of overlay disk, a 32 GiB
 /// image cache, podman's data under `podman_data` beside `config.yaml`, and
-/// the three registries a caller may name, `docker.io` first.
+/// the three registries a caller may name, `docker.io` first, each
+/// pulled from anonymously.
 impl Default for Containers {
     fn default() -> Self {
         Containers {
@@ -64,10 +67,11 @@ impl Default for Containers {
             // 32 GiB.
             image_cache_disk: 32 * 1024 * 1024 * 1024,
             podman_storage_path: PathBuf::from("podman_data"),
-            registries: ["docker.io", "ghcr.io", "quay.io"]
-                .iter()
-                .map(|host| host.to_string())
-                .collect(),
+            registries: vec![
+                Registry::anonymous("docker.io"),
+                Registry::anonymous("ghcr.io"),
+                Registry::anonymous("quay.io"),
+            ],
         }
     }
 }
