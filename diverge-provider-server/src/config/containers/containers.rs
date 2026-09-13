@@ -52,7 +52,7 @@ pub struct Containers {
 
 /// What a provider runs with before it has written a line of
 /// configuration: 8 GiB of memory, 32 GiB of overlay disk, a 32 GiB
-/// image cache, podman's data under `data/podman` beside `config.yaml`, and
+/// image cache, podman's data under `podman_data` beside `config.yaml`, and
 /// the three registries a caller may name, `docker.io` first.
 impl Default for Containers {
     fn default() -> Self {
@@ -63,7 +63,7 @@ impl Default for Containers {
             container_overlay_disk: 32 * 1024 * 1024 * 1024,
             // 32 GiB.
             image_cache_disk: 32 * 1024 * 1024 * 1024,
-            podman_storage_path: PathBuf::from("data/podman"),
+            podman_storage_path: PathBuf::from("podman_data"),
             registries: ["docker.io", "ghcr.io", "quay.io"]
                 .iter()
                 .map(|host| host.to_string())
