@@ -26,8 +26,10 @@ use crate::encode::{Encode, Writer};
 ///
 /// One frame, then the finish: `delivered` when the agent has taken
 /// the message into the conversation, `dequeued` when the caller
-/// withdrew it first, `missed` when the run ended before it could be
-/// taken, and an error for everything else. The first three carry nothing — the fate is the answer.
+/// withdrew it first, and an error only when no run could start on
+/// it. A run ending with the message still waiting does not lose it:
+/// the message starts the next run. The two fates carry nothing —
+/// the fate is the answer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Request {
     /// The message's text.

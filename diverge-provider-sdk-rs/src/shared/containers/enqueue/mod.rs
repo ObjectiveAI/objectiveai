@@ -4,8 +4,9 @@
 //! for the agent, and the provider answers once — with one
 //! [`response::Frame`] naming the message's fate — whenever that
 //! fate is known: taken into the conversation, withdrawn by a
-//! [`dequeue`](crate::shared::containers::dequeue), or outlived by
-//! the run. Then the finish.
+//! [`dequeue`](crate::shared::containers::dequeue), or the error,
+//! when no run could start on it. Then the finish. A run ending
+//! does not lose a message: what it left waiting starts the next.
 //!
 //! This is the one way into an agent. With no loop running, the
 //! message starts one: the loop's prompt is the message, and its

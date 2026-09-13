@@ -22,8 +22,8 @@ pub enum Frame {
     /// The queue held nothing. Tag `1`.
     ///
     /// Not a failure: everything previously enqueued had already
-    /// been taken, withdrawn, or missed, and there was nothing left
-    /// for the clearing to do.
+    /// been taken or withdrawn, and there was nothing left for the
+    /// clearing to do.
     Empty,
     /// The queue's state could not be determined. Tag `2`.
     ///
