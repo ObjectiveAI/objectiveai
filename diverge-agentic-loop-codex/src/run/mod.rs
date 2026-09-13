@@ -50,7 +50,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use diverge_container_proxy_sdk::Client;
-use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::Stream;
 use sqlx::PgPool;
 
