@@ -53,8 +53,11 @@ pub struct Containers {
 impl Default for Containers {
     fn default() -> Self {
         Containers {
+            // 8 GiB.
             memory: 8 * 1024 * 1024 * 1024,
+            // 32 GiB.
             container_overlay_disk: 32 * 1024 * 1024 * 1024,
+            // 32 GiB.
             image_cache_disk: 32 * 1024 * 1024 * 1024,
             path: PathBuf::from("data/containers"),
             registries: ["docker.io", "ghcr.io", "quay.io"]
