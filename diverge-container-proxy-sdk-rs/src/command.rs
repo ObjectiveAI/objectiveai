@@ -10,7 +10,7 @@
 //! stream that ended without its end is reported as exactly that.
 
 use bytes::Bytes;
-use diverge_provider_sdk::container_proxy::command;
+use diverge_provider_sdk::shared::containers::command;
 use futures_util::{Stream, StreamExt as _};
 
 use crate::{Client, Error};
