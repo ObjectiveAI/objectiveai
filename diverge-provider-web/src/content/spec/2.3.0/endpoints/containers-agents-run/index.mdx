@@ -8,8 +8,8 @@ draft: false
 A client opens the scope with a request whose payload is the tag byte
 `0` followed by the request as JSON. The server runs the
 container the request describes for as long as the scope lives,
-sends exactly one response on the scope, the container's id or an
-error, and ends the scope by the response finish. This section states
+sends the container's id on the scope and, after it, the agent's
+chunks as they come, or an error, and ends the scope by the response finish. This section states
 what the server does, in the order it does it. It states nothing
 about the client, which may open any channel at any time.
 
@@ -107,7 +107,8 @@ about the client, which may open any channel at any time.
    sends it as exactly one response. From that moment the container
    is running for the client, and a
    [containers::tools::connect](/endpoints/containers-tools-connect/)
-   request naming the id finds it. The server sends no further
+   request naming the id finds it. After the id, the server sends the
+   agent's chunks as they come, each as one response, and no other
    response on the scope.
 10. **The server serves the scope.** Concurrently, for as long as the
    scope lives: every ask the container makes on `/requests` is
