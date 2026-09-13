@@ -13,6 +13,7 @@ members = [
     "diverge-agentic-loop-eliza",
     "diverge-agentic-loop-hermes",
     "diverge-container-proxy",
+    "diverge-container-proxy-new",
     "diverge-container-proxy-sdk-rs",
     "diverge-agentic-loop-openrouter",
     "diverge-agentic-loop-python",

@@ -1841,6 +1841,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-container-proxy-new"
+version = "2.3.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "diverge-container-proxy-sdk",
+ "diverge-provider-sdk",
+ "eventsource-stream",
+ "fuser",
+ "futures-util",
+ "libc",
+ "notify",
+ "reqwest 0.12.28",
+ "rmcp 3.1.2",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "diverge-container-proxy-sdk"
 version = "2.3.0"
 dependencies = [
@@ -1850,6 +1869,8 @@ dependencies = [
  "futures-util",
  "reqwest 0.12.28",
  "rmcp 3.1.2",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
