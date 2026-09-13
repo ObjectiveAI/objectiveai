@@ -1,13 +1,13 @@
 ---
 title: 'Agent schema'
-summary: 'Tag 5: the client asks what the agent value may be; the server opens the proxy’s /agent/schema and relays exactly one channel response, the JSON Schema or an error, and the channel response finish.'
+summary: 'Tag 5: the client asks what the agent value may be; the server opens an agent-schema channel on the container’s begin scope and relays exactly one channel response, the JSON Schema or an error, and the channel response finish.'
 order: 5
 draft: false
 ---
 
 The client opens this channel to learn the schema of the agent value
-the container was made with. The server opens
-[`/agent/schema`](/proxy/agent/schema/) on the proxy and relays its
+the container was made with. The server opens an agent-schema
+channel on the begin scope of the container's proxy and relays its
 answer.
 
 - **The request.** The tag byte `5` and nothing more.

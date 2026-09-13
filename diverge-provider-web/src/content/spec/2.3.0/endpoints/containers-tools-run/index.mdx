@@ -1,6 +1,6 @@
 ---
 title: 'containers::tools::run'
-summary: 'Tag 1: a client asks the server to run a tool container from an image with limits and mounts; the server holds the content, serves the image, deploys, injects and connects to the proxy, makes every FUSE mount, sends exactly one id, and relays and serves every channel until the run ends.'
+summary: 'Tag 1: a client asks the server to run a tool container from an image with limits and mounts; the server holds the content, serves the image, deploys, injects the proxy, connects to it and begins it, makes every FUSE mount, sends exactly one id, and relays and serves every channel until the run ends.'
 order: 1
 draft: false
 ---
@@ -72,23 +72,26 @@ about the client, which may open any channel at any time.
    and writable from inside the container; the container proxy
    injected into the container and started; and TCP
    port `14979` of the container reachable to the server. The deploy
-   is complete when the proxy accepts a connection at that port. The
-   server sets no environment from the request. The server does not
+   is complete when the proxy accepts a WebSocket connection at that
+   port. The server sets no environment from the request. The server does not
    start the container before every identity mount's content is
    held. A deploy that does not complete is the run's error.
-5. **The server connects to the proxy.** The server opens
-   [`/requests`](/proxy/requests/) on the proxy. A proxy that does not
-   accept the connection is a container that did not come up: the
+5. **The server connects to the proxy.** The server opens exactly
+   one WebSocket to port `14979` of the container, the connection of
+   the [Container Proxy](/proxy/) layer, and on it, before anything
+   else, the begin scope of the container's family.
+   A proxy that does not accept the connection, or that answers the
+   begin with an error, is a container that did not come up: the
    server stops the container, and the failure is the run's error.
+   The server opens no second connection to a container.
 6. **The server makes every FUSE mount.** For each entry of
    `fuse_file_mounts`, and after the last of them for each entry of
    `fuse_directory_mounts`, in the order of the request, the server
-   sends one [`/fuse/mount`](/proxy/fuse/mount/) request and waits for
-   its answer before sending the next. A mount the proxy does not
-   make is the run's error, and the server stops the container. The
-   server sends no `/agent/register` request, opens no
-   `/filesystem/tree`, and sends no response before the last mount is
-   complete.
+   opens one mount scope on the proxy's connection, naming the path
+   and the kind, and waits for its answer before opening the next. A
+   mount the proxy does not make is the run's error, and the server
+   stops the container. The server opens no tree scope and sends no
+   response before the last mount is complete.
 7. **The server holds what the client opened.** A channel the client
    opens before the server sends the id is served after the id, in
    the order opened, and is neither refused nor read before the last
@@ -103,12 +106,13 @@ about the client, which may open any channel at any time.
    request naming the id finds it. The server sends no further
    response on the scope.
 9. **The server serves the scope.** Concurrently, for as long as the
-   scope lives: every ask the container makes on `/requests` is
-   relayed to the client as a channel the server opens; every channel
-   the client opens is served as its section defines.
+   scope lives: every channel the proxy opens on the begin scope, and
+   every ask a mount makes on its own scope, is relayed to the client
+   as a channel the server opens; every channel the client opens is
+   served as its section defines.
 10. **The server ends the run.** When it receives the client's
-   [stop](/endpoints/containers-tools-run/client/stop/), when the container's
-   `/requests` connection ends, or when the client's connection ends,
+   [stop](/endpoints/containers-tools-run/client/stop/), when the proxy's
+   connection ends, or when the client's connection ends,
    the server ends every connect scope on the container, stops the
    container, releases the registry repository it served, ends every
    channel task, and sends the response finish. After the id, the
@@ -136,7 +140,8 @@ about the client, which may open any channel at any time.
   exchange verbatim. It does not read them, does not alter them,
   does not reorder frames within one channel, and does not send an
   ask a second time. A channel the client finishes with no frame
-  before the finish is relayed to the proxy as an ask not served.
+  before the finish is relayed to the proxy as a channel response
+  finish that no channel response precedes.
 - **What the server never does.** The server never mounts an
   identity mount read-only. The server never refuses or alters a
   FUSE ask on its own account: whether a change to a FUSE mount is

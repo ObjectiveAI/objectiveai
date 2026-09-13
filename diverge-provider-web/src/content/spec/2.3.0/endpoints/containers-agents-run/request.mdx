@@ -56,8 +56,8 @@ is one object: the members of the container, flattened, and `agent`.
   provides. No mount's path is the root.
 - **Ids.** No two FUSE mounts, on either list, have one `id`.
 
-- **`agent`.** Any JSON value. The server relays it verbatim to the
-  proxy's `/agent/register` and does not read it. What the value may
+- **`agent`.** Any JSON value. The server relays it verbatim in the
+  begin request it opens on the proxy and does not read it. What the value may
   be is what the container's [agent-schema](/endpoints/containers-agents-run/client/agent-schema/)
   channel answers.
 

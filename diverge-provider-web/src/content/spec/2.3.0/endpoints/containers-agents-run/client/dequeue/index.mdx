@@ -1,14 +1,13 @@
 ---
 title: 'Dequeue'
-summary: 'Tag 7: the client withdraws every message from the agent’s queue; the server opens the proxy’s /agent/dequeue and relays exactly one channel response stating whether the queue held anything.'
+summary: 'Tag 7: the client withdraws every message from the agent’s queue; the server opens a dequeue channel on the container’s begin scope and relays exactly one channel response stating whether the queue held anything.'
 order: 7
 draft: false
 ---
 
 The client opens this channel to withdraw every message waiting in
-the agent's queue. The server opens
-[`/agent/dequeue`](/proxy/agent/dequeue/) on the proxy and relays its
-answer.
+the agent's queue. The server opens a dequeue channel on the begin
+scope of the container's proxy and relays its answer.
 
 - **The request.** The tag byte `7` and nothing more.
   [Request](/endpoints/containers-agents-run/client/dequeue/request/) states its form.

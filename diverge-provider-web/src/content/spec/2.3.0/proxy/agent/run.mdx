@@ -27,18 +27,6 @@ proxy → server:   [0][chunk JSON] … [0][chunk JSON]       the loop
 - **No repetition.** An abrupt end of the path is a loop cut short.
   No party retries it.
 
-The request is defined by
-`diverge-provider-sdk-rs/src/container_proxy/agent/run/request/request.rs`:
-
-```rust include=diverge-provider-sdk-rs/src/container_proxy/agent/run/request/request.rs
-```
-
-The messages are defined by
-`diverge-provider-sdk-rs/src/container_proxy/agent/run/response/frame.rs`:
-
-```rust include=diverge-provider-sdk-rs/src/container_proxy/agent/run/response/frame.rs
-```
-
 The chunks that follow the first byte `0` are defined by the
 following files of `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/`:
 

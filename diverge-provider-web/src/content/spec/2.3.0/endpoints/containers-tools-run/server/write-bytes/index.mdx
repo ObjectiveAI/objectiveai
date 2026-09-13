@@ -17,8 +17,8 @@ arrives on it is the content of the file.
   [Response](/endpoints/containers-tools-run/server/write-bytes/response/) states the
   sequence.
 - **What the server does with it.** The server streams each piece
-  into the proxy's [`/filesystem/write`](/proxy/filesystem/write/)
-  for the path of the write, as it arrives, and ends the content
-  when the channel finishes. After the content has ended, it answers
+  into the write scope it opened on the proxy for the path of the
+  write, as it arrives, and ends the content when the channel
+  finishes. After the content has ended, it answers
   the client's write channel. Content that ends in an error, or without a finish, is a
   write that did not happen.
