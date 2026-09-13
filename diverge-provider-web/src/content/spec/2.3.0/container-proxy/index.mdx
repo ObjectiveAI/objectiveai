@@ -14,40 +14,43 @@ at this revision. This layer defines the connection; that layer
 defines the scopes on it. Neither defines what the proxy offers the
 program beside it.
 
-- **The listener.** The proxy listens on TCP port `14979` on every
+- **The parties.** On the connection the provider's server is the
+  **client** and the proxy is the **server**, in the sense of
+  [Frames](/frames/): the client sends the frame types that layer
+  defines for a client, and the server sends the frame types that
+  layer defines for a server. This layer and the Container Proxy
+  Endpoints layer use the two words so, and no other way.
+- **The listener.** The server listens on TCP port `14979` on every
   interface of the container. The connection is a WebSocket
   connection to the path `/` on that listener, carried as
   [WebSocket](/websocket/) provides, under the `ws` URI scheme. The
-  server opens the connection. The proxy opens no connection.
-- **One connection.** The proxy accepts exactly one connection in its
+  client opens the connection. The server opens no connection.
+- **One connection.** The server accepts exactly one connection in its
   life. It refuses every later upgrade with HTTP status `409` before
   the upgrade. [Connection](/container-proxy/connection/) states what
   the connection carries and how it ends.
 - **Framed.** Every WebSocket binary message on the connection is
   exactly one frame as [Frames](/frames/) defines it: the nine-byte
   header, the seven types, and every rule of that layer for scopes and
-  channels, unchanged. The server is the client of the connection in
-  the sense of that layer: the server sends the frame types Frames
-  defines for a client, and the proxy sends the frame types Frames
-  defines for a server.
+  channels, unchanged.
 - **No authorization.** Neither party sends a frame of type `0` on the
-  connection. The proxy closes a connection on which a frame of type
+  connection. The server closes a connection on which a frame of type
   `0` arrives, and sends nothing on it after.
-- **Scopes.** Every request the server sends opens a scope for one
+- **Scopes.** Every request the client sends opens a scope for one
   endpoint of the [Container Proxy Endpoints](/container-proxy-endpoints/)
   layer. [Scopes](/container-proxy/scopes/) states the order in which
-  the server opens them and how the proxy answers a request it cannot
-  read.
+  the client opens them and how the server answers a request it
+  cannot read.
 - **Endings.** [Endings](/container-proxy/endings/) states what ends a
   channel, a scope, and the connection, and what each ending means.
-- **Text frames.** The proxy assigns no meaning to a WebSocket text
+- **Text frames.** The server assigns no meaning to a WebSocket text
   frame, and ignores one.
-- **No timeout.** The proxy imposes no timeout on the connection, on
+- **No timeout.** The server imposes no timeout on the connection, on
   a scope, or on a channel. A connection, a scope or a channel on
   which nothing has arrived for any length of time remains open.
 
 | Page | States |
 |------|--------|
 | [Connection](/container-proxy/connection/) | the one connection, what carries it, and its end |
-| [Scopes](/container-proxy/scopes/) | the order the server opens scopes in, and an unreadable request |
+| [Scopes](/container-proxy/scopes/) | the order the client opens scopes in, and an unreadable request |
 | [Endings](/container-proxy/endings/) | what ends a channel, a scope, and the connection |

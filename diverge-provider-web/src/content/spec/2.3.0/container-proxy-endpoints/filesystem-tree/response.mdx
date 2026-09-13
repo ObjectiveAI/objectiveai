@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The proxy sends the snapshot, one response, and one response per change, until the finish that answers the stop; or one error and the finish.'
+summary: 'The server sends the snapshot, one response, and one response per change, until the finish that answers the stop; or one error and the finish.'
 order: 2
 draft: false
 ---
@@ -13,14 +13,14 @@ draft: false
 - **The sequence.** Zero or more responses whose first byte is `0` —
   the first a snapshot, a snapshot again after lost events, and one
   per change otherwise — followed by the response finish when the
-  server has sent the stop or the proxy ends; or the responses sent
+  server has sent the stop or the server ends; or the responses sent
   so far, exactly one response whose first byte is `1`, and the
   response finish.
 - **The frame.** The bytes after the byte `0` are one frame of the
   [filetree](/endpoints/containers-agents-run/client/filetree/)
   stream, in the postcard encoding that channel states.
 - **A finish with nothing.** A response finish that no response
-  precedes states that the proxy could not read the request.
+  precedes states that the server could not read the request.
 
 The response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/filesystem/tree/server/response/frame.rs`:
 

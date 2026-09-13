@@ -6,20 +6,21 @@ draft: false
 ---
 
 ```text
-[bytes …]      zero or more, what the driver wrote
+[bytes …]      zero or more, what the database says
 ```
 
 - **The sequence.** Zero or more channel responses, each the bytes
-  the driver wrote, verbatim, with no tag and no header, in the order
-  written; a message of the PostgreSQL wire protocol may span several
-  channel responses and several may share one. The channel response
-  finish follows when the driver's socket ends. A channel response
-  finish that no channel response precedes states that the id names
-  no connection whose half is open.
+  the database wrote, verbatim, with no tag and no header, in order;
+  a message of the PostgreSQL wire protocol may span several channel
+  responses and several may share one. The channel response finish
+  is the database connection closed: the server closes the driver's
+  socket. A channel response finish that no channel response precedes
+  states that the client declined the connection, and the server
+  closes the driver's socket at once.
 
-The channel response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/server/channel_response/postgres/frame.rs`:
+The channel response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_response/postgres/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/server/channel_response/postgres/frame.rs
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_response/postgres/frame.rs
 ```
 
 and by `diverge-provider-sdk-rs/src/shared/containers/postgres/response/frame.rs`:

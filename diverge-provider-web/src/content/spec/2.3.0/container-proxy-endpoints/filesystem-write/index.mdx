@@ -1,53 +1,53 @@
 ---
 title: 'filesystem::write'
-summary: 'Tag 5: the server names one file of the container; the proxy asks for the content on a channel of its own, puts the file in place whole, and answers Written or an error, and the finish.'
+summary: 'Tag 5: the client names one file of the container; the server asks for the content on a channel of its own, puts the file in place whole, and answers Written or an error, and the finish.'
 order: 5
 draft: false
 ---
 
-The server opens the scope with a request whose payload is the tag
-byte `5` followed by the path of one file, as JSON. The proxy opens
-one channel on the scope, the content, and the server answers on it
-with the bytes of the file; the proxy puts the file in place and
+The client opens the scope with a request whose payload is the tag
+byte `5` followed by the path of one file, as JSON. The server opens
+one channel on the scope, the content, and the client answers on it
+with the bytes of the file; the server puts the file in place and
 answers with exactly one response, `Written` or an error, and ends
 the scope by the response finish.
 
 - **The request.** [Request](/container-proxy-endpoints/filesystem-write/request/) states its form.
 - **The response.** [Response](/container-proxy-endpoints/filesystem-write/response/) states the one response.
-- **The channels.** The proxy opens the channel that
-  [Proxy Channels](/container-proxy-endpoints/filesystem-write/proxy/) defines. The server opens no channel
+- **The channels.** The server opens the channel that
+  [Client Channels](/container-proxy-endpoints/filesystem-write/server/) defines. The client opens no channel
   on a write scope.
 
 ## The order
 
-1. **The proxy reads the request.** A request whose payload does not
+1. **The server reads the request.** A request whose payload does not
    decode is answered by a response finish that no response precedes,
    as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A path that is
    the root, or that has a component that is empty, `.`, `..`, or
    contains `/` or NUL, is answered by exactly one error response and
    the finish.
-2. **The proxy makes a temporary file.** Beside the destination, new,
+2. **The server makes a temporary file.** Beside the destination, new,
    named `.<name>.diverge-write-<n>` where `<name>` is the
    destination's last component and `<n>` a number no other temporary
-   of the proxy has. A parent that is missing or is not a directory is
+   of the server has. A parent that is missing or is not a directory is
    answered by exactly one error response and the finish.
-3. **The proxy opens the content channel.** Exactly one, after the
+3. **The server opens the content channel.** Exactly one, after the
    temporary exists and before anything is written.
-4. **The proxy writes the content.** Every body the server sends on
+4. **The server writes the content.** Every body the client sends on
    the channel is appended to the temporary, in order. An error on
    the channel, and a write that fails, discard the temporary and are
    answered by exactly one error response and the finish. The
    destination is untouched.
-5. **The proxy puts the file in place.** After the channel finishes,
+5. **The server puts the file in place.** After the channel finishes,
    the temporary is renamed over the destination; a regular file at
    the destination lends the new file its permissions, and a symbolic
    link at the destination is replaced, not written through. A rename
    that fails discards the temporary and is answered by exactly one
    error response and the finish.
-6. **The proxy answers `Written` and finishes the scope.**
+6. **The server answers `Written` and finishes the scope.**
 
 ## The rules that hold throughout
 
 - **Whole or not at all.** The destination is either what it was or
   the whole new file. No partial file is left at the destination.
-- **No durability.** The proxy does not sync the file to storage.
+- **No durability.** The server does not sync the file to storage.

@@ -1,49 +1,49 @@
 ---
 title: 'tools::begin'
-summary: 'Tag 1: the server begins its work on a tool container, once, first; the proxy answers Begun and nothing more on the scope for the life of the connection; every channel of the container’s life rides this scope.'
+summary: 'Tag 1: the client begins its work on a tool container, once, first; the server answers Begun and nothing more on the scope for the life of the connection; every channel of the container’s life rides this scope.'
 order: 1
 draft: false
 ---
 
-The server opens the scope with a request whose payload is the tag
-byte `1` and nothing more. The proxy answers with exactly one `Begun`
+The client opens the scope with a request whose payload is the tag
+byte `1` and nothing more. The server answers with exactly one `Begun`
 response at once, sends no other response on the scope for as long as
 the connection lives, and ends the scope by the response finish only
-when the proxy ends. This section states what the proxy does. It
-states nothing about the server beyond the order
+when the server ends. This section states what the server does. It
+states nothing about the client beyond the order
 [Scopes](/container-proxy/scopes/) provides.
 
 - **The request.** [Request](/container-proxy-endpoints/tools-begin/request/) states its form.
 - **The response.** [Response](/container-proxy-endpoints/tools-begin/response/) states the one response
   and the sequence of the main stream.
-- **The channels.** The server opens the channels that
-  [Server Channels](/container-proxy-endpoints/tools-begin/server/) defines; the proxy opens the
-  channels that [Proxy Channels](/container-proxy-endpoints/tools-begin/proxy/) defines. Each channel is
+- **The channels.** The client opens the channels that
+  [Client Channels](/container-proxy-endpoints/tools-begin/client/) defines; the server opens the
+  channels that [Client Channels](/container-proxy-endpoints/tools-begin/server/) defines. Each channel is
   its own section. Neither party opens a channel on the scope before
   the `Begun` response.
 
 ## The order
 
-1. **The proxy reads the request.** A request whose payload does not
+1. **The server reads the request.** A request whose payload does not
    decode is answered by a response finish that no response precedes,
    as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A begin on a
    connection that has begun is answered by exactly one response, the
    error, and the finish; the first begin continues.
-2. **The proxy answers `Begun`.** Exactly once, at once.
-3. **The scope ends with the proxy.** The proxy sends the response
+2. **The server answers `Begun`.** Exactly once, at once.
+3. **The scope ends with the server.** The server sends the response
    finish when it ends, and at no other time.
 
 ## The rules that hold throughout
 
-- **One begin.** The proxy serves exactly one begin scope per
+- **One begin.** The server serves exactly one begin scope per
   connection.
-- **Both directions.** The proxy opens channels on this scope for
+- **Both directions.** The server opens channels on this scope for
   everything the container asks of the world outside it — its
   database connections, its commands, its vault, its tool calls
-  outward — and the server opens channels on it for the five MCP
+  outward — and the client opens channels on it for the five MCP
   exchanges into the container's own MCP server and for its half of
   each database connection.
-- **Silence.** After `Begun`, the proxy sends no response on the
+- **Silence.** After `Begun`, the server sends no response on the
   scope.
-- **No timeout.** The proxy imposes no timeout on any channel or on
+- **No timeout.** The server imposes no timeout on any channel or on
   the scope.

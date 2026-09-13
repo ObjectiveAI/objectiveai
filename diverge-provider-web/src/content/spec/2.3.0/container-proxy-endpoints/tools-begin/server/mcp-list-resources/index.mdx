@@ -1,19 +1,21 @@
 ---
 title: 'MCP list resources'
-summary: 'Tag 2: the server sends the params of the MCP method `resources/list`; the proxy makes the exchange of the container’s own MCP server and answers with exactly one channel response, the result or the MCP error, and the channel response finish.'
-order: 2
+summary: 'Tag 8: the server relays an MCP `resources/list` exchange a program in the container asked of the caller’s MCP servers, its params verbatim; the client answers with exactly one channel response, the result or the MCP error, which the server relays to the program.'
+order: 8
 draft: false
 ---
 
-The server opens this channel for the resources the MCP server of the container offers. The proxy makes the
-exchange of the container's MCP server and answers with its result.
+The server opens this channel when a program in the container asks
+for the resources the MCP servers of the caller offer. The params are sent
+verbatim; the client's one answer is relayed back.
 
-- **The request.** The tag byte `2` followed by the params of the
+- **The request.** The tag byte `8` followed by the params of the
   MCP method `resources/list` as JSON. [Request](/container-proxy-endpoints/tools-begin/server/mcp-list-resources/request/)
   states its form.
 - **The response.** Exactly one channel response, the result or an
   error, and the channel response finish.
   [Response](/container-proxy-endpoints/tools-begin/server/mcp-list-resources/response/) states the sequence.
-- **The server of the container.** A container whose MCP server
-  cannot be reached is answered by the error. The error an MCP server
-  states is sent as itself, its code included.
+- **No repetition.** The server sends the exchange exactly once. A
+  channel that ends without a finish is not asked again.
+- **The meaning.** What the exchange is,
+  [MCP list resources](/endpoints/containers-agents-run/server/mcp-list-resources/) states.

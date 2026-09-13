@@ -12,9 +12,9 @@ draft: false
 - **`agent`.** A JSON value: the `agent` of the
   [containers::agents::run](/endpoints/containers-agents-run/request/)
   request that made the container, verbatim. What the value may be,
-  the image defines, and the [agent-schema](/container-proxy-endpoints/agents-begin/server/agent-schema/)
+  the image defines, and the [agent-schema](/container-proxy-endpoints/agents-begin/client/agent-schema/)
   channel answers.
-- **Once, and first.** The server sends this request before any other
+- **Once, and first.** The client sends this request before any other
   request on the connection, and never again on it.
 - **Malformed.** A payload that does not decode as stated is answered
   by a response finish that no response precedes.

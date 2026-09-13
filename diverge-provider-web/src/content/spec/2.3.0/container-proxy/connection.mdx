@@ -1,35 +1,35 @@
 ---
 title: 'Connection'
-summary: 'The server opens exactly one connection to the proxy, for the life of the container; the first frame on it opens the begin scope; the connection ending ends every scope on it, and nothing is re-asked.'
+summary: 'The client opens exactly one connection to the server, for the life of the container; the first frame on it opens the begin scope; the connection ending ends every scope on it, and nothing is re-asked.'
 order: 1
 draft: false
 ---
 
-The server opens the connection, and the connection is the life of
-the container: everything the server and the proxy say to each other
-rides it, and nothing survives it.
+The client opens the connection, and the connection is the life of
+the container: everything the client and the server say to each
+other rides it, and nothing survives it.
 
-- **The opening.** The server performs the WebSocket opening handshake
+- **The opening.** The client performs the WebSocket opening handshake
   against port `14979` of the container, at the path `/`, as
-  [WebSocket](/websocket/) provides. The proxy sends no frame before
-  the server's first frame.
-- **The first frame.** The first frame the server sends is a request,
+  [WebSocket](/websocket/) provides. The server sends no frame before
+  the client's first frame.
+- **The first frame.** The first frame the client sends is a request,
   type `1`, opening the begin scope of the container's family:
   [agents::begin](/container-proxy-endpoints/agents-begin/) on an
   agent container, [tools::begin](/container-proxy-endpoints/tools-begin/)
-  on a tool container. The server sends no other request before it,
+  on a tool container. The client sends no other request before it,
   and sends it exactly once on the connection.
-- **One connection.** The proxy accepts one connection in its life.
+- **One connection.** The server accepts one connection in its life.
   A second upgrade, whether the first connection is open or has
   ended, is refused with HTTP status `409` before the upgrade. There
   is no second connection to a proxy.
 - **The end.** The connection ends when either party closes it, by
   the WebSocket closing handshake or otherwise. When the connection
   ends, every scope on it is over and every channel with it. The
-  proxy re-asks nothing that was in flight, and the server re-sends
+  server re-asks nothing that was in flight, and the client re-sends
   nothing. What was in flight when the connection ended is what was
   in flight when the container ended.
-- **The proxy does not close.** The proxy closes the connection only
-  on a frame of type `0`, as [Container Proxy](/container-proxy/)
+- **The server does not close.** The server closes the connection
+  only on a frame of type `0`, as [Container Proxy](/container-proxy/)
   provides. It does not close the connection on a frame it cannot
   read, on a scope it cannot serve, or after any length of quiet.
