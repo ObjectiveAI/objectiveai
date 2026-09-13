@@ -69,8 +69,8 @@ pub enum ClientRequest<'a> {
 }
 
 impl Encode for ClientRequest<'_> {
-    /// The ordinary JSON failure: four of the six requests are JSON
-    /// after their tag, and the other two have nothing to encode.
+    /// The ordinary JSON failure: five of the six requests are JSON
+    /// after their tag, and the sixth has nothing to encode.
     type Error = serde_json::Error;
 
     fn encode(
@@ -78,12 +78,10 @@ impl Encode for ClientRequest<'_> {
         out: &mut Writer<'_>,
     ) -> Result<(), serde_json::Error> {
         match self {
-            ClientRequest::AgentsBegin(frame) => {
+            ClientRequest::AgentsBegin(frame) => frame.encode(out),
+            ClientRequest::ToolsBegin(frame) => {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
-                frame.encode(out).map_err(|error| match error {})
-            }
-            ClientRequest::ToolsBegin(frame) => {
                 frame.encode(out).map_err(|error| match error {})
             }
             ClientRequest::FuseMount(frame) => frame.encode(out),

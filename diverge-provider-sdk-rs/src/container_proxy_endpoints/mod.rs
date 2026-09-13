@@ -61,11 +61,11 @@
 //!
 //! # The order the server opens them in
 //!
-//! `begin` first, before anything else, and exactly once. Then every
-//! FUSE mount, each its own scope, and every one answered before the
-//! next step. Then, on an agent container, the agent is registered — a
-//! channel on `begin`. Then trees, reads, writes and the family's own
-//! exchanges, as the server pleases, in parallel and in any order.
+//! `begin` first, before anything else, and exactly once — carrying,
+//! on an agent container, the agent. Then every FUSE mount, each its
+//! own scope, and every one answered before the next step. Then
+//! trees, reads, writes and the family's own exchanges, as the server
+//! pleases, in parallel and in any order.
 //! A channel on `begin` is opened, by either side, only after its
 //! [`Begun`](agents::begin::server::response::Frame::Begun) has
 //! arrived.

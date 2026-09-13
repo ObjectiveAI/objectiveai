@@ -13,7 +13,7 @@ use crate::shared::containers::{agent_schema, dequeue, enqueue, run_loop};
 #[derive(Debug)]
 pub(crate) enum Exchange {
     /// Run the loop on this prompt.
-    RunLoop(String),
+    AgentRun(String),
     /// The schema of the agent value.
     AgentSchema,
     /// A message for the loop's queue.
@@ -25,7 +25,7 @@ pub(crate) enum Exchange {
 /// Serve one, to the end.
 pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
     match exchange {
-        Exchange::RunLoop(prompt) => run_loop(run, channel, prompt).await,
+        Exchange::AgentRun(prompt) => run_loop(run, channel, prompt).await,
         Exchange::AgentSchema => schema(run, channel).await,
         Exchange::Enqueue(prompt) => enqueue(run, channel, prompt).await,
         Exchange::Dequeue => dequeue(run, channel).await,
