@@ -1,0 +1,49 @@
+---
+title: 'tools::begin'
+summary: 'Tag 1: the client begins its work on a tool container, once, first; the server answers Begun and nothing more on the scope for the life of the connection; every channel of the container’s life rides this scope.'
+order: 1
+draft: false
+---
+
+The client opens the scope with a request whose payload is the tag
+byte `1` and nothing more. The server answers with exactly one `Begun`
+response at once, sends no other response on the scope for as long as
+the connection lives, and ends the scope by the response finish only
+when the server ends. This section states what the server does. It
+states nothing about the client beyond the order
+[Connection](/container-proxy/connection/) provides.
+
+- **The request.** [Request](/container-proxy-endpoints/tools-begin/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/tools-begin/response/) states the one response
+  and the sequence of the main stream.
+- **The channels.** The client opens the channels that
+  [Client Channels](/container-proxy-endpoints/tools-begin/client/) defines; the server opens the
+  channels that [Server Channels](/container-proxy-endpoints/tools-begin/server/) defines. Each channel is
+  its own section. Neither party opens a channel on the scope before
+  the `Begun` response.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A begin on a
+   connection that has begun is answered by exactly one response, the
+   error, and the finish; the first begin continues.
+2. **The server answers `Begun`.** Exactly once, at once.
+3. **The scope ends with the server.** The server sends the response
+   finish when it ends, and at no other time.
+
+## The rules that hold throughout
+
+- **One begin.** The server serves exactly one begin scope per
+  connection.
+- **Both directions.** The server opens channels on this scope for
+  everything the container asks of the world outside it — its
+  database connections, its commands, its vault, its tool calls
+  outward — and the client opens channels on it for the five MCP
+  exchanges into the container's own MCP server and for its half of
+  each database connection.
+- **Silence.** After `Begun`, the server sends no response on the
+  scope.
+- **No timeout.** The server imposes no timeout on any channel or on
+  the scope.

@@ -11,7 +11,7 @@
 //! names the run it belongs to, so a close that arrives late cannot
 //! touch the run that came after.
 
-use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
+use diverge_container_proxy_sdk::agent::enqueue::Fate;
 use tokio::sync::Mutex;
 use tokio::sync::oneshot;
 

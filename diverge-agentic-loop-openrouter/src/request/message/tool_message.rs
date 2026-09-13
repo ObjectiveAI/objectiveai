@@ -1,6 +1,6 @@
 //! Tool messages.
 
-use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use serde::Serialize;
 
 use super::super::{RichContent, RichContentPart};

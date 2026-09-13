@@ -1,0 +1,53 @@
+//! What the queue holds, and what the server's channels say to it.
+
+use diverge_provider_sdk::shared::containers::enqueue;
+use diverge_provider_sdk::shared::error::Error;
+use tokio::sync::oneshot;
+
+/// What became of a message, as the server's enqueue channel is
+/// answered.
+pub enum Fate {
+    /// A loop took it: the one in flight, or the one it started.
+    Delivered,
+    /// The server withdrew it before a loop took it.
+    Dequeued,
+    /// No loop could start on it: the agent's server refused, or
+    /// could not be reached, in its own words.
+    Error(Error),
+}
+
+impl From<Fate> for enqueue::response::Frame {
+    fn from(fate: Fate) -> Self {
+        match fate {
+            Fate::Delivered => enqueue::response::Frame::Delivered,
+            Fate::Dequeued => enqueue::response::Frame::Dequeued,
+            Fate::Error(error) => enqueue::response::Frame::Error(error),
+        }
+    }
+}
+
+/// One message in the queue, and where its fate goes.
+pub struct Queued {
+    /// The message's text.
+    pub prompt: String,
+    /// The enqueue channel waiting for the fate. A receiver that is
+    /// gone is a server that left, and a fate nobody hears.
+    pub fate: oneshot::Sender<Fate>,
+}
+
+/// What a server's channel asks of the driver.
+pub enum Cmd {
+    /// A message for the agent.
+    Enqueue(Queued),
+    /// Withdraw every message still waiting, and say how many were.
+    Dequeue(oneshot::Sender<DequeueReply>),
+}
+
+/// The driver's answer to a dequeue.
+pub struct DequeueReply {
+    /// How many messages the queue held and gave back.
+    pub drained: usize,
+    /// Whether a loop is running, and so may hold messages of its
+    /// own for the agent's server to withdraw.
+    pub active: bool,
+}

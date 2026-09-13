@@ -1,0 +1,111 @@
+//! What a client's request frame carries for an agent container begin.
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use crate::decode::Decode;
+use crate::encode::{Encode, Writer};
+
+/// Begin the server's work on an agent container, and hand it its
+/// agent.
+///
+/// The agent is the
+/// [`agent`](crate::endpoints::containers::agents::run::client::request::Frame::agent)
+/// of the request that made the container, typed to the same depth
+/// for the same reason — a JSON value, because the image defines what
+/// an agent is, and what the value may be is what
+/// [`agent_schema`](crate::shared::containers::agent_schema) answers.
+/// It rides the begin rather than a channel of its own because it is
+/// handed over exactly once, first, and never changes: the container
+/// that has begun is a container that holds its agent, and
+/// [`Begun`](super::super::super::server::response::Frame::Begun) says both.
+///
+/// # Once, and first
+///
+/// The server opens this before any other scope on the connection,
+/// and never again on it: a second begin is answered
+/// [`Error`](super::super::super::server::response::Frame::Error) and
+/// finished, and the first goes on.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct Frame {
+    /// The agent, as the image defines it.
+    pub agent: Value,
+}
+
+/// This frame's tag among the scope-opening requests.
+///
+/// One byte at the front of the payload, which is what tells a reader
+/// which request it holds. The frame layer does not discriminate them
+/// — [`ClientFrame::Request`](crate::frame::client::ClientFrame::Request)
+/// is one type carrying bytes — so the distinction has to be in the
+/// bytes, and each request owns the value that names it.
+///
+/// See the table in
+/// [`container_proxy_endpoints`](crate::container_proxy_endpoints) for
+/// the whole allocation. The values are chosen across modules that do
+/// not know about each other, so the table is the only place they can
+/// be seen at once.
+const TAG: u8 = 0;
+
+impl Encode for Frame {
+    /// The ordinary JSON failure. The tag cannot fail.
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        out.extend_from_slice(&[TAG]);
+        serde_json::to_writer(out, self)
+    }
+}
+
+impl Decode<'_> for Frame {
+    /// Three ways to fail, and only one of them is JSON.
+    type Error = FrameError;
+
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
+        if *tag != TAG {
+            return Err(FrameError::UnexpectedTag(*tag));
+        }
+        serde_json::from_slice(rest).map_err(FrameError::Body)
+    }
+}
+
+/// An agents begin request that could not be read.
+#[derive(Debug)]
+pub enum FrameError {
+    /// No bytes at all, so not even a tag.
+    Empty,
+    /// A tag naming some other request.
+    ///
+    /// A reader that dispatched on the tag will not see this. One that
+    /// assumed which request it held, and was wrong, will — which is
+    /// the point of checking a tag rather than skipping it.
+    UnexpectedTag(u8),
+    /// The agent did not parse.
+    Body(serde_json::Error),
+}
+
+impl std::fmt::Display for FrameError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FrameError::Empty => {
+                f.write_str("agents begin request frame is empty")
+            }
+            FrameError::UnexpectedTag(tag) => {
+                write!(f, "expected agents begin request tag {TAG}, found {tag}")
+            }
+            FrameError::Body(error) => {
+                write!(f, "agents begin request did not parse: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Body(error) => Some(error),
+            FrameError::Empty | FrameError::UnexpectedTag(_) => None,
+        }
+    }
+}

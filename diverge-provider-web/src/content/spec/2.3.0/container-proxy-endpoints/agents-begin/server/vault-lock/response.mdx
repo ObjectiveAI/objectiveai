@@ -1,0 +1,27 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0]             ok, the lock is held
+[1][message …]  an error, UTF-8
+```
+
+- **The sequence.** Exactly one channel response, ok, sent when the lock is held, or an error, followed
+  by the channel response finish.
+- **A finish with nothing.** A channel response finish that no
+  channel response precedes states that the client did not serve the
+  ask. The server does not ask again.
+
+The channel response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/client/channel_response/vault_lock/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/agents/begin/client/channel_response/vault_lock/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/vault/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/vault/response/frame.rs
+```

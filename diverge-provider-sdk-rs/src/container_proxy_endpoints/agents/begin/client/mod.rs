@@ -1,0 +1,22 @@
+//! The client side of an agent container begin: what the server
+//! sends.
+//!
+//! [`request`] opens the scope. [`channel_request`] reaches into the
+//! container once it has begun. [`channel_response`] answers the
+//! channels the proxy opens.
+//!
+//! # And, behind the `server` feature, a way to use it
+//!
+//! [`execute`] performs the exchange rather than describing it: hand
+//! it the [`Handle`](crate::client::handle::Handle) to the proxy and
+//! the agent, and get back the scope's handle, the asks the proxy
+//! opens and the agent's conversation. Every other module here is
+//! types only, and this one still is unless the provider's server was
+//! asked for — the same bargain [`server`](crate::server) makes.
+
+pub mod channel_request;
+pub mod channel_response;
+pub mod request;
+
+#[cfg(feature = "server")]
+pub mod execute;

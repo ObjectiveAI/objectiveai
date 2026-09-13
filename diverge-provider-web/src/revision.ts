@@ -11,13 +11,13 @@ import { resolve } from "node:path";
 // from `dist/`, so `import.meta.url` points nowhere useful, while the
 // build always runs from the package directory.
 const manifest = readFileSync(
-  resolve(process.cwd(), "../diverge-provider-sdk/Cargo.toml"),
+  resolve(process.cwd(), "../diverge-provider-sdk-rs/Cargo.toml"),
   "utf-8",
 );
 
 const version = manifest.match(/^version = "([^"]+)"/m);
 if (!version) {
-  throw new Error("diverge-provider-sdk/Cargo.toml has no version");
+  throw new Error("diverge-provider-sdk-rs/Cargo.toml has no version");
 }
 
 /** The current specification revision: the sdk crate's version. */

@@ -1,13 +1,13 @@
 ---
 title: 'Read'
-summary: 'Tag 2: the client names one file of the container; the server opens the proxy’s /filesystem/read and relays the bytes as channel responses, an error last when the read fails, and the channel response finish.'
+summary: 'Tag 2: the client names one file of the container; the server opens a read scope on the proxy and relays the bytes as channel responses, an error last when the read fails, and the channel response finish.'
 order: 2
 draft: false
 ---
 
 The client opens this channel to read one file out of the container.
-The server opens [`/filesystem/read`](/proxy/filesystem/read/) on the
-proxy, naming the file, and relays what the proxy sends.
+The server opens a read scope on the container's proxy, naming the
+file, and relays what the proxy sends.
 
 - **The request.** The tag byte `2` followed by the path of the file
   as JSON. [Request](/endpoints/containers-tools-connect/client/read/request/) states its form.

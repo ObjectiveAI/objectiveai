@@ -1,0 +1,30 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 2 followed by the mount as JSON: the path, as components from the root of the container, and the kind, file or directory.'
+order: 1
+draft: false
+---
+
+```text
+[2][request JSON …]
+```
+
+- **`path`.** An array of strings: the components of the mount point,
+  from the root of the container. Never empty; no component empty,
+  `.` or `..`.
+- **`kind`.** The string `file` or the string `directory`.
+- **No id.** The request carries no id. The scope is the mount, and
+  the client, which relays each ask to its client with the id the
+  client gave the mount, knows the scope by that id.
+- **Malformed.** A payload that does not decode as stated is answered
+  by a response finish that no response precedes.
+
+The request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/client/request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/client/request/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/fuse/entry.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/fuse/entry.rs
+```

@@ -39,8 +39,8 @@ WORKDIR /build
 # does not pass --locked. Of the eliza crate only the manifest and the
 # sources ride: reports/ and the pinned elizaOS tree under sources/
 # are research, not the build's.
-COPY diverge-provider-sdk diverge-provider-sdk
-COPY diverge-container-proxy-sdk diverge-container-proxy-sdk
+COPY diverge-provider-sdk-rs diverge-provider-sdk-rs
+COPY diverge-container-proxy-sdk-rs diverge-container-proxy-sdk-rs
 COPY diverge-agentic-loop-eliza/Cargo.toml diverge-agentic-loop-eliza/Cargo.toml
 COPY diverge-agentic-loop-eliza/src diverge-agentic-loop-eliza/src
 COPY Cargo.lock diverge-agentic-loop-eliza/Cargo.lock

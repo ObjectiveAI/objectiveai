@@ -215,10 +215,9 @@ impl MountedDirectory {
 
     /// An entry's attributes.
     fn attr(&self, ino: u64, stat: &Stat) -> FileAttr {
-        let readonly = self.asks.readonly();
         let (kind, size, perm, nlink) = match stat {
-            Stat::File(size) => (FileType::RegularFile, *size, super::file_mode(readonly), 1),
-            Stat::Directory => (FileType::Directory, 0, super::directory_mode(readonly), 2),
+            Stat::File(size) => (FileType::RegularFile, *size, super::FILE_MODE, 1),
+            Stat::Directory => (FileType::Directory, 0, super::DIRECTORY_MODE, 2),
         };
         FileAttr {
             ino: INodeNo(ino),
@@ -304,10 +303,6 @@ impl Filesystem for MountedDirectory {
             }
             return;
         };
-        if self.asks.readonly() {
-            reply.error(Errno::EROFS);
-            return;
-        }
         let length = size as usize;
         let result = match fh {
             // A handle's own truncation: its buffer, dirty until
@@ -335,10 +330,6 @@ impl Filesystem for MountedDirectory {
             OpenAccMode::O_WRONLY | OpenAccMode::O_RDWR
         );
         let truncate = flags.0 & libc::O_TRUNC != 0;
-        if self.asks.readonly() && (writable || truncate) {
-            reply.error(Errno::EROFS);
-            return;
-        }
         let result = self.path(ino).and_then(|path| {
             let buffer = if truncate {
                 // A truncating open of a directory is the kernel's to
@@ -384,10 +375,6 @@ impl Filesystem for MountedDirectory {
         _lock_owner: Option<LockOwner>,
         reply: ReplyWrite,
     ) {
-        if self.asks.readonly() {
-            reply.error(Errno::EROFS);
-            return;
-        }
         match self.handles.write(fh, offset, data) {
             Ok(written) => reply.written(written),
             Err(errno) => reply.error(errno),
@@ -535,10 +522,6 @@ impl Filesystem for MountedDirectory {
         flags: RenameFlags,
         reply: ReplyEmpty,
     ) {
-        if self.asks.readonly() {
-            reply.error(Errno::EROFS);
-            return;
-        }
         if flags.contains(RenameFlags::RENAME_EXCHANGE) {
             reply.error(Errno::ENOTSUP);
             return;

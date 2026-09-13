@@ -1,0 +1,19 @@
+---
+title: 'MCP notifications'
+summary: 'Tag 11: the server subscribes, once, to the notifications of the caller’s MCP servers; the client answers with one channel response per notification, an error last, and the channel response finish, each relayed to the programs in the container.'
+order: 11
+draft: false
+---
+
+The server opens this channel at most once per connection, when a
+program in the container first makes an MCP exchange of the server.
+Every channel response is relayed to every MCP session the server
+serves at the time it arrives.
+
+- **The request.** The tag byte `11` and nothing more.
+  [Request](/container-proxy-endpoints/agents-begin/server/mcp-notifications/request/) states its form.
+- **The response.** One channel response per notification, an error
+  last when the client sends one, and the channel response finish.
+  [Response](/container-proxy-endpoints/agents-begin/server/mcp-notifications/response/) states the sequence.
+- **Once.** The server does not open this channel a second time on the
+  connection, however the first ended.

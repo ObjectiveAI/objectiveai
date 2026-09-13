@@ -1,6 +1,6 @@
 ---
 title: 'Write'
-summary: 'Tag 3: the client names a write by an id and a destination path; the server opens a write-bytes channel for the content, streams it into the proxy’s /filesystem/write, and answers exactly once, written or an error.'
+summary: 'Tag 3: the client names a write by an id and a destination path; the server opens a write-bytes channel for the content, streams it into a write scope on the proxy, and answers exactly once, written or an error.'
 order: 3
 draft: false
 ---
@@ -13,9 +13,9 @@ on a channel the server opens.
   path as JSON. [Request](/endpoints/containers-tools-run/client/write/request/) states its
   form.
 - **The content.** The server opens a [write-bytes](/endpoints/containers-tools-run/server/write-bytes/) channel
-  quoting the write id, and streams what arrives on it into the
-  proxy's [`/filesystem/write`](/proxy/filesystem/write/) for the
-  path.
+  quoting the write id, opens a write scope on the container's proxy
+  for the path, and streams what arrives on the one into the channel
+  the proxy opens on the other for the content.
 - **The response.** Exactly one channel response, written or an
   error, and the channel response finish.
   [Response](/endpoints/containers-tools-run/client/write/response/) states the sequence.

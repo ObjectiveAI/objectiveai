@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use diverge_provider_sdk::shared::containers::run_loop::response;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
 
 use serde::Deserialize;
 

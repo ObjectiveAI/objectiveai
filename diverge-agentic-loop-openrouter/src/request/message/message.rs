@@ -1,6 +1,6 @@
 //! A message in an OpenRouter request body.
 
-use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use serde::Serialize;
 
 use crate::continuation::{Continuation, ContinuationItem};

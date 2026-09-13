@@ -2,7 +2,7 @@
 //!
 //! The program an agent container runs for a Codex (OpenAI Codex
 //! CLI) agent: an HTTP server on the container's loopback, at the
-//! port the SDK's [`container_proxy::agent`] module names, that the
+//! port the SDK's [`diverge_container_proxy_sdk::agent`] module names, that the
 //! proxy beside it forwards the provider's asks to. `POST /run` runs
 //! a loop — one at a time, the lock held until the run is settled,
 //! so a run after the first resumes the same thread and a run beside
@@ -63,11 +63,10 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_container_proxy_sdk::Client;
-use diverge_provider_sdk::container_proxy;
-use diverge_provider_sdk::container_proxy::agent::dequeue::Outcome;
-use diverge_provider_sdk::container_proxy::agent::enqueue::Fate;
+use diverge_container_proxy_sdk::agent::dequeue::Outcome;
+use diverge_container_proxy_sdk::agent::enqueue::Fate;
 use diverge_provider_sdk::shared::containers::enqueue;
-use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::{Stream, StreamExt as _};
 use serde_json::Value;
 
@@ -100,7 +99,7 @@ async fn serve() {
         .route("/dequeue", axum::routing::post(dequeue))
         .with_state(Arc::new(Client::new()));
 
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", container_proxy::agent::port()))
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_container_proxy_sdk::agent::port()))
         .await
         .expect("the port could not be bound");
     axum::serve(listener, app)
@@ -126,7 +125,7 @@ async fn serve() {
 /// comes.
 async fn run(
     State(client): State<Arc<Client>>,
-    Json(request): Json<container_proxy::agent::run::request::Request>,
+    Json(request): Json<diverge_container_proxy_sdk::agent::run::request::Request>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Refusal> {
     let Some(agent) = registration::registered() else {
         return Err((
@@ -234,7 +233,7 @@ async fn run(
 /// registered is `409`, whatever the second carries — the agent
 /// never changes. `204` is the agent held.
 async fn register(
-    Json(request): Json<container_proxy::agent::register::request::Request>,
+    Json(request): Json<diverge_container_proxy_sdk::agent::register::request::Request>,
 ) -> Result<StatusCode, Refusal> {
     let agent: Agent = match serde_json::from_value(request.agent) {
         Ok(agent) => agent,

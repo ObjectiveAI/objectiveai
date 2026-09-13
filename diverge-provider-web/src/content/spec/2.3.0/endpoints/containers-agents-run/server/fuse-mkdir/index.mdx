@@ -5,20 +5,22 @@ order: 23
 draft: false
 ---
 
-The server opens this channel when the container's proxy sends the
-FUSE ask on `/requests` that makes a directory of a mount the client serves live. The ask
-is relayed verbatim; the client's one answer is relayed back.
+The server opens this channel when a FUSE mount's scope on the
+container's proxy carries the ask that makes a directory of a mount the client serves live.
+The ask is relayed with the mount's `id` put in front of it — the
+mount's scope is the mount, and its asks carry no id — and otherwise
+verbatim; the client's one answer is relayed back.
 
 - **The request.** The tag byte `23` followed by the ask in the form
-  the proxy's [`/fuse/mkdir/{channel}`](/proxy/fuse/mkdir/) page
-  defines. [Request](/endpoints/containers-agents-run/server/fuse-mkdir/request/) states its
-  form.
+  the [Container Proxy Endpoints](/container-proxy-endpoints/) layer
+  defines for it, the mount's `id` added.
+  [Request](/endpoints/containers-agents-run/server/fuse-mkdir/request/) states its form.
 - **The response.** Exactly one channel response and the channel
   response finish. [Response](/endpoints/containers-agents-run/server/fuse-mkdir/response/)
   states the sequence.
-- **The conduit.** The server relays the one channel response to the
-  proxy's `/fuse/mkdir/{channel}` as one message and closes that
-  connection. The server does not read the ask or the answer, and
-  does not send the ask twice.
-- **Never for a read-only mount.** The server does not open this channel for a mount whose `readonly` is `true`; the proxy sends no such ask.
+- **The conduit.** The server relays the one channel response onto
+  the mount's channel as one channel response and finishes it. The
+  server does not read the ask or the answer, and does not send the
+  ask twice.
+- **Refusal is the client's.** A client that answers this ask with an error refuses the change, and the proxy reports the operation to the program as failed. The server relays the answer and decides nothing.
 - **A directory mount only.** The proxy sends this ask only for a mount of `fuse_directory_mounts`.

@@ -43,9 +43,10 @@ runner.
    scope by exactly one response, the error `{"kind":"denied"}`, and
    the finish. The byte `1` opens the connection: the server sends
    nothing on the main stream.
-4. **The server serves the scope.** The server connects to the
-   container's proxy at the address the run's deploy reported and
-   serves every channel the connector opens as its section defines,
+4. **The server serves the scope.** The server serves every channel
+   the connector opens on the run's own connection to the container's
+   proxy — its tree, read and write scopes, and its MCP exchanges as
+   channels on the run's begin scope — as its section defines,
    with these differences from a run: a connector's
    [postgres](/endpoints/containers-tools-connect/client/postgres/) channel is answered by a
    channel response finish with no frame before it; the server opens
@@ -66,6 +67,6 @@ runner.
 - **The conduit.** The server relays the bytes of every relayed
   exchange verbatim, unread, unaltered, unreordered within one
   channel, and never twice.
-- **The container's own asks go to the runner.** Nothing the
-  container asks, on `/requests`, reaches a connector. The runner's
-  scope answers them.
+- **The container's own asks go to the runner.** Nothing the proxy
+  asks on the begin scope, and nothing a mount asks, reaches a
+  connector. The runner's scope answers them.

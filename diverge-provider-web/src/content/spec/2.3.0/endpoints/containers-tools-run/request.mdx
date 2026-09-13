@@ -26,16 +26,29 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 - **`volume_mounts`.** Ordered; the server applies them in order.
   `host_name` is a `name` in the client's listing; `host_relative_path`
   and `container_path` are components. An empty `container_path`
-  names the root, which the server refuses.
+  names the root, which the server refuses. `persist` is present and
+  is `true` or `false`: `true`, every change the container makes to
+  the volume is in the volume when the container ends; `false`, the
+  volume is as it was before the run when the container ends. The
+  container sees the volume's content as of its start either way.
 - **`identity_file_mounts`, `identity_directory_mounts`.** Each names
   content by `identity`, `<size>:<base64url sha256>` with the hash of
   the bytes for a file and of the manifest for a directory, as the
   [volumes::stat response](/endpoints/volumes-stat/response/)
-  defines the manifest. Every one is mounted read-only before the
-  container starts.
-- **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path,
-  an `id` the client chose, and `readonly`, absent meaning `false`.
-  Every one is mounted before the id is sent.
+  defines the manifest. Every one is mounted before the container
+  starts. Its content matches the identity, in size and hash, at the
+  start of the container's life, and is writable from inside the
+  container: a mount that refuses a write is a violation. Whether a
+  write outlives the container is not prescribed.
+- **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path
+  and an `id` the client chose. Every one is mounted before the id
+  is sent. A directory mount is a tree the client serves: every entry
+  beneath its root is created, written, renamed and removed by the
+  container, each change one ask to the client, and the root alone
+  cannot be removed or renamed. A file mount is one file, overwritten
+  in place and never removed, renamed or replaced. Whether a change
+  is allowed is the client's answer to the ask; the server enforces
+  nothing.
 - **Paths.** No component of any mount's path is empty, `.` or `..`.
   No two mounts have one path. No mount lies inside a FUSE directory
   mount. A FUSE file mount may lie inside a directory another mount
@@ -47,32 +60,32 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   parse as the request are malformed. [Endpoints](/endpoints/) states
   how a server answers a request it cannot read.
 
-The request is defined by `diverge-provider-sdk/src/endpoints/containers/tools/run/client/request/frame.rs`:
+The request is defined by `diverge-provider-sdk-rs/src/endpoints/containers/tools/run/client/request/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/endpoints/containers/tools/run/client/request/frame.rs
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/tools/run/client/request/frame.rs
 ```
 
-The container is defined by `diverge-provider-sdk/src/shared/containers/request/container.rs`:
+The container is defined by `diverge-provider-sdk-rs/src/shared/containers/request/container.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/container.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/container.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/request/image.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/request/image.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/image.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/image.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/request/volume_mount.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/volume_mount.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/request/identity_mount.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/request/identity_mount.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/identity_mount.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/identity_mount.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/request/fuse_mount.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/request/fuse_mount.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/request/fuse_mount.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/request/fuse_mount.rs
 ```

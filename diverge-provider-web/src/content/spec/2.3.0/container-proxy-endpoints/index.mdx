@@ -1,0 +1,57 @@
+---
+title: 'Container Proxy Endpoints'
+summary: 'A request on the container proxy connection opens a scope for exactly one of six endpoints, designated by the tag byte that begins its payload; a request the server cannot read is answered by a bare response finish.'
+order: 5
+draft: false
+---
+
+A [request](/frames/scopes/) the client sends on the connection of
+the [Container Proxy](/container-proxy/) opens a scope for exactly one
+**endpoint**. The request's payload begins with a single tag byte
+designating the endpoint; the remainder of the payload is the
+endpoint's request content, in the form the endpoint defines.
+
+| Tag | Endpoint |
+|-----|----------|
+| `0` | [agents::begin](/container-proxy-endpoints/agents-begin/) |
+| `1` | [tools::begin](/container-proxy-endpoints/tools-begin/) |
+| `2` | [fuse::mount](/container-proxy-endpoints/fuse-mount/) |
+| `3` | [filesystem::tree](/container-proxy-endpoints/filesystem-tree/) |
+| `4` | [filesystem::read](/container-proxy-endpoints/filesystem-read/) |
+| `5` | [filesystem::write](/container-proxy-endpoints/filesystem-write/) |
+
+The tag values are normative as tabulated. Each endpoint has its own
+section. Every section of this layer states requirements of the server
+— the proxy — only: a sentence describing what the client sends states
+the input the server serves, and imposes no requirement on the client
+beyond those the [Endpoints](/endpoints/) layer states of the
+provider's server.
+
+- **The parties.** The provider's server is the **client** of the
+  connection and the proxy is the **server**, in the sense of
+  [Frames](/frames/): the client sends the frame types that layer
+  defines for a client, and the server sends the frame types that
+  layer defines for a server. Every page of this layer uses the two
+  words so, and the crate names the client's traffic `client` and the
+  server's traffic `server` under every endpoint.
+- **The channels.** The channels the client opens on a scope are
+  listed under the endpoint's Client Channels section; the channels
+  the server opens are listed under its Server Channels section, as
+  the [Endpoints](/endpoints/) layer lists them. Each
+  channel is its own section, as [Channels](/frames/channels/)
+  provides. The numbering of a channel is its opener's, per scope,
+  and a channel number of one opener means nothing to the other.
+- **An unreadable request is answered, not dropped.** A request whose
+  payload the server cannot read — no tag, a tag this table does not
+  list, or content that does not conform to the endpoint's form — is
+  answered by a response finish that no response precedes. The server
+  sends nothing else for it.
+- **Growth is new tag values.** A future endpoint is a new tag value
+  in this table. No tag value listed here changes its endpoint.
+- **Notation.** The JSON forms and the byte layouts of this layer are
+  read as [Notation](/endpoints/#notation) provides.
+
+The requests are defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/client_request.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/client_request.rs
+```

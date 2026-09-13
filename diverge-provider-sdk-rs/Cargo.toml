@@ -1,0 +1,78 @@
+[package]
+name = "diverge-provider-sdk"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "Wire types for the Diverge provider API — the normative artifact of the provider specification"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+documentation = "https://docs.rs/diverge-provider-sdk"
+readme = "README.md"
+keywords = ["llm", "ai", "swarm", "provider"]
+publish = true
+
+[features]
+# The provider half. Off by default so a client, and a tool that only
+# inspects the protocol, compiles messages and nothing else.
+# `connect` is the server half dialing the proxy inside a container —
+# the one place this crate dials; see `server::proxy`. The server
+# also compiles the frame-level client core under `client`, because
+# it is that wire's client.
+server = ["__websocket", "dep:uuid", "tokio-tungstenite/connect"]
+# The caller half. Same bargain in the other direction.
+client = ["__websocket"]
+# Not for anyone to enable. Either half needs a socket, and needs BOTH
+# kinds: which end dialled is independent of which half you speak, so a
+# provider that dials out and a caller that is dialled into are both
+# ordinary.
+__websocket = [
+    "dep:axum",
+    "dep:bytes",
+    "dep:futures-util",
+    "dep:tokio",
+    "dep:tokio-tungstenite",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+# `ws` and nothing else. It brings tokio, hyper, tokio-tungstenite,
+# sha1 and base64 — the handshake and the socket — and deliberately not
+# http1 or http2, so nothing here can speak HTTP at all. A provider does
+# the serving and hands over an upgraded socket; a provider also does
+# whatever HTTP a container needs, since `Container` takes and returns
+# requests rather than the bytes of one.
+#
+# Which endpoint, which URL, what authenticates the upgrade: none of it
+# is this crate's business, and a crate that served would have opinions
+# about all of it.
+axum = { version = "0.8.9", default-features = false, features = ["ws"], optional = true }
+# What both sides call a binary payload. axum and tungstenite already
+# agree on it, so naming it costs nothing and copying out of it would.
+bytes = { version = "1.11.1", default-features = false, optional = true }
+# `WebSocketStream` is a `Stream` and a `Sink` with no inherent
+# `recv`/`send`, unlike axum's socket. This is what reads and writes
+# one.
+futures-util = { version = "0.3.33", default-features = false, optional = true }
+indexmap = { version = "2.14.0", features = ["serde"] }
+postcard = { version = "1.1.3", features = ["use-std"], default-features = false }
+rmcp = { version = "3.1.2", default-features = false }
+rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# `net` for the `TcpStream` an outgoing socket sits on, `sync` for the
+# channels frames are routed over, and `rt` for the tasks that pump one
+# stream into another. Nothing here CREATES a runtime.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt", "sync"], optional = true }
+# `stream` and nothing else: enough to NAME `MaybeTlsStream`, and not
+# `connect` or any TLS backend. Dialling is the caller's, the same way
+# upgrading is the provider's — this crate takes the socket that comes
+# out of either.
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["stream"], optional = true }
+# `v4` and nothing else: a container's id is a capability — holding it
+# is what authorizes a connect — so it has to be unguessable, and a
+# random UUID is the smallest thing that is. Server side only, because
+# only a run handler mints one.
+uuid = { version = "1.18.1", default-features = false, features = ["v4"], optional = true }

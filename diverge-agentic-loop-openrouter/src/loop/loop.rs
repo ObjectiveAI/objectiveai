@@ -2,8 +2,8 @@
 
 use diverge_container_proxy_sdk::Client;
 use crate::agent::Agent;
-use diverge_provider_sdk::shared::containers::run_loop::response;
-use diverge_provider_sdk::shared::containers::run_loop::response::{
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, ToolResponseChunk, UserChunk,
 };
 use futures_util::stream::FuturesUnordered;

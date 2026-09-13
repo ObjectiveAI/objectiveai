@@ -48,7 +48,8 @@ each define a term, this Agreement governs.
 Specification, revision 2.3.0, as published at
 `https://provider.diverge.network/2.3.0/` on the Effective Date,
 comprising every page of that revision under the layers Overview,
-WebSocket, Frames, Authorization, Container Proxy and Endpoints, and
+WebSocket, Frames, Authorization, Container Proxy, Container Proxy
+Endpoints and Endpoints, and
 every Rust source file of the Reference Crate that those pages
 include by reference. A copy of the Specification as of the Effective
 Date is attached as Exhibit A and is incorporated into this Agreement
@@ -134,13 +135,21 @@ owned by the Provider, leased by it, or supplied by a third party
 under contract with it.
 
 1.14 **"Container Proxy"** or **"Proxy"** means the program whose
-external interface the Specification's Container Proxy layer defines:
-the program that listens on TCP port 14979 of a Container, accepts the
-paths that layer enumerates, and speaks the messages that layer
-states. The Provider satisfies the requirement to use the Container
-Proxy by placing inside every Container a program that conforms to
-that layer in full; the program published by Diverge under the name
-`diverge-container-proxy` at version 2.3.0 is such a program.
+external interface the Specification's Container Proxy layer defines
+and whose scopes and channels its Container Proxy Endpoints layer
+states:
+the program that listens on TCP port 14979 of a Container, accepts one
+WebSocket connection there from the Provider's Server — a connection
+that is no connection of the Protocol, to which the Specification's
+WebSocket and Frames layers apply as the Container Proxy layer
+incorporates them, with the Provider's Server as the client and the
+Proxy as the server, and to which the Authorization layer does not
+apply — and speaks over it the scopes and channels that layer
+states. The Provider satisfies the requirement to use the
+Container Proxy by placing inside every Container a program that
+conforms to that layer in full; the program published by Diverge under
+the name `diverge-container-proxy` at version 2.3.0 is such a
+program.
 
 1.15 **"Volume"** means a directory of persistent storage the Provider
 holds under a name for one Identity, as the Specification's volume
@@ -169,10 +178,11 @@ answers, MCP exchanges, prompts, agent values, and loop chunks.
 
 1.19 **"Relayed Exchange"** means any exchange the Specification
 requires the Provider to carry between a Container and a Client, or
-between a Client and a Container, without reading it: every ask a
-Container makes on `/requests` and the Client's answer; the content of
-a Client's write; the bytes of a read; a filetree; a database
-connection; and the MCP exchanges into a tool Container.
+between a Client and a Container, without reading it: every channel
+the Proxy opens on a begin Scope and every ask a FUSE Mount makes on
+its Scope, with the Client's answer; the content of a Client's write;
+the bytes of a read; a filetree; a database connection; and the MCP
+exchanges into a tool Container.
 
 1.20 **"Runner"** means the Client on whose `containers::tools::run`
 scope a Container is running. **"Connector"** means a Client that
@@ -517,7 +527,15 @@ Finish, a request that names a Volume not in the Identity's listing;
 a mount whose path is the root of the Container; two mounts with one
 path; a mount inside a FUSE directory mount; two FUSE mounts with one
 `id`; a mount path with a component that is empty, `.` or `..`; or an
-image source the Provider's policy does not allow.
+image source the Provider's policy does not allow. The Provider shall
+hold every Volume a run request names in `volume_mounts` from the
+moment it accepts the request until the run ends, and shall answer a
+request that names a Volume so held by another running Container of
+the same Identity, or that names one Volume twice, by exactly one
+Response, the byte `1` followed by the name of that Volume as JSON,
+and the Response Finish, fetching nothing and deploying nothing for
+it. A Volume is mounted in at most one Container of its Identity at a
+time, whatever its `persist`.
 
 (b) **Hold every Identity Mount's content.** For each Identity Mount,
 the Provider shall, before Deployment, either hold content it has
@@ -546,56 +564,81 @@ obtain the image from a source of its own. For an image of kind
 Section 1.12 defines it, with `memory` and `disk` of the request as
 ceilings; every Volume Mount resolved by `host_name` against the
 Identity, descended by `host_relative_path`, and made present at
-`container_path`; every Identity Mount made present read-only at its
-`container_path`; the Container Proxy placed inside and started; and
+`container_path`, the Container's changes to it being in the Volume
+when the Container ends if `persist` is `true` and the Volume being as
+it was before the run when the Container ends if `persist` is
+`false`; every Identity Mount made present at its
+`container_path`, with content that matches its Content Identity in
+size and hash at the start of the Container's life and that is
+writable from inside the Container; the Container Proxy placed inside
+and started; and
 TCP port 14979 reachable to the Provider's Server. The Provider shall
 set no environment variable in the Container from the request, shall
 expose no port of the Container other than port 14979, and shall not
 start the Container before every Identity Mount's content is held. A
 failed Deployment is the run's error.
 
-(e) **Connect to the Proxy.** The Provider shall open the `/requests`
-path of the Container Proxy. A Proxy that does not accept the
-connection is a Container that did not come up: the Provider shall
-stop the Container and treat the failure as the run's error.
+(e) **Connect to the Proxy.** The Provider shall open exactly one
+WebSocket connection to TCP port 14979 of the Container and, on it
+before any other Scope, the begin Scope of the Container's family —
+for an agent container, carrying the request's `agent` value verbatim
+— and shall await its answer. A Proxy that does not accept the
+connection, or that answers the begin Scope with an error, is a
+Container that did not come up: the Provider shall stop the Container
+and treat the failure as the run's error. The Provider shall open no
+second connection to a Container.
 
 (f) **Make every FUSE Mount.** For each entry of `fuse_file_mounts`,
 and after the last of them for each entry of `fuse_directory_mounts`,
-in the order of the request, the Provider shall send one `/fuse/mount`
-request to the Proxy and shall wait for its answer before sending the
-next. The Provider shall treat a mount the Proxy does not make as the
-run's error and shall stop the Container. The Provider shall send no
-`/agent/register` request, open no `/filesystem/tree`, and send no
-Response on the Scope before the last FUSE Mount is complete.
+in the order of the request, the Provider shall open one mount Scope
+on the Proxy's connection, naming the path and the kind, and shall
+wait for its answer before opening the next. The Provider shall treat
+a mount the Proxy does not make as the run's error and shall stop the
+Container. The Provider shall open no tree Scope and send no Response
+on the Scope before the last FUSE Mount is complete. Inside
+a FUSE directory mount, every entry beneath the mount point shall be
+creatable, writable, renamable and removable from inside the
+Container, each change relayed to the Client as the Specification
+provides; the mount point itself is not removable or renamable. A
+FUSE file mount is overwritable in place and is not removable,
+renamable or replaceable. Whether a change is allowed is the Client's
+answer to the ask that carries it; the Provider shall enforce no
+restriction of its own on a FUSE Mount.
 
 (g) **Hold what the Client opened.** The Provider shall serve a
 Channel the Client opened before the id was sent only after the id is
 sent, in the order the Channels were opened, and shall neither refuse
 nor read such a Channel before the last FUSE Mount is complete.
 
-(h) **Register the agent** (tag 0 only). For an agent container, the
-Provider shall send exactly one `/agent/register` request to the Proxy
-carrying the request's `agent` value verbatim, after the last FUSE
-Mount is complete and before the id is sent. A registration the Proxy
-refuses is the run's error, and the Provider shall stop the Container.
+(h) **Carry the agent** (tag 0 only). For an agent container, the
+Provider shall carry the request's `agent` value verbatim in the begin
+Scope's request, and in nothing else. A begin the Proxy answers with
+an error is the run's error, and the Provider shall stop the
+Container.
 
 (i) **Mint and send the id.** The Provider shall choose an id that is
 unique among the Containers it is running and not derivable from the
 request, from the Identity, or from any other id, and shall send it as
-exactly one Response. From that moment the Container is running for
+exactly one Response; a run refused for a held Volume has the byte `1`
+and the name as its only Response, and a run that fails has the error
+as its only Response. From that moment the Container is running for
 the Client and shall be findable by a `containers::tools::connect`
-request naming the id. The Provider shall send no further Response on
-the Scope.
+request naming the id. After the id the Provider shall send, for a
+tool container, no further Response on the Scope, and, for an agent
+container, every chunk the Proxy sends on the begin Scope's main
+stream as one Response, the byte `3` followed by the chunk verbatim,
+in the order the Proxy sent them, and no other Response.
 
 (j) **Serve the Scope.** For as long as the Scope lives, and
-concurrently, the Provider shall relay every ask the Container makes
-on `/requests` to the Client as a Channel the Provider opens, in the
-form the Specification states for that ask, and shall serve every
-Channel the Client opens as the Specification states for that Channel.
+concurrently, the Provider shall relay every Channel the Proxy opens
+on the begin Scope, and every ask a FUSE Mount makes on its Scope, to
+the Client as a Channel the Provider opens, in the form the
+Specification states for that ask, and shall serve every Channel the
+Client opens as the Specification states for that Channel.
 
 (k) **End the run.** When the Provider receives the Client's stop
-channel request, when the Container's `/requests` connection ends, or
-when the Client's Connection ends, the Provider shall end every
+channel request, when the Proxy's connection ends, or when the
+Client's Connection ends, the Provider shall end every
 connect Scope on the Container, stop the Container, release the
 registry repository it served for the run, end every Channel task, and
 send the Response Finish with no error. After the id, the Provider
@@ -608,39 +651,45 @@ verbatim. It shall not read them, shall not alter them, shall not
 reorder frames within one Channel, and shall not send an ask a second
 time.
 
-(b) The Provider shall relay each ask a Container makes on `/requests`
-as the Channel the Specification assigns to it, carrying the ask's
-bytes as the Specification states, and shall relay the Client's
-answer to the Proxy path the Specification assigns to that ask, as one
-message per Channel Response, closing that path when the Channel
-finishes.
+(b) The Provider shall relay each Channel the Proxy opens on the begin
+Scope, and each ask a FUSE Mount makes on its Scope, as the Channel
+the Specification assigns to it, carrying the ask's bytes as the
+Specification states — the mount's id added in front of a FUSE Mount's
+ask — and shall relay the Client's answer onto the Proxy's Channel as
+Channel Responses, one per Channel Response of the Client's, finishing
+the Proxy's Channel when the Client's Channel finishes.
 
 (c) The Provider shall relay a Channel the Client finishes with no
-frame before the finish to the Proxy as the ask not served, by closing
-the answer path with no message.
+frame before the finish to the Proxy as a Channel Response Finish that
+no Channel Response precedes.
 
-(d) For a database connection the Container opens, the Provider shall
-mint a connection id unique among the connections open on the Scope,
-open its own `postgres` Channel carrying that id, hold every byte the
-Container's driver writes until the Client opens its half quoting the
-id, send those bytes first and in order on the Client's half, relay
-every Channel Response of its own half into the Container's socket
-verbatim, close the socket when the Client finishes its half, and
-finish the Client's half when the socket ends.
+(d) For a database connection the Container opens, which the Proxy
+announces on the begin Scope under an id of the Proxy's, the Provider
+shall mint a connection id of its own, unique among the connections
+open on the Scope, open its own `postgres` Channel to the Client
+carrying that id, relay every Channel Response of that Channel onto
+the Proxy's Channel verbatim, and finish the Proxy's Channel when the
+Client finishes; and, when the Client opens its half quoting the
+Provider's id, open the Provider's own half on the begin Scope quoting
+the Proxy's id and relay everything the Proxy answers with onto the
+Client's half, in order, finishing the Client's half when the Proxy
+finishes.
 
 (e) For a write the Client opens, the Provider shall open a
-`write-bytes` Channel quoting the Client's write id, stream each piece
-of content into the Proxy's `/filesystem/write` for the stated path as
-it arrives, end the content when the Channel finishes, and answer the
-Client's write Channel with exactly one Channel Response, written or
-an error, after the Proxy has answered. Content that ends in an error
-or without a finish is a write that did not happen, and the Provider
-shall answer it as such.
+`write-bytes` Channel quoting the Client's write id, open a write
+Scope on the Proxy's connection for the stated path, answer the
+Channel the Proxy opens on that Scope with each piece of content as
+it arrives, finish that Channel when the Client's Channel finishes,
+and answer the Client's write Channel with exactly one Channel
+Response, written or an error, after the Proxy has answered the
+Scope. Content that ends in an error or without a finish is a write
+that did not happen, and the Provider shall answer it as such.
 
-(f) For a filetree the Client opens, the Provider shall open the
-Proxy's `/filesystem/tree` naming, in the request, the path of every
-Volume Mount, Identity Mount and FUSE Mount of the Container, and
-shall relay every frame the Proxy sends.
+(f) For a filetree the Client opens, the Provider shall open a tree
+Scope on the Proxy's connection naming, in the request, the path of
+every Volume Mount, Identity Mount and FUSE Mount of the Container,
+shall relay every frame the Proxy sends, and shall stop the tree
+Scope when the Client's Scope ends.
 
 ### 5.10 `containers::tools::connect` (tag 2)
 
@@ -655,8 +704,10 @@ the request's `authorization` string verbatim, read the Runner's
 answer, and answer the byte `0`, any byte other than `1`, a Bare
 Finish, or a Runner that is gone by exactly one Response, the error
 `{"kind":"denied"}`, and the Response Finish; (d) on the byte `1`,
-send nothing on the main stream, connect to the Container's Proxy, and
-serve every Channel the Connector opens as for a run, except that a
+send nothing on the main stream, and serve every Channel the Connector
+opens on the run's own connection to the Container's Proxy — its
+tree, read and write Scopes, and its MCP exchanges as Channels on the
+run's begin Scope — as for a run, except that a
 Connector's `postgres` Channel shall be answered by a Bare Finish,
 that the only Channel the Provider opens on a Connector is
 `write-bytes` for the Connector's own writes, and that a filetree the
@@ -669,32 +720,36 @@ has answered.
 
 ### 5.11 Prohibitions
 
-The Provider shall never: (a) open a `fuse-write`, `fuse-remove`,
-`fuse-rename` or `fuse-mkdir` Channel for a FUSE Mount whose
-`readonly` is `true`; (b) write to a Volume or a mount on its own
-account; (c) send a second id on a run Scope; (d) send an error on the
-main stream of a run Scope after the id; (e) retry any ask; (f) read,
-inspect, parse, log the content of, or act upon the content of a
-Relayed Exchange, save to the extent necessary to relay it; (g) impose
-a timeout on any fetch, Deployment, Channel, Scope or Connection; (h)
-send a Response where the Specification states a Bare Finish, or a
-Bare Finish where the Specification states a Response; (i) mint a
-container id or a connection id that is derivable from anything a
-Client chose; or (j) serve a Scope under an Identity other than that
-of the Connection on which the Scope was opened.
+The Provider shall never: (a) refuse, alter or withhold a FUSE ask on
+its own account, whether a change to a FUSE Mount is allowed being the
+Client's answer to that ask; (b) write to a Volume or a mount on its
+own account; (c) send a second id on a run Scope; (d) send an error on
+the main stream of a run Scope after the id; (e) retry any ask; (f)
+read, inspect, parse, log the content of, or act upon the content of
+a Relayed Exchange, save to the extent necessary to relay it; (g)
+impose a timeout on any fetch, Deployment, Channel, Scope or
+Connection; (h) send a Response where the Specification states a Bare
+Finish, or a Bare Finish where the Specification states a Response;
+(i) mint a container id or a connection id that is derivable from
+anything a Client chose; (j) serve a Scope under an Identity other
+than that of the Connection on which the Scope was opened; or (k)
+mount an Identity Mount read-only, or otherwise cause a write to it
+from inside the Container to fail. Whether a write to an Identity Mount outlives the
+Container is not prescribed.
 
 ### 5.12 The Container Proxy
 
 The Provider shall place inside every Container a Container Proxy
-that conforms in full to the Specification's Container Proxy layer:
-that listens on TCP port 14979; that accepts one `/requests`
-connection at a time and refuses a second with HTTP status 409; that
-mints a channel per ask; that accepts each answer path for a channel
-it announced and refuses an unknown channel with 404 and a second
-opening with 409; that ignores text data frames; that makes each
-`/fuse/mount` request's mount before answering it and holds every
-mount for its life; that leaves out of every filetree the paths the
-`/filesystem/tree` request names and `/proc`, `/sys` and `/dev`; and
+that conforms in full to the Specification's Container Proxy and
+Container Proxy Endpoints layers:
+that listens on TCP port 14979 and accepts one WebSocket connection
+there; that speaks the Protocol's own frames on it and sends no auth
+frame; that answers exactly one begin Scope per connection, holding
+the agent it carries for the Container's life; that makes each mount
+Scope's mount before answering it and holds every mount for its life,
+asking for what the mount needs on channels of that Scope; that
+leaves out of every filetree the paths the tree Scope's request names
+and `/proc`, `/sys` and `/dev`; that ignores text data frames; and
 that imposes no timeout. Where the Provider uses a program other than
 the one Diverge publishes, the Provider warrants that program's
 conformance.

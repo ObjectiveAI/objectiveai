@@ -1,0 +1,18 @@
+---
+title: 'Agent schema'
+summary: 'Tag 1: the client asks what the agent value may be; the server answers with exactly one channel response, the JSON Schema the image states or an error, and the channel response finish.'
+order: 1
+draft: false
+---
+
+The client opens this channel to learn the schema of the agent value
+the container holds. The server asks the container and answers with
+what it said.
+
+- **The request.** The tag byte `1` and nothing more.
+  [Request](/container-proxy-endpoints/agents-begin/client/agent-schema/request/) states its form.
+- **The response.** Exactly one channel response, the schema or an
+  error, and the channel response finish.
+  [Response](/container-proxy-endpoints/agents-begin/client/agent-schema/response/) states the sequence.
+- **A courtesy.** An image that states no schema is answered by the
+  error. A schema is not a requirement on the image.

@@ -1,6 +1,6 @@
 //! What a Python continuation holds, and where it lives.
 
-use diverge_provider_sdk::shared::containers::run_loop::response::AgenticLoopChunk;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use sqlx::PgPool;
 
 /// A continuation, opened.

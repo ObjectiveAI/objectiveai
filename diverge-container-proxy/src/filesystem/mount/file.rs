@@ -1,15 +1,14 @@
-//! A file mount: a single regular file that can be read and — unless
-//! read-only — overwritten in place, but never deleted, moved or
-//! replaced by a rename, its bytes the caller's.
+//! A file mount: a single regular file that can be read and
+//! overwritten in place, but never deleted, moved or replaced by a
+//! rename, its bytes the caller's.
 //!
 //! One inode, the root, a regular file: `getattr` asks the caller
 //! what it holds and answers the length, `open` reads the bytes into a
 //! [`handle`](super::handles) of its own, `read` and `write` work the
 //! buffer, and `flush`, `fsync` and `release` of a changed buffer
 //! store it whole — each ask carrying the mount's id and an empty
-//! path. A read-only mount refuses every write twice over: the
-//! kernel's `ro` option turns writes away before they reach here, and
-//! every write path here answers `EROFS` regardless. Nothing else
+//! path. A caller that will not take a write answers the error, and
+//! the program sees the store fail. Nothing else
 //! ever arrives, because the root is a file: a rename or unlink of
 //! the mount point, or a rename onto it, is the kernel's to refuse in
 //! the directory around it.
@@ -64,7 +63,7 @@ impl MountedFile {
             ctime: self.born,
             crtime: self.born,
             kind: FileType::RegularFile,
-            perm: super::file_mode(self.asks.readonly()) as u16,
+            perm: super::FILE_MODE as u16,
             nlink: 1,
             uid: 0,
             gid: 0,
@@ -137,10 +136,6 @@ impl Filesystem for MountedFile {
             }
             return;
         };
-        if self.asks.readonly() {
-            reply.error(Errno::EROFS);
-            return;
-        }
         let length = size as usize;
         let result = match fh {
             // A handle's own truncation: its buffer, and it is dirty
@@ -171,10 +166,6 @@ impl Filesystem for MountedFile {
             OpenAccMode::O_WRONLY | OpenAccMode::O_RDWR
         );
         let truncate = flags.0 & libc::O_TRUNC != 0;
-        if self.asks.readonly() && (writable || truncate) {
-            reply.error(Errno::EROFS);
-            return;
-        }
         let buffer = if truncate {
             Vec::new()
         } else {
@@ -219,10 +210,6 @@ impl Filesystem for MountedFile {
         _lock_owner: Option<LockOwner>,
         reply: ReplyWrite,
     ) {
-        if self.asks.readonly() {
-            reply.error(Errno::EROFS);
-            return;
-        }
         match self.handles.write(fh, offset, data) {
             Ok(written) => reply.written(written),
             Err(errno) => reply.error(errno),

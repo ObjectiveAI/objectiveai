@@ -19,12 +19,12 @@ draft: false
 - **The error.** After the byte `1`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page. The server
   relays it as the error of the client's write channel.
 
-The channel response is defined by `diverge-provider-sdk/src/endpoints/containers/agents/run/client/channel_response/write_bytes/frame.rs`:
+The channel response is defined by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/client/channel_response/write_bytes/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/endpoints/containers/agents/run/client/channel_response/write_bytes/frame.rs
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/client/channel_response/write_bytes/frame.rs
 ```
 
-and by `diverge-provider-sdk/src/shared/containers/write_bytes/response/frame.rs`:
+and by `diverge-provider-sdk-rs/src/shared/containers/write_bytes/response/frame.rs`:
 
-```rust include=diverge-provider-sdk/src/shared/containers/write_bytes/response/frame.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/write_bytes/response/frame.rs
 ```

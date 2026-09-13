@@ -1,15 +1,66 @@
 ---
 title: 'Overview'
-summary: 'The wire protocol between callers and providers: running agent and tool containers, joining a tool container, managing volumes, checking images. One WebSocket connection, framed and multiplexed, with a handshake in front.'
+summary: 'The normative definition of the Diverge Provider Protocol, revision 2.3.0: the protocol by which a caller directs a provider’s server to run agent and tool containers, to join a tool container, to manage volumes and to check images, over one framed WebSocket connection; and the external interface of the proxy the provider places inside every container.'
 order: 0
 draft: false
 ---
 
-This specification is the normative definition of the Diverge Provider
-Protocol at revision 2.3.0. [`diverge-provider-sdk`](https://docs.rs/diverge-provider-sdk)
-is a Rust crate that implements it and is versioned with it; where a
-page includes a file of the crate, the file is part of the
-specification.
+This document is the Diverge Provider Protocol Specification, revision
+2.3.0. It is the sole normative statement of that protocol at this
+revision, and a party conforms to the protocol if, and only if, it
+satisfies every requirement this document states.
+
+## The subject
+
+Diverge is a network in which one party runs containers at the
+direction of another. A **provider** is a party that operates
+computing capacity and offers it through a program, its **server**,
+that accepts connections. A **caller** is a party that connects to a
+provider's server and directs it: to run a container, to join one, to
+keep storage for later runs. The **Diverge Provider Protocol** is the
+protocol spoken on that connection, and this document defines it.
+
+A container the protocol runs is one of two kinds. An **agent
+container** runs an agent: a program that, given a prompt, converses
+with a model and with tools in a loop, and reports every step of that
+conversation to the caller as it happens. A **tool container** runs a
+server of the [Model Context Protocol](https://modelcontextprotocol.io/specification/2025-11-25),
+whose tools and resources the caller, and other parties the caller
+admits, call. Every container runs from an **image**, which the
+provider holds or fetches, and may mount **volumes**, storage the
+provider keeps for a caller across runs, and files the caller serves
+live. Inside every container the provider places one program, the
+**container proxy**, through which the container reaches the world
+outside it and the provider reaches the container; this document
+defines the proxy's external interface as well.
+
+On the connection the caller is the **client** and the provider's
+server is the **server**. This document uses those two words for the
+two parties of a connection, and the words caller and provider for the
+two parties of the arrangement, and no word for either party in any
+other sense.
+
+## The document
+
+The protocol is carried over one WebSocket connection, framed and
+multiplexed as the layers below define, with a credential presented
+before anything else. This document is divided into layers, lowest
+first; each defines what the layer beneath it leaves open, and no
+more.
+
+| Layer | Defines |
+|-------|---------|
+| [WebSocket](/websocket/) | the transport: version 13, binary frames, the handshake |
+| [Frames](/frames/) | the frame, the scope, the channel, and what ends each |
+| [Authorization](/authorization/) | the credential that precedes every connection of the Protocol |
+| [Container Proxy](/container-proxy/) | the one connection between the provider's server and the proxy inside a container |
+| [Container Proxy Endpoints](/container-proxy-endpoints/) | the six scopes on that connection |
+| [Endpoints](/endpoints/) | the thirteen scopes a client opens on the Protocol |
+
+The reference crate, [`diverge-provider-sdk`](https://docs.rs/diverge-provider-sdk),
+implements the protocol and is versioned with this document. Where a
+page of this document includes a file of the crate, the file is part
+of this specification.
 
 - **What binds.** Every sentence of this specification that states
   what the server or the proxy does, does not do, sends, holds,
@@ -20,6 +71,10 @@ specification.
 - **The client is not bound.** This specification imposes no
   requirement on a client. A sentence describing what a client sends
   or does states the input the server serves.
+- **Precedence.** Where a page of this specification conflicts with a
+  file it includes, the page governs. Where two pages conflict, the
+  page of the lower layer governs as to the matter that layer
+  defines.
 - **Remarks.** A paragraph that begins with **Remark.** is descriptive.
   It imposes no requirement and grants no permission.
 - **The form.** Every page is also published as Markdown, at the

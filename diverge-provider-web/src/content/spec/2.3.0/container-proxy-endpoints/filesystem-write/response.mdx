@@ -1,0 +1,27 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response, Written or an error, once the content channel has finished, and the finish.'
+order: 2
+draft: false
+---
+
+```text
+[0]                  written: the file is at the path
+[1][error JSON …]    not written, and nothing partial is
+```
+
+- **The sequence.** Exactly one response, followed by the response
+  finish. The response is sent only once the content channel has
+  finished, or the write has failed.
+- **A finish with nothing.** A response finish that no response
+  precedes states that the server could not read the request.
+
+The response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/filesystem/write/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/filesystem/write/server/response/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/write_path/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/write_path/response/frame.rs
+```

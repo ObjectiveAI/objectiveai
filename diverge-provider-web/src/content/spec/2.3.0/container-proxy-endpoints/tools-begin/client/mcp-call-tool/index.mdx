@@ -1,0 +1,19 @@
+---
+title: 'MCP call tool'
+summary: 'Tag 3: the client sends the params of the MCP method `tools/call`; the server makes the exchange of the container’s own MCP server and answers with exactly one channel response, the result or the MCP error, and the channel response finish.'
+order: 3
+draft: false
+---
+
+The client opens this channel for one tool of the MCP server of the container, called. The server makes the
+exchange of the container's MCP server and answers with its result.
+
+- **The request.** The tag byte `3` followed by the params of the
+  MCP method `tools/call` as JSON. [Request](/container-proxy-endpoints/tools-begin/client/mcp-call-tool/request/)
+  states its form.
+- **The response.** Exactly one channel response, the result or an
+  error, and the channel response finish.
+  [Response](/container-proxy-endpoints/tools-begin/client/mcp-call-tool/response/) states the sequence.
+- **The client of the container.** A container whose MCP server
+  cannot be reached is answered by the error. The error an MCP server
+  states is sent as itself, its code included.
