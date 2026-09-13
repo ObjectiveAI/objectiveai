@@ -26,7 +26,7 @@
 //! decides.
 
 use bytes::Bytes;
-use diverge_provider_sdk::container_proxy::vault;
+use diverge_provider_sdk::shared::containers::vault;
 use diverge_provider_sdk::encode::{Encode, Writer};
 
 use crate::{Client, Error};

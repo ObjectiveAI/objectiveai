@@ -10,9 +10,14 @@
 
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
-use diverge_provider_sdk::container_proxy::postgres;
-
 use crate::Client;
+
+/// The port the proxy's pgwire listener is on, inside the container:
+/// its own, beside [`INSIDE_PORT`](crate::INSIDE_PORT), because
+/// pgwire is not HTTP and cannot share a listener with the paths. The
+/// proxy binds it; the program's driver dials it; one copy of the
+/// number.
+pub const POSTGRES_LOOPBACK_PORT: u16 = 81;
 
 /// The user every container connects as. Not a credential: the
 /// caller's side is the authority on what the connection may reach,
@@ -38,7 +43,7 @@ impl Client {
     pub fn postgres_address(&self) -> SocketAddr {
         SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::LOCALHOST,
-            postgres::LOOPBACK_PORT,
+            POSTGRES_LOOPBACK_PORT,
         ))
     }
 
@@ -54,8 +59,7 @@ impl Client {
     /// caller routed the bytes to.
     pub fn postgres_url(&self) -> String {
         format!(
-            "postgres://{POSTGRES_USER}@127.0.0.1:{}/{POSTGRES_DATABASE}?sslmode=disable",
-            postgres::LOOPBACK_PORT,
+            "postgres://{POSTGRES_USER}@127.0.0.1:{POSTGRES_LOOPBACK_PORT}/{POSTGRES_DATABASE}?sslmode=disable",
         )
     }
 }

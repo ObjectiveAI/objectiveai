@@ -30,3 +30,8 @@ futures-util = { version = "0.3.33", default-features = false, features = ["std"
 bytes = { version = "1.11.1", default-features = false }
 # `OnceCell`: a session made by the first method that needs it, once.
 tokio = { version = "1.53.1", default-features = false, features = ["sync"] }
+# The agent server's contract in `agent`: the bodies the proxy sends
+# and the answers the program gives, as JSON. The same lines the
+# provider SDK pins.
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151" }

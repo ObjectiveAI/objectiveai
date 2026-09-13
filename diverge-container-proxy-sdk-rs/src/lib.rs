@@ -20,12 +20,13 @@
 //! address and the URL the program's driver dials.
 //!
 //! The loop is not here. An agent container's program is its own
-//! HTTP server, on the loopback at the port the provider SDK's
-//! [`container_proxy::agent`] names — `/run`, `/schema`, `/enqueue`,
-//! `/dequeue` — and the proxy dials it, forwarding what the
-//! provider's server asks; that surface is stated there, once, and
-//! nothing in this crate stands between the two.
+//! HTTP server, on the loopback at the port [`agent`] names —
+//! `/register`, `/run`, `/schema`, `/enqueue`, `/dequeue` — and the
+//! proxy dials it, forwarding what the provider's server asks; that
+//! surface is stated there, once, and nothing in this crate stands
+//! between the two.
 
+pub mod agent;
 mod client;
 mod command;
 mod error;
@@ -38,12 +39,15 @@ pub use error::*;
 pub use mcp::*;
 pub use postgres::*;
 
-use diverge_provider_sdk::container_proxy;
+/// The port the proxy listens for the program on, inside the
+/// container: its HTTP surface — the vault, commands, the MCP server
+/// — on the loopback, never published. The proxy binds it; this
+/// crate dials it; one copy of the number.
+pub const INSIDE_PORT: u16 = 80;
 
 /// The proxy's address for one of its paths, on the container's
-/// loopback — the proxy's INSIDE port, the one it listens for the
-/// program on. Built from the provider SDK's constant rather than
-/// written out, so there is one copy of the number.
+/// loopback — [`INSIDE_PORT`], the one it listens for the program
+/// on.
 fn url(path: &str) -> String {
-    format!("http://127.0.0.1:{}{}", container_proxy::INSIDE_PORT, path)
+    format!("http://127.0.0.1:{INSIDE_PORT}{path}")
 }

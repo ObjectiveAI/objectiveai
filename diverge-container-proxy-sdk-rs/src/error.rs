@@ -18,7 +18,7 @@ pub enum Error {
     McpService(rmcp::ServiceError),
     /// A vault key too long for its request's length prefix — only
     /// `set` has one.
-    VaultKey(diverge_provider_sdk::container_proxy::vault::RequestEncodeError),
+    VaultKey(diverge_provider_sdk::shared::containers::vault::RequestEncodeError),
     /// The HTTP call to the proxy failed.
     VaultRequest(reqwest::Error),
     /// The proxy answered a status other than success: `400` for a
@@ -27,7 +27,7 @@ pub enum Error {
     /// operation is not safe to repeat blindly.
     VaultStatus(u16),
     /// The proxy's answer could not be read as the vault's.
-    VaultAnswer(diverge_provider_sdk::container_proxy::vault::ResponseError),
+    VaultAnswer(diverge_provider_sdk::shared::containers::vault::ResponseError),
     /// The caller's own refusal, in its words.
     Vault(String),
     /// The HTTP call to the proxy failed before a command's answer
@@ -40,7 +40,7 @@ pub enum Error {
     /// The answer's body failed while it was being read.
     CommandStream(reqwest::Error),
     /// A record of the answer could not be read as a command message.
-    CommandAnswer(diverge_provider_sdk::container_proxy::command::response::FrameError),
+    CommandAnswer(diverge_provider_sdk::shared::containers::command::response::FrameError),
     /// The answer's body ended without its end record: the command's
     /// answer died mid-stream, and what arrived before is all there
     /// is.
