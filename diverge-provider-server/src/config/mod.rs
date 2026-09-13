@@ -5,7 +5,9 @@
 //!   `~/.diverge/provider/`, names the provider's DIRECTORY, created
 //!   if absent.
 //! - `<dir>/config.yaml` is read if present; absent means the built-in
-//!   defaults. No other name or extension is looked for.
+//!   defaults, [`Config::default`], on which the provider runs
+//!   containers and nothing else. No other name or extension is
+//!   looked for.
 //! - Every path inside `config.yaml` resolves relative to `<dir>`,
 //!   never to the working directory.
 //! - `<dir>/hooks/`, `<dir>/logs/`, `<dir>/data/` and `<dir>/run/` sit
@@ -35,6 +37,10 @@
 //!   container_overlay_disk: 214748364800
 //!   image_cache_disk: 107374182400
 //!   path: /mnt/containers
+//!   registries:
+//!     - docker.io
+//!     - ghcr.io
+//!     - quay.io
 //! volumes:
 //!   stores:
 //!     - path: /mnt/volumes-a
