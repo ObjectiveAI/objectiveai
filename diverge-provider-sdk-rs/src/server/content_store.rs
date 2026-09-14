@@ -9,7 +9,9 @@ use futures_util::Stream;
 ///
 /// An
 /// [`IdentityMount`](crate::shared::containers::request::IdentityMount)
-/// names content by `<size>:<base64url sha256>` and says where it
+/// names content by `<size>:<hash>` — a file by the base64url
+/// SHA-256 of its bytes, a directory by Go's `h1:` directory hash —
+/// and says where it
 /// goes; the content itself is somewhere the provider keeps it, and
 /// this is that somewhere. A run handler asks [`holds`](Self::holds)
 /// for every identity a request names, fetches from the caller only

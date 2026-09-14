@@ -17,8 +17,8 @@ such channel is opened at once, one per identity.
   [Response](/endpoints/containers-agents-run/server/fetch-directory/response/) states the
   sequence.
 - **Verification.** The server stores the directory under the
-  identity only when the manifest of the files received, as the
-  [volumes::stat response](/endpoints/volumes-stat/response/) defines
-  it, has the hash of the identity and the files' total length is
-  its size. A set that does not match, a stream that ends short, and
+  identity only when the `dirhash` of the files received, computed as
+  the [volumes::stat response](/endpoints/volumes-stat/response/)
+  defines it over the files at the paths the frames name, is the hash
+  of the identity and the files' total length is its size. A set that does not match, a stream that ends short, and
   a finish with no channel response are the run's error.

@@ -2,9 +2,11 @@
 //!
 //! A request's
 //! [`identity_directory_mounts`](crate::shared::containers::request::Container::identity_directory_mounts)
-//! name directories by identity — `<total size>:<base64url sha256
-//! of the manifest>`, the total riding the identity so a provider can
-//! judge the weight before fetching anything — and the content itself
+//! name directories by identity — `<total size>:<h1 dirhash>`, Go's
+//! directory hash as the volumes stat's
+//! [`dirhash`](crate::endpoints::volumes::stat::server::response::Stat::dirhash)
+//! states it, the total riding the identity so a provider can judge
+//! the weight before fetching anything — and the content itself
 //! lives with the client. A provider missing one opens a channel with
 //! a [`request::Request`] naming the identity, and the client answers
 //! with the directory's files: one [`response::Frame`] per file — or

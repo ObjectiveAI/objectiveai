@@ -33,10 +33,12 @@ is one object: the members of the container, flattened, and `agent`.
   volume is as it was before the run when the container ends. The
   container sees the volume's content as of its start either way.
 - **`identity_file_mounts`, `identity_directory_mounts`.** Each names
-  content by `identity`, `<size>:<base64url sha256>` with the hash of
-  the bytes for a file and of the manifest for a directory, as the
-  [volumes::stat response](/endpoints/volumes-stat/response/)
-  defines the manifest. Every one is mounted before the container
+  content by `identity`, `<size>:<hash>`: for a file, the SHA-256 of
+  its bytes encoded as base64url without padding, and its length; for
+  a directory, its `dirhash` as the
+  [volumes::stat response](/endpoints/volumes-stat/response/) defines
+  it, and the sum of the lengths of the files hashed. Every one is
+  mounted before the container
   starts. Its content matches the identity, in size and hash, at the
   start of the container's life, and is writable from inside the
   container: a mount that refuses a write is a violation. Whether a

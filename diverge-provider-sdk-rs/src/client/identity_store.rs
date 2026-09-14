@@ -12,8 +12,8 @@ use futures_util::Stream;
 /// [`identity_directory_mounts`](crate::shared::containers::request::Container::identity_directory_mounts),
 /// and what a provider fetches from it when its own store lacks one.
 ///
-/// An identity is `<size>:<base64url sha256>` — of the bytes for a
-/// file, of the manifest for a directory; see
+/// An identity is `<size>:<hash>` — for a file the base64url SHA-256
+/// of its bytes, for a directory Go's `h1:` directory hash; see
 /// [`IdentityMount`](crate::shared::containers::request::IdentityMount).
 /// The store indexes however it likes and answers to the identity.
 /// `None` is absence, sent as the empty finish — the wire's deliberate
