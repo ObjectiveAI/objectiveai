@@ -17,8 +17,10 @@ use crate::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Request {
     /// The directory's size-bearing identity:
-    /// `<total size>:<base64url sha256 of the manifest>` — the
-    /// manifest one sorted `<hash> <size> <path>` line per file.
+    /// `<total size>:<h1 dirhash>` — Go's directory hash, as the
+    /// volumes stat's
+    /// [`dirhash`](crate::endpoints::volumes::stat::server::response::Stat::dirhash)
+    /// states it, and the sum of the lengths of the files it hashed.
     pub identity: String,
 }
 

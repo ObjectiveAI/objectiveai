@@ -9,7 +9,9 @@ draft: false
 [5][request JSON …]
 ```
 
-- **`identity`.** The identity of the mount, `<size>:<base64url sha256>`.
+- **`identity`.** The identity of the mount, `<size>:<hash>`, the hash the
+  directory's `dirhash` as the [volumes::stat response](/endpoints/volumes-stat/response/)
+  defines it.
 
 The channel request is defined by `diverge-provider-sdk-rs/src/endpoints/containers/tools/run/server/channel_request/frame.rs`:
 

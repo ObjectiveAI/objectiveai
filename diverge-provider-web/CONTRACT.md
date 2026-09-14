@@ -163,11 +163,13 @@ mean, respectively, an entry of `volume_mounts`, of
 as the Specification defines them.
 
 1.17 **"Content Identity"** means the string `<size>:<hash>` by which
-an Identity Mount names content, where `<size>` is the length in bytes
-and `<hash>` is the SHA-256 digest, encoded as base64url without
-padding, of the bytes of a file or of the manifest of a directory, the
-manifest being formed as the Specification's `volumes::stat` response
-page defines it.
+an Identity Mount names content. For a file, `<size>` is the length of
+its bytes and `<hash>` is the SHA-256 digest of its bytes, encoded as
+base64url without padding. For a directory, `<hash>` is the string the
+Go package `golang.org/x/mod/sumdb/dirhash` returns from
+`HashDir(dir, "", Hash1)` for the directory, computed exactly as the
+Specification's `volumes::stat` response page defines `dirhash`, and
+`<size>` is the sum of the lengths of the files that hash covers.
 
 1.18 **"Client Content"** means every byte a Client, a Container of a
 Client, or a Connector transmits to the Provider under the Protocol,

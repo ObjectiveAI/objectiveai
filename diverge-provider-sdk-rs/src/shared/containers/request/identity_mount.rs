@@ -34,14 +34,17 @@ pub struct IdentityMount {
     /// on each other is not. Empty would name the root, which a
     /// provider refuses: the image's own filesystem is there.
     pub container_path: Vec<String>,
-    /// The content's size-bearing identity:
-    /// `<size>:<base64url sha256>` — the size in bytes, then the
-    /// hash. For a file the hash is of its bytes; for a directory it
-    /// is of its manifest — one `<hash> <size> <path>` line per file,
-    /// paths relative and `/`-separated, sorted bytewise — and the
-    /// size is the total. Which of the two it is, the field it sits in
-    /// says, as does the fetch that asks for it; the value does not
-    /// need to.
+    /// The content's size-bearing identity: `<size>:<hash>` — the
+    /// size in bytes, then the hash. For a file the hash is the
+    /// SHA-256 of its bytes, base64url without padding, and the size
+    /// its length. For a directory the hash is Go's `h1:` directory
+    /// hash — the string `golang.org/x/mod/sumdb/dirhash`'s
+    /// `HashDir(dir, "", Hash1)` returns, as the
+    /// [`dirhash`](crate::endpoints::volumes::stat::server::response::Stat::dirhash)
+    /// of a volume states it in full — and the size is the sum of the
+    /// lengths of the files it hashed. Which of the two it is, the
+    /// field it sits in says, as does the fetch that asks for it; the
+    /// value does not need to.
     ///
     /// Because the size rides the identity, a server can refuse an
     /// oversized request up front, as a request error, with nothing
