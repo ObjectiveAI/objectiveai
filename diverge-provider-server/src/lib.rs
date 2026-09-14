@@ -23,8 +23,10 @@
 //! provider; this crate is an implementation that conforms to it, and
 //! a library so that its pieces can be taken separately by another.
 //!
-//! Nothing is implemented yet. The crate is the place the
-//! implementation goes, named and in the workspace.
+//! The crate is the place the implementation goes, named and in the
+//! workspace; [`volumes`] is the first trait supplied, and its
+//! methods are not written yet.
 
 pub mod config;
 pub mod hook;
+pub mod volumes;

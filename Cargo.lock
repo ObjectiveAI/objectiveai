@@ -1879,6 +1879,7 @@ name = "diverge-provider-server"
 version = "2.3.0"
 dependencies = [
  "diverge-provider-sdk",
+ "futures-util",
  "serde",
  "serde_json",
  "serde_path_to_error",

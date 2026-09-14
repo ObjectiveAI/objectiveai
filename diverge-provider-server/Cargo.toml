@@ -22,6 +22,8 @@ path = "src/main.rs"
 # version.sh would have to chase. `server` is the half that holds the
 # socket and hands this crate the scopes to serve.
 diverge-provider-sdk = { path = "../diverge-provider-sdk-rs", default-features = false, features = ["server"] }
+# `Stream`, the shape a volume's watch is handed back as.
+futures-util = { version = "0.3.33", default-features = false }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 serde_path_to_error = "0.1.20"
