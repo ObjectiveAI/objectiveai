@@ -1,7 +1,5 @@
 //! The handler.
 
-use std::pin::Pin;
-
 use diverge_provider_sdk::endpoints::volumes::create::server::response::Creation;
 use diverge_provider_sdk::endpoints::volumes::delete::server::response::Deletion;
 use diverge_provider_sdk::endpoints::volumes::edit::server::response::Edit;
@@ -9,7 +7,7 @@ use diverge_provider_sdk::endpoints::volumes::list::server::response::Volume;
 use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
 use diverge_provider_sdk::server::volume_manager::VolumeManager;
 use diverge_provider_sdk::shared::filetree;
-use futures_util::Stream;
+use futures_util::stream;
 
 use super::Error;
 
@@ -20,6 +18,9 @@ pub struct Volumes;
 
 impl VolumeManager for Volumes {
     type Error = Error;
+    /// Nothing yet: the stream a watch hands back arrives with the
+    /// implementation.
+    type Watch = stream::Empty<Result<filetree::response::Frame, Error>>;
 
     async fn list(&self, _client_identity: &str) -> Result<Vec<Volume>, Error> {
         unimplemented!()
@@ -49,11 +50,7 @@ impl VolumeManager for Volumes {
         unimplemented!()
     }
 
-    async fn watch(
-        &self,
-        _client_identity: &str,
-        _name: &str,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<filetree::response::Frame, Error>> + Send>>, Error> {
+    async fn watch(&self, _client_identity: &str, _name: &str) -> Result<Self::Watch, Error> {
         unimplemented!()
     }
 }
