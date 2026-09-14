@@ -11,8 +11,9 @@ use crate::config::volumes::{Fixed, Store};
 ///
 /// Starts empty and reads nothing: an identity enters the tree the
 /// first time it is named, and its volumes are read from the stores
-/// then, once. Each identity is its own entry with its own lock, so
-/// two identities never wait on each other.
+/// then, once, and held for the manager's life. Each identity is its
+/// own entry with its own lock, so two identities never wait on each
+/// other.
 #[derive(Debug, Default)]
 pub struct Cache {
     identities: DashMap<String, Arc<Identity>>,
@@ -32,12 +33,5 @@ impl Cache {
         );
         identity.load(stores, fixed).await;
         identity
-    }
-
-    /// Drop what is held for the identity, so the next time it is named
-    /// its volumes are read from the stores again. A caller holding an
-    /// [`Identity`] keeps it; only the tree forgets.
-    pub fn forget(&self, client_identity: &str) {
-        self.identities.remove(client_identity);
     }
 }
