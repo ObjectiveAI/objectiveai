@@ -7,9 +7,11 @@ use diverge_provider_sdk::endpoints::volumes::list::server::response::Volume;
 use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
 use diverge_provider_sdk::server::volume_manager;
 use diverge_provider_sdk::shared::filetree;
+use std::sync::Arc;
+
 use futures_util::stream;
 
-use super::Error;
+use super::{Cache, Error, Identity};
 use crate::config::volumes::{Fixed, Store};
 
 /// The provider's volumes: the directories it offers every identity,
@@ -23,6 +25,24 @@ pub struct VolumeManager {
     /// The volumes that exist already, as the `volumes` section names
     /// them. `None` is a provider that holds none.
     pub fixed: Option<Vec<Fixed>>,
+    /// What is known about the volumes between calls: every identity
+    /// that has asked, its volumes by name, and what a walk found.
+    pub cache: Cache,
+}
+
+impl VolumeManager {
+    /// The identity's volumes, read from the stores and the fixed
+    /// list the first time the identity is named and held from then
+    /// on. Every method that names a volume starts here.
+    pub async fn identity(&self, client_identity: &str) -> Arc<Identity> {
+        self.cache
+            .identity(
+                self.stores.as_deref().unwrap_or_default(),
+                self.fixed.as_deref().unwrap_or_default(),
+                client_identity,
+            )
+            .await
+    }
 }
 
 impl volume_manager::VolumeManager for VolumeManager {

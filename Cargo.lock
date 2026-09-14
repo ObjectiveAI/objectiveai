@@ -1878,12 +1878,15 @@ dependencies = [
 name = "diverge-provider-server"
 version = "2.3.0"
 dependencies = [
+ "base64 0.22.1",
+ "dashmap",
  "diverge-provider-sdk",
  "futures-util",
  "serde",
  "serde_json",
  "serde_path_to_error",
  "serde_yaml_ng",
+ "sha2",
  "tokio",
 ]
 
