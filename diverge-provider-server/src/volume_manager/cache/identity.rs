@@ -48,13 +48,14 @@ impl Identity {
         self.loaded
             .get_or_init(|| async {
                 for volume in fixed {
+                    let created = created_of(&volume.path).await;
                     self.volumes.entry(volume.name.clone()).or_insert_with(|| {
                         Arc::new(Volume::new(
                             &volume.name,
                             volume.path.clone(),
                             Place::Fixed,
                             None,
-                            created_of(&volume.path),
+                            created,
                         ))
                     });
                 }
@@ -131,8 +132,8 @@ impl Identity {
 /// When a fixed volume came into being: the directory's creation time
 /// where the filesystem reports one, else its modification time, else
 /// `0`. In seconds since the Unix epoch.
-fn created_of(path: &std::path::Path) -> u64 {
-    let Ok(meta) = std::fs::metadata(path) else {
+async fn created_of(path: &std::path::Path) -> u64 {
+    let Ok(meta) = tokio::fs::metadata(path).await else {
         return 0;
     };
     meta.created()

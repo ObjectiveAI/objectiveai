@@ -98,10 +98,7 @@ impl Volume {
         if let Some(walked) = walked.as_ref() {
             return Ok(walked.clone());
         }
-        let root = self.root.clone();
-        let found = tokio::task::spawn_blocking(move || walk::walk(&root))
-            .await
-            .map_err(|error| io::Error::other(error.to_string()))??;
+        let found = walk::walk(&self.root).await?;
         *walked = Some(found.clone());
         Ok(found)
     }

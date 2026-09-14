@@ -1,13 +1,14 @@
 //! The walk: how many bytes a volume holds, and the hash of what it
 //! holds.
 
-use std::fs;
-use std::io::{self, Read as _};
-use std::path::Path;
+use std::io;
+use std::path::{Path, PathBuf};
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest as _, Sha256};
+use tokio::fs;
+use tokio::io::AsyncReadExt as _;
 
 /// What a walk of a volume found.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,23 +45,23 @@ const CHUNK: usize = 64 * 1024;
 /// walk's error: a hash of half a tree is a wrong answer, not a
 /// partial one.
 ///
-/// Synchronous, on `std::fs`: the caller runs it on the blocking
-/// pool.
-pub fn walk(root: &Path) -> io::Result<Walked> {
+/// Every read is `tokio::fs`'s, so the walk holds no thread of the
+/// runtime while the disk answers.
+pub async fn walk(root: &Path) -> io::Result<Walked> {
     let mut lines: Vec<Vec<u8>> = Vec::new();
     let mut bytes_used = 0u64;
-    let mut pending: Vec<(std::path::PathBuf, Vec<String>)> = vec![(root.to_path_buf(), Vec::new())];
+    let mut pending: Vec<(PathBuf, Vec<String>)> = vec![(root.to_path_buf(), Vec::new())];
     while let Some((dir, components)) = pending.pop() {
-        for entry in fs::read_dir(&dir)? {
-            let entry = entry?;
+        let mut entries = fs::read_dir(&dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            let kind = fs::symlink_metadata(&path)?.file_type();
+            let kind = fs::symlink_metadata(&path).await?.file_type();
             let mut below = components.clone();
             below.push(entry.file_name().to_string_lossy().into_owned());
             if kind.is_dir() {
                 pending.push((path, below));
             } else if kind.is_file() {
-                let (hash, size) = hash_file(&path)?;
+                let (hash, size) = hash_file(&path).await?;
                 bytes_used += size;
                 let mut line = Vec::new();
                 line.extend_from_slice(hash.as_bytes());
@@ -86,13 +87,13 @@ pub fn walk(root: &Path) -> io::Result<Walked> {
 
 /// One file's SHA-256, base64url without padding, and its length in
 /// bytes, read in chunks so a large file is never held whole.
-fn hash_file(path: &Path) -> io::Result<(String, u64)> {
-    let mut file = fs::File::open(path)?;
+async fn hash_file(path: &Path) -> io::Result<(String, u64)> {
+    let mut file = fs::File::open(path).await?;
     let mut hasher = Sha256::new();
     let mut buffer = vec![0u8; CHUNK];
     let mut size = 0u64;
     loop {
-        let n = file.read(&mut buffer)?;
+        let n = file.read(&mut buffer).await?;
         if n == 0 {
             break;
         }
