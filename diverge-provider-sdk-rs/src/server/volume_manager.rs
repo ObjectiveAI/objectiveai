@@ -1,7 +1,6 @@
 //! The directories a provider offers, and everything done to them.
 
 use std::future::Future;
-use std::pin::Pin;
 
 use futures_util::Stream;
 
@@ -100,6 +99,14 @@ pub trait VolumeManager: Send + Sync {
     /// `Send + 'static` because it crosses tasks and outlives the call
     /// that produced it.
     type Error: Send + 'static;
+
+    /// What [`watch`](Self::watch) hands back: the tree as a stream of
+    /// [`filetree`] frames, a snapshot first
+    /// and one per change after, ending only at an error or when the
+    /// handler drops it. The implementation's own type, so a provider
+    /// hands over the stream it has rather than boxing it; the handler
+    /// pins it where it reads it.
+    type Watch: Stream<Item = Result<filetree::response::Frame, Self::Error>> + Send;
 
     /// Which volumes this caller has.
     ///
@@ -331,19 +338,5 @@ pub trait VolumeManager: Send + Sync {
         &self,
         client_identity: &str,
         name: &str,
-    ) -> impl Future<
-        Output = Result<
-            Pin<
-                Box<
-                    dyn Stream<
-                            Item = Result<
-                                filetree::response::Frame,
-                                Self::Error,
-                            >,
-                        > + Send,
-                >,
-            >,
-            Self::Error,
-        >,
-    > + Send;
+    ) -> impl Future<Output = Result<Self::Watch, Self::Error>> + Send;
 }
