@@ -25,8 +25,9 @@ diverge-provider-sdk = { path = "../diverge-provider-sdk-rs", default-features =
 # The volume cache: one lock per identity and per name, so callers
 # of different volumes never wait on each other.
 dashmap = "6.2.1"
-# `Stream`, the shape a volume's watch is handed back as.
-futures-util = { version = "0.3.33", default-features = false }
+# `Stream`, the shape a volume's watch is handed back as; `alloc` for
+# the join utilities the cache fans out with.
+futures-util = { version = "0.3.33", default-features = false, features = ["alloc"] }
 # A volume's dirhash, as the specification defines it: SHA-256 of a
 # manifest of SHA-256s, each written base64url without padding.
 sha2 = "0.10.9"

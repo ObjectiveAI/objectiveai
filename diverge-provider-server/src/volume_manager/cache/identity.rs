@@ -3,6 +3,8 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use futures_util::future;
+use tokio::fs::DirEntry;
 use tokio::sync::OnceCell;
 
 use super::{Place, Sidecar, Volume, sidecar};
@@ -35,6 +37,14 @@ impl Identity {
 
     /// Read the identity's volumes from `stores` and `fixed`, once.
     ///
+    /// Everything independent runs at once: the fixed volumes beside
+    /// the stores, every store beside every other, and every entry of
+    /// a store beside every other. Order does not matter to the
+    /// result: a fixed volume enters only where no name is held, and a
+    /// stored one enters over whatever is held, so a stored volume and
+    /// a fixed one of the same name are one entry, the stored one,
+    /// whichever finished first.
+    ///
     /// In every store, `<store>/<identity>/` is read: every entry that
     /// is a directory with a sidecar beside it is a stored volume, and
     /// an entry with no sidecar, or one that will not read, is not a
@@ -42,56 +52,85 @@ impl Identity {
     /// in it, that does not exist holds no volumes. Every fixed volume
     /// is entered as it is named in the configuration; whether this
     /// identity may see it is the manager's to ask, not the cache's to
-    /// know. A stored volume and a fixed one of the same name are one
-    /// entry, the stored one.
+    /// know.
     pub(super) async fn load(&self, stores: &[Store], fixed: &[Fixed]) {
         self.loaded
             .get_or_init(|| async {
-                for volume in fixed {
-                    let created = created_of(&volume.path).await;
-                    self.volumes.entry(volume.name.clone()).or_insert_with(|| {
-                        Arc::new(Volume::new(
-                            &volume.name,
-                            volume.path.clone(),
-                            Place::Fixed,
-                            None,
-                            created,
-                        ))
-                    });
-                }
-                for (store, place) in stores.iter().enumerate() {
-                    let identity = place.path.join(&self.client_identity);
-                    let Ok(mut entries) = tokio::fs::read_dir(&identity).await else {
-                        continue;
-                    };
-                    while let Ok(Some(entry)) = entries.next_entry().await {
-                        let Ok(name) = entry.file_name().into_string() else {
-                            continue;
-                        };
-                        if !sidecar::name_ok(&name) {
-                            continue;
-                        }
-                        if !entry.file_type().await.is_ok_and(|kind| kind.is_dir()) {
-                            continue;
-                        }
-                        let Ok(sidecar) = Sidecar::read(&sidecar::path(&place.path, &self.client_identity, &name)).await
-                        else {
-                            continue;
-                        };
-                        self.volumes.insert(
-                            name.clone(),
-                            Arc::new(Volume::new(
-                                &name,
-                                entry.path(),
-                                Place::Stored { store },
-                                Some(sidecar.bytes),
-                                sidecar.created,
-                            )),
-                        );
-                    }
-                }
+                future::join(self.load_fixed(fixed), self.load_stores(stores)).await;
             })
             .await;
+    }
+
+    /// Every fixed volume, at once.
+    async fn load_fixed(&self, fixed: &[Fixed]) {
+        future::join_all(fixed.iter().map(|volume| self.load_fixed_one(volume))).await;
+    }
+
+    /// One fixed volume: entered where no name is held.
+    async fn load_fixed_one(&self, volume: &Fixed) {
+        let created = created_of(&volume.path).await;
+        self.volumes.entry(volume.name.clone()).or_insert_with(|| {
+            Arc::new(Volume::new(
+                &volume.name,
+                volume.path.clone(),
+                Place::Fixed,
+                None,
+                created,
+            ))
+        });
+    }
+
+    /// Every store, at once.
+    async fn load_stores(&self, stores: &[Store]) {
+        future::join_all(
+            stores
+                .iter()
+                .enumerate()
+                .map(|(index, store)| self.load_store(index, store)),
+        )
+        .await;
+    }
+
+    /// One store: its entries under this identity are read, and every
+    /// one is examined at once. A directory that cannot be read holds
+    /// no volumes.
+    async fn load_store(&self, index: usize, store: &Store) {
+        let Ok(mut entries) = tokio::fs::read_dir(store.path.join(&self.client_identity)).await else {
+            return;
+        };
+        let mut found = Vec::new();
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            found.push(entry);
+        }
+        future::join_all(found.into_iter().map(|entry| self.load_entry(index, store, entry))).await;
+    }
+
+    /// One entry of a store: a stored volume when it is a directory
+    /// with a name a volume may have and a sidecar beside it, entered
+    /// over whatever the name held; nothing otherwise.
+    async fn load_entry(&self, index: usize, store: &Store, entry: DirEntry) {
+        let Ok(name) = entry.file_name().into_string() else {
+            return;
+        };
+        if !sidecar::name_ok(&name) {
+            return;
+        }
+        if !entry.file_type().await.is_ok_and(|kind| kind.is_dir()) {
+            return;
+        }
+        let Ok(sidecar) = Sidecar::read(&sidecar::path(&store.path, &self.client_identity, &name)).await else {
+            return;
+        };
+        self.volumes.insert(
+            name.clone(),
+            Arc::new(Volume::new(
+                &name,
+                entry.path(),
+                Place::Stored { store: index },
+                Some(sidecar.bytes),
+                sidecar.created,
+            )),
+        );
     }
 
     /// The identity, as the store's directory is named.
