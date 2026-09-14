@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-/// What [`Volumes`](super::Volumes) fails with. No variant yet: the
+/// What [`VolumeManager`](super::VolumeManager) fails with. No variant yet: the
 /// failures arrive with the implementation.
 #[derive(Debug)]
 pub enum Error {}
