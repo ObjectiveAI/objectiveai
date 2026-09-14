@@ -22,10 +22,19 @@ path = "src/main.rs"
 # version.sh would have to chase. `server` is the half that holds the
 # socket and hands this crate the scopes to serve.
 diverge-provider-sdk = { path = "../diverge-provider-sdk-rs", default-features = false, features = ["server"] }
+# The volume cache: one lock per identity and per name, so callers
+# of different volumes never wait on each other.
+dashmap = "6.2.1"
 # `Stream`, the shape a volume's watch is handed back as.
 futures-util = { version = "0.3.33", default-features = false }
+# A volume's dirhash, as the specification defines it: SHA-256 of a
+# manifest of SHA-256s, each written base64url without padding.
+sha2 = "0.10.9"
+base64 = "0.22.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 serde_path_to_error = "0.1.20"
 serde_yaml_ng = "0.10.0"
-tokio = { version = "1.53.1", features = ["process", "io-util", "fs"] }
+# `sync` for the per-volume locks and the once-only loads; `rt` for
+# the blocking pool a walk runs on.
+tokio = { version = "1.53.1", features = ["process", "io-util", "fs", "sync", "rt"] }
