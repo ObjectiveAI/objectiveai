@@ -1882,6 +1882,7 @@ dependencies = [
  "dashmap",
  "diverge-provider-sdk",
  "futures-util",
+ "hex",
  "serde",
  "serde_json",
  "serde_path_to_error",

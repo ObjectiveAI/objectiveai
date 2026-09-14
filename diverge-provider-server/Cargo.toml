@@ -28,10 +28,14 @@ dashmap = "6.2.1"
 # `Stream`, the shape a volume's watch is handed back as; `alloc` for
 # the join utilities the cache fans out with.
 futures-util = { version = "0.3.33", default-features = false, features = ["alloc"] }
-# A volume's dirhash, as the specification defines it: SHA-256 of a
-# manifest of SHA-256s, each written base64url without padding.
+# A volume's dirhash, as the specification defines it: Go's `h1:`
+# directory hash, a SHA-256 over SHA-256s, the last written as
+# standard base64 with padding.
 sha2 = "0.10.9"
 base64 = "0.22.1"
+# Each file's SHA-256 as lowercase hexadecimal, the way Go's `%x`
+# writes it into the directory hash.
+hex = "0.4.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 serde_path_to_error = "0.1.20"
