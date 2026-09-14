@@ -5,18 +5,27 @@ use diverge_provider_sdk::endpoints::volumes::delete::server::response::Deletion
 use diverge_provider_sdk::endpoints::volumes::edit::server::response::Edit;
 use diverge_provider_sdk::endpoints::volumes::list::server::response::Volume;
 use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
-use diverge_provider_sdk::server::volume_manager::VolumeManager;
+use diverge_provider_sdk::server::volume_manager;
 use diverge_provider_sdk::shared::filetree;
 use futures_util::stream;
 
 use super::Error;
+use crate::config::volumes::{Fixed, Store};
 
 /// The provider's volumes: the directories it offers every identity,
-/// and everything done to them.
+/// and everything done to them, over the stores it may create in and
+/// the fixed volumes it holds already.
 #[derive(Debug)]
-pub struct Volumes;
+pub struct VolumeManager {
+    /// Where volumes may be created, as the `volumes` section names
+    /// them. `None` is a provider that creates none.
+    pub stores: Option<Vec<Store>>,
+    /// The volumes that exist already, as the `volumes` section names
+    /// them. `None` is a provider that holds none.
+    pub fixed: Option<Vec<Fixed>>,
+}
 
-impl VolumeManager for Volumes {
+impl volume_manager::VolumeManager for VolumeManager {
     type Error = Error;
     /// Nothing yet: the stream a watch hands back arrives with the
     /// implementation.
