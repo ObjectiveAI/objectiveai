@@ -59,7 +59,7 @@ pub async fn handle<M>(
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let mut stream = match manager.watch(client_identity, &request.name).await {
+    let stream = match manager.watch(client_identity, &request.name).await {
         Ok(stream) => stream,
         Err(error) => {
             send(&scope, &response::Frame::Error(error.into())).await;
@@ -67,6 +67,9 @@ pub async fn handle<M>(
             return;
         }
     };
+    // The manager's own stream type, pinned here: it need not be
+    // `Unpin`, and this is the one place it is read.
+    let mut stream = pin!(stream);
 
     loop {
         // Both futures only borrow the scope, so this races them
