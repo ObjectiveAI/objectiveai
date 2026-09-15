@@ -24,8 +24,9 @@
 //! a library so that its pieces can be taken separately by another.
 //!
 //! The crate is the place the implementation goes, named and in the
-//! workspace; [`volume_manager`] is the first trait supplied, and its
-//! methods are not written yet.
+//! workspace; [`volume_manager`] is the first trait supplied: every
+//! method but a volume's `edit` and `watch`, which are the two still
+//! to come.
 
 pub mod config;
 pub mod hook;
