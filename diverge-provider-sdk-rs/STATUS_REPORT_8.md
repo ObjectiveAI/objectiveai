@@ -68,7 +68,7 @@ Report 7 called this crate "the specification those two are checked
 against." That sentence is retired. The protocol's normative
 specification is **diverge-provider-web**, and it will be served at:
 
-**https://provider.diverge.network**
+**https://protocol.diverge.network**
 
 The protocol is the protocol; the Rust happened to come first. This
 crate is now the specification's first implementation, checked against

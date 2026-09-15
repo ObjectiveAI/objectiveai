@@ -20,7 +20,7 @@ Diverge and the Provider are each a "Party" and together the
 ## RECITALS
 
 A. Diverge publishes the Diverge Provider Protocol Specification at
-`https://provider.diverge.network`, revision 2.3.0 (the
+`https://protocol.diverge.network`, revision 2.3.0 (the
 "Specification"), which defines the conduct of a party that serves
 containers, volumes and images to clients over the protocol.
 
@@ -46,7 +46,7 @@ each define a term, this Agreement governs.
 
 1.1 **"Specification"** means the Diverge Provider Protocol
 Specification, revision 2.3.0, as published at
-`https://provider.diverge.network/2.3.0/` on the Effective Date,
+`https://protocol.diverge.network/2.3.0/` on the Effective Date,
 comprising every page of that revision under the layers Overview,
 WebSocket, Frames, Authorization, Container Proxy, Container Proxy
 Endpoints and Endpoints, and
@@ -967,10 +967,10 @@ Effective Date: ___________________
 ## EXHIBIT A — THE SPECIFICATION
 
 The Diverge Provider Protocol Specification, revision 2.3.0, as
-published at `https://provider.diverge.network/2.3.0/` on the
+published at `https://protocol.diverge.network/2.3.0/` on the
 Effective Date, is attached to this Agreement as the Markdown
 rendering the site publishes beside each page of the revision, the
 pages being those the site's sitemap at
-`https://provider.diverge.network/sitemap-index.xml` enumerates under
+`https://protocol.diverge.network/sitemap-index.xml` enumerates under
 `/2.3.0/`, with every included Rust source file expanded in place, and
 initialed by both Parties on each page.
