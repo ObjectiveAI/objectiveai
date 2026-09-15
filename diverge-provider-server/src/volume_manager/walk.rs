@@ -24,22 +24,24 @@ pub struct Walked {
     /// directory adds nothing.
     pub bytes_used: u64,
     /// The hash of the volume's content, as the specification defines
-    /// it — see [`walk`].
+    /// it — see [`walk_directory`].
     pub dirhash: String,
 }
 
-/// One file, as the walk found it: its name in the hash, the SHA-256
-/// of its bytes as lowercase hexadecimal, and its length.
-struct Line {
-    name: String,
-    hex: String,
-    size: u64,
+/// One file, as a walk found it: its name in the hash, the SHA-256
+/// of its bytes as lowercase hexadecimal, and its length. What both
+/// walks — of a directory here, of an image in
+/// [`image`](super::image) — produce, and what [`digest`] takes.
+pub(super) struct Line {
+    pub name: String,
+    pub hex: String,
+    pub size: u64,
 }
 
 /// How much of a file is read at a time while it is hashed.
 const CHUNK: usize = 64 * 1024;
 
-/// Walk the volume at `root` and hash its content.
+/// Walk the fixed volume at `root` and hash its content.
 ///
 /// The hash is Go's `h1:` directory hash: the string
 /// [`golang.org/x/mod/sumdb/dirhash`](https://pkg.go.dev/golang.org/x/mod/sumdb/dirhash)
@@ -69,8 +71,14 @@ const CHUNK: usize = 64 * 1024;
 /// order of the lines is the sort's, never the walk's. The concurrency
 /// is unbounded: a volume of very many files opens very many files at
 /// once. Every read is `tokio::fs`'s.
-pub async fn walk(root: &Path) -> io::Result<Walked> {
-    let mut lines = walk_dir(root.to_path_buf(), Vec::new()).await?;
+pub async fn walk_directory(root: &Path) -> io::Result<Walked> {
+    Ok(digest(walk_dir(root.to_path_buf(), Vec::new()).await?))
+}
+
+/// The lines of a walk, in whatever order, made into what it found:
+/// sorted bytewise by name, summed, and hashed as [`walk_directory`]
+/// states.
+pub(super) fn digest(mut lines: Vec<Line>) -> Walked {
     lines.sort_by(|a, b| a.name.as_bytes().cmp(b.name.as_bytes()));
     let bytes_used = lines.iter().map(|line| line.size).sum();
     let mut digest = Sha256::new();
@@ -80,10 +88,15 @@ pub async fn walk(root: &Path) -> io::Result<Walked> {
         digest.update(line.name.as_bytes());
         digest.update(b"\n");
     }
-    Ok(Walked {
+    Walked {
         bytes_used,
         dirhash: format!("h1:{}", STANDARD.encode(digest.finalize())),
-    })
+    }
+}
+
+/// The error for a name with a newline in it, as Go words it.
+pub(super) fn newline(name: &str) -> io::Error {
+    io::Error::other(format!("dirhash: filenames with newlines are not supported: {name:?}"))
 }
 
 /// One directory: its entries are read, and every one is walked at
@@ -118,7 +131,7 @@ async fn walk_entry(entry: DirEntry, components: &[String]) -> io::Result<Vec<Li
 /// whole. A name containing a newline is refused, as Go refuses it.
 async fn hash_file(path: &Path, name: String) -> io::Result<Line> {
     if name.contains('\n') {
-        return Err(io::Error::other(format!("dirhash: filenames with newlines are not supported: {name:?}")));
+        return Err(newline(&name));
     }
     let mut file = fs::File::open(path).await?;
     let mut hasher = Sha256::new();

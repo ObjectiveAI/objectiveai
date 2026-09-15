@@ -1,24 +1,57 @@
-//! The volumes the provider offers: the SDK's `VolumeManager`,
-//! supplied by this crate.
+//! The volumes the provider offers: the SDK's `VolumeManager` and
+//! `Volume`, supplied by this crate.
 //!
-//! [`VolumeManager`] is the handler, holding the stores it may create
-//! volumes in and the fixed volumes it holds already, as the `volumes`
-//! section of the configuration names them, and the [`Cache`] of what
-//! it knows about them between calls; [`Handle`] is the SDK's
-//! `Volume`, one cache entry shared with the cache, whose lock the
-//! entry carries; [`Error`] is what both fail with. `get` and the
-//! lock are implemented; every other trait method is the place its
-//! implementation goes, and the cache is what it will serve from.
+//! # What a volume is on disk
+//!
+//! A volume a client created is one file, `<store>/<identity>/<name>`
+//! under the store it was created in: an ext4 filesystem in a sparse
+//! image, formatted here in pure Rust and loop-mounted by podman when
+//! a container mounts the volume. The file's length is the volume's
+//! size — reserved, not taken, since the image is sparse — and its
+//! birth time is when the volume came into being. Nothing is kept
+//! beside it: what a listing reports is what the filesystem records
+//! about the file, and what a stat reports is read out of the image.
+//!
+//! A fixed volume is a directory the configuration names, offered as
+//! it is: its size is declared in the configuration, its creation
+//! time is the directory's, and a container mounts the directory
+//! itself.
+//!
+//! # What is here
+//!
+//! [`VolumeManager`] is the manager: the stores, the fixed volumes,
+//! and every identity that has asked, each an [`Identity`] holding
+//! its stored volumes by name, read from the stores the first time
+//! the identity is named. [`Volume`] is one volume, the SDK's
+//! `Volume`, carrying the SDK's lock as an atomic flag and, once
+//! asked, what a walk found — [`Walked`], the bytes in use and the
+//! `dirhash`. [`walk_directory`] is the walk of a fixed volume's
+//! directory and [`walk_image`] the walk of a stored volume's image;
+//! [`reserve_image`] and [`format_image`] are how an image is made,
+//! at [`image_path`]. [`sparse`] marks a new image sparse where the
+//! filesystem needs telling, [`ok`] says which names a volume may
+//! have, and [`Error`] is what any of it fails with.
+//!
+//! Every method of both traits is implemented but a volume's `edit`
+//! and `watch`, which are the two still to come.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
-mod cache;
 mod error;
-mod handle;
+mod identity;
+mod image;
+mod name;
+mod sparse;
+mod volume;
 mod volume_manager;
+mod walk;
 
-pub use cache::*;
 pub use error::*;
-pub use handle::*;
+pub use identity::*;
+pub use image::*;
+pub use name::*;
+pub use sparse::*;
+pub use volume::*;
 pub use volume_manager::*;
+pub use walk::*;
