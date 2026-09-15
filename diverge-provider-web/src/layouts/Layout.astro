@@ -39,7 +39,12 @@ const canonical = absolute(path);
         />
       )
     }
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {/* The Diverge mark, as a vector; the PNGs are rendered from it
+        for Safari, which ignores SVG favicons, and for the iOS home
+        screen. */}
+    <link rel="icon" href="/diverge-icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:title" content={title} />
@@ -49,14 +54,23 @@ const canonical = absolute(path);
       /* System fonts, a readable measure, and nothing loaded from
          anywhere. The whole presentation is this block — global on
          purpose: the markup it styles is rendered by React components
-         through the slot, which Astro's scoped styles cannot see. */
+         through the slot, which Astro's scoped styles cannot see.
+
+         The palette is the mark's: ink #fbeacd, links #ffb2ff, and gold
+         #eba52a for one thing only — where the reader is: the current
+         page in the sidebar, the last crumb, the current version in
+         its menu. The mark's plum #280022 stays the mark's — across a
+         whole page it is too much — so the ground is that plum taken
+         to near black, #11000e. Surfaces that sit on the ground are
+         tints of it, never neutral grays — #22091d for a raised block
+         (code, menus), #351d30 for a rule. */
       :root {
         color-scheme: dark;
         /* On the root, so the canvas paints it across the whole
            viewport however short a page runs — a background on body
            alone stops where the content does the moment anything
            interferes with its propagation to the canvas. */
-        background: #280022;
+        background: #11000e;
       }
       * {
         box-sizing: border-box;
@@ -81,13 +95,13 @@ const canonical = absolute(path);
       pre {
         padding: 0.75rem 1rem;
         overflow-x: auto;
-        background: #1e1e1e;
+        background: #22091d;
         border-radius: 4px;
       }
-      .astro-code,
-      .astro-code span {
-        color: var(--shiki-dark) !important;
-        background-color: var(--shiki-dark-bg) !important;
+      /* Shiki writes its theme's background inline on the block; the
+         page's raised tint wins, the token colors stay the theme's. */
+      .astro-code {
+        background-color: #22091d !important;
       }
       a {
         color: #ffb2ff;
@@ -152,6 +166,7 @@ const canonical = absolute(path);
         text-decoration: none;
       }
       aside nav a[aria-current="page"] {
+        color: #eba52a;
         font-weight: 600;
         text-decoration: underline;
       }
@@ -193,15 +208,16 @@ const canonical = absolute(path);
         padding: 0.25rem 0;
         list-style: none;
         min-width: 100%;
-        border: 1px solid #3a3a3a;
+        border: 1px solid #351d30;
         border-radius: 0.25rem;
-        background: #1c1c1c;
+        background: #22091d;
       }
       .versions li {
         padding: 0.15rem 0.75rem;
         white-space: nowrap;
       }
       .versions a[aria-current="page"] {
+        color: #eba52a;
         font-weight: 600;
       }
       .crumbs li + li::before {
@@ -209,10 +225,12 @@ const canonical = absolute(path);
         margin-right: 0.4rem;
         opacity: 0.5;
       }
+      .crumbs li[aria-current="page"] {
+        color: #eba52a;
+      }
       article h1 {
         margin-top: 0;
         line-height: 1.2;
-        color: #eba52a;
       }
       article .summary {
         font-size: 1.075rem;
@@ -220,8 +238,8 @@ const canonical = absolute(path);
       }
       article .draft {
         padding: 0.75rem 1rem;
-        border-left: 3px solid #d8a72c;
-        background: #24200f;
+        border-left: 3px solid #ffb2ff;
+        background: #431723;
         border-radius: 0 4px 4px 0;
       }
       /* rehype-autolink-headings appends these. */
@@ -245,7 +263,7 @@ const canonical = absolute(path);
       td {
         text-align: left;
         padding: 0.35rem 0.75rem 0.35rem 0;
-        border-bottom: 1px solid #2c2c2c;
+        border-bottom: 1px solid #351d30;
         vertical-align: top;
       }
       .adjacent {
@@ -254,7 +272,7 @@ const canonical = absolute(path);
         gap: 1rem;
         margin-top: 3rem;
         padding-top: 1rem;
-        border-top: 1px solid #2c2c2c;
+        border-top: 1px solid #351d30;
       }
       article footer {
         margin-top: 2.5rem;
