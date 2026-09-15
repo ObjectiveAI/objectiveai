@@ -15,7 +15,7 @@ import { remarkInclude, remarkVersionLinks } from "./src/include.mjs";
 // component carries a `client:*` directive, and the build is checked
 // for the absence of <script> tags.
 export default defineConfig({
-  site: "https://provider.diverge.network",
+  site: "https://protocol.diverge.network",
   // One canonical URL per page. Crawlers punish duplicates, and a
   // trailing-slash policy chosen once means no 301 chains and no
   // split page identity.

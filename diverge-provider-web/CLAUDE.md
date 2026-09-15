@@ -1,7 +1,7 @@
 # Writing the Diverge Provider Protocol specification
 
 This directory is the specification of the Diverge Provider Protocol,
-published at `https://provider.diverge.network`. The specification is
+published at `https://protocol.diverge.network`. The specification is
 the protocol's normative definition. `diverge-provider-sdk` implements
 it, and each revision of the specification is the version of that
 crate. This file governs how the specification is written. It binds
