@@ -211,10 +211,11 @@ where
                 let deployer = Arc::clone(&deployer);
                 let store = Arc::clone(&content_store);
                 let registry = Arc::clone(&image_registry);
+                let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::agents::run::server::handle::handle(
-                        scope, frame, &identity, &*deployer, &*store, &*registry, &directory,
+                        scope, frame, &identity, &*deployer, &*store, &*registry, &*manager, &directory,
                     )
                     .await;
                 });
@@ -224,10 +225,11 @@ where
                 let deployer = Arc::clone(&deployer);
                 let store = Arc::clone(&content_store);
                 let registry = Arc::clone(&image_registry);
+                let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::tools::run::server::handle::handle(
-                        scope, frame, &identity, &*deployer, &*store, &*registry, &directory,
+                        scope, frame, &identity, &*deployer, &*store, &*registry, &*manager, &directory,
                     )
                     .await;
                 });
@@ -314,10 +316,9 @@ where
             ClientRequest::VolumesDelete(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
-                let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::volumes::delete::server::handle::handle(
-                        scope, frame, &identity, &*manager, &directory,
+                        scope, frame, &identity, &*manager,
                     )
                     .await;
                 });

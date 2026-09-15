@@ -1,36 +1,35 @@
-//! The directories a provider offers, and everything done to them.
+//! The directories a provider offers: the namespace, and the verbs
+//! that make and unmake its names.
 
 use std::future::Future;
 
-use futures_util::Stream;
-
+use super::volume;
 use crate::endpoints::volumes::create::server::response::Creation;
-use crate::endpoints::volumes::delete::server::response::Deletion;
-use crate::endpoints::volumes::edit::server::response::Edit;
 use crate::endpoints::volumes::list::server::response::Volume;
-use crate::endpoints::volumes::stat::server::response::Stat;
-use crate::shared::filetree;
 
 /// A namespace of named directories, one per caller.
 ///
 /// The eight [`volumes`](crate::endpoints::volumes) endpoints are
-/// eight verbs over one thing, and this is the thing. A provider that
-/// implements this can answer all of them; there is nothing else they
-/// need.
+/// eight verbs over one thing, and this is the thing: what a listing
+/// reports, what a create adds and a delete takes away, and where a
+/// name is looked up. The verbs on a volume that exists —
+/// examining it, resizing it, watching it — are on the
+/// [`Volume`](volume::Volume) that [`get`](Self::get) hands back; the
+/// verbs on the NAMESPACE are here. A provider that implements both
+/// can answer all eight; there is nothing else they need.
 ///
-/// # Why one trait rather than eight
+/// # Why the split falls where it does
 ///
-/// Because they share the state, not merely the subject. What
-/// [`list`](Self::list) reports is what [`create`](Self::create) added
-/// and [`delete`](Self::delete) took away, and what
-/// [`watch`](Self::watch) looks inside is one of the same entries.
-/// Eight traits would be eight views of one map, with nothing saying
-/// they had to be the same map — and a provider free to implement
-/// seven of them.
-///
-/// The endpoints are separate for a different reason: they are separate
-/// SCOPES, because a caller asks them one at a time and a watch outlives
-/// the others. That is a fact about the wire and it does not reach here.
+/// A name is made and unmade here because only the namespace can
+/// answer whether it is free, and only the namespace can strike it.
+/// Capacity is here for the same reason: how large a volume may be
+/// made, and how far one may grow, are facts about the provider's
+/// room, not about any one volume. A volume answers for itself only
+/// where it is being acted on in place, and the lock every such act
+/// takes first is on the volume — see [`Volume`](volume::Volume) for
+/// the lock, which is the whole of how this crate keeps a mounted
+/// volume from being examined, resized, deleted, or mounted twice.
+/// Nothing here is asked about mounts.
 ///
 /// # Every method takes a `client_identity`
 ///
@@ -63,7 +62,9 @@ use crate::shared::filetree;
 /// each other. A provider implements both and knows how its own
 /// volumes are laid out; a crate that put a path between them would be
 /// inventing a representation for a directory that neither trait needs
-/// to agree on.
+/// to agree on. The run handler does ask this trait for each volume
+/// a request names, to lock it — but it asks for the handle, never
+/// for where it is.
 ///
 /// # What is deliberately not decided
 ///
@@ -77,11 +78,12 @@ use crate::shared::filetree;
 ///
 /// The cases the wire does decide each have an answer of their own
 /// rather than a failure: a [`create`](Self::create) or an
-/// [`edit`](Self::edit) to a size the provider cannot reserve is
-/// insufficient capacity; an [`edit`](Self::edit) below
+/// [`edit`](volume::Volume::edit) to a size the provider cannot
+/// reserve is insufficient capacity; an edit below
 /// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used)
-/// is content too large; a [`delete`](Self::delete) of a mounted
-/// volume is refused as mounted.
+/// is content too large; a delete of a mounted volume is refused as
+/// mounted — and that last one the handler answers from the lock,
+/// before this trait is asked.
 pub trait VolumeManager: Send + Sync {
     /// Whatever this provider's volumes fail with.
     ///
@@ -100,13 +102,14 @@ pub trait VolumeManager: Send + Sync {
     /// that produced it.
     type Error: Send + 'static;
 
-    /// What [`watch`](Self::watch) hands back: the tree as a stream of
-    /// [`filetree`] frames, a snapshot first
-    /// and one per change after, ending only at an error or when the
-    /// handler drops it. The implementation's own type, so a provider
-    /// hands over the stream it has rather than boxing it; the handler
-    /// pins it where it reads it.
-    type Watch: Stream<Item = Result<filetree::response::Frame, Self::Error>> + Send;
+    /// What [`get`](Self::get) hands back: the provider's own handle to
+    /// one volume, failing with the same error this trait fails with,
+    /// so a handler that holds both has one error to flatten.
+    ///
+    /// `'static` because a run holds the volumes it locked for as
+    /// long as it runs, on a task of its own, and gives them back on a
+    /// task of its own if it is dropped before it can.
+    type Volume: volume::Volume<Error = Self::Error> + 'static;
 
     /// Which volumes this caller has.
     ///
@@ -130,23 +133,27 @@ pub trait VolumeManager: Send + Sync {
         client_identity: &str,
     ) -> impl Future<Output = Result<Vec<Volume>, Self::Error>> + Send;
 
-    /// One volume, examined: how much of it is used and what is in it.
+    /// The caller's volume under `name`, or [`None`] where the caller
+    /// has none by it.
     ///
-    /// The two fields [`list`](Self::list) does not carry, because
-    /// each is a walk of the volume — a size to sum, a manifest to
-    /// hash — and a listing that paid for every volume's walk would
-    /// pay for the ones nobody asked about.
+    /// The lookup every verb on an existing volume starts with: a
+    /// stat, an edit, a watch, a delete, and a run that names the
+    /// volume in a mount all ask this first and then act on what comes
+    /// back. What comes back is the provider's own handle — see
+    /// [`Volume`](volume::Volume) — and asking for it changes
+    /// nothing.
     ///
-    /// # A name that is not there is a failure
+    /// # `None` is an answer
     ///
-    /// A stat has nothing to say about a volume the caller cannot
-    /// see, so the error is the answer, and this trait does not say
-    /// what the error carries.
-    fn stat(
+    /// A name that is not in this caller's listing — never there,
+    /// deleted, or another caller's — is [`None`], not a failure, and
+    /// the handler turns it into the endpoint's error itself. [`Err`]
+    /// is the provider unable to look: a store that did not answer.
+    fn get(
         &self,
         client_identity: &str,
         name: &str,
-    ) -> impl Future<Output = Result<Stat, Self::Error>> + Send;
+    ) -> impl Future<Output = Result<Option<Self::Volume>, Self::Error>> + Send;
 
     /// The largest size, in BYTES, a new volume of this caller could
     /// have right now.
@@ -204,81 +211,53 @@ pub trait VolumeManager: Send + Sync {
 
     /// How many BYTES this caller's volume could grow by right now.
     ///
-    /// Headroom, not a size: what an [`edit`](Self::edit) could add to
-    /// the volume's current
+    /// Headroom, not a size: what an [`edit`](volume::Volume::edit)
+    /// could add to the volume's current
     /// [`bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes)
-    /// without being answered [`Edit::InsufficientCapacity`], as of
-    /// now. A name the caller cannot see is a failure.
+    /// without being answered
+    /// [`Edit::InsufficientCapacity`](crate::endpoints::volumes::edit::server::response::Edit::InsufficientCapacity),
+    /// as of now. A name the caller cannot see is a failure. Here and
+    /// not on the volume because the answer is about the provider's
+    /// room, and a question reserves nothing — so it takes no lock,
+    /// and is answered while a container has the volume.
     ///
     /// # It reserves nothing
     ///
     /// A fact about now, on the same terms as
-    /// [`create_capacity`](Self::create_capacity): an
-    /// [`edit`](Self::edit) that arrives after the room went elsewhere
-    /// is answered on its own terms.
+    /// [`create_capacity`](Self::create_capacity): an edit that
+    /// arrives after the room went elsewhere is answered on its own
+    /// terms.
     fn edit_capacity(
         &self,
         client_identity: &str,
         name: &str,
     ) -> impl Future<Output = Result<u64, Self::Error>> + Send;
 
-    /// Change how big an existing volume may be, in BYTES.
-    ///
-    /// Capacity and nothing else, which is why this takes the same
-    /// three arguments as [`create`](Self::create) and means something
-    /// different: there the name is being made, here it is being found.
-    ///
-    /// # Why a rename is not an edit
-    ///
-    /// Because [`name`](crate::endpoints::volumes::list::server::response::Volume::name)
-    /// is the handle and the only one. Every
-    /// [`Mount`](super::mount::Mount) that names a volume names it by
-    /// this, and a watch in flight was opened against it — so changing
-    /// it would not modify a volume, it would replace one with another
-    /// that nothing outstanding can reach.
-    ///
-    /// A caller that wants a different name makes a volume with it.
-    ///
-    /// # Two refusals are answers
-    ///
-    /// A size the provider cannot reserve is
-    /// [`Edit::InsufficientCapacity`]. A size below
-    /// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used)
-    /// — a volume holding more than it would then reserve — is
-    /// [`Edit::ContentTooLarge`]. Neither is an error, and in both the
-    /// size is as it was. The provider is what knows its room and the
-    /// volume's contents, which is why both answers are the provider's
-    /// to give.
-    fn edit(
-        &self,
-        client_identity: &str,
-        name: &str,
-        bytes: u64,
-    ) -> impl Future<Output = Result<Edit, Self::Error>> + Send;
-
-    /// Remove a volume and everything in it, unless it is mounted.
+    /// Remove the caller's volume under `name`, and everything in it.
     ///
     /// The name leaves the namespace, and a
-    /// [`create`](Self::create) may use it again afterwards.
+    /// [`create`](Self::create) may use it again afterwards. [`Ok`] is
+    /// the volume gone; [`Err`] is the volume as it was.
     ///
-    /// # A mounted volume is not deleted
+    /// # It is called under the lock, and answers nothing about mounts
     ///
-    /// A volume [`mounted`](super::mount::Mount) into a container that
-    /// is still running is never deleted. A provider answers
-    /// [`Deletion::Mounted`] and changes nothing — the one rule about
-    /// a volume in use that the wire fixes, and it has its own answer
-    /// rather than an error because a caller acts on it differently:
-    /// stop the container, ask again.
-    ///
-    /// The provider is what knows whether a volume is mounted, which
-    /// is why the answer is the provider's to give and not the
-    /// handler's to check.
+    /// The handler [`lock`](volume::Volume::lock)s the volume first
+    /// and answers
+    /// [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted)
+    /// itself when the lock is held — a run has it, or a stat or an
+    /// edit is in flight — so by the time this is called nothing is
+    /// using the volume, and no handle to it will be asked anything
+    /// again. The lock is not given back on success: the volume it
+    /// was on is gone, and a provider that keeps a lock somewhere it
+    /// must clean up cleans it up here. On failure the handler
+    /// unlocks, and the volume is as it was.
     ///
     /// # A watched volume is the provider's
     ///
-    /// A [`watch`](Self::watch) is not a mount. A provider may delete
-    /// a volume somebody is still watching and let the watch end, or
-    /// refuse with its own error; the wire does not say.
+    /// A [`watch`](volume::Volume::watch) is not a mount and takes no
+    /// lock. A provider may delete a volume somebody is still watching
+    /// and let the watch end, or refuse with its own error; the wire
+    /// does not say.
     ///
     /// Said plainly because the alternative is that it gets assumed.
     /// A caller that needs a volume gone AND needs nothing to be
@@ -287,56 +266,5 @@ pub trait VolumeManager: Send + Sync {
         &self,
         client_identity: &str,
         name: &str,
-    ) -> impl Future<Output = Result<Deletion, Self::Error>> + Send;
-
-    /// Watch a volume's tree, and report what changes in it.
-    ///
-    /// A snapshot first, then one frame per change, for as long as the
-    /// stream is held. See
-    /// [`filetree::response::Frame`] for the variants and for what
-    /// makes the sequence replay-safe.
-    ///
-    /// # Dropping the stream is how a watch ends
-    ///
-    /// There is no `unwatch`. A caller's
-    /// [`stop`](crate::endpoints::volumes::watch::client::channel_request::Frame)
-    /// ends the scope, the handler drops what it was reading, and a
-    /// provider stops walking a tree nobody is listening about. One
-    /// less method, and no way for a handler to forget the second half
-    /// of a pair.
-    ///
-    /// # Why the failure is outside the stream and not only inside it
-    ///
-    /// Because a volume that is not there is knowable before the first
-    /// item, and it is a different fact from a watch that started and
-    /// then stopped. Collapsing the two would make "there was never
-    /// anything to watch" indistinguishable from "what you were
-    /// watching went away", which is the distinction this protocol
-    /// works hardest to preserve everywhere else.
-    ///
-    /// It diverges from a read inside a container, which folds its
-    /// failure into the stream, and the difference is real: a path
-    /// inside somebody else's container may not be checkable without
-    /// beginning to read it, and a name in a namespace this trait OWNS
-    /// always is.
-    ///
-    /// Both ends up as the same
-    /// [`Error`](crate::endpoints::volumes::watch::server::response::Frame::Error)
-    /// frame, because the endpoint has one place to put a failure. That
-    /// flattening is the handler's to do, and a trait that had done it
-    /// in advance would have thrown away a distinction the handler
-    /// might want for something else — a log, a metric, a retry it only
-    /// attempts for one of them.
-    ///
-    /// # An error in the stream ends it
-    ///
-    /// The watch is over; there is no resuming after one. A provider
-    /// that can recover keeps the stream going and says nothing,
-    /// because a consumer folding these frames cannot tell a gap from
-    /// quiet and must not be handed one.
-    fn watch(
-        &self,
-        client_identity: &str,
-        name: &str,
-    ) -> impl Future<Output = Result<Self::Watch, Self::Error>> + Send;
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }

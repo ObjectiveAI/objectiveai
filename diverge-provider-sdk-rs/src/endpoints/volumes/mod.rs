@@ -11,6 +11,18 @@
 //! can only ask for what it was offered, and [`create`] is the move
 //! that puts something in the offering.
 //!
+//! # One thing at a time
+//!
+//! A volume is mounted in at most one container of its caller at a
+//! time, and nothing examines, resizes or deletes a volume while a
+//! container has it. On the server half that is one lock per
+//! volume, held by whoever is using it — a run for its life, a
+//! [`stat`], an [`edit`] or a [`delete`] for its duration — and
+//! taken by the handlers, never by the provider; [`refusal`] is what
+//! a handler answers when the lock is held and the endpoint has no
+//! frame of its own for it. [`watch`] takes no lock. See
+//! [`Volume`](crate::server::volume::Volume) for the rule in full.
+//!
 //! # Volumes rather than paths
 //!
 //! A volume is a directory a provider has DECIDED to offer, under a
@@ -50,3 +62,6 @@ pub mod edit_capacity;
 pub mod list;
 pub mod stat;
 pub mod watch;
+
+#[cfg(feature = "server")]
+pub mod refusal;

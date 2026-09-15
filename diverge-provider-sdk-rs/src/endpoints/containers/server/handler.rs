@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use super::begin::Begun;
 use super::family::Runs;
+use super::held::{Held, Refused};
 use super::run::{Run, send};
 use super::{relay, serve, setup};
 use crate::server::container::Container as _;
@@ -14,6 +15,7 @@ use crate::server::content_store::ContentStore;
 use crate::server::directory::Directory;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::scope_handle::ScopeHandle;
+use crate::server::volume_manager::VolumeManager;
 use crate::shared::containers::request::Container;
 use crate::shared::containers::response::{Id, VolumeMounted};
 use crate::shared::error::Error;
@@ -23,9 +25,10 @@ use crate::shared::error::Error;
 ///
 /// In order:
 ///
-/// 0. Every volume the request names is leased, or the run is refused
-///    with the name that is held — before anything is fetched or
-///    deployed.
+/// 0. Every volume the request names is found and locked — see
+///    [`Held`] — or the run is refused: with the name whose lock is
+///    held, or with an error for a name that is not the caller's.
+///    Before anything is fetched or deployed.
 /// 1. The container is brought up — see
 ///    [`setup::prepare`](super::setup::prepare): content, registry,
 ///    deploy, the proxy dialled, the family's begin, every mount. A
@@ -42,8 +45,8 @@ use crate::shared::error::Error;
 ///    the container leaving, or the caller going away.
 /// 5. The teardown, the same for every ending: the directory entry
 ///    removed, the container stopped, the repository released, the
-///    volumes released, every task ended, and the finish.
-pub(crate) async fn run<R, D, S, G>(
+///    volumes unlocked, every task ended, and the finish.
+pub(crate) async fn run<R, D, S, G, V>(
     scope: ScopeHandle,
     client_identity: &str,
     request: &Container,
@@ -51,6 +54,7 @@ pub(crate) async fn run<R, D, S, G>(
     deployer: &D,
     store: &S,
     registry: &G,
+    manager: &V,
     directory: &Directory,
 ) where
     R: Runs,
@@ -60,20 +64,30 @@ pub(crate) async fn run<R, D, S, G>(
     S::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,
+    V: VolumeManager,
+    V::Error: Into<Error>,
 {
     let scope = Arc::new(scope);
 
-    let volumes: Vec<String> = request.volume_mounts.iter().map(|mount| mount.host_name.clone()).collect();
-    if let Err(name) = directory.lease(client_identity, &volumes) {
-        send(&scope, R::volume_mounted(&VolumeMounted { name })).await;
-        scope.send_response_finish().await;
-        return;
-    }
+    let names: Vec<&str> = request.volume_mounts.iter().map(|mount| mount.host_name.as_str()).collect();
+    let mut held = match Held::take(manager, client_identity, names).await {
+        Ok(held) => held,
+        Err(Refused::Mounted(name)) => {
+            send(&scope, R::volume_mounted(&VolumeMounted { name })).await;
+            scope.send_response_finish().await;
+            return;
+        }
+        Err(Refused::Error(error)) => {
+            send(&scope, R::error(&error)).await;
+            scope.send_response_finish().await;
+            return;
+        }
+    };
 
     let prepared = match setup::prepare::<R, D, S, G>(&scope, client_identity, request, agent, deployer, store, registry).await {
         Ok(prepared) => prepared,
         Err(error) => {
-            directory.release(client_identity, &volumes);
+            held.release().await;
             send(&scope, R::error(&error)).await;
             scope.send_response_finish().await;
             return;
@@ -121,7 +135,7 @@ pub(crate) async fn run<R, D, S, G>(
     if let Some(repository) = &prepared.repository {
         registry.release(repository).await;
     }
-    directory.release(client_identity, &volumes);
+    held.release().await;
     run.shutdown().await;
     scope.send_response_finish().await;
 }

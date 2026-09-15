@@ -11,6 +11,10 @@
 //! against the proxy. Written once here, and each scope's `handle`
 //! wraps it:
 //!
+//! - `held`, the volumes a run's request names, each found through
+//!   the provider's `VolumeManager` and locked before anything else
+//!   is done, and every one unlocked on every ending — the server
+//!   half's whole enforcement of one container per volume.
 //! - `setup`, the ORDERED preparation of a run: the content the
 //!   caller mounts by identity, fetched where the store lacks it; the
 //!   registry told to serve a caller-held image; the deploy; the one
@@ -41,6 +45,7 @@ pub(crate) mod content;
 pub(crate) mod encoded;
 pub(crate) mod family;
 pub(crate) mod handler;
+pub(crate) mod held;
 pub(crate) mod own;
 pub(crate) mod pairs;
 pub(crate) mod relay;

@@ -7,8 +7,10 @@ use futures_util::future::{self, Either};
 
 use super::super::response;
 use crate::encode::{Encode, Writer};
+use crate::endpoints::volumes::refusal;
 use crate::endpoints::volumes::watch::client::request;
 use crate::server::scope_handle::ScopeHandle;
+use crate::server::volume::{self, Volume as _};
 use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
@@ -16,6 +18,15 @@ use crate::shared::error::Error;
 ///
 /// The one volume handler that does not answer and leave. A snapshot,
 /// then a frame per change, for as long as both ends want it.
+///
+/// # It takes no lock
+///
+/// The one verb on a volume that does not
+/// [`lock`](crate::server::volume::Volume::lock) it: a watch is
+/// there to see a container write, so it runs beside a mount rather
+/// than being refused by one. The volume is
+/// [`got`](VolumeManager::get) and asked for its stream, and a name
+/// the caller has no volume by is [`refusal::unknown`].
 ///
 /// # Three things end it, and only one is a failure
 ///
@@ -59,10 +70,10 @@ pub async fn handle<M>(
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let stream = match manager.watch(client_identity, &request.name).await {
+    let stream = match watch(manager, client_identity, &request.name).await {
         Ok(stream) => stream,
         Err(error) => {
-            send(&scope, &response::Frame::Error(error.into())).await;
+            send(&scope, &response::Frame::Error(error)).await;
             scope.send_response_finish().await;
             return;
         }
@@ -98,6 +109,25 @@ pub async fn handle<M>(
     }
 
     scope.send_response_finish().await;
+}
+
+/// The volume found and its stream opened, or the one error the
+/// endpoint answers with, whichever step it came from.
+async fn watch<M>(
+    manager: &M,
+    client_identity: &str,
+    name: &str,
+) -> Result<<M::Volume as volume::Volume>::Watch, Error>
+where
+    M: VolumeManager,
+    M::Error: Into<Error>,
+{
+    let volume = manager
+        .get(client_identity, name)
+        .await
+        .map_err(Into::into)?
+        .ok_or_else(|| refusal::unknown(name))?;
+    volume.watch().await.map_err(Into::into)
 }
 
 /// Write one frame, or write nothing if it will not encode.

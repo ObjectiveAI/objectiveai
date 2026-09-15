@@ -29,7 +29,10 @@ use crate::shared::error::Error;
 /// [`Error`](Self::Error) a caller could not tell from any other
 /// failure. The distinction is what a caller acts on: a mounted
 /// volume is one to stop the container over and ask again, and a
-/// failure is not.
+/// failure is not. On the server half the handler answers it from
+/// the volume's [`lock`](crate::server::volume::Volume::lock), which
+/// a running container holds for its life; the manager is never
+/// asked.
 ///
 /// # Gone means gone, not emptied
 ///
