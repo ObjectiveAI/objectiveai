@@ -80,12 +80,10 @@ where
         .await
         .map_err(Into::into)?
         .ok_or_else(|| refusal::unknown(name))?;
-    if !volume.lock().await.map_err(Into::into)? {
+    if !volume.lock() {
         return Err(refusal::mounted(name));
     }
     let stat = volume.stat().await;
-    let unlocked = volume.unlock().await;
-    let stat = stat.map_err(Into::into)?;
-    unlocked.map_err(Into::into)?;
-    Ok(stat)
+    volume.unlock();
+    stat.map_err(Into::into)
 }

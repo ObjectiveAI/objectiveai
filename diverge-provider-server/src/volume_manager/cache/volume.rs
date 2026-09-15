@@ -2,6 +2,7 @@
 
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::Mutex;
 
@@ -32,10 +33,10 @@ pub enum Place {
 ///
 /// The lock the SDK takes before a mount, a stat, an edit or a
 /// delete, and gives back after, lives here beside everything else
-/// known about the volume, as a flag: [`lock`](Self::lock) sets it
-/// if it was clear, [`unlock`](Self::unlock) clears it,
+/// known about the volume, as an atomic flag: [`lock`](Self::lock)
+/// sets it if it was clear, [`unlock`](Self::unlock) clears it,
 /// [`locked`](Self::locked) reads it, and none of them waits on
-/// another holder. The manager's
+/// anything. The manager's
 /// [`Handle`](crate::volume_manager::Handle) is what the SDK calls
 /// them through.
 #[derive(Debug)]
@@ -45,7 +46,7 @@ pub struct Volume {
     place: Place,
     /// The SDK's lock: `true` while a run, a stat, an edit or a
     /// delete has the volume.
-    lock: Mutex<bool>,
+    lock: AtomicBool,
     /// How big the volume may be, in bytes: what its create asked for,
     /// as its last edit left it. `None` for a fixed volume, whose size
     /// no store recorded.
@@ -64,7 +65,7 @@ impl Volume {
             name: name.to_string(),
             root,
             place,
-            lock: Mutex::new(false),
+            lock: AtomicBool::new(false),
             bytes: Mutex::new(bytes),
             created,
             walked: Mutex::new(None),
@@ -128,25 +129,22 @@ impl Volume {
     }
 
     /// Take the SDK's lock: `true` is the flag set, and it was clear;
-    /// `false` is the flag already set, and nothing changed. The
-    /// mutex is held only to read and write the flag, so this never
-    /// waits on another holder of the volume.
-    pub async fn lock(&self) -> bool {
-        let mut held = self.lock.lock().await;
-        if *held {
-            return false;
-        }
-        *held = true;
-        true
+    /// `false` is the flag already set, and nothing changed. One
+    /// compare-and-swap, so two takers at once cannot both succeed.
+    pub fn lock(&self) -> bool {
+        self.lock
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
     }
 
-    /// Give the SDK's lock back: the flag cleared.
-    pub async fn unlock(&self) {
-        *self.lock.lock().await = false;
+    /// Give the SDK's lock back: the flag cleared. `true` is a flag
+    /// that was set; `false` is one that was already clear.
+    pub fn unlock(&self) -> bool {
+        self.lock.swap(false, Ordering::AcqRel)
     }
 
     /// Whether the SDK's lock is held, as of now.
-    pub async fn locked(&self) -> bool {
-        *self.lock.lock().await
+    pub fn locked(&self) -> bool {
+        self.lock.load(Ordering::Acquire)
     }
 }
