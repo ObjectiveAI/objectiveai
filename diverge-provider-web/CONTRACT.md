@@ -444,8 +444,10 @@ its `created` as the Specification defines them, and nothing more.
 naming a Volume in the Identity's listing with exactly one Response
 carrying the Volume's `name`, `bytes` and `created`, its `bytes_used`,
 and its `dirhash` as the Specification defines each, as of the time of
-the Response; and shall answer a name not in the listing with an
-error.
+the Response; and shall answer a name not in the listing, or a Volume
+mounted in a running Container at the time of the request, with an
+error. The Provider shall not examine a Volume that is mounted in a
+running Container at the time of the request.
 
 (c) **Capacity.** The Provider shall answer every
 `volumes::create_capacity` request with the largest size in bytes of a
@@ -474,7 +476,10 @@ request naming a Volume in the Identity's listing with exactly one
 Response: the byte `0` only after the Volume has the size stated; the
 byte `1` when the Provider cannot reserve the size stated; the byte
 `2` when the content of the Volume exceeds the size stated; or the
-byte `3` followed by an error for any other reason. The size is the
+byte `3` followed by an error for any other reason. The Provider
+shall not change the size of a Volume that is mounted in a running
+Container at the time of the request, and shall answer a request
+naming one with the byte `3` followed by an error. The size is the
 only property an edit changes. From the moment the Provider sends the
 byte `0`, every listing and every stat the Provider sends the Identity
 shall report the new size.
