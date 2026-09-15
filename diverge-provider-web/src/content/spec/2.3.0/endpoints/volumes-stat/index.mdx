@@ -27,6 +27,14 @@ finish.
   those of the volume at the time of the response. No frame of this
   specification reports a change in either; a client that needs the
   current values sends another request.
+- **A mounted volume is not examined.** The server does not examine
+  a volume that is mounted in a running container at the time of the
+  request. A request naming such a volume is answered with an error,
+  and nothing is determined about the volume. A client that needs
+  the values stops the container, or waits for its end, and sends
+  another request.
 - **The error.** An error states that the volume was not examined,
   and that nothing was determined about it. A volume absent from the
-  client's listing is answered with an error.
+  client's listing is answered with an error. A volume mounted in a
+  running container at the time of the request is answered with an
+  error.

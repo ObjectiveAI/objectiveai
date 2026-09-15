@@ -48,7 +48,15 @@ follows the response, and no frame follows the finish.
   the byte `0` for a size that the content of the volume exceeds. A
   client that wants the smaller size removes content from the volume,
   by a container in which the volume is mounted, and asks again.
+- **A mounted volume is not edited.** The server does not change the
+  size of a volume that is mounted in a running container at the
+  time of the request. A request naming such a volume is answered
+  with an error, and the volume has the size it had before the
+  request. A client that needs the size changed stops the container,
+  or waits for its end, and sends another request.
 - **The error.** An error states that the size was not changed, for a
   reason other than capacity or content: the volume has the size it
   had before the request, and every listing and every stat reports
-  that size.
+  that size. A volume absent from the client's listing is answered
+  with an error. A volume mounted in a running container at the time
+  of the request is answered with an error.
