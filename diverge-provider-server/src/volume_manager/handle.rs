@@ -38,19 +38,16 @@ impl volume::Volume for Handle {
     /// implementation.
     type Watch = stream::Empty<Result<filetree::response::Frame, Error>>;
 
-    /// The entry's flag, set if it was clear. Never fails: a flag in
-    /// memory always answers.
-    async fn lock(&self) -> Result<bool, Error> {
-        Ok(self.volume.lock().await)
+    fn lock(&self) -> bool {
+        self.volume.lock()
     }
 
-    async fn unlock(&self) -> Result<(), Error> {
-        self.volume.unlock().await;
-        Ok(())
+    fn unlock(&self) -> bool {
+        self.volume.unlock()
     }
 
-    async fn locked(&self) -> Result<bool, Error> {
-        Ok(self.volume.locked().await)
+    fn locked(&self) -> bool {
+        self.volume.locked()
     }
 
     async fn stat(&self) -> Result<Stat, Error> {

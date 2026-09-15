@@ -87,12 +87,10 @@ where
         .await
         .map_err(Into::into)?
         .ok_or_else(|| refusal::unknown(name))?;
-    if !volume.lock().await.map_err(Into::into)? {
+    if !volume.lock() {
         return Err(refusal::mounted(name));
     }
     let edit = volume.edit(bytes).await;
-    let unlocked = volume.unlock().await;
-    let edit = edit.map_err(Into::into)?;
-    unlocked.map_err(Into::into)?;
-    Ok(edit)
+    volume.unlock();
+    edit.map_err(Into::into)
 }

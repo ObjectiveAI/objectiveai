@@ -28,7 +28,9 @@ use crate::shared::error::Error;
 /// 0. Every volume the request names is found and locked — see
 ///    [`Held`] — or the run is refused: with the name whose lock is
 ///    held, or with an error for a name that is not the caller's.
-///    Before anything is fetched or deployed.
+///    Before anything is fetched or deployed. The locks are held by
+///    the `Held` and given back when it is dropped, which every
+///    ending below does.
 /// 1. The container is brought up — see
 ///    [`setup::prepare`](super::setup::prepare): content, registry,
 ///    deploy, the proxy dialled, the family's begin, every mount. A
@@ -70,7 +72,7 @@ pub(crate) async fn run<R, D, S, G, V>(
     let scope = Arc::new(scope);
 
     let names: Vec<&str> = request.volume_mounts.iter().map(|mount| mount.host_name.as_str()).collect();
-    let mut held = match Held::take(manager, client_identity, names).await {
+    let held = match Held::take(manager, client_identity, names).await {
         Ok(held) => held,
         Err(Refused::Mounted(name)) => {
             send(&scope, R::volume_mounted(&VolumeMounted { name })).await;
@@ -87,7 +89,7 @@ pub(crate) async fn run<R, D, S, G, V>(
     let prepared = match setup::prepare::<R, D, S, G>(&scope, client_identity, request, agent, deployer, store, registry).await {
         Ok(prepared) => prepared,
         Err(error) => {
-            held.release().await;
+            // The `Held` drops on the return, and unlocks.
             send(&scope, R::error(&error)).await;
             scope.send_response_finish().await;
             return;
@@ -135,7 +137,7 @@ pub(crate) async fn run<R, D, S, G, V>(
     if let Some(repository) = &prepared.repository {
         registry.release(repository).await;
     }
-    held.release().await;
+    drop(held);
     run.shutdown().await;
     scope.send_response_finish().await;
 }

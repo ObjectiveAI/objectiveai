@@ -80,16 +80,14 @@ where
         .await
         .map_err(Into::into)?
         .ok_or_else(|| refusal::unknown(name))?;
-    if !volume.lock().await.map_err(Into::into)? {
+    if !volume.lock() {
         return Ok(false);
     }
     match manager.delete(client_identity, name).await {
         Ok(()) => Ok(true),
         Err(error) => {
-            // The volume is as it was, so the lock goes back; a
-            // failure to give it back is reported after the failure
-            // that caused it, which is the one the caller acts on.
-            let _ = volume.unlock().await;
+            // The volume is as it was, so the lock goes back.
+            volume.unlock();
             Err(error.into())
         }
     }

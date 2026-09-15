@@ -47,7 +47,11 @@ use crate::shared::filetree;
 /// a try-lock and nothing more: it takes the lock or says it is held,
 /// and it never waits, because the party that holds it may hold it
 /// for the life of a container and a request cannot queue behind
-/// that. What a held lock MEANS — refused, mounted, an error — is
+/// that. The three lock methods are synchronous and cannot fail: a
+/// lock is a flag the provider keeps in memory, read and written in
+/// one step, and a provider that kept it anywhere else would be
+/// making a request wait on a store to learn whether it may run.
+/// What a held lock MEANS — refused, mounted, an error — is
 /// decided by the handlers, never by the provider, which is why
 /// [`VolumeManager::delete`](super::volume_manager::VolumeManager::delete)
 /// answers nothing about mounts.
@@ -85,21 +89,18 @@ pub trait Volume: Send + Sync {
     ///
     /// The holder may be a container that runs for hours, and a
     /// request that queued behind it would be a request that never
-    /// answered. So this answers at once, and what a `false` means is
-    /// the handler's to decide — see the trait.
-    ///
-    /// # A failure is neither
-    ///
-    /// [`Err`] is the provider unable to say — a lock kept somewhere
-    /// that did not answer — and the handler treats it as the
-    /// endpoint's error. It is not a held lock.
-    fn lock(&self) -> impl Future<Output = Result<bool, Self::Error>> + Send;
+    /// answered. So this answers at once — it is not even `async` —
+    /// and what a `false` means is the handler's to decide; see the
+    /// trait.
+    fn lock(&self) -> bool;
 
-    /// Give the lock back. Called only by the holder, once per
+    /// Give the lock back: `true` is the lock released, and it was
+    /// held; `false` is a lock that was not held, and nothing
+    /// changed. Called only by the holder, once per
     /// [`lock`](Self::lock) that answered `true`, and the handlers
-    /// keep that count; a provider does not have to defend against a
-    /// stranger's unlock.
-    fn unlock(&self) -> impl Future<Output = Result<(), Self::Error>> + Send;
+    /// keep that count, so a `false` here is a handler's mistake and
+    /// not a state a provider has to defend against.
+    fn unlock(&self) -> bool;
 
     /// Whether the lock is held, as of now.
     ///
@@ -107,7 +108,7 @@ pub trait Volume: Send + Sync {
     /// promise that the [`lock`](Self::lock) after it answers `true`.
     /// No handler asks it; it is for the provider's own use — a
     /// listing that wants to say which volumes are in use, a log.
-    fn locked(&self) -> impl Future<Output = Result<bool, Self::Error>> + Send;
+    fn locked(&self) -> bool;
 
     /// The volume, examined: how much of it is used and what is in
     /// it.

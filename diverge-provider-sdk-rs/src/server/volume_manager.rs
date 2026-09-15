@@ -105,11 +105,7 @@ pub trait VolumeManager: Send + Sync {
     /// What [`get`](Self::get) hands back: the provider's own handle to
     /// one volume, failing with the same error this trait fails with,
     /// so a handler that holds both has one error to flatten.
-    ///
-    /// `'static` because a run holds the volumes it locked for as
-    /// long as it runs, on a task of its own, and gives them back on a
-    /// task of its own if it is dropped before it can.
-    type Volume: volume::Volume<Error = Self::Error> + 'static;
+    type Volume: volume::Volume<Error = Self::Error>;
 
     /// Which volumes this caller has.
     ///
