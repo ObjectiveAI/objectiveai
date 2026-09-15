@@ -1,4 +1,4 @@
-# provider.diverge.network — the Diverge Provider Protocol specification.
+# protocol.diverge.network — the Diverge Provider Protocol specification.
 #
 # Everything here is public documentation, published to be read by
 # people and machines alike. Crawl freely; nothing is rate-limited by
@@ -46,4 +46,4 @@ Allow: /
 User-agent: meta-externalagent
 Allow: /
 
-Sitemap: https://provider.diverge.network/sitemap-index.xml
+Sitemap: https://protocol.diverge.network/sitemap-index.xml
