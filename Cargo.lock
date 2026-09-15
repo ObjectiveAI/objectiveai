@@ -1881,6 +1881,7 @@ dependencies = [
  "base64 0.22.1",
  "dashmap",
  "diverge-provider-sdk",
+ "fstool",
  "futures-util",
  "hex",
  "serde",
@@ -1889,6 +1890,7 @@ dependencies = [
  "serde_yaml_ng",
  "sha2",
  "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2376,6 +2378,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76ee7a02da4d231650c7cea31349b889be2f45ddb3ef3032d2ec8185f6313fd2"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "fstool"
+version = "0.4.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f42978faafcee1cdfc04c2d36fb81b81ba7d6b3392dba6dc2a30d4ea368b8359"
+dependencies = [
+ "uuid",
 ]
 
 [[package]]
