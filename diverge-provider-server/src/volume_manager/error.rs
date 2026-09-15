@@ -2,8 +2,9 @@
 
 use std::fmt;
 
-/// What [`VolumeManager`](super::VolumeManager) fails with. No variant yet: the
-/// failures arrive with the implementation.
+/// What [`VolumeManager`](super::VolumeManager) and
+/// [`Handle`](super::Handle) fail with. No variant yet: the failures
+/// arrive with the implementation.
 #[derive(Debug)]
 pub enum Error {}
 
