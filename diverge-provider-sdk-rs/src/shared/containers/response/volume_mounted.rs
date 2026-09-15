@@ -10,7 +10,11 @@ use serde::{Deserialize, Serialize};
 /// volume a run names from the moment it accepts the request until
 /// the run ends, and a second request naming one is answered with
 /// this — the first and only response of its scope, then the finish
-/// — with nothing fetched and nothing deployed for it.
+/// — with nothing fetched and nothing deployed for it. On the server
+/// half the hold is the volume's
+/// [`lock`](crate::server::volume::Volume::lock), which the run
+/// handler takes before anything else and gives back on every
+/// ending.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VolumeMounted {

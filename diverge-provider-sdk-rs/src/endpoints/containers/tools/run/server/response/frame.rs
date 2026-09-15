@@ -32,7 +32,9 @@ use crate::shared::error::Error;
 /// a held one is answered [`VolumeMounted`](Self::VolumeMounted)
 /// before anything is fetched or deployed — its own variant, because
 /// a caller acts on it differently from a failure: stop the other
-/// container, or name another volume, and ask again.
+/// container, or name another volume, and ask again. The hold is the
+/// volume's [`lock`](crate::server::volume::Volume::lock), taken by
+/// the run handler and given back on every ending.
 ///
 /// Everything a caller reads from the container — the tree, the
 /// family's own exchange — is a channel it opens, not this stream.

@@ -30,7 +30,7 @@ use crate::shared::error::Error;
 ///
 /// There is one answer and it carries nothing: the volume is gone.
 /// A volume that is mounted in a running container is
-/// [`ExecuteError::Mounted`] — the provider's defined refusal, not a
+/// [`ExecuteError::Mounted`] — the protocol's defined refusal, not a
 /// failure, and the one a caller acts on by stopping the container
 /// and asking again. Everything else is an
 /// [`ExecuteError::Provider`] — a volume that was never there, or a

@@ -9,6 +9,7 @@ use crate::server::content_store::ContentStore;
 use crate::server::directory::Directory;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::scope_handle::ScopeHandle;
+use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
 /// Run the container the request describes and serve the scope for
@@ -21,13 +22,14 @@ use crate::shared::error::Error;
 ///
 /// [`server::handle`](crate::server::handle::handle) reads every
 /// request once to dispatch it, and hands the result here.
-pub async fn handle<D, S, G>(
+pub async fn handle<D, S, G, V>(
     scope: ScopeHandle,
     request: request::Frame,
     client_identity: &str,
     deployer: &D,
     store: &S,
     registry: &G,
+    manager: &V,
     directory: &Directory,
 ) where
     D: ContainerDeployer,
@@ -36,6 +38,8 @@ pub async fn handle<D, S, G>(
     S::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,
+    V: VolumeManager,
+    V::Error: Into<Error>,
 {
-    handler::run::<Tools, D, S, G>(scope, client_identity, &request.0, None, deployer, store, registry, directory).await
+    handler::run::<Tools, D, S, G, V>(scope, client_identity, &request.0, None, deployer, store, registry, manager, directory).await
 }
