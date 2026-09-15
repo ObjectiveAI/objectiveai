@@ -27,11 +27,25 @@ pub enum Place {
 /// [`check`](Self::check) walks, and is forgotten when the volume is
 /// [`mounted`](Self::mounted), because a container writes and nothing
 /// else does.
+///
+/// # And the SDK's lock
+///
+/// The lock the SDK takes before a mount, a stat, an edit or a
+/// delete, and gives back after, lives here beside everything else
+/// known about the volume, as a flag: [`lock`](Self::lock) sets it
+/// if it was clear, [`unlock`](Self::unlock) clears it,
+/// [`locked`](Self::locked) reads it, and none of them waits on
+/// another holder. The manager's
+/// [`Handle`](crate::volume_manager::Handle) is what the SDK calls
+/// them through.
 #[derive(Debug)]
 pub struct Volume {
     name: String,
     root: PathBuf,
     place: Place,
+    /// The SDK's lock: `true` while a run, a stat, an edit or a
+    /// delete has the volume.
+    lock: Mutex<bool>,
     /// How big the volume may be, in bytes: what its create asked for,
     /// as its last edit left it. `None` for a fixed volume, whose size
     /// no store recorded.
@@ -50,6 +64,7 @@ impl Volume {
             name: name.to_string(),
             root,
             place,
+            lock: Mutex::new(false),
             bytes: Mutex::new(bytes),
             created,
             walked: Mutex::new(None),
@@ -106,8 +121,32 @@ impl Volume {
     /// The volume is being mounted into a container: whatever a walk
     /// found is forgotten, since the container may write from now on
     /// and nothing reports when. The next [`check`](Self::check) walks
-    /// again.
+    /// again. Separate from the SDK's lock, which a stat takes too:
+    /// a stat must not wipe the walk it just made.
     pub async fn mounted(&self) {
         *self.walked.lock().await = None;
+    }
+
+    /// Take the SDK's lock: `true` is the flag set, and it was clear;
+    /// `false` is the flag already set, and nothing changed. The
+    /// mutex is held only to read and write the flag, so this never
+    /// waits on another holder of the volume.
+    pub async fn lock(&self) -> bool {
+        let mut held = self.lock.lock().await;
+        if *held {
+            return false;
+        }
+        *held = true;
+        true
+    }
+
+    /// Give the SDK's lock back: the flag cleared.
+    pub async fn unlock(&self) {
+        *self.lock.lock().await = false;
+    }
+
+    /// Whether the SDK's lock is held, as of now.
+    pub async fn locked(&self) -> bool {
+        *self.lock.lock().await
     }
 }

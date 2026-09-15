@@ -1,17 +1,12 @@
 //! The handler.
 
-use diverge_provider_sdk::endpoints::volumes::create::server::response::Creation;
-use diverge_provider_sdk::endpoints::volumes::delete::server::response::Deletion;
-use diverge_provider_sdk::endpoints::volumes::edit::server::response::Edit;
-use diverge_provider_sdk::endpoints::volumes::list::server::response::Volume;
-use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
-use diverge_provider_sdk::server::volume_manager;
-use diverge_provider_sdk::shared::filetree;
 use std::sync::Arc;
 
-use futures_util::stream;
+use diverge_provider_sdk::endpoints::volumes::create::server::response::Creation;
+use diverge_provider_sdk::endpoints::volumes::list::server::response::Volume;
+use diverge_provider_sdk::server::volume_manager;
 
-use super::{Cache, Error, Identity};
+use super::{Cache, Error, Handle, Identity};
 use crate::config::volumes::{Fixed, Store};
 
 /// The provider's volumes: the directories it offers every identity,
@@ -47,16 +42,17 @@ impl VolumeManager {
 
 impl volume_manager::VolumeManager for VolumeManager {
     type Error = Error;
-    /// Nothing yet: the stream a watch hands back arrives with the
-    /// implementation.
-    type Watch = stream::Empty<Result<filetree::response::Frame, Error>>;
+    type Volume = Handle;
 
     async fn list(&self, _client_identity: &str) -> Result<Vec<Volume>, Error> {
         unimplemented!()
     }
 
-    async fn stat(&self, _client_identity: &str, _name: &str) -> Result<Stat, Error> {
-        unimplemented!()
+    /// The cache's entry under `name` for this identity, or `None`
+    /// where it has none. Never fails: the cache reads nothing to
+    /// answer.
+    async fn get(&self, client_identity: &str, name: &str) -> Result<Option<Handle>, Error> {
+        Ok(self.identity(client_identity).await.volume(name).map(Handle::new))
     }
 
     async fn create_capacity(&self, _client_identity: &str) -> Result<u64, Error> {
@@ -71,15 +67,7 @@ impl volume_manager::VolumeManager for VolumeManager {
         unimplemented!()
     }
 
-    async fn edit(&self, _client_identity: &str, _name: &str, _bytes: u64) -> Result<Edit, Error> {
-        unimplemented!()
-    }
-
-    async fn delete(&self, _client_identity: &str, _name: &str) -> Result<Deletion, Error> {
-        unimplemented!()
-    }
-
-    async fn watch(&self, _client_identity: &str, _name: &str) -> Result<Self::Watch, Error> {
+    async fn delete(&self, _client_identity: &str, _name: &str) -> Result<(), Error> {
         unimplemented!()
     }
 }
