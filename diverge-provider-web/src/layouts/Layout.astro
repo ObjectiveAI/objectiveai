@@ -51,8 +51,10 @@ const canonical = absolute(path);
          purpose: the markup it styles is rendered by React components
          through the slot, which Astro's scoped styles cannot see.
 
-         The palette is the mark's: ink #fbeacd, links #ffb2ff, titles
-         #eba52a. The mark's plum #280022 stays the mark's — across a
+         The palette is the mark's: ink #fbeacd, links #ffb2ff, and gold
+         #eba52a for one thing only — where the reader is: the current
+         page in the sidebar, the last crumb, the current version in
+         its menu. The mark's plum #280022 stays the mark's — across a
          whole page it is too much — so the ground is that plum taken
          to near black, #11000e. Surfaces that sit on the ground are
          tints of it, never neutral grays — #22091d for a raised block
@@ -159,6 +161,7 @@ const canonical = absolute(path);
         text-decoration: none;
       }
       aside nav a[aria-current="page"] {
+        color: #eba52a;
         font-weight: 600;
         text-decoration: underline;
       }
@@ -209,6 +212,7 @@ const canonical = absolute(path);
         white-space: nowrap;
       }
       .versions a[aria-current="page"] {
+        color: #eba52a;
         font-weight: 600;
       }
       .crumbs li + li::before {
@@ -216,10 +220,12 @@ const canonical = absolute(path);
         margin-right: 0.4rem;
         opacity: 0.5;
       }
+      .crumbs li[aria-current="page"] {
+        color: #eba52a;
+      }
       article h1 {
         margin-top: 0;
         line-height: 1.2;
-        color: #eba52a;
       }
       article .summary {
         font-size: 1.075rem;
@@ -227,7 +233,7 @@ const canonical = absolute(path);
       }
       article .draft {
         padding: 0.75rem 1rem;
-        border-left: 3px solid #eba52a;
+        border-left: 3px solid #ffb2ff;
         background: #431723;
         border-radius: 0 4px 4px 0;
       }
