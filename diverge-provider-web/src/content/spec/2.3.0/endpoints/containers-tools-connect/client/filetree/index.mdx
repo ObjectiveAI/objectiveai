@@ -19,9 +19,9 @@ and relays what the proxy sends.
   sends to the proxy, the path of every FUSE mount of the container,
   and the path of no other mount. The tree the client receives
   contains no FUSE mount and reports no change under one.
-- **What the tree contains.** Every volume mount and every identity
-  mount of the container is in the tree, and a change under one is
-  reported as any other change is. A volume is observed by this
+- **What the tree contains.** Every volume mount of the container is
+  in the tree, and a change under one is reported as any other change
+  is. A volume is observed by this
   channel of a container it is mounted in, and by nothing else in
   this specification.
 - **Not before the mounts.** The server does not open a tree scope

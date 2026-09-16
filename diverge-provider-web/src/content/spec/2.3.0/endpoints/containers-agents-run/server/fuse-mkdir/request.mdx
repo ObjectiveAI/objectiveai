@@ -1,12 +1,12 @@
 ---
 title: 'Request'
-summary: 'The payload of the channel request the server sends: the tag byte 23 and the ask.'
+summary: 'The payload of the channel request the server sends: the tag byte 21 and the ask.'
 order: 1
 draft: false
 ---
 
 ```text
-[23][id_len: u16, big-endian][id …][path …]
+[21][id_len: u16, big-endian][id …][path …]
 ```
 
 - **The ask.** The bytes after the tag are the id of the mount, which

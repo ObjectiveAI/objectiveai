@@ -1,7 +1,7 @@
 ---
 title: 'Command'
-summary: 'Tag 7: the server relays a command the container asked to have run, its bytes verbatim; the client answers with one channel response per item the command produced, an error last, and the channel response finish, each relayed to the container.'
-order: 7
+summary: 'Tag 5: the server relays a command the container asked to have run, its bytes verbatim; the client answers with one channel response per item the command produced, an error last, and the channel response finish, each relayed to the container.'
+order: 5
 draft: false
 ---
 
@@ -9,7 +9,7 @@ The server opens this channel when the container's proxy opens a
 command channel on the begin scope. The bytes of the command are
 relayed verbatim.
 
-- **The request.** The tag byte `7` followed by the bytes of the
+- **The request.** The tag byte `5` followed by the bytes of the
   command. [Request](/endpoints/containers-agents-run/server/command/request/) states its
   form.
 - **The response.** One channel response per item, an error last

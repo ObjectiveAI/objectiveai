@@ -38,18 +38,7 @@ about the client, which may open any channel at any time.
    volume twice, is answered by exactly one response, the byte `1`
    followed by the name of that volume, and the finish; the server
    fetches nothing and deploys nothing for it.
-2. **The server holds every identity mount's content before it
-   deploys.** For each entry of `identity_file_mounts` and
-   `identity_directory_mounts`, the server either holds content it has
-   verified against the identity, or opens a
-   [fetch-file](/endpoints/containers-tools-run/server/fetch-file/) or
-   [fetch-directory](/endpoints/containers-tools-run/server/fetch-directory/) channel on
-   the scope and stores what the client sends, verifying the size and
-   the hash against the identity before the content counts as held.
-   The server may hold content from an earlier run of any client. A
-   channel the client finishes with no frame before the finish, and
-   content that does not match its identity, are the run's error.
-3. **The server serves the client's image, when the image is the
+2. **The server serves the client's image, when the image is the
    client's.** For an image of kind `client`, the server serves an
    OCI registry from which its runtime pulls the image by repository
    name and manifest digest. A manifest the registry does not hold,
@@ -64,20 +53,17 @@ about the client, which may open any channel at any time.
    server obtains the image from a source of its own. For an image of
    kind `registry`, the server pulls the reference; which references
    it allows is its own.
-4. **The server deploys the container.** The server starts the image
+3. **The server deploys the container.** The server starts the image
    with `memory` and `disk` as limits; every volume mount resolved by
    `host_name` against the identity under which the connection was
    authorized, descended by `host_relative_path`, at `container_path`;
-   every identity mount at its `container_path`, its content
-   matching the identity in size and hash when the container starts
-   and writable from inside the container; the container proxy
+   the container proxy
    injected into the container and started; and TCP
    port `14979` of the container reachable to the server. The deploy
    is complete when the proxy accepts a WebSocket connection at that
-   port. The server sets no environment from the request. The server does not
-   start the container before every identity mount's content is
-   held. A deploy that does not complete is the run's error.
-5. **The server connects to the proxy.** The server opens exactly
+   port. The server sets no environment from the request. A deploy
+   that does not complete is the run's error.
+4. **The server connects to the proxy.** The server opens exactly
    one WebSocket to port `14979` of the container, the connection of
    the [Container Proxy](/container-proxy/) layer, and on it, before
    anything else, the begin scope of the container's family —
@@ -86,7 +72,7 @@ about the client, which may open any channel at any time.
    begin with an error, is a container that did not come up: the
    server stops the container, and the failure is the run's error.
    The server opens no second connection to a container.
-6. **The server makes every FUSE mount.** For each entry of
+5. **The server makes every FUSE mount.** For each entry of
    `fuse_file_mounts`, and after the last of them for each entry of
    `fuse_directory_mounts`, in the order of the request, the server
    opens one mount scope on the proxy's connection, naming the path
@@ -94,11 +80,11 @@ about the client, which may open any channel at any time.
    mount the proxy does not make is the run's error, and the server
    stops the container. The server opens no tree scope and sends no
    response before the last mount is complete.
-7. **The server holds what the client opened.** A channel the client
+6. **The server holds what the client opened.** A channel the client
    opens before the server sends the id is served after the id, in
    the order opened, and is neither refused nor read before the last
    FUSE mount is complete.
-8. **The server mints and sends the id.** The id is a string the
+7. **The server mints and sends the id.** The id is a string the
    server chooses, unique among the containers it is running, and
    not derivable from the request, from the identity of the
    connection, or from any other id. The server
@@ -107,12 +93,12 @@ about the client, which may open any channel at any time.
    [containers::tools::connect](/endpoints/containers-tools-connect/)
    request naming the id finds it. The server sends no further
    response on the scope.
-9. **The server serves the scope.** Concurrently, for as long as the
+8. **The server serves the scope.** Concurrently, for as long as the
    scope lives: every channel the proxy opens on the begin scope, and
    every ask a mount makes on its own scope, is relayed to the client
    as a channel the server opens; every channel the client opens is
    served as its section defines.
-10. **The server ends the run.** When it receives the client's
+9. **The server ends the run.** When it receives the client's
    [stop](/endpoints/containers-tools-run/client/stop/), when the proxy's
    connection ends, or when the client's connection ends,
    the server ends every connect scope on the container, stops the
@@ -144,9 +130,8 @@ about the client, which may open any channel at any time.
   ask a second time. A channel the client finishes with no frame
   before the finish is relayed to the proxy as a channel response
   finish that no channel response precedes.
-- **What the server never does.** The server never mounts an
-  identity mount read-only. The server never refuses or alters a
-  FUSE ask on its own account: whether a change to a FUSE mount is
+- **What the server never does.** The server never refuses or alters
+  a FUSE ask on its own account: whether a change to a FUSE mount is
   allowed is the client's answer to that ask. The server never
   writes to a volume or a mount on its own account. The server never
   sends a second id.
