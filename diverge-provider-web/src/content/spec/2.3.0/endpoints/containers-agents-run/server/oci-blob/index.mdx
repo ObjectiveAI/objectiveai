@@ -1,6 +1,6 @@
 ---
 title: 'OCI blob'
-summary: 'Tag 1: the server asks the client for a blob of an image the client holds, by digest, when its registry lacks it; the client answers with the bytes in zero or more channel responses; the server verifies the whole against the digest before it stores it.'
+summary: 'Tag 1: the server asks the client for a blob of an image the client holds, by digest, when its registry lacks it; the client answers with the bytes in zero or more channel responses; bytes that are not those the digest names fail the run.'
 order: 1
 draft: false
 ---
@@ -9,17 +9,15 @@ The server opens this channel when the image of the request is of
 kind `client` and its registry does not hold a blob that the pull
 requires: a config or a layer.
 
-- **When.** Between the request and the deploy, and at most once per
-  digest per run.
+- **When.** Between the request and the deploy.
 - **The request.** The tag byte `1` followed by the digest as JSON.
   [Request](/endpoints/containers-agents-run/server/oci-blob/request/) states its form.
 - **The response.** The bytes of the blob in zero or more channel
   responses and the channel response finish.
   [Response](/endpoints/containers-agents-run/server/oci-blob/response/) states the
   sequence.
-- **Verification.** The server computes the digest of the bytes
-  concatenated and stores and serves them only when it equals the
-  digest asked for. A blob that ends short, and bytes that do not
-  match, are not stored and are the run's error. The server serves
-  every range the runtime asks for from its store, never from a
-  further ask.
+- **The image.** The server runs only the image the digest names. A
+  blob that ends short, and bytes that are not those the digest
+  names, are the run's error. How the server holds, verifies or
+  streams the bytes, and how it answers a range the runtime asks
+  for, are not prescribed.

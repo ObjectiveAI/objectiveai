@@ -534,14 +534,13 @@ content received in an earlier run of any Identity.
 
 (c) **Serve the Client's image.** For an image of kind `client`, the
 Provider shall serve an OCI registry from which its runtime pulls the
-image by repository name and manifest digest; shall ask the Client, on
-an `oci-manifest` or `oci-blob` channel, for each manifest or blob
-the registry does not hold, at most once per digest per run; shall
-compute the digest of every manifest and blob received and store and
-serve only bytes whose digest equals the digest asked for; shall serve
-every byte range from its store and never by a further ask; and shall
-treat a digest the Client does not hold, and bytes that do not match,
-as the run's error. For an image of kind `server`, the Provider shall
+image by repository name and manifest digest; shall obtain from the
+Client, on the `oci-manifest` and `oci-blob` Channels, each manifest
+and blob of the image that the registry does not hold; and shall run
+only the image the digest names: a digest the Client does not hold,
+and bytes that are not those the digest names, are the run's error.
+How the Provider holds, verifies or streams what it obtains is not
+prescribed. For an image of kind `server`, the Provider shall
 obtain the image from a source of its own. For an image of kind
 `registry`, the Provider shall pull the stated reference.
 
