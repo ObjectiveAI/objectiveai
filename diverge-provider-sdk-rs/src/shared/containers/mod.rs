@@ -27,9 +27,8 @@
 //! [`mcp`](crate::shared::mcp) its tool calls outward.
 //!
 //! The PROVIDER asks the caller on its own account: [`oci`] for the
-//! manifest and blobs of an image the caller holds, [`fetch_file`] and
-//! [`fetch_directory`] for mounted content it does not hold, and
-//! [`authorize`] whether a connector may join.
+//! manifest and blobs of an image the caller holds, and [`authorize`]
+//! whether a connector may join.
 //!
 //! [`agent_schema`], [`enqueue`] and [`dequeue`] are the agents
 //! family's own exchanges — its agent's schema, and the two verbs
@@ -48,8 +47,6 @@ pub mod authorize;
 pub mod command;
 pub mod dequeue;
 pub mod enqueue;
-pub mod fetch_directory;
-pub mod fetch_file;
 pub mod filetree;
 pub mod fuse;
 pub mod oci;

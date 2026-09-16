@@ -14,14 +14,6 @@ pub(crate) fn proxy(error: impl fmt::Display) -> Error {
         "error": error.to_string(),
     }))
 }
-/// Content the caller mounts by identity, and does not hold.
-pub(crate) fn missing_content(identity: &str) -> Error {
-    Error(serde_json::json!({
-        "kind": "content",
-        "identity": identity,
-    }))
-}
-
 /// A FUSE mount the proxy did not make, or whose fate was not heard.
 pub(crate) fn mount_failed(id: &str, error: impl fmt::Display) -> Error {
     Error(serde_json::json!({

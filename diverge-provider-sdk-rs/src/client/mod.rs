@@ -81,7 +81,6 @@
 //! |-------|---------|
 //! | [`OciStore`] | the manifest and blobs of an image the caller holds |
 //! | [`ConnectionAuthorizer`] | whether a connector may attach |
-//! | [`IdentityStore`] | mounted content the provider does not hold |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`CommandRunner`] | the commands the container asks run |
 //! | [`Vault`] | the container's secrets, with locks |
@@ -123,8 +122,6 @@ mod connection_authorizer;
 #[cfg(feature = "client")]
 mod fuse_server;
 #[cfg(feature = "client")]
-mod identity_store;
-#[cfg(feature = "client")]
 mod mcp_server;
 #[cfg(feature = "client")]
 mod oci_store;
@@ -141,8 +138,6 @@ pub use command_runner::*;
 pub use connection_authorizer::*;
 #[cfg(feature = "client")]
 pub use fuse_server::*;
-#[cfg(feature = "client")]
-pub use identity_store::*;
 #[cfg(feature = "client")]
 pub use mcp_server::*;
 #[cfg(feature = "client")]

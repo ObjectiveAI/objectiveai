@@ -6,7 +6,6 @@ use indexmap::IndexMap;
 use serde_json::Value;
 
 use super::begin::Begun;
-use super::content;
 use super::encoded::encoded;
 use super::family::Runs;
 use super::own::Own;
@@ -16,7 +15,6 @@ use crate::container_proxy_endpoints::client::Asks;
 use crate::container_proxy_endpoints::fuse::mount::client::execute::{self as mount, Ask as MountAsk};
 use crate::server::container::{self, Container as _};
 use crate::server::container_deployer::ContainerDeployer;
-use crate::server::identity_mount_manager::IdentityMountManager;
 use crate::server::deployment::Deployment;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::image_source::ImageSource;
@@ -41,7 +39,7 @@ pub(crate) struct Prepared<C> {
     /// unless the image is the caller's.
     pub repository: Option<String>,
     /// Every FUSE mount's path, which a filetree leaves out; a volume
-    /// or an identity mount is in the tree.
+    /// mount is in the tree.
     pub ignore: Vec<Vec<String>>,
 }
 
@@ -58,40 +56,33 @@ pub(crate) struct Mount {
 
 /// Bring the container up, in the order the specification states.
 ///
-/// 1. The content every identity mount names is held — fetched from
-///    the caller where the store lacks it, on channels this end
-///    opens.
-/// 2. A caller-held image is put on the provider's registry, fed by
+/// 1. A caller-held image is put on the provider's registry, fed by
 ///    digest from the caller.
-/// 3. The container is deployed, its proxy listening.
-/// 4. The proxy is dialled: one WebSocket, for the container's life.
-/// 5. The family's `begin` is opened on it — an agent container's
+/// 2. The container is deployed, its proxy listening.
+/// 3. The proxy is dialled: one WebSocket, for the container's life.
+/// 4. The family's `begin` is opened on it — an agent container's
 ///    carrying the agent — and its `Begun` awaited.
-/// 6. One `fuse::mount` scope per mount, file mounts first, each
+/// 5. One `fuse::mount` scope per mount, file mounts first, each
 ///    answered before the next is opened.
 ///
 /// Every failure after the deploy stops the container and releases
 /// the repository; the error is the run's. Nothing the caller opened
 /// has been read yet, and the id is not out.
-pub(crate) async fn prepare<R, D, S, G>(
+pub(crate) async fn prepare<R, D, G>(
     scope: &Arc<ScopeHandle>,
     client_identity: &str,
     request: &Container,
     agent: Option<Value>,
     deployer: &D,
-    store: &S,
     registry: &G,
 ) -> Result<Prepared<D::Container>, Error>
 where
     R: Runs,
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    S: IdentityMountManager,
-    S::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,
 {
-    content::ensure::<R, S>(scope, store, request).await?;
     let deployment = deployment(client_identity, request);
     let ignore = ignored(request);
 
@@ -221,16 +212,14 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
                 persist: mount.persist,
             })
             .collect(),
-        identity_file_mounts: request.identity_file_mounts.clone(),
-        identity_directory_mounts: request.identity_directory_mounts.clone(),
     }
 }
 
 /// Every FUSE mount's path: what a filetree of this container leaves
 /// out. A FUSE mount is the caller's own answers, and a tree over it
-/// would report them back to the caller; a volume or an identity
-/// mount is content on the provider, and seeing it change is what a
-/// filetree is for, so neither is listed.
+/// would report them back to the caller; a volume mount is content on
+/// the provider, and seeing it change is what a filetree is for, so it
+/// is not listed.
 fn ignored(request: &Container) -> Vec<Vec<String>> {
     request
         .fuse_file_mounts

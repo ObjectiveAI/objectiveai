@@ -10,7 +10,7 @@ use crate::shared::containers::authorize;
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// twenty-five asks in the same order with the same payloads, and
+/// twenty-three asks in the same order with the same payloads, and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -26,10 +26,6 @@ pub enum Ask {
     Authorize(authorize::request::Authorize),
     /// The content of a write this caller started, by its id.
     Write(u32),
-    /// A mounted file, by identity.
-    FetchFile(String),
-    /// A mounted directory, by identity.
-    FetchDirectory(String),
     /// A database connection the container opened, by the id the
     /// provider minted.
     Postgres(u32),
@@ -79,8 +75,6 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::Authorize(request) => Ask::Authorize(request),
             Frame::Write(request) => Ask::Write(request.write_id),
-            Frame::FetchFile(request) => Ask::FetchFile(request.identity),
-            Frame::FetchDirectory(request) => Ask::FetchDirectory(request.identity),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
             Frame::Command(request) => Ask::Command(Bytes::copy_from_slice(request.0)),
             Frame::VaultGet(request) => Ask::VaultGet(request.key.to_string()),
@@ -124,8 +118,6 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::Authorize(request) => Ask::Authorize(request),
             Frame::Write(request) => Ask::Write(request.write_id),
-            Frame::FetchFile(request) => Ask::FetchFile(request.identity),
-            Frame::FetchDirectory(request) => Ask::FetchDirectory(request.identity),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
             Frame::Command(request) => Ask::Command(Bytes::copy_from_slice(request.0)),
             Frame::VaultGet(request) => Ask::VaultGet(request.key.to_string()),

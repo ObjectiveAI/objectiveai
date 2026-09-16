@@ -7,7 +7,6 @@ use super::Agents;
 use crate::endpoints::containers::agents::run::client::request;
 use crate::endpoints::containers::server::handler;
 use crate::server::container_deployer::ContainerDeployer;
-use crate::server::identity_mount_manager::IdentityMountManager;
 use crate::server::directory::Directory;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::scope_handle::ScopeHandle;
@@ -26,32 +25,28 @@ use crate::shared::error::Error;
 ///
 /// [`server::handle`](crate::server::handle::handle) reads every
 /// request once to dispatch it, and hands the result here.
-pub async fn handle<D, S, G, V>(
+pub async fn handle<D, G, V>(
     scope: ScopeHandle,
     request: request::Frame,
     client_identity: &str,
     deployer: &D,
-    store: &S,
     registry: &G,
     manager: &V,
     directory: Arc<Directory>,
 ) where
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    S: IdentityMountManager,
-    S::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,
     V: VolumeMountManager,
     V::Error: Into<Error>,
 {
-    handler::run::<Agents, D, S, G, V>(
+    handler::run::<Agents, D, G, V>(
         scope,
         client_identity,
         &request.container,
         Some(request.agent),
         deployer,
-        store,
         registry,
         manager,
         directory,

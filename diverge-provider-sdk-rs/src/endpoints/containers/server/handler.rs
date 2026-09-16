@@ -11,7 +11,6 @@ use super::run::{Run, send};
 use super::{relay, serve, setup};
 use crate::server::container::Container as _;
 use crate::server::container_deployer::ContainerDeployer;
-use crate::server::identity_mount_manager::IdentityMountManager;
 use crate::server::directory::Directory;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::scope_handle::ScopeHandle;
@@ -32,7 +31,7 @@ use crate::shared::error::Error;
 ///    the `Held` and given back when it is dropped, which every
 ///    ending below does.
 /// 1. The container is brought up — see
-///    [`setup::prepare`](super::setup::prepare): content, registry,
+///    [`setup::prepare`](super::setup::prepare): registry,
 ///    deploy, the proxy dialled, the family's begin, every mount. A
 ///    failure is the run's error, and the scope finishes on it.
 /// 2. The id is minted, the container is entered in the directory —
@@ -48,13 +47,12 @@ use crate::shared::error::Error;
 /// 5. The teardown, the same for every ending: the directory entry
 ///    removed, the container stopped, the repository released, the
 ///    volumes unlocked, every task ended, and the finish.
-pub(crate) async fn run<R, D, S, G, V>(
+pub(crate) async fn run<R, D, G, V>(
     scope: ScopeHandle,
     client_identity: &str,
     request: &Container,
     agent: Option<Value>,
     deployer: &D,
-    store: &S,
     registry: &G,
     manager: &V,
     directory: Arc<Directory>,
@@ -62,8 +60,6 @@ pub(crate) async fn run<R, D, S, G, V>(
     R: Runs,
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    S: IdentityMountManager,
-    S::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,
     V: VolumeMountManager,
@@ -86,7 +82,7 @@ pub(crate) async fn run<R, D, S, G, V>(
         }
     };
 
-    let prepared = match setup::prepare::<R, D, S, G>(&scope, client_identity, request, agent, deployer, store, registry).await {
+    let prepared = match setup::prepare::<R, D, G>(&scope, client_identity, request, agent, deployer, registry).await {
         Ok(prepared) => prepared,
         Err(error) => {
             // The `Held` drops on the return, and unlocks.

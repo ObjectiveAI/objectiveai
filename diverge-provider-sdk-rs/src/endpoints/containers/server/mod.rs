@@ -15,8 +15,7 @@
 //!   the provider's `VolumeMountManager` and locked before anything else
 //!   is done, and every one unlocked on every ending — the server
 //!   half's whole enforcement of one container per volume.
-//! - `setup`, the ORDERED preparation of a run: the content the
-//!   caller mounts by identity, fetched where the store lacks it; the
+//! - `setup`, the ORDERED preparation of a run: the
 //!   registry told to serve a caller-held image; the deploy; the one
 //!   connection to the proxy, and on it the family's `begin` — an
 //!   agent container's carrying the agent — and then one `fuse::mount`
@@ -42,7 +41,6 @@
 //!   and distinct types, and how its container begins.
 
 pub(crate) mod begin;
-pub(crate) mod content;
 pub(crate) mod encoded;
 pub(crate) mod family;
 pub(crate) mod handler;

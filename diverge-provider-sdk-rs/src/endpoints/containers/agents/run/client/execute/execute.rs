@@ -8,8 +8,7 @@ use super::execute_handle::ExecuteHandle;
 use super::ExecuteStream;
 use crate::client::handle::{Handle, SendError};
 use crate::client::{
-    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, IdentityStore, McpServer, OciStore,
-    PostgresDialer, Vault,
+    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, Vault,
 };
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
@@ -51,15 +50,14 @@ use crate::shared::error::Error;
 /// the serving task goes on answering the provider's asks until the
 /// scope's request stream ends, which the router closes with the
 /// scope.
-pub async fn execute<O, A, I, P, C, V, M, F>(
+pub async fn execute<O, A, P, C, V, M, F>(
     handle: &Handle,
     request: &request::Frame,
-    answerers: Answerers<O, A, I, P, C, V, M, F>,
+    answerers: Answerers<O, A, P, C, V, M, F>,
 ) -> Result<(Id, ExecuteHandle, ExecuteStream), ExecuteError>
 where
     O: OciStore + 'static,
     A: ConnectionAuthorizer + 'static,
-    I: IdentityStore + 'static,
     P: PostgresDialer + 'static,
     C: CommandRunner + 'static,
     V: Vault + 'static,

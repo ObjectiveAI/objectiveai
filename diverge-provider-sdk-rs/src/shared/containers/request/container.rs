@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{FuseMount, IdentityMount, Image, VolumeMount};
+use super::{FuseMount, Image, VolumeMount};
 
 /// Ask a provider to create a container.
 ///
@@ -47,8 +47,7 @@ pub struct Container {
     ///
     /// A volume is storage that already existed, with a size of its
     /// own that a [`volume`](crate::endpoints::volumes) stated when it
-    /// was made, and identity-mounted content is content that already
-    /// existed. A number here that silently applied to either would be
+    /// was made. A number here that silently applied to it would be
     /// this request deciding how much of somebody else's storage a
     /// container may fill.
     ///
@@ -58,26 +57,12 @@ pub struct Container {
     /// Volumes the provider offers, made visible inside the container.
     ///
     /// Ordered, and a provider applies them in order. See
-    /// [`VolumeMount`] for how one is named without a host path.
+    /// [`VolumeMount`] for how one is named without a host path. No
+    /// mount's path, in any list, is a prefix of another's: mounting
+    /// INTO a directory the image owns is the point, and mounts
+    /// stacking on each other is not.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub volume_mounts: Vec<VolumeMount>,
-    /// Files the caller holds, by content, mounted writable.
-    ///
-    /// Each names a file by its identity — see [`IdentityMount`].
-    /// The provider MUST mount every one before the container starts,
-    /// fetching what it does not hold from the caller by that
-    /// identity; the content MUST match the identity when the
-    /// container starts, and MUST be writable inside it.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub identity_file_mounts: Vec<IdentityMount>,
-    /// Directories the caller holds, by content, mounted writable.
-    ///
-    /// Each names a directory by its identity — see
-    /// [`IdentityMount`]. No mount's path, in any of the three lists, is
-    /// a prefix of another's: mounting INTO a directory the image owns
-    /// is the point, and mounts stacking on each other is not.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub identity_directory_mounts: Vec<IdentityMount>,
     /// Files the caller serves LIVE, mounted one each over FUSE.
     ///
     /// Each names a file by a path, an id of the caller's, and
