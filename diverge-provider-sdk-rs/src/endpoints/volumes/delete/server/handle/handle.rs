@@ -6,7 +6,7 @@ use crate::endpoints::volumes::delete::client::request;
 use crate::endpoints::volumes::refusal;
 use crate::server::scope_handle::ScopeHandle;
 use crate::server::volume::Volume as _;
-use crate::server::volume_manager::VolumeManager;
+use crate::server::volume_mount_manager::VolumeMountManager;
 use crate::shared::error::Error;
 
 /// Remove the volume and end the scope.
@@ -16,13 +16,13 @@ use crate::shared::error::Error;
 /// A volume [`mounted`](crate::server::mount::Mount) into a running
 /// container is never deleted, and the wire has a word for it:
 /// [`Mounted`](response::Frame::Mounted). The volume is
-/// [`got`](VolumeManager::get) and then
+/// [`got`](VolumeMountManager::get) and then
 /// [`locked`](crate::server::volume::Volume::lock); a lock that is
 /// held — a running container has the volume, or a stat or an edit
 /// is in flight on it — is `Mounted`, and the manager is never asked.
 /// A lock that was taken is never given back on success: the volume
 /// it was on is gone, and
-/// [`delete`](VolumeManager::delete) is told so. On failure it is
+/// [`delete`](VolumeMountManager::delete) is told so. On failure it is
 /// given back, and the volume is as it was.
 ///
 /// # Every failure becomes a frame
@@ -42,7 +42,7 @@ pub async fn handle<M>(
     client_identity: &str,
     manager: &M,
 ) where
-    M: VolumeManager,
+    M: VolumeMountManager,
     M::Error: Into<Error>,
 {
     let frame = match delete(manager, client_identity, &request.name).await {
@@ -66,7 +66,7 @@ async fn delete<M>(
     name: &str,
 ) -> Result<bool, Error>
 where
-    M: VolumeManager,
+    M: VolumeMountManager,
     M::Error: Into<Error>,
 {
     let volume = manager

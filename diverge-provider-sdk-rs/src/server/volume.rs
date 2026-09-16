@@ -6,9 +6,9 @@ use crate::endpoints::volumes::edit::server::response::Edit;
 use crate::endpoints::volumes::stat::server::response::Stat;
 
 /// One named directory of one caller, found by
-/// [`VolumeManager::get`](super::volume_manager::VolumeManager::get).
+/// [`VolumeMountManager::get`](super::volume_mount_manager::VolumeMountManager::get).
 ///
-/// What a [`VolumeManager`](super::volume_manager::VolumeManager)
+/// What a [`VolumeMountManager`](super::volume_mount_manager::VolumeMountManager)
 /// hands back for a name it holds. The verbs that act on an existing
 /// volume in place live here — [`stat`](Self::stat) and
 /// [`edit`](Self::edit) — and so does the one fact this crate keeps
@@ -53,23 +53,23 @@ use crate::endpoints::volumes::stat::server::response::Stat;
 /// making a request wait on a store to learn whether it may run.
 /// What a held lock MEANS — refused, mounted, an error — is
 /// decided by the handlers, never by the provider, which is why
-/// [`VolumeManager::delete`](super::volume_manager::VolumeManager::delete)
+/// [`VolumeMountManager::delete`](super::volume_mount_manager::VolumeMountManager::delete)
 /// answers nothing about mounts.
 ///
 /// # A volume is a handle, not a snapshot
 ///
 /// Whatever the provider holds a volume by: an entry in its own
 /// cache, a path, a row. Nothing is read at
-/// [`get`](super::volume_manager::VolumeManager::get) time — every
+/// [`get`](super::volume_mount_manager::VolumeMountManager::get) time — every
 /// method asks the volume as it is now — and a handle may outlive
 /// the volume, since a delete on the manager takes a name and not a
 /// handle. A method on a handle to a deleted volume fails with the
 /// provider's error, which is the same answer a stale name gets.
 pub trait Volume: Send + Sync {
     /// Whatever this provider's volumes fail with. The same type its
-    /// [`VolumeManager`](super::volume_manager::VolumeManager) fails
+    /// [`VolumeMountManager`](super::volume_mount_manager::VolumeMountManager) fails
     /// with, which that trait's bound states; see
-    /// [`VolumeManager::Error`](super::volume_manager::VolumeManager::Error)
+    /// [`VolumeMountManager::Error`](super::volume_mount_manager::VolumeMountManager::Error)
     /// for why it is the provider's own.
     type Error: Send + 'static;
 

@@ -83,7 +83,7 @@ use crate::endpoints::volumes::list::server::response::Volume;
 /// is content too large; a delete of a mounted volume is refused as
 /// mounted — and that last one the handler answers from the lock,
 /// before this trait is asked.
-pub trait VolumeManager: Send + Sync {
+pub trait VolumeMountManager: Send + Sync {
     /// Whatever this provider's volumes fail with.
     ///
     /// Its own type, not

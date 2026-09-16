@@ -4,7 +4,7 @@ use super::super::response;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::volumes::edit_capacity::client::request;
 use crate::server::scope_handle::ScopeHandle;
-use crate::server::volume_manager::VolumeManager;
+use crate::server::volume_mount_manager::VolumeMountManager;
 use crate::shared::error::Error;
 
 /// Answer the question and end the scope.
@@ -36,7 +36,7 @@ pub async fn handle<M>(
     client_identity: &str,
     manager: &M,
 ) where
-    M: VolumeManager,
+    M: VolumeMountManager,
     M::Error: Into<Error>,
 {
     let frame = match manager
