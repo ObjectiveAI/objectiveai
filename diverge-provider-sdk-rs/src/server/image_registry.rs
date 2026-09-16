@@ -21,24 +21,23 @@ use super::image_source::ImageSource;
 ///
 /// # What an implementation does
 ///
-/// Listens at [`address`](Self::address) and answers `GET /v2/`, the
-/// manifest and blob requests, `HEAD`s, `Range`s. For a digest it
-/// holds, from its store. For one it does not, under a repository it
-/// is serving: [`ImageSource::manifest`] or [`ImageSource::blob`],
-/// the bytes hashed as they land and kept only if the hash is the
-/// digest, then answered — and a source that answers `None`, or bytes
-/// that do not hash, is a `404`, which is what makes the runtime give
-/// up and the deploy fail. Ranges are served from the store, never
-/// asked of the caller: a blob is fetched whole, once.
+/// Listens at [`address`](Self::address) and answers what its runtime
+/// sends to pull by digest: `GET /v2/`, a manifest by digest, a blob
+/// by digest, `GET` or `HEAD`. What it does not hold, under a
+/// repository it is serving, it asks the source for —
+/// [`ImageSource::manifest`] or [`ImageSource::blob`] — and serves
+/// only if the bytes hash to the digest, whether it holds them or
+/// streams them through. A source that answers `None`, and bytes
+/// that do not hash, are a pull that fails, which is what makes the
+/// deploy fail. Whether it keeps anything, and how it answers a
+/// `Range`, are its own: the one requirement is that the runtime
+/// gets the image the digest names, or nothing.
 ///
 /// # A repository is a run
 ///
 /// Named by the handler, unique per run, released when the run ends.
 /// Between [`serve`](Self::serve) and [`release`](Self::release) the
-/// registry may ask the source; after, nothing asks, and what was
-/// stored stays stored — a digest is a digest whoever fetched it,
-/// which is what lets the next run of the same image pull from the
-/// store alone.
+/// registry may ask the source; after, nothing asks.
 ///
 /// # Why this is not in the crate
 ///

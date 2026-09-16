@@ -22,7 +22,7 @@ use crate::shared::containers::oci;
 /// answered by one frame, [`OciBlob`](crate::endpoints::containers::agents::run::server::channel_request::Frame::OciBlob)
 /// by the blob's pieces until the finish; an empty finish on either
 /// is a digest the caller does not hold, which is `None` here. The
-/// registry stores and verifies what it gets; this fetches.
+/// registry verifies what it gets; this fetches.
 ///
 /// # Clone is a second handle to the same scope
 ///

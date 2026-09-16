@@ -43,7 +43,7 @@ pub enum Image {
     /// The runtime never learns the registry is a proxy, and every
     /// header it relies on — `Content-Type`, `Content-Length`,
     /// `Range`, `Docker-Content-Digest` — is the provider's registry
-    /// answering from its store. A runtime already indexes layers by
+    /// answering as any registry does. A runtime already indexes layers by
     /// digest and skips the ones it holds, so letting it pull means
     /// that logic is USED rather than reimplemented beside it.
     Client {
@@ -63,7 +63,7 @@ pub enum Image {
         ///
         /// What actually identifies the image, and the reason nothing
         /// here has to trust the name: the provider hashes what the
-        /// caller sent before storing it, and the runtime hashes again
+        /// caller sent before serving it, and the runtime hashes again
         /// on pull, so a caller holding the wrong bytes under the
         /// right digest fails before anything runs.
         digest: String,
