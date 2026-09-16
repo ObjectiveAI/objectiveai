@@ -58,6 +58,10 @@ bytes = { version = "1.11.1", default-features = false }
 # Rust, with none of the CLI, the other filesystems or the codecs.
 # The library's API is not stable before 0.5, so the pin is exact.
 fstool = { version = "=0.4.33", default-features = false, features = ["ext"] }
+# A container's name in podman and a loop mount's directory, each
+# minted fresh per deploy; `v4` alone, since nothing here needs a
+# UUID parsed or timed.
+uuid = { version = "1.26.1", default-features = false, features = ["v4"] }
 
 [target.'cfg(windows)'.dependencies]
 # The image file is sparse, so a volume reserves its size without
