@@ -40,7 +40,8 @@ pub(crate) struct Prepared<C> {
     /// The registry repository serving the image, to release; [`None`]
     /// unless the image is the caller's.
     pub repository: Option<String>,
-    /// Every mount's path, which a filetree leaves out.
+    /// Every FUSE mount's path, which a filetree leaves out; a volume
+    /// or an identity mount is in the tree.
     pub ignore: Vec<Vec<String>>,
 }
 
@@ -225,15 +226,16 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
     }
 }
 
-/// Every mount's path: what a filetree of this container leaves out.
+/// Every FUSE mount's path: what a filetree of this container leaves
+/// out. A FUSE mount is the caller's own answers, and a tree over it
+/// would report them back to the caller; a volume or an identity
+/// mount is content on the provider, and seeing it change is what a
+/// filetree is for, so neither is listed.
 fn ignored(request: &Container) -> Vec<Vec<String>> {
     request
-        .volume_mounts
+        .fuse_file_mounts
         .iter()
         .map(|mount| mount.container_path.clone())
-        .chain(request.identity_file_mounts.iter().map(|mount| mount.container_path.clone()))
-        .chain(request.identity_directory_mounts.iter().map(|mount| mount.container_path.clone()))
-        .chain(request.fuse_file_mounts.iter().map(|mount| mount.container_path.clone()))
         .chain(request.fuse_directory_mounts.iter().map(|mount| mount.container_path.clone()))
         .collect()
 }

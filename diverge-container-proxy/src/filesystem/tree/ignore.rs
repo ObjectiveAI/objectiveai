@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 ///
 /// Three are the proxy's own — `/proc`, `/sys` and `/dev`, the
 /// pseudo-filesystems, which churn, hold nothing a caller wants, and
-/// break a recursive watch — and the rest are the server's: the
+/// break a recursive watch — and the rest are the server's: the FUSE
 /// mounts it placed, named in the request that opens the watch,
-/// content the caller already holds or serves, which a watch of
-/// would cost the walk and yield nothing the caller wants.
+/// content the caller serves itself, which a watch of would report
+/// the caller's own answers back to it.
 pub struct Ignore {
     paths: Vec<PathBuf>,
 }

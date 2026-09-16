@@ -30,7 +30,7 @@ pub(crate) struct Run {
     /// The begin scope on it: where the proxy's asks arrive and where
     /// the family's own exchanges go.
     pub begin: Begin,
-    /// Every mount's path, which a filetree leaves out.
+    /// Every FUSE mount's path, which a filetree leaves out.
     pub ignore: Vec<Vec<String>>,
     /// Database connections whose caller half has not opened.
     pub pairs: Pairs,

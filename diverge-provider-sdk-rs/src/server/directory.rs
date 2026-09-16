@@ -47,6 +47,7 @@ struct Entry {
     scope: Arc<ScopeHandle>,
     proxy: Handle,
     begin: Option<ToolsBegin>,
+    /// Every FUSE mount's path, which a filetree leaves out.
     ignore: Vec<Vec<String>>,
     ended: watch::Sender<bool>,
 }
@@ -63,7 +64,7 @@ pub struct Attached {
     /// are channels — [`None`] for an agent container, which is its
     /// runner's alone and takes no connector.
     pub begin: Option<ToolsBegin>,
-    /// Every mount's path, which a filetree the connector opens
+    /// Every FUSE mount's path, which a filetree the connector opens
     /// leaves out as the runner's does.
     pub ignore: Vec<Vec<String>>,
     /// `true` once the run is over. A receiver whose sender is gone

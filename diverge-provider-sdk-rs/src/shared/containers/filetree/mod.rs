@@ -5,9 +5,10 @@
 //! with a
 //! [`filetree`](crate::shared::filetree) stream over the container's
 //! root: one snapshot, then one frame per change, for as long as the
-//! channel lives. Every path is relative to the container's root, and
-//! what a provider leaves out of the tree is its own to decide — the
-//! caller's mounts, above all, being content the caller already holds.
+//! channel lives. Every path is relative to the container's root. The
+//! FUSE mounts, which the caller serves itself, are left out of the
+//! tree; every other mount — a volume, an identity mount — is in it,
+//! and a change under one is reported.
 //!
 //! A channel rather than the main stream, so a caller that wants no
 //! tree pays for none, and two callers on one container can each

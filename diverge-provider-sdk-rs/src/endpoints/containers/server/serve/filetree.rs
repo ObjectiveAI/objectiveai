@@ -10,7 +10,7 @@ use super::super::render;
 use super::super::run::Run;
 use crate::container_proxy_endpoints::filesystem::tree::client::execute as tree;
 
-/// Open a `filesystem::tree` scope leaving every mount out, and put
+/// Open a `filesystem::tree` scope leaving every FUSE mount out, and put
 /// every frame on the caller's channel as it comes; the proxy's error
 /// last, then the finish. A tree does not end by itself, so the scope
 /// is registered with the run, which stops it when the run shuts
