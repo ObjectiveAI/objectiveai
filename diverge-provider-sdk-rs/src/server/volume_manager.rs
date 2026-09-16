@@ -9,14 +9,14 @@ use crate::endpoints::volumes::list::server::response::Volume;
 
 /// A namespace of named directories, one per caller.
 ///
-/// The eight [`volumes`](crate::endpoints::volumes) endpoints are
-/// eight verbs over one thing, and this is the thing: what a listing
+/// The seven [`volumes`](crate::endpoints::volumes) endpoints are
+/// seven verbs over one thing, and this is the thing: what a listing
 /// reports, what a create adds and a delete takes away, and where a
 /// name is looked up. The verbs on a volume that exists —
-/// examining it, resizing it, watching it — are on the
+/// examining it, resizing it — are on the
 /// [`Volume`](volume::Volume) that [`get`](Self::get) hands back; the
 /// verbs on the NAMESPACE are here. A provider that implements both
-/// can answer all eight; there is nothing else they need.
+/// can answer all seven; there is nothing else they need.
 ///
 /// # Why the split falls where it does
 ///
@@ -71,10 +71,9 @@ use crate::endpoints::volumes::list::server::response::Volume;
 /// What earns a failure. The wire has one
 /// [`Error`](crate::shared::error::Error) per endpoint and says nothing
 /// about when it is sent, so whether a
-/// [`create`](Self::create) over an existing name fails, and what a
-/// [`delete`](Self::delete) does to a volume under a watch, are the
-/// provider's to answer. This trait gives each of them somewhere to say
-/// no and does not say when.
+/// [`create`](Self::create) over an existing name fails is the
+/// provider's to answer. This trait gives it somewhere to say no and
+/// does not say when.
 ///
 /// The cases the wire does decide each have an answer of their own
 /// rather than a failure: a [`create`](Self::create) or an
@@ -133,8 +132,8 @@ pub trait VolumeManager: Send + Sync {
     /// has none by it.
     ///
     /// The lookup every verb on an existing volume starts with: a
-    /// stat, an edit, a watch, a delete, and a run that names the
-    /// volume in a mount all ask this first and then act on what comes
+    /// stat, an edit, a delete, and a run that names the volume in a
+    /// mount all ask this first and then act on what comes
     /// back. What comes back is the provider's own handle — see
     /// [`Volume`](volume::Volume) — and asking for it changes
     /// nothing.
@@ -247,17 +246,6 @@ pub trait VolumeManager: Send + Sync {
     /// was on is gone, and a provider that keeps a lock somewhere it
     /// must clean up cleans it up here. On failure the handler
     /// unlocks, and the volume is as it was.
-    ///
-    /// # A watched volume is the provider's
-    ///
-    /// A [`watch`](volume::Volume::watch) is not a mount and takes no
-    /// lock. A provider may delete a volume somebody is still watching
-    /// and let the watch end, or refuse with its own error; the wire
-    /// does not say.
-    ///
-    /// Said plainly because the alternative is that it gets assumed.
-    /// A caller that needs a volume gone AND needs nothing to be
-    /// watching it arranges the second itself.
     fn delete(
         &self,
         client_identity: &str,

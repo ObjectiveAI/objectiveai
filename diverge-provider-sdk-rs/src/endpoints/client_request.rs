@@ -40,21 +40,19 @@ pub enum ClientRequest<'a> {
     VolumesList(volumes::list::client::request::Frame),
     /// Tag `4`. Examine one of them.
     VolumesStat(volumes::stat::client::request::Frame),
-    /// Tag `5`. Watch one of them.
-    VolumesWatch(volumes::watch::client::request::Frame),
-    /// Tag `6`. Ask how large a volume may be made.
+    /// Tag `5`. Ask how large a volume may be made.
     VolumesCreateCapacity(volumes::create_capacity::client::request::Frame),
-    /// Tag `7`. Make a volume.
+    /// Tag `6`. Make a volume.
     VolumesCreate(volumes::create::client::request::Frame),
-    /// Tag `8`. Ask how far one may grow.
+    /// Tag `7`. Ask how far one may grow.
     VolumesEditCapacity(volumes::edit_capacity::client::request::Frame),
-    /// Tag `9`. Change how much one reserves.
+    /// Tag `8`. Change how much one reserves.
     VolumesEdit(volumes::edit::client::request::Frame),
-    /// Tag `10`. Destroy one.
+    /// Tag `9`. Destroy one.
     VolumesDelete(volumes::delete::client::request::Frame),
-    /// Tag `11`. Ask whether an image can be supplied.
+    /// Tag `10`. Ask whether an image can be supplied.
     ImagesCheck(images::check::client::request::Frame),
-    /// Tag `12`. Ask what the provider is.
+    /// Tag `11`. Ask what the provider is.
     Version(version::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -66,7 +64,7 @@ pub enum ClientRequest<'a> {
     /// # It is answered, not dropped
     ///
     /// A server finishes the scope over it, with nothing in front:
-    /// thirteen endpoints have thirteen error vocabularies, and an invalid
+    /// twelve endpoints have twelve error vocabularies, and an invalid
     /// request names none of them — where a finish with nothing before
     /// it is already what the wire means by a request that could not
     /// be served, and every executor reads it as its own "unanswered".
@@ -79,14 +77,14 @@ pub enum ClientRequest<'a> {
     /// A server that wants one has the bytes and can ask the specific
     /// request to decode them, which answers precisely: an unknown
     /// tag, a body that would not parse, or nothing at all. Storing a
-    /// reason here would mean this type choosing which of thirteen error
-    /// vocabularies to speak, and choosing wrong for twelve of them.
+    /// reason here would mean this type choosing which of twelve error
+    /// vocabularies to speak, and choosing wrong for eleven of them.
     Invalid(&'a [u8]),
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Two ways to fail, because thirteen requests use two encodings
-    /// between them — and three of the thirteen use neither, having
+    /// Two ways to fail, because twelve requests use two encodings
+    /// between them — and three of the twelve use neither, having
     /// nothing to encode.
     type Error = ClientRequestEncodeError;
 
@@ -110,9 +108,6 @@ impl Encode for ClientRequest<'_> {
                 frame.encode(out).map_err(|error| match error {})
             }
             ClientRequest::VolumesStat(frame) => {
-                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
-            }
-            ClientRequest::VolumesWatch(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::VolumesCreateCapacity(frame) => {
@@ -179,28 +174,25 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             4 => volumes::stat::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesStat)
                 .ok(),
-            5 => volumes::watch::client::request::Frame::decode(bytes)
-                .map(ClientRequest::VolumesWatch)
-                .ok(),
-            6 => volumes::create_capacity::client::request::Frame::decode(bytes)
+            5 => volumes::create_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreateCapacity)
                 .ok(),
-            7 => volumes::create::client::request::Frame::decode(bytes)
+            6 => volumes::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreate)
                 .ok(),
-            8 => volumes::edit_capacity::client::request::Frame::decode(bytes)
+            7 => volumes::edit_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEditCapacity)
                 .ok(),
-            9 => volumes::edit::client::request::Frame::decode(bytes)
+            8 => volumes::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEdit)
                 .ok(),
-            10 => volumes::delete::client::request::Frame::decode(bytes)
+            9 => volumes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDelete)
                 .ok(),
-            11 => images::check::client::request::Frame::decode(bytes)
+            10 => images::check::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesCheck)
                 .ok(),
-            12 => version::client::request::Frame::decode(bytes)
+            11 => version::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Version)
                 .ok(),
             _ => None,
@@ -211,9 +203,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
 
 /// A request that could not be written.
 ///
-/// Named for the encoding rather than for the request, because ten
-/// requests share two of them and a variant per request would be eight
-/// names that mean the same failure — ten, because the other three
+/// Named for the encoding rather than for the request, because nine
+/// requests share two of them and a variant per request would be nine
+/// names that mean the same failure — nine, because the other three
 /// have nothing to encode.
 #[derive(Debug)]
 pub enum ClientRequestEncodeError {

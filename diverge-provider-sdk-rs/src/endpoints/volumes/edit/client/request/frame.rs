@@ -11,8 +11,7 @@ use crate::encode::{Encode, Writer};
 /// [`name`](Self::name) cannot — the name is the handle, and a handle
 /// that changed would leave every
 /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
-/// and every [`watch`](crate::endpoints::volumes::watch) naming
-/// something that is no longer there.
+/// naming something that is no longer there.
 ///
 /// So this names the volume and states the new size. Both fields, and
 /// only one of them is being set.
@@ -48,7 +47,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 9;
+const TAG: u8 = 8;
 
 /// Postcard, matching the rest of [`volumes`](crate::endpoints::volumes).
 impl Encode for Frame {

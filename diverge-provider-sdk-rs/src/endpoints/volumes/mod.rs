@@ -2,9 +2,8 @@
 //! life of one.
 //!
 //! [`list`] says which volumes exist; [`stat`] names one and says how
-//! much of it is used and what is in it; [`watch`] names one and opens
-//! a scope that streams its tree; [`create_capacity`] says how large a
-//! volume may be made and [`create`] makes one; [`edit_capacity`] says
+//! much of it is used and what is in it; [`create_capacity`] says how
+//! large a volume may be made and [`create`] makes one; [`edit_capacity`] says
 //! how far one may grow and [`edit`] changes how much it reserves; and
 //! [`delete`] destroys it. Every one of them but [`create`] and
 //! [`create_capacity`] names a volume rather than describing one: a caller
@@ -20,8 +19,10 @@
 //! [`stat`], an [`edit`] or a [`delete`] for its duration — and
 //! taken by the handlers, never by the provider; [`refusal`] is what
 //! a handler answers when the lock is held and the endpoint has no
-//! frame of its own for it. [`watch`] takes no lock. See
+//! frame of its own for it. See
 //! [`Volume`](crate::server::volume::Volume) for the rule in full.
+//! A volume is not watched by itself: the tree of a container it is
+//! mounted in is where it is seen changing.
 //!
 //! # Volumes rather than paths
 //!
@@ -35,7 +36,7 @@
 //! Which is also what they are FOR. A
 //! [`VolumeMount`](crate::shared::containers::request::VolumeMount)
 //! names one of these and makes it visible inside a laboratory, so
-//! what a caller can watch and what it can mount are one list rather
+//! what a caller can name and what it can mount are one list rather
 //! than two that could disagree.
 //!
 //! # Who chose the name
@@ -61,7 +62,6 @@ pub mod edit;
 pub mod edit_capacity;
 pub mod list;
 pub mod stat;
-pub mod watch;
 
 #[cfg(feature = "server")]
 pub mod refusal;

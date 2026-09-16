@@ -2,21 +2,18 @@
 
 use std::future::Future;
 
-use futures_util::Stream;
-
 use crate::endpoints::volumes::edit::server::response::Edit;
 use crate::endpoints::volumes::stat::server::response::Stat;
-use crate::shared::filetree;
 
 /// One named directory of one caller, found by
 /// [`VolumeManager::get`](super::volume_manager::VolumeManager::get).
 ///
 /// What a [`VolumeManager`](super::volume_manager::VolumeManager)
 /// hands back for a name it holds. The verbs that act on an existing
-/// volume in place live here — [`stat`](Self::stat),
-/// [`edit`](Self::edit), [`watch`](Self::watch) — and so does the
-/// one fact this crate keeps about a volume for itself: whether
-/// something is using it, which is the [`lock`](Self::lock).
+/// volume in place live here — [`stat`](Self::stat) and
+/// [`edit`](Self::edit) — and so does the one fact this crate keeps
+/// about a volume for itself: whether something is using it, which
+/// is the [`lock`](Self::lock).
 ///
 /// # The lock is the mount
 ///
@@ -40,8 +37,11 @@ use crate::shared::filetree;
 ///   delete with its own
 ///   [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted),
 ///   a stat or an edit with the endpoint's error.
-/// - A [`watch`](crate::endpoints::volumes::watch) takes no lock. A
-///   live tree while a container writes to it is what a watch is for.
+///
+/// There is no verb on a volume that does not take the lock. A volume
+/// is not watched on its own: the filetree of a container it is
+/// mounted in is where it is seen changing, and that tree includes
+/// every volume mount.
 ///
 /// The handlers do all of that. A provider's [`lock`](Self::lock) is
 /// a try-lock and nothing more: it takes the lock or says it is held,
@@ -72,14 +72,6 @@ pub trait Volume: Send + Sync {
     /// [`VolumeManager::Error`](super::volume_manager::VolumeManager::Error)
     /// for why it is the provider's own.
     type Error: Send + 'static;
-
-    /// What [`watch`](Self::watch) hands back: the tree as a stream of
-    /// [`filetree`] frames, a snapshot first and one per change
-    /// after, ending only at an error or when the handler drops it.
-    /// The implementation's own type, so a provider hands over the
-    /// stream it has rather than boxing it; the handler pins it where
-    /// it reads it.
-    type Watch: Stream<Item = Result<filetree::response::Frame, Self::Error>> + Send;
 
     /// Take the lock: `true` is taken, and the caller holds it until
     /// its [`unlock`](Self::unlock); `false` is held by another, and
@@ -132,10 +124,9 @@ pub trait Volume: Send + Sync {
     /// Because [`name`](crate::endpoints::volumes::list::server::response::Volume::name)
     /// is the handle and the only one. Every
     /// [`Mount`](super::mount::Mount) that names a volume names it by
-    /// this, and a watch in flight was opened against it — so changing
-    /// it would not modify a volume, it would replace one with another
-    /// that nothing outstanding can reach. A caller that wants a
-    /// different name makes a volume with it.
+    /// this — so changing it would not modify a volume, it would
+    /// replace one with another that nothing outstanding can reach. A
+    /// caller that wants a different name makes a volume with it.
     ///
     /// # Two refusals are answers
     ///
@@ -148,39 +139,4 @@ pub trait Volume: Send + Sync {
     /// volume's contents, which is why both answers are the provider's
     /// to give.
     fn edit(&self, bytes: u64) -> impl Future<Output = Result<Edit, Self::Error>> + Send;
-
-    /// Watch the tree, and report what changes in it.
-    ///
-    /// A snapshot first, then one frame per change, for as long as the
-    /// stream is held. See [`filetree::response::Frame`] for the
-    /// variants and for what makes the sequence replay-safe. Not
-    /// called under the lock: a watch outlives any request, and a
-    /// container writing to the volume is what it is there to see.
-    ///
-    /// # Dropping the stream is how a watch ends
-    ///
-    /// There is no `unwatch`. A caller's
-    /// [`stop`](crate::endpoints::volumes::watch::client::channel_request::Frame)
-    /// ends the scope, the handler drops what it was reading, and a
-    /// provider stops walking a tree nobody is listening about. One
-    /// less method, and no way for a handler to forget the second half
-    /// of a pair.
-    ///
-    /// # Why the failure is outside the stream and not only inside it
-    ///
-    /// Because a watch that could not start is a different fact from a
-    /// watch that started and then stopped. Both end up as the same
-    /// [`Error`](crate::endpoints::volumes::watch::server::response::Frame::Error)
-    /// frame, because the endpoint has one place to put a failure;
-    /// that flattening is the handler's to do, and a trait that had
-    /// done it in advance would have thrown away a distinction the
-    /// handler might want for a log or a metric.
-    ///
-    /// # An error in the stream ends it
-    ///
-    /// The watch is over; there is no resuming after one. A provider
-    /// that can recover keeps the stream going and says nothing,
-    /// because a consumer folding these frames cannot tell a gap from
-    /// quiet and must not be handed one.
-    fn watch(&self) -> impl Future<Output = Result<Self::Watch, Self::Error>> + Send;
 }
