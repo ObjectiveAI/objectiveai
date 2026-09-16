@@ -5,11 +5,11 @@ use super::Agents;
 use crate::endpoints::containers::agents::run::client::request;
 use crate::endpoints::containers::server::handler;
 use crate::server::container_deployer::ContainerDeployer;
-use crate::server::content_store::ContentStore;
+use crate::server::identity_mount_manager::IdentityMountManager;
 use crate::server::directory::Directory;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::scope_handle::ScopeHandle;
-use crate::server::volume_manager::VolumeManager;
+use crate::server::volume_mount_manager::VolumeMountManager;
 use crate::shared::error::Error;
 
 /// Run the container the request describes, register its agent, and
@@ -36,11 +36,11 @@ pub async fn handle<D, S, G, V>(
 ) where
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    S: ContentStore,
+    S: IdentityMountManager,
     S::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,
-    V: VolumeManager,
+    V: VolumeMountManager,
     V::Error: Into<Error>,
 {
     handler::run::<Agents, D, S, G, V>(

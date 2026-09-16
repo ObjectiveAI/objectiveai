@@ -7,7 +7,7 @@ use serde_json::json;
 use crate::shared::error::Error;
 
 /// The error for a name the caller has no volume by:
-/// [`get`](crate::server::volume_manager::VolumeManager::get)
+/// [`get`](crate::server::volume_mount_manager::VolumeMountManager::get)
 /// answered [`None`].
 ///
 /// ```json

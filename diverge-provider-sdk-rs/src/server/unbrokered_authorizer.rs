@@ -29,7 +29,7 @@ use std::net::IpAddr;
 /// [`Ok`] is the `client_identity` that everything downstream receives:
 /// every handler, and through them the
 /// [`ContainerDeployer`](super::container_deployer::ContainerDeployer),
-/// the [`VolumeManager`](super::volume_manager::VolumeManager), the
+/// the [`VolumeMountManager`](super::volume_mount_manager::VolumeMountManager), the
 /// [`ImageChecker`](super::image_checker::ImageChecker) and every
 /// [`Mount`](super::mount::Mount). It is the same opaque string those
 /// have taken all along; this is where it finally comes from.

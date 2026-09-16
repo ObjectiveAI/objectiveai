@@ -11,7 +11,7 @@ use super::own::Own;
 use super::render;
 use crate::decode::Decode as _;
 use crate::server::answers::Answers;
-use crate::server::content_store::ContentStore;
+use crate::server::identity_mount_manager::IdentityMountManager;
 use crate::server::scope_handle::ScopeHandle;
 use crate::shared::containers::fetch_directory;
 use crate::shared::containers::request::Container;
@@ -28,7 +28,7 @@ use crate::shared::error::Error;
 pub(crate) async fn ensure<R, S>(scope: &Arc<ScopeHandle>, store: &S, container: &Container) -> Result<(), Error>
 where
     R: Runs,
-    S: ContentStore,
+    S: IdentityMountManager,
     S::Error: Into<Error>,
 {
     let files = container
@@ -47,7 +47,7 @@ where
 async fn file<R, S>(scope: &ScopeHandle, store: &S, identity: &str) -> Result<(), Error>
 where
     R: Runs,
-    S: ContentStore,
+    S: IdentityMountManager,
     S::Error: Into<Error>,
 {
     if store.holds(identity).await {
@@ -66,7 +66,7 @@ where
 async fn directory<R, S>(scope: &ScopeHandle, store: &S, identity: &str) -> Result<(), Error>
 where
     R: Runs,
-    S: ContentStore,
+    S: IdentityMountManager,
     S::Error: Into<Error>,
 {
     if store.holds(identity).await {

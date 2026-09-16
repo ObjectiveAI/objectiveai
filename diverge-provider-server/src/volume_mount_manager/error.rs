@@ -8,7 +8,7 @@ use serde_json::json;
 
 use crate::tools;
 
-/// What [`VolumeManager`](super::VolumeManager) and
+/// What [`VolumeMountManager`](super::VolumeMountManager) and
 /// [`Volume`](super::Volume) fail with.
 ///
 /// The first six are refusals of what was asked, decided before

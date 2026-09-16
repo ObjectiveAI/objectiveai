@@ -16,7 +16,7 @@ use crate::container_proxy_endpoints::client::Asks;
 use crate::container_proxy_endpoints::fuse::mount::client::execute::{self as mount, Ask as MountAsk};
 use crate::server::container::{self, Container as _};
 use crate::server::container_deployer::ContainerDeployer;
-use crate::server::content_store::ContentStore;
+use crate::server::identity_mount_manager::IdentityMountManager;
 use crate::server::deployment::Deployment;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::image_source::ImageSource;
@@ -86,7 +86,7 @@ where
     R: Runs,
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    S: ContentStore,
+    S: IdentityMountManager,
     S::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,

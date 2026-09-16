@@ -8,14 +8,14 @@ use futures_util::StreamExt as _;
 
 use super::authorization::{self, Authorization};
 use super::container_deployer::ContainerDeployer;
-use super::content_store::ContentStore;
+use super::identity_mount_manager::IdentityMountManager;
 use super::directory::Directory;
 use super::image_checker::ImageChecker;
 use super::image_registry::ImageRegistry;
 use super::received::Received;
 use super::session::Session;
 use super::unbrokered_authorizer::UnbrokeredAuthorizer;
-use super::volume_manager::VolumeManager;
+use super::volume_mount_manager::VolumeMountManager;
 use crate::decode::Decode;
 use crate::endpoints;
 use crate::endpoints::ClientRequest;
@@ -110,21 +110,21 @@ pub async fn handle<D, V, I, U, S, R>(
     authorization: Authorization<U>,
     address: IpAddr,
     deployer: Arc<D>,
-    volume_manager: Arc<V>,
+    volume_mount_manager: Arc<V>,
     image_checker: Arc<I>,
-    content_store: Arc<S>,
+    identity_mount_manager: Arc<S>,
     image_registry: Arc<R>,
     directory: Arc<Directory>,
 ) -> Result<(), HandleError<U::Error>>
 where
     D: ContainerDeployer + 'static,
     D::Error: Into<Error>,
-    V: VolumeManager + 'static,
+    V: VolumeMountManager + 'static,
     V::Error: Into<Error>,
     I: ImageChecker + 'static,
     I::Error: Into<Error>,
     U: UnbrokeredAuthorizer,
-    S: ContentStore + 'static,
+    S: IdentityMountManager + 'static,
     S::Error: Into<Error>,
     R: ImageRegistry + 'static,
     R::Error: Into<Error>,
@@ -209,9 +209,9 @@ where
             ClientRequest::ContainersAgentsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let store = Arc::clone(&content_store);
+                let store = Arc::clone(&identity_mount_manager);
                 let registry = Arc::clone(&image_registry);
-                let manager = Arc::clone(&volume_manager);
+                let manager = Arc::clone(&volume_mount_manager);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::agents::run::server::handle::handle(
@@ -223,9 +223,9 @@ where
             ClientRequest::ContainersToolsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let store = Arc::clone(&content_store);
+                let store = Arc::clone(&identity_mount_manager);
                 let registry = Arc::clone(&image_registry);
-                let manager = Arc::clone(&volume_manager);
+                let manager = Arc::clone(&volume_mount_manager);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::tools::run::server::handle::handle(
@@ -245,7 +245,7 @@ where
             }
             ClientRequest::VolumesList(_) => {
                 let identity = Arc::clone(&client_identity);
-                let manager = Arc::clone(&volume_manager);
+                let manager = Arc::clone(&volume_mount_manager);
                 scopes.spawn(async move {
                     endpoints::volumes::list::server::handle::handle(
                         scope, &identity, &*manager,
@@ -255,7 +255,7 @@ where
             }
             ClientRequest::VolumesStat(frame) => {
                 let identity = Arc::clone(&client_identity);
-                let manager = Arc::clone(&volume_manager);
+                let manager = Arc::clone(&volume_mount_manager);
                 scopes.spawn(async move {
                     endpoints::volumes::stat::server::handle::handle(
                         scope, frame, &identity, &*manager,
@@ -265,7 +265,7 @@ where
             }
             ClientRequest::VolumesCreateCapacity(_) => {
                 let identity = Arc::clone(&client_identity);
-                let manager = Arc::clone(&volume_manager);
+                let manager = Arc::clone(&volume_mount_manager);
                 scopes.spawn(async move {
                     endpoints::volumes::create_capacity::server::handle::handle(
                         scope, &identity, &*manager,
@@ -275,7 +275,7 @@ where
             }
             ClientRequest::VolumesCreate(frame) => {
                 let identity = Arc::clone(&client_identity);
-                let manager = Arc::clone(&volume_manager);
+                let manager = Arc::clone(&volume_mount_manager);
                 scopes.spawn(async move {
                     endpoints::volumes::create::server::handle::handle(
                         scope, frame, &identity, &*manager,
@@ -285,7 +285,7 @@ where
             }
             ClientRequest::VolumesEditCapacity(frame) => {
                 let identity = Arc::clone(&client_identity);
-                let manager = Arc::clone(&volume_manager);
+                let manager = Arc::clone(&volume_mount_manager);
                 scopes.spawn(async move {
                     endpoints::volumes::edit_capacity::server::handle::handle(
                         scope, frame, &identity, &*manager,
@@ -295,7 +295,7 @@ where
             }
             ClientRequest::VolumesEdit(frame) => {
                 let identity = Arc::clone(&client_identity);
-                let manager = Arc::clone(&volume_manager);
+                let manager = Arc::clone(&volume_mount_manager);
                 scopes.spawn(async move {
                     endpoints::volumes::edit::server::handle::handle(
                         scope, frame, &identity, &*manager,
@@ -305,7 +305,7 @@ where
             }
             ClientRequest::VolumesDelete(frame) => {
                 let identity = Arc::clone(&client_identity);
-                let manager = Arc::clone(&volume_manager);
+                let manager = Arc::clone(&volume_mount_manager);
                 scopes.spawn(async move {
                     endpoints::volumes::delete::server::handle::handle(
                         scope, frame, &identity, &*manager,

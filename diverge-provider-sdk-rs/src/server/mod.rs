@@ -180,7 +180,7 @@
 //! in a deployment is the name together with whoever it authenticated,
 //! which is a fact only this half of the connection has.
 //!
-//! [`volume_manager`] is the second, and with [`volume`] it is the
+//! [`volume_mount_manager`] is the second, and with [`volume`] it is the
 //! seven [`volumes`](crate::endpoints::volumes) endpoints: the
 //! directories a provider offers. The manager is the namespace —
 //! listed, looked up by name, created, deleted, and asked how much
@@ -215,7 +215,7 @@
 //! itself rather than by any endpoint's handler, because a credential
 //! belongs to the connection and not to any scope on it.
 //!
-//! [`content_store`] is the fifth: where the content a caller mounts
+//! [`identity_mount_manager`] is the fifth: where the content a caller mounts
 //! by identity is kept, verified. A run handler asks it what it holds,
 //! fetches from the caller only the rest, and names every identity to
 //! the deployer, which binds from the store.
@@ -232,13 +232,13 @@
 //! to find its run scope to be authorized on, and its address to dial.
 //!
 //! Nothing implements any of them, and all are consumed:
-//! [`volume_manager`] and [`volume`] by the seven
+//! [`volume_mount_manager`] and [`volume`] by the seven
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](crate::endpoints::images::check)'s, and
-//! [`container_deployer`], [`content_store`], [`image_registry`] and
+//! [`container_deployer`], [`identity_mount_manager`], [`image_registry`] and
 //! — for the volumes a request mounts, locked for the run — the
-//! [`volume_manager`] again by the two run handlers of
+//! [`volume_mount_manager`] again by the two run handlers of
 //! [`containers`](crate::endpoints::containers)
 //! — the scopes that put a container somewhere. A connect handler
 //! consumes none of those, because it deploys nothing — the container
@@ -271,7 +271,7 @@ pub mod authorization;
 pub mod channel;
 pub mod container;
 pub mod container_deployer;
-pub mod content_store;
+pub mod identity_mount_manager;
 pub mod deployment;
 pub mod directory;
 pub mod handle;
@@ -286,4 +286,4 @@ pub mod scope_handle;
 pub mod session;
 pub mod unbrokered_authorizer;
 pub mod volume;
-pub mod volume_manager;
+pub mod volume_mount_manager;

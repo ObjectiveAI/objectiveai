@@ -9,7 +9,7 @@
 //! the [`ScopeHandle`](crate::server::scope_handle::ScopeHandle) a
 //! [`Session`](crate::server::session::Session) yielded, whose caller
 //! it is, and a
-//! [`VolumeManager`](crate::server::volume_manager::VolumeManager), and
+//! [`VolumeMountManager`](crate::server::volume_mount_manager::VolumeMountManager), and
 //! it answers with the number.
 //!
 //! It is the mirror of [`execute`](super::client::execute) on the other

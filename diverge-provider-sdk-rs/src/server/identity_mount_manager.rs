@@ -1,11 +1,12 @@
-//! Where the content a caller mounts by identity is kept.
+//! The content a caller mounts by identity, and where it is kept.
 
 use std::future::Future;
 
 use bytes::Bytes;
 use futures_util::Stream;
 
-/// The provider's store of mounted content, keyed by identity.
+/// The provider's identity mounts: the content a caller mounts by
+/// identity, kept and verified, keyed by identity.
 ///
 /// An
 /// [`IdentityMount`](crate::shared::containers::request::IdentityMount)
@@ -44,7 +45,7 @@ use futures_util::Stream;
 /// Content is whatever size the caller made it. A store takes it as
 /// it arrives and writes it where it goes; nothing upstream holds a
 /// whole file to hand it over as one piece.
-pub trait ContentStore: Send + Sync {
+pub trait IdentityMountManager: Send + Sync {
     /// Why content could not be stored: the bytes did not match the
     /// identity, the disk is full, the stream ended short. The
     /// provider's own; it reaches the caller as the run's

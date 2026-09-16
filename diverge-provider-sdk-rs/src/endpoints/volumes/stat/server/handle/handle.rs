@@ -6,7 +6,7 @@ use crate::endpoints::volumes::refusal;
 use crate::endpoints::volumes::stat::client::request;
 use crate::server::scope_handle::ScopeHandle;
 use crate::server::volume::Volume as _;
-use crate::server::volume_manager::VolumeManager;
+use crate::server::volume_mount_manager::VolumeMountManager;
 use crate::shared::error::Error;
 
 /// Examine the volume and end the scope.
@@ -17,7 +17,7 @@ use crate::shared::error::Error;
 ///
 /// # Under the lock
 ///
-/// The volume is [`got`](VolumeManager::get) and then
+/// The volume is [`got`](VolumeMountManager::get) and then
 /// [`locked`](crate::server::volume::Volume::lock) for the length of
 /// the examination, so what is reported is the volume at rest, with
 /// no container writing to it. A lock that is held — the volume is
@@ -49,7 +49,7 @@ pub async fn handle<M>(
     client_identity: &str,
     manager: &M,
 ) where
-    M: VolumeManager,
+    M: VolumeMountManager,
     M::Error: Into<Error>,
 {
     let frame = match stat(manager, client_identity, &request.name).await {
@@ -72,7 +72,7 @@ async fn stat<M>(
     name: &str,
 ) -> Result<response::Stat, Error>
 where
-    M: VolumeManager,
+    M: VolumeMountManager,
     M::Error: Into<Error>,
 {
     let volume = manager

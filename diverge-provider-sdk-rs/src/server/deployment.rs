@@ -106,7 +106,7 @@ pub struct Deployment {
     /// The files the caller mounts by identity, each at its path with
     /// the identity's content when the container starts and writable
     /// inside it, from the provider's
-    /// [`ContentStore`](super::content_store::ContentStore). How a
+    /// [`IdentityMountManager`](super::identity_mount_manager::IdentityMountManager). How a
     /// deployer makes a mount that starts as the identity and takes
     /// writes — a copy, an overlay, anything else — is its own.
     ///

@@ -1,4 +1,4 @@
-//! The volumes the provider offers: the SDK's `VolumeManager` and
+//! The volumes the provider offers: the SDK's `VolumeMountManager` and
 //! `Volume`, supplied by this crate.
 //!
 //! # What a volume is on disk
@@ -22,7 +22,7 @@
 //!
 //! # What is here
 //!
-//! [`VolumeManager`] is the manager: the stores, the fixed volumes,
+//! [`VolumeMountManager`] is the manager: the stores, the fixed volumes,
 //! and every identity that has asked, each an [`Identity`] holding
 //! its stored volumes by name, read from the stores the first time
 //! the identity is named. [`Volume`] is one volume, the SDK's
@@ -52,7 +52,7 @@ mod name;
 mod reservation;
 mod sparse;
 mod volume;
-mod volume_manager;
+mod volume_mount_manager;
 mod walk;
 
 pub use error::*;
@@ -62,5 +62,5 @@ pub use name::*;
 pub use reservation::*;
 pub use sparse::*;
 pub use volume::*;
-pub use volume_manager::*;
+pub use volume_mount_manager::*;
 pub use walk::*;
