@@ -10,9 +10,7 @@ use diverge_provider_sdk::endpoints::volumes::edit::server::response::Edit;
 use diverge_provider_sdk::endpoints::volumes::list::server::response;
 use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
 use diverge_provider_sdk::server::volume;
-use diverge_provider_sdk::shared::filetree;
 use futures_util::future;
-use futures_util::stream;
 use tokio::fs;
 use tokio::sync::Mutex;
 
@@ -158,9 +156,6 @@ fn seconds(time: SystemTime) -> u64 {
 
 impl volume::Volume for Volume {
     type Error = Error;
-    /// Nothing yet: the stream a watch hands back arrives with the
-    /// implementation.
-    type Watch = stream::Empty<Result<filetree::response::Frame, Error>>;
 
     /// The flag set, if it was clear. One compare-and-swap, so two
     /// takers at once cannot both succeed.
@@ -195,10 +190,6 @@ impl volume::Volume for Volume {
     }
 
     async fn edit(&self, _bytes: u64) -> Result<Edit, Error> {
-        unimplemented!()
-    }
-
-    async fn watch(&self) -> Result<Self::Watch, Error> {
         unimplemented!()
     }
 }

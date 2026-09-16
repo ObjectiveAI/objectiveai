@@ -32,8 +32,8 @@
 //! filesystem needs telling, [`ok`] says which names a volume may
 //! have, and [`Error`] is what any of it fails with.
 //!
-//! Every method of both traits is implemented but a volume's `edit`
-//! and `watch`, which are the two still to come.
+//! Every method of both traits is implemented but a volume's `edit`,
+//! which is the one still to come.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
