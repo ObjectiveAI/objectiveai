@@ -231,8 +231,8 @@ carried.
 
 ### Layer 6 — Endpoints (`/endpoints/`)
 
-What a scope is for. It states the tag byte, the tag table (thirteen
-endpoints: the three container scopes, the eight volume endpoints,
+What a scope is for. It states the tag byte, the tag table (twelve
+endpoints: the three container scopes, the seven volume endpoints,
 the image check, the version), that an unreadable request is answered
 by a bare finish, that growth is new tag values, and the Notation.
 Each endpoint has its own section with, in this order, the request
@@ -246,7 +246,7 @@ payload of the channel request, and a response page stating the
 sequence of channel responses, what ends it, and what a finish with
 nothing before it means. The channels a party opens are grouped under a `client/` or a
 `server/` section titled `Client Channels` or `Server Channels`, each
-with the tag table; `volumes::watch`'s `client/stop` section is the
+with the tag table; `containers::tools::connect`'s `client/disconnect` section is the
 convention. The container scopes further state what
 their id is, what ends the scope, and how a connect scope relates to
 the run scope it joins.

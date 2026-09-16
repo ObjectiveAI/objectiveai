@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the thirteen endpoints and their
+types, the authorization handshake, the twelve endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,14 +94,13 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the thirteen scope-opening requests
+1.9 **"Endpoint"** means one of the twelve scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `containers::tools::connect`, `3` `volumes::list`, `4`
-`volumes::stat`, `5` `volumes::watch`, `6` `volumes::create_capacity`,
-`7` `volumes::create`, `8` `volumes::edit_capacity`, `9`
-`volumes::edit`, `10` `volumes::delete`, `11` `images::check`, `12`
-`version`.
+`volumes::stat`, `5` `volumes::create_capacity`, `6`
+`volumes::create`, `7` `volumes::edit_capacity`, `8` `volumes::edit`,
+`9` `volumes::delete`, `10` `images::check`, `11` `version`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
 a container request by one of the three forms the Specification
@@ -310,9 +309,8 @@ the Provider.
 4.4 **Provider's discretion.** Every matter the Specification leaves to
 the Provider — among them which image references its policy allows,
 which volumes it offers a Client beyond those the Client created,
-whether a taken volume name is refused on creation, what a watch
-observes when its volume is deleted, when a watch ends without an
-error, the content of every error value, the form of a volume name it
+whether a taken volume name is refused on creation, the content of
+every error value, the form of a volume name it
 will accept, and the source from which it obtains an image of kind
 `server` — is within the Provider's discretion, and the exercise of
 that discretion is not a Non-Conformance.
@@ -409,7 +407,7 @@ byte the Specification does not require.
 that follow a request, the Provider shall ignore them and shall not
 treat the request as malformed on their account.
 
-### 5.5 `version` (tag 12)
+### 5.5 `version` (tag 11)
 
 The Provider shall answer every `version` request with exactly one
 Response whose payload is the string `2.3.0` encoded as UTF-8 with no
@@ -417,7 +415,7 @@ tag and no length prefix, followed by the Response Finish. The
 Provider shall not send any other string, shall not send an empty
 string, and shall not send an error on this Endpoint.
 
-### 5.6 `images::check` (tag 11)
+### 5.6 `images::check` (tag 10)
 
 The Provider shall answer every `images::check` request with exactly
 one Response and the Response Finish: the byte `0` followed by exactly
@@ -496,30 +494,10 @@ Identity shall omit the Volume, and no listing shall contain a Volume
 that has been deleted. An error shall leave the Volume, its content
 and the listing as they were.
 
-(g) **Watching.** The Provider shall serve every `volumes::watch`
-request naming a Volume in the Identity's listing by sending, on the
-Scope, a snapshot of the Volume's filesystem tree as its first
-Response, and thereafter one Response per change to that tree, in the
-order the changes occurred, in the filetree form the Specification
-states, until the Scope ends. The Provider shall report a node that
-comes into existence as `Inserted` with the node complete; a node that
-changes in place as `Modified` with the node's complete new value; a
-node that ceases to exist as `Removed`, a directory with everything
-beneath it and no Response for a descendant; and a node that is
-relocated, by any rename or move, as `Removed` at the path it left
-followed by `Inserted` at the path it arrived at with the node
-complete. The Provider shall send a further snapshot whenever it has
-lost track of changes, and shall send an error as its last Response
-when it can no longer keep the watch. The Provider shall end the watch
-by the Response Finish after the Client's stop channel request, after
-the Client's Connection ends, and after an error; the Provider may end
-it at another time by the Response Finish with no error. The Provider
-shall send no frame on the stop channel.
-
-(h) **Identity of the Volume namespace.** The Provider shall resolve
+(g) **Identity of the Volume namespace.** The Provider shall resolve
 every Volume name against the Identity of the Connection on which it
 is named and against no other. A Client shall not be able to name,
-mount, stat, watch, edit or delete a Volume of another Identity.
+mount, stat, edit or delete a Volume of another Identity.
 
 ### 5.8 Container Deployment — `containers::agents::run` (tag 0) and `containers::tools::run` (tag 1)
 
@@ -694,8 +672,9 @@ that did not happen, and the Provider shall answer it as such.
 
 (f) For a filetree the Client opens, the Provider shall open a tree
 Scope on the Proxy's connection naming, in the request, the path of
-every Volume Mount, Identity Mount and FUSE Mount of the Container,
-shall relay every frame the Proxy sends, and shall stop the tree
+every FUSE Mount of the Container and of no other mount, so that
+every Volume Mount and every Identity Mount is in the tree, shall
+relay every frame the Proxy sends, and shall stop the tree
 Scope when the Client's Scope ends.
 
 ### 5.10 `containers::tools::connect` (tag 2)
@@ -718,7 +697,8 @@ run's begin Scope — as for a run, except that a
 Connector's `postgres` Channel shall be answered by a Bare Finish,
 that the only Channel the Provider opens on a Connector is
 `write-bytes` for the Connector's own writes, and that a filetree the
-Connector opens leaves out every mount of the run; (e) end the Scope
+Connector opens leaves out every FUSE Mount of the run and no other
+mount; (e) end the Scope
 by the Response Finish with no error when the Connector disconnects,
 when the run ends, or when the Connector's Connection ends, stopping
 nothing and releasing nothing. The Provider shall not send anything on
