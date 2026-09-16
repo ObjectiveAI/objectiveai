@@ -31,17 +31,6 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   the volume is in the volume when the container ends; `false`, the
   volume is as it was before the run when the container ends. The
   container sees the volume's content as of its start either way.
-- **`identity_file_mounts`, `identity_directory_mounts`.** Each names
-  content by `identity`, `<size>:<hash>`: for a file, the SHA-256 of
-  its bytes encoded as base64url without padding, and its length; for
-  a directory, its `dirhash` as the
-  [volumes::stat response](/endpoints/volumes-stat/response/) defines
-  it, and the sum of the lengths of the files hashed. Every one is
-  mounted before the container
-  starts. Its content matches the identity, in size and hash, at the
-  start of the container's life, and is writable from inside the
-  container: a mount that refuses a write is a violation. Whether a
-  write outlives the container is not prescribed.
 - **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path
   and an `id` the client chose. Every one is mounted before the id
   is sent. A directory mount is a tree the client serves: every entry
@@ -80,11 +69,6 @@ and by `diverge-provider-sdk-rs/src/shared/containers/request/image.rs`:
 and by `diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs`:
 
 ```rust include=diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs
-```
-
-and by `diverge-provider-sdk-rs/src/shared/containers/request/identity_mount.rs`:
-
-```rust include=diverge-provider-sdk-rs/src/shared/containers/request/identity_mount.rs
 ```
 
 and by `diverge-provider-sdk-rs/src/shared/containers/request/fuse_mount.rs`:

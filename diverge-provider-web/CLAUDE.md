@@ -256,8 +256,8 @@ the run scope it joins.
 Payload forms that more than one endpoint carries, defined once and
 linked from every channel that carries them: the container request
 and its mounts; the error value; the OCI manifest and blob answers;
-the authorize question and its answer; write content; the fetches by
-identity; the Postgres pair; commands; the vault's five operations
+the authorize question and its answer; write content; the Postgres
+pair; commands; the vault's five operations
 and its lock rule; the five MCP exchanges; the seven FUSE operations
 with the file-and-directory rule; the filetree, read, and write
 forms; the agent's loop, schema, enqueue, and dequeue forms. Each

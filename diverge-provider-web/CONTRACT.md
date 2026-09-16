@@ -119,8 +119,8 @@ which the Provider causes a Container to exist and to run: the
 instantiation of the Container Image as an isolated process
 environment on computing infrastructure the Provider controls or
 procures, with (a) the memory limit and the writable-disk limit the
-request states applied as ceilings, (b) every Volume Mount, Identity
-Mount and FUSE Mount of the request made present at its stated path
+request states applied as ceilings, (b) every Volume Mount and FUSE
+Mount of the request made present at its stated path
 as the Specification requires, (c) the Container Proxy placed inside
 the environment and started, and (d) TCP port 14979 of the environment
 made reachable to the Provider's Server. A Deployment is complete when
@@ -155,29 +155,19 @@ holds under a name for one Identity, as the Specification's volume
 endpoints define: created by `volumes::create`, listed by
 `volumes::list`, and ended only by `volumes::delete`.
 
-1.16 **"Volume Mount"**, **"Identity Mount"** and **"FUSE Mount"**
-mean, respectively, an entry of `volume_mounts`, of
-`identity_file_mounts` or `identity_directory_mounts`, and of
-`fuse_file_mounts` or `fuse_directory_mounts` of a container request,
-as the Specification defines them.
+1.16 **"Volume Mount"** and **"FUSE Mount"** mean, respectively, an
+entry of `volume_mounts`, and of `fuse_file_mounts` or
+`fuse_directory_mounts` of a container request, as the Specification
+defines them.
 
-1.17 **"Content Identity"** means the string `<size>:<hash>` by which
-an Identity Mount names content. For a file, `<size>` is the length of
-its bytes and `<hash>` is the SHA-256 digest of its bytes, encoded as
-base64url without padding. For a directory, `<hash>` is the string the
-Go package `golang.org/x/mod/sumdb/dirhash` returns from
-`HashDir(dir, "", Hash1)` for the directory, computed exactly as the
-Specification's `volumes::stat` response page defines `dirhash`, and
-`<size>` is the sum of the lengths of the files that hash covers.
-
-1.18 **"Client Content"** means every byte a Client, a Container of a
+1.17 **"Client Content"** means every byte a Client, a Container of a
 Client, or a Connector transmits to the Provider under the Protocol,
-including image manifests and blobs, mounted content, the bytes of
-writes, reads and transfers, filesystem trees, database traffic, commands and
+including image manifests and blobs, the bytes of writes, reads and
+transfers, filesystem trees, database traffic, commands and
 their items, vault keys and values, FUSE operations and their
 answers, MCP exchanges, prompts, agent values, and loop chunks.
 
-1.19 **"Relayed Exchange"** means any exchange the Specification
+1.18 **"Relayed Exchange"** means any exchange the Specification
 requires the Provider to carry between a Container and a Client, or
 between a Client and a Container, without reading it: every channel
 the Proxy opens on a begin Scope and every ask a FUSE Mount makes on
@@ -186,15 +176,15 @@ the bytes of a read; the bytes of a transfer, from one Container into
 another; a filetree; a database connection; and the MCP exchanges
 into a tool Container.
 
-1.20 **"Runner"** means the Client on whose `containers::tools::run`
+1.19 **"Runner"** means the Client on whose `containers::tools::run`
 scope a Container is running. **"Connector"** means a Client that
 opens a `containers::tools::connect` scope naming that Container.
 
-1.21 **"Obligation"** means each requirement this Agreement imposes on
+1.20 **"Obligation"** means each requirement this Agreement imposes on
 the Provider, including every requirement incorporated from the
 Specification under Article 2.
 
-1.22 **"Conforming"** describes conduct of the Provider that satisfies
+1.21 **"Conforming"** describes conduct of the Provider that satisfies
 every Obligation applicable to it. **"Non-Conformance"** means any
 failure to satisfy an Obligation.
 
@@ -523,17 +513,7 @@ and the Response Finish, fetching nothing and deploying nothing for
 it. A Volume is mounted in at most one Container of its Identity at a
 time, whatever its `persist`.
 
-(b) **Hold every Identity Mount's content.** For each Identity Mount,
-the Provider shall, before Deployment, either hold content it has
-verified against the Content Identity, or open a `fetch-file` or
-`fetch-directory` channel on the Scope, receive what the Client sends,
-and verify the received content's size and hash against the Content
-Identity before treating it as held. The Provider shall treat a
-channel the Client finishes with no frame, and content that does not
-match its Content Identity, as the run's error. The Provider may hold
-content received in an earlier run of any Identity.
-
-(c) **Serve the Client's image.** For an image of kind `client`, the
+(b) **Serve the Client's image.** For an image of kind `client`, the
 Provider shall serve an OCI registry from which its runtime pulls the
 image by repository name and manifest digest; shall obtain from the
 Client, on the `oci-manifest` and `oci-blob` Channels, each manifest
@@ -545,25 +525,21 @@ prescribed. For an image of kind `server`, the Provider shall
 obtain the image from a source of its own. For an image of kind
 `registry`, the Provider shall pull the stated reference.
 
-(d) **Deploy.** The Provider shall perform Container Deployment as
+(c) **Deploy.** The Provider shall perform Container Deployment as
 Section 1.12 defines it, with `memory` and `disk` of the request as
 ceilings; every Volume Mount resolved by `host_name` against the
 Identity, descended by `host_relative_path`, and made present at
 `container_path`, the Container's changes to it being in the Volume
 when the Container ends if `persist` is `true` and the Volume being as
 it was before the run when the Container ends if `persist` is
-`false`; every Identity Mount made present at its
-`container_path`, with content that matches its Content Identity in
-size and hash at the start of the Container's life and that is
-writable from inside the Container; the Container Proxy placed inside
+`false`; the Container Proxy placed inside
 and started; and
 TCP port 14979 reachable to the Provider's Server. The Provider shall
-set no environment variable in the Container from the request, shall
-expose no port of the Container other than port 14979, and shall not
-start the Container before every Identity Mount's content is held. A
-failed Deployment is the run's error.
+set no environment variable in the Container from the request, and
+shall expose no port of the Container other than port 14979. A failed
+Deployment is the run's error.
 
-(e) **Connect to the Proxy.** The Provider shall open exactly one
+(d) **Connect to the Proxy.** The Provider shall open exactly one
 WebSocket connection to TCP port 14979 of the Container and, on it
 before any other Scope, the begin Scope of the Container's family —
 for an agent container, carrying the request's `agent` value verbatim
@@ -573,7 +549,7 @@ Container that did not come up: the Provider shall stop the Container
 and treat the failure as the run's error. The Provider shall open no
 second connection to a Container.
 
-(f) **Make every FUSE Mount.** For each entry of `fuse_file_mounts`,
+(e) **Make every FUSE Mount.** For each entry of `fuse_file_mounts`,
 and after the last of them for each entry of `fuse_directory_mounts`,
 in the order of the request, the Provider shall open one mount Scope
 on the Proxy's connection, naming the path and the kind, and shall
@@ -590,18 +566,18 @@ renamable or replaceable. Whether a change is allowed is the Client's
 answer to the ask that carries it; the Provider shall enforce no
 restriction of its own on a FUSE Mount.
 
-(g) **Hold what the Client opened.** The Provider shall serve a
+(f) **Hold what the Client opened.** The Provider shall serve a
 Channel the Client opened before the id was sent only after the id is
 sent, in the order the Channels were opened, and shall neither refuse
 nor read such a Channel before the last FUSE Mount is complete.
 
-(h) **Carry the agent** (tag 0 only). For an agent container, the
+(g) **Carry the agent** (tag 0 only). For an agent container, the
 Provider shall carry the request's `agent` value verbatim in the begin
 Scope's request, and in nothing else. A begin the Proxy answers with
 an error is the run's error, and the Provider shall stop the
 Container.
 
-(i) **Mint and send the id.** The Provider shall choose an id that is
+(h) **Mint and send the id.** The Provider shall choose an id that is
 unique among the Containers it is running and not derivable from the
 request, from the Identity, or from any other id, and shall send it as
 exactly one Response; a run refused for a held Volume has the byte `1`
@@ -614,14 +590,14 @@ container, every chunk the Proxy sends on the begin Scope's main
 stream as one Response, the byte `3` followed by the chunk verbatim,
 in the order the Proxy sent them, and no other Response.
 
-(j) **Serve the Scope.** For as long as the Scope lives, and
+(i) **Serve the Scope.** For as long as the Scope lives, and
 concurrently, the Provider shall relay every Channel the Proxy opens
 on the begin Scope, and every ask a FUSE Mount makes on its Scope, to
 the Client as a Channel the Provider opens, in the form the
 Specification states for that ask, and shall serve every Channel the
 Client opens as the Specification states for that Channel.
 
-(k) **End the run.** When the Provider receives the Client's stop
+(j) **End the run.** When the Provider receives the Client's stop
 channel request, when the Proxy's connection ends, or when the
 Client's Connection ends, the Provider shall end every
 connect Scope on the Container, stop the Container, release the
@@ -673,7 +649,7 @@ that did not happen, and the Provider shall answer it as such.
 (f) For a filetree the Client opens, the Provider shall open a tree
 Scope on the Proxy's connection naming, in the request, the path of
 every FUSE Mount of the Container and of no other mount, so that
-every Volume Mount and every Identity Mount is in the tree, shall
+every Volume Mount is in the tree, shall
 relay every frame the Proxy sends, and shall stop the tree
 Scope when the Client's Scope ends.
 
@@ -732,11 +708,8 @@ impose a timeout on any fetch, Deployment, Channel, Scope or
 Connection; (h) send a Response where the Specification states a Bare
 Finish, or a Bare Finish where the Specification states a Response;
 (i) mint a container id or a connection id that is derivable from
-anything a Client chose; (j) serve a Scope under an Identity other
-than that of the Connection on which the Scope was opened; or (k)
-mount an Identity Mount read-only, or otherwise cause a write to it
-from inside the Container to fail. Whether a write to an Identity Mount outlives the
-Container is not prescribed.
+anything a Client chose; or (j) serve a Scope under an Identity other
+than that of the Connection on which the Scope was opened.
 
 ### 5.12 The Container Proxy
 
@@ -765,9 +738,8 @@ than this Article and engaged in performing an Obligation.
 
 6.2 **Retention.** The Provider may retain, after a run ends, only
 (a) image manifests and blobs it has verified against their digests,
-and (b) Identity Mount content it has verified against its Content
-Identity, each for use in a later run as the Specification permits;
-and (c) Volumes, for as long as the Specification requires. The
+for use in a later run as the Specification permits; and (b) Volumes,
+for as long as the Specification requires. The
 Provider shall not retain any other Client Content after the Scope
 that carried it ends, and shall not retain the content of a Relayed
 Exchange at any time except transiently in the course of relaying it.
