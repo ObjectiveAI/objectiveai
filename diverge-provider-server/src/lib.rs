@@ -5,8 +5,8 @@
 //! defines and `https://provider.diverge.network` specifies. The SDK
 //! holds the socket, reads every request, and serves every endpoint;
 //! what it cannot supply is what a provider IS — a place to run
-//! containers, a store of volumes, a store of content, a registry, and
-//! a judgment about who may connect — and this crate supplies those,
+//! containers, a store of volumes, a registry, and a judgment about
+//! who may connect — and this crate supplies those,
 //! as the SDK's six provider-side traits:
 //!
 //! | trait | supplies |
@@ -14,7 +14,6 @@
 //! | `ContainerDeployer` | a container, running, with the proxy inside and port 14979 reachable |
 //! | `Container` | the address of that proxy, and the stop |
 //! | `VolumeMountManager` | the volumes of every identity |
-//! | `IdentityMountManager` | mounted content held by identity, verified |
 //! | `ImageRegistry` | the registry a runtime pulls a caller-held image from |
 //! | `ImageChecker` | whether a `server` image can be served |
 //! | `UnbrokeredAuthorizer` | the identity a credential establishes |

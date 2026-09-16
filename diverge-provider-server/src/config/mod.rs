@@ -44,9 +44,6 @@
 //!     image_cache_disk: 107374182400
 //!     container_overlay_disk: 214748364800
 //!     memory: 34359738368
-//!   identity:
-//!     storage_path: /mnt/identity
-//!     disk: 107374182400
 //! volumes:
 //!   stores:
 //!     - path: /mnt/volumes-a
