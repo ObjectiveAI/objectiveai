@@ -16,7 +16,9 @@
 //!
 //! The CALLER asks the container: [`read`] one file out,
 //! [`write_path`] one file in — its content on a channel the provider
-//! opens, [`write_bytes`] — and [`filetree`] for its filesystem.
+//! opens, [`write_bytes`] — [`transfer`] one file into another
+//! container it is running or connected to, and [`filetree`] for its
+//! filesystem.
 //!
 //! The CONTAINER asks the caller, through the provider: [`postgres`]
 //! carries each database connection it opens, [`command`] a command
@@ -55,6 +57,7 @@ pub mod postgres;
 pub mod read;
 pub mod request;
 pub mod response;
+pub mod transfer;
 pub mod vault;
 pub mod write_bytes;
 pub mod write_path;

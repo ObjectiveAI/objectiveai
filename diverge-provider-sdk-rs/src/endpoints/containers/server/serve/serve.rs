@@ -7,7 +7,7 @@ use futures_util::future::{self, Either};
 
 use super::super::family::{Family, Opened};
 use super::super::run::Run;
-use super::{filetree, postgres, read, write};
+use super::{filetree, postgres, read, transfer, write};
 use crate::decode::Decode as _;
 use crate::frame::client::ClientFrame;
 
@@ -59,6 +59,9 @@ pub(crate) async fn serve<F: Family>(run: &Arc<Run>) -> End {
             Opened::Read(path) => run.spawn(read::read::<F>(Arc::clone(&run), channel, path)).await,
             Opened::Write { write_id, path } => {
                 run.spawn(write::write::<F>(Arc::clone(&run), channel, write_id, path)).await
+            }
+            Opened::Transfer { path, id, destination } => {
+                run.spawn(transfer::transfer::<F>(Arc::clone(&run), channel, path, id, destination)).await
             }
             Opened::Postgres(connection_id) => {
                 run.spawn(postgres::postgres(Arc::clone(&run), channel, connection_id)).await

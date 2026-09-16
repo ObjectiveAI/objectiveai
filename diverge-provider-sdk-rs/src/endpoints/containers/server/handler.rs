@@ -57,7 +57,7 @@ pub(crate) async fn run<R, D, S, G, V>(
     store: &S,
     registry: &G,
     manager: &V,
-    directory: &Directory,
+    directory: Arc<Directory>,
 ) where
     R: Runs,
     D: ContainerDeployer,
@@ -97,9 +97,11 @@ pub(crate) async fn run<R, D, S, G, V>(
     };
 
     let id = Directory::mint();
+    let identity: Arc<str> = Arc::from(client_identity);
     directory.insert(
         id.clone(),
         Arc::clone(&scope),
+        Arc::clone(&identity),
         prepared.proxy.clone(),
         prepared.begun.begin.tools(),
         prepared.ignore.clone(),
@@ -112,7 +114,14 @@ pub(crate) async fn run<R, D, S, G, V>(
         chunks,
         finish,
     } = prepared.begun;
-    let run = Arc::new(Run::new(Arc::clone(&scope), prepared.proxy, begin, prepared.ignore));
+    let run = Arc::new(Run::new(
+        Arc::clone(&scope),
+        identity,
+        Arc::clone(&directory),
+        prepared.proxy,
+        begin,
+        prepared.ignore,
+    ));
     run.spawn(relay::relay::<R>(Arc::clone(&run), asks)).await;
     for mount in prepared.mounts {
         run.spawn(relay::fuse::<R>(Arc::clone(&run), mount)).await;
