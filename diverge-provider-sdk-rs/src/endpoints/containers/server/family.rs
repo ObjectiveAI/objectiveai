@@ -33,7 +33,7 @@ use crate::shared::filetree;
 pub(crate) trait Family: Send + Sync + 'static {
     /// The caller's channel request frame.
     type Request: for<'a> Decode<'a> + Send;
-    /// The family's own exchanges, past the shared five.
+    /// The family's own exchanges, past the shared six.
     type Exchange: Send + 'static;
 
     /// Which channel the caller opened.
@@ -60,6 +60,10 @@ pub(crate) trait Family: Send + Sync + 'static {
     fn written() -> Option<Vec<u8>>;
     /// A write channel's error.
     fn write_error(error: &Error) -> Option<Vec<u8>>;
+    /// A transfer that landed.
+    fn transferred() -> Option<Vec<u8>>;
+    /// A transfer channel's error.
+    fn transfer_error(error: &Error) -> Option<Vec<u8>>;
 }
 
 /// What the two scopes that deploy supply besides: how their container
@@ -105,6 +109,15 @@ pub(crate) enum Opened<E> {
         write_id: u32,
         /// The destination.
         path: Vec<String>,
+    },
+    /// One file, copied into another container.
+    Transfer {
+        /// The file, in this run's container.
+        path: Vec<String>,
+        /// The other container, by its id.
+        id: String,
+        /// The destination, in that container.
+        destination: Vec<String>,
     },
     /// The caller's half of a database connection, by the id this end
     /// minted.

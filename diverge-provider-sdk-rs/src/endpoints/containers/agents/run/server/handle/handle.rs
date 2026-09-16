@@ -1,6 +1,8 @@
 //! Running an agent container, from a scope and the provider's
 //! capabilities.
 
+use std::sync::Arc;
+
 use super::Agents;
 use crate::endpoints::containers::agents::run::client::request;
 use crate::endpoints::containers::server::handler;
@@ -32,7 +34,7 @@ pub async fn handle<D, S, G, V>(
     store: &S,
     registry: &G,
     manager: &V,
-    directory: &Directory,
+    directory: Arc<Directory>,
 ) where
     D: ContainerDeployer,
     D::Error: Into<Error>,

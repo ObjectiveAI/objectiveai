@@ -9,12 +9,12 @@ use futures_util::Stream;
 use serde_json::Value;
 
 use super::super::channel_request;
-use super::{Filetree, FiletreeStream, Read, ReadStream, WritePath};
+use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::agents::run::server;
 use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue};
 use crate::endpoints::containers::client::{OpenError, Scoped, UnaryError, WaitError};
-use crate::shared::containers::{dequeue, enqueue, read, write_path};
+use crate::shared::containers::{dequeue, enqueue, read, transfer, write_path};
 
 /// The scope a run opened, held for the container's life.
 ///
@@ -110,6 +110,17 @@ impl ExecuteHandle {
                 content,
             )
             .await
+    }
+
+    /// Copy one file out of this container into the container under
+    /// `id`, at `destination`, without the bytes passing through here;
+    /// resolves when it is at the destination. The caller must be
+    /// running, or connected to, both containers, or the provider
+    /// refuses.
+    pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), UnaryError<Transfer>> {
+        let payload = payload(&channel_request::Frame::Transfer(transfer::request::Request { path, id, destination }))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<Transfer>(&payload).await
     }
 
     /// What the agent value may be: the image's JSON Schema for it.

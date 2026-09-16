@@ -215,7 +215,7 @@ where
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::agents::run::server::handle::handle(
-                        scope, frame, &identity, &*deployer, &*store, &*registry, &*manager, &directory,
+                        scope, frame, &identity, &*deployer, &*store, &*registry, &*manager, directory,
                     )
                     .await;
                 });
@@ -229,16 +229,17 @@ where
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::tools::run::server::handle::handle(
-                        scope, frame, &identity, &*deployer, &*store, &*registry, &*manager, &directory,
+                        scope, frame, &identity, &*deployer, &*store, &*registry, &*manager, directory,
                     )
                     .await;
                 });
             }
             ClientRequest::ContainersToolsConnect(frame) => {
+                let identity = Arc::clone(&client_identity);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::tools::connect::server::handle::handle(
-                        scope, frame, address, &directory,
+                        scope, frame, &identity, address, directory,
                     )
                     .await;
                 });

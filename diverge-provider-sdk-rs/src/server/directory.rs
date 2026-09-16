@@ -32,6 +32,16 @@ use crate::container_proxy_endpoints::tools::begin::client::execute::ExecuteHand
 /// what lets a connector ask, so it is unguessable and never
 /// derived from anything a caller chose. Nothing enumerates the map.
 ///
+/// # And who may reach each container
+///
+/// The identity that runs each container, and every identity
+/// connected to it as a connector, are kept beside it — set by the
+/// run handler and by the connect handler as a connector attaches and
+/// leaves — so that a transfer, which names a container by id, can be
+/// held to its rule: the caller must be running or connected to the
+/// container it names. Nothing else reads them, and an id is still
+/// never enumerated.
+///
 /// # Not the volumes in use
 ///
 /// Which volumes are mounted in a running container is not kept
@@ -45,6 +55,12 @@ pub struct Directory {
 /// One running container.
 struct Entry {
     scope: Arc<ScopeHandle>,
+    /// The identity running the container.
+    runner: Arc<str>,
+    /// Every identity attached as a connector, with how many of its
+    /// connections are: one identity may connect twice, and leaves
+    /// when the last of them does.
+    connectors: HashMap<Arc<str>, usize>,
     proxy: Handle,
     begin: Option<ToolsBegin>,
     /// Every FUSE mount's path, which a filetree leaves out.
@@ -58,7 +74,8 @@ pub struct Attached {
     /// The run scope: where the runner is asked.
     pub scope: Arc<ScopeHandle>,
     /// The one connection to the container's proxy, which the
-    /// connector's tree, read and write scopes are opened on.
+    /// connector's tree, read, write and transfer scopes are opened
+    /// on.
     pub proxy: Handle,
     /// The run's begin scope, on which a connector's MCP exchanges
     /// are channels — [`None`] for an agent container, which is its
@@ -84,12 +101,13 @@ impl Directory {
         uuid::Uuid::new_v4().to_string()
     }
 
-    /// The container is running: from now until
+    /// The container is running, for `runner`: from now until
     /// [`remove`](Self::remove), connectors may find it.
     pub fn insert(
         &self,
         id: String,
         scope: Arc<ScopeHandle>,
+        runner: Arc<str>,
         proxy: Handle,
         begin: Option<ToolsBegin>,
         ignore: Vec<Vec<String>>,
@@ -99,6 +117,8 @@ impl Directory {
             id,
             Entry {
                 scope,
+                runner,
+                connectors: HashMap::new(),
                 proxy,
                 begin,
                 ignore,
@@ -116,6 +136,46 @@ impl Directory {
             // read the end.
             entry.ended.send_replace(true);
         }
+    }
+
+    /// `identity` is attached to the container under `id` as a
+    /// connector, from now until [`detach`](Self::detach). `false` is
+    /// an id under which nothing is running, and nothing changed.
+    pub fn attach(&self, id: &str, identity: &Arc<str>) -> bool {
+        let mut entries = self.lock();
+        let Some(entry) = entries.get_mut(id) else {
+            return false;
+        };
+        *entry.connectors.entry(Arc::clone(identity)).or_insert(0) += 1;
+        true
+    }
+
+    /// One of `identity`'s connections to the container under `id`
+    /// has left; the identity is a connector until the last of them
+    /// does. An id no longer running, or an identity not attached,
+    /// is nothing to do.
+    pub fn detach(&self, id: &str, identity: &str) {
+        let mut entries = self.lock();
+        let Some(entry) = entries.get_mut(id) else {
+            return;
+        };
+        let Some(count) = entry.connectors.get_mut(identity) else {
+            return;
+        };
+        *count -= 1;
+        if *count == 0 {
+            entry.connectors.remove(identity);
+        }
+    }
+
+    /// Whether `identity` is running the container under `id`, or is
+    /// attached to it as a connector. `false` for an id under which
+    /// nothing is running, indistinguishably: whether an id exists is
+    /// not told to a caller that may not reach it.
+    pub fn may(&self, id: &str, identity: &str) -> bool {
+        self.lock()
+            .get(id)
+            .is_some_and(|entry| &*entry.runner == identity || entry.connectors.contains_key(identity))
     }
 
     /// The container under `id`, if it is running.

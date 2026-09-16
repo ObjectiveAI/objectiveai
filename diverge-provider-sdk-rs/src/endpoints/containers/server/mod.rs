@@ -28,7 +28,8 @@
 //!   answer carried back on the proxy's own channel, every one on a
 //!   task of its own.
 //! - `serve`, the channels the caller opens — a tree, a read, a
-//!   write, its half of a database connection, and the family's own
+//!   write, a transfer into another container, its half of a
+//!   database connection, and the family's own
 //!   exchange — each served against the proxy on a task of its own,
 //!   read off the scope by one loop that also hears the stop, the
 //!   container leaving, and the caller going away.

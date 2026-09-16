@@ -15,6 +15,7 @@ mod execute_handle;
 mod execute_stream;
 mod filetree;
 mod read;
+mod transfer;
 mod write_path;
 
 pub use execute::*;
@@ -22,4 +23,5 @@ pub use execute_handle::*;
 pub use execute_stream::*;
 pub use filetree::*;
 pub use read::*;
+pub use transfer::*;
 pub use write_path::*;

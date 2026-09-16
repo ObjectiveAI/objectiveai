@@ -1,6 +1,8 @@
 //! Running a tool container, from a scope and the provider's
 //! capabilities.
 
+use std::sync::Arc;
+
 use super::Tools;
 use crate::endpoints::containers::server::handler;
 use crate::endpoints::containers::tools::run::client::request;
@@ -30,7 +32,7 @@ pub async fn handle<D, S, G, V>(
     store: &S,
     registry: &G,
     manager: &V,
-    directory: &Directory,
+    directory: Arc<Directory>,
 ) where
     D: ContainerDeployer,
     D::Error: Into<Error>,

@@ -1,7 +1,8 @@
 //! The answers a provider sends on the channels a caller opened.
 //!
 //! [`filetree`] is the container's tree, [`read`] a file's bytes,
-//! [`write_path`] whether one landed, [`postgres`] what the container
+//! [`write_path`] whether one landed, [`transfer`] whether one landed
+//! in another container, [`postgres`] what the container
 //! wrote on a database connection. [`agent_schema`] is what its
 //! agent may be, and [`enqueue`] and [`dequeue`] the fates of what a
 //! caller sent the agent — the family's own, each an alias of the
@@ -15,4 +16,5 @@ pub mod enqueue;
 pub mod filetree;
 pub mod postgres;
 pub mod read;
+pub mod transfer;
 pub mod write_path;
