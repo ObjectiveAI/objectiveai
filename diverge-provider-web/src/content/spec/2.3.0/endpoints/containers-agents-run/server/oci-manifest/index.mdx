@@ -1,6 +1,6 @@
 ---
 title: 'OCI manifest'
-summary: 'Tag 0: the server asks the client for the manifest of an image the client holds, by digest, when its registry lacks it; the client answers with at most one channel response, the media type and the bytes; the server verifies the bytes against the digest.'
+summary: 'Tag 0: the server asks the client for the manifest of an image the client holds, by digest, when its registry lacks it; the client answers with at most one channel response, the media type and the bytes; bytes that are not those the digest names fail the run.'
 order: 0
 draft: false
 ---
@@ -9,15 +9,14 @@ The server opens this channel when the image of the request is of
 kind `client` and its registry does not hold a manifest that the pull
 requires, including the manifest of the platform an index names.
 
-- **When.** Between the request and the deploy, and at most once per
-  digest per run.
+- **When.** Between the request and the deploy.
 - **The request.** The tag byte `0` followed by the digest as JSON.
   [Request](/endpoints/containers-agents-run/server/oci-manifest/request/) states its form.
 - **The response.** At most one channel response, the media type and
   the manifest verbatim, and the channel response finish.
   [Response](/endpoints/containers-agents-run/server/oci-manifest/response/) states the
   sequence.
-- **Verification.** The server computes the digest of the bytes it
-  receives and stores and serves them only when it equals the digest
-  asked for. Bytes that do not match, and a finish with no channel
-  response, are the run's error.
+- **The image.** The server runs only the image the digest names.
+  Bytes that are not those the digest names, and a finish with no
+  channel response, are the run's error. How the server holds or
+  serves the bytes is not prescribed.

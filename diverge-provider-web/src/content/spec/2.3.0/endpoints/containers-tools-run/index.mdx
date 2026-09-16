@@ -56,10 +56,11 @@ about the client, which may open any channel at any time.
    the server asks of the client on an
    [oci-manifest](/endpoints/containers-tools-run/server/oci-manifest/) channel; a blob it
    does not hold, on an [oci-blob](/endpoints/containers-tools-run/server/oci-blob/)
-   channel; it asks for each digest at most once per run, verifies
-   the bytes it receives against the digest, and stores only bytes
-   that match. A digest the client does not hold, and bytes that do
-   not match, are the run's error. For an image of kind `server`, the
+   channel. The server runs only the image the digest names: a
+   digest the client does not hold, and bytes that are not those the
+   digest names, are the run's error. How the server holds, verifies
+   or streams what it obtains is not prescribed. For an image of kind
+   `server`, the
    server obtains the image from a source of its own. For an image of
    kind `registry`, the server pulls the reference; which references
    it allows is its own.
