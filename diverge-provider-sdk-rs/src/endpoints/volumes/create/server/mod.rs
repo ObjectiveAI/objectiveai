@@ -11,7 +11,7 @@
 //! the [`ScopeHandle`](crate::server::scope_handle::ScopeHandle) a
 //! [`Session`](crate::server::session::Session) yielded, whose caller
 //! it is, and a
-//! [`VolumeMountManager`](crate::server::volume_mount_manager::VolumeMountManager), and
+//! [`VolumeManager`](crate::server::volume_manager::VolumeManager), and
 //! it
 //! makes the volume and answers.
 //!

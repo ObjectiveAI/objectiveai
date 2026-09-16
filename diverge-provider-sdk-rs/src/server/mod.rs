@@ -180,7 +180,7 @@
 //! in a deployment is the name together with whoever it authenticated,
 //! which is a fact only this half of the connection has.
 //!
-//! [`volume_mount_manager`] is the second, and with [`volume`] it is the
+//! [`volume_manager`] is the second, and with [`volume`] it is the
 //! seven [`volumes`](crate::endpoints::volumes) endpoints: the
 //! directories a provider offers. The manager is the namespace —
 //! listed, looked up by name, created, deleted, and asked how much
@@ -227,13 +227,13 @@
 //! to find its run scope to be authorized on, and its address to dial.
 //!
 //! Nothing implements any of them, and all are consumed:
-//! [`volume_mount_manager`] and [`volume`] by the seven
+//! [`volume_manager`] and [`volume`] by the seven
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](crate::endpoints::images::check)'s, and
 //! [`container_deployer`], [`image_registry`] and
 //! — for the volumes a request mounts, locked for the run — the
-//! [`volume_mount_manager`] again by the two run handlers of
+//! [`volume_manager`] again by the two run handlers of
 //! [`containers`](crate::endpoints::containers)
 //! — the scopes that put a container somewhere. A connect handler
 //! consumes none of those, because it deploys nothing — the container
@@ -280,4 +280,4 @@ pub mod scope_handle;
 pub mod session;
 pub mod unbrokered_authorizer;
 pub mod volume;
-pub mod volume_mount_manager;
+pub mod volume_manager;

@@ -6,7 +6,7 @@ use crate::endpoints::volumes::edit::client::request;
 use crate::endpoints::volumes::refusal;
 use crate::server::scope_handle::ScopeHandle;
 use crate::server::volume::Volume as _;
-use crate::server::volume_mount_manager::VolumeMountManager;
+use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
 /// Resize the volume and end the scope.
@@ -18,7 +18,7 @@ use crate::shared::error::Error;
 ///
 /// # Under the lock
 ///
-/// The volume is [`got`](VolumeMountManager::get) and then
+/// The volume is [`got`](VolumeManager::get) and then
 /// [`locked`](crate::server::volume::Volume::lock) for the length of
 /// the resize, so no container writes to it while its size changes.
 /// A lock that is held — the volume is mounted in a running
@@ -51,7 +51,7 @@ pub async fn handle<M>(
     client_identity: &str,
     manager: &M,
 ) where
-    M: VolumeMountManager,
+    M: VolumeManager,
     M::Error: Into<Error>,
 {
     let frame = match edit(manager, client_identity, &request.name, request.bytes).await {
@@ -79,7 +79,7 @@ async fn edit<M>(
     bytes: u64,
 ) -> Result<response::Edit, Error>
 where
-    M: VolumeMountManager,
+    M: VolumeManager,
     M::Error: Into<Error>,
 {
     let volume = manager

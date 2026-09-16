@@ -41,7 +41,7 @@ use crate::endpoints::images::check::server::response::Response;
 /// nothing.
 ///
 /// It is the same identity a [`mount`](super::mount::Mount) carries and
-/// a [`VolumeMountManager`](super::volume_mount_manager::VolumeMountManager) takes:
+/// a [`VolumeManager`](super::volume_manager::VolumeManager) takes:
 /// whatever authenticated the connection, opaque here, never minted or
 /// compared by this crate.
 ///
@@ -62,7 +62,7 @@ pub trait ImageChecker: Send + Sync {
     /// Its own type, as with
     /// [`ContainerDeployer::Error`](super::container_deployer::ContainerDeployer::Error)
     /// and
-    /// [`VolumeMountManager::Error`](super::volume_mount_manager::VolumeMountManager::Error),
+    /// [`VolumeManager::Error`](super::volume_manager::VolumeManager::Error),
     /// and for the same reason: flattening one into the protocol's
     /// error is the handler's job, at the point where a frame is
     /// written.

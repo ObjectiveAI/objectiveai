@@ -2,7 +2,7 @@
 
 use crate::endpoints::volumes::refusal;
 use crate::server::volume::Volume;
-use crate::server::volume_mount_manager::VolumeMountManager;
+use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
 /// Every volume a run's request names, locked, from before anything
@@ -43,7 +43,7 @@ pub(crate) enum Refused {
 impl<V: Volume> Held<V> {
     /// Lock every volume `names` names, in order, or none of them.
     ///
-    /// Each name is [`got`](VolumeMountManager::get) and
+    /// Each name is [`got`](VolumeManager::get) and
     /// [`locked`](Volume::lock) in turn — in turn, not at once,
     /// because a name listed twice must refuse on its second
     /// appearance and a refusal must give back exactly what was
@@ -59,7 +59,7 @@ impl<V: Volume> Held<V> {
         names: impl IntoIterator<Item = &'a str>,
     ) -> Result<Self, Refused>
     where
-        M: VolumeMountManager<Volume = V>,
+        M: VolumeManager<Volume = V>,
         M::Error: Into<Error>,
     {
         let mut held = Held { volumes: Vec::new() };
@@ -77,7 +77,7 @@ impl<V: Volume> Held<V> {
         name: &str,
     ) -> Result<(), Refused>
     where
-        M: VolumeMountManager<Volume = V>,
+        M: VolumeManager<Volume = V>,
         M::Error: Into<Error>,
     {
         let volume = manager
