@@ -12,7 +12,7 @@
 //! wraps it:
 //!
 //! - `held`, the volumes a run's request names, each found through
-//!   the provider's `VolumeMountManager` and locked before anything else
+//!   the provider's `VolumeManager` and locked before anything else
 //!   is done, and every one unlocked on every ending — the server
 //!   half's whole enforcement of one container per volume.
 //! - `setup`, the ORDERED preparation of a run: the

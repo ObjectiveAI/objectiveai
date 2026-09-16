@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use dashmap::DashMap;
 use diverge_provider_sdk::endpoints::volumes::create::server::response::Creation;
 use diverge_provider_sdk::endpoints::volumes::list::server::response;
-use diverge_provider_sdk::server::volume_mount_manager;
+use diverge_provider_sdk::server::volume_manager;
 use futures_util::future;
 use tokio::fs;
 
@@ -28,7 +28,7 @@ use crate::hook;
 /// configuration's and are answered on each call, through their hook
 /// where they have one.
 #[derive(Debug)]
-pub struct VolumeMountManager {
+pub struct VolumeManager {
     /// The stores, and the room left in each: shared with every
     /// stored volume, which asks it to grow.
     reservation: Arc<Reservation>,
@@ -46,12 +46,12 @@ pub struct VolumeMountManager {
     identities: DashMap<String, Arc<Identity>>,
 }
 
-impl VolumeMountManager {
+impl VolumeManager {
     /// A manager over the `volumes` section, absent or present, with
     /// the provider's `hooks/` directory.
     pub fn new(volumes: Option<Volumes>, hooks_dir: PathBuf) -> Self {
         let volumes = volumes.unwrap_or_default();
-        VolumeMountManager {
+        VolumeManager {
             reservation: Arc::new(Reservation::new(volumes.stores.unwrap_or_default())),
             fixed: volumes.fixed.unwrap_or_default(),
             hooks_dir,
@@ -148,7 +148,7 @@ impl VolumeMountManager {
     }
 }
 
-impl volume_mount_manager::VolumeMountManager for VolumeMountManager {
+impl volume_manager::VolumeManager for VolumeManager {
     type Error = Error;
     type Volume = Volume;
 

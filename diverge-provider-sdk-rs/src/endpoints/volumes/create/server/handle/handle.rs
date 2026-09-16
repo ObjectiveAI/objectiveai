@@ -5,7 +5,7 @@ use super::super::response;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::volumes::create::client::request;
 use crate::server::scope_handle::ScopeHandle;
-use crate::server::volume_mount_manager::VolumeMountManager;
+use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
 /// Make the volume and end the scope.
@@ -28,7 +28,7 @@ use crate::shared::error::Error;
 ///
 /// This turns any other refusal into an
 /// [`Error`](response::Frame::Error) and does not decide when one is
-/// owed. See [`VolumeMountManager`] for why: the wire has one error per
+/// owed. See [`VolumeManager`] for why: the wire has one error per
 /// endpoint and no vocabulary for the reasons.
 ///
 /// # The request arrives decoded
@@ -43,7 +43,7 @@ pub async fn handle<M>(
     client_identity: &str,
     manager: &M,
 ) where
-    M: VolumeMountManager,
+    M: VolumeManager,
     M::Error: Into<Error>,
 {
     let frame = match manager

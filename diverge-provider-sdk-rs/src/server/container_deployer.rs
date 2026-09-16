@@ -135,7 +135,7 @@ use super::deployment::Deployment;
 /// `client_identity` is whatever authenticated the connection the
 /// request arrived on — the same opaque string a
 /// [`mount`](super::mount::Mount) carries and a
-/// [`VolumeMountManager`](super::volume_mount_manager::VolumeMountManager) takes. This
+/// [`VolumeManager`](super::volume_manager::VolumeManager) takes. This
 /// crate never mints one, parses one, or compares two.
 ///
 /// It is here because deploying is the most consequential thing a
@@ -148,7 +148,7 @@ use super::deployment::Deployment;
 ///
 /// Which is why it is an argument and not a constructor parameter: one
 /// deployer serves every caller on every connection, the same way one
-/// [`VolumeMountManager`](super::volume_mount_manager::VolumeMountManager) does.
+/// [`VolumeManager`](super::volume_manager::VolumeManager) does.
 ///
 /// # Failure is the provider's too
 ///

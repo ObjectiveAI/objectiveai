@@ -14,7 +14,7 @@ use crate::server::container_deployer::ContainerDeployer;
 use crate::server::directory::Directory;
 use crate::server::image_registry::ImageRegistry;
 use crate::server::scope_handle::ScopeHandle;
-use crate::server::volume_mount_manager::VolumeMountManager;
+use crate::server::volume_manager::VolumeManager;
 use crate::shared::containers::request::Container;
 use crate::shared::containers::response::{Id, VolumeMounted};
 use crate::shared::error::Error;
@@ -62,7 +62,7 @@ pub(crate) async fn run<R, D, G, V>(
     D::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,
-    V: VolumeMountManager,
+    V: VolumeManager,
     V::Error: Into<Error>,
 {
     let scope = Arc::new(scope);
