@@ -1,7 +1,7 @@
 ---
 title: 'Postgres'
-summary: 'Tag 4: the client opens its half of a database connection the server announced, quoting the connection id; the server sends everything the container’s driver wrote, and the channel response finish when the driver’s socket ends.'
-order: 4
+summary: 'Tag 5: the client opens its half of a database connection the server announced, quoting the connection id; the server sends everything the container’s driver wrote, and the channel response finish when the driver’s socket ends.'
+order: 5
 draft: false
 ---
 
@@ -10,7 +10,7 @@ the server announced on a [postgres](/endpoints/containers-tools-run/server/post
 channel of its own, quoting the connection id. The server sends on
 it everything the container's driver writes.
 
-- **The request.** The tag byte `4` followed by the connection id,
+- **The request.** The tag byte `5` followed by the connection id,
   four bytes. [Request](/endpoints/containers-tools-run/client/postgres/request/) states
   its form.
 - **The response.** The bytes the driver wrote, as channel responses,

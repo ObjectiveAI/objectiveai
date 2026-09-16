@@ -173,7 +173,7 @@ Specification's `volumes::stat` response page defines `dirhash`, and
 1.18 **"Client Content"** means every byte a Client, a Container of a
 Client, or a Connector transmits to the Provider under the Protocol,
 including image manifests and blobs, mounted content, the bytes of
-writes and reads, filesystem trees, database traffic, commands and
+writes, reads and transfers, filesystem trees, database traffic, commands and
 their items, vault keys and values, FUSE operations and their
 answers, MCP exchanges, prompts, agent values, and loop chunks.
 
@@ -182,8 +182,9 @@ requires the Provider to carry between a Container and a Client, or
 between a Client and a Container, without reading it: every channel
 the Proxy opens on a begin Scope and every ask a FUSE Mount makes on
 its Scope, with the Client's answer; the content of a Client's write;
-the bytes of a read; a filetree; a database connection; and the MCP
-exchanges into a tool Container.
+the bytes of a read; the bytes of a transfer, from one Container into
+another; a filetree; a database connection; and the MCP exchanges
+into a tool Container.
 
 1.20 **"Runner"** means the Client on whose `containers::tools::run`
 scope a Container is running. **"Connector"** means a Client that
@@ -676,6 +677,20 @@ every Volume Mount and every Identity Mount is in the tree, shall
 relay every frame the Proxy sends, and shall stop the tree
 Scope when the Client's Scope ends.
 
+(g) For a transfer the Client opens, the Provider shall serve it only
+when the Client is the Runner of, or a Connector attached to, both the
+Container of the Scope and the Container the request names, and shall
+otherwise answer exactly one Channel Response, the error
+`{"kind":"denied"}`, and the Channel Response Finish, without
+distinguishing a Container the Client may not reach from an id under
+which no Container is running. When served, the Provider shall open a
+read Scope on the Proxy of the Container of the Scope for the stated
+path and a write Scope on the Proxy of the named Container for the
+stated destination, relay the bytes of the one into the other, and
+answer the Client's Channel with exactly one Channel Response,
+transferred or an error, after the named Container's Proxy has
+answered. The Provider shall send nothing of the file to the Client.
+
 ### 5.10 `containers::tools::connect` (tag 2)
 
 For every connect request, the Provider shall, in order: (a) read the
@@ -691,7 +706,7 @@ Finish, or a Runner that is gone by exactly one Response, the error
 `{"kind":"denied"}`, and the Response Finish; (d) on the byte `1`,
 send nothing on the main stream, and serve every Channel the Connector
 opens on the run's own connection to the Container's Proxy — its
-tree, read and write Scopes, and its MCP exchanges as Channels on the
+tree, read, write and transfer Scopes, and its MCP exchanges as Channels on the
 run's begin Scope — as for a run, except that a
 Connector's `postgres` Channel shall be answered by a Bare Finish,
 that the only Channel the Provider opens on a Connector is
