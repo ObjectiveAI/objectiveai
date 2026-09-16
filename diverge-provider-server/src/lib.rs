@@ -24,13 +24,15 @@
 //! a library so that its pieces can be taken separately by another.
 //!
 //! The crate is the place the implementation goes, named and in the
-//! workspace; [`volume_manager`] and [`image_checker`] are the two
-//! traits supplied so far, every method of each written. [`tools`] is every program the
+//! workspace; [`volume_manager`], [`image_checker`] and
+//! [`image_registry`] are the three traits supplied so far, every
+//! method of each written. [`tools`] is every program the
 //! provider runs — podman, and e2fsprogs through it or beside it —
 //! and the one way it runs them.
 
 pub mod config;
 pub mod hook;
 pub mod image_checker;
+pub mod image_registry;
 pub mod tools;
 pub mod volume_manager;

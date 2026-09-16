@@ -41,8 +41,18 @@ serde_json = "1.0.151"
 serde_path_to_error = "0.1.20"
 serde_yaml_ng = "0.10.0"
 # `sync` for the per-volume locks and the once-only loads; `rt` for
-# the pool `tokio::fs` hands every read to.
-tokio = { version = "1.53.1", features = ["process", "io-util", "fs", "sync", "rt"] }
+# the pool `tokio::fs` hands every read to; `net` for the registry's
+# listener.
+tokio = { version = "1.53.1", features = ["process", "io-util", "fs", "sync", "rt", "net"] }
+# The image registry a runtime pulls a caller-held image from: the
+# read side of the Distribution API on a loopback port. HTTP/1 alone,
+# which is what a runtime speaks to a plain registry, and none of
+# axum's defaults — no forms, no JSON extractors, no tracing — since
+# the registry reads a path and writes bytes.
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
+# A blob's pieces as the SDK hands them, passed through to the
+# runtime's response untouched.
+bytes = { version = "1.11.1", default-features = false }
 # A created volume is an ext4 filesystem in an image file on the host,
 # which podman loop-mounts; `ext` alone is the formatter, in pure
 # Rust, with none of the CLI, the other filesystems or the codecs.
