@@ -19,10 +19,78 @@ draft: false
   scope. A channel response finish that no channel response precedes
   states that the proxy did not serve the watch.
 - **The filetree frame.** After the byte `0`, the payload is the
-  filetree frame the proxy sent, verbatim: the form and the meaning
-  that the [volumes::watch response](/endpoints/volumes-watch/response/)
-  defines, with every path relative to the root of the container.
-  The server does not read it.
+  filetree frame the proxy sent, verbatim, running to the end of the
+  payload, encoded as the postcard reading of
+  [Notation](/endpoints/#notation) provides. The server does not
+  read it. The frame is one of four variants, and its discriminant
+  is a varint: `0` is `Snapshot`, followed by `children`, a varint
+  count followed by that many nodes; `1` is `Inserted`, followed by
+  `path`, a varint count followed by that many strings, followed by
+  `node`, one node; `2` is `Modified`, followed by `path` and `node`
+  in the same forms; `3` is `Removed`, followed by `path`.
+- **The node.** A node is one of three variants, and its discriminant
+  is a varint: `0` is `File`, followed by `name`, a string, `size`,
+  an optional `u64`, `created_at`, an optional `u64`, and
+  `modified_at`, an optional `u64`; `1` is `Directory`, followed by
+  `name`, `created_at`, `modified_at`, `changes`, one byte `0` or
+  `1`, and `children`, a varint count followed by that many nodes;
+  `2` is `Symlink`, followed by `name`, `path`, a varint count
+  followed by that many strings, `created_at` and `modified_at`. An
+  optional `u64` is the byte `0`, or the byte `1` followed by a
+  varint. `name` is the name of the node in its directory and is
+  never a path. `size` is the length of the file in bytes, absent
+  when the proxy could not read it. `created_at` and `modified_at`
+  are seconds since `1970-01-01T00:00:00Z`, unsigned, absent when
+  the filesystem records no such time. `children` is never absent;
+  an empty directory carries an empty list. A `Symlink` is the link
+  itself, never followed: its `path` is the target of the link as
+  components relative to the root of the container, and is present
+  whether or not a node exists at that path.
+- **Paths.** Every `path` is a sequence of components from the root
+  of the container, each component the `name` of a node. The root of
+  the container has no path and no node; a snapshot carries the
+  entries of the root. The last component of the `path` of an
+  `Inserted` or `Modified` frame equals the `name` of its `node`.
+- **The snapshot.** The first channel response of every filetree the
+  proxy serves is a `Snapshot` carrying the whole tree of the
+  container at that time, less what is left out. A further
+  `Snapshot` is sent whenever the proxy has lost track of changes.
+  Every `Snapshot` replaces the tree whole.
+- **A change.** After a snapshot, one channel response is sent for
+  each change to the filesystem of the container, as the change
+  occurs. A node that comes into existence at a path that held no
+  node is sent as `Inserted` at that path, with the node complete, a
+  directory with its whole subtree. A node that changes in place is
+  sent as `Modified` at its path, with the node's complete new
+  value, a directory with its whole subtree; the value replaces the
+  node and is not merged into it. A node that ceases to exist is
+  sent as `Removed` at its path; a directory takes everything
+  beneath it, and no channel response is sent for a descendant. A
+  node that is relocated, whether renamed within its directory or
+  moved elsewhere in the tree, is sent as `Removed` at the path it
+  left, followed by `Inserted` at the path it arrived at, with the
+  inserted node complete. No channel response states a relocation
+  as one event, and no frame of this specification does so.
+- **Order and repetition.** The channel responses for changes are
+  sent in the order in which the changes occurred. A channel
+  response for one change may be sent more than once, and a
+  `Snapshot` may be sent at any time. Every channel response places
+  or clears exactly one place in the tree, and no channel response
+  depends on the tree the client holds.
+- **A directory not watched.** A `Directory` whose `changes` is `0`
+  is one whose contents the proxy does not watch: no channel
+  response is sent for a change beneath it until the next
+  `Snapshot`, and its `children` are the entries the proxy found
+  when it read the directory.
+- **The tree the client holds.** A client that holds the tree
+  applies each channel response as follows. A `Snapshot` replaces
+  the tree with its `children`. An `Inserted` or a `Modified` places
+  its `node` at its `path`, replacing a node of that `name` in that
+  directory when one is there. A `Removed` removes the node at its
+  `path` and everything beneath it. A channel response whose `path`
+  names a parent that is absent from the tree, or that is not a
+  directory, has no effect on the tree; the next `Snapshot` corrects
+  it.
 - **The error.** After the byte `1`, exactly one JSON value in the form defined on the [volumes::list response](/endpoints/volumes-list/response/) page. The server
   sends it when the proxy sent its error, or when the server could
   not carry the watch.
