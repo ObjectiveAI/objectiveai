@@ -32,6 +32,14 @@ pub struct Podman {
     /// path that is not absolute is resolved relative to the directory
     /// that contains `config.yaml` itself, never to the working
     /// directory; an absolute path stands as written.
+    ///
+    /// A container's `disk` is enforced as podman's storage size
+    /// option on the container, which the overlay driver keeps with
+    /// the kernel's project quotas. So the filesystem under this path
+    /// has them: XFS mounted with `pquota`, or ext4 with project
+    /// quota enabled. On any other filesystem podman refuses the
+    /// option, and every run fails with its refusal; the provider
+    /// does not probe for it.
     pub storage_path: PathBuf,
     /// The most the image cache may hold, in BYTES: the layers of
     /// every image pulled, kept for the next run of it. The provider
