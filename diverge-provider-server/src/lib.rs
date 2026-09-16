@@ -13,7 +13,7 @@
 //! |-------|----------|
 //! | `ContainerDeployer` | a container, running, with the proxy inside and port 14979 reachable |
 //! | `Container` | the address of that proxy, and the stop |
-//! | `VolumeManager` | the volumes of every identity, and their watches |
+//! | `VolumeManager` | the volumes of every identity |
 //! | `ContentStore` | mounted content held by identity, verified |
 //! | `ImageRegistry` | the registry a runtime pulls a caller-held image from |
 //! | `ImageChecker` | whether a `server` image can be served |
@@ -25,8 +25,7 @@
 //!
 //! The crate is the place the implementation goes, named and in the
 //! workspace; [`volume_manager`] is the first trait supplied: every
-//! method but a volume's `edit` and `watch`, which are the two still
-//! to come.
+//! method but a volume's `edit`, which is the one still to come.
 
 pub mod config;
 pub mod hook;
