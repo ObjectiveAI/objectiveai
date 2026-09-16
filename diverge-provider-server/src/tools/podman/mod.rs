@@ -7,16 +7,21 @@
 //! VM's own; a tool that must run where the images are runs inside
 //! the machine, over `podman machine ssh`. [`command`] is the root
 //! every podman invocation grows from and [`podman`] runs one;
-//! [`sudo`] and [`path`], on the hosts with a machine, are a tool
-//! run inside it as root and a host path as it sees it.
+//! [`images`], [`image_id`], [`port`] and [`containers`] are the
+//! questions the provider asks podman, each read out of podman's own
+//! output; [`sudo`], [`path`] and [`machine_ssh`], on the hosts with
+//! a machine, are a tool run inside it as root, a host path as it
+//! sees it, and how the machine is reached over SSH.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
 mod command;
+mod inspect;
 #[cfg(not(target_os = "linux"))]
 mod machine;
 
 pub use command::*;
+pub use inspect::*;
 #[cfg(not(target_os = "linux"))]
 pub use machine::*;
