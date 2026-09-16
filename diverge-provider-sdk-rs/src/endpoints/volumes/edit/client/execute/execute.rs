@@ -22,9 +22,7 @@ use crate::shared::error::Error;
 ///
 /// One question, one answer, then the scope is over — so there is a
 /// value to return, and returning it is the whole of what a caller
-/// wanted. [`watch`](crate::endpoints::volumes::watch) is the volume
-/// endpoint that does not collapse, and its `execute` hands back
-/// something to keep reading instead.
+/// wanted. Every volume endpoint collapses this way.
 ///
 /// # An answer and an error are two different things
 ///

@@ -38,8 +38,8 @@
 //!
 //! [`filetree`](crate::shared::filetree) and [`mcp`](crate::shared::mcp)
 //! stay beside this module rather than inside it: each is ridden by
-//! something that is not a container scope — a volume watch, the
-//! proxy inside the container.
+//! something that is not a container scope — the proxy inside the
+//! container, whose own channels carry both.
 
 pub mod agent_schema;
 pub mod authorize;

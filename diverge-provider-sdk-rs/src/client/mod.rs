@@ -20,9 +20,9 @@
 //! describing it — and a provider opens channels back into it for
 //! the things it cannot reach itself, which the caller answers
 //! through the traits below. Every endpoint has its executor: the
-//! five `volumes`, `images::check` and `version` collapse into a call
-//! or a stream; the three `containers` scopes hand back a handle that
-//! holds the container's life. The client half is complete.
+//! seven `volumes`, `images::check` and `version` collapse into a
+//! call; the three `containers` scopes hand back a handle that holds
+//! the container's life. The client half is complete.
 //!
 //! # What is here
 //!

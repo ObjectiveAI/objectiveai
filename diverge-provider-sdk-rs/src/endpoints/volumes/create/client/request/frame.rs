@@ -23,7 +23,7 @@ use crate::encode::{Encode, Writer};
 /// Which is a real difference and the only one. Afterwards the volume
 /// is a volume: it appears in a
 /// [`list`](crate::endpoints::volumes::list), it can be
-/// [`watch`](crate::endpoints::volumes::watch)ed, and a
+/// [`stat`](crate::endpoints::volumes::stat)ed, and a
 /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
 /// names it exactly as it names any other. Nothing downstream knows or
 /// cares which way it came about.
@@ -44,7 +44,7 @@ pub struct Frame {
     /// What to call it.
     ///
     /// The handle, from the moment it exists — a
-    /// [`watch`](crate::endpoints::volumes::watch) and a
+    /// [`stat`](crate::endpoints::volumes::stat) and a
     /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
     /// name it by this and by nothing else.
     ///
@@ -81,7 +81,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 7;
+const TAG: u8 = 6;
 
 /// Postcard, matching the rest of [`volumes`](crate::endpoints::volumes).
 impl Encode for Frame {

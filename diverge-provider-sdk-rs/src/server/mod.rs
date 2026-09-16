@@ -122,12 +122,10 @@
 //! endpoint's handler with the decoded request. One call per
 //! connection is a provider's whole loop.
 //!
-//! Seven of the eight [`volumes`](crate::endpoints::volumes),
+//! The seven [`volumes`](crate::endpoints::volumes),
 //! [`images::check`](crate::endpoints::images::check) and
 //! [`version`](crate::endpoints::version) answer and finish, which is
-//! the whole of what those endpoints do; a
-//! [`watch`](crate::endpoints::volumes::watch) streams until it is
-//! stopped. The three
+//! the whole of what those endpoints do. The three
 //! [`containers`](crate::endpoints::containers) scopes serve for as
 //! long as their containers run: a run brings its container up,
 //! answers its id, and then carries the container's asks out and the
@@ -183,14 +181,14 @@
 //! which is a fact only this half of the connection has.
 //!
 //! [`volume_manager`] is the second, and with [`volume`] it is the
-//! eight [`volumes`](crate::endpoints::volumes) endpoints: the
+//! seven [`volumes`](crate::endpoints::volumes) endpoints: the
 //! directories a provider offers. The manager is the namespace —
 //! listed, looked up by name, created, deleted, and asked how much
 //! room there is — and the [`volume`] it hands back for a name is
-//! the one directory, examined, resized and watched. Two traits
-//! rather than one because the verbs on a volume that exists act on
-//! it in place, and every one of them but a watch takes the volume's
-//! lock first: the lock a provider keeps on each volume is how this
+//! the one directory, examined and resized. Two traits rather than
+//! one because the verbs on a volume that exists act on it in place,
+//! and every one of them takes the volume's lock first: the lock a
+//! provider keeps on each volume is how this
 //! half keeps a mounted volume from being examined, resized, deleted
 //! or mounted twice, and the run handlers take it too, for the life
 //! of the container.
@@ -234,7 +232,7 @@
 //! to find its run scope to be authorized on, and its address to dial.
 //!
 //! Nothing implements any of them, and all are consumed:
-//! [`volume_manager`] and [`volume`] by the eight
+//! [`volume_manager`] and [`volume`] by the seven
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](crate::endpoints::images::check)'s, and

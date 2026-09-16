@@ -25,12 +25,6 @@ use crate::shared::error::Error;
 /// [`delete`](VolumeManager::delete) is told so. On failure it is
 /// given back, and the volume is as it was.
 ///
-/// A volume under somebody's live
-/// [`watch`](crate::endpoints::volumes::watch) is not mounted and
-/// holds no lock, and what the manager does about one is the
-/// manager's — the protocol does not adjudicate it, so neither does
-/// this.
-///
 /// # Every failure becomes a frame
 ///
 /// A name the caller has no volume by is [`refusal::unknown`]; a

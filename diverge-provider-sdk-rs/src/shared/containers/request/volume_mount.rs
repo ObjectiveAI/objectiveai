@@ -17,9 +17,9 @@ use serde::{Deserialize, Serialize};
 /// wherever that maps to — so a caller reaches a subdirectory of
 /// something it was offered, and nothing else.
 ///
-/// That is the same access model as
-/// [`watch`](crate::endpoints::volumes::watch), and it holds for the same
-/// reason: a provider never validates a path, it resolves a name it
+/// That is the same access model as every
+/// [`volumes`](crate::endpoints::volumes) endpoint, and it holds for
+/// the same reason: a provider never validates a path, it resolves a name it
 /// chose and then descends. A caller cannot escape upward, because
 /// there is no component it can write that means "up" — the offset is
 /// components, and `..` is a name, not an instruction.

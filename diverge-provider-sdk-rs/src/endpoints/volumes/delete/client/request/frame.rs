@@ -17,8 +17,8 @@ use crate::encode::{Encode, Writer};
 /// invents is not something this request can express.
 ///
 /// Which is the same protection a
-/// [`watch`](crate::endpoints::volumes::watch) has, and it matters
-/// more here: a watch that resolved a name wrongly shows a caller
+/// [`stat`](crate::endpoints::volumes::stat) has, and it matters
+/// more here: a stat that resolved a name wrongly shows a caller
 /// something, and this one destroys it.
 ///
 /// # It is not undoable and there is no confirmation
@@ -36,10 +36,6 @@ use crate::encode::{Encode, Writer};
 /// [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted)
 /// and changes nothing. A caller that wants it gone stops the
 /// container first and asks again.
-///
-/// A volume being [`watch`](crate::endpoints::volumes::watch)ed is
-/// not mounted, and what a provider does about one is the provider's:
-/// delete it and let the watch end, or refuse with an error.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame {
     /// Which volume, by the name a listing gave it.
@@ -62,7 +58,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 10;
+const TAG: u8 = 9;
 
 /// Postcard, matching the rest of [`volumes`](crate::endpoints::volumes).
 impl Encode for Frame {
