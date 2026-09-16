@@ -7,6 +7,7 @@
 //! VM's own; a tool that must run where the images are runs inside
 //! the machine, over `podman machine ssh`. [`command`] is the root
 //! every podman invocation grows from and [`podman`] runs one;
+//! [`image_exists`] asks the store whether it holds an image;
 //! [`sudo`] and [`path`], on the hosts with a machine, are a tool
 //! run inside it as root and a host path as it sees it.
 //!
@@ -14,9 +15,11 @@
 //! through this module and not through the file it lives in.
 
 mod command;
+mod image;
 #[cfg(not(target_os = "linux"))]
 mod machine;
 
 pub use command::*;
+pub use image::*;
 #[cfg(not(target_os = "linux"))]
 pub use machine::*;
