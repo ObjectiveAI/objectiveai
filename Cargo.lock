@@ -1878,7 +1878,9 @@ dependencies = [
 name = "diverge-provider-server"
 version = "2.3.0"
 dependencies = [
+ "axum",
  "base64 0.22.1",
+ "bytes",
  "dashmap",
  "diverge-provider-sdk",
  "fstool",
