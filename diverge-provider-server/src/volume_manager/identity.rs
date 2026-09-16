@@ -1,11 +1,13 @@
 //! One identity's stored volumes, by name.
 
+use std::sync::Arc;
+
 use dashmap::DashMap;
 use futures_util::future;
 use tokio::fs::DirEntry;
 use tokio::sync::{Mutex, OnceCell};
 
-use super::{Place, Volume, name};
+use super::{Place, Reservation, Volume, name};
 use crate::config::volumes::Store;
 
 /// The volumes one identity created, held by name.
@@ -39,22 +41,25 @@ impl Identity {
         }
     }
 
-    /// Read the identity's volumes from `stores`, once.
+    /// Read the identity's volumes from the reservation's stores,
+    /// once.
     ///
     /// In every store, `<store>/<identity>/` is read, every store
     /// beside every other and every entry of a store beside every
     /// other: every regular file whose name a volume may have is a
     /// stored volume, and anything else is passed over. A store, or
     /// the identity's directory in it, that does not exist holds no
-    /// volumes.
-    pub(super) async fn load(&self, stores: &[Store]) {
+    /// volumes. Each volume is handed the reservation, so it can ask
+    /// its store for room when it grows.
+    pub(super) async fn load(&self, reservation: &Arc<Reservation>) {
         self.loaded
             .get_or_init(|| async {
                 future::join_all(
-                    stores
+                    reservation
+                        .stores()
                         .iter()
                         .enumerate()
-                        .map(|(index, store)| self.load_store(index, store)),
+                        .map(|(index, store)| self.load_store(index, store, reservation)),
                 )
                 .await;
             })
@@ -64,7 +69,7 @@ impl Identity {
     /// One store: its entries under this identity are read, and every
     /// one is examined at once. A directory that cannot be read holds
     /// no volumes.
-    async fn load_store(&self, index: usize, store: &Store) {
+    async fn load_store(&self, index: usize, store: &Store, reservation: &Arc<Reservation>) {
         let Ok(mut entries) = tokio::fs::read_dir(store.path.join(&self.client_identity)).await else {
             return;
         };
@@ -72,12 +77,12 @@ impl Identity {
         while let Ok(Some(entry)) = entries.next_entry().await {
             found.push(entry);
         }
-        future::join_all(found.into_iter().map(|entry| self.load_entry(index, entry))).await;
+        future::join_all(found.into_iter().map(|entry| self.load_entry(index, entry, reservation))).await;
     }
 
     /// One entry of a store: a stored volume when it is a regular
     /// file with a name a volume may have; nothing otherwise.
-    async fn load_entry(&self, index: usize, entry: DirEntry) {
+    async fn load_entry(&self, index: usize, entry: DirEntry, reservation: &Arc<Reservation>) {
         let Ok(name) = entry.file_name().into_string() else {
             return;
         };
@@ -94,6 +99,7 @@ impl Identity {
                 Place::Stored {
                     store: index,
                     image: entry.path(),
+                    reservation: Arc::clone(reservation),
                 },
             ),
         );

@@ -1,7 +1,7 @@
 //! The manager: the stores, the fixed volumes, and every identity that
 //! has asked.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -11,10 +11,9 @@ use diverge_provider_sdk::endpoints::volumes::list::server::response;
 use diverge_provider_sdk::server::volume_manager;
 use futures_util::future;
 use tokio::fs;
-use tokio::sync::Mutex;
 
-use super::{Error, Identity, Place, Volume, image, name};
-use crate::config::volumes::{Fixed, HookInput, HookOutput, Store, Volumes};
+use super::{Error, Identity, Place, Reservation, Volume, image, name};
+use crate::config::volumes::{Fixed, HookInput, HookOutput, Volumes};
 use crate::hook;
 
 /// The provider's volumes: the directories it offers every identity,
@@ -30,9 +29,9 @@ use crate::hook;
 /// where they have one.
 #[derive(Debug)]
 pub struct VolumeManager {
-    /// Where volumes may be created, in the configuration's order of
-    /// preference. Empty is a provider that creates none.
-    stores: Vec<Store>,
+    /// The stores, and the room left in each: shared with every
+    /// stored volume, which asks it to grow.
+    reservation: Arc<Reservation>,
     /// The volumes that exist already. Empty is a provider that
     /// holds none.
     fixed: Vec<Fixed>,
@@ -45,9 +44,6 @@ pub struct VolumeManager {
     started: u64,
     /// Every identity that has asked, by identity.
     identities: DashMap<String, Arc<Identity>>,
-    /// Held across a create's capacity scan and its reservation, so
-    /// two creates cannot both fit in the room one of them takes.
-    reserving: Mutex<()>,
 }
 
 impl VolumeManager {
@@ -56,7 +52,7 @@ impl VolumeManager {
     pub fn new(volumes: Option<Volumes>, hooks_dir: PathBuf) -> Self {
         let volumes = volumes.unwrap_or_default();
         VolumeManager {
-            stores: volumes.stores.unwrap_or_default(),
+            reservation: Arc::new(Reservation::new(volumes.stores.unwrap_or_default())),
             fixed: volumes.fixed.unwrap_or_default(),
             hooks_dir,
             started: SystemTime::now()
@@ -64,7 +60,6 @@ impl VolumeManager {
                 .map(|elapsed| elapsed.as_secs())
                 .unwrap_or(0),
             identities: DashMap::new(),
-            reserving: Mutex::new(()),
         }
     }
 
@@ -79,7 +74,7 @@ impl VolumeManager {
                 .entry(client_identity.to_string())
                 .or_insert_with(|| Arc::new(Identity::new(client_identity))),
         );
-        identity.load(&self.stores).await;
+        identity.load(&self.reservation).await;
         identity
     }
 
@@ -151,73 +146,6 @@ impl VolumeManager {
         let listed = future::try_join_all(volumes.iter().map(|volume| volume.listing())).await?;
         Ok(listed)
     }
-
-    /// How many bytes the store has left: its capacity less the
-    /// length of every image in it, of every identity, read from the
-    /// filesystem now. Never below `0`.
-    async fn room(&self, store: &Store) -> u64 {
-        store.capacity.saturating_sub(used(&store.path).await)
-    }
-
-    /// Every store's room, each scanned beside every other, in the
-    /// configuration's order.
-    async fn rooms(&self) -> Vec<u64> {
-        future::join_all(self.stores.iter().map(|store| self.room(store))).await
-    }
-
-    /// The first store, in the configuration's order of preference,
-    /// with room for `bytes`: its index and itself.
-    async fn store_with_room(&self, bytes: u64) -> Option<(usize, &Store)> {
-        self.rooms()
-            .await
-            .into_iter()
-            .position(|room| room >= bytes)
-            .map(|index| (index, &self.stores[index]))
-    }
-}
-
-/// The bytes every image in the store reserves between them: every
-/// identity's directory read beside every other, every image's length
-/// beside every other. A store that does not exist reserves nothing.
-async fn used(store: &Path) -> u64 {
-    let Ok(mut entries) = fs::read_dir(store).await else {
-        return 0;
-    };
-    let mut identities = Vec::new();
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        identities.push(entry.path());
-    }
-    future::join_all(identities.iter().map(|identity| used_identity(identity)))
-        .await
-        .into_iter()
-        .sum()
-}
-
-/// The bytes every image under one identity's directory reserves. A
-/// directory that cannot be read reserves nothing.
-async fn used_identity(dir: &Path) -> u64 {
-    let Ok(mut entries) = fs::read_dir(dir).await else {
-        return 0;
-    };
-    let mut images = Vec::new();
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        images.push(entry.path());
-    }
-    future::join_all(images.iter().map(|image| image_length(image)))
-        .await
-        .into_iter()
-        .sum()
-}
-
-/// One image's length, or `0` for anything that is not a regular
-/// file.
-async fn image_length(image: &Path) -> u64 {
-    fs::metadata(image)
-        .await
-        .ok()
-        .filter(|meta| meta.is_file())
-        .map(|meta| meta.len())
-        .unwrap_or(0)
 }
 
 impl volume_manager::VolumeManager for VolumeManager {
@@ -252,7 +180,7 @@ impl volume_manager::VolumeManager for VolumeManager {
 
     /// The most room any one store has, as of now; `0` with no store.
     async fn create_capacity(&self, _client_identity: &str) -> Result<u64, Error> {
-        Ok(self.rooms().await.into_iter().max().unwrap_or(0))
+        Ok(self.reservation.rooms().await.into_iter().max().unwrap_or(0))
     }
 
     /// The image reserved in the first store with room, then formatted.
@@ -279,17 +207,25 @@ impl volume_manager::VolumeManager for VolumeManager {
             return Err(Error::Exists(name.to_string()));
         }
         let (index, path) = {
-            let _reserving = self.reserving.lock().await;
-            let Some((index, store)) = self.store_with_room(bytes).await else {
+            let _reserving = self.reservation.lock().await;
+            let Some(index) = self.reservation.first_with_room(bytes).await else {
                 return Ok(Creation::InsufficientCapacity);
             };
+            let store = &self.reservation.stores()[index];
             fs::create_dir_all(store.path.join(client_identity)).await?;
             let path = image::image_path(&store.path, client_identity, name);
             image::reserve_image(&path, bytes).await?;
             (index, path)
         };
         image::format_image(&path, bytes).await?;
-        identity.insert(Volume::new(name, Place::Stored { store: index, image: path }));
+        identity.insert(Volume::new(
+            name,
+            Place::Stored {
+                store: index,
+                image: path,
+                reservation: Arc::clone(&self.reservation),
+            },
+        ));
         Ok(Creation::Created)
     }
 
@@ -300,7 +236,7 @@ impl volume_manager::VolumeManager for VolumeManager {
             return Err(Error::Unknown(name.to_string()));
         };
         match volume.place() {
-            Place::Stored { store, .. } => Ok(self.room(&self.stores[*store]).await),
+            Place::Stored { store, reservation, .. } => Ok(reservation.room(*store).await),
             Place::Fixed { .. } => Ok(0),
         }
     }
