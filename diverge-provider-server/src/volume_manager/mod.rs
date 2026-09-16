@@ -11,6 +11,9 @@
 //! birth time is when the volume came into being. Nothing is kept
 //! beside it: what a listing reports is what the filesystem records
 //! about the file, and what a stat reports is read out of the image.
+//! An edit lengthens or shortens the file and resizes the filesystem
+//! in it to match, with the system's `e2fsck` and `resize2fs`: the
+//! Linux host's own, or the podman machine's on macOS and Windows.
 //!
 //! A fixed volume is a directory the configuration names, offered as
 //! it is: its size is declared in the configuration, its creation
@@ -28,12 +31,14 @@
 //! `dirhash`. [`walk_directory`] is the walk of a fixed volume's
 //! directory and [`walk_image`] the walk of a stored volume's image;
 //! [`reserve_image`] and [`format_image`] are how an image is made,
-//! at [`image_path`]. [`sparse`] marks a new image sparse where the
-//! filesystem needs telling, [`ok`] says which names a volume may
-//! have, and [`Error`] is what any of it fails with.
+//! at [`image_path`], and [`resize`] how the filesystem in one is
+//! resized. [`Reservation`] is the stores and the room left in each,
+//! shared by the manager that creates and every volume that grows.
+//! [`sparse`] marks a new image sparse where the filesystem needs
+//! telling, [`ok`] says which names a volume may have, and [`Error`]
+//! is what any of it fails with.
 //!
-//! Every method of both traits is implemented but a volume's `edit`,
-//! which is the one still to come.
+//! Every method of both traits is implemented.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -42,6 +47,8 @@ mod error;
 mod identity;
 mod image;
 mod name;
+mod reservation;
+mod resize;
 mod sparse;
 mod volume;
 mod volume_manager;
@@ -51,6 +58,8 @@ pub use error::*;
 pub use identity::*;
 pub use image::*;
 pub use name::*;
+pub use reservation::*;
+pub use resize::*;
 pub use sparse::*;
 pub use volume::*;
 pub use volume_manager::*;
