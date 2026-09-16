@@ -25,8 +25,11 @@
 //!
 //! The crate is the place the implementation goes, named and in the
 //! workspace; [`volume_manager`] is the first trait supplied, and
-//! every method of it is written.
+//! every method of it is written. [`tools`] is every program the
+//! provider runs — podman, and e2fsprogs through it or beside it —
+//! and the one way it runs them.
 
 pub mod config;
 pub mod hook;
+pub mod tools;
 pub mod volume_manager;
