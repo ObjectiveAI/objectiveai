@@ -232,7 +232,7 @@ pub trait ContainerDeployer: Send + Sync {
     /// Nothing upstream of here does it.
     ///
     /// The digest needs no such care: the provider's registry hashes
-    /// what the caller sent before storing it, and the runtime hashes
+    /// what the caller sent before serving it, and the runtime hashes
     /// again on pull, so a caller holding the wrong bytes under the
     /// right digest fails before anything runs.
     ///
