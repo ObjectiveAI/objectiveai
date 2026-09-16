@@ -1,7 +1,7 @@
 //! The manager: the stores, the fixed volumes, and every identity that
 //! has asked.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -183,15 +183,17 @@ impl volume_manager::VolumeManager for VolumeManager {
         Ok(self.reservation.rooms().await.into_iter().max().unwrap_or(0))
     }
 
-    /// The image reserved in the first store with room, then formatted.
+    /// The bytes reserved in the first store with room, the image
+    /// made and formatted there, the volume entered.
     ///
     /// The name is checked first, against what a name may be and
     /// against the fixed volumes, and the size against the least an
     /// ext4 filesystem can be. Then, under the identity's namespace
-    /// lock: the name must be vacant; under the reservation lock as
-    /// well, the stores are scanned in order and the first with room
-    /// takes the image, made and sized; the reservation lock is let
-    /// go, the image is formatted, and the volume is entered.
+    /// lock — the identity's alone, so identities never wait on each
+    /// other — the name must be vacant; the bytes are taken from the
+    /// first store that has them, by one atomic update and no I/O;
+    /// the image is made, sized and formatted; and the volume is
+    /// entered. A failure after the bytes were taken gives them back.
     async fn create(&self, client_identity: &str, name: &str, bytes: u64) -> Result<Creation, Error> {
         if !name::ok(name) || self.fixed_named(name).is_some() {
             return Err(Error::Name(name.to_string()));
@@ -206,18 +208,15 @@ impl volume_manager::VolumeManager for VolumeManager {
         if identity.volume(name).is_some() {
             return Err(Error::Exists(name.to_string()));
         }
-        let (index, path) = {
-            let _reserving = self.reservation.lock().await;
-            let Some(index) = self.reservation.first_with_room(bytes).await else {
-                return Ok(Creation::InsufficientCapacity);
-            };
-            let store = &self.reservation.stores()[index];
-            fs::create_dir_all(store.path.join(client_identity)).await?;
-            let path = image::image_path(&store.path, client_identity, name);
-            image::reserve_image(&path, bytes).await?;
-            (index, path)
+        let Some(index) = self.reservation.reserve_first(bytes).await else {
+            return Ok(Creation::InsufficientCapacity);
         };
-        image::format_image(&path, bytes).await?;
+        let store = self.reservation.store(index);
+        let path = image::image_path(&store.path, client_identity, name);
+        if let Err(error) = make_image(&store.path.join(client_identity), &path, bytes).await {
+            self.reservation.release(index, bytes).await;
+            return Err(error);
+        }
         identity.insert(Volume::new(
             name,
             Place::Stored {
@@ -253,13 +252,30 @@ impl volume_manager::VolumeManager for VolumeManager {
         let Some(volume) = identity.remove(name) else {
             return Err(Error::Unknown(name.to_string()));
         };
-        if let Place::Stored { image, .. } = volume.place() {
+        if let Place::Stored { store, image, reservation } = volume.place() {
+            let length = image_length(image).await;
             match fs::remove_file(image).await {
                 Ok(()) => {}
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
                 Err(error) => return Err(Error::Io(error)),
             }
+            reservation.release(*store, length).await;
         }
         Ok(())
     }
+}
+
+/// The identity's directory made, the image reserved in it, and
+/// formatted: the three steps a create takes after its bytes are
+/// taken, so one failure path gives them back.
+async fn make_image(dir: &Path, path: &Path, bytes: u64) -> Result<(), Error> {
+    fs::create_dir_all(dir).await?;
+    image::reserve_image(path, bytes).await?;
+    image::format_image(path, bytes).await
+}
+
+/// The image's length, which a delete gives back to its store; an
+/// image already gone gives back nothing.
+async fn image_length(image: &Path) -> u64 {
+    fs::metadata(image).await.map(|meta| meta.len()).unwrap_or(0)
 }

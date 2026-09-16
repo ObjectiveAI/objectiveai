@@ -152,34 +152,38 @@ impl Volume {
         *self.inner.walked.lock().await = None;
     }
 
-    /// Shrink the image to `bytes`: the content must fit, the
-    /// filesystem is shrunk first, and the file after it, so the file
-    /// is never shorter than the filesystem in it. A refusal by the
-    /// tools leaves both as they were.
-    async fn shrink(&self, image: &Path, bytes: u64) -> Result<Edit, Error> {
+    /// Shrink the image from `current` to `bytes`: the content must
+    /// fit, the filesystem is shrunk first, and the file after it, so
+    /// the file is never shorter than the filesystem in it; the
+    /// difference goes back to the store. A refusal by the tools
+    /// leaves both as they were.
+    async fn shrink(&self, store: usize, reservation: &Reservation, image: &Path, current: u64, bytes: u64) -> Result<Edit, Error> {
         if self.check().await?.bytes_used > bytes {
             return Ok(Edit::ContentTooLarge);
         }
         resize::resize(image, bytes).await?;
         set_len(image, bytes).await?;
+        reservation.release(store, current - bytes).await;
         Ok(Edit::Edited)
     }
 
-    /// Grow the image from `current` to `bytes`: the store must have
-    /// the difference, the file is lengthened first — under the
-    /// reservation lock, so that is the reservation and a create
-    /// scanning the store sees it — and the filesystem after it. A
-    /// refusal by the tools puts the file back at `current`.
+    /// Grow the image from `current` to `bytes`: the difference is
+    /// taken from the store, by one atomic update and no I/O, the
+    /// file is lengthened, and the filesystem after it. A failure
+    /// after the bytes were taken puts the file back at `current`
+    /// and gives them back.
     async fn grow(&self, store: usize, reservation: &Reservation, image: &Path, current: u64, bytes: u64) -> Result<Edit, Error> {
-        {
-            let _reserving = reservation.lock().await;
-            if reservation.room(store).await < bytes - current {
-                return Ok(Edit::InsufficientCapacity);
-            }
-            set_len(image, bytes).await?;
+        if !reservation.reserve(store, bytes - current).await {
+            return Ok(Edit::InsufficientCapacity);
         }
-        if let Err(error) = resize::resize(image, bytes).await {
+        let grown = async {
+            set_len(image, bytes).await?;
+            resize::resize(image, bytes).await
+        }
+        .await;
+        if let Err(error) = grown {
             let _ = set_len(image, current).await;
+            reservation.release(store, bytes - current).await;
             return Err(error);
         }
         Ok(Edit::Edited)
@@ -269,7 +273,7 @@ impl volume::Volume for Volume {
             return Ok(Edit::Edited);
         }
         if bytes < current {
-            self.shrink(image, bytes).await
+            self.shrink(*store, reservation, image, current, bytes).await
         } else {
             self.grow(*store, reservation, image, current, bytes).await
         }

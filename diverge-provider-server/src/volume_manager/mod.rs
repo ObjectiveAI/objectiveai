@@ -32,8 +32,9 @@
 //! directory and [`walk_image`] the walk of a stored volume's image;
 //! [`reserve_image`] and [`format_image`] are how an image is made,
 //! at [`image_path`], and [`resize`] how the filesystem in one is
-//! resized. [`Reservation`] is the stores and the room left in each,
-//! shared by the manager that creates and every volume that grows.
+//! resized. [`Reservation`] is the stores and the bytes reserved in
+//! each, kept in memory and taken by compare-and-swap, shared by the
+//! manager that creates and every volume that grows or shrinks.
 //! [`sparse`] marks a new image sparse where the filesystem needs
 //! telling, [`ok`] says which names a volume may have, and [`Error`]
 //! is what any of it fails with.

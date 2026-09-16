@@ -57,7 +57,6 @@ impl Identity {
                 future::join_all(
                     reservation
                         .stores()
-                        .iter()
                         .enumerate()
                         .map(|(index, store)| self.load_store(index, store, reservation)),
                 )
