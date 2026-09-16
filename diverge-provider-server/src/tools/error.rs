@@ -4,7 +4,8 @@ use std::fmt;
 use std::io;
 use std::process::ExitStatus;
 
-/// A program that could not be started, or that ran and refused.
+/// A program that could not be started, that ran and refused, or
+/// that answered in bytes that are not text.
 #[derive(Debug)]
 pub enum Error {
     /// The program could not be started: not on this host's `PATH`,
@@ -26,6 +27,12 @@ pub enum Error {
         /// What it wrote to stderr, whole.
         stderr: String,
     },
+    /// The program exited as accepted and wrote something to stdout
+    /// that is not UTF-8, where the caller reads what it wrote.
+    Output {
+        /// The program, as it was named.
+        program: String,
+    },
 }
 
 impl fmt::Display for Error {
@@ -35,6 +42,7 @@ impl fmt::Display for Error {
             Error::Status { program, status, stderr } => {
                 write!(f, "{program} refused, {status}: {}", stderr.trim_end())
             }
+            Error::Output { program } => write!(f, "{program} answered in bytes that are not text"),
         }
     }
 }
@@ -44,6 +52,7 @@ impl std::error::Error for Error {
         match self {
             Error::Spawn { source, .. } => Some(source),
             Error::Status { .. } => None,
+            Error::Output { .. } => None,
         }
     }
 }

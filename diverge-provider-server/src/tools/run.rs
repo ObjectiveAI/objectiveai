@@ -1,8 +1,9 @@
-//! Running one program, and what it finished with.
+//! Running one program: waited for, waited for and read, or left
+//! running.
 
 use std::process::{ExitStatus, Stdio};
 
-use tokio::process::Command;
+use tokio::process::{Child, Command};
 
 use super::Error;
 
@@ -56,4 +57,53 @@ pub async fn run(program: &str, mut command: Command) -> Result<Finished, Error>
         status: output.status,
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
     })
+}
+
+/// Run `command`, wait for it, and keep what it wrote to stdout: for
+/// the tools that answer. An exit other than success is
+/// [`Error::Status`], since a tool that refused wrote no answer worth
+/// reading; an answer that is not UTF-8 is [`Error::Output`]. Stdin
+/// and the kill on drop are as [`run`]'s.
+pub async fn capture(program: &str, mut command: Command) -> Result<String, Error> {
+    let output = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .output()
+        .await
+        .map_err(|source| Error::Spawn {
+            program: program.to_string(),
+            source,
+        })?;
+    if !output.status.success() {
+        return Err(Error::Status {
+            program: program.to_string(),
+            status: output.status,
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        });
+    }
+    String::from_utf8(output.stdout).map_err(|_| Error::Output {
+        program: program.to_string(),
+    })
+}
+
+/// Start `command` and hand back the child, for a program that lives
+/// longer than a call: the tunnel to the podman machine, the proxy
+/// exec inside a container. Every stream is closed, so nothing it
+/// writes is read and nothing it reads arrives; it is killed when the
+/// child is dropped, so whoever holds the child holds the program's
+/// life. Only the start can fail here; how it ends is the holder's
+/// to watch.
+pub fn start(program: &str, mut command: Command) -> Result<Child, Error> {
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|source| Error::Spawn {
+            program: program.to_string(),
+            source,
+        })
 }
