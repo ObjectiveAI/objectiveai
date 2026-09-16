@@ -8,7 +8,6 @@ use futures_util::StreamExt as _;
 
 use super::authorization::{self, Authorization};
 use super::container_deployer::ContainerDeployer;
-use super::identity_mount_manager::IdentityMountManager;
 use super::directory::Directory;
 use super::image_checker::ImageChecker;
 use super::image_registry::ImageRegistry;
@@ -105,14 +104,13 @@ use crate::shared::error::Error;
 /// every one of those teardowns — and it would end runs a caller had
 /// already paid for, which is the wrong way round: the work was real,
 /// and a caller that leaves does not un-spend it.
-pub async fn handle<D, V, I, U, S, R>(
+pub async fn handle<D, V, I, U, R>(
     mut session: Session,
     authorization: Authorization<U>,
     address: IpAddr,
     deployer: Arc<D>,
     volume_mount_manager: Arc<V>,
     image_checker: Arc<I>,
-    identity_mount_manager: Arc<S>,
     image_registry: Arc<R>,
     directory: Arc<Directory>,
 ) -> Result<(), HandleError<U::Error>>
@@ -124,8 +122,6 @@ where
     I: ImageChecker + 'static,
     I::Error: Into<Error>,
     U: UnbrokeredAuthorizer,
-    S: IdentityMountManager + 'static,
-    S::Error: Into<Error>,
     R: ImageRegistry + 'static,
     R::Error: Into<Error>,
 {
@@ -209,13 +205,12 @@ where
             ClientRequest::ContainersAgentsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let store = Arc::clone(&identity_mount_manager);
                 let registry = Arc::clone(&image_registry);
                 let manager = Arc::clone(&volume_mount_manager);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::agents::run::server::handle::handle(
-                        scope, frame, &identity, &*deployer, &*store, &*registry, &*manager, directory,
+                        scope, frame, &identity, &*deployer, &*registry, &*manager, directory,
                     )
                     .await;
                 });
@@ -223,13 +218,12 @@ where
             ClientRequest::ContainersToolsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let store = Arc::clone(&identity_mount_manager);
                 let registry = Arc::clone(&image_registry);
                 let manager = Arc::clone(&volume_mount_manager);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::tools::run::server::handle::handle(
-                        scope, frame, &identity, &*deployer, &*store, &*registry, &*manager, directory,
+                        scope, frame, &identity, &*deployer, &*registry, &*manager, directory,
                     )
                     .await;
                 });

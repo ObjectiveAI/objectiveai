@@ -155,7 +155,7 @@
 //!
 //! # And what a provider supplies
 //!
-//! Seven traits and one type, which are what this half asks FOR
+//! Six traits and one type, which are what this half asks FOR
 //! rather than provides. They mirror the ones [`client`](crate::client)
 //! supplies: something a provider implements, so that the parts this
 //! crate cannot know are somebody else's.
@@ -215,12 +215,7 @@
 //! itself rather than by any endpoint's handler, because a credential
 //! belongs to the connection and not to any scope on it.
 //!
-//! [`identity_mount_manager`] is the fifth: where the content a caller mounts
-//! by identity is kept, verified. A run handler asks it what it holds,
-//! fetches from the caller only the rest, and names every identity to
-//! the deployer, which binds from the store.
-//!
-//! [`image_registry`] is the sixth: the OCI registry a provider runs
+//! [`image_registry`] is the fifth: the OCI registry a provider runs
 //! on its loopback for images the CALLER holds, fed by digest through
 //! an [`image_source`] — the run scope's channels to the caller, which
 //! is the one thing only this crate can be. The registry's HTTP is the
@@ -236,7 +231,7 @@
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](crate::endpoints::images::check)'s, and
-//! [`container_deployer`], [`identity_mount_manager`], [`image_registry`] and
+//! [`container_deployer`], [`image_registry`] and
 //! — for the volumes a request mounts, locked for the run — the
 //! [`volume_mount_manager`] again by the two run handlers of
 //! [`containers`](crate::endpoints::containers)
@@ -271,7 +266,6 @@ pub mod authorization;
 pub mod channel;
 pub mod container;
 pub mod container_deployer;
-pub mod identity_mount_manager;
 pub mod deployment;
 pub mod directory;
 pub mod handle;

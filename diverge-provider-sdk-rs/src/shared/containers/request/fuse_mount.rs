@@ -42,8 +42,8 @@ pub struct FuseMount {
     /// Where the mount appears inside the container, as path
     /// components from the container's root — the shape every path in
     /// this crate takes, as
-    /// [`container_path`](super::IdentityMount::container_path) does
-    /// for content.
+    /// [`container_path`](super::VolumeMount::container_path) does
+    /// for a volume.
     ///
     /// No component is empty, `.` or `..`. A path inside a directory
     /// another mount provides is allowed — a file over a directory a

@@ -3,7 +3,6 @@
 use indexmap::IndexMap;
 
 use super::mount::Mount;
-use crate::shared::containers::request::IdentityMount;
 
 /// A container to put somewhere, minus the image.
 ///
@@ -103,18 +102,4 @@ pub struct Deployment {
     /// handler pairs each with whoever it authenticated before putting
     /// it here.
     pub mounts: Vec<Mount>,
-    /// The files the caller mounts by identity, each at its path with
-    /// the identity's content when the container starts and writable
-    /// inside it, from the provider's
-    /// [`IdentityMountManager`](super::identity_mount_manager::IdentityMountManager). How a
-    /// deployer makes a mount that starts as the identity and takes
-    /// writes — a copy, an overlay, anything else — is its own.
-    ///
-    /// Every identity here is held by the time a deploy is asked for:
-    /// the handler fetched what the store lacked first, so a deployer
-    /// binds and never fetches. The wire type, unchanged — a path and
-    /// an identity are all a bind needs.
-    pub identity_file_mounts: Vec<IdentityMount>,
-    /// The directories the caller mounts by identity, likewise.
-    pub identity_directory_mounts: Vec<IdentityMount>,
 }

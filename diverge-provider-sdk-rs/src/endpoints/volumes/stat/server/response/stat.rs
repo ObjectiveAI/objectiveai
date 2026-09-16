@@ -45,10 +45,7 @@ pub struct Stat {
     /// one line is written into one SHA-256: the SHA-256 of the file's
     /// bytes as lowercase hexadecimal, two spaces, the name, and a
     /// newline. The hash is the string `h1:` followed by that SHA-256
-    /// encoded as standard base64 with padding. It is the hash half of
-    /// the directory identity an
-    /// [`IdentityMount`](crate::shared::containers::request::IdentityMount)
-    /// carries, without the size — the listing already reports size.
+    /// encoded as standard base64 with padding.
     ///
     /// A volume with no file has the hash
     /// `h1:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=`, which is what

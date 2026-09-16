@@ -24,7 +24,7 @@ use crate::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy_endpoints::tools::begin::client::execute as begin;
 use crate::shared;
 use crate::shared::containers::response::{Id, VolumeMounted};
-use crate::shared::containers::{command, fetch_directory, fetch_file, fuse, oci, postgres, vault};
+use crate::shared::containers::{command, fuse, oci, postgres, vault};
 use crate::shared::mcp;
 use crate::shared::error::Error;
 use crate::shared::filetree as tree;
@@ -195,12 +195,6 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
                 digest: digest.to_string(),
             }),
             Own::Authorize(authorize) => ask::Frame::Authorize(authorize),
-            Own::FetchFile(identity) => ask::Frame::FetchFile(fetch_file::request::Request {
-                identity: identity.to_string(),
-            }),
-            Own::FetchDirectory(identity) => ask::Frame::FetchDirectory(fetch_directory::request::Request {
-                identity: identity.to_string(),
-            }),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
         }
     }

@@ -7,8 +7,8 @@
 //! root: one snapshot, then one frame per change, for as long as the
 //! channel lives. Every path is relative to the container's root. The
 //! FUSE mounts, which the caller serves itself, are left out of the
-//! tree; every other mount — a volume, an identity mount — is in it,
-//! and a change under one is reported.
+//! tree; every volume mount is in it, and a change under one is
+//! reported.
 //!
 //! A channel rather than the main stream, so a caller that wants no
 //! tree pays for none, and two callers on one container can each

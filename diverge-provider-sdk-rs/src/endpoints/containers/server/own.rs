@@ -16,10 +16,6 @@ pub(crate) enum Own<'a> {
     OciBlob(&'a str),
     /// Whether a connector may attach.
     Authorize(Authorize),
-    /// A mounted file the store lacks, by identity.
-    FetchFile(&'a str),
-    /// A mounted directory the store lacks, by identity.
-    FetchDirectory(&'a str),
     /// This end's half of a database connection, by the id it minted.
     Postgres(u32),
 }
