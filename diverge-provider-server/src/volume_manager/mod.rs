@@ -31,8 +31,9 @@
 //! `dirhash`. [`walk_directory`] is the walk of a fixed volume's
 //! directory and [`walk_image`] the walk of a stored volume's image;
 //! [`reserve_image`] and [`format_image`] are how an image is made,
-//! at [`image_path`], and [`resize`] how the filesystem in one is
-//! resized. [`Reservation`] is the stores and the bytes reserved in
+//! at [`image_path`]; the filesystem in one is resized by
+//! [`tools::resize`](crate::tools::resize). [`Reservation`] is the
+//! stores and the bytes reserved in
 //! each, kept in memory and taken by compare-and-swap, shared by the
 //! manager that creates and every volume that grows or shrinks.
 //! [`sparse`] marks a new image sparse where the filesystem needs
@@ -49,7 +50,6 @@ mod identity;
 mod image;
 mod name;
 mod reservation;
-mod resize;
 mod sparse;
 mod volume;
 mod volume_manager;
@@ -60,7 +60,6 @@ pub use identity::*;
 pub use image::*;
 pub use name::*;
 pub use reservation::*;
-pub use resize::*;
 pub use sparse::*;
 pub use volume::*;
 pub use volume_manager::*;

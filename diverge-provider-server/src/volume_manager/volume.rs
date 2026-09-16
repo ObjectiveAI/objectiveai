@@ -14,7 +14,8 @@ use futures_util::future;
 use tokio::fs;
 use tokio::sync::Mutex;
 
-use super::{Error, Reservation, Walked, image, resize, walk};
+use super::{Error, Reservation, Walked, image, walk};
+use crate::tools::resize;
 
 /// Where a volume is, which is also what kind it is.
 #[derive(Debug, Clone)]
@@ -178,7 +179,8 @@ impl Volume {
         }
         let grown = async {
             set_len(image, bytes).await?;
-            resize::resize(image, bytes).await
+            resize::resize(image, bytes).await?;
+            Ok::<(), Error>(())
         }
         .await;
         if let Err(error) = grown {

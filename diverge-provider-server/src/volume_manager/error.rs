@@ -2,16 +2,17 @@
 
 use std::fmt;
 use std::io;
-use std::process::ExitStatus;
 
 use diverge_provider_sdk::shared::error;
 use serde_json::json;
+
+use crate::tools;
 
 /// What [`VolumeManager`](super::VolumeManager) and
 /// [`Volume`](super::Volume) fail with.
 ///
 /// The first six are refusals of what was asked, decided before
-/// anything is touched; the last four are the host not answering:
+/// anything is touched; the last three are the host not answering:
 /// its filesystem, the formatter, or the resizing tools. A fixed
 /// volume's hook that does not answer is not an error: the volume is
 /// not listed, as the hook's output documents.
@@ -38,19 +39,11 @@ pub enum Error {
     Io(io::Error),
     /// The image could not be formatted, or could not be read.
     Format(fstool::Error),
-    /// One of the resizing tools — `e2fsck`, `resize2fs` — ran and
-    /// refused, and this is what it said. A shrink the content fits
-    /// but the metadata does not ends here, with the volume as it
-    /// was.
-    Tool {
-        program: String,
-        status: ExitStatus,
-        stderr: String,
-    },
-    /// One of the resizing tools could not be started: not on this
-    /// host's `PATH`, or `podman` itself is not, where the tool runs
-    /// inside the machine.
-    Spawn { program: String, source: io::Error },
+    /// One of the resizing tools — `e2fsck`, `resize2fs` — could not
+    /// be started, or ran and refused; see [`tools::Error`]. A shrink
+    /// the content fits but the metadata does not ends here, with the
+    /// volume as it was.
+    Tool(tools::Error),
 }
 
 impl fmt::Display for Error {
@@ -64,10 +57,7 @@ impl fmt::Display for Error {
             Error::TooLarge(bytes) => write!(f, "{bytes} bytes is too large for a volume"),
             Error::Io(error) => write!(f, "the filesystem did not answer: {error}"),
             Error::Format(error) => write!(f, "the image could not be handled: {error}"),
-            Error::Tool { program, status, stderr } => {
-                write!(f, "{program} refused, {status}: {}", stderr.trim_end())
-            }
-            Error::Spawn { program, source } => write!(f, "{program} could not be started: {source}"),
+            Error::Tool(error) => write!(f, "the volume could not be resized: {error}"),
         }
     }
 }
@@ -77,9 +67,8 @@ impl std::error::Error for Error {
         match self {
             Error::Io(error) => Some(error),
             Error::Format(error) => Some(error),
-            Error::Spawn { source, .. } => Some(source),
-            Error::Tool { .. }
-            | Error::Name(_)
+            Error::Tool(error) => Some(error),
+            Error::Name(_)
             | Error::Exists(_)
             | Error::Unknown(_)
             | Error::Fixed(_)
@@ -101,6 +90,12 @@ impl From<fstool::Error> for Error {
     }
 }
 
+impl From<tools::Error> for Error {
+    fn from(error: tools::Error) -> Self {
+        Error::Tool(error)
+    }
+}
+
 /// What the SDK puts on the wire for one of these: the variant's
 /// kind, and the message.
 ///
@@ -118,8 +113,7 @@ impl From<Error> for error::Error {
             Error::TooLarge(_) => "too_large",
             Error::Io(_) => "io",
             Error::Format(_) => "format",
-            Error::Tool { .. } => "tool",
-            Error::Spawn { .. } => "spawn",
+            Error::Tool(_) => "tool",
         };
         error::Error(json!({
             "kind": kind,
