@@ -34,7 +34,7 @@ impl Tunnel {
     /// could not make; a tunnel still up after its first second is
     /// open.
     pub async fn open(run_dir: &Path, registry: SocketAddr) -> Result<Self, Error> {
-        let ssh = podman::machine_ssh().await.map_err(Error::Podman)?;
+        let ssh = podman::machine().await.map_err(Error::Podman)?.ok_or(Error::Tunnel)?.ssh;
         let known_hosts = run_dir.join("known_hosts");
         // Emptied at every start: the key changes when the machine is
         // remade, and there is no other host in it to keep.

@@ -69,6 +69,9 @@ pub enum Error {
     Io(io::Error),
     /// The proxy binary is not beside the provider's executable.
     Missing(PathBuf),
+    /// The podman machine's disk is not under `storage_path`, and
+    /// this is where it is; the machine is the operator's to remove.
+    Machine(PathBuf),
 }
 
 impl fmt::Display for Error {
@@ -95,6 +98,11 @@ impl fmt::Display for Error {
             Error::Ssh(error) => write!(f, "the tunnel could not be started: {error}"),
             Error::Io(error) => write!(f, "a file of the provider could not be used: {error}"),
             Error::Missing(path) => write!(f, "the proxy is not at `{}`", path.display()),
+            Error::Machine(path) => write!(
+                f,
+                "the podman machine's disk is at `{}`, not under the storage path; remove the machine",
+                path.display()
+            ),
         }
     }
 }
@@ -121,6 +129,7 @@ impl std::error::Error for Error {
             Error::Ssh(error) => Some(error),
             Error::Io(error) => Some(error),
             Error::Missing(_) => None,
+            Error::Machine(_) => None,
         }
     }
 }
@@ -164,6 +173,7 @@ impl From<Error> for error::Error {
             Error::Ssh(_) => "ssh",
             Error::Io(_) => "io",
             Error::Missing(_) => "missing",
+            Error::Machine(_) => "machine",
         };
         error::Error(json!({
             "kind": kind,

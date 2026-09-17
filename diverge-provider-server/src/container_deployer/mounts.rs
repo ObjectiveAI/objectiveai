@@ -140,13 +140,13 @@ fn descend(base: &str, components: &[String]) -> String {
 /// A host path as the tool and podman see it: on Linux, the path
 /// itself.
 #[cfg(target_os = "linux")]
-fn tool_path(path: &Path) -> String {
+pub(super) fn tool_path(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
 /// A host path as the tool and podman see it: the machine's view of
 /// it.
 #[cfg(not(target_os = "linux"))]
-fn tool_path(path: &Path) -> String {
+pub(super) fn tool_path(path: &Path) -> String {
     crate::tools::podman::path(path)
 }
