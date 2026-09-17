@@ -41,9 +41,9 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   is allowed is the client's answer to the ask; the server enforces
   nothing.
 - **Paths.** No component of any mount's path is empty, `.` or `..`.
-  No two mounts have one path. No mount lies inside a FUSE directory
-  mount. A FUSE file mount may lie inside a directory another mount
-  provides. No mount's path is the root.
+  No two mounts have one path. No mount lies inside another mount: a
+  volume mount inside a FUSE mount no more than a FUSE mount inside a
+  volume mount. No mount's path is the root.
 - **Ids.** No two FUSE mounts, on either list, have one `id`.
 
 - **Malformed.** A payload with no byte, a payload whose first byte
