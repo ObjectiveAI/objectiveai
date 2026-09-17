@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use base64::Engine as _;
@@ -13,9 +13,10 @@ use futures_util::future;
 use serde_json::json;
 
 use super::deploy::deploy;
+use super::mounts::tool_path;
 use super::{Container, Error, Images, Limit, Shared, Source, host_of, name_ok};
 use crate::config::containers::{Containers, Podman};
-use crate::tools::podman;
+use crate::tools::{mount, podman};
 use crate::volume_manager::VolumeManager;
 
 /// The provider's container deployer: podman, with the caps, the
@@ -50,18 +51,23 @@ pub struct ContainerDeployer {
 impl ContainerDeployer {
     /// A deployer over the `containers` section, with `dir` the
     /// provider's directory, `volumes` its volumes, and `registry`
-    /// where its image registry listens. Made ready here: the proxy
+    /// where its image registry listens. Made ready here: on the hosts
+    /// with a machine, the machine brought to what the configuration
+    /// says, first, since everything after asks podman; the proxy
     /// binary found beside the executable; `run/` and `run/mounts/`
-    /// made and the auth file written; every container of an earlier
-    /// life of this provider removed; the store's images recorded as
-    /// protected; and, on the hosts with a machine, the tunnel
-    /// opened. Each beside the others where nothing orders them.
+    /// made and the auth file written; every container and every
+    /// loop mount of an earlier life of this provider swept away; the
+    /// store's images recorded as protected; and, on the hosts with a
+    /// machine, the tunnel opened. Each beside the others where
+    /// nothing orders them.
     pub async fn new(
         containers: Containers,
         dir: PathBuf,
         volumes: Arc<VolumeManager>,
         registry: SocketAddr,
     ) -> Result<Self, Error> {
+        #[cfg(not(target_os = "linux"))]
+        super::machine::ensure(containers.podman.memory, &containers.podman.storage_path).await?;
         let label = format!("diverge.provider={}", dir.display());
         let run_dir = dir.join("run");
         let mounts_dir = run_dir.join("mounts");
@@ -70,7 +76,7 @@ impl ContainerDeployer {
         let (proxy_path, (), protected) = future::try_join3(
             proxy_beside_executable(),
             write_auth_file(&auth_file, &containers.podman),
-            clean_then_list(&label),
+            sweep_then_list(&label, &mounts_dir),
         )
         .await?;
         #[cfg(not(target_os = "linux"))]
@@ -97,6 +103,17 @@ impl ContainerDeployer {
             #[cfg(not(target_os = "linux"))]
             tunnel,
         })
+    }
+
+    /// Everything of this provider's that podman or the host still
+    /// holds, gone: every container carrying its label removed at
+    /// once, and every loop mount under `run/mounts/` unmounted and
+    /// its directory removed. What the construction does before it
+    /// counts the store, and what a shutdown does after the
+    /// connections are gone. A refusal is not reported, since there
+    /// is nobody to report it to.
+    pub async fn sweep(&self) {
+        let _ = sweep_all(&self.label, &self.mounts_dir).await;
     }
 
     /// The port podman reaches the provider's registry at: the
@@ -197,7 +214,7 @@ async fn proxy_beside_executable() -> Result<String, Error> {
     if tokio::fs::metadata(&proxy).await.is_err() {
         return Err(Error::Missing(proxy));
     }
-    Ok(bind_path(&proxy))
+    Ok(tool_path(&proxy))
 }
 
 /// The auth file, in the form podman reads: every listed registry
@@ -221,10 +238,20 @@ async fn write_auth_file(path: &std::path::Path, podman: &Podman) -> Result<(), 
     Ok(())
 }
 
-/// Every container of an earlier life removed, then every image in
-/// the store listed: the protected set, taken after the removal so a
+/// Everything of an earlier life swept away, then every image in the
+/// store listed: the protected set, taken after the sweep so a
 /// container of the earlier life holds nothing back.
-async fn clean_then_list(label: &str) -> Result<Vec<String>, Error> {
+async fn sweep_then_list(label: &str, mounts_dir: &Path) -> Result<Vec<String>, Error> {
+    sweep_all(label, mounts_dir).await?;
+    let images = podman::images().await.map_err(Error::Podman)?;
+    Ok(images.into_iter().map(|image| image.id).collect())
+}
+
+/// Every container carrying `label` removed at once, then every
+/// directory under `mounts_dir` unmounted and removed, each beside
+/// every other; a directory the tool would not unmount is removed
+/// anyway where the host lets it go.
+async fn sweep_all(label: &str, mounts_dir: &Path) -> Result<(), Error> {
     let orphans = podman::containers(label).await.map_err(Error::Podman)?;
     if !orphans.is_empty() {
         let mut args = vec!["rm", "--force", "--time", "0"];
@@ -235,20 +262,15 @@ async fn clean_then_list(label: &str) -> Result<Vec<String>, Error> {
             .require("podman", |status| status.success())
             .map_err(Error::Podman)?;
     }
-    let images = podman::images().await.map_err(Error::Podman)?;
-    Ok(images.into_iter().map(|image| image.id).collect())
-}
-
-/// A host path as podman is handed it for a bind: on Linux, the path
-/// itself.
-#[cfg(target_os = "linux")]
-fn bind_path(path: &std::path::Path) -> String {
-    path.to_string_lossy().into_owned()
-}
-
-/// A host path as podman is handed it for a bind: the machine's view
-/// of it.
-#[cfg(not(target_os = "linux"))]
-fn bind_path(path: &std::path::Path) -> String {
-    podman::path(path)
+    let mut entries = tokio::fs::read_dir(mounts_dir).await?;
+    let mut dirs = Vec::new();
+    while let Some(entry) = entries.next_entry().await? {
+        dirs.push(entry.path());
+    }
+    future::join_all(dirs.iter().map(|dir| async move {
+        let _ = mount::unmount(&tool_path(dir)).await;
+        let _ = tokio::fs::remove_dir(dir).await;
+    }))
+    .await;
+    Ok(())
 }

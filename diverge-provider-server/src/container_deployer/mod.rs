@@ -29,6 +29,16 @@
 //! container's life, so its end is seen. The proxy reads no
 //! environment and takes no argument.
 //!
+//! # The machine
+//!
+//! On macOS and Windows podman runs in a machine, and the deployer
+//! brings it to what the configuration says before anything else is
+//! asked of podman: made if there is none, its disk under
+//! `storage_path`, podman inside it as root, on macOS its memory the
+//! configured `memory`, and running. A machine already made with its
+//! disk elsewhere is refused, with the path, for the operator to
+//! remove.
+//!
 //! # The images
 //!
 //! A caller-held image is pulled from the provider's own registry,
@@ -55,7 +65,7 @@
 //! started, [`Error`] what a deploy fails with. [`Limit`] is one cap
 //! with a count against it, [`Images`] the image cache's bookkeeping,
 //! [`Source`] where an image comes from, and `deploy`, `mounts` and,
-//! on the hosts with a machine, `tunnel` the steps.
+//! on the hosts with a machine, `machine` and `tunnel` the steps.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -66,6 +76,8 @@ mod deploy;
 mod error;
 mod images;
 mod limit;
+#[cfg(not(target_os = "linux"))]
+mod machine;
 mod mounts;
 mod shared;
 mod source;

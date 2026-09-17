@@ -76,6 +76,23 @@ pub async fn containers(label: &str) -> Result<Vec<String>, Error> {
     Ok(answer.lines().map(str::trim).filter(|id| !id.is_empty()).map(str::to_string).collect())
 }
 
+/// The podman machine, as `podman machine inspect` describes it.
+#[cfg(not(target_os = "linux"))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Machine {
+    /// Its state, lowercase: `running`, `stopped`, or another word
+    /// podman uses for a machine on its way between them.
+    pub state: String,
+    /// Whether podman inside it runs as root.
+    pub rootful: bool,
+    /// Its memory, in MiB, as podman counts it.
+    pub memory: u64,
+    /// Its disk image on this host.
+    pub image: std::path::PathBuf,
+    /// How it is reached over SSH.
+    pub ssh: MachineSsh,
+}
+
 /// How the podman machine is reached over SSH, as `podman machine
 /// inspect` reports it.
 #[cfg(not(target_os = "linux"))]
@@ -93,8 +110,40 @@ pub struct MachineSsh {
 #[cfg(not(target_os = "linux"))]
 #[derive(Deserialize)]
 struct MachineRow {
+    #[serde(rename = "State")]
+    state: String,
+    #[serde(rename = "Rootful")]
+    rootful: bool,
+    #[serde(rename = "Resources")]
+    resources: ResourcesRow,
+    #[serde(rename = "Image")]
+    image: ImageRow,
     #[serde(rename = "SSHConfig")]
     ssh: SshRow,
+}
+
+/// The `Resources` of one machine.
+#[cfg(not(target_os = "linux"))]
+#[derive(Deserialize)]
+struct ResourcesRow {
+    #[serde(rename = "Memory")]
+    memory: u64,
+}
+
+/// The `Image` of one machine.
+#[cfg(not(target_os = "linux"))]
+#[derive(Deserialize)]
+struct ImageRow {
+    #[serde(rename = "ImagePath")]
+    path: PathRow,
+}
+
+/// A path as podman writes one.
+#[cfg(not(target_os = "linux"))]
+#[derive(Deserialize)]
+struct PathRow {
+    #[serde(rename = "Path")]
+    path: std::path::PathBuf,
 }
 
 /// The `SSHConfig` of one machine.
@@ -109,10 +158,18 @@ struct SshRow {
     user: String,
 }
 
-/// The default machine's SSH settings. No machine is podman's
-/// refusal.
+/// The default machine, or `None` where podman lists none. Asked as
+/// two questions: the list, which is empty rather than an error when
+/// there is no machine, and then the inspection of the default.
 #[cfg(not(target_os = "linux"))]
-pub async fn machine_ssh() -> Result<MachineSsh, Error> {
+pub async fn machine() -> Result<Option<Machine>, Error> {
+    let listed = capture("podman", command(["machine", "list", "--format", "json"])).await?;
+    let rows: Vec<serde_json::Value> = serde_json::from_str(&listed).map_err(|_| Error::Output {
+        program: "podman".to_string(),
+    })?;
+    if rows.is_empty() {
+        return Ok(None);
+    }
     let answer = capture("podman", command(["machine", "inspect", "--format", "json"])).await?;
     let mut rows: Vec<MachineRow> = serde_json::from_str(&answer).map_err(|_| Error::Output {
         program: "podman".to_string(),
@@ -120,9 +177,15 @@ pub async fn machine_ssh() -> Result<MachineSsh, Error> {
     let row = rows.pop().ok_or_else(|| Error::Output {
         program: "podman".to_string(),
     })?;
-    Ok(MachineSsh {
-        port: row.ssh.port,
-        user: row.ssh.user,
-        identity: row.ssh.identity,
-    })
+    Ok(Some(Machine {
+        state: row.state.to_lowercase(),
+        rootful: row.rootful,
+        memory: row.resources.memory,
+        image: row.image.path.path,
+        ssh: MachineSsh {
+            port: row.ssh.port,
+            user: row.ssh.user,
+            identity: row.ssh.identity,
+        },
+    }))
 }
