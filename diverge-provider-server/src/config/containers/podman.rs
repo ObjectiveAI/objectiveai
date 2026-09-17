@@ -26,12 +26,18 @@ pub struct Podman {
     /// The directory podman's data is kept under: the image cache,
     /// what a container writes over its image, and what holds a
     /// volume's changes apart while `persist` is `false`. On Linux it
-    /// is podman's storage root, the `graphroot`, and the data lies in
-    /// it directly; on macOS and Windows it is where the podman
-    /// machine's disk lives, and the data lies inside that disk. A
-    /// path that is not absolute is resolved relative to the directory
-    /// that contains `config.yaml` itself, never to the working
-    /// directory; an absolute path stands as written.
+    /// is podman's storage root, the `graphroot`: every podman
+    /// invocation the provider makes is given it as `--root`, so it
+    /// is the whole store the provider sees, and a `server` image is
+    /// loaded into it, not into podman's default store. On macOS and
+    /// Windows it is where the podman machine's disk lives — the
+    /// provider makes the machine with its data under this path, and
+    /// a machine already made with its disk elsewhere is refused at
+    /// startup, with the disk's path, for the operator to remove — and
+    /// the data lies inside that disk. A path that is not absolute is
+    /// resolved relative to the directory that contains `config.yaml`
+    /// itself, never to the working directory; an absolute path
+    /// stands as written.
     ///
     /// A container's `disk` is enforced as podman's storage size
     /// option on the container, which the overlay driver keeps with
@@ -54,7 +60,11 @@ pub struct Podman {
     pub container_overlay_disk: u64,
     /// The most memory the running containers may hold between them,
     /// in BYTES: the sum of every running container's `memory` never
-    /// exceeds it, and a run that would take it over is refused.
+    /// exceeds it, and a run that would take it over is refused. On
+    /// macOS the podman machine is given exactly this much when the
+    /// provider starts, since a machine there holds its memory from
+    /// the host; on Windows the machine's memory is WSL's to give and
+    /// is not set.
     pub memory: u64,
 }
 

@@ -6,10 +6,9 @@ use crate::hook;
 
 /// What [`UnbrokeredAuthorizer`](super::UnbrokeredAuthorizer) fails
 /// with: the credential was refused. Nothing of it reaches the peer;
-/// it is for the provider's log, and it carries what the log wants —
-/// the hooks that did not answer at all, so a hook that is missing,
-/// broken, or writing the wrong thing is seen as such rather than as
-/// a peer that was turned away.
+/// it is the provider's, and it carries the hooks that did not answer
+/// at all, so a hook that is missing, broken, or writing the wrong
+/// thing is seen as such rather than as a peer that was turned away.
 #[derive(Debug)]
 pub enum Error {
     /// No way in the configuration accepted the credential.

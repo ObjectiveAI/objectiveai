@@ -15,8 +15,8 @@
 //! the peer waits for the slowest hook and not for the sum of them,
 //! and the answer never depends on which finished first. No way
 //! accepting is a refusal, which reaches the peer as nothing but the
-//! close and reaches the provider's log with the hooks that did not
-//! answer, by name, so a broken hook is seen as broken.
+//! close, and carries the hooks that did not answer, by name, so a
+//! broken hook is seen as broken by whoever holds the error.
 //!
 //! [`UnbrokeredAuthorizer`] is the authorizer and [`Error`] the
 //! refusal.

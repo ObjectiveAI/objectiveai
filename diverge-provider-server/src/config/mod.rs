@@ -3,22 +3,25 @@
 //!
 //! - `--config <dir>`, else `DIVERGE_PROVIDER_CONFIG`, else
 //!   `~/.diverge/provider/`, names the provider's DIRECTORY, created
-//!   if absent.
+//!   if absent — see [`dir`].
 //! - `<dir>/config.yaml` is read if present; absent means the built-in
 //!   defaults, [`Config::default`], on which the provider runs
 //!   containers and nothing else. No other name or extension is
-//!   looked for.
+//!   looked for — see [`load`], which also checks what the file says.
 //! - Every path inside `config.yaml` resolves relative to `<dir>`,
 //!   never to the working directory.
-//! - `<dir>/hooks/`, `<dir>/logs/`, `<dir>/data/` and `<dir>/run/` sit
-//!   beside it; `data` is the one the file may move. Every folder
+//! - `<dir>/hooks/` and `<dir>/run/` sit beside it, and podman's
+//!   data under `containers.podman.storage_path`, which is
+//!   `<dir>/podman_data/` unless the file says otherwise. Every folder
 //!   under `hooks/` is a hook, and the file names one by that
 //!   folder's name alone — see [`hook`](crate::hook).
 //!
 //! [`Config`] is the document; [`auth`], [`clients`], [`containers`]
-//! and [`volumes`] its sections.
+//! and [`volumes`] its sections; [`Error`] is why the directory or
+//! the file could not be used.
 //!
 //! ```yaml
+//! port: 14979
 //! auth:
 //!   unbrokered:
 //!     - key: 5f1c…
@@ -58,13 +61,19 @@
 //!       authorize_hook: datasets
 //! ```
 //!
-//! Finding the directory, reading the file, validating it, and running
-//! a hook are not written yet.
+//! Its own files are flattened into it, so everything is named
+//! through this module and not through the file it lives in.
 
 mod config;
+mod dir;
+mod error;
+mod load;
 pub mod auth;
 pub mod clients;
 pub mod containers;
 pub mod volumes;
 
 pub use config::*;
+pub use dir::*;
+pub use error::*;
+pub use load::*;
