@@ -11,6 +11,10 @@
 //! against the proxy. Written once here, and each scope's `handle`
 //! wraps it:
 //!
+//! - `check`, the refusals a run's request meets before anything is
+//!   held: a mount at the root, a component that is not a name, two
+//!   mounts with one path, a mount inside another, two FUSE mounts
+//!   with one id.
 //! - `held`, the volumes a run's request names, each found through
 //!   the provider's `VolumeManager` and locked before anything else
 //!   is done, and every one unlocked on every ending — the server
@@ -41,6 +45,7 @@
 //!   and distinct types, and how its container begins.
 
 pub(crate) mod begin;
+pub(crate) mod check;
 pub(crate) mod encoded;
 pub(crate) mod family;
 pub(crate) mod handler;

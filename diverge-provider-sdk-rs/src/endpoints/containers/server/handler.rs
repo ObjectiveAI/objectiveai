@@ -5,6 +5,7 @@ use std::sync::Arc;
 use serde_json::Value;
 
 use super::begin::Begun;
+use super::check::check;
 use super::family::Runs;
 use super::held::{Held, Refused};
 use super::run::{Run, send};
@@ -24,7 +25,9 @@ use crate::shared::error::Error;
 ///
 /// In order:
 ///
-/// 0. Every volume the request names is found and locked — see
+/// 0. The request's mounts are checked — see [`check`] — or the run
+///    is refused with the error, before anything is held.
+///    Then every volume the request names is found and locked — see
 ///    [`Held`] — or the run is refused: with the name whose lock is
 ///    held, or with an error for a name that is not the caller's.
 ///    Before anything is fetched or deployed. The locks are held by
@@ -66,6 +69,12 @@ pub(crate) async fn run<R, D, G, V>(
     V::Error: Into<Error>,
 {
     let scope = Arc::new(scope);
+
+    if let Err(error) = check(request) {
+        send(&scope, R::error(&error)).await;
+        scope.send_response_finish().await;
+        return;
+    }
 
     let names: Vec<&str> = request.volume_mounts.iter().map(|mount| mount.host_name.as_str()).collect();
     let held = match Held::take(manager, client_identity, names).await {

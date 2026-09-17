@@ -71,8 +71,8 @@ pub struct Container {
     /// every open and every changed close inside the container is one
     /// ask back to the caller, by that id. The file is overwritten in
     /// place only; a program that replaces its file by rename needs a
-    /// directory mount. A path may lie inside a directory another
-    /// mount provides; it may not equal another mount's path.
+    /// directory mount. Its path is no other mount's and lies inside
+    /// none, as every mount's.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories the caller serves LIVE, mounted one each over FUSE.

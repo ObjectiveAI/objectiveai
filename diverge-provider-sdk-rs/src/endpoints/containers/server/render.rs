@@ -23,6 +23,22 @@ pub(crate) fn mount_failed(id: &str, error: impl fmt::Display) -> Error {
     }))
 }
 
+/// A mount path the request is refused for, and why.
+pub(crate) fn path_refused(why: &str) -> Error {
+    Error(serde_json::json!({
+        "kind": "path",
+        "error": why,
+    }))
+}
+
+/// A FUSE id two mounts of the request share.
+pub(crate) fn id_refused(id: &str) -> Error {
+    Error(serde_json::json!({
+        "kind": "id",
+        "error": format!("two FUSE mounts with the id `{id}`"),
+    }))
+}
+
 /// A caller's content stopped before its finish.
 pub(crate) fn content_stopped() -> Error {
     Error(serde_json::json!({
