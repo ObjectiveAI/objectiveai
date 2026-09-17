@@ -89,6 +89,9 @@ pub struct Machine {
     pub memory: u64,
     /// Its disk image on this host.
     pub image: std::path::PathBuf,
+    /// The host directories it was made seeing, each at the same
+    /// path inside; empty where podman lists none.
+    pub mounts: Vec<std::path::PathBuf>,
     /// How it is reached over SSH.
     pub ssh: MachineSsh,
 }
@@ -118,8 +121,18 @@ struct MachineRow {
     resources: ResourcesRow,
     #[serde(rename = "Image")]
     image: ImageRow,
+    #[serde(rename = "Mounts", default)]
+    mounts: Vec<MountRow>,
     #[serde(rename = "SSHConfig")]
     ssh: SshRow,
+}
+
+/// One host directory a machine mounts.
+#[cfg(not(target_os = "linux"))]
+#[derive(Deserialize)]
+struct MountRow {
+    #[serde(rename = "Source")]
+    source: std::path::PathBuf,
 }
 
 /// The `Resources` of one machine.
@@ -182,6 +195,7 @@ pub async fn machine() -> Result<Option<Machine>, Error> {
         rootful: row.rootful,
         memory: row.resources.memory,
         image: row.image.path.path,
+        mounts: row.mounts.into_iter().map(|mount| mount.source).collect(),
         ssh: MachineSsh {
             port: row.ssh.port,
             user: row.ssh.user,

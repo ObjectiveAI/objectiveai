@@ -17,9 +17,9 @@ pub async fn sudo(program: &str, args: &[String]) -> Result<Finished, Error> {
 
 /// A host path as the machine sees it: on macOS, the path itself,
 /// since a podman machine mounts a host directory at the same path
-/// inside the VM — `$HOME` by default, and any other directory the
-/// machine was created with, which a store outside `$HOME` needs
-/// for the loop mount as much as for this.
+/// inside the VM — every directory the provider made the machine
+/// seeing: each store, each fixed volume, the provider's directory
+/// and the executable's.
 #[cfg(target_os = "macos")]
 pub fn path(host: &Path) -> String {
     host.to_string_lossy().into_owned()

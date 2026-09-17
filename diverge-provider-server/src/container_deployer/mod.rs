@@ -39,10 +39,16 @@
 //! invocation is told so; the deployer brings it to what the
 //! configuration says before anything else is asked of podman: made
 //! if there is none, podman inside it as root, on macOS its memory
-//! the configured `memory`, and running. A changed storage path is a
-//! fresh machine under the new one, and the machine under the old
-//! path is left as it was, for the operator to stop or remove when
-//! they choose.
+//! the configured `memory` and its view every directory a mount
+//! needs — each store, each fixed volume, the provider's directory
+//! and the executable's, since a machine there sees `$HOME` and what
+//! it was made with and nothing else, where WSL on Windows mounts
+//! every drive — and running. A machine on macOS that does not see a
+//! directory the configuration has since named is remade seeing it,
+//! which empties its image cache and drops any `server` image loaded
+//! into it. A changed storage path is a fresh machine under the new
+//! one, and the machine under the old path is left as it was, for
+//! the operator to stop or remove when they choose.
 //!
 //! # The images
 //!

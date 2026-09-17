@@ -1,5 +1,7 @@
 //! The section itself.
 
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 
 use super::{Fixed, Store};
@@ -19,4 +21,18 @@ pub struct Volumes {
     /// Absent, or empty, means none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fixed: Option<Vec<Fixed>>,
+}
+
+impl Volumes {
+    /// The host directories the volumes live in: every store's path
+    /// and every fixed volume's, in the configuration's order. What a
+    /// podman machine must be able to see, on the host that has one.
+    pub fn paths(&self) -> Vec<PathBuf> {
+        self.stores
+            .iter()
+            .flatten()
+            .map(|store| store.path.clone())
+            .chain(self.fixed.iter().flatten().map(|fixed| fixed.path.clone()))
+            .collect()
+    }
 }

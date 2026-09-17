@@ -17,10 +17,14 @@ const FILE: &str = "config.yaml";
 /// runs on nothing the file got wrong.
 ///
 /// Resolved: `containers.podman.storage_path`, joined onto `dir` when
-/// it is relative, and made if absent. Refused: a store or a fixed
-/// volume whose path is relative ([`Error::Relative`]); a store whose
-/// capacity is `0` ([`Error::Capacity`]); a fixed volume whose name
-/// is not one a volume may have, or is another fixed volume's
+/// it is relative, and made if absent. Made if absent: every store's
+/// directory, since a store is the provider's to fill. Refused: a
+/// store or a fixed volume whose path is relative
+/// ([`Error::Relative`]); a store whose capacity is `0`
+/// ([`Error::Capacity`]); a fixed volume whose path is not an
+/// existing directory ([`Error::Missing`]), since a fixed volume is
+/// content the operator already has; a fixed volume whose name is
+/// not one a volume may have, or is another fixed volume's
 /// ([`Error::FixedName`]). A file that does not parse, or names a key
 /// no section has, is [`Error::Parse`], with the path to the value
 /// that was wrong.
@@ -52,11 +56,18 @@ pub async fn load(dir: &Path) -> Result<Config, Error> {
             if store.capacity == 0 {
                 return Err(Error::Capacity(store.path.clone()));
             }
+            tokio::fs::create_dir_all(&store.path).await.map_err(|source| Error::Io {
+                path: store.path.clone(),
+                source,
+            })?;
         }
         let mut names = HashSet::new();
         for fixed in volumes.fixed.iter().flatten() {
             if !fixed.path.is_absolute() {
                 return Err(Error::Relative(fixed.path.clone()));
+            }
+            if !tokio::fs::metadata(&fixed.path).await.is_ok_and(|found| found.is_dir()) {
+                return Err(Error::Missing(fixed.path.clone()));
             }
             if !volume_manager::ok(&fixed.name) || !names.insert(fixed.name.as_str()) {
                 return Err(Error::FixedName(fixed.name.clone()));
