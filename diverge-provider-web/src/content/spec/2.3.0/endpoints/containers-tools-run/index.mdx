@@ -31,8 +31,9 @@ about the client, which may open any channel at any time.
    The server refuses a request that names a volume not in the
    client's [volumes::list](/endpoints/volumes-list/) listing, a mount
    whose path is the root of the container, two mounts with one path,
-   a mount inside a FUSE directory mount, two FUSE mounts with one
-   `id`, or an image source that its policy does not allow. A request
+   a mount inside another mount, a mount path with a component that
+   is empty, `.` or `..`, two FUSE mounts with one `id`, or an image
+   source that its policy does not allow. A request
    that names in `volume_mounts` a volume mounted in a container the
    client is running at the time of the request, or that names one
    volume twice, is answered by exactly one response, the byte `1`

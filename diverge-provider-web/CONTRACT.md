@@ -501,7 +501,7 @@ answer a request whose payload does not decode by a Bare Finish. It
 shall answer by exactly one Response, the error, and the Response
 Finish, a request that names a Volume not in the Identity's listing;
 a mount whose path is the root of the Container; two mounts with one
-path; a mount inside a FUSE directory mount; two FUSE mounts with one
+path; a mount inside another mount; two FUSE mounts with one
 `id`; a mount path with a component that is empty, `.` or `..`; or an
 image source the Provider's policy does not allow. The Provider shall
 hold every Volume a run request names in `volume_mounts` from the
