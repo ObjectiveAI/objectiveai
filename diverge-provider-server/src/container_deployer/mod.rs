@@ -29,9 +29,12 @@
 //! container's life, so its end is seen. The proxy reads no
 //! environment and takes no argument.
 //!
-//! # The machine
+//! # Root, or the machine
 //!
-//! On macOS and Windows podman runs in a machine, and the deployer
+//! Podman is rootful on every host. On Linux it is the provider's
+//! own, run from the provider's account, so the provider is root
+//! there, and a deployer refuses to be made otherwise. On macOS and
+//! Windows podman runs in a machine, and the deployer
 //! brings it to what the configuration says before anything else is
 //! asked of podman: made if there is none, its disk under
 //! `storage_path`, podman inside it as root, on macOS its memory the
@@ -64,8 +67,9 @@
 //! [`ContainerDeployer`] is the deployer, [`Container`] a container it
 //! started, [`Error`] what a deploy fails with. [`Limit`] is one cap
 //! with a count against it, [`Images`] the image cache's bookkeeping,
-//! [`Source`] where an image comes from, and `deploy`, `mounts` and,
-//! on the hosts with a machine, `machine` and `tunnel` the steps.
+//! [`Source`] where an image comes from, and `deploy`, `mounts`,
+//! `root` on Linux and `machine` and `tunnel` on the hosts with a
+//! machine the steps.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -79,6 +83,8 @@ mod limit;
 #[cfg(not(target_os = "linux"))]
 mod machine;
 mod mounts;
+#[cfg(target_os = "linux")]
+mod root;
 mod shared;
 mod source;
 #[cfg(not(target_os = "linux"))]

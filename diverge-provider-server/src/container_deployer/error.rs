@@ -72,6 +72,9 @@ pub enum Error {
     /// The podman machine's disk is not under `storage_path`, and
     /// this is where it is; the machine is the operator's to remove.
     Machine(PathBuf),
+    /// On Linux, the provider is not running as root, and podman run
+    /// from its account would not be rootful.
+    Root,
 }
 
 impl fmt::Display for Error {
@@ -103,6 +106,7 @@ impl fmt::Display for Error {
                 "the podman machine's disk is at `{}`, not under the storage path; remove the machine",
                 path.display()
             ),
+            Error::Root => write!(f, "the provider is not root, and podman on this host is run as the provider"),
         }
     }
 }
@@ -130,6 +134,7 @@ impl std::error::Error for Error {
             Error::Io(error) => Some(error),
             Error::Missing(_) => None,
             Error::Machine(_) => None,
+            Error::Root => None,
         }
     }
 }
@@ -174,6 +179,7 @@ impl From<Error> for error::Error {
             Error::Io(_) => "io",
             Error::Missing(_) => "missing",
             Error::Machine(_) => "machine",
+            Error::Root => "root",
         };
         error::Error(json!({
             "kind": kind,
