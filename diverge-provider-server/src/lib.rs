@@ -28,13 +28,17 @@
 //! [`unbrokered_authorizer`] supply the six, every method of each
 //! written. [`tools`] is every program the provider runs — podman,
 //! and e2fsprogs, `mount` and `ssh` through it or beside it — and
-//! the one way it runs them.
+//! the one way it runs them. [`config`] is what the provider is told,
+//! and [`serve`] is the provider running: the pieces built once, a
+//! WebSocket accepted on its port or dialled to each peer it is told
+//! of, every connection handed to the SDK, and the stop.
 
 pub mod config;
 pub mod container_deployer;
 pub mod hook;
 pub mod image_checker;
 pub mod image_registry;
+pub mod serve;
 pub mod tools;
 pub mod unbrokered_authorizer;
 pub mod volume_manager;

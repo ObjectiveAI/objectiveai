@@ -1,9 +1,22 @@
 //! The provider binary.
 //!
-//! Nothing runs yet: the crate exists so the implementation has a
-//! place to go. What this will do, in order, once it does: read its
-//! configuration, build the provider from the library's pieces, and
-//! serve the socket with the SDK's `server::handle` on every
-//! connection until told to stop.
+//! In order: the provider's directory is found, its file read and
+//! checked, and the provider run on them until it is told to stop —
+//! see [`config`](diverge_provider_server::config) and
+//! [`serve`](diverge_provider_server::serve). The runtime is built
+//! here rather than attributed onto `main`, and a start that fails
+//! is the one thing this prints, as the error returned.
 
-fn main() {}
+use diverge_provider_server::{config, serve};
+
+fn main() -> Result<(), serve::Error> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(serve::Error::Runtime)?;
+    runtime.block_on(async {
+        let dir = config::dir(std::env::args_os().skip(1)).await?;
+        let config = config::load(&dir).await?;
+        serve::run(config, dir).await
+    })
+}
