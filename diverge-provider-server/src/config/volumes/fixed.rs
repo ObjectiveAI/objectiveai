@@ -16,8 +16,10 @@ pub struct Fixed {
     /// and never given to a created volume of any identity: the name
     /// rule of `volumes::create` is enforced against it.
     pub name: String,
-    /// An ABSOLUTE path to the directory that is the volume. A
-    /// relative path is refused when the configuration is loaded.
+    /// An ABSOLUTE path to the directory that is the volume, which
+    /// exists already: a relative path, and a path that is not an
+    /// existing directory, are refused when the configuration is
+    /// loaded. On macOS the podman machine is made seeing it.
     pub path: PathBuf,
     /// How big the volume is, in BYTES, as a listing reports it.
     /// Declared, not measured, and nothing enforces it: a fixed

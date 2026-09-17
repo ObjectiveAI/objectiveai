@@ -13,6 +13,7 @@ use diverge_provider_sdk::server::session::Session;
 use super::Error;
 use crate::config::Config;
 use crate::config::auth::Auth;
+use crate::config::volumes::Volumes;
 use crate::container_deployer::ContainerDeployer;
 use crate::image_checker::ImageChecker;
 use crate::image_registry::ImageRegistry;
@@ -53,9 +54,10 @@ impl Provider {
         podman::configure(config.containers.podman.storage_path.clone());
         let hooks_dir = dir.join("hooks");
         let registry = Arc::new(ImageRegistry::start().await.map_err(Error::Registry)?);
+        let shares = config.volumes.as_ref().map(Volumes::paths).unwrap_or_default();
         let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone()));
         let checker = Arc::new(ImageChecker::new(&config.containers));
-        let deployer = ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address())
+        let deployer = ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares)
             .await
             .map_err(Error::Deployer)?;
         Ok(Provider {

@@ -50,8 +50,10 @@ pub struct ContainerDeployer {
 
 impl ContainerDeployer {
     /// A deployer over the `containers` section, with `dir` the
-    /// provider's directory, `volumes` its volumes, and `registry`
-    /// where its image registry listens. Made ready here: on Linux the
+    /// provider's directory, `volumes` its volumes, `registry` where
+    /// its image registry listens, and `shares` the directories the
+    /// volumes live in, which a podman machine must see beside `dir`
+    /// and the executable's directory. Made ready here: on Linux the
     /// provider found to be root, and on the hosts with a machine the
     /// machine brought to what the configuration says, first, since
     /// everything after asks podman; the proxy
@@ -66,18 +68,30 @@ impl ContainerDeployer {
         dir: PathBuf,
         volumes: Arc<VolumeManager>,
         registry: SocketAddr,
+        shares: Vec<PathBuf>,
     ) -> Result<Self, Error> {
+        let proxy = proxy_beside_executable()?;
         #[cfg(target_os = "linux")]
-        super::root::ensure().await?;
+        {
+            let _ = shares;
+            super::root::ensure().await?;
+        }
         #[cfg(not(target_os = "linux"))]
-        super::machine::ensure(containers.podman.memory, &containers.podman.storage_path).await?;
+        {
+            let mut shares = shares;
+            shares.push(dir.clone());
+            if let Some(beside) = proxy.parent() {
+                shares.push(beside.to_path_buf());
+            }
+            super::machine::ensure(containers.podman.memory, &containers.podman.storage_path, &shares).await?;
+        }
         let label = format!("diverge.provider={}", dir.display());
         let run_dir = dir.join("run");
         let mounts_dir = run_dir.join("mounts");
         tokio::fs::create_dir_all(&mounts_dir).await?;
         let auth_file = run_dir.join("auth.json");
         let (proxy_path, (), protected) = future::try_join3(
-            proxy_beside_executable(),
+            proxy_present(&proxy),
             write_auth_file(&auth_file, &containers.podman),
             sweep_then_list(&label, &mounts_dir),
         )
@@ -206,18 +220,22 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
     }
 }
 
-/// `diverge-container-proxy` beside the provider's executable, which
-/// has to be there, as podman is handed it.
-async fn proxy_beside_executable() -> Result<String, Error> {
+/// Where `diverge-container-proxy` is: beside the provider's
+/// executable.
+fn proxy_beside_executable() -> Result<PathBuf, Error> {
     let executable = std::env::current_exe()?;
-    let proxy = executable
+    Ok(executable
         .parent()
         .map(|dir| dir.join("diverge-container-proxy"))
-        .unwrap_or_else(|| PathBuf::from("diverge-container-proxy"));
-    if tokio::fs::metadata(&proxy).await.is_err() {
-        return Err(Error::Missing(proxy));
+        .unwrap_or_else(|| PathBuf::from("diverge-container-proxy")))
+}
+
+/// The proxy, which has to be there, as podman is handed it.
+async fn proxy_present(proxy: &Path) -> Result<String, Error> {
+    if tokio::fs::metadata(proxy).await.is_err() {
+        return Err(Error::Missing(proxy.to_path_buf()));
     }
-    Ok(tool_path(&proxy))
+    Ok(tool_path(proxy))
 }
 
 /// The auth file, in the form podman reads: every listed registry

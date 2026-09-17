@@ -32,6 +32,8 @@ pub enum Error {
     Relative(PathBuf),
     /// A store's capacity is `0`.
     Capacity(PathBuf),
+    /// A fixed volume's path is not an existing directory.
+    Missing(PathBuf),
     /// A fixed volume's name is not one a volume may have, or two
     /// fixed volumes have it.
     FixedName(String),
@@ -48,6 +50,7 @@ impl fmt::Display for Error {
             Error::Parse { path, source } => write!(f, "`{}` could not be read: {source}", path.display()),
             Error::Relative(path) => write!(f, "the volume path `{}` is not absolute", path.display()),
             Error::Capacity(path) => write!(f, "the store `{}` has a capacity of 0", path.display()),
+            Error::Missing(path) => write!(f, "the fixed volume `{}` is not a directory that exists", path.display()),
             Error::FixedName(name) => write!(f, "the fixed volume name `{name}` is not usable, or is used twice"),
         }
     }
@@ -62,6 +65,7 @@ impl std::error::Error for Error {
             Error::Parse { source, .. } => Some(source),
             Error::Relative(_) => None,
             Error::Capacity(_) => None,
+            Error::Missing(_) => None,
             Error::FixedName(_) => None,
         }
     }
