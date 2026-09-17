@@ -1892,6 +1892,7 @@ dependencies = [
  "serde_yaml_ng",
  "sha2",
  "tokio",
+ "tokio-tungstenite 0.29.0",
  "uuid",
  "windows-sys 0.61.2",
 ]

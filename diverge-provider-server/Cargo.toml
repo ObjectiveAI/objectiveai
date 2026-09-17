@@ -40,16 +40,25 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 serde_path_to_error = "0.1.20"
 serde_yaml_ng = "0.10.0"
-# `sync` for the per-volume locks and the once-only loads; `rt` for
-# the pool `tokio::fs` hands every read to; `net` for the registry's
-# listener.
-tokio = { version = "1.53.1", features = ["process", "io-util", "fs", "sync", "rt", "net"] }
-# The image registry a runtime pulls a caller-held image from: the
-# read side of the Distribution API on a loopback port. HTTP/1 alone,
-# which is what a runtime speaks to a plain registry, and none of
-# axum's defaults — no forms, no JSON extractors, no tracing — since
-# the registry reads a path and writes bytes.
-axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
+# `sync` for the per-volume locks and the once-only loads; `rt` and
+# `rt-multi-thread` for the runtime main builds and the pool
+# `tokio::fs` hands every read to; `net` for the listeners and the
+# dials; `time` for the waits between a redial and the next, and
+# between one look at a starting proxy and the next; `signal` for the
+# Ctrl-C and the SIGTERM that stop the provider.
+tokio = { version = "1.53.1", features = ["process", "io-util", "fs", "sync", "rt", "rt-multi-thread", "net", "time", "signal"] }
+# The image registry a runtime pulls a caller-held image from — the
+# read side of the Distribution API on a loopback port — and the
+# provider's own port, where a caller's WebSocket is accepted and
+# handed to the SDK. HTTP/1 alone, which is what a runtime speaks to a
+# plain registry and what an upgrade rides, `ws` for the upgrade, and
+# none of axum's defaults — no forms, no JSON extractors, no tracing.
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "ws"] }
+# The dial to every peer the configuration names: the SDK names this
+# crate's socket type for an outgoing connection, so the version is
+# the SDK's exactly; `connect` alone, since a peer is `host:port` and
+# the dial is `ws://`, with no TLS to speak.
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect"] }
 # A blob's pieces as the SDK hands them, passed through to the
 # runtime's response untouched.
 bytes = { version = "1.11.1", default-features = false }
