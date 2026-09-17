@@ -34,13 +34,15 @@
 //! Podman is rootful on every host. On Linux it is the provider's
 //! own, run from the provider's account, so the provider is root
 //! there, and a deployer refuses to be made otherwise. On macOS and
-//! Windows podman runs in a machine, and the deployer
-//! brings it to what the configuration says before anything else is
-//! asked of podman: made if there is none, its disk under
-//! `storage_path`, podman inside it as root, on macOS its memory the
-//! configured `memory`, and running. A machine already made with its
-//! disk elsewhere is refused, with the path, for the operator to
-//! remove.
+//! Windows podman runs in a machine, kept wholly — description,
+//! connection and disk — under `storage_path`, since every podman
+//! invocation is told so; the deployer brings it to what the
+//! configuration says before anything else is asked of podman: made
+//! if there is none, podman inside it as root, on macOS its memory
+//! the configured `memory`, and running. A changed storage path is a
+//! fresh machine under the new one, and the machine under the old
+//! path is left as it was, for the operator to stop or remove when
+//! they choose.
 //!
 //! # The images
 //!

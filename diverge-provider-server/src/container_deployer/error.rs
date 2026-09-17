@@ -69,8 +69,8 @@ pub enum Error {
     Io(io::Error),
     /// The proxy binary is not beside the provider's executable.
     Missing(PathBuf),
-    /// The podman machine's disk is not under `storage_path`, and
-    /// this is where it is; the machine is the operator's to remove.
+    /// Podman keeps the machine's disk somewhere other than under the
+    /// storage path every invocation told it, and this is where.
     Machine(PathBuf),
     /// On Linux, the provider is not running as root, and podman run
     /// from its account would not be rootful.
@@ -103,7 +103,7 @@ impl fmt::Display for Error {
             Error::Missing(path) => write!(f, "the proxy is not at `{}`", path.display()),
             Error::Machine(path) => write!(
                 f,
-                "the podman machine's disk is at `{}`, not under the storage path; remove the machine",
+                "podman keeps the machine's disk at `{}`, not under the storage path it was given",
                 path.display()
             ),
             Error::Root => write!(f, "the provider is not root, and podman on this host is run as the provider"),

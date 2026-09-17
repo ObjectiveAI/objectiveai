@@ -26,8 +26,15 @@ pub fn configure(storage: PathBuf) {
 /// decided here once. Podman is named bare and found on `PATH`. The
 /// storage [`configure`] gave is on every invocation: on Linux as
 /// `--root`, before the subcommand, so the store is that directory;
-/// on macOS and Windows as `XDG_DATA_HOME`, under which podman keeps
-/// a machine's disk, so the machine the provider makes lives there.
+/// on macOS and Windows as both `XDG_DATA_HOME`, under which podman
+/// keeps a machine's disk, and `XDG_CONFIG_HOME`, under which it
+/// keeps the machine's description and its connection. The two
+/// together put the whole machine under the storage path, so the
+/// path IS the machine: a different path is a different machine,
+/// made fresh, and the one under the old path is left as it was. A
+/// user-level `containers.conf` under podman's default config home
+/// is therefore not read on those hosts; everything the provider
+/// needs of podman is on the command line.
 pub fn command<I, S>(args: I) -> Command
 where
     I: IntoIterator<Item = S>,
@@ -38,7 +45,7 @@ where
         #[cfg(target_os = "linux")]
         command.arg("--root").arg(storage);
         #[cfg(not(target_os = "linux"))]
-        command.env("XDG_DATA_HOME", storage);
+        command.env("XDG_DATA_HOME", storage).env("XDG_CONFIG_HOME", storage);
     }
     command.args(args);
     command

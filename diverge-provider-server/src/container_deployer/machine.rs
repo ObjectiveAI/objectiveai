@@ -7,17 +7,19 @@ use super::Error;
 use crate::tools::podman;
 
 /// The machine as the configuration wants it, before anything else
-/// asks podman: made if there is none, with its disk under `storage`
-/// and podman inside it as root; refused if there is one whose disk
-/// is elsewhere, since a machine is the operator's to remove; set to
-/// `memory` on macOS, where a machine holds its memory from the host
-/// and WSL on Windows gives what it gives; running when this returns.
+/// asks podman: made if there is none, with podman inside it as
+/// root; set to `memory` on macOS, where a machine holds its memory
+/// from the host and WSL on Windows gives what it gives; running
+/// when this returns. Every podman invocation is told to keep the
+/// machine under `storage`, so a machine podman lists is one made
+/// under this path, and a changed path is a fresh machine.
 ///
 /// A setting is changed with the machine stopped, as podman requires,
-/// and the machine started after. A machine the provider made whose
-/// disk did not land under `storage` — podman not reading the
-/// environment it was given — is removed again, and the refusal is
-/// the same as for one made elsewhere.
+/// and the machine started after. A machine whose disk is not under
+/// `storage` is podman not keeping the machine where the environment
+/// put it, and the provider cannot run on a machine it does not
+/// control: the refusal names the disk, and a machine the provider
+/// itself just made is removed again first.
 pub(super) async fn ensure(memory: u64, storage: &Path) -> Result<(), Error> {
     let Some(machine) = podman::machine().await.map_err(Error::Podman)? else {
         init(memory).await?;

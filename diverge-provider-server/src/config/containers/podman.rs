@@ -29,15 +29,17 @@ pub struct Podman {
     /// is podman's storage root, the `graphroot`: every podman
     /// invocation the provider makes is given it as `--root`, so it
     /// is the whole store the provider sees, and a `server` image is
-    /// loaded into it, not into podman's default store. On macOS and
-    /// Windows it is where the podman machine's disk lives — the
-    /// provider makes the machine with its data under this path, and
-    /// a machine already made with its disk elsewhere is refused at
-    /// startup, with the disk's path, for the operator to remove — and
-    /// the data lies inside that disk. A path that is not absolute is
-    /// resolved relative to the directory that contains `config.yaml`
-    /// itself, never to the working directory; an absolute path
-    /// stands as written.
+    /// loaded into it, not into podman's default store; a changed
+    /// path is a fresh, empty store, and the old one is left as it
+    /// was. On macOS and Windows it is where the podman machine
+    /// lives, description and disk: the provider makes the machine
+    /// under this path, a changed path is a fresh machine under the
+    /// new one, and the machine under the old path is left as it
+    /// was, for the operator to stop or remove when they choose; the
+    /// data lies inside the machine's disk. A path that is not
+    /// absolute is resolved relative to the directory that contains
+    /// `config.yaml` itself, never to the working directory; an
+    /// absolute path stands as written.
     ///
     /// A container's `disk` is enforced as podman's storage size
     /// option on the container, which the overlay driver keeps with
