@@ -51,9 +51,10 @@ pub struct ContainerDeployer {
 impl ContainerDeployer {
     /// A deployer over the `containers` section, with `dir` the
     /// provider's directory, `volumes` its volumes, and `registry`
-    /// where its image registry listens. Made ready here: on the hosts
-    /// with a machine, the machine brought to what the configuration
-    /// says, first, since everything after asks podman; the proxy
+    /// where its image registry listens. Made ready here: on Linux the
+    /// provider found to be root, and on the hosts with a machine the
+    /// machine brought to what the configuration says, first, since
+    /// everything after asks podman; the proxy
     /// binary found beside the executable; `run/` and `run/mounts/`
     /// made and the auth file written; every container and every
     /// loop mount of an earlier life of this provider swept away; the
@@ -66,6 +67,8 @@ impl ContainerDeployer {
         volumes: Arc<VolumeManager>,
         registry: SocketAddr,
     ) -> Result<Self, Error> {
+        #[cfg(target_os = "linux")]
+        super::root::ensure().await?;
         #[cfg(not(target_os = "linux"))]
         super::machine::ensure(containers.podman.memory, &containers.podman.storage_path).await?;
         let label = format!("diverge.provider={}", dir.display());
