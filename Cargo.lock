@@ -1857,6 +1857,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-daemon-sdk"
+version = "2.3.0"
+
+[[package]]
 name = "diverge-provider"
 version = "2.3.0"
 dependencies = [
