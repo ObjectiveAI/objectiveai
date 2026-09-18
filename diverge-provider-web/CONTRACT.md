@@ -164,7 +164,8 @@ Client, or a Connector transmits to the Provider under the Protocol,
 including image manifests and blobs, the bytes of writes, reads and
 transfers, filesystem trees, database traffic, commands and
 their items, vault keys and values, FUSE operations and their
-answers, MCP exchanges, prompts, arguments, and loop chunks.
+answers, MCP exchanges, prompts, arguments, tool declarations, and
+loop chunks.
 
 1.18 **"Relayed Exchange"** means any exchange the Specification
 requires the Provider to carry between a Container and a Client, or
@@ -549,9 +550,9 @@ Deployment is the run's error.
 
 (d) **Connect to the Proxy.** The Provider shall open exactly one
 WebSocket connection to TCP port 14979 of the Container and, on it
-before any other Scope, the begin Scope of the Container's family —
-for an agent container, carrying the request's `agent` value verbatim
-— and shall await its answer. A Proxy that does not accept the
+before any other Scope, the begin Scope of the Container's family,
+carrying the request's `arguments` verbatim, and shall await its
+answer. A Proxy that does not accept the
 connection, or that answers the begin Scope with an error, is a
 Container that did not come up: the Provider shall stop the Container
 and treat the failure as the run's error. The Provider shall open no
@@ -584,7 +585,16 @@ nor read such a Channel before the last FUSE Mount is complete.
 else. A begin the Proxy answers with an error is the run's error, and
 the Provider shall stop the Container.
 
-(h) **Mint and send the id.** The Provider shall choose an id that is
+(h) **Deploy the tools.** When the Proxy's answer to the begin Scope
+carries one or more tools, the Provider shall open exactly one `tools`
+Channel on the run Scope carrying them verbatim, before the id and
+beside the FUSE Mounts, and shall read the Client's answer to its
+finish; the Provider shall treat the byte `1`, a Bare Finish, and a
+Client that is gone as the run's error and shall stop the Container.
+The Provider shall open no `tools` Channel when the list is empty, and
+never on a connect Scope.
+
+(i) **Mint and send the id.** The Provider shall choose an id that is
 unique among the Containers it is running and not derivable from the
 request, from the Identity, or from any other id, and shall send it as
 exactly one Response; a run refused for a held Volume has the byte `1`
@@ -597,14 +607,14 @@ container, every chunk the Proxy sends on the begin Scope's main
 stream as one Response, the byte `3` followed by the chunk verbatim,
 in the order the Proxy sent them, and no other Response.
 
-(i) **Serve the Scope.** For as long as the Scope lives, and
+(j) **Serve the Scope.** For as long as the Scope lives, and
 concurrently, the Provider shall relay every Channel the Proxy opens
 on the begin Scope, and every ask a FUSE Mount makes on its Scope, to
 the Client as a Channel the Provider opens, in the form the
 Specification states for that ask, and shall serve every Channel the
 Client opens as the Specification states for that Channel.
 
-(j) **End the run.** When the Provider receives the Client's stop
+(k) **End the run.** When the Provider receives the Client's stop
 channel request, when the Proxy's connection ends, or when the
 Client's Connection ends, the Provider shall end every
 connect Scope on the Container, stop the Container, end every
@@ -725,8 +735,9 @@ that conforms in full to the Specification's Container Proxy and
 Container Proxy Endpoints layers:
 that listens on TCP port 14979 and accepts one WebSocket connection
 there; that speaks the Protocol's own frames on it and sends no auth
-frame; that answers exactly one begin Scope per connection, holding
-the arguments it carries for the Container's life; that makes each mount
+frame; that answers exactly one begin Scope per connection, holding the
+arguments it carries for the Container's life and answering with the
+tools the program declared; that makes each mount
 Scope's mount before answering it and holds every mount for its life,
 asking for what the mount needs on channels of that Scope; that
 leaves out of every filetree the paths the tree Scope's request names

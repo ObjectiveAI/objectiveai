@@ -256,7 +256,8 @@ the run scope it joins.
 Payload forms that more than one endpoint carries, defined once and
 linked from every channel that carries them: the container request
 and its mounts; the error value; the OCI manifest and blob answers;
-the authorize question and its answer; write content; the Postgres
+the authorize question and its answer; the tools declaration and its
+answer; write content; the Postgres
 pair; commands; the vault's five operations
 and its lock rule; the five MCP exchanges; the seven FUSE operations
 with the file-and-directory rule; the filetree, read, and write
@@ -270,8 +271,9 @@ endpoint pages say that.
 ### Layer 8 — Container contracts (`/containers/`)
 
 What an image must provide beside the proxy: every container's HTTP
-server on `PORT`, with `/register` and `/schema` and their bodies and
-statuses the same on either kind; the agent container's three paths
+server on `PORT`, with `/register` — answered with the tools the
+program depends on — and `/schema` and their bodies and statuses the
+same on either kind; the agent container's three paths
 of the loop beside them; the tool container's MCP server at `/mcp`
 beside them; that registration is once and before any loop or
 exchange; what a fate and an outcome are. These are requirements on image authors, stated as such, and

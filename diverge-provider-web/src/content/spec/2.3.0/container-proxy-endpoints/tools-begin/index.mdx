@@ -1,14 +1,15 @@
 ---
 title: 'tools::begin'
-summary: 'Tag 1: the client begins its work on a tool container, once, first, and hands over the arguments; the server answers Begun once the container holds them and nothing more on the scope for the life of the connection; every channel of the container’s life rides this scope.'
+summary: 'Tag 1: the client begins its work on a tool container, once, first, and hands over the arguments; the server answers Begun, carrying the tools the container declared, once the container holds them and nothing more on the scope for the life of the connection; every channel of the container’s life rides this scope.'
 order: 1
 draft: false
 ---
 
 The client opens the scope with a request whose payload is the tag
 byte `1` followed by the arguments as JSON. The server answers with
-exactly one `Begun` response once the container holds its arguments,
-sends no other response on the scope for as long as the connection
+exactly one `Begun` response, carrying the tools the container
+declared, once the container holds its arguments, sends no other
+response on the scope for as long as the connection
 lives, and ends the scope by the response finish only when the server
 ends. This section states what the server does. It
 states nothing about the client beyond the order
@@ -36,7 +37,8 @@ states nothing about the client beyond the order
    container's own words, and the finish; the connection has not
    begun.
 3. **The server answers `Begun`.** Exactly once, and before any
-   channel is served.
+   channel is served, carrying the tools the container's program
+   answered its registration with.
 4. **The scope ends with the server.** The server sends the response
    finish when it ends, and at no other time.
 

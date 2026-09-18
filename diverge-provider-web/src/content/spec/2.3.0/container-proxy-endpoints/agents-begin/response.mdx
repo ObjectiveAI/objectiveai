@@ -1,12 +1,12 @@
 ---
 title: 'Response'
-summary: 'The server sends Begun once, or an error and the finish; after Begun it sends every chunk of the agent’s conversation as a response, and the finish only when the server ends.'
+summary: 'The server sends Begun once, carrying the tools the container declared, or an error and the finish; after Begun it sends every chunk of the agent’s conversation as a response, and the finish only when the server ends.'
 order: 2
 draft: false
 ---
 
 ```text
-[0]                  begun: the container holds its arguments
+[0][tools JSON …]    begun: the container holds its arguments, and these are its tools
 [1][error JSON …]    not begun: the connection had begun, or the arguments were refused
 [2][chunk JSON …]    one chunk of the conversation
 ```
@@ -18,6 +18,12 @@ draft: false
   byte is `1`, followed by the response finish. The server sends no
   response whose first byte is `2` before `Begun`, and none after the
   finish.
+- **The tools.** The bytes after the byte `0` are a JSON array of
+  the tools the container's program answered its registration with,
+  each as the [tools](/endpoints/containers-agents-run/server/tools/)
+  channel of the run defines one, in the order the program declared
+  them; empty when the program declared none. The server sends the
+  array exactly as the program produced it.
 - **The chunk.** The bytes after the byte `2` are one chunk as the
   [containers::agents::run response](/endpoints/containers-agents-run/response/)
   defines it, as JSON, which the server sends exactly as the agent's

@@ -1,0 +1,37 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the tag byte 4 and the ask.'
+order: 1
+draft: false
+---
+
+```text
+[4][request JSON …]
+```
+
+- **`tools`.** An array of tools, in the order the program declared
+  them. Each is an object of five members: `name`, a string, unique
+  in the array; `image`, an object of `name` and `digest` as the
+  [request](/endpoints/containers-tools-run/request/) of a tools run
+  names one; `memory` and `disk`, limits in bytes as that request
+  states them; and `arguments`, any JSON value, the `arguments` of
+  that request. The mounts of a tools run are not here: the client
+  chooses them.
+- **Malformed.** A channel request whose payload does not decode as
+  stated is answered by a channel response finish that no channel
+  response precedes, and the server does nothing else for it.
+
+The channel request is defined by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/tools/request/request.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/tools/request/request.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/tools/tool.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/tools/tool.rs
+```
