@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use futures_util::future;
+
 use crate::endpoints::volumes::refusal;
 use crate::server::volume::Volume;
 use crate::server::volume_manager::VolumeManager;
@@ -51,14 +53,18 @@ pub(crate) enum Refused {
 impl<V: Volume> Held<V> {
     /// Hold every volume `names` names, in order, or none of them.
     ///
-    /// Each name is [`got`](VolumeManager::get) and
-    /// [`mounted`](Volume::mount) in turn — in turn, not at once, so
-    /// a refusal gives back exactly what was taken before it. A name
-    /// the caller has no volume by is [`Refused::Error`] with
-    /// [`refusal::unknown`]; a volume held exclusively is
-    /// [`Refused::Held`]; a provider that will not answer the lookup
-    /// is [`Refused::Error`] with its error. On any of them, the holds
-    /// taken so far are given back before the refusal is returned.
+    /// Every name is [`got`](VolumeManager::get) beside every other —
+    /// a lookup may run a provider's hook, a process, and three of
+    /// them one after another would be three processes' latency end
+    /// to end — and then each found volume is [`mounted`](Volume::mount)
+    /// in request order, one after another, since a hold is one
+    /// atomic that answers at once and taking them in order is what
+    /// lets a refusal give back exactly what was taken before it. A
+    /// name the caller has no volume by is [`Refused::Error`] with
+    /// [`refusal::unknown`]; a provider that will not answer a lookup
+    /// is [`Refused::Error`] with its error; both before anything is
+    /// held. A volume held exclusively is [`Refused::Held`], with the
+    /// holds taken before it given back.
     pub async fn take<'a, M>(
         manager: &M,
         client_identity: &str,
@@ -68,37 +74,30 @@ impl<V: Volume> Held<V> {
         M: VolumeManager<Volume = V>,
         M::Error: Into<Error>,
     {
-        let mut held = Held { volumes: Vec::new() };
-        for name in names {
-            if let Err(refused) = held.take_one(manager, client_identity, name).await {
-                held.give_back().await;
-                return Err(refused);
+        let names: Vec<&str> = names.into_iter().collect();
+        let found = future::join_all(names.iter().map(|name| async move {
+            match manager.get(client_identity, name).await {
+                Ok(Some(volume)) => Ok(volume),
+                Ok(None) => Err(Refused::Error(refusal::unknown(name))),
+                Err(error) => Err(Refused::Error(error.into())),
             }
+        }))
+        .await;
+        let mut volumes = Vec::with_capacity(found.len());
+        for outcome in found {
+            volumes.push(outcome?);
+        }
+        let mut held = Held {
+            volumes: Vec::with_capacity(volumes.len()),
+        };
+        for (name, volume) in names.iter().zip(volumes) {
+            if !volume.mount().await {
+                held.give_back().await;
+                return Err(Refused::Held(name.to_string()));
+            }
+            held.volumes.push(Arc::new(volume));
         }
         Ok(held)
-    }
-
-    /// One name: found, held shared, and kept.
-    async fn take_one<M>(
-        &mut self,
-        manager: &M,
-        client_identity: &str,
-        name: &str,
-    ) -> Result<(), Refused>
-    where
-        M: VolumeManager<Volume = V>,
-        M::Error: Into<Error>,
-    {
-        let volume = manager
-            .get(client_identity, name)
-            .await
-            .map_err(|error| Refused::Error(error.into()))?
-            .ok_or_else(|| Refused::Error(refusal::unknown(name)))?;
-        if !volume.mount().await {
-            return Err(Refused::Held(name.to_string()));
-        }
-        self.volumes.push(Arc::new(volume));
-        Ok(())
     }
 
     /// The volumes, in the order the request names them: one per
