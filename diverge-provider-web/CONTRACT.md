@@ -105,8 +105,8 @@ byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
 a container request by one of the three forms the Specification
 defines: an image the Client holds (`client`), an image the Provider
-obtains from a source of its own (`server`), or a reference the
-Provider pulls (`registry`).
+obtains from a source of its own (`server`), or an image the
+Provider pulls from a registry the Client names (`registry`).
 
 1.11 **"Container"** means one running instance of a Container Image,
 created by the Provider in performance of a `containers::agents::run`
@@ -298,7 +298,7 @@ Non-Conformance if committed by the Provider is a Non-Conformance of
 the Provider.
 
 4.4 **Provider's discretion.** Every matter the Specification leaves to
-the Provider — among them which image references its policy allows,
+the Provider — among them which registries its policy allows,
 which volumes it offers a Client beyond those the Client created,
 whether a taken volume name is refused on creation, the content of
 every error value, the form of a volume name it
@@ -523,7 +523,8 @@ and bytes that are not those the digest names, are the run's error.
 How the Provider holds, verifies or streams what it obtains is not
 prescribed. For an image of kind `server`, the Provider shall
 obtain the image from a source of its own. For an image of kind
-`registry`, the Provider shall pull the stated reference.
+`registry`, the Provider shall pull the image `name` at `digest` from
+the registry `host`, and shall run only the image the digest names.
 
 (c) **Deploy.** The Provider shall perform Container Deployment as
 Section 1.12 defines it, with `memory` and `disk` of the request as
