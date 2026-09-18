@@ -1,7 +1,7 @@
 ---
 title: 'MCP read resource'
-summary: 'Tag 14: the server relays an MCP exchange the container asked of the client’s servers, its params verbatim; the client answers with exactly one channel response, a result or an error, which the server relays to the container.'
-order: 14
+summary: 'Tag 15: the server relays an MCP exchange the container asked of the client’s servers, its params verbatim; the client answers with exactly one channel response, a result or an error, which the server relays to the container.'
+order: 15
 draft: false
 ---
 
@@ -9,7 +9,7 @@ The server opens this channel when the container's proxy opens the
 corresponding MCP channel on the begin scope. The params are relayed
 verbatim; the client's one answer is relayed back.
 
-- **The request.** The tag byte `14` followed by the params as JSON.
+- **The request.** The tag byte `15` followed by the params as JSON.
   [Request](/endpoints/containers-agents-run/server/mcp-read-resource/request/) states its form.
 - **The response.** Exactly one channel response, a result or an
   MCP error, and the channel response finish.

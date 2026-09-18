@@ -1,0 +1,28 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the client answers with, what ends it, what a finish with nothing before it means, and what the server does with the answer.'
+order: 2
+draft: false
+---
+
+```text
+[1]      once: the client holds the image
+[0]      once: it does not
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish. A channel response finish that no channel
+  response precedes states that the client does not hold the image.
+- **The frame.** One byte: `1`, the client holds the image the digest
+  names, or `0`, it does not. A frame of any other byte, or of more
+  than one byte, is malformed.
+- **What follows.** A client that answered `1` may be asked for the
+  manifest and blobs of the image on
+  [oci-manifest](/endpoints/containers-agents-run/server/oci-manifest/) and
+  [oci-blob](/endpoints/containers-agents-run/server/oci-blob/) channels. A client that
+  answered `0` is not.
+
+The channel response is defined by `diverge-provider-sdk-rs/src/shared/containers/oci/has/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/oci/has/response/frame.rs
+```

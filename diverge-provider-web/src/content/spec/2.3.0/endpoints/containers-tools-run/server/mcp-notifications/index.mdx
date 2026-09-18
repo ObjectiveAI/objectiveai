@@ -1,7 +1,7 @@
 ---
 title: 'MCP notifications'
-summary: 'Tag 15: the server relays the container’s subscription to the notifications of the client’s servers; the client answers with one channel response per notification, an error last, and the channel response finish, each relayed to the container.'
-order: 15
+summary: 'Tag 16: the server relays the container’s subscription to the notifications of the client’s servers; the client answers with one channel response per notification, an error last, and the channel response finish, each relayed to the container.'
+order: 16
 draft: false
 ---
 
@@ -9,7 +9,7 @@ The server opens this channel when the container's proxy opens a
 notifications channel on the begin scope. Every channel response is
 relayed to the container as one channel response.
 
-- **The request.** The tag byte `15` and nothing more.
+- **The request.** The tag byte `16` and nothing more.
   [Request](/endpoints/containers-tools-run/server/mcp-notifications/request/) states its
   form.
 - **The response.** One channel response per notification, an error

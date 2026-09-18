@@ -5,9 +5,10 @@ order: 0
 draft: false
 ---
 
-The server opens this channel when the image of the request is of
-kind `client` and its registry does not hold a manifest that the pull
-requires, including the manifest of the platform an index names.
+The server opens this channel when it obtains the image of the
+request from the client and its registry does not hold a manifest
+that the pull requires, including the manifest of the platform an
+index names.
 
 - **When.** Between the request and the deploy.
 - **The request.** The tag byte `0` followed by the digest as JSON.
