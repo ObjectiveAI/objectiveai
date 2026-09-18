@@ -2,7 +2,7 @@
 //! per family, and the scope the proxy's own asks ride.
 //!
 //! Either begin registers the arguments with the program's own server
-//! and answers `Begun`; [`agents()`] then starts the queue's driver
+//! and answers `Begun` with the tools the program declared; [`agents()`] then starts the queue's driver
 //! and serves the family's channels — the schema, the queue's two
 //! verbs, the server's half of each database connection — for the
 //! connection's life, and [`tools()`] serves the schema and the
