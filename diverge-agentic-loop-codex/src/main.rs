@@ -65,6 +65,7 @@ use axum::response::sse::{Event, Sse};
 use diverge_container_proxy_sdk::Client;
 use diverge_container_proxy_sdk::agent::dequeue::Outcome;
 use diverge_container_proxy_sdk::agent::enqueue::Fate;
+use diverge_container_proxy_sdk::register::response::Response;
 use diverge_provider_sdk::shared::containers::enqueue;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::{Stream, StreamExt as _};
@@ -231,10 +232,10 @@ async fn run(
 ///
 /// A value this image will not take is `400`; an agent already
 /// registered is `409`, whatever the second carries — the agent
-/// never changes. `204` is the agent held.
+/// never changes. `200`, with the tools the agent depends on — none — is the agent held.
 async fn register(
     Json(request): Json<diverge_container_proxy_sdk::register::request::Request>,
-) -> Result<StatusCode, Refusal> {
+) -> Result<(StatusCode, Json<Response>), Refusal> {
     let agent: Agent = match serde_json::from_value(request.arguments) {
         Ok(agent) => agent,
         Err(error) => {
@@ -248,7 +249,7 @@ async fn register(
         }
     };
     match registration::register(agent) {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Ok(()) => Ok((StatusCode::OK, Json(Response::default()))),
         Err(_) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
