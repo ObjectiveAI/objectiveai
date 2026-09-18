@@ -67,6 +67,11 @@ bytes = { version = "1.11.1", default-features = false }
 # Rust, with none of the CLI, the other filesystems or the codecs.
 # The library's API is not stable before 0.5, so the pin is exact.
 fstool = { version = "=0.4.33", default-features = false, features = ["ext"] }
+# A fixed volume's directory, watched for a caller's filetree: the
+# recommended watcher is inotify on Linux, FSEvents on macOS and
+# ReadDirectoryChangesW on Windows behind one API, which is the whole
+# of the platform difference this crate has to carry.
+notify = "8.2.0"
 # A container's name in podman and a loop mount's directory, each
 # minted fresh per deploy; `v4` alone, since nothing here needs a
 # UUID parsed or timed.

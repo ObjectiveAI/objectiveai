@@ -1872,6 +1872,7 @@ dependencies = [
  "fstool",
  "futures-util",
  "hex",
+ "notify",
  "serde",
  "serde_json",
  "serde_path_to_error",
