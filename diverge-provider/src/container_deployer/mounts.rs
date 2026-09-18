@@ -8,20 +8,18 @@ use diverge_provider_sdk::server::volume_manager::VolumeManager as _;
 use futures_util::future;
 
 use super::{ContainerDeployer, Error};
-use crate::tools::mount;
-use crate::volume_manager::Place;
+use crate::volume_manager::Volume;
 
 /// One mount made ready: the `--volume` argument podman is handed,
-/// and the loop-mount directory behind it if the volume is a stored
-/// one, to be unmounted when the container is gone.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// and the volume it binds, attached, to be detached when the
+/// container is gone.
+#[derive(Debug, Clone)]
 pub struct Bound {
     /// `<host>:<container>` with `:O` after it for a mount whose
     /// changes do not persist.
     pub argument: String,
-    /// The directory the volume's image is loop-mounted on, as the
-    /// tool sees it, for a stored volume; `None` for a fixed one.
-    pub loop_dir: Option<String>,
+    /// The volume, attached once for this mount.
+    pub volume: Volume,
 }
 
 /// Every mount checked and made ready, each resolved beside every
@@ -47,18 +45,10 @@ pub async fn bind(deployer: &ContainerDeployer, mounts: &[Mount]) -> Result<Vec<
     }
 }
 
-/// Every loop mount of `bound` unmounted, each beside every other;
-/// a refusal is not reported, since there is nobody to report it to.
+/// Every volume of `bound` detached, each beside every other: the
+/// last container to have a stored volume unmounts its image.
 pub async fn release(bound: &[Bound]) {
-    future::join_all(
-        bound
-            .iter()
-            .filter_map(|one| one.loop_dir.as_deref())
-            .map(|dir| async move {
-                let _ = mount::unmount(dir).await;
-            }),
-    )
-    .await;
+    future::join_all(bound.iter().map(|one| one.volume.detach())).await;
 }
 
 /// The refusals the contract puts on the provider, for what a
@@ -101,29 +91,23 @@ fn component_ok(component: &str) -> bool {
     !component.is_empty() && component != "." && component != ".." && !component.contains(['/', '\0'])
 }
 
-/// One mount resolved: the volume looked up for its identity, the
-/// image loop-mounted if it is a stored one, the relative path
-/// descended, and the volume told it is mounted.
+/// One mount resolved: the volume looked up for its identity and
+/// attached — its image loop-mounted if this is the first container
+/// to have it — the relative path descended on the directory it
+/// answers, and the argument built.
 async fn one(deployer: &ContainerDeployer, mount: &Mount) -> Result<Bound, Error> {
     let volume = deployer
         .volumes
         .get(&mount.client_identity, &mount.host_name)
         .await?
         .ok_or_else(|| Error::Volume(mount.host_name.clone()))?;
-    let (host, loop_dir) = match volume.place() {
-        Place::Fixed { root, .. } => (descend(&tool_path(root), &mount.host_relative_path), None),
-        Place::Stored { image, .. } => {
-            let dir = tool_path(&deployer.mounts_dir.join(uuid::Uuid::new_v4().to_string()));
-            mount::mount(image, &dir).await.map_err(Error::Mount)?;
-            (descend(&dir, &mount.host_relative_path), Some(dir))
-        }
-    };
-    volume.mounted().await;
+    let dir = volume.attach(&deployer.mounts_dir).await.map_err(Error::Mount)?;
+    let host = descend(&dir, &mount.host_relative_path);
     let mut argument = format!("{host}:/{}", mount.container_path.join("/"));
     if !mount.persist {
         argument.push_str(":O");
     }
-    Ok(Bound { argument, loop_dir })
+    Ok(Bound { argument, volume })
 }
 
 /// `base` with `components` after it, joined by `/` as the tool

@@ -27,8 +27,10 @@
 //! and every identity that has asked, each an [`Identity`] holding
 //! its stored volumes by name, read from the stores the first time
 //! the identity is named. [`Volume`] is one volume, the SDK's
-//! `Volume`, carrying the SDK's lock as an atomic flag and, once
-//! asked, what a walk found — [`Walked`], the bytes in use and the
+//! `Volume`, carrying the SDK's hold as one atomic count — free, so
+//! many mounters, or locked — the one loop mount of its image while
+//! any container has it, and, once asked, what a walk found —
+//! [`Walked`], the bytes in use and the
 //! `dirhash`. [`walk_directory`] is the walk of a fixed volume's
 //! directory and [`walk_image`] the walk of a stored volume's image;
 //! [`reserve_image`] and [`format_image`] are how an image is made,
