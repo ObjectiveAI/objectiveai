@@ -52,8 +52,8 @@ about the client, which may open any channel at any time.
    or streams what it obtains is not prescribed. For an image of kind
    `server`, the
    server obtains the image from a source of its own. For an image of
-   kind `registry`, the server pulls the reference; which references
-   it allows is its own.
+   kind `registry`, the server pulls the image `name` at `digest` from
+   the registry `host`; which hosts it pulls from is its own.
 3. **The server deploys the container.** The server starts the image
    with `memory` and `disk` as limits; every volume mount resolved by
    `host_name` against the identity under which the connection was

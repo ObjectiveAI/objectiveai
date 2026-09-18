@@ -16,10 +16,11 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   an image the client holds, which the server pulls from its own
   registry and fetches from the client by digest;
   `{"server":{"name":…,"digest":…}}`, an image the server obtains
-  from a source of its own; `{"registry":{"reference":…}}`, a
-  reference the server pulls. `name` is a repository path without a
-  host; `digest` is `<algorithm>:<hex>`; `reference` is what the
-  server's runtime accepts.
+  from a source of its own; `{"registry":{"host":…,"name":…,"digest":…}}`,
+  an image the server pulls from the registry the client names.
+  `name` is a repository path without a host; `digest` is
+  `<algorithm>:<hex>`; `host` is a registry host, with no scheme and
+  no path.
 - **`memory`, `disk`.** Limits in bytes: the memory the container may
   use, and the bytes the container may write to its own filesystem.
   Neither governs a mount.
