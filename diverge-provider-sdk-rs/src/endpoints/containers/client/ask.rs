@@ -10,7 +10,7 @@ use crate::shared::containers::authorize;
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// twenty-three asks in the same order with the same payloads, and
+/// twenty-four asks in the same order with the same payloads, and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -22,6 +22,8 @@ pub enum Ask {
     OciManifest(String),
     /// A blob of an image the caller holds, by digest.
     OciBlob(String),
+    /// Whether the caller holds an image: its name, its digest.
+    OciHas(String, String),
     /// Whether a connector may attach.
     Authorize(authorize::request::Authorize),
     /// The content of a write this caller started, by its id.
@@ -73,6 +75,7 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
+            Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
             Frame::Authorize(request) => Ask::Authorize(request),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
@@ -116,6 +119,7 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
+            Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
             Frame::Authorize(request) => Ask::Authorize(request),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),

@@ -23,14 +23,12 @@ use super::mount::Mount;
 ///
 /// # The image is not here
 ///
-/// It is an argument to whichever
-/// [`ContainerDeployer`](super::container_deployer::ContainerDeployer)
-/// method is called, because the method IS the source. Carrying an
-/// [`Image`](crate::shared::containers::request::Image) here as well
-/// would let a caller hand
-/// [`Client`](crate::shared::containers::request::Image::Client) to the
-/// method that pulls from a registry, which is a contradiction nothing
-/// would catch.
+/// Its name and digest are arguments to
+/// [`deploy`](super::container_deployer::ContainerDeployer::deploy),
+/// beside the [`Caller`](super::caller::Caller) that says what the
+/// caller can supply of it: together they are the whole question of
+/// where the bytes come from, which is the deployer's to answer and
+/// no fact of the container.
 ///
 /// # What is deliberately absent
 ///

@@ -18,11 +18,7 @@ use super::{FuseMount, Image, VolumeMount};
 /// ignored is a field callers will believe in.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Container {
-    /// The image, and who supplies it.
-    ///
-    /// See [`Image`]. Which variant it is decides how the image is
-    /// named, which is why the source and the name are one field
-    /// rather than two that only make sense together.
+    /// The image: a name and a digest. See [`Image`].
     pub image: Image,
     /// How much memory the container may have, in BYTES.
     ///

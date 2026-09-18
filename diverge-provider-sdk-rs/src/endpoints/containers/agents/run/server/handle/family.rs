@@ -190,6 +190,10 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
             Own::OciBlob(digest) => ask::Frame::OciBlob(oci::blob::request::Request {
                 digest: digest.to_string(),
             }),
+            Own::OciHas { name, digest } => ask::Frame::OciHas(oci::has::request::Request {
+                name: name.to_string(),
+                digest: digest.to_string(),
+            }),
             Own::Authorize(authorize) => ask::Frame::Authorize(authorize),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
         }

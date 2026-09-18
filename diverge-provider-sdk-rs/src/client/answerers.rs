@@ -25,7 +25,7 @@ use std::sync::Arc;
 /// answer: `None`, a denial, an empty stream, an error.
 #[derive(Debug)]
 pub struct Answerers<O, A, P, C, V, M, F> {
-    /// The manifests and blobs of images the caller holds
+    /// Whether the caller holds an image, and its manifests and blobs
     /// ([`OciStore`](super::OciStore)).
     pub oci: Arc<O>,
     /// Whether a connector may attach

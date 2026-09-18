@@ -148,9 +148,7 @@ pub(crate) async fn run<R, D, G, V>(
 
     directory.remove(&id);
     prepared.container.stop().await;
-    if let Some(repository) = &prepared.repository {
-        registry.release(repository).await;
-    }
+    registry.release(&prepared.repository).await;
     drop(held);
     run.shutdown().await;
     scope.send_response_finish().await;

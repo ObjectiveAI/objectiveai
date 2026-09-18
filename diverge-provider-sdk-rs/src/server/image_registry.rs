@@ -1,4 +1,5 @@
-//! The registry a runtime pulls a caller-held image from.
+//! The registry a runtime pulls from, for an image taken from the
+//! caller.
 
 use std::future::Future;
 use std::net::SocketAddr;
@@ -6,18 +7,21 @@ use std::net::SocketAddr;
 use super::image_source::ImageSource;
 
 /// The provider's own OCI registry: the read side of the Distribution
-/// API, on its loopback, that its runtime pulls from when a run names
-/// an [`Image::Client`](crate::shared::containers::request::Image::Client).
+/// API, on its loopback, that its runtime pulls from when the
+/// deployer takes a run's image from the caller.
 ///
 /// What a caller holds is a store of manifests and blobs by digest,
 /// and no registry. What a runtime wants is a registry, and no
 /// channel to a caller. This trait is the provider standing between
-/// them: a run handler tells it, before the deploy, that `repository`
-/// is to be served from an [`ImageSource`] — the run scope's channels
-/// to the caller — and the deployer then points the runtime at
+/// them: a run handler tells it, before every deploy, that
+/// `repository` is to be served from an [`ImageSource`] — the run
+/// scope's channels to the caller — and a deployer that takes the
+/// image from there points the runtime at
 /// `<address>/<repository>/<name>@<digest>` and pulls as from any
-/// registry. See [`oci`](crate::shared::containers::oci) for the
-/// pull, request by request, and what each needs from the caller.
+/// registry; one that does not never pulls it, and the repository is
+/// released after the run either way. See
+/// [`oci`](crate::shared::containers::oci) for the pull, request by
+/// request, and what each needs from the caller.
 ///
 /// # What an implementation does
 ///
@@ -53,9 +57,8 @@ pub trait ImageRegistry: Send + Sync {
     type Error: Send + 'static;
 
     /// Where the runtime pulls from: the registry's listening address,
-    /// as the deployer's
-    /// [`client`](super::container_deployer::ContainerDeployer::client)
-    /// is handed it.
+    /// as a [`Caller`](super::caller::Caller) carries it to the
+    /// deployer.
     fn address(&self) -> SocketAddr;
 
     /// Serve `repository` from `source`, from now until

@@ -1,8 +1,8 @@
 //! Putting a container somewhere.
 
 use std::future::Future;
-use std::net::SocketAddr;
 
+use super::caller::Caller;
 use super::container::Container;
 use super::deployment::Deployment;
 
@@ -101,23 +101,16 @@ use super::deployment::Deployment;
 /// first is over for the proxy; nothing can promise the second away
 /// for the image.
 ///
-/// # Three methods, one per source
+/// # One method, and the source is the provider's
 ///
-/// [`Image`](crate::shared::containers::request::Image) has three
-/// variants and this has three methods, named for them. Which is not
-/// bookkeeping — it is what makes the fourth argument possible.
-///
-/// A caller-held image is the one case where the runtime pulls from
-/// the provider's own registry, so [`client`](Self::client) is handed
-/// that registry's address and the other two are not. One method taking an
-/// [`Image`](crate::shared::containers::request::Image) would have to
-/// carry that as an [`Option`], `Some` exactly when the variant is
-/// `Client` — a correlation nothing would enforce and every
-/// implementation would have to be trusted to respect.
-///
-/// Three methods make it structural. The argument exists where it
-/// applies and does not exist where it does not, and no implementation
-/// has to handle a combination that cannot happen.
+/// An [`Image`](crate::shared::containers::request::Image) is a name
+/// and a digest, and says nothing about where the bytes come from.
+/// That is the implementation's decision, made from the pair alone:
+/// its own store, a registry it uses, the caller through the
+/// [`Caller`] it is handed — in whatever order, by whatever policy.
+/// What the protocol asserts is only that the container runs the
+/// image the digest names, and a runtime that hashes what it pulls
+/// makes that so wherever the bytes were found.
 ///
 /// # What a container IS is the provider's
 ///
@@ -206,15 +199,20 @@ pub trait ContainerDeployer: Send + Sync {
     /// was for.
     type Error: Send + 'static;
 
-    /// Deploy from an image the CALLER holds.
+    /// Deploy the image `name` at `digest`, from wherever the
+    /// implementation gets it.
     ///
-    /// For images that exist nowhere a provider can reach — built
-    /// locally, never pushed, carrying a digest no registry has heard
-    /// of. The provider runs a registry of its own, at `registry`, and
-    /// fills it from the caller by digest — see
-    /// [`oci`](crate::shared::containers::oci) — so an implementation
+    /// Its own store, a mirror, a registry it holds credentials for,
+    /// or the caller: `caller` says whether the caller holds the
+    /// image and where the provider's registry serves it when it
+    /// does, and an implementation that takes the image from there
     /// points its runtime at `<registry>/<repository>/<name>@<digest>`
-    /// and pulls as from any registry.
+    /// and pulls as from any registry. Which sources it tries, and in
+    /// what order, is its own; a pair it can get from none of them is
+    /// an [`Error`](Self::Error) like any other. The pair is the one
+    /// [`images::check`](crate::endpoints::images::check) asks about,
+    /// so a check that came back available names an image this can
+    /// be handed with nothing to translate.
     ///
     /// # What the implementation does not do
     ///
@@ -226,14 +224,15 @@ pub trait ContainerDeployer: Send + Sync {
     ///
     /// # The name is a path fragment, and is not checked
     ///
-    /// It lands in a URL by concatenation. A `..` in it walks out of
-    /// the repository segment and into another caller's namespace, so
-    /// an implementation normalizes or refuses before concatenating.
+    /// It lands in a reference by concatenation. A `..` in it walks
+    /// out of the repository segment and into another caller's
+    /// namespace, so an implementation refuses a `name` that is not a
+    /// repository path before concatenating, and normalizes nothing.
     /// Nothing upstream of here does it.
     ///
     /// The digest needs no such care: the provider's registry hashes
     /// what the caller sent before serving it, and the runtime hashes
-    /// again on pull, so a caller holding the wrong bytes under the
+    /// again on pull, so a source holding the wrong bytes under the
     /// right digest fails before anything runs.
     ///
     /// # The future is [`Send`]
@@ -241,65 +240,12 @@ pub trait ContainerDeployer: Send + Sync {
     /// Because a provider deploys for several callers at once. It is
     /// spelled out rather than left to `async fn`, which promises
     /// nothing about the future it returns.
-    fn client(
+    fn deploy(
         &self,
         client_identity: &str,
         deployment: &Deployment,
         name: &str,
         digest: &str,
-        registry: SocketAddr,
-        repository: &str,
-    ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
-
-    /// Deploy from an image the PROVIDER produces.
-    ///
-    /// Its own mirror, a pull-through cache, a private registry it
-    /// holds credentials for, or something already on disk. Where it
-    /// comes from is not a caller's business and a caller is not told.
-    ///
-    /// Which is what makes proprietary images expressible: an
-    /// implementation serves one no public registry carries, and a
-    /// caller asks for it without ever being able to fetch it itself.
-    ///
-    /// The pair is the one
-    /// [`images::check`](crate::endpoints::images::check) asks about, so
-    /// a check that came back available names an image this can be
-    /// handed with nothing to translate.
-    fn server(
-        &self,
-        client_identity: &str,
-        deployment: &Deployment,
-        name: &str,
-        digest: &str,
-    ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
-
-    /// Deploy from the registry the CALLER names.
-    ///
-    /// The one case where the caller chooses the source. `host` is
-    /// the registry — `docker.io`, `ghcr.io`,
-    /// `registry.example.com:5000` — and an implementation pulls
-    /// `<host>/<name>@<digest>` from it, pinned by the digest like
-    /// the other two.
-    ///
-    /// # The name is a path fragment, and is not checked
-    ///
-    /// As with [`client`](Self::client): it lands in the reference by
-    /// concatenation, so an implementation refuses a `name` that is
-    /// not a repository path before concatenating, and normalizes
-    /// nothing. Nothing upstream of here does it.
-    ///
-    /// # Which registries are reachable is policy
-    ///
-    /// An implementation's to set and to enforce, and nothing in this
-    /// protocol expresses it. A caller naming a host the provider will
-    /// not go to learns so by being refused, which is an
-    /// [`Error`](Self::Error) like any other.
-    fn registry(
-        &self,
-        client_identity: &str,
-        deployment: &Deployment,
-        host: &str,
-        name: &str,
-        digest: &str,
+        caller: &Caller,
     ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
 }
