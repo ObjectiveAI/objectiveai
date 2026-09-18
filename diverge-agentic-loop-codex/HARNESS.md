@@ -170,7 +170,7 @@ up until a request comes. The harness is the entrypoint.
 
 ## The agent renders to config.toml and argv
 
-The agent value (`src/agent/`) is what the harness writes into
+The agent value (`src/agent/`, the request's `arguments`) is what the harness writes into
 `$CODEX_HOME/config.toml` and passes on `codex exec`'s argv, and
 nothing else:
 

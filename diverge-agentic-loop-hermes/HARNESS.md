@@ -308,7 +308,7 @@ Rules settled with it:
 ## The server
 
 `main.rs` is the HTTP server around `run::run`, on the loopback at
-the port the SDK's `container_proxy::agent` names (`PORT`, else
+the port the SDK's `container_proxy_sdk::port()` names (`PORT`, else
 8080), forwarded to by the proxy the host injects: `POST /register` (the
 agent, once, for the container's life; a second is `409`), `POST /run`
 (the prompt JSON in — a run before registration is `409

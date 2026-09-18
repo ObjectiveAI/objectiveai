@@ -2,7 +2,7 @@
 //!
 //! The program an agent container runs for a Python agent: an HTTP
 //! server on the container's loopback, at the port the SDK's
-//! [`diverge_container_proxy_sdk::agent`] module names, that the proxy beside it
+//! [`diverge_container_proxy_sdk::port()`] names, that the proxy beside it
 //! forwards the provider's asks to. `POST /run` runs a loop — one at
 //! a time, the lock held for exactly the stream's life, so a run
 //! after the first resumes the conversation and a run beside it is
@@ -31,8 +31,8 @@
 //! # What is an error, and what is not
 //!
 //! Anything that fails before the loop has said a single thing is a
-//! real error — a non-`2xx`, with a JSON reason, and no stream: an
-//! agent value that is not a Python agent, requirements that will
+//! real error — a non-`2xx`, with a JSON reason, and no stream:
+//! arguments that are not a Python agent, requirements that will
 //! not install, a database that will not answer, a history that will
 //! not open, the first run of the script — raising, breaking the
 //! harness, answering the wrong shape, saying a chunk it may not,
@@ -61,7 +61,7 @@ use axum::response::sse::{Event, Sse};
 use diverge_container_proxy_sdk::Client;
 use diverge_container_proxy_sdk::agent::dequeue::Outcome;
 use diverge_container_proxy_sdk::agent::enqueue::Fate;
-use diverge_container_proxy_sdk::agent::register;
+use diverge_container_proxy_sdk::register;
 use diverge_container_proxy_sdk::agent::run as run_endpoint;
 use diverge_provider_sdk::shared::containers::enqueue;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
@@ -100,7 +100,7 @@ async fn serve() {
         .route("/dequeue", axum::routing::post(dequeue))
         .with_state(Arc::new(Client::new()));
 
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_container_proxy_sdk::agent::port()))
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_container_proxy_sdk::port()))
         .await
         .expect("the port could not be bound");
     axum::serve(listener, app)
@@ -241,7 +241,7 @@ async fn run(
     }))
 }
 
-/// `POST /register`: the agent, once, for the container's life —
+/// `POST /register`: the `arguments`, the agent, once, for the container's life —
 /// written and installed on the way in.
 ///
 /// A value this image will not take is `400`; so are requirements
@@ -251,7 +251,7 @@ async fn run(
 /// is the agent held, its source on disk and its packages present.
 /// The answer waits for the install, however long it takes.
 async fn register(Json(request): Json<register::request::Request>) -> Result<StatusCode, Refusal> {
-    let agent: Agent = match serde_json::from_value(request.agent) {
+    let agent: Agent = match serde_json::from_value(request.arguments) {
         Ok(agent) => agent,
         Err(error) => {
             return Err((
@@ -269,7 +269,7 @@ async fn register(Json(request): Json<register::request::Request>) -> Result<Sta
     }
 }
 
-/// `GET /schema`: what the agent value may be — the JSON Schema of
+/// `GET /schema`: what the `arguments` may be — the JSON Schema of
 /// [`Agent`], derived from the type registration reads, so the two
 /// cannot disagree.
 async fn schema() -> Json<schemars::Schema> {

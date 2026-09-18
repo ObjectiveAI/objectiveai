@@ -1,6 +1,6 @@
 //! The agent: Codex's parameters, as the caller states them.
 //!
-//! This is what the `agent` value on the container's request must
+//! This is what the `arguments` on the container's request must
 //! be, and every type here derives its JSON Schema so `GET /schema`
 //! can say so — [`schemars::schema_for!`] over [`Agent`] is the
 //! whole answer.
