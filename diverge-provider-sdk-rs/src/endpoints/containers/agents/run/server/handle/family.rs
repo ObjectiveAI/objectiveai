@@ -1,5 +1,6 @@
 //! This scope's frames, named for the machinery.
 
+use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 
@@ -24,7 +25,7 @@ use crate::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy_endpoints::agents::begin::client::execute as begin;
 use crate::shared;
 use crate::shared::containers::response::{Id, VolumeHeld};
-use crate::shared::containers::{command, fuse, oci, postgres, vault};
+use crate::shared::containers::{command, fuse, oci, postgres, tools, vault};
 use crate::shared::mcp;
 use crate::shared::error::Error;
 use crate::shared::filetree as tree;
@@ -117,11 +118,12 @@ impl Runs for Agents {
         let proxy = proxy.clone();
         async move {
             match begin::execute(&proxy, arguments).await {
-                Ok((handle, asks, chunks)) => Ok(Begun {
+                Ok((handle, asks, chunks, tools)) => Ok(Begun {
                     begin: Begin::Agents(handle),
                     asks,
                     chunks: Some(chunks),
                     finish: None,
+                    tools,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -192,6 +194,9 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
                 digest: digest.to_string(),
             }),
             Own::Authorize(authorize) => ask::Frame::Authorize(authorize),
+            Own::Tools(declared) => ask::Frame::Tools(tools::request::Request {
+                tools: Cow::Borrowed(declared),
+            }),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
         }
     }

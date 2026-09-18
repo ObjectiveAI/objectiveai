@@ -39,6 +39,24 @@ pub(crate) fn id_refused(id: &str) -> Error {
     }))
 }
 
+/// The caller did not answer the ask to deploy the container's
+/// tools: a finish with nothing before it, or a caller gone.
+pub(crate) fn tools_unserved() -> Error {
+    Error(serde_json::json!({
+        "kind": "tools",
+        "error": "the caller did not deploy the tools",
+    }))
+}
+
+/// The tools ask could not be written, or its answer could not be
+/// read.
+pub(crate) fn tools_failed(error: impl fmt::Display) -> Error {
+    Error(serde_json::json!({
+        "kind": "tools",
+        "error": error.to_string(),
+    }))
+}
+
 /// A caller's content stopped before its finish.
 pub(crate) fn content_stopped() -> Error {
     Error(serde_json::json!({

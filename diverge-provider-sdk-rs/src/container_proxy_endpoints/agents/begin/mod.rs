@@ -9,7 +9,8 @@
 //! opens is the place channels go, and a container that holds its
 //! arguments. The proxy answers
 //! [`Begun`](server::response::Frame::Begun) on channel `0` once the
-//! container's server has taken them, and then the agent's
+//! container's server has taken them — carrying the tools the server
+//! declared in return, for the provider to have deployed — and then the agent's
 //! conversation there — every chunk, for as long as the connection
 //! lives; the finish is the proxy ending.
 //!

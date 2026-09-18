@@ -34,8 +34,9 @@ use crate::shared::error::Error;
 ///    the `Held`'s and are given back at every ending below.
 /// 1. The container is brought up — see
 ///    [`setup::prepare`](super::setup::prepare): registry,
-///    deploy, the proxy dialled, the family's begin, every mount. A
-///    failure is the run's error, and the scope finishes on it.
+///    deploy, the proxy dialled, the family's begin, then the tools
+///    the container declared asked of the caller beside every mount.
+///    A failure is the run's error, and the scope finishes on it.
 /// 2. The id is minted, the container is entered in the directory —
 ///    with its proxy connection and its begin scope, for connectors —
 ///    and the id is sent. From here the container is running for the
@@ -115,11 +116,14 @@ pub(crate) async fn run<R, D, G, V>(
     );
     send(&scope, R::id(&Id { id: id.clone() })).await;
 
+    // The tools were asked of the caller in the setup; the list is
+    // not needed again.
     let Begun {
         begin,
         asks,
         chunks,
         finish,
+        tools: _,
     } = prepared.begun;
     let run = Arc::new(Run::new(
         Arc::clone(&scope),

@@ -5,12 +5,13 @@ use rmcp::model::{CallToolRequestParams, PaginatedRequestParams, ReadResourceReq
 
 use crate::endpoints::containers::{agents, tools};
 use crate::shared::containers::authorize;
+use crate::shared::containers::tools::Tool;
 
 /// A server-opened channel request on a run scope, with nothing
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// twenty-four asks in the same order with the same payloads, and
+/// twenty-five asks in the same order with the same payloads, and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -26,6 +27,8 @@ pub enum Ask {
     OciHas(String, String),
     /// Whether a connector may attach.
     Authorize(authorize::request::Authorize),
+    /// The tools the container declared, to deploy.
+    Tools(Vec<Tool>),
     /// The content of a write this caller started, by its id.
     Write(u32),
     /// A database connection the container opened, by the id the
@@ -77,6 +80,7 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
             Frame::Authorize(request) => Ask::Authorize(request),
+            Frame::Tools(request) => Ask::Tools(request.tools.into_owned()),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
             Frame::Command(request) => Ask::Command(Bytes::copy_from_slice(request.0)),
@@ -121,6 +125,7 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
             Frame::Authorize(request) => Ask::Authorize(request),
+            Frame::Tools(request) => Ask::Tools(request.tools.into_owned()),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
             Frame::Command(request) => Ask::Command(Bytes::copy_from_slice(request.0)),
