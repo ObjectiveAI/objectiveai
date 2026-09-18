@@ -3,19 +3,24 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use diverge_provider_sdk::endpoints::volumes::edit::server::response::Edit;
 use diverge_provider_sdk::endpoints::volumes::list::server::response;
 use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
+use diverge_provider_sdk::server::holders::Holders;
 use diverge_provider_sdk::server::volume;
 use futures_util::future;
 use tokio::fs;
 use tokio::sync::Mutex;
 
 use super::{Error, Reservation, Walked, image, walk};
-use crate::tools::resize;
+use crate::tools::{mount, resize};
+
+/// The hold's count when the one exclusive holder has it: every
+/// other value is how many containers have the volume mounted.
+const LOCKED: u32 = u32::MAX;
 
 /// Where a volume is, which is also what kind it is.
 #[derive(Debug, Clone)]
@@ -39,21 +44,33 @@ pub enum Place {
 ///
 /// Cheap to clone and one underneath, so the identity's map and
 /// every handle the manager's `get` hands out are the same volume
-/// with the same lock. What is known about it is where it is, the
-/// SDK's lock, and — once asked — what a walk found. Its size and
-/// its creation time are not kept: they are read from the filesystem
+/// with the same hold. What is known about it is where it is, the
+/// SDK's hold, the one loop mount its image is on while any container
+/// has it, and — once asked — what a walk found. Its size and its
+/// creation time are not kept: they are read from the filesystem
 /// each time a listing wants them, since the filesystem is where they
 /// are recorded and nothing else has to be kept right.
 ///
-/// # The lock
+/// # The hold
 ///
-/// An atomic flag: [`lock`](volume::Volume::lock) sets it if it was
-/// clear and answers whether it did, [`unlock`](volume::Volume::unlock)
-/// clears it and answers whether it was set,
-/// [`locked`](volume::Volume::locked) reads it.
-/// None waits on anything. The SDK takes it before a mount, a stat, an
-/// edit or a delete and gives it back after — see the trait for the
-/// rule.
+/// One atomic count: `0` is free, `n` is `n` containers mounting the
+/// volume, and `LOCKED` is the one stat, edit or delete that has it
+/// to itself. [`mount`](volume::Volume::mount) adds one unless it is
+/// locked, [`unmount`](volume::Volume::unmount) takes one away,
+/// [`lock`](volume::Volume::lock) goes from free to locked and
+/// [`unlock`](volume::Volume::unlock) back, each one compare-and-swap
+/// that never waits. The SDK takes the shared hold before a mount and
+/// the exclusive one before a stat, an edit or a delete, and gives
+/// each back after — see the trait for the rule.
+///
+/// # One loop mount, however many containers
+///
+/// A stored volume's image is an ext4 filesystem, and a filesystem
+/// mounted twice read-write corrupts itself. So the image is
+/// loop-mounted once, on the first [`attach`](Self::attach), and
+/// every container that has the volume binds that one directory;
+/// the last [`detach`](Self::detach) unmounts it. A fixed volume is
+/// a directory already, and is bound as it is.
 #[derive(Debug, Clone)]
 pub struct Volume {
     inner: Arc<Inner>,
@@ -63,12 +80,26 @@ pub struct Volume {
 struct Inner {
     name: String,
     place: Place,
-    /// The SDK's lock: `true` while a run, a stat, an edit or a
-    /// delete has the volume.
-    lock: AtomicBool,
+    /// The SDK's hold: free, some number of mounters, or [`LOCKED`].
+    holders: AtomicU32,
     /// What the last walk found, if one has happened since the
     /// volume was read or last mounted.
     walked: Mutex<Option<Walked>>,
+    /// The loop mount of a stored volume's image while any container
+    /// has it: the directory, as the tool and podman see it, and how
+    /// many containers bind it. Taken under this mutex so a first
+    /// attach and a last detach never cross.
+    attached: Mutex<Option<Attached>>,
+}
+
+/// A stored volume's image on its directory, and who binds it.
+#[derive(Debug)]
+struct Attached {
+    /// The directory the image is loop-mounted on, as the tool and
+    /// podman see it.
+    dir: String,
+    /// How many containers bind it.
+    count: u32,
 }
 
 impl Volume {
@@ -77,8 +108,9 @@ impl Volume {
             inner: Arc::new(Inner {
                 name: name.to_string(),
                 place,
-                lock: AtomicBool::new(false),
+                holders: AtomicU32::new(0),
                 walked: Mutex::new(None),
+                attached: Mutex::new(None),
             }),
         }
     }
@@ -130,7 +162,7 @@ impl Volume {
     /// Walked once and held: a second check answers from the first,
     /// and a check that arrives while a walk runs waits for that walk
     /// rather than starting another. Held until the volume is
-    /// [`mounted`](Self::mounted). A walk that fails holds nothing,
+    /// [`attached`](Self::attach). A walk that fails holds nothing,
     /// and the next check walks again. A stored volume is walked
     /// inside its image, a fixed one in its directory.
     pub async fn check(&self) -> Result<Walked, Error> {
@@ -146,13 +178,55 @@ impl Volume {
         Ok(found)
     }
 
-    /// The volume is being mounted into a container: whatever a walk
-    /// found is forgotten, since the container may write from now on
-    /// and nothing reports when. The next [`check`](Self::check) walks
-    /// again. Separate from the SDK's lock, which a stat takes too:
-    /// a stat must not wipe the walk it just made.
-    pub async fn mounted(&self) {
+    /// The volume made ready to bind into one more container, and the
+    /// directory to bind: for a stored volume, the one directory its
+    /// image is loop-mounted on — mounted now, on `<mounts_dir>/<uuid>`
+    /// as the tool sees it, when this is the first container to have
+    /// it — and for a fixed volume its root, as the tool sees it.
+    /// Whatever a walk found is forgotten, since a container may
+    /// write from now on and nothing reports when; the next
+    /// [`check`](Self::check) walks again. Every attach is matched by
+    /// one [`detach`](Self::detach).
+    pub async fn attach(&self, mounts_dir: &Path) -> Result<String, crate::tools::Error> {
         *self.inner.walked.lock().await = None;
+        let image = match &self.inner.place {
+            Place::Fixed { root, .. } => return Ok(tool_path(root)),
+            Place::Stored { image, .. } => image,
+        };
+        let mut attached = self.inner.attached.lock().await;
+        match attached.as_mut() {
+            Some(attached) => {
+                attached.count += 1;
+                Ok(attached.dir.clone())
+            }
+            None => {
+                let dir = tool_path(&mounts_dir.join(uuid::Uuid::new_v4().to_string()));
+                mount::mount(image, &dir).await?;
+                *attached = Some(Attached {
+                    dir: dir.clone(),
+                    count: 1,
+                });
+                Ok(dir)
+            }
+        }
+    }
+
+    /// One container fewer has the volume: the last to go unmounts a
+    /// stored volume's image and removes the directory. A fixed
+    /// volume has nothing to give back. A refusal by the tools is not
+    /// reported, since there is nobody to report it to; the directory
+    /// is swept at the next start.
+    pub async fn detach(&self) {
+        let mut attached = self.inner.attached.lock().await;
+        let Some(current) = attached.as_mut() else {
+            return;
+        };
+        current.count = current.count.saturating_sub(1);
+        if current.count == 0 {
+            let dir = current.dir.clone();
+            *attached = None;
+            let _ = mount::unmount(&dir).await;
+        }
     }
 
     /// Shrink the image from `current` to `bytes`: the content must
@@ -202,6 +276,20 @@ async fn set_len(image: &Path, bytes: u64) -> Result<(), Error> {
     Ok(())
 }
 
+/// A host path as the tool and podman see it: on Linux, the path
+/// itself.
+#[cfg(target_os = "linux")]
+fn tool_path(path: &Path) -> String {
+    path.to_string_lossy().into_owned()
+}
+
+/// A host path as the tool and podman see it: the machine's view of
+/// it.
+#[cfg(not(target_os = "linux"))]
+fn tool_path(path: &Path) -> String {
+    crate::tools::podman::path(path)
+}
+
 /// A moment as seconds since the Unix epoch; a moment before it is
 /// `0`.
 fn seconds(time: SystemTime) -> u64 {
@@ -211,22 +299,53 @@ fn seconds(time: SystemTime) -> u64 {
 impl volume::Volume for Volume {
     type Error = Error;
 
-    /// The flag set, if it was clear. One compare-and-swap, so two
-    /// takers at once cannot both succeed.
-    fn lock(&self) -> bool {
+    /// One more mounter, unless the volume is locked. One
+    /// compare-and-swap, so a lock and a mount at once cannot both
+    /// succeed.
+    async fn mount(&self) -> bool {
         self.inner
-            .lock
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .holders
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |holders| match holders {
+                LOCKED => None,
+                count => Some(count + 1),
+            })
             .is_ok()
     }
 
-    /// The flag cleared; `true` is a flag that was set.
-    fn unlock(&self) -> bool {
-        self.inner.lock.swap(false, Ordering::AcqRel)
+    /// One mounter fewer; `false` is a volume with none, or locked.
+    async fn unmount(&self) -> bool {
+        self.inner
+            .holders
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |holders| match holders {
+                0 | LOCKED => None,
+                count => Some(count - 1),
+            })
+            .is_ok()
     }
 
-    fn locked(&self) -> bool {
-        self.inner.lock.load(Ordering::Acquire)
+    /// Free to locked, and nothing else: a volume anyone has is
+    /// refused.
+    async fn lock(&self) -> bool {
+        self.inner
+            .holders
+            .compare_exchange(0, LOCKED, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+    }
+
+    /// Locked to free; `false` is a volume that was not locked.
+    async fn unlock(&self) -> bool {
+        self.inner
+            .holders
+            .compare_exchange(LOCKED, 0, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+    }
+
+    async fn holders(&self) -> Holders {
+        match self.inner.holders.load(Ordering::Acquire) {
+            0 => Holders::Free,
+            LOCKED => Holders::Locked,
+            count => Holders::Mounted(count),
+        }
     }
 
     /// A stored volume is in the tree; a fixed one is not, being
@@ -252,7 +371,7 @@ impl volume::Volume for Volume {
 
     /// The image resized, with the filesystem in it.
     ///
-    /// Under the SDK's lock, so no container has the image. A fixed
+    /// Under the SDK's exclusive hold, so no container has the image. A fixed
     /// volume is refused, and so is a size the volume could not have
     /// been created at — under 4 MiB, or over what the formatter
     /// addresses. The size it has already is answered `Edited` with

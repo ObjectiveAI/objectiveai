@@ -26,7 +26,7 @@ pub struct Container {
     pub(super) disk: u64,
     /// The `memory` it took from the cap.
     pub(super) memory: u64,
-    /// Its volume mounts, for the loop mounts to release.
+    /// Its volume mounts, each to detach.
     pub(super) bound: Vec<Bound>,
     /// The `podman exec` running the proxy, held so the proxy's life
     /// is the container's and its end is seen; dropped at the stop.
