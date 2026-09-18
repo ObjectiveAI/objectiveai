@@ -15,8 +15,7 @@ use serde_json::json;
 
 use super::deploy::deploy;
 use super::mounts::tool_path;
-use super::source::find;
-use super::{Container, Error, Images, Limit, Shared, Source, name_ok};
+use super::{Container, Error, Images, Limit, Shared, name_ok};
 use crate::config::containers::{Containers, Podman};
 use crate::tools::{mount, podman};
 use crate::volume_manager::VolumeManager;
@@ -142,6 +141,12 @@ impl ContainerDeployer {
         &self.auth_file
     }
 
+    /// Whether the configuration lists the pair as the provider's
+    /// own: in the store already, pulled from nowhere.
+    pub(super) fn offered(&self, name: &str, digest: &str) -> bool {
+        self.offered.contains(&(name.to_string(), digest.to_string()))
+    }
+
     /// The port podman reaches the provider's registry at: the
     /// registry's own on Linux, where podman pulls on this host.
     #[cfg(target_os = "linux")]
@@ -161,10 +166,9 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
     type Container = Container;
     type Error = Error;
 
-    /// The name checked as a repository path; then the image found —
-    /// in the store, when the configuration lists the pair; else in
-    /// whichever of every listed registry and the caller first
-    /// answers that it holds it — and run.
+    /// The name checked as a repository path; then the deploy — the
+    /// image found and pulled beside the volumes bound, and the
+    /// container run.
     async fn deploy(
         &self,
         _client_identity: &str,
@@ -176,12 +180,7 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
         if !name_ok(name) {
             return Err(Error::Name(name.to_string()));
         }
-        let source = if self.offered.contains(&(name.to_string(), digest.to_string())) {
-            Source::Server(format!("{name}@{digest}"))
-        } else {
-            find(self, name, digest, caller).await?
-        };
-        deploy(self, deployment, source).await
+        deploy(self, deployment, name, digest, caller).await
     }
 }
 

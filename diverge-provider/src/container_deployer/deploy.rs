@@ -1,11 +1,14 @@
-//! The steps of a deploy, in order, each undone when a later one
-//! fails.
+//! The steps of a deploy, each undone when a later one fails: the
+//! caps, then the image and the mounts beside each other, then the
+//! run.
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use diverge_provider_sdk::container_proxy_endpoints::OUTSIDE_PORT;
+use diverge_provider_sdk::server::caller::Caller;
 use diverge_provider_sdk::server::deployment::Deployment;
+use futures_util::future;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::TcpStream;
 use tokio::process::Child;
@@ -13,20 +16,27 @@ use tokio::sync::Mutex;
 use tokio::time::{Duration, sleep};
 
 use super::mounts::{Bound, bind, release};
+use super::source::find;
 use super::{Container, ContainerDeployer, Error, Source};
 use crate::tools::{podman, start};
 
 /// Where the proxy is bound inside every container.
 const PROXY_INSIDE: &str = "/.diverge/diverge-container-proxy";
 
-/// The whole of a deploy: the caps taken, the volumes bound, the
-/// image pulled and counted, the container run, the proxy started
-/// and answering. What each step made is undone, in reverse, by the
-/// failure of any step after it.
+/// The whole of a deploy: the caps taken; then, beside each other,
+/// the image found, pulled and counted and the volumes bound; then
+/// the container run, the proxy started and answering. The caps come
+/// first because they are one atomic each and a refusal there costs
+/// no network; the image and the mounts have nothing to do with each
+/// other, and the pull is usually the longest step, so neither waits
+/// for the other. What each step made is undone by the failure of
+/// any step after it.
 pub(super) async fn deploy(
     deployer: &ContainerDeployer,
     deployment: &Deployment,
-    source: Source,
+    name: &str,
+    digest: &str,
+    caller: &Caller,
 ) -> Result<Container, Error> {
     if !deployer.shared.disk.take(deployment.disk) {
         return Err(Error::Disk);
@@ -35,7 +45,7 @@ pub(super) async fn deploy(
         deployer.shared.disk.give(deployment.disk);
         return Err(Error::Memory);
     }
-    match after_limits(deployer, deployment, source).await {
+    match after_limits(deployer, deployment, name, digest, caller).await {
         Ok(container) => Ok(container),
         Err(error) => {
             deployer.shared.disk.give(deployment.disk);
@@ -45,15 +55,36 @@ pub(super) async fn deploy(
     }
 }
 
-/// The steps once the caps are taken.
+/// The steps once the caps are taken: the image and the mounts, both
+/// awaited to their end — neither is dropped mid-flight, since a bind
+/// dropped mid-attach would leave a count behind — and then, both
+/// made, the run; either failing undoes the other.
 async fn after_limits(
     deployer: &ContainerDeployer,
     deployment: &Deployment,
-    source: Source,
+    name: &str,
+    digest: &str,
+    caller: &Caller,
 ) -> Result<Container, Error> {
-    let bound = bind(deployer, &deployment.mounts).await?;
-    match after_mounts(deployer, deployment, source, &bound).await {
-        Ok((name, address, image, proxy)) => Ok(Container {
+    let (image, bound) = future::join(
+        image(deployer, name, digest, caller),
+        bind(deployer, &deployment.mounts),
+    )
+    .await;
+    let (source, image, bound) = match (image, bound) {
+        (Ok((source, image)), Ok(bound)) => (source, image, bound),
+        (Err(error), Ok(bound)) => {
+            release(&bound).await;
+            return Err(error);
+        }
+        (Ok((_, image)), Err(error)) => {
+            deployer.shared.images.ended(&image);
+            return Err(error);
+        }
+        (Err(error), Err(_)) => return Err(error),
+    };
+    match after_image(deployer, deployment, &source, &bound).await {
+        Ok((name, address, proxy)) => Ok(Container {
             name,
             address,
             image,
@@ -65,31 +96,30 @@ async fn after_limits(
             stopped: AtomicBool::new(false),
         }),
         Err(error) => {
+            deployer.shared.images.ended(&image);
             release(&bound).await;
             Err(error)
         }
     }
 }
 
-/// The steps once the volumes are bound: the image, then the run.
-async fn after_mounts(
-    deployer: &ContainerDeployer,
-    deployment: &Deployment,
-    source: Source,
-    bound: &[Bound],
-) -> Result<(String, String, String, Child), Error> {
+/// The image: found — in the store, when the configuration lists the
+/// pair; else in whichever of every listed registry and the caller
+/// first answers that it holds it — pulled where it is not in the
+/// store, its id read, and counted in the cache. The source and the
+/// id.
+async fn image(deployer: &ContainerDeployer, name: &str, digest: &str, caller: &Caller) -> Result<(Source, String), Error> {
+    let source = if deployer.offered(name, digest) {
+        Source::Server(format!("{name}@{digest}"))
+    } else {
+        find(deployer, name, digest, caller).await?
+    };
     if source.pulled() {
         pull(deployer, &source).await?;
     }
     let image = podman::image_id(source.reference()).await.map_err(Error::Podman)?;
     deployer.shared.images.starting(&image).await?;
-    match after_image(deployer, deployment, &source, bound).await {
-        Ok((name, address, proxy)) => Ok((name, address, image, proxy)),
-        Err(error) => {
-            deployer.shared.images.ended(&image);
-            Err(error)
-        }
-    }
+    Ok((source, image))
 }
 
 /// The steps once the image is in the store and counted: the
