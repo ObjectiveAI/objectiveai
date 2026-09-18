@@ -7,15 +7,16 @@ use diverge_provider_sdk::shared::error;
 use serde_json::json;
 
 use crate::tools;
+use crate::watch;
 
 /// What [`VolumeManager`](super::VolumeManager) and
 /// [`Volume`](super::Volume) fail with.
 ///
-/// The first six are refusals of what was asked, decided before
-/// anything is touched; the last three are the host not answering:
-/// its filesystem, the formatter, or the resizing tools. A fixed
-/// volume's hook that does not answer is not an error: the volume is
-/// not listed, as the hook's output documents.
+/// The first seven are refusals of what was asked, decided before
+/// anything is touched; the last four are the host not answering:
+/// its filesystem, the formatter, the resizing tools, or the watch. A
+/// fixed volume's hook that does not answer is not an error: the
+/// volume is not listed, as the hook's output documents.
 #[derive(Debug)]
 pub enum Error {
     /// The name is not one a volume may have — see
@@ -35,6 +36,9 @@ pub enum Error {
     /// More bytes than the formatter addresses: more 4 KiB blocks
     /// than a `u32` counts, which is 16 TiB.
     TooLarge(u64),
+    /// The volume is a stored one, which the provider does not watch:
+    /// the container's proxy does.
+    Unwatched(String),
     /// The host's filesystem did not answer.
     Io(io::Error),
     /// The image could not be formatted, or could not be read.
@@ -44,6 +48,9 @@ pub enum Error {
     /// the content fits but the metadata does not ends here, with the
     /// volume as it was.
     Tool(tools::Error),
+    /// A fixed volume's directory could not be watched, or its watch
+    /// died; see [`watch::Error`].
+    Watch(watch::Error),
 }
 
 impl fmt::Display for Error {
@@ -55,9 +62,11 @@ impl fmt::Display for Error {
             Error::Fixed(name) => write!(f, "`{name}` is a fixed volume"),
             Error::TooSmall(bytes) => write!(f, "{bytes} bytes is too small for a volume"),
             Error::TooLarge(bytes) => write!(f, "{bytes} bytes is too large for a volume"),
+            Error::Unwatched(name) => write!(f, "`{name}` is a stored volume, which the provider does not watch"),
             Error::Io(error) => write!(f, "the filesystem did not answer: {error}"),
             Error::Format(error) => write!(f, "the image could not be handled: {error}"),
             Error::Tool(error) => write!(f, "the volume could not be resized: {error}"),
+            Error::Watch(error) => write!(f, "the volume could not be watched: {error}"),
         }
     }
 }
@@ -68,12 +77,14 @@ impl std::error::Error for Error {
             Error::Io(error) => Some(error),
             Error::Format(error) => Some(error),
             Error::Tool(error) => Some(error),
+            Error::Watch(error) => Some(error),
             Error::Name(_)
             | Error::Exists(_)
             | Error::Unknown(_)
             | Error::Fixed(_)
             | Error::TooSmall(_)
-            | Error::TooLarge(_) => None,
+            | Error::TooLarge(_)
+            | Error::Unwatched(_) => None,
         }
     }
 }
@@ -96,6 +107,12 @@ impl From<tools::Error> for Error {
     }
 }
 
+impl From<watch::Error> for Error {
+    fn from(error: watch::Error) -> Self {
+        Error::Watch(error)
+    }
+}
+
 /// What the SDK puts on the wire for one of these: the variant's
 /// kind, and the message.
 ///
@@ -111,9 +128,11 @@ impl From<Error> for error::Error {
             Error::Fixed(_) => "fixed",
             Error::TooSmall(_) => "too_small",
             Error::TooLarge(_) => "too_large",
+            Error::Unwatched(_) => "unwatched",
             Error::Io(_) => "io",
             Error::Format(_) => "format",
             Error::Tool(_) => "tool",
+            Error::Watch(_) => "watch",
         };
         error::Error(json!({
             "kind": kind,
