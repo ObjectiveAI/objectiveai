@@ -26,9 +26,9 @@
 //! the files the caller mounted live, and the exchanges in
 //! [`mcp`](crate::shared::mcp) its tool calls outward.
 //!
-//! The PROVIDER asks the caller on its own account: [`oci`] for the
-//! manifest and blobs of an image the caller holds, and [`authorize`]
-//! whether a connector may join.
+//! The PROVIDER asks the caller on its own account: [`oci`] whether
+//! the caller holds an image and, when it does, for its manifest and
+//! blobs, and [`authorize`] whether a connector may join.
 //!
 //! [`agent_schema`], [`enqueue`] and [`dequeue`] are the agents
 //! family's own exchanges — its agent's schema, and the two verbs

@@ -13,6 +13,7 @@ use super::render;
 use crate::client::handle::Handle;
 use crate::container_proxy_endpoints::client::Asks;
 use crate::container_proxy_endpoints::fuse::mount::client::execute::{self as mount, Ask as MountAsk};
+use crate::server::caller::Caller;
 use crate::server::container::{self, Container as _};
 use crate::server::container_deployer::ContainerDeployer;
 use crate::server::deployment::Deployment;
@@ -22,7 +23,7 @@ use crate::server::mount::Mount as DeployedMount;
 use crate::server::proxy;
 use crate::server::scope_handle::ScopeHandle;
 use crate::shared::containers::fuse::Kind;
-use crate::shared::containers::request::{Container, FuseMount, Image};
+use crate::shared::containers::request::{Container, FuseMount};
 use crate::shared::error::Error;
 
 /// A container brought up and ready to serve.
@@ -35,9 +36,9 @@ pub(crate) struct Prepared<C> {
     pub begun: Begun,
     /// Every FUSE mount, made, with the asks each will make.
     pub mounts: Vec<Mount>,
-    /// The registry repository serving the image, to release; [`None`]
-    /// unless the image is the caller's.
-    pub repository: Option<String>,
+    /// The registry repository serving the caller's manifests and
+    /// blobs for this run, to release.
+    pub repository: String,
     /// Every FUSE mount's path, which a filetree leaves out; a volume
     /// mount is in the tree.
     pub ignore: Vec<Vec<String>>,
@@ -56,8 +57,11 @@ pub(crate) struct Mount {
 
 /// Bring the container up, in the order the specification states.
 ///
-/// 1. A caller-held image is put on the provider's registry, fed by
-///    digest from the caller.
+/// 1. The registry is told to serve the caller's manifests and blobs
+///    under a fresh repository, and the deployer is asked for the
+///    image by name and digest, with the caller's help at hand —
+///    whether the caller holds it, and where the registry serves it.
+///    Where the deployer gets the image is its own.
 /// 2. The container is deployed, its proxy listening.
 /// 3. The proxy is dialled: one WebSocket, for the container's life.
 /// 4. The family's `begin` is opened on it — an agent container's
@@ -86,36 +90,26 @@ where
     let deployment = deployment(client_identity, request);
     let ignore = ignored(request);
 
-    let (container, repository) = match &request.image {
-        Image::Client { name, digest } => {
-            let repository = uuid::Uuid::new_v4().to_string();
-            let source = ImageSource::new(Arc::clone(scope), manifest_ask::<R>, blob_ask::<R>);
-            registry.serve(&repository, source).await.map_err(Into::into)?;
-            match deployer
-                .client(client_identity, &deployment, name, digest, registry.address(), &repository)
-                .await
-            {
-                Ok(container) => (container, Some(repository)),
-                Err(error) => {
-                    registry.release(&repository).await;
-                    return Err(error.into());
-                }
-            }
+    let repository = uuid::Uuid::new_v4().to_string();
+    let source = ImageSource::new(Arc::clone(scope), manifest_ask::<R>, blob_ask::<R>);
+    registry.serve(&repository, source).await.map_err(Into::into)?;
+    let caller = Caller::new(
+        Arc::clone(scope),
+        has_ask::<R>,
+        request.image.name.clone(),
+        request.image.digest.clone(),
+        registry.address(),
+        repository.clone(),
+    );
+    let container = match deployer
+        .deploy(client_identity, &deployment, &request.image.name, &request.image.digest, &caller)
+        .await
+    {
+        Ok(container) => container,
+        Err(error) => {
+            registry.release(&repository).await;
+            return Err(error.into());
         }
-        Image::Server { name, digest } => (
-            deployer
-                .server(client_identity, &deployment, name, digest)
-                .await
-                .map_err(Into::into)?,
-            None,
-        ),
-        Image::Registry { host, name, digest } => (
-            deployer
-                .registry(client_identity, &deployment, host, name, digest)
-                .await
-                .map_err(Into::into)?,
-            None,
-        ),
     };
 
     let proxy = match proxy::dial(container.address()).await {
@@ -154,15 +148,13 @@ where
 
 /// A failure after the deploy: the container stopped, the repository
 /// released.
-async fn undo<C, G>(container: &C, repository: &Option<String>, registry: &G)
+async fn undo<C, G>(container: &C, repository: &str, registry: &G)
 where
     C: container::Container,
     G: ImageRegistry,
 {
     container.stop().await;
-    if let Some(repository) = repository {
-        registry.release(repository).await;
-    }
+    registry.release(repository).await;
 }
 
 /// Every FUSE mount, made in order: the file mounts, then the
@@ -227,6 +219,12 @@ fn ignored(request: &Container) -> Vec<Vec<String>> {
         .map(|mount| mount.container_path.clone())
         .chain(request.fuse_directory_mounts.iter().map(|mount| mount.container_path.clone()))
         .collect()
+}
+
+/// The ask whether the caller holds the image, as this family's
+/// frame.
+fn has_ask<R: Runs>(name: &str, digest: &str) -> Vec<u8> {
+    encoded(&R::Ask::from(Own::OciHas { name, digest })).unwrap_or_default()
 }
 
 /// The ask for a manifest the registry does not hold, as this

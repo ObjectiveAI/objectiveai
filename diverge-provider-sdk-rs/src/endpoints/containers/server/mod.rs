@@ -19,8 +19,9 @@
 //!   the provider's `VolumeManager` and locked before anything else
 //!   is done, and every one unlocked on every ending — the server
 //!   half's whole enforcement of one container per volume.
-//! - `setup`, the ORDERED preparation of a run: the
-//!   registry told to serve a caller-held image; the deploy; the one
+//! - `setup`, the ORDERED preparation of a run: the registry told to
+//!   serve the caller's manifests and blobs; the deploy, with the
+//!   caller's help at hand and the source the deployer's; the one
 //!   connection to the proxy, and on it the family's `begin` — an
 //!   agent container's carrying the agent — and then one `fuse::mount`
 //!   scope per mount, each complete before the next. Nothing the

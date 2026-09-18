@@ -1,16 +1,18 @@
-//! Pulling an image the caller holds: two fetches by digest.
+//! Taking an image from the caller: one question, and two fetches
+//! by digest.
 //!
-//! When a run names an
-//! [`Image::Client`](crate::shared::containers::request::Image::Client),
-//! the provider runs a registry — the read side of the OCI
-//! Distribution API, on its own loopback — and its container runtime
-//! pulls from it as from any registry. Whatever that registry does
-//! not hold the provider asks the caller for here, on the run scope,
-//! exactly as it asks for a mounted file it does not hold: a
-//! [`manifest`] by digest, a [`blob`] by digest, bytes until the
-//! finish, or an empty finish for a digest the caller does not have.
+//! A provider that would take a run's image from the caller asks
+//! here, on the run scope. First whether the caller [`has`] it at
+//! all, by name and digest. Then, running a registry — the read side
+//! of the OCI Distribution API, on its own loopback — that its
+//! container runtime pulls from as from any registry, whatever that
+//! registry does not hold: a [`manifest`] by digest, a [`blob`] by
+//! digest, bytes until the finish, or an empty finish for a digest
+//! the caller does not have. Whether a provider takes an image from
+//! the caller at all, rather than from its own store or a registry
+//! it uses, is its own; these are what it asks when it does.
 //!
-//! # Two, and only two
+//! # Two fetches, and only two
 //!
 //! What a runtime does to pull a pinned image, and what each step
 //! needs from the caller:
@@ -31,7 +33,7 @@
 //! manifests and blobs indexed by digest, which is what an image is
 //! once it has been saved anywhere.
 //!
-//! Tags never cross either. A client image is pinned by digest, and
+//! Tags never cross either. An image is pinned by digest, and
 //! every reference inside a manifest is a digest, so there is no step
 //! at which a name has to be resolved.
 //!
@@ -52,4 +54,5 @@
 //! what lets the provider verify what it serves.
 
 pub mod blob;
+pub mod has;
 pub mod manifest;

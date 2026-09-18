@@ -21,7 +21,7 @@ use crate::endpoints::images::check::server::response::Response;
 /// on behalf of somebody else.
 ///
 /// The two also fail differently in a way that matters.
-/// [`registry`](super::container_deployer::ContainerDeployer::registry)
+/// [`deploy`](super::container_deployer::ContainerDeployer::deploy)
 /// says "get me this", and not getting it is an error. This says "would
 /// you", and no is an ANSWER — the distinction the endpoint is built
 /// around, and one that would be lost inside a method whose only

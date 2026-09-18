@@ -79,7 +79,7 @@
 //!
 //! | trait | answers |
 //! |-------|---------|
-//! | [`OciStore`] | the manifest and blobs of an image the caller holds |
+//! | [`OciStore`] | whether the caller holds an image, and its manifest and blobs |
 //! | [`ConnectionAuthorizer`] | whether a connector may attach |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`CommandRunner`] | the commands the container asks run |

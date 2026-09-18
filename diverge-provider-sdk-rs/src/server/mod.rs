@@ -216,10 +216,13 @@
 //! belongs to the connection and not to any scope on it.
 //!
 //! [`image_registry`] is the fifth: the OCI registry a provider runs
-//! on its loopback for images the CALLER holds, fed by digest through
-//! an [`image_source`] — the run scope's channels to the caller, which
-//! is the one thing only this crate can be. The registry's HTTP is the
-//! provider's, for the reason above: this crate serves none.
+//! on its loopback for an image it takes from the CALLER, fed by
+//! digest through an [`image_source`] — the run scope's channels to
+//! the caller, which is the one thing only this crate can be. The
+//! registry's HTTP is the provider's, for the reason above: this
+//! crate serves none. [`caller`] is what a run hands the deployer
+//! beside the image's name and digest: whether the caller holds it,
+//! asked on the scope, and where the registry serves it.
 //!
 //! [`directory`] is the type: every container the provider is running,
 //! by id, shared across connections — because a connector names a
@@ -263,6 +266,7 @@
 pub(crate) mod answer;
 pub(crate) mod answers;
 pub mod authorization;
+pub mod caller;
 pub mod channel;
 pub mod container;
 pub mod container_deployer;
