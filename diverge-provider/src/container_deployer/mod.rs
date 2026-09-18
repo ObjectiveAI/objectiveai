@@ -8,11 +8,12 @@
 //! returns, so the steps are ordered and every one of them is undone
 //! when a later one fails: the container's `disk` and `memory` are
 //! taken from the two caps the configuration sets, and refused when
-//! the running set would pass one; every volume mount is resolved
-//! through the [`VolumeManager`](crate::volume_manager::VolumeManager)
-//! and, for a stored volume, loop-mounted on a directory of the
-//! provider's; the image is pulled, unless it is one of the
-//! provider's own; the image cache is measured and trimmed; the
+//! the running set would pass one; then, beside each other, every
+//! volume mount is resolved through the
+//! [`VolumeManager`](crate::volume_manager::VolumeManager) and, for a
+//! stored volume, loop-mounted on a directory of the provider's,
+//! while the image is found, pulled unless it is one of the
+//! provider's own, and the image cache measured and trimmed; then the
 //! container is started with the proxy binary bound in, port `14979`
 //! published to a loopback port podman picks, `/dev/fuse` and the
 //! privilege to mount, and no environment but the request's; the
