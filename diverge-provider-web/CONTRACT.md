@@ -436,9 +436,10 @@ naming a Volume in the Identity's listing with exactly one Response
 carrying the Volume's `name`, `bytes` and `created`, its `bytes_used`,
 and its `dirhash` as the Specification defines each, as of the time of
 the Response; and shall answer a name not in the listing, or a Volume
-mounted in a running Container at the time of the request, with an
-error. The Provider shall not examine a Volume that is mounted in a
-running Container at the time of the request.
+mounted in a running Container or under another `volumes::stat`, a
+`volumes::edit` or a `volumes::delete` at the time of the request,
+with an error. The Provider shall not examine a Volume that is
+mounted in a running Container at the time of the request.
 
 (c) **Capacity.** The Provider shall answer every
 `volumes::create_capacity` request with the largest size in bytes of a
@@ -470,7 +471,9 @@ byte `1` when the Provider cannot reserve the size stated; the byte
 byte `3` followed by an error for any other reason. The Provider
 shall not change the size of a Volume that is mounted in a running
 Container at the time of the request, and shall answer a request
-naming one with the byte `3` followed by an error. The size is the
+naming one, or naming a Volume under a `volumes::stat`, another
+`volumes::edit` or a `volumes::delete` at the time of the request,
+with the byte `3` followed by an error. The size is the
 only property an edit changes. From the moment the Provider sends the
 byte `0`, every listing and every stat the Provider sends the Identity
 shall report the new size.
@@ -478,8 +481,9 @@ shall report the new size.
 (f) **Deletion.** The Provider shall answer every `volumes::delete`
 request naming a Volume in the Identity's listing with exactly one
 Response: the byte `0` only after the Volume no longer exists; the
-byte `1` when the Volume is mounted in a running Container at the
-time of the request; or the byte `2` followed by an error for any
+byte `1` when the Volume is mounted in a running Container, or under
+a `volumes::stat`, a `volumes::edit` or another `volumes::delete`, at
+the time of the request; or the byte `2` followed by an error for any
 other reason. The Provider shall not delete a Volume that is mounted
 in a running Container at the time of the request. From the moment
 the Provider sends the byte `0`, every listing the Provider sends the
@@ -508,12 +512,13 @@ path; a mount inside another mount; two FUSE mounts with one
 image the Provider will not supply. The Provider shall
 hold every Volume a run request names in `volume_mounts` from the
 moment it accepts the request until the run ends, and shall answer a
-request that names a Volume so held by another running Container of
-the same Identity, or that names one Volume twice, by exactly one
+request that names a Volume under a `volumes::stat`, a `volumes::edit`
+or a `volumes::delete` at the time of the request by exactly one
 Response, the byte `1` followed by the name of that Volume as JSON,
 and the Response Finish, fetching nothing and deploying nothing for
-it. A Volume is mounted in at most one Container of its Identity at a
-time, whatever its `persist`.
+it. A Volume may be mounted in any number of Containers of its
+Identity at once, whatever its `persist`, and a request that names
+one Volume more than once mounts it at each path named.
 
 (b) **Obtain the image.** The Provider shall obtain the image the
 digest names, from a source of its own choosing; the Specification

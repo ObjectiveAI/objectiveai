@@ -34,11 +34,14 @@ about the client, which may open any channel at any time.
    a mount inside another mount, a mount path with a component that
    is empty, `.` or `..`, two FUSE mounts with one `id`, or an image
    it will not supply. A request
-   that names in `volume_mounts` a volume mounted in a container the
-   client is running at the time of the request, or that names one
-   volume twice, is answered by exactly one response, the byte `1`
+   that names in `volume_mounts` a volume under a
+   [volumes::stat](/endpoints/volumes-stat/),
+   [volumes::edit](/endpoints/volumes-edit/) or
+   [volumes::delete](/endpoints/volumes-delete/) at the time of the
+   request is answered by exactly one response, the byte `1`
    followed by the name of that volume, and the finish; the server
-   fetches nothing and deploys nothing for it.
+   fetches nothing and deploys nothing for it. A request may name one
+   volume more than once, at different paths.
 2. **The server obtains the image.** The server obtains the image the
    digest names, from wherever it obtains images; this specification
    does not prescribe the source. Where it would obtain the image
@@ -108,11 +111,13 @@ about the client, which may open any channel at any time.
 
 ## The rules that hold throughout
 
-- **One container per volume.** A volume is mounted in at most one
-  container of its client at a time, whatever `persist`. The server
-  holds every volume a request names from the moment it accepts the
-  request until the run ends, and a second request naming one is
-  refused for as long as the first run runs.
+- **Many containers per volume.** A volume may be mounted in any
+  number of containers of its client at once, whatever `persist`.
+  The server holds every volume a request names, shared, from the
+  moment it accepts the request until the run ends: a stat, an edit
+  or a delete of a volume so held is refused for as long as any run
+  holds it, and a run naming a volume under a stat, an edit or a
+  delete is refused for as long as that is in flight.
 - **The means of deployment.** This revision prescribes no runtime,
   no operating system, no virtualization, no network topology and no
   vendor. The server may deploy the container on hardware it
