@@ -20,16 +20,14 @@ pub enum Error {
     /// not lowercase letters, digits and single separators, or an
     /// empty one. Refused, never normalized, since it lands in a URL.
     Name(String),
-    /// The `server` image named is not one the configuration lists.
-    NotOffered {
+    /// The image is nowhere the provider looks: not in its store, not
+    /// in any registry it uses, and not with the caller.
+    Unavailable {
         /// The repository path asked for.
         name: String,
         /// The digest asked for.
         digest: String,
     },
-    /// The request names a registry host the configuration does not
-    /// list.
-    Registry(String),
     /// The running containers' `disk` would pass
     /// `container_overlay_disk` with this one.
     Disk,
@@ -78,10 +76,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Name(name) => write!(f, "the image name `{name}` is not a repository path"),
-            Error::NotOffered { name, digest } => {
-                write!(f, "the provider offers no image `{name}` at `{digest}`")
+            Error::Unavailable { name, digest } => {
+                write!(f, "the image `{name}` at `{digest}` is nowhere the provider looks")
             }
-            Error::Registry(host) => write!(f, "the registry `{host}` is not one the provider pulls from"),
             Error::Disk => write!(f, "the running containers have the provider's disk"),
             Error::Memory => write!(f, "the running containers have the provider's memory"),
             Error::Volume(name) => write!(f, "no volume named `{name}`"),
@@ -111,8 +108,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Name(_) => None,
-            Error::NotOffered { .. } => None,
-            Error::Registry(_) => None,
+            Error::Unavailable { .. } => None,
             Error::Disk => None,
             Error::Memory => None,
             Error::Volume(_) => None,
@@ -155,8 +151,7 @@ impl From<Error> for error::Error {
     fn from(error: Error) -> Self {
         let kind = match &error {
             Error::Name(_) => "name",
-            Error::NotOffered { .. } => "not_offered",
-            Error::Registry(_) => "registry",
+            Error::Unavailable { .. } => "unavailable",
             Error::Disk => "disk",
             Error::Memory => "memory",
             Error::Volume(_) => "volume",

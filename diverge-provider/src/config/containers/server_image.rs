@@ -2,9 +2,10 @@
 
 use serde::{Deserialize, Serialize};
 
-/// An image a caller may run by naming it as a `server` image: the
-/// pair `images::check` answers for, and the pair a `server` deploy
-/// is allowed to run. Nothing outside this list is either.
+/// An image the provider holds itself: the first place a run looks
+/// for the pair a request names, and one of the two places a check
+/// looks. A pair listed here is run from podman's store and pulled
+/// from nowhere.
 ///
 /// ```yaml
 /// - name: acme/tools
@@ -19,6 +20,8 @@ use serde::{Deserialize, Serialize};
 /// under any other prefix is retagged to one of those. A run names
 /// it as `<name>@<digest>` and podman looks no further than its own
 /// storage, so a listed pair that is not there is a run that fails.
+/// A pair NOT listed is looked for in every registry of `podman` and
+/// with the caller, all at once.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ServerImage {

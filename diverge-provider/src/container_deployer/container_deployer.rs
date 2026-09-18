@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
+use diverge_provider_sdk::server::caller::Caller;
 use diverge_provider_sdk::server::container_deployer;
 use diverge_provider_sdk::server::deployment::Deployment;
 use futures_util::future;
@@ -14,6 +15,7 @@ use serde_json::json;
 
 use super::deploy::deploy;
 use super::mounts::tool_path;
+use super::source::find;
 use super::{Container, Error, Images, Limit, Shared, Source, name_ok};
 use crate::config::containers::{Containers, Podman};
 use crate::tools::{mount, podman};
@@ -24,9 +26,10 @@ use crate::volume_manager::VolumeManager;
 #[derive(Debug)]
 pub struct ContainerDeployer {
     /// The `podman` section: the registries and their credentials.
-    podman: Podman,
-    /// Every `(name, digest)` the configuration offers as a `server`
-    /// image.
+    pub(super) podman: Podman,
+    /// Every `(name, digest)` the configuration lists as the
+    /// provider's own: in the store already, the first place a run
+    /// looks.
     offered: HashSet<(String, String)>,
     /// The proxy binary on this host, as podman is handed it for the
     /// bind: the host path on Linux, the machine's view elsewhere.
@@ -133,23 +136,24 @@ impl ContainerDeployer {
         let _ = sweep_all(&self.label, &self.mounts_dir).await;
     }
 
+    /// The auth file the provider wrote for podman: what every pull
+    /// and every look into a registry is given.
+    pub fn auth_file(&self) -> &Path {
+        &self.auth_file
+    }
+
     /// The port podman reaches the provider's registry at: the
     /// registry's own on Linux, where podman pulls on this host.
     #[cfg(target_os = "linux")]
-    fn registry_port(&self, registry: SocketAddr) -> u16 {
+    pub(super) fn registry_port(&self, registry: SocketAddr) -> u16 {
         registry.port()
     }
 
     /// The port podman reaches the provider's registry at: the
     /// tunnel's, inside the machine, where podman pulls.
     #[cfg(not(target_os = "linux"))]
-    fn registry_port(&self, _registry: SocketAddr) -> u16 {
+    pub(super) fn registry_port(&self, _registry: SocketAddr) -> u16 {
         self.tunnel.port()
-    }
-
-    /// Whether the configuration lists the registry.
-    fn listed(&self, host: &str) -> bool {
-        self.podman.registries.iter().any(|registry| registry.host == host)
     }
 }
 
@@ -157,59 +161,27 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
     type Container = Container;
     type Error = Error;
 
-    /// The name checked as a repository path, then the image pulled
-    /// from the provider's registry at the port podman reaches it by.
-    async fn client(
+    /// The name checked as a repository path; then the image found —
+    /// in the store, when the configuration lists the pair; else in
+    /// whichever of every listed registry and the caller first
+    /// answers that it holds it — and run.
+    async fn deploy(
         &self,
         _client_identity: &str,
         deployment: &Deployment,
         name: &str,
         digest: &str,
-        registry: SocketAddr,
-        repository: &str,
+        caller: &Caller,
     ) -> Result<Container, Error> {
         if !name_ok(name) {
             return Err(Error::Name(name.to_string()));
         }
-        let reference = format!("127.0.0.1:{}/{repository}/{name}@{digest}", self.registry_port(registry));
-        deploy(self, deployment, Source::Client(reference)).await
-    }
-
-    /// The pair must be listed; then the store's own image, pulled
-    /// from nowhere.
-    async fn server(
-        &self,
-        _client_identity: &str,
-        deployment: &Deployment,
-        name: &str,
-        digest: &str,
-    ) -> Result<Container, Error> {
-        if !self.offered.contains(&(name.to_string(), digest.to_string())) {
-            return Err(Error::NotOffered {
-                name: name.to_string(),
-                digest: digest.to_string(),
-            });
-        }
-        deploy(self, deployment, Source::Server(format!("{name}@{digest}"))).await
-    }
-
-    /// The host must be listed and the name a repository path; then
-    /// `<host>/<name>@<digest>`, pulled with that host's credential.
-    async fn registry(
-        &self,
-        _client_identity: &str,
-        deployment: &Deployment,
-        host: &str,
-        name: &str,
-        digest: &str,
-    ) -> Result<Container, Error> {
-        if !self.listed(host) {
-            return Err(Error::Registry(host.to_string()));
-        }
-        if !name_ok(name) {
-            return Err(Error::Name(name.to_string()));
-        }
-        deploy(self, deployment, Source::Registry(format!("{host}/{name}@{digest}"))).await
+        let source = if self.offered.contains(&(name.to_string(), digest.to_string())) {
+            Source::Server(format!("{name}@{digest}"))
+        } else {
+            find(self, name, digest, caller).await?
+        };
+        deploy(self, deployment, source).await
     }
 }
 

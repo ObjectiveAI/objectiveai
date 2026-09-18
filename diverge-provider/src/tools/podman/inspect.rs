@@ -1,8 +1,10 @@
 //! What the provider asks podman, read out of podman's answers.
 
+use std::path::Path;
+
 use serde::Deserialize;
 
-use super::command;
+use super::{command, podman};
 use crate::tools::{Error, capture};
 
 /// One image in podman's storage, as `podman image ls` lists it.
@@ -40,6 +42,20 @@ pub async fn images() -> Result<Vec<Listed>, Error> {
         }
     }
     Ok(listed)
+}
+
+/// Whether the registry `reference` names serves its manifest:
+/// `podman manifest inspect --authfile <file> docker://<reference>`,
+/// with the credential the auth file holds for that registry. An
+/// exit of `0` is yes and any other exit is no — a registry that
+/// does not have it, one that will not say, one that cannot be
+/// reached — since podman does not tell them apart. Only a podman
+/// that could not be started is an error.
+pub async fn manifest_exists(auth_file: &Path, reference: &str) -> Result<bool, Error> {
+    let auth_file = auth_file.to_string_lossy().into_owned();
+    let reference = format!("docker://{reference}");
+    let finished = podman(["manifest", "inspect", "--authfile", &auth_file, &reference]).await?;
+    Ok(finished.status.success())
 }
 
 /// The id of the image `reference` names in the store: the full

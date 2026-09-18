@@ -14,8 +14,8 @@
 //! | `ContainerDeployer` | a container, running, with the proxy inside and port 14979 reachable |
 //! | `Container` | the address of that proxy, and the stop |
 //! | `VolumeManager` | the volumes of every identity |
-//! | `ImageRegistry` | the registry a runtime pulls a caller-held image from |
-//! | `ImageChecker` | whether a `server` image can be served |
+//! | `ImageRegistry` | the registry a runtime pulls from, for an image taken from the caller |
+//! | `ImageChecker` | whether an image can be had without the caller |
 //! | `UnbrokeredAuthorizer` | the identity a credential establishes |
 //!
 //! This is ONE provider, not the only one. The specification binds any

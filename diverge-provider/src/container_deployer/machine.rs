@@ -22,7 +22,7 @@ use crate::tools::podman;
 /// on macOS that does not see every directory of `shares` — a store
 /// or a fixed volume added since it was made — is stopped, removed
 /// and made again seeing them, which empties its image cache and
-/// drops any `server` image loaded into it, to be loaded again. A
+/// drops any image loaded into it by hand, to be loaded again. A
 /// machine whose disk is not under `storage` is podman not keeping
 /// the machine where the environment put it, and the provider cannot
 /// run on a machine it does not control: the refusal names the disk,

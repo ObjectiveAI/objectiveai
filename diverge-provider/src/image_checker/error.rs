@@ -1,32 +1,50 @@
-//! Why a check did not answer: it always does.
+//! Why a check did not answer.
 
 use std::fmt;
 
 use diverge_provider_sdk::shared::error;
+use serde_json::json;
 
-/// What [`ImageChecker`](super::ImageChecker) fails with: nothing. A
-/// lookup in a list has no way to fail, and the SDK asks for an
-/// error type all the same, so this is one with no value. Every
-/// `match` on it is empty, and none is ever reached.
+use crate::tools;
+
+/// What [`ImageChecker`](super::ImageChecker) fails with: podman
+/// could not be started to ask a registry. A failure to answer,
+/// never a negative answer.
 #[derive(Debug)]
-pub enum Error {}
+pub enum Error {
+    /// Podman did not answer.
+    Podman(tools::Error),
+}
 
 impl fmt::Display for Error {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {}
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Podman(error) => write!(f, "podman did not answer: {error}"),
+        }
     }
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match *self {}
+        match self {
+            Error::Podman(error) => Some(error),
+        }
     }
 }
 
-/// What the SDK would put on the wire for one of these, which is
-/// nothing, since there is none.
+/// What the SDK puts on the wire for one of these.
+///
+/// ```json
+/// {"kind":"podman","error":"podman did not answer: …"}
+/// ```
 impl From<Error> for error::Error {
     fn from(error: Error) -> Self {
-        match error {}
+        let kind = match &error {
+            Error::Podman(_) => "podman",
+        };
+        error::Error(json!({
+            "kind": kind,
+            "error": error.to_string(),
+        }))
     }
 }
