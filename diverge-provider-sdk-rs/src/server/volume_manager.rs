@@ -25,11 +25,11 @@ use crate::endpoints::volumes::list::server::response::Volume;
 /// Capacity is here for the same reason: how large a volume may be
 /// made, and how far one may grow, are facts about the provider's
 /// room, not about any one volume. A volume answers for itself only
-/// where it is being acted on in place, and the lock every such act
+/// where it is being acted on in place, and the hold every such act
 /// takes first is on the volume — see [`Volume`](volume::Volume) for
-/// the lock, which is the whole of how this crate keeps a mounted
-/// volume from being examined, resized, deleted, or mounted twice.
-/// Nothing here is asked about mounts.
+/// the hold, which is the whole of how this crate keeps a mounted
+/// volume from being examined, resized or deleted. Nothing here is
+/// asked about mounts.
 ///
 /// # Every method takes a `client_identity`
 ///
@@ -63,7 +63,7 @@ use crate::endpoints::volumes::list::server::response::Volume;
 /// volumes are laid out; a crate that put a path between them would be
 /// inventing a representation for a directory that neither trait needs
 /// to agree on. The run handler does ask this trait for each volume
-/// a request names, to lock it — but it asks for the handle, never
+/// a request names, to hold it — but it asks for the handle, never
 /// for where it is.
 ///
 /// # What is deliberately not decided
@@ -81,7 +81,7 @@ use crate::endpoints::volumes::list::server::response::Volume;
 /// reserve is insufficient capacity; an edit below
 /// [`bytes_used`](crate::endpoints::volumes::stat::server::response::Stat::bytes_used)
 /// is content too large; a delete of a mounted volume is refused as
-/// mounted — and that last one the handler answers from the lock,
+/// mounted — and that last one the handler answers from the hold,
 /// before this trait is asked.
 pub trait VolumeManager: Send + Sync {
     /// Whatever this provider's volumes fail with.
@@ -234,16 +234,16 @@ pub trait VolumeManager: Send + Sync {
     /// [`create`](Self::create) may use it again afterwards. [`Ok`] is
     /// the volume gone; [`Err`] is the volume as it was.
     ///
-    /// # It is called under the lock, and answers nothing about mounts
+    /// # It is called under the exclusive hold, and answers nothing about mounts
     ///
     /// The handler [`lock`](volume::Volume::lock)s the volume first
     /// and answers
     /// [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted)
-    /// itself when the lock is held — a run has it, or a stat or an
-    /// edit is in flight — so by the time this is called nothing is
-    /// using the volume, and no handle to it will be asked anything
-    /// again. The lock is not given back on success: the volume it
-    /// was on is gone, and a provider that keeps a lock somewhere it
+    /// itself when the hold cannot be taken — a run has it, or a stat
+    /// or an edit is in flight — so by the time this is called nothing
+    /// is using the volume, and no handle to it will be asked anything
+    /// again. The hold is not given back on success: the volume it
+    /// was on is gone, and a provider that keeps a hold somewhere it
     /// must clean up cleans it up here. On failure the handler
     /// unlocks, and the volume is as it was.
     fn delete(

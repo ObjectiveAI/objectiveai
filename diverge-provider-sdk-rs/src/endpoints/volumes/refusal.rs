@@ -20,13 +20,14 @@ pub fn unknown(name: &str) -> Error {
     }))
 }
 
-/// The error for a volume whose [`lock`](crate::server::volume::Volume::lock)
-/// is held: mounted in a running container, or under a stat, an edit
-/// or a delete in flight. The endpoints with a frame of their own for
-/// it — a delete's
+/// The error for a volume whose exclusive hold,
+/// [`lock`](crate::server::volume::Volume::lock), could not be taken:
+/// mounted in a running container, or under a stat, an edit or a
+/// delete in flight. The endpoints with a frame of their own for it
+/// — a delete's
 /// [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted),
 /// a run's
-/// [`VolumeMounted`](crate::shared::containers::response::VolumeMounted)
+/// [`VolumeHeld`](crate::shared::containers::response::VolumeHeld)
 /// — answer with that instead.
 ///
 /// ```json

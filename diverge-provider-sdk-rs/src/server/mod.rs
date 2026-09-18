@@ -273,6 +273,7 @@ pub mod container_deployer;
 pub mod deployment;
 pub mod directory;
 pub mod handle;
+pub mod holders;
 pub mod image_checker;
 pub mod image_registry;
 pub mod image_source;

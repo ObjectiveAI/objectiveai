@@ -23,7 +23,7 @@ use crate::endpoints::containers::server::serve::tool;
 use crate::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy_endpoints::tools::begin::client::execute as begin;
 use crate::shared;
-use crate::shared::containers::response::{Id, VolumeMounted};
+use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::containers::{command, fuse, oci, postgres, vault};
 use crate::shared::mcp;
 use crate::shared::error::Error;
@@ -148,8 +148,8 @@ impl Runs for Tools {
         encoded(&response::Frame::Id(id.clone()))
     }
 
-    fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>> {
-        encoded(&response::Frame::VolumeMounted(refused.clone()))
+    fn volume_held(refused: &VolumeHeld) -> Option<Vec<u8>> {
+        encoded(&response::Frame::VolumeHeld(refused.clone()))
     }
 }
 

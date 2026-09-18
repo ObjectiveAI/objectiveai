@@ -16,16 +16,16 @@ use crate::shared::error::Error;
 /// different meaning: there the name is being made, here it is being
 /// found.
 ///
-/// # Under the lock
+/// # Under the exclusive hold
 ///
 /// The volume is [`got`](VolumeManager::get) and then
 /// [`locked`](crate::server::volume::Volume::lock) for the length of
 /// the resize, so no container writes to it while its size changes.
-/// A lock that is held — the volume is mounted in a running
-/// container, or under another request — is the edit refused with
-/// [`refusal::mounted`] and the size unchanged: the lock never waits,
-/// and the endpoint has no frame for it but the error. The lock is
-/// given back whatever the resize answered.
+/// A volume held at all — mounted in a running container, or under
+/// another request — is the edit refused with [`refusal::mounted`]
+/// and the size unchanged: the hold never waits, and the endpoint
+/// has no frame for it but the error. The hold is given back
+/// whatever the resize answered.
 ///
 /// # The volume says why not
 ///
@@ -87,10 +87,10 @@ where
         .await
         .map_err(Into::into)?
         .ok_or_else(|| refusal::unknown(name))?;
-    if !volume.lock() {
+    if !volume.lock().await {
         return Err(refusal::mounted(name));
     }
     let edit = volume.edit(bytes).await;
-    volume.unlock();
+    volume.unlock().await;
     edit.map_err(Into::into)
 }

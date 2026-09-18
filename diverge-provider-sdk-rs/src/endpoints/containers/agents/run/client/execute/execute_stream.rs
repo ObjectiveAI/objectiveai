@@ -59,7 +59,7 @@ fn decode(payload: &[u8]) -> Result<Decoded<AgenticLoopChunk>, response::FrameEr
     Ok(match response::Frame::decode(payload)? {
         response::Frame::Chunk(chunk) => Decoded::Item(chunk),
         response::Frame::Error(error) => Decoded::Error(error),
-        response::Frame::Id(_) | response::Frame::VolumeMounted(_) => Decoded::Skip,
+        response::Frame::Id(_) | response::Frame::VolumeHeld(_) => Decoded::Skip,
     })
 }
 

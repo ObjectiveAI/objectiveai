@@ -15,15 +15,15 @@ use crate::shared::error::Error;
 /// than handing it back. There is nothing a provider does with a
 /// stat's scope afterwards.
 ///
-/// # Under the lock
+/// # Under the exclusive hold
 ///
 /// The volume is [`got`](VolumeManager::get) and then
 /// [`locked`](crate::server::volume::Volume::lock) for the length of
 /// the examination, so what is reported is the volume at rest, with
-/// no container writing to it. A lock that is held — the volume is
-/// mounted in a running container, or under another request — is the
-/// stat refused with [`refusal::mounted`]: the lock never waits, and
-/// the endpoint has no frame for it but the error. The lock is given
+/// no container writing to it. A volume held at all — mounted in a
+/// running container, or under another request — is the stat
+/// refused with [`refusal::mounted`]: the hold never waits, and the
+/// endpoint has no frame for it but the error. The hold is given
 /// back whatever the examination answered.
 ///
 /// # Every failure becomes a frame
@@ -80,10 +80,10 @@ where
         .await
         .map_err(Into::into)?
         .ok_or_else(|| refusal::unknown(name))?;
-    if !volume.lock() {
+    if !volume.lock().await {
         return Err(refusal::mounted(name));
     }
     let stat = volume.stat().await;
-    volume.unlock();
+    volume.unlock().await;
     stat.map_err(Into::into)
 }
