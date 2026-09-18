@@ -23,10 +23,12 @@
 //! - `setup`, the ORDERED preparation of a run: the registry told to
 //!   serve the caller's manifests and blobs; the deploy, with the
 //!   caller's help at hand and the source the deployer's; the one
-//!   connection to the proxy, and on it the family's `begin` — an
-//!   agent container's carrying the agent — and then one `fuse::mount`
-//!   scope per mount, each complete before the next. Nothing the
-//!   caller opens is read until all of it is done and the id is out.
+//!   connection to the proxy, and on it the family's `begin` —
+//!   carrying the arguments, answered with the tools the container
+//!   declared — and then, beside each other, the caller asked to
+//!   deploy those tools and one `fuse::mount` scope per mount, each
+//!   complete before the next. Nothing the caller opens is read until
+//!   all of it is done and the id is out.
 //! - `relay`, the proxy's asks — the channels it opens on `begin`,
 //!   the asks each mount makes on its scope, and the agent's chunks
 //!   off the begin's main stream — each carried to the caller and its

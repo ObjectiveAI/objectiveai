@@ -28,7 +28,8 @@
 //!
 //! The PROVIDER asks the caller on its own account: [`oci`] whether
 //! the caller holds an image and, when it does, for its manifest and
-//! blobs, and [`authorize`] whether a connector may join.
+//! blobs, [`tools`] to deploy the tool containers the container
+//! declared, and [`authorize`] whether a connector may join.
 //!
 //! [`schema`] is what every container answers about its arguments,
 //! the same exchange in all three scopes. [`enqueue`] and [`dequeue`]
@@ -55,6 +56,7 @@ pub mod read;
 pub mod request;
 pub mod response;
 pub mod schema;
+pub mod tools;
 pub mod transfer;
 pub mod vault;
 pub mod write_bytes;

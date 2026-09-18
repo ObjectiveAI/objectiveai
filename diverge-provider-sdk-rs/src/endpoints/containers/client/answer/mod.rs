@@ -14,6 +14,7 @@ mod mcp;
 mod oci;
 mod postgres;
 mod send;
+mod tools;
 mod vault;
 mod write;
 
@@ -26,21 +27,23 @@ pub(crate) use write::write as write_content;
 use super::{Ask, Encoders, Writes};
 use crate::client::handle::Handle;
 use crate::client::{
-    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, Vault,
+    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, ToolDeployer,
+    Vault,
 };
 
 /// Answer `ask` on `channel` of `scope`.
-pub(crate) async fn answer<O, A, P, C, V, M, F>(
+pub(crate) async fn answer<O, A, T, P, C, V, M, F>(
     handle: Handle,
     scope: u32,
     channel: u32,
     ask: Ask,
     writes: Arc<Writes>,
-    answerers: Answerers<O, A, P, C, V, M, F>,
+    answerers: Answerers<O, A, T, P, C, V, M, F>,
     encoders: Encoders,
 ) where
     O: OciStore + 'static,
     A: ConnectionAuthorizer + 'static,
+    T: ToolDeployer + 'static,
     P: PostgresDialer + 'static,
     C: CommandRunner + 'static,
     V: Vault + 'static,
@@ -54,6 +57,7 @@ pub(crate) async fn answer<O, A, P, C, V, M, F>(
         Ask::Authorize(request) => {
             authorize::authorize(&handle, scope, channel, request, answerers.authorizer).await
         }
+        Ask::Tools(declared) => tools::tools(&handle, scope, channel, declared, answerers.tools).await,
         Ask::Write(write_id) => write::write(&handle, scope, channel, write_id, writes, encoders).await,
         Ask::Postgres(connection_id) => {
             postgres::postgres(&handle, scope, channel, connection_id, answerers.postgres, encoders).await

@@ -10,7 +10,8 @@ use super::answer;
 use super::{Ask, Encoders, Writes};
 use crate::client::handle::Handle;
 use crate::client::{
-    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, Vault,
+    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, ToolDeployer,
+    Vault,
 };
 use crate::frame;
 
@@ -29,17 +30,18 @@ use crate::frame;
 /// several can be in flight at once: answers may be given in any
 /// order, and an agent making several calls at once is the ordinary
 /// case.
-pub(crate) async fn serve<O, A, P, C, V, M, F>(
+pub(crate) async fn serve<O, A, T, P, C, V, M, F>(
     mut requests: UnboundedReceiver<Bytes>,
     handle: Handle,
     scope: u32,
     writes: Arc<Writes>,
-    answerers: Answerers<O, A, P, C, V, M, F>,
+    answerers: Answerers<O, A, T, P, C, V, M, F>,
     decode: fn(&[u8]) -> Option<Ask>,
     encoders: Encoders,
 ) where
     O: OciStore + 'static,
     A: ConnectionAuthorizer + 'static,
+    T: ToolDeployer + 'static,
     P: PostgresDialer + 'static,
     C: CommandRunner + 'static,
     V: Vault + 'static,

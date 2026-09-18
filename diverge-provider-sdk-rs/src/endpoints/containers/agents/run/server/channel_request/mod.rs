@@ -1,6 +1,6 @@
 //! The channels a provider opens on a caller during a run.
 //!
-//! Twenty-four, and the same twenty-four in both families: five the
+//! Twenty-five, and the same twenty-five in both families: six the
 //! provider asks on its own account, nineteen it relays from the
 //! container. See [`Frame`].
 

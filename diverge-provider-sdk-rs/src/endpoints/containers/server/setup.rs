@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use futures_util::future;
 use indexmap::IndexMap;
 use serde_json::Value;
 
@@ -15,6 +16,8 @@ use super::watched::{Watched, Watching};
 use crate::client::handle::Handle;
 use crate::container_proxy_endpoints::client::Asks;
 use crate::container_proxy_endpoints::fuse::mount::client::execute::{self as mount, Ask as MountAsk};
+use crate::decode::Decode as _;
+use crate::server::answer::{Answer, answer};
 use crate::server::caller::Caller;
 use crate::server::container::{self, Container as _};
 use crate::server::container_deployer::ContainerDeployer;
@@ -27,6 +30,7 @@ use crate::server::scope_handle::ScopeHandle;
 use crate::server::volume::Volume;
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::request::{Container, FuseMount};
+use crate::shared::containers::tools;
 use crate::shared::error::Error;
 
 /// A container brought up and ready to serve.
@@ -71,9 +75,12 @@ pub(crate) struct Mount {
 /// 2. The container is deployed, its proxy listening.
 /// 3. The proxy is dialled: one WebSocket, for the container's life.
 /// 4. The family's `begin` is opened on it — carrying the arguments —
-///    and its `Begun` awaited.
-/// 5. One `fuse::mount` scope per mount, file mounts first, each
-///    answered before the next is opened.
+///    and its `Begun` awaited, with the tools the container declared.
+/// 5. Beside each other: the caller is asked to deploy those tools,
+///    when there are any — see [`deploy`] — and one `fuse::mount`
+///    scope per mount is opened, file mounts first, each answered
+///    before the next. Both are awaited to their end before either's
+///    failure is acted on.
 ///
 /// Every failure after the deploy stops the container and releases
 /// the repository; the error is the run's. Nothing the caller opened
@@ -137,9 +144,10 @@ where
         }
     };
 
-    let mounts = match mounts(&proxy, request).await {
-        Ok(mounts) => mounts,
-        Err(error) => {
+    let (deployed, mounts) = future::join(deploy::<R>(scope, &begun.tools), mounts(&proxy, request)).await;
+    let mounts = match (deployed, mounts) {
+        (Ok(()), Ok(mounts)) => mounts,
+        (Err(error), _) | (Ok(()), Err(error)) => {
             undo(&container, &repository, registry).await;
             return Err(error);
         }
@@ -165,6 +173,38 @@ where
 {
     container.stop().await;
     registry.release(repository).await;
+}
+
+/// The tools the container declared, asked of the caller: nothing
+/// when it declared none; else one channel on the run scope, one
+/// frame back, read to the finish so its number comes back to the
+/// run. A deploy is `Ok`; the caller's refusal is the run's error in
+/// the caller's words; a finish with nothing, or an answer this end
+/// cannot read, is the run's error too.
+async fn deploy<R: Runs>(scope: &ScopeHandle, declared: &[tools::Tool]) -> Result<(), Error> {
+    if declared.is_empty() {
+        return Ok(());
+    }
+    let ask: R::Ask<'_> = Own::Tools(declared).into();
+    let Some(payload) = encoded(&ask) else {
+        return Err(render::tools_failed("the tools ask did not encode"));
+    };
+    let mut channel = scope.send_channel_request(&payload).await;
+    let mut outcome = Err(render::tools_unserved());
+    while let Some(bytes) = channel.response_receiver.recv().await {
+        match answer(&bytes) {
+            Some(Answer::Frame(payload)) => {
+                outcome = match tools::response::Frame::decode(&payload) {
+                    Ok(tools::response::Frame::Deployed) => Ok(()),
+                    Ok(tools::response::Frame::Error(error)) => Err(error),
+                    Err(error) => Err(render::tools_failed(error)),
+                };
+            }
+            Some(Answer::Finish) => break,
+            None => {}
+        }
+    }
+    outcome
 }
 
 /// Every FUSE mount, made in order: the file mounts, then the

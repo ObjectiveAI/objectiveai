@@ -67,7 +67,7 @@ impl Stream for Chunks {
             Ok(response::Frame::Error(error)) => self.end(ChunksError::Refused(error)),
             // `Begun` comes once, and it came before this stream
             // existed.
-            Ok(response::Frame::Begun) => self.end(ChunksError::Misrouted),
+            Ok(response::Frame::Begun(_)) => self.end(ChunksError::Misrouted),
             Err(error) => self.end(ChunksError::Response(error)),
         }
     }

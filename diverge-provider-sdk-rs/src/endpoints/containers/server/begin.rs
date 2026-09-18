@@ -8,6 +8,7 @@ use crate::container_proxy_endpoints::client::{Ask, Asks};
 use crate::container_proxy_endpoints::tools::begin::client::execute::{ExecuteHandle as ToolsBegin, Finish};
 use crate::endpoints::containers::client::answered::{Postgres, Schema};
 use crate::endpoints::containers::client::{ChannelStream, OpenError, UnaryError};
+use crate::shared::containers::tools::Tool;
 
 /// The begin scope on a container's proxy connection: the place the
 /// proxy's asks ride, and the family's own exchanges.
@@ -74,7 +75,8 @@ impl Begin {
 }
 
 /// What a begin hands the machinery: the scope, the asks the proxy
-/// will open on it, and — for an agent container — the conversation.
+/// will open on it, the tools the container declared, and — for an
+/// agent container — the conversation.
 #[derive(Debug)]
 pub(crate) struct Begun {
     /// The scope.
@@ -88,4 +90,7 @@ pub(crate) struct Begun {
     /// read for nothing else; [`None`] for an agent container, whose
     /// chunks end at the same finish.
     pub finish: Option<Finish>,
+    /// The tools the container declared at registration, off
+    /// `Begun`: what the caller is asked to deploy, when any.
+    pub tools: Vec<Tool>,
 }

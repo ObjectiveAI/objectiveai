@@ -10,6 +10,7 @@ use crate::container_proxy_endpoints::client::{Ask, Asks};
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::frame;
+use crate::shared::containers::tools::Tool;
 
 /// Begin the server's work on a tool container: open the scope
 /// carrying `arguments`, and wait for the proxy to say it has begun.
@@ -20,8 +21,12 @@ use crate::frame;
 /// server's own words; a finish first is
 /// [`Unanswered`](ExecuteError::Unanswered). The main stream then
 /// carries nothing more on a tool container, and the [`Finish`] is
-/// how its end is heard.
-pub async fn execute(handle: &Handle, arguments: Value) -> Result<(ExecuteHandle, Asks<Ask>, Finish), ExecuteError> {
+/// how its end is heard. What comes back is the handle, the asks the
+/// proxy will open, the finish, and the tools the container declared.
+pub async fn execute(
+    handle: &Handle,
+    arguments: Value,
+) -> Result<(ExecuteHandle, Asks<Ask>, Finish, Vec<Tool>), ExecuteError> {
     let mut payload = Vec::new();
     request::Frame { arguments }
         .encode(&mut Writer::new(&mut payload))
@@ -35,15 +40,16 @@ pub async fn execute(handle: &Handle, arguments: Value) -> Result<(ExecuteHandle
         frame::server::ServerFrame::ResponseFinish { .. } => return Err(ExecuteError::Unanswered),
         _ => return Err(ExecuteError::Misrouted),
     };
-    match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
-        response::Frame::Begun => {}
+    let tools = match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
+        response::Frame::Begun(tools) => tools,
         response::Frame::Error(error) => return Err(ExecuteError::Refused(error)),
-    }
+    };
 
     Ok((
         ExecuteHandle::new(handle.clone(), scope.scope),
         Asks::new(scope.request_receiver, decode_ask),
         Finish::new(scope.response_receiver),
+        tools,
     ))
 }
 

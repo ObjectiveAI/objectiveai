@@ -81,6 +81,7 @@
 //! |-------|---------|
 //! | [`OciStore`] | whether the caller holds an image, and its manifest and blobs |
 //! | [`ConnectionAuthorizer`] | whether a connector may attach |
+//! | [`ToolDeployer`] | the tool containers the container declared, run |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`CommandRunner`] | the commands the container asks run |
 //! | [`Vault`] | the container's secrets, with locks |
@@ -128,6 +129,8 @@ mod oci_store;
 #[cfg(feature = "client")]
 mod postgres_dialer;
 #[cfg(feature = "client")]
+mod tool_deployer;
+#[cfg(feature = "client")]
 mod vault;
 
 #[cfg(feature = "client")]
@@ -144,5 +147,7 @@ pub use mcp_server::*;
 pub use oci_store::*;
 #[cfg(feature = "client")]
 pub use postgres_dialer::*;
+#[cfg(feature = "client")]
+pub use tool_deployer::*;
 #[cfg(feature = "client")]
 pub use vault::*;
