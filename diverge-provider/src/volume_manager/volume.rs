@@ -11,9 +11,8 @@ use diverge_provider_sdk::endpoints::volumes::list::server::response;
 use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
 use diverge_provider_sdk::server::holders::Holders;
 use diverge_provider_sdk::server::volume;
-use diverge_provider_sdk::shared::filetree::response::Frame;
-use futures_util::future;
-use futures_util::stream::Pending;
+use futures_util::stream::MapErr;
+use futures_util::{TryStreamExt as _, future};
 use tokio::fs;
 use tokio::sync::Mutex;
 
@@ -356,13 +355,22 @@ impl volume::Volume for Volume {
         matches!(self.inner.place, Place::Stored { .. })
     }
 
-    /// The watch a fixed volume gets from the provider: not written
-    /// yet, and a stream that never yields until it is.
-    type Watch = Pending<Result<Frame, Error>>;
+    /// The watch a fixed volume gets from the provider: its
+    /// directory, walked and watched on this host — see
+    /// [`watch`](crate::watch).
+    type Watch = MapErr<crate::watch::Watch, fn(crate::watch::Error) -> Error>;
 
-    /// Not written yet.
-    async fn watch(&self, _path: &[String]) -> Result<Self::Watch, Error> {
-        unimplemented!("a volume watch is not written yet")
+    /// A fixed volume's directory, descended by `path`, watched. A
+    /// stored volume is [`Error::Unwatched`]: the container's proxy
+    /// watches it, and on the hosts with a machine its loop mount is
+    /// the machine's, which this host cannot watch.
+    async fn watch(&self, path: &[String]) -> Result<Self::Watch, Error> {
+        let Place::Fixed { root, .. } = &self.inner.place else {
+            return Err(Error::Unwatched(self.inner.name.clone()));
+        };
+        let mut dir = root.clone();
+        dir.extend(path);
+        Ok(crate::watch::watch(&dir).await?.map_err(Error::Watch as fn(crate::watch::Error) -> Error))
     }
 
     /// The listing and the walk, at once.
