@@ -17,7 +17,7 @@ use rmcp::{Peer, RoleClient};
 
 use crate::{Client, Error};
 
-/// The path the proxy serves the agent's MCP server on.
+/// The path the proxy serves the program's MCP server on.
 const MCP: &str = "/mcp";
 
 /// The URL of the proxy's MCP server, for an MCP client that is not

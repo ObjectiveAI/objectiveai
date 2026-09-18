@@ -1,4 +1,4 @@
-//! An agent container's begin: the agent registered, the queue's
+//! An agent container's begin: the arguments registered, the queue's
 //! driver started, the family's channels served.
 
 use std::sync::Arc;
@@ -13,14 +13,14 @@ use diverge_provider_sdk::shared::error::Error;
 use super::Family;
 use crate::encode::encoded;
 use crate::proxy::{Begun, Proxy};
-use crate::{agent, inside};
+use crate::{agent, inside, program};
 
 /// Serve the begin for the connection's life.
 ///
 /// A second begin on the connection is `Error`, then the finish, and
-/// the first goes on. Otherwise the agent is registered with the
-/// agent's server — its refusal is the `Error`, in its own words, and
-/// the connection has not begun — and then `Begun` goes out, the
+/// the first goes on. Otherwise the arguments are registered with the
+/// program's server — its refusal is the `Error`, in its own words,
+/// and the connection has not begun — and then `Begun` goes out, the
 /// scope is published to every surface inside the container, the
 /// queue's driver and the resident notifications ask are started,
 /// and every channel the server opens on the scope is served on a
@@ -32,7 +32,7 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         refuse(&scope, begun()).await;
         return;
     }
-    if let Err(error) = agent::register(&proxy.upstream, frame.agent).await {
+    if let Err(error) = program::register(&proxy.upstream, frame.arguments).await {
         proxy.release_begin().await;
         refuse(&scope, error).await;
         return;
@@ -58,8 +58,8 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
             Ok(channel_request::Frame::Postgres(request)) => {
                 tokio::spawn(inside::postgres::attach(proxy, scope, channel, request.connection_id));
             }
-            Ok(channel_request::Frame::AgentSchema) => {
-                tokio::spawn(agent::schema(proxy, scope, channel));
+            Ok(channel_request::Frame::Schema) => {
+                tokio::spawn(program::schema(proxy, scope, channel));
             }
             Ok(channel_request::Frame::Enqueue(request)) => {
                 tokio::spawn(agent::enqueue(proxy, scope, channel, request.prompt));

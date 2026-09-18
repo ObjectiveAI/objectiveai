@@ -53,8 +53,8 @@ async fn connection(socket: WebSocket, proxy: Arc<Proxy>) {
             ClientRequest::AgentsBegin(frame) => {
                 scopes.spawn(begin::agents(Arc::clone(&proxy), scope, frame));
             }
-            ClientRequest::ToolsBegin(_) => {
-                scopes.spawn(begin::tools(Arc::clone(&proxy), scope));
+            ClientRequest::ToolsBegin(frame) => {
+                scopes.spawn(begin::tools(Arc::clone(&proxy), scope, frame));
             }
             ClientRequest::FuseMount(frame) => {
                 scopes.spawn(serve::mount(Arc::clone(&proxy), scope, frame));

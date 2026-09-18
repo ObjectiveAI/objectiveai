@@ -1,36 +1,40 @@
-//! A tool container's begin: `Begun` at once, the exchanges with the
-//! tool's own MCP server served.
+//! A tool container's begin: the arguments registered, the schema and
+//! the exchanges with the tool's own MCP server served.
 
 use std::sync::Arc;
 
-use diverge_provider_sdk::container_proxy_endpoints::tools::begin::client::channel_request;
+use diverge_provider_sdk::container_proxy_endpoints::tools::begin::client::{channel_request, request};
 use diverge_provider_sdk::container_proxy_endpoints::tools::begin::server::response;
 use diverge_provider_sdk::decode::Decode as _;
 use diverge_provider_sdk::frame::client::ClientFrame;
 use diverge_provider_sdk::server::scope_handle::ScopeHandle;
+use diverge_provider_sdk::shared::error::Error;
 
 use super::Family;
 use crate::encode::encoded;
 use crate::proxy::{Begun, Proxy};
-use crate::{inside, tool};
+use crate::{inside, program, tool};
 
 /// Serve the begin for the connection's life.
 ///
 /// A second begin on the connection is `Error`, then the finish, and
-/// the first goes on. Otherwise `Begun` goes out at once — there is
-/// nothing to hand a tool container — the scope is published to
-/// every surface inside the container, and every channel the server
-/// opens on the scope is served on a task of its own: one exchange
-/// with the tool's server each, the notifications for as long as the
-/// channel lives, the server's half of a database connection until
-/// the driver hangs up. A channel this end cannot read is finished
-/// with nothing.
-pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle) {
+/// the first goes on. Otherwise the arguments are registered with the
+/// program's server — its refusal is the `Error`, in its own words,
+/// and the connection has not begun — and then `Begun` goes out, the
+/// scope is published to every surface inside the container, and
+/// every channel the server opens on the scope is served on a task
+/// of its own: the schema once, one exchange with the tool's server
+/// each, the notifications for as long as the channel lives, the
+/// server's half of a database connection until the driver hangs up.
+/// A channel this end cannot read is finished with nothing.
+pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame) {
     if !proxy.claim_begin().await {
-        if let Some(payload) = encoded(&response::Frame::Error(super::agents::begun())) {
-            scope.send_response(&payload).await;
-        }
-        scope.send_response_finish().await;
+        refuse(&scope, super::agents::begun()).await;
+        return;
+    }
+    if let Err(error) = program::register(&proxy.upstream, frame.arguments).await {
+        proxy.release_begin().await;
+        refuse(&scope, error).await;
         return;
     }
     let scope = Arc::new(scope);
@@ -52,6 +56,9 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle) {
             Ok(channel_request::Frame::Postgres(request)) => {
                 tokio::spawn(inside::postgres::attach(proxy, scope, channel, request.connection_id));
             }
+            Ok(channel_request::Frame::Schema) => {
+                tokio::spawn(program::schema(proxy, scope, channel));
+            }
             Ok(channel_request::Frame::McpListTools(request)) => {
                 tokio::spawn(async move { tool::list_tools(&proxy.tool, &scope, channel, request).await });
             }
@@ -72,4 +79,12 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle) {
             }
         }
     }
+}
+
+/// The `Error`, then the finish: the connection has not begun.
+async fn refuse(scope: &ScopeHandle, error: Error) {
+    if let Some(payload) = encoded(&response::Frame::Error(error)) {
+        scope.send_response(&payload).await;
+    }
+    scope.send_response_finish().await;
 }

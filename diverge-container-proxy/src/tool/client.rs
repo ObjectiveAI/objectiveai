@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use diverge_container_proxy_sdk::agent;
+use diverge_container_proxy_sdk::port;
 use rmcp::model::{ClientInfo, ClientResult, ServerNotification, ServerRequest};
 use rmcp::service::{NotificationContext, RequestContext, RunningService, ServiceExt as _};
 use rmcp::transport::StreamableHttpClientTransport;
@@ -11,7 +11,7 @@ use tokio::sync::{Mutex, broadcast};
 
 /// The server's URL, for every path.
 fn url() -> String {
-    format!("http://127.0.0.1:{}/mcp", agent::port())
+    format!("http://127.0.0.1:{}/mcp", port())
 }
 
 /// How many notifications a slow `/tool/notifications` may fall

@@ -12,7 +12,7 @@ use futures_util::StreamExt as _;
 use reqwest::header::CONTENT_TYPE;
 use tokio::sync::oneshot;
 
-use super::{refused, status_error};
+use crate::program::{refused, status_error};
 use crate::proxy::Proxy;
 
 /// Start one loop on `prompt`, on a task of its own: what comes back
