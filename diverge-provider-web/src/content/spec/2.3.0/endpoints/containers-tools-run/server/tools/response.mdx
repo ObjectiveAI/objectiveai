@@ -1,0 +1,25 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses the client answers with, what ends it, what a finish with nothing before it means, and what the server does with the answer.'
+order: 2
+draft: false
+---
+
+```text
+[0]                  deployed: every tool runs
+[1][error JSON …]    not deployed
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish. The byte `0` lets the run go on to its
+  id. The byte `1`, followed by exactly one JSON value in the form
+  defined on the [volumes::list response](/endpoints/volumes-list/response/)
+  page, is the run's error, in the client's words: the server stops
+  the container and sends the error as the scope's one response. A
+  channel response finish that no channel response precedes is the
+  run's error too.
+
+The channel response is defined by `diverge-provider-sdk-rs/src/shared/containers/tools/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/tools/response/frame.rs
+```
