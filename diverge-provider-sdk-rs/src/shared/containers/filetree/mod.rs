@@ -7,9 +7,10 @@
 //! root: one snapshot, then one frame per change, for as long as the
 //! channel lives. Every path is relative to the container's root. The
 //! FUSE mounts, which the caller serves itself, are left out of the
-//! tree, and so is every mount of a volume whose listing says it is
-//! not; every other volume mount is in it, and a change under one is
-//! reported.
+//! tree; every volume mount is in it, and a change under one is
+//! reported — watched by the container's proxy, or by the provider
+//! itself where it keeps a volume out of the proxy's tree, which the
+//! caller cannot tell apart.
 //!
 //! A channel rather than the main stream, so a caller that wants no
 //! tree pays for none, and two callers on one container can each

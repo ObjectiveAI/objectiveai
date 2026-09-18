@@ -111,6 +111,7 @@ pub(crate) async fn run<R, D, G, V>(
         prepared.proxy.clone(),
         prepared.begun.begin.tools(),
         prepared.ignore.clone(),
+        Arc::clone(&prepared.watched),
     );
     send(&scope, R::id(&Id { id: id.clone() })).await;
 
@@ -127,6 +128,7 @@ pub(crate) async fn run<R, D, G, V>(
         prepared.proxy,
         begin,
         prepared.ignore,
+        prepared.watched,
     ));
     run.spawn(relay::relay::<R>(Arc::clone(&run), asks)).await;
     for mount in prepared.mounts {

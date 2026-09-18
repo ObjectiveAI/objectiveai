@@ -9,6 +9,7 @@ use tokio::task::JoinSet;
 
 use super::begin::Begin;
 use super::pairs::Pairs;
+use super::watched::Watched;
 use crate::client::handle::Handle;
 use crate::container_proxy_endpoints::filesystem::tree::client::execute as tree;
 use crate::server::directory::Directory;
@@ -38,8 +39,12 @@ pub(crate) struct Run {
     /// The begin scope on it: where the proxy's asks arrive and where
     /// the family's own exchanges go.
     pub begin: Begin,
-    /// Every FUSE mount's path, which a filetree leaves out.
+    /// Every path the proxy's tree leaves out: every FUSE mount's,
+    /// and every mount's of a volume the provider watches itself.
     pub ignore: Vec<Vec<String>>,
+    /// Every mount the provider watches itself, for a filetree to
+    /// open beside the proxy's tree and merge in.
+    pub watched: Arc<[Watched]>,
     /// Database connections whose caller half has not opened.
     pub pairs: Pairs,
     /// The container is gone: the proxy's asks ended, or the run a
@@ -61,6 +66,7 @@ impl Run {
         proxy: Handle,
         begin: Begin,
         ignore: Vec<Vec<String>>,
+        watched: Arc<[Watched]>,
     ) -> Self {
         Run {
             scope,
@@ -69,6 +75,7 @@ impl Run {
             proxy,
             begin,
             ignore,
+            watched,
             pairs: Pairs::new(),
             over: Notify::new(),
             trees: Mutex::new(HashMap::new()),

@@ -38,6 +38,9 @@
 //!   exchange — each served against the proxy on a task of its own,
 //!   read off the scope by one loop that also hears the stop, the
 //!   container leaving, and the caller going away.
+//! - `watched`, every volume mount the container's tree leaves out,
+//!   each with the way to watch the volume itself, which a filetree
+//!   merges into the tree it sends.
 //! - `Run`, what those tasks share: the scope, the connection to the
 //!   proxy, the begin scope on it, the tasks themselves, the database
 //!   pairs in flight, and the signals that the container is gone and
@@ -59,3 +62,4 @@ pub(crate) mod render;
 pub(crate) mod run;
 pub(crate) mod serve;
 pub(crate) mod setup;
+pub(crate) mod watched;

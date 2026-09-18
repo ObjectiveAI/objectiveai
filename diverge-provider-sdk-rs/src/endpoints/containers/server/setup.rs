@@ -11,6 +11,7 @@ use super::family::Runs;
 use super::held::Held;
 use super::own::Own;
 use super::render;
+use super::watched::{Watched, Watching};
 use crate::client::handle::Handle;
 use crate::container_proxy_endpoints::client::Asks;
 use crate::container_proxy_endpoints::fuse::mount::client::execute::{self as mount, Ask as MountAsk};
@@ -41,10 +42,12 @@ pub(crate) struct Prepared<C> {
     /// The registry repository serving the caller's manifests and
     /// blobs for this run, to release.
     pub repository: String,
-    /// Every path a filetree leaves out: every FUSE mount's, and
-    /// every mount's of a volume whose listing says it is not in the
-    /// tree.
+    /// Every path the proxy's tree leaves out: every FUSE mount's,
+    /// and every mount's of a volume the provider watches itself.
     pub ignore: Vec<Vec<String>>,
+    /// Every mount of a volume the provider watches itself, with the
+    /// way to, for a filetree to merge in.
+    pub watched: Arc<[Watched]>,
 }
 
 /// One FUSE mount, made: the caller's id for it, the scope it lives
@@ -90,10 +93,11 @@ where
     D::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,
-    L: Volume,
+    L: Volume + 'static,
+    L::Error: Into<Error>,
 {
     let deployment = deployment(client_identity, request);
-    let ignore = ignored(request, held.volumes());
+    let (ignore, watched) = excluded(request, held.volumes());
 
     let repository = uuid::Uuid::new_v4().to_string();
     let source = ImageSource::new(Arc::clone(scope), manifest_ask::<R>, blob_ask::<R>);
@@ -148,6 +152,7 @@ where
         mounts,
         repository,
         ignore,
+        watched: Arc::from(watched),
     })
 }
 
@@ -212,30 +217,42 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
     }
 }
 
-/// What a filetree of this container leaves out: every FUSE mount's
-/// path, and the path of every mount of a volume the provider keeps
-/// out of the tree. A FUSE mount is the caller's own answers, and a
-/// tree over it would report them back to the caller. A volume mount
-/// is content on the provider, and seeing it change is what a
-/// filetree is for — unless the provider said in the listing, and
-/// says again through [`Volume::tree`], that this volume is not
-/// walked, a dataset too large or too still to watch. `held` holds
-/// the volumes in the order the request names them.
-fn ignored<L: Volume>(request: &Container, held: &[L]) -> Vec<Vec<String>> {
-    request
+/// What the proxy's tree leaves out, and what is watched instead.
+/// Left out: every FUSE mount's path, since a FUSE mount is the
+/// caller's own answers and a tree over it would report them back to
+/// the caller; and the path of every mount of a volume the provider
+/// watches itself, which [`Volume::tree`] says. Watched instead: each
+/// of those volume mounts, by the volume at the mount's relative
+/// path, re-rooted at the mount's container path when a filetree
+/// merges it in. Every other volume mount is content the proxy walks
+/// and watches, and seeing it change is what a filetree is for.
+/// `held` holds the volumes in the order the request names them.
+fn excluded<L>(request: &Container, held: &[Arc<L>]) -> (Vec<Vec<String>>, Vec<Watched>)
+where
+    L: Volume + 'static,
+    L::Error: Into<Error>,
+{
+    let mut ignore: Vec<Vec<String>> = request
         .fuse_file_mounts
         .iter()
         .map(|mount| mount.container_path.clone())
         .chain(request.fuse_directory_mounts.iter().map(|mount| mount.container_path.clone()))
-        .chain(
-            request
-                .volume_mounts
-                .iter()
-                .zip(held)
-                .filter(|(_, volume)| !volume.tree())
-                .map(|(mount, _)| mount.container_path.clone()),
-        )
-        .collect()
+        .collect();
+    let mut watched = Vec::new();
+    for (mount, volume) in request.volume_mounts.iter().zip(held) {
+        if volume.tree() {
+            continue;
+        }
+        ignore.push(mount.container_path.clone());
+        watched.push(Watched {
+            container_path: mount.container_path.clone(),
+            watcher: Arc::new(Watching {
+                volume: Arc::clone(volume),
+                path: mount.host_relative_path.clone(),
+            }),
+        });
+    }
+    (ignore, watched)
 }
 
 /// The ask whether the caller holds the image, as this family's
