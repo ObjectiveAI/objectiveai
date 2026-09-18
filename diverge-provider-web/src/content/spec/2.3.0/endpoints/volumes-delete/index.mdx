@@ -37,11 +37,12 @@ the response, and no frame follows the finish.
   precedes it, no confirmation follows it, and the deletion is not
   reversible.
 - **A volume mounted.** When, at the time of the request, the volume
-  is mounted in a running container, the server does not delete it
-  and sends the byte `1`. The volume, its content, and the client's
-  listing are as they were before the request. The server does not
-  send the byte `0` for a volume that is mounted at the time of the
-  request.
+  is mounted in any running container — a volume may be mounted in
+  several at once — or is under a stat, an edit or another delete,
+  the server does not delete it and sends the byte `1`. The volume,
+  its content, and the client's listing are as they were before the
+  request. The server does not send the byte `0` for a volume that
+  is mounted at the time of the request.
 - **The error.** An error states that the server did not delete the
   volume, for a reason other than a mount. The volume remains in
   existence, its content is as it was, and the client's listing shows

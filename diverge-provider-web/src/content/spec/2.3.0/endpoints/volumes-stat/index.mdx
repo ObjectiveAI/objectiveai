@@ -28,11 +28,12 @@ finish.
   specification reports a change in either; a client that needs the
   current values sends another request.
 - **A mounted volume is not examined.** The server does not examine
-  a volume that is mounted in a running container at the time of the
-  request. A request naming such a volume is answered with an error,
-  and nothing is determined about the volume. A client that needs
-  the values stops the container, or waits for its end, and sends
-  another request.
+  a volume that is mounted in any running container at the time of
+  the request — a volume may be mounted in several at once — or that
+  is under another stat, an edit or a delete. A request naming such a
+  volume is answered with an error, and nothing is determined about
+  the volume. A client that needs the values stops every container
+  that has it, or waits for their end, and sends another request.
 - **The error.** An error states that the volume was not examined,
   and that nothing was determined about it. A volume absent from the
   client's listing is answered with an error. A volume mounted in a

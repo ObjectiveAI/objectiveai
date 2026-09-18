@@ -29,6 +29,14 @@ response, and no frame follows the finish.
 - **The client.** The client is the identity under which the
   connection was authorized, as [Authorization](/authorization/)
   provides. The listing is that identity's listing.
+- **Mounting.** Every volume in the listing may be mounted in any
+  number of the client's running containers at once, whatever the
+  `persist` of each mount. A [volumes::stat](/endpoints/volumes-stat/),
+  [volumes::edit](/endpoints/volumes-edit/) or
+  [volumes::delete](/endpoints/volumes-delete/) of a volume is
+  refused while any container has it mounted, and a run naming a
+  volume is refused while a stat, an edit or a delete of it is in
+  flight.
 - **An empty listing.** An empty listing is an answer. It states that
   no volume is available to the client. An empty listing is not an
   error.
