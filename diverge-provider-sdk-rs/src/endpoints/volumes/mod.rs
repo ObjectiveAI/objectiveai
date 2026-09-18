@@ -21,8 +21,11 @@
 //! [`refusal`] is what a handler answers when the hold cannot be
 //! taken and the endpoint has no frame of its own for it. See
 //! [`Volume`](crate::server::volume::Volume) for the rule in full.
-//! A volume is not watched by itself: the tree of a container it is
-//! mounted in is where it is seen changing.
+//! A volume is seen changing in the tree of a container it is
+//! mounted in, watched there by the container's proxy or, where the
+//! provider keeps a volume out of the proxy's tree, by the provider
+//! itself through [`Volume::watch`](crate::server::volume::Volume::watch)
+//! — one tree to the caller either way.
 //!
 //! # Volumes rather than paths
 //!

@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::watch;
 
 use super::scope_handle::ScopeHandle;
+use crate::endpoints::containers::server::watched::Watched;
 use crate::client::handle::Handle;
 use crate::container_proxy_endpoints::tools::begin::client::execute::ExecuteHandle as ToolsBegin;
 
@@ -63,8 +64,10 @@ struct Entry {
     connectors: HashMap<Arc<str>, usize>,
     proxy: Handle,
     begin: Option<ToolsBegin>,
-    /// Every FUSE mount's path, which a filetree leaves out.
+    /// Every path the proxy's tree leaves out.
     ignore: Vec<Vec<String>>,
+    /// Every mount the provider watches itself, for a filetree.
+    watched: Arc<[Watched]>,
     ended: watch::Sender<bool>,
 }
 
@@ -81,9 +84,12 @@ pub struct Attached {
     /// are channels — [`None`] for an agent container, which is its
     /// runner's alone and takes no connector.
     pub begin: Option<ToolsBegin>,
-    /// Every FUSE mount's path, which a filetree the connector opens
-    /// leaves out as the runner's does.
+    /// Every path the proxy's tree leaves out, for a filetree the
+    /// connector opens as for the runner's.
     pub ignore: Vec<Vec<String>>,
+    /// Every mount the provider watches itself, which a filetree the
+    /// connector opens merges in as the runner's does.
+    pub(crate) watched: Arc<[Watched]>,
     /// `true` once the run is over. A receiver whose sender is gone
     /// reads the same.
     pub ended: watch::Receiver<bool>,
@@ -103,7 +109,7 @@ impl Directory {
 
     /// The container is running, for `runner`: from now until
     /// [`remove`](Self::remove), connectors may find it.
-    pub fn insert(
+    pub(crate) fn insert(
         &self,
         id: String,
         scope: Arc<ScopeHandle>,
@@ -111,6 +117,7 @@ impl Directory {
         proxy: Handle,
         begin: Option<ToolsBegin>,
         ignore: Vec<Vec<String>>,
+        watched: Arc<[Watched]>,
     ) {
         let (ended, _) = watch::channel(false);
         self.lock().insert(
@@ -122,6 +129,7 @@ impl Directory {
                 proxy,
                 begin,
                 ignore,
+                watched,
                 ended,
             },
         );
@@ -185,6 +193,7 @@ impl Directory {
             proxy: entry.proxy.clone(),
             begin: entry.begin.clone(),
             ignore: entry.ignore.clone(),
+            watched: Arc::clone(&entry.watched),
             ended: entry.ended.subscribe(),
         })
     }

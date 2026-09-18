@@ -91,6 +91,7 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
         attached.proxy,
         Begin::Tools(begin),
         attached.ignore,
+        attached.watched,
     ));
     let mut ended = attached.ended;
     let over = Arc::clone(&run);

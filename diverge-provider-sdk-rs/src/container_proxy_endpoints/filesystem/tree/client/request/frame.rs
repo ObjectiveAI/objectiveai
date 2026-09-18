@@ -10,8 +10,9 @@ use crate::encode::{Encode, Writer};
 /// The server names the FUSE MOUNTS here — the ones it placed in the
 /// container that the caller serves itself, so that a watch of one
 /// would report the caller's own answers back to it, and every
-/// mount of a volume the provider keeps out of the tree. Every other
-/// volume mount is not listed, and is in the tree. `/proc`,
+/// mount of a volume the provider watches itself and merges into the
+/// tree it sends the caller. Every other volume mount is not listed,
+/// and is in the tree. `/proc`,
 /// `/sys` and `/dev` are the proxy's own and are never listed. Each
 /// path is components from the container's root, the shape every path
 /// in this crate takes; an empty one is dropped rather than read as

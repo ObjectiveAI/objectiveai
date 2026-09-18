@@ -2,9 +2,12 @@
 
 use std::future::Future;
 
+use futures_util::Stream;
+
 use super::holders::Holders;
 use crate::endpoints::volumes::edit::server::response::Edit;
 use crate::endpoints::volumes::stat::server::response::Stat;
+use crate::shared::filetree::response::Frame;
 
 /// One named directory of one caller, found by
 /// [`VolumeManager::get`](super::volume_manager::VolumeManager::get).
@@ -42,9 +45,12 @@ use crate::endpoints::volumes::stat::server::response::Stat;
 ///   [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted),
 ///   a stat or an edit with the endpoint's error.
 ///
-/// There is no verb on a volume that does not take one of the holds.
-/// A volume is not watched on its own: the filetree of a container it
-/// is mounted in is where it is seen changing.
+/// There is no verb on a volume that does not take one of the holds,
+/// and [`watch`](Self::watch) runs under the shared one: a volume the
+/// provider keeps out of a container's tree is watched by the
+/// provider itself, through `watch`, and the run handler merges what
+/// it reports into the tree the caller sees, which is one tree of
+/// every mount however each is watched.
 ///
 /// The handlers do all of that. A provider's hold is a try-hold and
 /// nothing more: each method takes the hold or says it cannot, and
@@ -117,16 +123,45 @@ pub trait Volume: Send + Sync {
     /// a listing that wants to say which volumes are in use, a log.
     fn holders(&self) -> impl Future<Output = Holders> + Send;
 
-    /// Whether a filetree of a container this volume is mounted in
-    /// covers the mount: the `tree` a listing reports for it, read
-    /// again here so a run's tree agrees with the listing. A run
-    /// handler names the container path of every mount of a volume
-    /// that answers `false` in the tree request it sends the proxy,
-    /// beside every FUSE mount's, and the tree leaves them out.
+    /// Who watches a mount of this volume for a caller's filetree:
+    /// `true`, the container's proxy, which walks and watches the
+    /// mount as any directory of the container; `false`, the provider
+    /// itself, through [`watch`](Self::watch). A run handler names the
+    /// container path of every mount of a volume that answers `false`
+    /// in the tree request it sends the proxy, beside every FUSE
+    /// mount's, and opens a `watch` for each instead; the caller
+    /// receives one tree and cannot tell which was which. A dataset
+    /// the provider offers, large and still, is the case for `false`:
+    /// a proxy that walked it would pay for every file on every
+    /// filetree, where the provider can watch it once.
     ///
     /// A fact the provider holds, not something it computes, so it is
     /// not `async`.
     fn tree(&self) -> bool;
+
+    /// A watch of the volume's subtree at `path`, as
+    /// [`watch`](Self::watch) hands one back: the frames of a
+    /// [`filetree`](crate::shared::filetree), or the provider's error
+    /// where the watch died.
+    type Watch: Stream<Item = Result<Frame, Self::Error>> + Send + 'static;
+
+    /// Watch the volume's subtree at `path` — components from the
+    /// volume's root, the mount's `host_relative_path`, empty for the
+    /// whole volume — for as long as the stream is held.
+    ///
+    /// The first frame is a
+    /// [`Snapshot`](crate::shared::filetree::response::Frame::Snapshot)
+    /// of that subtree and every frame after it one change, every
+    /// path relative to `path`; a source that lost track sends a
+    /// fresh snapshot. A symlink's target is reported as the volume
+    /// holds it. An [`Err`] here is a watch that could not be made,
+    /// an [`Err`] item a watch that died, and either ends the caller's
+    /// whole filetree with the error, the container's tree included:
+    /// a tree with a hole in it would be a tree that lied. Called
+    /// only while a run holds the volume shared, so nothing resizes
+    /// or removes it meanwhile; the stream is dropped when the
+    /// caller's channel ends, and nothing else stops it.
+    fn watch(&self, path: &[String]) -> impl Future<Output = Result<Self::Watch, Self::Error>> + Send;
 
     /// The volume, examined: how much of it is used and what is in
     /// it.

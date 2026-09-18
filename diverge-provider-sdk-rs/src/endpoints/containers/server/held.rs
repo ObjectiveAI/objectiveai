@@ -1,5 +1,7 @@
 //! The volumes a run holds, shared, and the giving back.
 
+use std::sync::Arc;
+
 use crate::endpoints::volumes::refusal;
 use crate::server::volume::Volume;
 use crate::server::volume_manager::VolumeManager;
@@ -29,7 +31,9 @@ use crate::shared::error::Error;
 /// scope before it goes. Nothing is ever taken twice for one name
 /// and nothing is ever given back twice.
 pub(crate) struct Held<V: Volume> {
-    volumes: Vec<V>,
+    /// Shared, so a watch of one may keep a handle for the run's life
+    /// beside this.
+    volumes: Vec<Arc<V>>,
 }
 
 /// Why a request's volumes could not all be taken.
@@ -93,14 +97,14 @@ impl<V: Volume> Held<V> {
         if !volume.mount().await {
             return Err(Refused::Held(name.to_string()));
         }
-        self.volumes.push(volume);
+        self.volumes.push(Arc::new(volume));
         Ok(())
     }
 
     /// The volumes, in the order the request names them: one per
     /// entry of `volume_mounts`, a volume named twice appearing
     /// twice.
-    pub(crate) fn volumes(&self) -> &[V] {
+    pub(crate) fn volumes(&self) -> &[Arc<V>] {
         &self.volumes
     }
 

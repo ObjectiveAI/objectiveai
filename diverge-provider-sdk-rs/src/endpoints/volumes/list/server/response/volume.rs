@@ -89,17 +89,4 @@ pub struct Volume {
     /// offers does, and the alternative is a signed field whose
     /// negative half exists to represent a state that never occurs.
     pub created: u64,
-    /// Whether a filetree of a container the volume is mounted in
-    /// covers the volume: `true`, the mount is in the tree and a
-    /// change under it is reported; `false`, the tree leaves the mount
-    /// out as it leaves a FUSE mount out, and reports nothing under
-    /// it.
-    ///
-    /// The provider's to say, per volume, and constant for the
-    /// volume's life: a dataset the provider offers is content a
-    /// tree has no business walking, and a volume a caller made is
-    /// content the caller wants to see change. Said here, in the
-    /// listing, so a caller knows before it mounts what its tree
-    /// will show.
-    pub tree: bool,
 }
