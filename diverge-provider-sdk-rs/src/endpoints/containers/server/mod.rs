@@ -16,9 +16,10 @@
 //!   mounts with one path, a mount inside another, two FUSE mounts
 //!   with one id.
 //! - `held`, the volumes a run's request names, each found through
-//!   the provider's `VolumeManager` and locked before anything else
-//!   is done, and every one unlocked on every ending — the server
-//!   half's whole enforcement of one container per volume.
+//!   the provider's `VolumeManager` and held shared before anything
+//!   else is done, and every one given back on every ending — the
+//!   server half's whole enforcement of nothing examining, resizing
+//!   or deleting a volume a container has.
 //! - `setup`, the ORDERED preparation of a run: the registry told to
 //!   serve the caller's manifests and blobs; the deploy, with the
 //!   caller's help at hand and the source the deployer's; the one

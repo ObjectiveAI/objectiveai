@@ -11,16 +11,16 @@ use crate::shared::error::Error;
 
 /// Remove the volume and end the scope.
 ///
-/// # Mounted is the lock, and it is answered here
+/// # Mounted is the hold, and it is answered here
 ///
 /// A volume [`mounted`](crate::server::mount::Mount) into a running
 /// container is never deleted, and the wire has a word for it:
 /// [`Mounted`](response::Frame::Mounted). The volume is
 /// [`got`](VolumeManager::get) and then
-/// [`locked`](crate::server::volume::Volume::lock); a lock that is
-/// held — a running container has the volume, or a stat or an edit
+/// [`locked`](crate::server::volume::Volume::lock); a volume held at
+/// all — a running container has the volume, or a stat or an edit
 /// is in flight on it — is `Mounted`, and the manager is never asked.
-/// A lock that was taken is never given back on success: the volume
+/// A hold that was taken is never given back on success: the volume
 /// it was on is gone, and
 /// [`delete`](VolumeManager::delete) is told so. On failure it is
 /// given back, and the volume is as it was.
@@ -74,14 +74,14 @@ where
         .await
         .map_err(Into::into)?
         .ok_or_else(|| refusal::unknown(name))?;
-    if !volume.lock() {
+    if !volume.lock().await {
         return Ok(false);
     }
     match manager.delete(client_identity, name).await {
         Ok(()) => Ok(true),
         Err(error) => {
-            // The volume is as it was, so the lock goes back.
-            volume.unlock();
+            // The volume is as it was, so the hold goes back.
+            volume.unlock().await;
             Err(error.into())
         }
     }

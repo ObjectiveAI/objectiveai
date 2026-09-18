@@ -17,7 +17,7 @@ use crate::server::image_registry::ImageRegistry;
 use crate::server::scope_handle::ScopeHandle;
 use crate::server::volume_manager::VolumeManager;
 use crate::shared::containers::request::Container;
-use crate::shared::containers::response::{Id, VolumeMounted};
+use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::error::Error;
 
 /// Run the container the request describes for as long as the scope
@@ -27,12 +27,11 @@ use crate::shared::error::Error;
 ///
 /// 0. The request's mounts are checked — see [`check`] — or the run
 ///    is refused with the error, before anything is held.
-///    Then every volume the request names is found and locked — see
-///    [`Held`] — or the run is refused: with the name whose lock is
-///    held, or with an error for a name that is not the caller's.
-///    Before anything is fetched or deployed. The locks are held by
-///    the `Held` and given back when it is dropped, which every
-///    ending below does.
+///    Then every volume the request names is found and held, shared —
+///    see [`Held`] — or the run is refused: with the name of a volume
+///    held exclusively, or with an error for a name that is not the
+///    caller's. Before anything is fetched or deployed. The holds are
+///    the `Held`'s and are given back at every ending below.
 /// 1. The container is brought up — see
 ///    [`setup::prepare`](super::setup::prepare): registry,
 ///    deploy, the proxy dialled, the family's begin, every mount. A
@@ -49,7 +48,7 @@ use crate::shared::error::Error;
 ///    the container leaving, or the caller going away.
 /// 5. The teardown, the same for every ending: the directory entry
 ///    removed, the container stopped, the repository released, the
-///    volumes unlocked, every task ended, and the finish.
+///    volumes given back, every task ended, and the finish.
 pub(crate) async fn run<R, D, G, V>(
     scope: ScopeHandle,
     client_identity: &str,
@@ -79,8 +78,8 @@ pub(crate) async fn run<R, D, G, V>(
     let names: Vec<&str> = request.volume_mounts.iter().map(|mount| mount.host_name.as_str()).collect();
     let held = match Held::take(manager, client_identity, names).await {
         Ok(held) => held,
-        Err(Refused::Mounted(name)) => {
-            send(&scope, R::volume_mounted(&VolumeMounted { name })).await;
+        Err(Refused::Held(name)) => {
+            send(&scope, R::volume_held(&VolumeHeld { name })).await;
             scope.send_response_finish().await;
             return;
         }
@@ -96,7 +95,7 @@ pub(crate) async fn run<R, D, G, V>(
     {
         Ok(prepared) => prepared,
         Err(error) => {
-            // The `Held` drops on the return, and unlocks.
+            held.give_back().await;
             send(&scope, R::error(&error)).await;
             scope.send_response_finish().await;
             return;
@@ -151,7 +150,7 @@ pub(crate) async fn run<R, D, G, V>(
     directory.remove(&id);
     prepared.container.stop().await;
     registry.release(&prepared.repository).await;
-    drop(held);
+    held.give_back().await;
     run.shutdown().await;
     scope.send_response_finish().await;
 }

@@ -19,7 +19,7 @@ use crate::container_proxy_endpoints::client::Ask;
 use crate::container_proxy_endpoints::fuse::mount::client::execute::Ask as MountAsk;
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::shared::containers::response::{Id, VolumeMounted};
+use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::error::Error;
 use crate::shared::filetree;
 
@@ -91,7 +91,7 @@ pub(crate) trait Runs: Family {
     /// The container's id, on channel `0`.
     fn id(id: &Id) -> Option<Vec<u8>>;
     /// The run refused for a held volume, on channel `0`.
-    fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>>;
+    fn volume_held(refused: &VolumeHeld) -> Option<Vec<u8>>;
 }
 
 /// What a caller opened, classified.

@@ -2,6 +2,7 @@
 
 use std::future::Future;
 
+use super::holders::Holders;
 use crate::endpoints::volumes::edit::server::response::Edit;
 use crate::endpoints::volumes::stat::server::response::Stat;
 
@@ -12,47 +13,48 @@ use crate::endpoints::volumes::stat::server::response::Stat;
 /// hands back for a name it holds. The verbs that act on an existing
 /// volume in place live here — [`stat`](Self::stat) and
 /// [`edit`](Self::edit) — and so does the one fact this crate keeps
-/// about a volume for itself: whether something is using it, which
-/// is the [`lock`](Self::lock).
+/// about a volume for itself: who is using it, which is the hold —
+/// [`mount`](Self::mount), shared, and [`lock`](Self::lock),
+/// exclusive.
 ///
-/// # The lock is the mount
+/// # Two holds: many mounters, or one editor
 ///
-/// A volume is mounted in at most one container of its caller at a
-/// time, and nothing examines or resizes a volume while a container
-/// has it. Both rules are one lock, held by whoever is using the
-/// volume:
+/// A volume may be mounted in any number of containers of its caller
+/// at once, and nothing examines, resizes or deletes a volume while
+/// any container has it. Both rules are one hold with two modes,
+/// taken by whoever is using the volume:
 ///
-/// - A run takes the lock on every volume its request names before
-///   it fetches or deploys anything, and holds every one until the
-///   run ends — a stop, the container's own end, the caller going
-///   away. Every ending unlocks. A lock that is held when a run asks
-///   is the run refused,
-///   [`VolumeMounted`](crate::shared::containers::response::VolumeMounted).
-/// - A [`stat`](crate::endpoints::volumes::stat) takes the lock for
-///   the length of the examination, an
-///   [`edit`](crate::endpoints::volumes::edit) for the length of the
-///   resize, and a [`delete`](crate::endpoints::volumes::delete)
-///   takes it and never gives it back, the volume being gone. A lock
-///   that is held when any of them asks is that request refused: a
-///   delete with its own
+/// - A run takes the SHARED hold, [`mount`](Self::mount), on every
+///   volume its request names before it fetches or deploys anything,
+///   and keeps every one until the run ends — a stop, the container's
+///   own end, the caller going away. Every ending gives them back. A
+///   request naming one volume twice takes it twice. A volume held
+///   exclusively when a run asks is the run refused,
+///   [`VolumeHeld`](crate::shared::containers::response::VolumeHeld).
+/// - A [`stat`](crate::endpoints::volumes::stat) takes the EXCLUSIVE
+///   hold, [`lock`](Self::lock), for the length of the examination,
+///   an [`edit`](crate::endpoints::volumes::edit) for the length of
+///   the resize, and a [`delete`](crate::endpoints::volumes::delete)
+///   takes it and never gives it back, the volume being gone. A
+///   volume held at all — mounted anywhere, or under another of the
+///   three — when any of them asks is that request refused: a delete
+///   with its own
 ///   [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted),
 ///   a stat or an edit with the endpoint's error.
 ///
-/// There is no verb on a volume that does not take the lock. A volume
-/// is not watched on its own: the filetree of a container it is
-/// mounted in is where it is seen changing, and that tree includes
-/// every volume mount.
+/// There is no verb on a volume that does not take one of the holds.
+/// A volume is not watched on its own: the filetree of a container it
+/// is mounted in is where it is seen changing.
 ///
-/// The handlers do all of that. A provider's [`lock`](Self::lock) is
-/// a try-lock and nothing more: it takes the lock or says it is held,
-/// and it never waits, because the party that holds it may hold it
-/// for the life of a container and a request cannot queue behind
-/// that. The three lock methods are synchronous and cannot fail: a
-/// lock is a flag the provider keeps in memory, read and written in
-/// one step, and a provider that kept it anywhere else would be
-/// making a request wait on a store to learn whether it may run.
-/// What a held lock MEANS — refused, mounted, an error — is
-/// decided by the handlers, never by the provider, which is why
+/// The handlers do all of that. A provider's hold is a try-hold and
+/// nothing more: each method takes the hold or says it cannot, and
+/// none waits, because the party that holds it may hold it for the
+/// life of a container and a request cannot queue behind that. The
+/// methods are futures so a provider may keep the hold wherever it
+/// likes — one atomic, a table, a service — but what they await is
+/// the provider's own bookkeeping, never another holder. What a hold
+/// MEANS — refused, mounted, an error — is decided by the handlers,
+/// never by the provider, which is why
 /// [`VolumeManager::delete`](super::volume_manager::VolumeManager::delete)
 /// answers nothing about mounts.
 ///
@@ -73,34 +75,47 @@ pub trait Volume: Send + Sync {
     /// for why it is the provider's own.
     type Error: Send + 'static;
 
-    /// Take the lock: `true` is taken, and the caller holds it until
-    /// its [`unlock`](Self::unlock); `false` is held by another, and
-    /// nothing changed.
+    /// Take a shared hold: `true` is taken, one more mounter, and the
+    /// caller keeps it until its [`unmount`](Self::unmount); `false`
+    /// is a volume held exclusively, and nothing changed.
     ///
     /// # It never waits
     ///
-    /// The holder may be a container that runs for hours, and a
-    /// request that queued behind it would be a request that never
-    /// answered. So this answers at once — it is not even `async` —
-    /// and what a `false` means is the handler's to decide; see the
-    /// trait.
-    fn lock(&self) -> bool;
+    /// The exclusive holder may be an edit that resizes for minutes,
+    /// and a request that queued behind it would be a request that
+    /// never answered. So this answers at once, and what a `false`
+    /// means is the handler's to decide; see the trait.
+    fn mount(&self) -> impl Future<Output = bool> + Send;
 
-    /// Give the lock back: `true` is the lock released, and it was
-    /// held; `false` is a lock that was not held, and nothing
-    /// changed. Called only by the holder, once per
-    /// [`lock`](Self::lock) that answered `true`, and the handlers
+    /// Give one shared hold back: `true` is one mounter fewer, and
+    /// there was one; `false` is a volume with no shared hold to give
+    /// back, and nothing changed. Called only by a holder, once per
+    /// [`mount`](Self::mount) that answered `true`, and the handlers
     /// keep that count, so a `false` here is a handler's mistake and
     /// not a state a provider has to defend against.
-    fn unlock(&self) -> bool;
+    fn unmount(&self) -> impl Future<Output = bool> + Send;
 
-    /// Whether the lock is held, as of now.
+    /// Take the exclusive hold: `true` is taken, and the caller keeps
+    /// it until its [`unlock`](Self::unlock); `false` is a volume held
+    /// by anyone — mounted anywhere, or held exclusively — and nothing
+    /// changed. Never waits, as [`mount`](Self::mount) does not: the
+    /// holder may be a container that runs for hours.
+    fn lock(&self) -> impl Future<Output = bool> + Send;
+
+    /// Give the exclusive hold back: `true` is the hold released, and
+    /// it was held; `false` is a hold that was not held, and nothing
+    /// changed. Called only by the holder, once per
+    /// [`lock`](Self::lock) that answered `true`.
+    fn unlock(&self) -> impl Future<Output = bool> + Send;
+
+    /// Who holds the volume, as of now: nobody, some number of
+    /// mounters, or the one exclusive holder.
     ///
-    /// A fact about now and nothing more: a `false` here is not a
-    /// promise that the [`lock`](Self::lock) after it answers `true`.
-    /// No handler asks it; it is for the provider's own use — a
-    /// listing that wants to say which volumes are in use, a log.
-    fn locked(&self) -> bool;
+    /// A fact about now and nothing more: [`Free`](Holders::Free) here
+    /// is not a promise that the [`lock`](Self::lock) after it answers
+    /// `true`. No handler asks it; it is for the provider's own use —
+    /// a listing that wants to say which volumes are in use, a log.
+    fn holders(&self) -> impl Future<Output = Holders> + Send;
 
     /// Whether a filetree of a container this volume is mounted in
     /// covers the mount: the `tree` a listing reports for it, read
@@ -110,8 +125,7 @@ pub trait Volume: Send + Sync {
     /// beside every FUSE mount's, and the tree leaves them out.
     ///
     /// A fact the provider holds, not something it computes, so it is
-    /// not `async` — as [`lock`](Self::lock) and
-    /// [`locked`](Self::locked) are not.
+    /// not `async`.
     fn tree(&self) -> bool;
 
     /// The volume, examined: how much of it is used and what is in
@@ -122,14 +136,14 @@ pub trait Volume: Send + Sync {
     /// listing that paid for every volume's walk would pay for the
     /// ones nobody asked about.
     ///
-    /// Called under the lock, so no container writes while it walks,
-    /// and what it reports is the volume at rest.
+    /// Called under the exclusive hold, so no container writes while
+    /// it walks, and what it reports is the volume at rest.
     fn stat(&self) -> impl Future<Output = Result<Stat, Self::Error>> + Send;
 
     /// Change how big the volume may be, in BYTES.
     ///
-    /// Capacity and nothing else. Called under the lock, so no
-    /// container writes while it resizes.
+    /// Capacity and nothing else. Called under the exclusive hold, so
+    /// no container writes while it resizes.
     ///
     /// # Why a rename is not an edit
     ///
