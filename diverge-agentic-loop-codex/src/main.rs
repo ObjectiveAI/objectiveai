@@ -2,7 +2,7 @@
 //!
 //! The program an agent container runs for a Codex (OpenAI Codex
 //! CLI) agent: an HTTP server on the container's loopback, at the
-//! port the SDK's [`diverge_container_proxy_sdk::agent`] module names, that the
+//! port the SDK's [`diverge_container_proxy_sdk::port()`] names, that the
 //! proxy beside it forwards the provider's asks to. `POST /run` runs
 //! a loop — one at a time, the lock held until the run is settled,
 //! so a run after the first resumes the same thread and a run beside
@@ -99,7 +99,7 @@ async fn serve() {
         .route("/dequeue", axum::routing::post(dequeue))
         .with_state(Arc::new(Client::new()));
 
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_container_proxy_sdk::agent::port()))
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_container_proxy_sdk::port()))
         .await
         .expect("the port could not be bound");
     axum::serve(listener, app)
@@ -227,15 +227,15 @@ async fn run(
     }))
 }
 
-/// `POST /register`: the agent, once, for the container's life.
+/// `POST /register`: the `arguments`, the agent, once, for the container's life.
 ///
 /// A value this image will not take is `400`; an agent already
 /// registered is `409`, whatever the second carries — the agent
 /// never changes. `204` is the agent held.
 async fn register(
-    Json(request): Json<diverge_container_proxy_sdk::agent::register::request::Request>,
+    Json(request): Json<diverge_container_proxy_sdk::register::request::Request>,
 ) -> Result<StatusCode, Refusal> {
-    let agent: Agent = match serde_json::from_value(request.agent) {
+    let agent: Agent = match serde_json::from_value(request.arguments) {
         Ok(agent) => agent,
         Err(error) => {
             return Err((
@@ -259,7 +259,7 @@ async fn register(
     }
 }
 
-/// `GET /schema`: what the agent value may be — the JSON Schema of
+/// `GET /schema`: what the `arguments` may be — the JSON Schema of
 /// [`Agent`], derived from the type the run reads, so the two cannot
 /// disagree.
 async fn schema() -> Json<schemars::Schema> {
