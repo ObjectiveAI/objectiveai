@@ -110,6 +110,7 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: meta.len(),
                     created: meta.created().or_else(|_| meta.modified()).map(seconds).unwrap_or(0),
+                    tree: true,
                 })
             }
             Place::Fixed { root, bytes, started } => {
@@ -118,6 +119,7 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: *bytes,
                     created: meta.created().map(seconds).unwrap_or(*started),
+                    tree: false,
                 })
             }
         }
@@ -225,6 +227,13 @@ impl volume::Volume for Volume {
 
     fn locked(&self) -> bool {
         self.inner.lock.load(Ordering::Acquire)
+    }
+
+    /// A stored volume is in the tree; a fixed one is not, being
+    /// content the operator put there, as large and as still as they
+    /// like, that a tree has no business walking.
+    fn tree(&self) -> bool {
+        matches!(self.inner.place, Place::Stored { .. })
     }
 
     /// The listing and the walk, at once.
