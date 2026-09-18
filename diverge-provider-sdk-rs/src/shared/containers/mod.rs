@@ -9,8 +9,8 @@
 //! it is defined once here and each scope's frames wrap or alias it.
 //!
 //! [`request`] is the part of asking for a container that does not
-//! vary between the kinds: the image, the limits, the mounts; and the
-//! other way to get one, by id. What a run answers with is
+//! vary between the kinds: the image, the limits, the mounts, the
+//! arguments; and the other way to get one, by id. What a run answers with is
 //! [`response`]: that id. The rest is what happens once a container
 //! exists, split by who asks.
 //!
@@ -30,11 +30,12 @@
 //! the caller holds an image and, when it does, for its manifest and
 //! blobs, and [`authorize`] whether a connector may join.
 //!
-//! [`agent_schema`], [`enqueue`] and [`dequeue`] are the agents
-//! family's own exchanges — its agent's schema, and the two verbs
-//! against its queue — here beside the rest of the wire they ride.
-//! What the agent says is no exchange: it rides the run scope's own
-//! main stream, and its chunks are defined beside that stream, in
+//! [`schema`] is what every container answers about its arguments,
+//! the same exchange in all three scopes. [`enqueue`] and [`dequeue`]
+//! are the agents family's own — the two verbs against its queue —
+//! here beside the rest of the wire they ride. What the agent says is
+//! no exchange: it rides the run scope's own main stream, and its
+//! chunks are defined beside that stream, in
 //! [`agents::run::server::response`](crate::endpoints::containers::agents::run::server::response).
 //!
 //! [`filetree`](crate::shared::filetree) and [`mcp`](crate::shared::mcp)
@@ -42,7 +43,6 @@
 //! something that is not a container scope — the proxy inside the
 //! container, whose own channels carry both.
 
-pub mod agent_schema;
 pub mod authorize;
 pub mod command;
 pub mod dequeue;
@@ -54,6 +54,7 @@ pub mod postgres;
 pub mod read;
 pub mod request;
 pub mod response;
+pub mod schema;
 pub mod transfer;
 pub mod vault;
 pub mod write_bytes;

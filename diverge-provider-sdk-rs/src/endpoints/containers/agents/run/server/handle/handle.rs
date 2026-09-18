@@ -13,13 +13,11 @@ use crate::server::scope_handle::ScopeHandle;
 use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
-/// Run the container the request describes, register its agent, and
-/// serve the scope for the container's life.
+/// Run the container the request describes and serve the scope for
+/// the container's life.
 ///
 /// The whole of it is `handler::run`, which both run families
-/// share; what this family adds is the agent value, registered with
-/// the container's own server before the id goes out, so the first
-/// loop the caller asks for runs as that agent.
+/// share.
 ///
 /// # The request arrives decoded
 ///
@@ -44,8 +42,8 @@ pub async fn handle<D, G, V>(
     handler::run::<Agents, D, G, V>(
         scope,
         client_identity,
-        &request.container,
-        Some(request.agent),
+        &request.0,
+        request.0.arguments.clone(),
         deployer,
         registry,
         manager,

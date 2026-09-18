@@ -18,14 +18,16 @@ use crate::shared::mcp;
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
-/// | `1` | [`McpListTools`](Self::McpListTools) |
-/// | `2` | [`McpListResources`](Self::McpListResources) |
-/// | `3` | [`McpCallTool`](Self::McpCallTool) |
-/// | `4` | [`McpReadResource`](Self::McpReadResource) |
-/// | `5` | [`McpNotifications`](Self::McpNotifications) |
+/// | `1` | [`Schema`](Self::Schema) |
+/// | `2` | [`McpListTools`](Self::McpListTools) |
+/// | `3` | [`McpListResources`](Self::McpListResources) |
+/// | `4` | [`McpCallTool`](Self::McpCallTool) |
+/// | `5` | [`McpReadResource`](Self::McpReadResource) |
+/// | `6` | [`McpNotifications`](Self::McpNotifications) |
 ///
-/// The first is the same in both begin scopes, so a reader of one is
-/// a reader of both; what follows is this family's own exchange. All
+/// The first two are the same in both begin scopes, so a reader of
+/// one is a reader of both; what follows is this family's own
+/// exchange. All
 /// of them reach INTO the container: the last hop of what a caller
 /// opened on the provider.
 #[derive(Debug, Clone, PartialEq)]
@@ -37,20 +39,26 @@ pub enum Frame {
     /// driver wrote. See
     /// [`postgres`](crate::shared::containers::postgres) for the pair.
     Postgres(postgres::request::Postgres),
-    /// What tools the container's server has. Tag `1`.
+    /// What the arguments may be. Tag `1`.
+    ///
+    /// Carries nothing — the variant is bare — and the proxy answers
+    /// with the JSON Schema of the container's arguments. See
+    /// [`schema`](crate::shared::containers::schema).
+    Schema,
+    /// What tools the container's server has. Tag `2`.
     ///
     /// The family's own exchange, and the first of five: the caller
     /// speaking to the MCP server inside, each of the exchanges in
     /// [`shared::mcp`](crate::shared::mcp) on a channel of its own,
     /// answered by the container's own server.
     McpListTools(mcp::list_tools::request::Request),
-    /// What resources it has. Tag `2`.
+    /// What resources it has. Tag `3`.
     McpListResources(mcp::list_resources::request::Request),
-    /// Run one of its tools. Tag `3`.
+    /// Run one of its tools. Tag `4`.
     McpCallTool(mcp::call_tool::request::Request),
-    /// Read one of its resources. Tag `4`.
+    /// Read one of its resources. Tag `5`.
     McpReadResource(mcp::read_resource::request::Request),
-    /// Everything it says on its own account. Tag `5`.
+    /// Everything it says on its own account. Tag `6`.
     ///
     /// Carries nothing, and answers for as long as the channel lives.
     McpNotifications(mcp::notifications::request::Request),
@@ -59,20 +67,23 @@ pub enum Frame {
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 0;
 
+/// Tag for [`Frame::Schema`].
+const SCHEMA: u8 = 1;
+
 /// Tag for [`Frame::McpListTools`].
-const MCP_LIST_TOOLS: u8 = 1;
+const MCP_LIST_TOOLS: u8 = 2;
 
 /// Tag for [`Frame::McpListResources`].
-const MCP_LIST_RESOURCES: u8 = 2;
+const MCP_LIST_RESOURCES: u8 = 3;
 
 /// Tag for [`Frame::McpCallTool`].
-const MCP_CALL_TOOL: u8 = 3;
+const MCP_CALL_TOOL: u8 = 4;
 
 /// Tag for [`Frame::McpReadResource`].
-const MCP_READ_RESOURCE: u8 = 4;
+const MCP_READ_RESOURCE: u8 = 5;
 
 /// Tag for [`Frame::McpNotifications`].
-const MCP_NOTIFICATIONS: u8 = 5;
+const MCP_NOTIFICATIONS: u8 = 6;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever ask has one.
@@ -85,6 +96,10 @@ impl Encode for Frame {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
+            }
+            Frame::Schema => {
+                out.extend_from_slice(&[SCHEMA]);
+                Ok(())
             }
             Frame::McpListTools(request) => {
                 out.extend_from_slice(&[MCP_LIST_TOOLS]);
@@ -120,6 +135,7 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
+            SCHEMA => Ok(Frame::Schema),
             MCP_LIST_TOOLS => mcp::list_tools::request::Request::decode(rest)
                 .map(Frame::McpListTools)
                 .map_err(FrameError::McpParams),

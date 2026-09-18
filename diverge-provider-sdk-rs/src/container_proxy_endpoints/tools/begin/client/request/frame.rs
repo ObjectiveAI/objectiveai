@@ -1,29 +1,36 @@
 //! What a client's request frame carries for a tool container begin.
 
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Begin the server's work on a tool container.
+/// Begin the server's work on a tool container, and hand it its
+/// arguments.
 ///
-/// Carries nothing. The tag is the whole request — there is nothing
-/// to say, because what this opens is a place for channels and not
-/// an exchange of its own: the server has nothing to hand the proxy
-/// yet, and the proxy nothing to answer but that it is here.
-///
-/// # A struct, and still a tag byte
-///
-/// The byte is what every scope-opening request spends to name itself,
-/// so this is not a cost this request chose. It is what makes an empty
-/// payload a REQUEST rather than an empty payload.
+/// The arguments are the
+/// [`arguments`](crate::shared::containers::request::Container::arguments)
+/// of the request that made the container, typed to the same depth
+/// for the same reason — a JSON value, because the image defines what
+/// it takes, and what the value may be is what
+/// [`schema`](crate::shared::containers::schema) answers. They ride
+/// the begin rather than a channel of their own because they are
+/// handed over exactly once, first, and never change: the container
+/// that has begun is a container that holds its arguments, and
+/// [`Begun`](super::super::super::server::response::Frame::Begun) says both.
 ///
 /// # Once, and first
 ///
 /// The server opens this before any other scope on the connection,
 /// and never again on it: a second begin is answered
-/// [`Error`](crate::container_proxy_endpoints::tools::begin::server::response::Frame::Error)
-/// and finished, and the first goes on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct Frame;
+/// [`Error`](super::super::super::server::response::Frame::Error) and
+/// finished, and the first goes on.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct Frame {
+    /// The arguments, as the image defines them.
+    pub arguments: Value,
+}
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -40,38 +47,31 @@ pub struct Frame;
 /// be seen at once.
 const TAG: u8 = 1;
 
-/// One byte, and no serialization. There is nothing to serialize.
 impl Encode for Frame {
-    /// [`Infallible`](std::convert::Infallible): a known byte.
-    type Error = std::convert::Infallible;
+    /// The ordinary JSON failure. The tag cannot fail.
+    type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        Ok(())
+        serde_json::to_writer(out, self)
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Two ways to fail, and neither of them is a parse.
+    /// Three ways to fail, and only one of them is JSON.
     type Error = FrameError;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
-        let (tag, _) = bytes.split_first().ok_or(FrameError::Empty)?;
+        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         if *tag != TAG {
             return Err(FrameError::UnexpectedTag(*tag));
         }
-        Ok(Frame)
+        serde_json::from_slice(rest).map_err(FrameError::Body)
     }
 }
 
 /// A tools begin request that could not be read.
-///
-/// Anything after the tag is ignored rather than refused. There is
-/// nothing defined to follow one, so bytes that do mean a peer knows
-/// something this version does not — and leaving room for it is
-/// cheaper than rejecting a request whose whole meaning already
-/// arrived.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
@@ -81,6 +81,8 @@ pub enum FrameError {
     /// assumed which request it held, and was wrong, will — which is
     /// the point of checking a tag rather than skipping it.
     UnexpectedTag(u8),
+    /// The arguments did not parse.
+    Body(serde_json::Error),
 }
 
 impl std::fmt::Display for FrameError {
@@ -92,8 +94,18 @@ impl std::fmt::Display for FrameError {
             FrameError::UnexpectedTag(tag) => {
                 write!(f, "expected tools begin request tag {TAG}, found {tag}")
             }
+            FrameError::Body(error) => {
+                write!(f, "tools begin request did not parse: {error}")
+            }
         }
     }
 }
 
-impl std::error::Error for FrameError {}
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Body(error) => Some(error),
+            FrameError::Empty | FrameError::UnexpectedTag(_) => None,
+        }
+    }
+}

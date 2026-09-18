@@ -7,12 +7,12 @@ use crate::shared::containers::request::Container;
 /// Ask a provider to create a tool container.
 ///
 /// A [`Container`] and nothing else: the image, the limits, the
-/// mounts. What makes it a tool container rather than the other kind is not in
-/// the request — it is the image, and it is what the caller does on
-/// the channels once it runs: the five MCP exchanges in
-/// [`shared::mcp`](crate::shared::mcp), into the server the container
-/// runs.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// mounts, the arguments. What makes it a tool container rather than
+/// the other kind is not in the request — it is the image, and it is
+/// what the caller does on the channels once it runs: the five MCP
+/// exchanges in [`shared::mcp`](crate::shared::mcp), into the server
+/// the container runs.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Frame(
     /// What to run.
     pub Container,
@@ -37,7 +37,9 @@ const TAG: u8 = 1;
 /// uses. One of these is sent per container rather than per
 /// filesystem event, so there is no throughput to optimize for — and
 /// it names an image the same way a check does, which is reason
-/// enough for the two to look alike on the wire.
+/// enough for the two to look alike on the wire. The arguments being
+/// a [`Value`](serde_json::Value) settles it besides: a value cannot
+/// come back out of postcard at all.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;

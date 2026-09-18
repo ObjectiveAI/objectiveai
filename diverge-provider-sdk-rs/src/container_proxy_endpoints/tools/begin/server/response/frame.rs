@@ -18,24 +18,28 @@ use crate::shared::error::Error;
 /// | the scope | means |
 /// |-----------|-------|
 /// | a begun, then nothing, and stays open | the connection has begun; either side may open channels on it |
-/// | an error, then a finish | it has not — this connection had already begun |
+/// | an error, then a finish | it has not — this connection had already begun, or the arguments were refused |
 /// | a finish, with no error | the proxy is ending |
 ///
 /// Everything the server reads from the container — the family's own
 /// exchange, the asks the container makes — is a channel, not this
 /// stream. It carries no readiness signal beyond the one word: the
-/// proxy is here, and channels may be opened.
+/// proxy is here, the arguments are held, and channels may be
+/// opened.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The connection has begun. Tag `0`.
+    /// The connection has begun, and the container holds its
+    /// arguments for its life. Tag `0`.
     ///
-    /// Arrives once, at once. A channel on this scope is opened only
-    /// after it.
+    /// Arrives once, when the container's server has taken the
+    /// arguments. A channel on this scope is opened only after it.
     Begun,
     /// A failure. Tag `1`.
     ///
-    /// A second begin on a connection that had one. It is the one
-    /// variant that ends the scope rather than adding to it. See
+    /// A second begin on a connection that had one, or arguments the
+    /// container refused — the container's server's own words: a
+    /// value the image will not take. It is the one variant that ends
+    /// the scope rather than adding to it. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.
     Error(Error),

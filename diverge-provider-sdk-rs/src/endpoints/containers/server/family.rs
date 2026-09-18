@@ -33,7 +33,7 @@ use crate::shared::filetree;
 pub(crate) trait Family: Send + Sync + 'static {
     /// The caller's channel request frame.
     type Request: for<'a> Decode<'a> + Send;
-    /// The family's own exchanges, past the shared six.
+    /// The family's own exchanges, past the shared seven.
     type Exchange: Send + 'static;
 
     /// Which channel the caller opened.
@@ -73,10 +73,10 @@ pub(crate) trait Runs: Family {
     type Ask<'a>: Encode + From<Own<'a>>;
 
     /// Begin the container's proxy: the family's begin scope on the
-    /// connection `proxy`, carrying `agent` where the family takes
-    /// one. What comes back is the scope and what rides it; an error
-    /// is the run's, in the proxy's words where it refused.
-    fn begin(proxy: &Handle, agent: Option<Value>) -> impl Future<Output = Result<Begun, Error>> + Send;
+    /// connection `proxy`, carrying the container's `arguments`. What
+    /// comes back is the scope and what rides it; an error is the
+    /// run's, in the proxy's words where it refused.
+    fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send;
 
     /// The proxy's ask on the begin scope, as this family's frame to
     /// the caller — or [`None`] for the one that is not carried as it
@@ -122,6 +122,8 @@ pub(crate) enum Opened<E> {
     /// The caller's half of a database connection, by the id this end
     /// minted.
     Postgres(u32),
+    /// What the arguments may be.
+    Schema,
     /// The family's own.
     Exchange(E),
 }

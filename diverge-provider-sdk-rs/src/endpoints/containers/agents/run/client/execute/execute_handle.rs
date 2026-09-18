@@ -12,15 +12,15 @@ use super::super::channel_request;
 use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::agents::run::server;
-use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue};
+use crate::endpoints::containers::client::answered::{Dequeue, Enqueue, Schema};
 use crate::endpoints::containers::client::{OpenError, Scoped, UnaryError, WaitError};
 use crate::shared::containers::{dequeue, enqueue, read, transfer, write_path};
 
 /// The scope a run opened, held for the container's life.
 ///
 /// Every channel a caller may open into an agent container is a
-/// method here: the tree watched, a file read or written, the agent's
-/// schema, the queue's two verbs, and the stop. What the agent says
+/// method here: the tree watched, a file read or written, the
+/// arguments' schema, the queue's two verbs, and the stop. What the agent says
 /// is not: it is the [`ExecuteStream`](super::ExecuteStream) `execute` handed back
 /// beside this. Each opens its own channel, so several may be in flight
 /// at once. Clones share the scope, and [`wait`](Self::wait) on any
@@ -123,10 +123,10 @@ impl ExecuteHandle {
         self.0.unary::<Transfer>(&payload).await
     }
 
-    /// What the agent value may be: the image's JSON Schema for it.
-    pub async fn agent_schema(&self) -> Result<Value, UnaryError<AgentSchema>> {
-        let payload = payload(&channel_request::Frame::AgentSchema).map_err(UnaryError::Request)?;
-        self.0.unary::<AgentSchema>(&payload).await
+    /// What the arguments may be: the image's JSON Schema for them.
+    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
+        self.0.unary::<Schema>(&payload).await
     }
 
     /// A message for the agent — starting a loop when none runs,

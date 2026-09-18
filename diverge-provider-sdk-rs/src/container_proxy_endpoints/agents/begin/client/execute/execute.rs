@@ -12,18 +12,18 @@ use crate::encode::{Encode, Writer};
 use crate::frame;
 
 /// Begin the server's work on an agent container: open the scope
-/// carrying `agent`, and wait for the proxy to say it has begun.
+/// carrying `arguments`, and wait for the proxy to say it has begun.
 ///
 /// Reads exactly one frame off the main stream before returning,
 /// because nothing may be opened on the scope before its `Begun`:
-/// a refusal is [`Refused`](ExecuteError::Refused), the agent's
+/// a refusal is [`Refused`](ExecuteError::Refused), the container's
 /// server's own words; a finish first is
 /// [`Unanswered`](ExecuteError::Unanswered); a chunk first is a proxy
 /// out of order. What comes back is the handle, the asks the proxy
 /// will open, and the conversation.
-pub async fn execute(handle: &Handle, agent: Value) -> Result<(ExecuteHandle, Asks<Ask>, Chunks), ExecuteError> {
+pub async fn execute(handle: &Handle, arguments: Value) -> Result<(ExecuteHandle, Asks<Ask>, Chunks), ExecuteError> {
     let mut payload = Vec::new();
-    request::Frame { agent }
+    request::Frame { arguments }
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
     let mut scope = handle.send_request(&payload).await.map_err(ExecuteError::Send)?;

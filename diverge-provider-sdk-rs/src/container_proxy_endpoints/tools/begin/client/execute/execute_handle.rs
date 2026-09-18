@@ -1,10 +1,12 @@
 //! The begin scope, held for the connection's life.
 
+use serde_json::Value;
+
 use super::super::channel_request;
 use crate::client::handle::{Handle, SendError};
 use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::client::answered::{
-    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres,
+    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Schema,
 };
 use crate::endpoints::containers::client::{Answered, ChannelStream, OpenError, UnaryError, unary};
 use crate::shared::containers::postgres;
@@ -13,8 +15,8 @@ use crate::shared::mcp;
 /// The begin scope a tool container's server holds.
 ///
 /// Every channel the server may open on it is a method here — the
-/// five MCP exchanges into the container's server, the server's half
-/// of a database connection — and so is answering a channel the proxy
+/// arguments' schema, the five MCP exchanges into the container's
+/// server, the server's half of a database connection — and so is answering a channel the proxy
 /// opened, by the proxy's own channel number. Clones share the scope,
 /// which is how a connector's exchanges ride the runner's begin.
 ///
@@ -43,6 +45,12 @@ impl ExecuteHandle {
     /// The scope's number, as this end minted it.
     pub fn scope(&self) -> u32 {
         self.scope
+    }
+
+    /// What the arguments may be: the image's JSON Schema for them.
+    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
+        unary::<Schema>(&self.handle, self.scope, &payload).await
     }
 
     /// What tools the container's server has.

@@ -5,14 +5,14 @@ use serde_json::Value;
 use super::super::channel_request;
 use crate::client::handle::{Handle, SendError};
 use crate::encode::{Encode, Writer};
-use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue, Postgres};
+use crate::endpoints::containers::client::answered::{Dequeue, Enqueue, Postgres, Schema};
 use crate::endpoints::containers::client::{ChannelStream, OpenError, UnaryError, unary};
 use crate::shared::containers::{dequeue, enqueue, postgres};
 
 /// The begin scope an agent container's server holds.
 ///
 /// Every channel the server may open on it is a method here — the
-/// agent's schema, the queue's two verbs, the server's half of a
+/// arguments' schema, the queue's two verbs, the server's half of a
 /// database connection — and so is answering a channel the proxy
 /// opened, by the proxy's own channel number. Clones share the scope.
 ///
@@ -43,10 +43,10 @@ impl ExecuteHandle {
         self.scope
     }
 
-    /// What the agent value may be: the image's JSON Schema for it.
-    pub async fn agent_schema(&self) -> Result<Value, UnaryError<AgentSchema>> {
-        let payload = payload(&channel_request::Frame::AgentSchema).map_err(UnaryError::Request)?;
-        unary::<AgentSchema>(&self.handle, self.scope, &payload).await
+    /// What the arguments may be: the image's JSON Schema for them.
+    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
+        unary::<Schema>(&self.handle, self.scope, &payload).await
     }
 
     /// A message for the agent — starting a loop when none runs,

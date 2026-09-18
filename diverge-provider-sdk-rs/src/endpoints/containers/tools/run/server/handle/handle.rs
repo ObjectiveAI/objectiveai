@@ -17,7 +17,7 @@ use crate::shared::error::Error;
 /// the container's life.
 ///
 /// The whole of it is `handler::run`, which both run families
-/// share; a tool container registers nothing, so nothing is added.
+/// share.
 ///
 /// # The request arrives decoded
 ///
@@ -39,5 +39,15 @@ pub async fn handle<D, G, V>(
     V: VolumeManager,
     V::Error: Into<Error>,
 {
-    handler::run::<Tools, D, G, V>(scope, client_identity, &request.0, None, deployer, registry, manager, directory).await
+    handler::run::<Tools, D, G, V>(
+        scope,
+        client_identity,
+        &request.0,
+        request.0.arguments.clone(),
+        deployer,
+        registry,
+        manager,
+        directory,
+    )
+    .await
 }
