@@ -15,20 +15,21 @@ use super::Registry;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Podman {
-    /// The registries a caller may pull from by naming one as the
-    /// `host` of a `registry` image, each with the credential the
-    /// provider presents to it, if any. A host that is not listed is
-    /// refused, and the run with it. The provider's own registry,
-    /// which serves the images a caller holds, is not listed here and
-    /// needs no entry.
+    /// The registries the provider looks in, all at once and beside
+    /// the caller, for an image it does not hold itself, each with the
+    /// credential the provider presents to it, if any; the first to
+    /// have the image is pulled from. The provider's own registry,
+    /// which serves what a caller holds, is not listed here and needs
+    /// no entry.
     pub registries: Vec<Registry>,
     /// The directory podman's data is kept under: the image cache,
     /// what a container writes over its image, and what holds a
     /// volume's changes apart while `persist` is `false`. On Linux it
     /// is podman's storage root, the `graphroot`: every podman
     /// invocation the provider makes is given it as `--root`, so it
-    /// is the whole store the provider sees, and a `server` image is
-    /// loaded into it, not into podman's default store; a changed
+    /// is the whole store the provider sees, and an image the provider
+    /// holds itself is loaded into it, not into podman's default
+    /// store; a changed
     /// path is a fresh, empty store, and the old one is left as it
     /// was. On macOS and Windows it is where the podman machine
     /// lives, description and disk: the provider makes the machine

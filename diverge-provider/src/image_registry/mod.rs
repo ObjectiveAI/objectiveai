@@ -1,5 +1,5 @@
-//! The registry a runtime pulls a caller-held image from: the SDK's
-//! `ImageRegistry`, supplied by this crate.
+//! The registry a runtime pulls from, for an image taken from the
+//! caller: the SDK's `ImageRegistry`, supplied by this crate.
 //!
 //! # A pass-through, never a store
 //!

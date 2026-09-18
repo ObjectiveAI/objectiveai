@@ -8,8 +8,9 @@
 //! the machine, over `podman machine ssh`. [`command`] is the root
 //! every podman invocation grows from, told once by [`configure`]
 //! where podman's data is, and [`podman`] runs one; [`images`],
-//! [`image_id`], [`port`] and [`containers`] are the questions the
-//! provider asks podman, each read out of podman's own output;
+//! [`image_id`], [`manifest_exists`], [`port`] and [`containers`]
+//! are the questions the provider asks podman, each read out of
+//! podman's own output;
 //! [`sudo`], [`path`] and [`machine`], on the hosts with a machine,
 //! are a tool run inside it as root, a host path as it sees it, and
 //! the machine as podman describes it.

@@ -47,19 +47,22 @@ pub struct Provider {
 impl Provider {
     /// Everything made, in the order its parts depend on each other:
     /// podman told where its data is; the registry started, since the
-    /// deployer is told its address; the volumes; the image checker;
-    /// the deployer, which brings the machine up, sweeps an earlier
-    /// life away and opens the tunnel; and the directory.
+    /// deployer is told its address; the volumes; the deployer, which
+    /// brings the machine up, sweeps an earlier life away, writes the
+    /// auth file and opens the tunnel; the image checker, given that
+    /// auth file; and the directory.
     pub async fn start(config: Config, dir: PathBuf) -> Result<Self, Error> {
         podman::configure(config.containers.podman.storage_path.clone());
         let hooks_dir = dir.join("hooks");
         let registry = Arc::new(ImageRegistry::start().await.map_err(Error::Registry)?);
         let shares = config.volumes.as_ref().map(Volumes::paths).unwrap_or_default();
         let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone()));
-        let checker = Arc::new(ImageChecker::new(&config.containers));
+        let images = config.containers.server_images.clone();
+        let registries = config.containers.podman.registries.clone();
         let deployer = ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares)
             .await
             .map_err(Error::Deployer)?;
+        let checker = Arc::new(ImageChecker::new(&images, &registries, deployer.auth_file().to_path_buf()));
         Ok(Provider {
             auth: config.auth,
             hooks_dir,

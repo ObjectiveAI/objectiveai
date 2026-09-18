@@ -1,18 +1,19 @@
-//! Whether the provider would supply an image: the SDK's
-//! `ImageChecker`, supplied by this crate.
+//! Whether the provider could supply an image without the caller's
+//! help: the SDK's `ImageChecker`, supplied by this crate.
 //!
-//! A `server` image — one a container request names by repository
-//! and digest and leaves the provider to produce — is, in this
-//! provider, one the configuration lists under
-//! `containers.server_images`. The check is a lookup in that list:
-//! a listed pair is available, any other is unavailable, and nothing
-//! is asked of podman or of any registry. Nothing is remembered,
-//! since there is nothing to learn: the list is the answer. The
-//! identity asking is not consulted: the list has no policy per
+//! An image is a name and a digest, and a run gets the bytes from
+//! wherever the provider finds them — its own store, a registry it
+//! uses, or the caller. A check asks the same question with the
+//! caller left out, since the caller knows what it holds: is the
+//! pair one the configuration lists under `containers.server_images`,
+//! or does any registry the configuration lists serve it? The list
+//! is a lookup; the registries are asked all at once, each with the
+//! credential listed, and any yes is the answer. The identity asking
+//! is not consulted: the configuration has no image policy per
 //! caller, and every caller gets the same answer.
 //!
-//! [`ImageChecker`] is the checker and [`Error`] what it fails with,
-//! which is nothing: a lookup always answers.
+//! [`ImageChecker`] is the checker and [`Error`] what it fails with —
+//! podman not starting, which is a failure to answer and never a no.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

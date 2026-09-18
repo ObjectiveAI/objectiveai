@@ -1,21 +1,72 @@
-//! Where an image comes from, as the reference podman is handed.
+//! Where an image was found, as the reference podman is handed; and
+//! the finding.
 
-/// The image of a deploy: one of the request's three sources, each
-/// resolved to the reference podman is handed and whether it is
-/// pulled.
+use std::path::Path;
+
+use diverge_provider_sdk::server::caller::Caller;
+use futures_util::StreamExt as _;
+use futures_util::future::Either;
+use futures_util::stream::FuturesUnordered;
+
+use super::{ContainerDeployer, Error};
+use crate::tools::podman;
+
+/// Where the image of a deploy was found: the place, resolved to the
+/// reference podman is handed and whether it is pulled.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Source {
-    /// A caller-held image, on the provider's own registry:
+    /// With the caller, served by the provider's own registry:
     /// `127.0.0.1:<port>/<repository>/<name>@<digest>`, pulled over
     /// plain HTTP.
     Client(String),
-    /// One of the provider's own: `<name>@<digest>`, in the store
-    /// already, pulled from nowhere.
+    /// In the store, as one of the provider's own: `<name>@<digest>`,
+    /// pulled from nowhere.
     Server(String),
-    /// The registry the caller named: `<host>/<name>@<digest>`, the
-    /// host one the configuration lists, pulled with that host's
-    /// credential.
+    /// In a registry the configuration lists:
+    /// `<host>/<name>@<digest>`, pulled with that host's credential.
     Registry(String),
+}
+
+/// Where the image is, among the places the provider looks all at
+/// once: every registry the configuration lists, asked with the
+/// credential listed, and the caller, asked on its scope. The first
+/// to answer that it holds the pair is the source, and the rest are
+/// not waited for — a look into a registry still running is a podman
+/// dropped and killed. No yes from any of them is
+/// [`Error::Unavailable`].
+pub(super) async fn find(deployer: &ContainerDeployer, name: &str, digest: &str, caller: &Caller) -> Result<Source, Error> {
+    let mut asked = FuturesUnordered::new();
+    for registry in &deployer.podman.registries {
+        asked.push(Either::Left(in_registry(deployer.auth_file(), &registry.host, name, digest)));
+    }
+    asked.push(Either::Right(with_caller(deployer, caller, name, digest)));
+    while let Some(found) = asked.next().await {
+        if let Some(source) = found? {
+            return Ok(source);
+        }
+    }
+    Err(Error::Unavailable {
+        name: name.to_string(),
+        digest: digest.to_string(),
+    })
+}
+
+/// One registry asked whether it serves the pair.
+async fn in_registry(auth_file: &Path, host: &str, name: &str, digest: &str) -> Result<Option<Source>, Error> {
+    let reference = format!("{host}/{name}@{digest}");
+    let found = podman::manifest_exists(auth_file, &reference).await.map_err(Error::Podman)?;
+    Ok(found.then_some(Source::Registry(reference)))
+}
+
+/// The caller asked whether it holds the pair; when it does, the
+/// source is the provider's own registry at the port podman reaches
+/// it by, serving this run's repository.
+async fn with_caller(deployer: &ContainerDeployer, caller: &Caller, name: &str, digest: &str) -> Result<Option<Source>, Error> {
+    if !caller.holds().await {
+        return Ok(None);
+    }
+    let port = deployer.registry_port(caller.registry());
+    Ok(Some(Source::Client(format!("127.0.0.1:{port}/{}/{name}@{digest}", caller.repository()))))
 }
 
 impl Source {

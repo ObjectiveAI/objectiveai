@@ -45,23 +45,29 @@
 //! it was made with and nothing else, where WSL on Windows mounts
 //! every drive — and running. A machine on macOS that does not see a
 //! directory the configuration has since named is remade seeing it,
-//! which empties its image cache and drops any `server` image loaded
-//! into it. A changed storage path is a fresh machine under the new
+//! which empties its image cache and drops any image loaded into it
+//! by hand. A changed storage path is a fresh machine under the new
 //! one, and the machine under the old path is left as it was, for
 //! the operator to stop or remove when they choose.
 //!
 //! # The images
 //!
-//! A caller-held image is pulled from the provider's own registry,
-//! which listens on this host's loopback: on Linux podman pulls on
-//! the host and reaches it there; on macOS and Windows podman pulls
-//! inside its machine, and reaches the registry through one SSH
-//! tunnel the provider opens into the machine with the machine's own
-//! settings, for the provider's life. A `server` image is one the
-//! configuration lists, run as `<name>@<digest>` with nothing pulled.
-//! A registry image is pulled as named, from a host the configuration
-//! lists, with the credentials it lists, through an auth file the
-//! provider writes for podman.
+//! An image is a name and a digest, and where the bytes come from is
+//! this provider's decision. An image the configuration lists as the
+//! provider's own is run from the store as `<name>@<digest>`, with
+//! nothing pulled. Any other is looked for everywhere at once: every
+//! registry the configuration lists, asked with the credential
+//! listed through an auth file the provider writes for podman, and
+//! the caller, asked on its scope whether it holds the image. The
+//! first to say yes is the source, and the image is pulled from
+//! there: from a registry as `<host>/<name>@<digest>`; from the
+//! caller through the provider's own registry, which listens on this
+//! host's loopback and fetches from the caller by digest — on Linux
+//! podman pulls on the host and reaches it there; on macOS and
+//! Windows podman pulls inside its machine, and reaches the registry
+//! through one SSH tunnel the provider opens into the machine with
+//! the machine's own settings, for the provider's life. An image
+//! nowhere is the run's error.
 //!
 //! Podman evicts nothing from its image store, so the provider does:
 //! every image present when the provider starts is protected and
@@ -75,7 +81,7 @@
 //! [`ContainerDeployer`] is the deployer, [`Container`] a container it
 //! started, [`Error`] what a deploy fails with. [`Limit`] is one cap
 //! with a count against it, [`Images`] the image cache's bookkeeping,
-//! [`Source`] where an image comes from, and `deploy`, `mounts`,
+//! [`Source`] where an image was found, and `deploy`, `mounts`,
 //! `root` on Linux and `machine` and `tunnel` on the hosts with a
 //! machine the steps.
 //!
