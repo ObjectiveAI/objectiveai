@@ -8,6 +8,7 @@ use serde_json::Value;
 use super::begin::Begun;
 use super::encoded::encoded;
 use super::family::Runs;
+use super::held::Held;
 use super::own::Own;
 use super::render;
 use crate::client::handle::Handle;
@@ -22,6 +23,7 @@ use crate::server::image_source::ImageSource;
 use crate::server::mount::Mount as DeployedMount;
 use crate::server::proxy;
 use crate::server::scope_handle::ScopeHandle;
+use crate::server::volume::Volume;
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::request::{Container, FuseMount};
 use crate::shared::error::Error;
@@ -39,8 +41,9 @@ pub(crate) struct Prepared<C> {
     /// The registry repository serving the caller's manifests and
     /// blobs for this run, to release.
     pub repository: String,
-    /// Every FUSE mount's path, which a filetree leaves out; a volume
-    /// mount is in the tree.
+    /// Every path a filetree leaves out: every FUSE mount's, and
+    /// every mount's of a volume whose listing says it is not in the
+    /// tree.
     pub ignore: Vec<Vec<String>>,
 }
 
@@ -72,13 +75,14 @@ pub(crate) struct Mount {
 /// Every failure after the deploy stops the container and releases
 /// the repository; the error is the run's. Nothing the caller opened
 /// has been read yet, and the id is not out.
-pub(crate) async fn prepare<R, D, G>(
+pub(crate) async fn prepare<R, D, G, L>(
     scope: &Arc<ScopeHandle>,
     client_identity: &str,
     request: &Container,
     agent: Option<Value>,
     deployer: &D,
     registry: &G,
+    held: &Held<L>,
 ) -> Result<Prepared<D::Container>, Error>
 where
     R: Runs,
@@ -86,9 +90,10 @@ where
     D::Error: Into<Error>,
     G: ImageRegistry,
     G::Error: Into<Error>,
+    L: Volume,
 {
     let deployment = deployment(client_identity, request);
-    let ignore = ignored(request);
+    let ignore = ignored(request, held.volumes());
 
     let repository = uuid::Uuid::new_v4().to_string();
     let source = ImageSource::new(Arc::clone(scope), manifest_ask::<R>, blob_ask::<R>);
@@ -207,17 +212,29 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
     }
 }
 
-/// Every FUSE mount's path: what a filetree of this container leaves
-/// out. A FUSE mount is the caller's own answers, and a tree over it
-/// would report them back to the caller; a volume mount is content on
-/// the provider, and seeing it change is what a filetree is for, so it
-/// is not listed.
-fn ignored(request: &Container) -> Vec<Vec<String>> {
+/// What a filetree of this container leaves out: every FUSE mount's
+/// path, and the path of every mount of a volume the provider keeps
+/// out of the tree. A FUSE mount is the caller's own answers, and a
+/// tree over it would report them back to the caller. A volume mount
+/// is content on the provider, and seeing it change is what a
+/// filetree is for — unless the provider said in the listing, and
+/// says again through [`Volume::tree`], that this volume is not
+/// walked, a dataset too large or too still to watch. `held` holds
+/// the volumes in the order the request names them.
+fn ignored<L: Volume>(request: &Container, held: &[L]) -> Vec<Vec<String>> {
     request
         .fuse_file_mounts
         .iter()
         .map(|mount| mount.container_path.clone())
         .chain(request.fuse_directory_mounts.iter().map(|mount| mount.container_path.clone()))
+        .chain(
+            request
+                .volume_mounts
+                .iter()
+                .zip(held)
+                .filter(|(_, volume)| !volume.tree())
+                .map(|(mount, _)| mount.container_path.clone()),
+        )
         .collect()
 }
 

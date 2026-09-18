@@ -91,7 +91,9 @@ pub(crate) async fn run<R, D, G, V>(
         }
     };
 
-    let prepared = match setup::prepare::<R, D, G>(&scope, client_identity, request, agent, deployer, registry).await {
+    let prepared = match setup::prepare::<R, D, G, V::Volume>(&scope, client_identity, request, agent, deployer, registry, &held)
+        .await
+    {
         Ok(prepared) => prepared,
         Err(error) => {
             // The `Held` drops on the return, and unlocks.

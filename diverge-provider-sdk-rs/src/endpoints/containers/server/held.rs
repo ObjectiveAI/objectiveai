@@ -93,6 +93,15 @@ impl<V: Volume> Held<V> {
     }
 }
 
+impl<V: Volume> Held<V> {
+    /// The volumes, in the order the request names them: one per
+    /// entry of `volume_mounts`, since a name named twice is refused
+    /// before any is taken.
+    pub(crate) fn volumes(&self) -> &[V] {
+        &self.volumes
+    }
+}
+
 impl<V: Volume> Drop for Held<V> {
     fn drop(&mut self) {
         for volume in &self.volumes {

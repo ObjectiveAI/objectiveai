@@ -102,6 +102,18 @@ pub trait Volume: Send + Sync {
     /// listing that wants to say which volumes are in use, a log.
     fn locked(&self) -> bool;
 
+    /// Whether a filetree of a container this volume is mounted in
+    /// covers the mount: the `tree` a listing reports for it, read
+    /// again here so a run's tree agrees with the listing. A run
+    /// handler names the container path of every mount of a volume
+    /// that answers `false` in the tree request it sends the proxy,
+    /// beside every FUSE mount's, and the tree leaves them out.
+    ///
+    /// A fact the provider holds, not something it computes, so it is
+    /// not `async` — as [`lock`](Self::lock) and
+    /// [`locked`](Self::locked) are not.
+    fn tree(&self) -> bool;
+
     /// The volume, examined: how much of it is used and what is in
     /// it.
     ///
