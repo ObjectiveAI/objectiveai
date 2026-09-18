@@ -11,7 +11,9 @@ use diverge_provider_sdk::endpoints::volumes::list::server::response;
 use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
 use diverge_provider_sdk::server::holders::Holders;
 use diverge_provider_sdk::server::volume;
+use diverge_provider_sdk::shared::filetree::response::Frame;
 use futures_util::future;
+use futures_util::stream::Pending;
 use tokio::fs;
 use tokio::sync::Mutex;
 
@@ -142,7 +144,6 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: meta.len(),
                     created: meta.created().or_else(|_| meta.modified()).map(seconds).unwrap_or(0),
-                    tree: true,
                 })
             }
             Place::Fixed { root, bytes, started } => {
@@ -151,7 +152,6 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: *bytes,
                     created: meta.created().map(seconds).unwrap_or(*started),
-                    tree: false,
                 })
             }
         }
@@ -348,11 +348,21 @@ impl volume::Volume for Volume {
         }
     }
 
-    /// A stored volume is in the tree; a fixed one is not, being
-    /// content the operator put there, as large and as still as they
-    /// like, that a tree has no business walking.
+    /// A stored volume is watched by the container's proxy; a fixed
+    /// one by the provider, being content the operator put there, as
+    /// large and as still as they like, that a proxy has no business
+    /// walking on every filetree.
     fn tree(&self) -> bool {
         matches!(self.inner.place, Place::Stored { .. })
+    }
+
+    /// The watch a fixed volume gets from the provider: not written
+    /// yet, and a stream that never yields until it is.
+    type Watch = Pending<Result<Frame, Error>>;
+
+    /// Not written yet.
+    async fn watch(&self, _path: &[String]) -> Result<Self::Watch, Error> {
+        unimplemented!("a volume watch is not written yet")
     }
 
     /// The listing and the walk, at once.
