@@ -273,21 +273,20 @@ pub trait ContainerDeployer: Send + Sync {
         digest: &str,
     ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
 
-    /// Deploy from wherever the CALLER says.
+    /// Deploy from the registry the CALLER names.
     ///
-    /// The one case where the caller chooses the source. `reference` is
-    /// whatever a container runtime accepts —
-    /// `ghcr.io/org/image@sha256:…`, `docker.io/library/ubuntu:22.04` —
-    /// host, repository, and tag or digest, in the form the runtime
-    /// already parses.
+    /// The one case where the caller chooses the source. `host` is
+    /// the registry — `docker.io`, `ghcr.io`,
+    /// `registry.example.com:5000` — and an implementation pulls
+    /// `<host>/<name>@<digest>` from it, pinned by the digest like
+    /// the other two.
     ///
-    /// # It is the one that need not be pinned
+    /// # The name is a path fragment, and is not checked
     ///
-    /// A caller writing `ubuntu:22.04` is asking to track it, the way a
-    /// loose version constraint tracks a dependency. One that wants the
-    /// guarantee writes a digest into the reference and gets it. The
-    /// other two variants are pinned by construction; this is a choice
-    /// the caller made.
+    /// As with [`client`](Self::client): it lands in the reference by
+    /// concatenation, so an implementation refuses a `name` that is
+    /// not a repository path before concatenating, and normalizes
+    /// nothing. Nothing upstream of here does it.
     ///
     /// # Which registries are reachable is policy
     ///
@@ -299,6 +298,8 @@ pub trait ContainerDeployer: Send + Sync {
         &self,
         client_identity: &str,
         deployment: &Deployment,
-        reference: &str,
+        host: &str,
+        name: &str,
+        digest: &str,
     ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
 }

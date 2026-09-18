@@ -9,20 +9,17 @@ use serde::{Deserialize, Serialize};
 /// this is one field rather than a source beside a string that means
 /// something different depending on it.
 ///
-/// # Two of the three are pinned, and the third is a choice
+/// # Every one is pinned
 ///
-/// [`Client`](Self::Client) and [`Server`](Self::Server) carry a
-/// repository name and a manifest digest, the same pair
+/// All three carry a repository name and a manifest digest, the same
+/// pair
 /// [`images::check`](crate::endpoints::images::check::client::request::Frame)
 /// asks about — so a check that came back available names an image a
-/// run can ask for, with nothing to translate between them.
-///
-/// A digest cannot be repointed at different content, so those two
-/// mean the same bytes every time. [`Registry`](Self::Registry) need
-/// not, and that is the point: a caller writing `ubuntu:22.04` is
-/// asking to track it, exactly as a loose version constraint on a
-/// Python requirement is. One that wants the guarantee writes a digest
-/// into the reference and gets it.
+/// run can ask for, with nothing to translate between them. A digest
+/// cannot be repointed at different content, so an image means the
+/// same bytes every time, whoever supplies them; what differs between
+/// the three is only who that is. [`Registry`](Self::Registry) adds
+/// the one thing the other two leave to the provider: which registry.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Image {
@@ -99,28 +96,29 @@ pub enum Image {
         /// provider choose where to get them.
         digest: String,
     },
-    /// The provider pulls from where the caller says.
+    /// The provider pulls from the registry the caller names.
     ///
     /// The one case where the CALLER chooses the source, for public
     /// images where it knows what it wants and the provider has no
-    /// opinion.
-    ///
-    /// Which makes the reference a host a caller picked, and the
-    /// provider connects there and runs what it finds. Which
-    /// registries are reachable is a provider's policy to set and
-    /// enforce, and nothing here can express that policy — a caller
-    /// learns it by being refused.
+    /// opinion. The provider pulls `<host>/<name>@<digest>` from
+    /// that registry and runs what the digest names. Which registries
+    /// a provider goes to is its policy to set and enforce, and
+    /// nothing here can express that policy — a caller learns it by
+    /// being refused.
     Registry {
-        /// Whatever a container runtime accepts —
-        /// `ghcr.io/org/image@sha256:…`, `docker.io/library/ubuntu:22.04`.
-        ///
-        /// One string rather than a name and a digest, because the
-        /// other two variants split them for a reason that does not
-        /// apply here. There the pair exists so a provider can go to a
-        /// source the caller did not name; here the caller named the
-        /// source, and a reference is how a source is named — host,
-        /// repository, and tag or digest, in the form the runtime
-        /// already parses.
-        reference: String,
+        /// The registry — `docker.io`, `ghcr.io`,
+        /// `registry.example.com:5000`: what a reference has before
+        /// its first `/`. No scheme and no path.
+        host: String,
+        /// The repository path on that registry — `library/nginx`,
+        /// `myorg/myimage`. It lands in the reference by
+        /// concatenation, so a provider refuses one that is not a
+        /// repository path and normalizes nothing.
+        name: String,
+        /// The manifest digest, `<algorithm>:<hex>`. What actually
+        /// identifies the image; the runtime hashes what it pulls, so
+        /// a registry serving other bytes under it fails before
+        /// anything runs.
+        digest: String,
     },
 }
