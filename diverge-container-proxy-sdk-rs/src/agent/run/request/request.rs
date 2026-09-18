@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 /// Run one loop on this prompt.
 ///
-/// The agent is not here: it was registered once, and it never
-/// changes. The prompt is each loop's, because a container runs
+/// The arguments are not here: they were registered once, and they
+/// never change. The prompt is each loop's, because a container runs
 /// loops one after another — each resuming the conversation the last
 /// one left — and every one is asked something. When several
 /// messages waited for the loop, the prompt is all of them, joined

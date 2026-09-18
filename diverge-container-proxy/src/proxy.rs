@@ -5,11 +5,12 @@ use std::sync::Arc;
 use diverge_provider_sdk::server::scope_handle::ScopeHandle;
 use tokio::sync::{Mutex, OnceCell, mpsc, watch};
 
-use crate::agent::{Cmd, Upstream};
+use crate::agent::Cmd;
 use crate::begin::Family;
 use crate::filesystem::mount::Mounts;
 use crate::inside::mcp::{Gate, Peers};
 use crate::inside::postgres::Pairs;
+use crate::program::Upstream;
 use crate::tool::Tool;
 
 /// The begin scope, once it has begun: the scope the proxy's own asks
@@ -40,7 +41,7 @@ pub struct Proxy {
     /// The agent's driver, set when an agent container begins. A tool
     /// container never sets it.
     commands: OnceCell<mpsc::UnboundedSender<Cmd>>,
-    /// The client the agent's server is dialled with.
+    /// The client the program's server is dialled with.
     pub upstream: Upstream,
     /// The MCP client a tool container's server is called through.
     pub tool: Tool,
@@ -92,8 +93,8 @@ impl Proxy {
         true
     }
 
-    /// Give the begin back: the agent was refused, and the connection
-    /// has not begun after all.
+    /// Give the begin back: the arguments were refused, and the
+    /// connection has not begun after all.
     pub async fn release_begin(&self) {
         *self.begun.lock().await = false;
     }

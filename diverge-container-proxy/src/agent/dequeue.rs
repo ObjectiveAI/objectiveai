@@ -8,7 +8,8 @@ use diverge_provider_sdk::shared::containers::dequeue::response;
 use reqwest::header::CONTENT_TYPE;
 use tokio::sync::oneshot;
 
-use super::{Cmd, refused, status_error};
+use super::Cmd;
+use crate::program::{refused, status_error};
 use crate::encode::encoded;
 use crate::proxy::Proxy;
 use crate::reply::reply;

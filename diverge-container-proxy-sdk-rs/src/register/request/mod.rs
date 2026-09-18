@@ -1,4 +1,4 @@
-//! The body: the agent.
+//! The body: the arguments.
 
 mod request;
 

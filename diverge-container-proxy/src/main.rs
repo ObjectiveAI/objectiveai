@@ -16,13 +16,15 @@
 //! database. Each of those becomes one channel on the begin scope,
 //! and nothing the program dials has to know.
 //!
-//! For an agent container the proxy is also the loop's keeper: it
-//! registers the agent with the agent's own server on the loopback
-//! when the server begins, holds the queue every enqueue joins,
-//! starts a run when none runs and offers each message to the run in
-//! flight when one does, and relays every chunk the agent says onto
-//! the begin scope's main stream. For a tool container it is the
-//! caller's MCP client, one exchange per channel the server opens.
+//! For either kind of container the proxy registers the arguments
+//! with the program's own server on the loopback when the server
+//! begins, and asks it for their schema when the server asks. For an
+//! agent container the proxy is also the loop's keeper: it holds the
+//! queue every enqueue joins, starts a run when none runs and offers
+//! each message to the run in flight when one does, and relays every
+//! chunk the agent says onto the begin scope's main stream. For a
+//! tool container it is the caller's MCP client, one exchange per
+//! channel the server opens.
 //!
 //! [`container_proxy_endpoints`]: diverge_provider_sdk::container_proxy_endpoints
 
@@ -36,6 +38,7 @@ mod filesystem;
 mod inside;
 mod own;
 mod paths;
+mod program;
 mod proxy;
 mod reply;
 mod serve;
