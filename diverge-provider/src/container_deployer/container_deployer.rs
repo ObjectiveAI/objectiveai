@@ -14,7 +14,7 @@ use serde_json::json;
 
 use super::deploy::deploy;
 use super::mounts::tool_path;
-use super::{Container, Error, Images, Limit, Shared, Source, host_of, name_ok};
+use super::{Container, Error, Images, Limit, Shared, Source, name_ok};
 use crate::config::containers::{Containers, Podman};
 use crate::tools::{mount, podman};
 use crate::volume_manager::VolumeManager;
@@ -147,23 +147,9 @@ impl ContainerDeployer {
         self.tunnel.port()
     }
 
-    /// A registry reference as podman is handed it: one naming a
-    /// listed host, as given; one naming no host, under the first
-    /// listed host; one naming any other host, refused.
-    fn registry_reference(&self, reference: &str) -> Result<String, Error> {
-        match host_of(reference) {
-            Some(host) => {
-                if self.podman.registries.iter().any(|registry| registry.host == host) {
-                    Ok(reference.to_string())
-                } else {
-                    Err(Error::Registry(host.to_string()))
-                }
-            }
-            None => match self.podman.registries.first() {
-                Some(registry) => Ok(format!("{}/{reference}", registry.host)),
-                None => Err(Error::NoRegistry),
-            },
-        }
+    /// Whether the configuration lists the registry.
+    fn listed(&self, host: &str) -> bool {
+        self.podman.registries.iter().any(|registry| registry.host == host)
     }
 }
 
@@ -207,16 +193,23 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
         deploy(self, deployment, Source::Server(format!("{name}@{digest}"))).await
     }
 
-    /// The reference under a listed host, pulled with that host's
-    /// credential.
+    /// The host must be listed and the name a repository path; then
+    /// `<host>/<name>@<digest>`, pulled with that host's credential.
     async fn registry(
         &self,
         _client_identity: &str,
         deployment: &Deployment,
-        reference: &str,
+        host: &str,
+        name: &str,
+        digest: &str,
     ) -> Result<Container, Error> {
-        let reference = self.registry_reference(reference)?;
-        deploy(self, deployment, Source::Registry(reference)).await
+        if !self.listed(host) {
+            return Err(Error::Registry(host.to_string()));
+        }
+        if !name_ok(name) {
+            return Err(Error::Name(name.to_string()));
+        }
+        deploy(self, deployment, Source::Registry(format!("{host}/{name}@{digest}"))).await
     }
 }
 
