@@ -426,10 +426,8 @@ Identity created by `volumes::create` and has not deleted by
 `volumes::delete`; it may contain other Volumes at the Provider's
 discretion; every Volume it contains shall be available to the
 Identity to mount; no two Volumes in one listing shall share a name.
-The Provider shall report for each Volume its `name`, its `bytes`,
-its `created` and its `tree` as the Specification defines them, and
-nothing more; a Volume's `tree` shall not change for the life of the
-Volume.
+The Provider shall report for each Volume its `name`, its `bytes`, and
+its `created` as the Specification defines them, and nothing more.
 
 (b) **Stat.** The Provider shall answer every `volumes::stat` request
 naming a Volume in the Identity's listing with exactly one Response
@@ -656,13 +654,12 @@ Response, written or an error, after the Proxy has answered the
 Scope. Content that ends in an error or without a finish is a write
 that did not happen, and the Provider shall answer it as such.
 
-(f) For a filetree the Client opens, the Provider shall open a tree
-Scope on the Proxy's connection naming, in the request, the path of
-every FUSE Mount of the Container and the path of every Volume Mount
-whose Volume the Identity's listing reports with `tree` as `false`,
-and of no other mount, so that every other Volume Mount is in the
-tree, shall relay every frame the Proxy sends, and shall stop the
-tree Scope when the Client's Scope ends.
+(f) For a filetree the Client opens, the Provider shall serve a tree
+that leaves out every FUSE Mount of the Container and contains every
+Volume Mount of the Container, shall report every change under a
+Volume Mount as the Specification's filetree states one, and shall
+stop watching when the Client's Scope ends. How the Provider watches
+a Volume Mount is not prescribed.
 
 (g) For a transfer the Client opens, the Provider shall serve it only
 when the Client is the Runner of, or a Connector attached to, both the
