@@ -1,7 +1,7 @@
 ---
 title: 'MCP notifications'
-summary: 'Tag 5: the client subscribes to the notifications of the container’s own MCP server; the server answers with one channel response per notification for the life of the connection, or an error at once.'
-order: 5
+summary: 'Tag 6: the client subscribes to the notifications of the container’s own MCP server; the server answers with one channel response per notification for the life of the connection, or an error at once.'
+order: 6
 draft: false
 ---
 
@@ -9,7 +9,7 @@ The client opens this channel to hear what the container's MCP server
 says on its own account. The server relays each notification as one
 channel response from the moment the channel opens.
 
-- **The request.** The tag byte `5` and nothing more.
+- **The request.** The tag byte `6` and nothing more.
   [Request](/container-proxy-endpoints/tools-begin/client/mcp-notifications/request/) states its form.
 - **The response.** One channel response per notification, for as
   long as the connection lives, or exactly one error and the channel

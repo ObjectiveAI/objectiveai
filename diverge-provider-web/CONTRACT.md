@@ -164,7 +164,7 @@ Client, or a Connector transmits to the Provider under the Protocol,
 including image manifests and blobs, the bytes of writes, reads and
 transfers, filesystem trees, database traffic, commands and
 their items, vault keys and values, FUSE operations and their
-answers, MCP exchanges, prompts, agent values, and loop chunks.
+answers, MCP exchanges, prompts, arguments, and loop chunks.
 
 1.18 **"Relayed Exchange"** means any exchange the Specification
 requires the Provider to carry between a Container and a Client, or
@@ -579,11 +579,10 @@ Channel the Client opened before the id was sent only after the id is
 sent, in the order the Channels were opened, and shall neither refuse
 nor read such a Channel before the last FUSE Mount is complete.
 
-(g) **Carry the agent** (tag 0 only). For an agent container, the
-Provider shall carry the request's `agent` value verbatim in the begin
-Scope's request, and in nothing else. A begin the Proxy answers with
-an error is the run's error, and the Provider shall stop the
-Container.
+(g) **Carry the arguments.** The Provider shall carry the request's
+`arguments` verbatim in the begin Scope's request, and in nothing
+else. A begin the Proxy answers with an error is the run's error, and
+the Provider shall stop the Container.
 
 (h) **Mint and send the id.** The Provider shall choose an id that is
 unique among the Containers it is running and not derivable from the
@@ -727,7 +726,7 @@ Container Proxy Endpoints layers:
 that listens on TCP port 14979 and accepts one WebSocket connection
 there; that speaks the Protocol's own frames on it and sends no auth
 frame; that answers exactly one begin Scope per connection, holding
-the agent it carries for the Container's life; that makes each mount
+the arguments it carries for the Container's life; that makes each mount
 Scope's mount before answering it and holds every mount for its life,
 asking for what the mount needs on channels of that Scope; that
 leaves out of every filetree the paths the tree Scope's request names

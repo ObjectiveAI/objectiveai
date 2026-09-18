@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the limits and the mounts.'
+summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the limits, the mounts and the arguments.'
 order: 1
 draft: false
 ---
@@ -42,6 +42,11 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   volume mount inside a FUSE mount no more than a FUSE mount inside a
   volume mount. No mount's path is the root.
 - **Ids.** No two FUSE mounts, on either list, have one `id`.
+
+- **`arguments`.** Any JSON value. The server relays it verbatim in
+  the begin request it opens on the proxy and does not read it. What
+  the value may be is what the container's
+  [schema](/endpoints/containers-tools-run/client/schema/) channel answers.
 
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `1`, and a payload whose bytes after the tag do not

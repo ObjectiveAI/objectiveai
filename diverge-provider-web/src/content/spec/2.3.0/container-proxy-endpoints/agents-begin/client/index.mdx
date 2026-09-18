@@ -1,6 +1,6 @@
 ---
 title: 'Client Channels'
-summary: 'The channels the client opens on an agent container’s begin scope, by tag: its half of a database connection, the agent’s schema, and the two verbs of the queue.'
+summary: 'The channels the client opens on an agent container’s begin scope, by tag: its half of a database connection, the schema of the arguments, and the two verbs of the queue.'
 order: 3
 draft: false
 ---
@@ -13,7 +13,7 @@ by a channel response finish that no channel response precedes.
 | Tag | Channel |
 |-----|---------|
 | `0` | [postgres](/container-proxy-endpoints/agents-begin/client/postgres/) |
-| `1` | [agent-schema](/container-proxy-endpoints/agents-begin/client/agent-schema/) |
+| `1` | [schema](/container-proxy-endpoints/agents-begin/client/schema/) |
 | `2` | [enqueue](/container-proxy-endpoints/agents-begin/client/enqueue/) |
 | `3` | [dequeue](/container-proxy-endpoints/agents-begin/client/dequeue/) |
 

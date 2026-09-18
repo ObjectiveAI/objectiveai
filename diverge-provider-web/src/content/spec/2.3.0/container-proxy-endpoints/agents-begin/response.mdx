@@ -6,8 +6,8 @@ draft: false
 ---
 
 ```text
-[0]                  begun: the container holds its agent
-[1][error JSON …]    not begun: the connection had begun, or the agent was refused
+[0]                  begun: the container holds its arguments
+[1][error JSON …]    not begun: the connection had begun, or the arguments were refused
 [2][chunk JSON …]    one chunk of the conversation
 ```
 
@@ -24,7 +24,7 @@ draft: false
   server produced it.
 - **The error.** After the byte `1`, exactly one JSON value in the
   form defined on the [volumes::list response](/endpoints/volumes-list/response/)
-  page. A refused agent carries the container's own words.
+  page. Refused arguments carry the container's own words.
 - **A finish with nothing.** A response finish that no response
   precedes states that the server could not read the request.
 

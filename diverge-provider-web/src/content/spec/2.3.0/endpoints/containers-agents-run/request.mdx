@@ -1,16 +1,15 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 0 followed by the request as JSON: the image, the limits and the mounts, and the agent value.'
+summary: 'The payload is the tag byte 0 followed by the request as JSON: the image, the limits, the mounts and the arguments.'
 order: 1
 draft: false
 ---
 
-The payload of the request is the tag byte followed by the request as
-JSON, read as [Notation](/endpoints/#notation) provides. The request
-is one object: the members of the container, flattened, and `agent`.
+The payload of the request is the tag byte followed by the container
+as JSON, read as [Notation](/endpoints/#notation) provides.
 
 ```text
-[0][request JSON …]
+[0][container JSON …]
 ```
 
 - **`image`.** An object of two fields: `{"name":…,"digest":…}`.
@@ -44,10 +43,10 @@ is one object: the members of the container, flattened, and `agent`.
   volume mount. No mount's path is the root.
 - **Ids.** No two FUSE mounts, on either list, have one `id`.
 
-- **`agent`.** Any JSON value. The server relays it verbatim in the
-  begin request it opens on the proxy and does not read it. What the value may
-  be is what the container's [agent-schema](/endpoints/containers-agents-run/client/agent-schema/)
-  channel answers.
+- **`arguments`.** Any JSON value. The server relays it verbatim in
+  the begin request it opens on the proxy and does not read it. What
+  the value may be is what the container's
+  [schema](/endpoints/containers-agents-run/client/schema/) channel answers.
 
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `0`, and a payload whose bytes after the tag do not

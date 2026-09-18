@@ -1,13 +1,13 @@
 ---
 title: 'Response'
-summary: 'The server sends Begun once and nothing more until the finish, which it sends only when it ends; or an error and the finish.'
+summary: 'The server sends Begun once, or an error and the finish; after Begun it sends nothing more until the finish, which it sends only when it ends.'
 order: 2
 draft: false
 ---
 
 ```text
-[0]                  begun
-[1][error JSON …]    not begun: the connection had begun
+[0]                  begun: the container holds its arguments
+[1][error JSON …]    not begun: the connection had begun, or the arguments were refused
 ```
 
 - **The sequence.** Exactly one response whose first byte is `0`,
@@ -16,7 +16,7 @@ draft: false
   No other response is sent on the scope.
 - **The error.** After the byte `1`, exactly one JSON value in the
   form defined on the [volumes::list response](/endpoints/volumes-list/response/)
-  page.
+  page. Refused arguments carry the container's own words.
 - **A finish with nothing.** A response finish that no response
   precedes states that the server could not read the request.
 

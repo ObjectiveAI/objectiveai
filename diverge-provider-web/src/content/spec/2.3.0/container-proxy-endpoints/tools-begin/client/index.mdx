@@ -1,6 +1,6 @@
 ---
 title: 'Client Channels'
-summary: 'The channels the client opens on a tool container’s begin scope, by tag: its half of a database connection, and the five MCP exchanges into the container’s own MCP server.'
+summary: 'The channels the client opens on a tool container’s begin scope, by tag: its half of a database connection, the schema of the arguments, and the five MCP exchanges into the container’s own MCP server.'
 order: 3
 draft: false
 ---
@@ -13,11 +13,12 @@ by a channel response finish that no channel response precedes.
 | Tag | Channel |
 |-----|---------|
 | `0` | [postgres](/container-proxy-endpoints/tools-begin/client/postgres/) |
-| `1` | [mcp-list-tools](/container-proxy-endpoints/tools-begin/client/mcp-list-tools/) |
-| `2` | [mcp-list-resources](/container-proxy-endpoints/tools-begin/client/mcp-list-resources/) |
-| `3` | [mcp-call-tool](/container-proxy-endpoints/tools-begin/client/mcp-call-tool/) |
-| `4` | [mcp-read-resource](/container-proxy-endpoints/tools-begin/client/mcp-read-resource/) |
-| `5` | [mcp-notifications](/container-proxy-endpoints/tools-begin/client/mcp-notifications/) |
+| `1` | [schema](/container-proxy-endpoints/tools-begin/client/schema/) |
+| `2` | [mcp-list-tools](/container-proxy-endpoints/tools-begin/client/mcp-list-tools/) |
+| `3` | [mcp-list-resources](/container-proxy-endpoints/tools-begin/client/mcp-list-resources/) |
+| `4` | [mcp-call-tool](/container-proxy-endpoints/tools-begin/client/mcp-call-tool/) |
+| `5` | [mcp-read-resource](/container-proxy-endpoints/tools-begin/client/mcp-read-resource/) |
+| `6` | [mcp-notifications](/container-proxy-endpoints/tools-begin/client/mcp-notifications/) |
 
 The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_request/frame.rs`:
 

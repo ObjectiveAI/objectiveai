@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 0 followed by the request as JSON: the agent value, as the image defines it.'
+summary: 'The payload is the tag byte 0 followed by the request as JSON: the arguments, as the image defines them.'
 order: 1
 draft: false
 ---
@@ -9,11 +9,11 @@ draft: false
 [0][request JSON …]
 ```
 
-- **`agent`.** A JSON value: the `agent` of the
+- **`arguments`.** A JSON value: the `arguments` of the
   [containers::agents::run](/endpoints/containers-agents-run/request/)
   request that made the container, verbatim. What the value may be,
-  the image defines, and the [agent-schema](/container-proxy-endpoints/agents-begin/client/agent-schema/)
-  channel answers.
+  the image defines, and the [schema](/container-proxy-endpoints/agents-begin/client/schema/) channel
+  answers.
 - **Once, and first.** The client sends this request before any other
   request on the connection, and never again on it.
 - **Malformed.** A payload that does not decode as stated is answered
