@@ -12,7 +12,7 @@ bearing the scope follows the finish.
 
 ```text
 [0][id JSON …]                  once, when the container is running
-[1][volume-mounted JSON …]      once, when a named volume is in another container
+[1][volume-held JSON …]         once, when a named volume is under a stat, an edit or a delete
 [2][error JSON …]               once, when it is not running for another reason
 [3][chunk JSON …]               zero or more, after the id, for the life of the run
 ```
@@ -33,13 +33,16 @@ bearing the scope follows the finish.
   that byte as JSON, an object with the member `id`, a string. The
   server sends it after every FUSE mount is complete and, for an
   agent container, after the agent is registered.
-- **Volume mounted.** A payload whose first byte is `1` carries,
-  after that byte as JSON, an object with the member `name`, a
-  string: the `host_name` of a volume the request named that is
-  mounted in another container the client is running, or that the
-  request named twice. The server sends it before it fetches or
-  deploys anything, and the finish follows. The container was not
-  started.
+- **Volume held.** A payload whose first byte is `1` carries, after
+  that byte as JSON, an object with the member `name`, a string: the
+  `host_name` of a volume the request named that is under a
+  [volumes::stat](/endpoints/volumes-stat/),
+  [volumes::edit](/endpoints/volumes-edit/) or
+  [volumes::delete](/endpoints/volumes-delete/) at the time of the
+  request. A volume mounted in another container does not refuse a
+  run: a volume may be mounted in any number of containers at once.
+  The server sends it before it fetches or deploys anything, and the
+  finish follows. The container was not started.
 - **The error.** A payload whose first byte is `2` carries an error
   after that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
