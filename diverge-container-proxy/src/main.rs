@@ -18,7 +18,8 @@
 //!
 //! For either kind of container the proxy registers the arguments
 //! with the program's own server on the loopback when the server
-//! begins, and asks it for their schema when the server asks. For an
+//! begins, hands the server the tools the program answered with, and
+//! asks the program for their schema when the server asks. For an
 //! agent container the proxy is also the loop's keeper: it holds the
 //! queue every enqueue joins, starts a run when none runs and offers
 //! each message to the run in flight when one does, and relays every
