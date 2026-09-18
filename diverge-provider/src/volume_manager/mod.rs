@@ -18,7 +18,8 @@
 //! A fixed volume is a directory the configuration names, offered as
 //! it is: its size is declared in the configuration, its creation
 //! time is the directory's, and a container mounts the directory
-//! itself.
+//! itself. A filetree of a container leaves a fixed volume out and
+//! walks a stored one, which the listing says with `tree`.
 //!
 //! # What is here
 //!
