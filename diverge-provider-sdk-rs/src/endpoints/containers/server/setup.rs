@@ -109,9 +109,9 @@ where
                 .map_err(Into::into)?,
             None,
         ),
-        Image::Registry { reference } => (
+        Image::Registry { host, name, digest } => (
             deployer
-                .registry(client_identity, &deployment, reference)
+                .registry(client_identity, &deployment, host, name, digest)
                 .await
                 .map_err(Into::into)?,
             None,
