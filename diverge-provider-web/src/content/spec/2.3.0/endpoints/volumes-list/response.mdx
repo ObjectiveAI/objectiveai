@@ -24,8 +24,9 @@ finish follows the response, and no frame follows the finish.
   varint count, followed by that many volumes; each volume is its
   `name` as a varint byte length followed by that many bytes of
   UTF-8, followed by `bytes` as a varint, followed by `created` as a
-  varint. A count of `0` is the empty listing, and the payload is
-  then exactly the one byte `0`.
+  varint, followed by `tree` as one byte, `0` or `1`. A count of `0`
+  is the empty listing, and the payload is then exactly the one byte
+  `0`.
 - **`name`.** The name of the volume, UTF-8. The name is the only
   handle of a volume: every request of this specification that names
   a volume names it by this string. No two volumes in one listing
@@ -38,6 +39,11 @@ finish follows the response, and no frame follows the finish.
 - **`created`.** The time at which the volume came into being, in
   seconds since `1970-01-01T00:00:00Z`, unsigned. What "came into
   being" marks is the server's to determine.
+- **`tree`.** Whether a filetree of a container the volume is mounted
+  in covers the mount: `1`, the mount is in the tree and a change
+  under it is reported; `0`, the tree leaves the mount out and
+  reports nothing under it. The server determines it per volume, and
+  it does not change for the life of the volume.
 - **Order.** The order of the volumes in the listing is not
   prescribed. A client reads nothing into the position of a volume.
 - **The error.** A payload whose first byte is `1` carries an error
