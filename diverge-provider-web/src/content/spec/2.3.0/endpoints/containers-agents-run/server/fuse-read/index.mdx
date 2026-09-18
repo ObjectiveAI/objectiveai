@@ -1,7 +1,7 @@
 ---
 title: 'FUSE read'
-summary: 'Tag 16: the server relays an ask of the container’s proxy that reads a file of a mount the client serves live, by the mount’s id and the entry’s path; the client answers with exactly one channel response, which the server relays to the proxy.'
-order: 16
+summary: 'Tag 17: the server relays an ask of the container’s proxy that reads a file of a mount the client serves live, by the mount’s id and the entry’s path; the client answers with exactly one channel response, which the server relays to the proxy.'
+order: 17
 draft: false
 ---
 
@@ -11,7 +11,7 @@ The ask is relayed with the mount's `id` put in front of it — the
 mount's scope is the mount, and its asks carry no id — and otherwise
 verbatim; the client's one answer is relayed back.
 
-- **The request.** The tag byte `16` followed by the ask in the form
+- **The request.** The tag byte `17` followed by the ask in the form
   the [Container Proxy Endpoints](/container-proxy-endpoints/) layer
   defines for it, the mount's `id` added.
   [Request](/endpoints/containers-agents-run/server/fuse-read/request/) states its form.

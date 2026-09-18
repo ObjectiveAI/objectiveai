@@ -12,15 +12,11 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 [1][container JSON …]
 ```
 
-- **`image`.** Exactly one of three objects: `{"client":{"name":…,"digest":…}}`,
-  an image the client holds, which the server pulls from its own
-  registry and fetches from the client by digest;
-  `{"server":{"name":…,"digest":…}}`, an image the server obtains
-  from a source of its own; `{"registry":{"host":…,"name":…,"digest":…}}`,
-  an image the server pulls from the registry the client names.
+- **`image`.** An object of two fields: `{"name":…,"digest":…}`.
   `name` is a repository path without a host; `digest` is
-  `<algorithm>:<hex>`; `host` is a registry host, with no scheme and
-  no path.
+  `<algorithm>:<hex>`, the manifest digest, which identifies the
+  image. The request names no source: where the server obtains the
+  image is the server's own.
 - **`memory`, `disk`.** Limits in bytes: the memory the container may
   use, and the bytes the container may write to its own filesystem.
   Neither governs a mount.

@@ -1,6 +1,6 @@
 ---
 title: 'containers::agents::run'
-summary: 'Tag 0: a client asks the server to run an agent container from an image with limits and mounts; the server holds the content, serves the image, deploys, injects the proxy, connects to it and begins it with the agent, makes every FUSE mount, sends exactly one id, and relays and serves every channel until the run ends.'
+summary: 'Tag 0: a client asks the server to run an agent container from an image with limits and mounts; the server obtains the image, deploys, injects the proxy, connects to it and begins it with the agent, makes every FUSE mount, sends exactly one id, and relays and serves every channel until the run ends.'
 order: 0
 draft: false
 ---
@@ -33,27 +33,24 @@ about the client, which may open any channel at any time.
    whose path is the root of the container, two mounts with one path,
    a mount inside another mount, a mount path with a component that
    is empty, `.` or `..`, two FUSE mounts with one `id`, or an image
-   source that its policy does not allow. A request
+   it will not supply. A request
    that names in `volume_mounts` a volume mounted in a container the
    client is running at the time of the request, or that names one
    volume twice, is answered by exactly one response, the byte `1`
    followed by the name of that volume, and the finish; the server
    fetches nothing and deploys nothing for it.
-2. **The server serves the client's image, when the image is the
-   client's.** For an image of kind `client`, the server serves an
-   OCI registry from which its runtime pulls the image by repository
-   name and manifest digest. A manifest the registry does not hold,
-   the server asks of the client on an
-   [oci-manifest](/endpoints/containers-agents-run/server/oci-manifest/) channel; a blob it
-   does not hold, on an [oci-blob](/endpoints/containers-agents-run/server/oci-blob/)
-   channel. The server runs only the image the digest names: a
-   digest the client does not hold, and bytes that are not those the
-   digest names, are the run's error. How the server holds, verifies
-   or streams what it obtains is not prescribed. For an image of kind
-   `server`, the
-   server obtains the image from a source of its own. For an image of
-   kind `registry`, the server pulls the image `name` at `digest` from
-   the registry `host`; which hosts it pulls from is its own.
+2. **The server obtains the image.** The server obtains the image the
+   digest names, from wherever it obtains images; this specification
+   does not prescribe the source. Where it would obtain the image
+   from the client, the server may ask the client whether it holds
+   the image on an [oci-has](/endpoints/containers-agents-run/server/oci-has/) channel, and
+   for a manifest or a blob it requires on an
+   [oci-manifest](/endpoints/containers-agents-run/server/oci-manifest/) or
+   [oci-blob](/endpoints/containers-agents-run/server/oci-blob/) channel. The server runs
+   only the image the digest names: bytes that are not those the
+   digest names are the run's error, and so is an image the server
+   obtains from nowhere. How the server holds, verifies or streams
+   what it obtains is not prescribed.
 3. **The server deploys the container.** The server starts the image
    with `memory` and `disk` as limits; every volume mount resolved by
    `host_name` against the identity under which the connection was
@@ -104,8 +101,8 @@ about the client, which may open any channel at any time.
    [stop](/endpoints/containers-agents-run/client/stop/), when the proxy's
    connection ends, or when the client's connection ends,
    the server ends every connect scope on the container, stops the
-   container, releases the registry repository it served, ends every
-   channel task, and sends the response finish. After the id, the
+   container, ends every channel task, and sends the response
+   finish. After the id, the
    server sends no error on the main stream: the finish that ends a
    running container carries none.
 

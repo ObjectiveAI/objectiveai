@@ -1,7 +1,7 @@
 ---
 title: 'Postgres'
-summary: 'Tag 4: the server announces a database connection the container opened, under a connection id it minted; the client answers with everything the database says, which the server relays onto the proxy’s channel, and its channel response finish finishes it.'
-order: 4
+summary: 'Tag 5: the server announces a database connection the container opened, under a connection id it minted; the client answers with everything the database says, which the server relays onto the proxy’s channel, and its channel response finish finishes it.'
+order: 5
 draft: false
 ---
 
@@ -11,7 +11,7 @@ the server's half of the
 connection; the client's half is a [postgres](/endpoints/containers-tools-run/client/postgres/)
 channel the client opens, quoting the same id.
 
-- **The request.** The tag byte `4` followed by a connection id, four
+- **The request.** The tag byte `5` followed by a connection id, four
   bytes, that the server minted.
   [Request](/endpoints/containers-tools-run/server/postgres/request/) states its form.
 - **The response.** What the database says, as channel responses,

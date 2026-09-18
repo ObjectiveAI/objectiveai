@@ -14,6 +14,6 @@ answer.
 - **The response.** The server sends nothing on the channel.
   [Response](/endpoints/containers-agents-run/client/stop/response/) states the sequence.
 - **The effect.** When the server receives the channel request, it
-  ends the run: it stops the container, releases the registry repository it served, ends every channel task, and sends the response finish of the scope. The server reads no further channel request on the scope.
+  ends the run: it stops the container, ends every channel task, and sends the response finish of the scope. The server reads no further channel request on the scope.
 - **The volume and the mounts.** The stop does not alter a volume
   or a mount.

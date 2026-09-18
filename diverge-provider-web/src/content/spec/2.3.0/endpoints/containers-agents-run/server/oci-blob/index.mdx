@@ -5,9 +5,9 @@ order: 1
 draft: false
 ---
 
-The server opens this channel when the image of the request is of
-kind `client` and its registry does not hold a blob that the pull
-requires: a config or a layer.
+The server opens this channel when it obtains the image of the
+request from the client and its registry does not hold a blob that
+the pull requires: a config or a layer.
 
 - **When.** Between the request and the deploy.
 - **The request.** The tag byte `1` followed by the digest as JSON.
