@@ -1,6 +1,6 @@
 ---
 title: 'containers::agents::run'
-summary: 'Tag 0: a client asks the server to run an agent container from an image with limits and mounts; the server obtains the image, deploys, injects the proxy, connects to it and begins it with the agent, makes every FUSE mount, sends exactly one id, and relays and serves every channel until the run ends.'
+summary: 'Tag 0: a client asks the server to run an agent container from an image with limits and mounts; the server obtains the image, deploys, injects the proxy, connects to it and begins it with the arguments, makes every FUSE mount, sends exactly one id, and relays and serves every channel until the run ends.'
 order: 0
 draft: false
 ---
@@ -68,7 +68,8 @@ about the client, which may open any channel at any time.
    one WebSocket to port `14979` of the container, the connection of
    the [Container Proxy](/container-proxy/) layer, and on it, before
    anything else, the begin scope of the container's family —
-   [agents::begin](/container-proxy-endpoints/agents-begin/), carrying the `agent` value of the request verbatim.
+   [agents::begin](/container-proxy-endpoints/agents-begin/),
+   carrying the `arguments` of the request verbatim.
    A proxy that does not accept the connection, or that answers the
    begin with an error, is a container that did not come up: the
    server stops the container, and the failure is the run's error.

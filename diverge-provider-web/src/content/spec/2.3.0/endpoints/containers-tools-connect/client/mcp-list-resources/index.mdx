@@ -1,7 +1,7 @@
 ---
 title: 'MCP list resources'
-summary: 'Tag 7: the client sends the params of the MCP method; the server opens the channel of that exchange on the container’s begin scope and relays exactly one channel response, the result or the MCP error, and the channel response finish.'
-order: 7
+summary: 'Tag 8: the client sends the params of the MCP method; the server opens the channel of that exchange on the container’s begin scope and relays exactly one channel response, the result or the MCP error, and the channel response finish.'
+order: 8
 draft: false
 ---
 
@@ -9,7 +9,7 @@ The client opens this channel for the resources the MCP server of the container 
 channel of that exchange on the begin scope of the container's proxy
 with the params and relays its one answer.
 
-- **The request.** The tag byte `7` followed by the params as
+- **The request.** The tag byte `8` followed by the params as
   JSON. [Request](/endpoints/containers-tools-connect/client/mcp-list-resources/request/) states its form.
 - **The response.** Exactly one channel response, the result or an
   MCP error, and the channel response finish.

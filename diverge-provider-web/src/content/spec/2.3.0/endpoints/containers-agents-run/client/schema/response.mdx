@@ -6,7 +6,7 @@ draft: false
 ---
 
 ```text
-[0][schema JSON …]    the JSON Schema of the agent value
+[0][schema JSON …]    the JSON Schema of the arguments
 [1][error JSON …]     the proxy could not say
 ```
 
@@ -15,7 +15,9 @@ draft: false
   response finish that no channel response precedes states that the
   proxy did not serve the question.
 
-The channel response is defined by `diverge-provider-sdk-rs/src/shared/containers/agent_schema/response/frame.rs`:
+The channel response is defined by `diverge-provider-sdk-rs/src/shared/containers/schema/response/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/agent_schema/response/frame.rs
+```rust include=diverge-provider-sdk-rs/src/shared/containers/schema/response/frame.rs
 ```
+
+# ---- agents family exchanges

@@ -1,12 +1,12 @@
 ---
 title: 'Request'
-summary: 'The payload of the channel request: the tag byte 6 and the request of the channel.'
+summary: 'The payload of the channel request: the tag byte 1 and the request of the channel.'
 order: 1
 draft: false
 ---
 
 ```text
-[6]
+[1]
 ```
 
 - **No parameter.** The channel request carries nothing after the
@@ -15,9 +15,4 @@ draft: false
 The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_request/frame.rs`:
 
 ```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/client/channel_request/frame.rs
-```
-
-and by `diverge-provider-sdk-rs/src/shared/mcp/notifications/request/request.rs`:
-
-```rust include=diverge-provider-sdk-rs/src/shared/mcp/notifications/request/request.rs
 ```
