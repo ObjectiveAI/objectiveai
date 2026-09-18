@@ -12,8 +12,9 @@ pub enum Source {
     /// One of the provider's own: `<name>@<digest>`, in the store
     /// already, pulled from nowhere.
     Server(String),
-    /// Wherever the caller said: the reference as given, under a host
-    /// the configuration lists, pulled with that host's credential.
+    /// The registry the caller named: `<host>/<name>@<digest>`, the
+    /// host one the configuration lists, pulled with that host's
+    /// credential.
     Registry(String),
 }
 
@@ -83,16 +84,4 @@ fn segment_ok(segment: &str) -> bool {
         }
     }
     !bytes.is_empty()
-}
-
-/// The host a reference names, if it names one: its first segment,
-/// when that contains a `.` or a `:` or is `localhost` — podman's
-/// own reading of a reference. `None` is a reference with no host.
-pub fn host_of(reference: &str) -> Option<&str> {
-    let first = reference.split('/').next()?;
-    if reference.contains('/') && (first.contains('.') || first.contains(':') || first == "localhost") {
-        Some(first)
-    } else {
-        None
-    }
 }

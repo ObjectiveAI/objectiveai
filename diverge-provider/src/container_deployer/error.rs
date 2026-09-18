@@ -27,12 +27,9 @@ pub enum Error {
         /// The digest asked for.
         digest: String,
     },
-    /// The reference names a registry host the configuration does not
+    /// The request names a registry host the configuration does not
     /// list.
     Registry(String),
-    /// The reference names no host and the configuration lists no
-    /// registry to read it under.
-    NoRegistry,
     /// The running containers' `disk` would pass
     /// `container_overlay_disk` with this one.
     Disk,
@@ -85,7 +82,6 @@ impl fmt::Display for Error {
                 write!(f, "the provider offers no image `{name}` at `{digest}`")
             }
             Error::Registry(host) => write!(f, "the registry `{host}` is not one the provider pulls from"),
-            Error::NoRegistry => write!(f, "the reference names no registry and the provider lists none"),
             Error::Disk => write!(f, "the running containers have the provider's disk"),
             Error::Memory => write!(f, "the running containers have the provider's memory"),
             Error::Volume(name) => write!(f, "no volume named `{name}`"),
@@ -117,7 +113,6 @@ impl std::error::Error for Error {
             Error::Name(_) => None,
             Error::NotOffered { .. } => None,
             Error::Registry(_) => None,
-            Error::NoRegistry => None,
             Error::Disk => None,
             Error::Memory => None,
             Error::Volume(_) => None,
@@ -162,7 +157,6 @@ impl From<Error> for error::Error {
             Error::Name(_) => "name",
             Error::NotOffered { .. } => "not_offered",
             Error::Registry(_) => "registry",
-            Error::NoRegistry => "no_registry",
             Error::Disk => "disk",
             Error::Memory => "memory",
             Error::Volume(_) => "volume",

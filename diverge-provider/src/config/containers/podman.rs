@@ -15,13 +15,12 @@ use super::Registry;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Podman {
-    /// The registries a caller may pull from by naming them in an
-    /// image reference, each with the credential the provider
-    /// presents to it, if any. A reference whose host is not listed
-    /// is refused, and the run with it; a reference naming no host is
-    /// read as the first entry's. The provider's own registry, which
-    /// serves the images a caller holds, is not listed here and needs
-    /// no entry.
+    /// The registries a caller may pull from by naming one as the
+    /// `host` of a `registry` image, each with the credential the
+    /// provider presents to it, if any. A host that is not listed is
+    /// refused, and the run with it. The provider's own registry,
+    /// which serves the images a caller holds, is not listed here and
+    /// needs no entry.
     pub registries: Vec<Registry>,
     /// The directory podman's data is kept under: the image cache,
     /// what a container writes over its image, and what holds a
