@@ -9,13 +9,14 @@ use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult,
     PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResult,
 };
+use serde_json::Value;
 
 use super::super::channel_request;
 use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::client::answered::{
-    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource,
+    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Schema,
 };
 use crate::endpoints::containers::client::{ChannelStream, Decoded, OpenError, Scoped, UnaryError, WaitError};
 use crate::endpoints::containers::tools::run::server;
@@ -28,8 +29,9 @@ pub type McpNotificationsStream = ChannelStream<McpNotifications>;
 /// The scope a run opened, held for the container's life.
 ///
 /// Every channel a caller may open into a tool container is a method
-/// here: the tree watched, a file read or written, the five MCP
-/// exchanges into the server the container runs, and the stop. Each
+/// here: the tree watched, a file read or written, the arguments'
+/// schema, the five MCP exchanges into the server the container
+/// runs, and the stop. Each
 /// opens its own channel, so several may be in flight at once. Clones
 /// share the scope, and [`wait`](Self::wait) on any of them reports
 /// the same end.
@@ -127,6 +129,12 @@ impl ExecuteHandle {
         let payload = payload(&channel_request::Frame::Transfer(transfer::request::Request { path, id, destination }))
             .map_err(UnaryError::Request)?;
         self.0.unary::<Transfer>(&payload).await
+    }
+
+    /// What the arguments may be: the image's JSON Schema for them.
+    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
+        self.0.unary::<Schema>(&payload).await
     }
 
     /// `tools/list` against the server inside the container.

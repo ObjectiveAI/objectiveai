@@ -51,7 +51,7 @@ impl Family for Agents {
                 destination: request.destination,
             },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
-            channel_request::Frame::AgentSchema => Opened::Exchange(agent::Exchange::AgentSchema),
+            channel_request::Frame::Schema => Opened::Schema,
             channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.prompt)),
             channel_request::Frame::Dequeue => Opened::Exchange(agent::Exchange::Dequeue),
         }
@@ -113,13 +113,10 @@ impl Family for Agents {
 impl Runs for Agents {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, agent: Option<Value>) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
         async move {
-            // The agents handle always passes one; an absent agent is
-            // `null`, which the image is free to refuse.
-            let agent = agent.unwrap_or_default();
-            match begin::execute(&proxy, agent).await {
+            match begin::execute(&proxy, arguments).await {
                 Ok((handle, asks, chunks)) => Ok(Begun {
                     begin: Begin::Agents(handle),
                     asks,

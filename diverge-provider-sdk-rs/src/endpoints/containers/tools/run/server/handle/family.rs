@@ -51,6 +51,7 @@ impl Family for Tools {
                 destination: request.destination,
             },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
+            channel_request::Frame::Schema => Opened::Schema,
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
                 Opened::Exchange(tool::Exchange::ListResources(request))
@@ -117,13 +118,10 @@ impl Family for Tools {
 impl Runs for Tools {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, agent: Option<Value>) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
-        // A tool container has no agent; the tools handle passes
-        // none, and none would be carried.
-        let _ = agent;
         async move {
-            match begin::execute(&proxy).await {
+            match begin::execute(&proxy, arguments).await {
                 Ok((handle, asks, finish)) => Ok(Begun {
                     begin: Begin::Tools(handle),
                     asks,

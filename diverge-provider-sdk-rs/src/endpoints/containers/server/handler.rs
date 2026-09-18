@@ -53,7 +53,7 @@ pub(crate) async fn run<R, D, G, V>(
     scope: ScopeHandle,
     client_identity: &str,
     request: &Container,
-    agent: Option<Value>,
+    arguments: Value,
     deployer: &D,
     registry: &G,
     manager: &V,
@@ -90,7 +90,7 @@ pub(crate) async fn run<R, D, G, V>(
         }
     };
 
-    let prepared = match setup::prepare::<R, D, G, V::Volume>(&scope, client_identity, request, agent, deployer, registry, &held)
+    let prepared = match setup::prepare::<R, D, G, V::Volume>(&scope, client_identity, request, arguments, deployer, registry, &held)
         .await
     {
         Ok(prepared) => prepared,

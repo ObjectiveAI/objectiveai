@@ -21,11 +21,11 @@ use crate::shared::containers::{postgres, read, transfer, write_path};
 /// | `3` | [`Write`](Self::Write) |
 /// | `4` | [`Transfer`](Self::Transfer) |
 /// | `5` | [`Postgres`](Self::Postgres) |
-/// | `6` | [`AgentSchema`](Self::AgentSchema) |
+/// | `6` | [`Schema`](Self::Schema) |
 /// | `7` | [`Enqueue`](Self::Enqueue) |
 /// | `8` | [`Dequeue`](Self::Dequeue) |
 ///
-/// The first six are the same in every container scope, in the same
+/// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
 /// family's own exchange. All of them but the first reach INTO the
 /// container, which is the thing a caller cannot dial: it runs on the
@@ -97,12 +97,12 @@ pub enum Frame {
     /// container wrote. See
     /// [`postgres`](crate::shared::containers::postgres) for the pair.
     Postgres(postgres::request::Postgres),
-    /// What the agent may be. Tag `6`.
+    /// What the arguments may be. Tag `6`.
     ///
     /// Carries nothing — the variant is bare — and the provider answers
-    /// with the JSON Schema of the agent value. See
-    /// [`agent_schema`](crate::shared::containers::agent_schema).
-    AgentSchema,
+    /// with the JSON Schema of the container's arguments. See
+    /// [`schema`](crate::shared::containers::schema).
+    Schema,
     /// A message for the agent. Tag `7`.
     ///
     /// The one way into it: a message with no loop running starts
@@ -141,8 +141,8 @@ const TRANSFER: u8 = 4;
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 5;
 
-/// Tag for [`Frame::AgentSchema`].
-const AGENT_SCHEMA: u8 = 6;
+/// Tag for [`Frame::Schema`].
+const SCHEMA: u8 = 6;
 
 /// Tag for [`Frame::Enqueue`].
 const ENQUEUE: u8 = 7;
@@ -180,8 +180,8 @@ impl Encode for Frame {
                 out.extend_from_slice(&[POSTGRES]);
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::AgentSchema => {
-                out.extend_from_slice(&[AGENT_SCHEMA]);
+            Frame::Schema => {
+                out.extend_from_slice(&[SCHEMA]);
                 Ok(())
             }
             Frame::Enqueue(request) => {
@@ -217,7 +217,7 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            AGENT_SCHEMA => Ok(Frame::AgentSchema),
+            SCHEMA => Ok(Frame::Schema),
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),

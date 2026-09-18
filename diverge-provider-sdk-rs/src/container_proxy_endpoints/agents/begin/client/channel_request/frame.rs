@@ -17,12 +17,13 @@ use crate::shared::containers::{enqueue, postgres};
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
-/// | `1` | [`AgentSchema`](Self::AgentSchema) |
+/// | `1` | [`Schema`](Self::Schema) |
 /// | `2` | [`Enqueue`](Self::Enqueue) |
 /// | `3` | [`Dequeue`](Self::Dequeue) |
 ///
-/// The first is the same in both begin scopes, so a reader of one is
-/// a reader of both; what follows is this family's own exchange. All
+/// The first two are the same in both begin scopes, so a reader of
+/// one is a reader of both; what follows is this family's own
+/// exchange. All
 /// of them reach INTO the container: the last hop of what a caller
 /// opened on the provider. What comes OUT of the agent — its
 /// conversation — is no channel: it rides the begin's own main
@@ -36,12 +37,12 @@ pub enum Frame {
     /// driver wrote. See
     /// [`postgres`](crate::shared::containers::postgres) for the pair.
     Postgres(postgres::request::Postgres),
-    /// What the agent may be. Tag `1`.
+    /// What the arguments may be. Tag `1`.
     ///
     /// Carries nothing — the variant is bare — and the proxy answers
-    /// with the JSON Schema of the agent value. See
-    /// [`agent_schema`](crate::shared::containers::agent_schema).
-    AgentSchema,
+    /// with the JSON Schema of the container's arguments. See
+    /// [`schema`](crate::shared::containers::schema).
+    Schema,
     /// A message for the agent. Tag `2`.
     ///
     /// The one way into it: a message with no loop running starts
@@ -65,8 +66,8 @@ pub enum Frame {
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 0;
 
-/// Tag for [`Frame::AgentSchema`].
-const AGENT_SCHEMA: u8 = 1;
+/// Tag for [`Frame::Schema`].
+const SCHEMA: u8 = 1;
 
 /// Tag for [`Frame::Enqueue`].
 const ENQUEUE: u8 = 2;
@@ -86,8 +87,8 @@ impl Encode for Frame {
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::AgentSchema => {
-                out.extend_from_slice(&[AGENT_SCHEMA]);
+            Frame::Schema => {
+                out.extend_from_slice(&[SCHEMA]);
                 Ok(())
             }
             Frame::Enqueue(request) => {
@@ -112,7 +113,7 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            AGENT_SCHEMA => Ok(Frame::AgentSchema),
+            SCHEMA => Ok(Frame::Schema),
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),

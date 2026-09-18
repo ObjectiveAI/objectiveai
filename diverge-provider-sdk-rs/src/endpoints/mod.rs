@@ -61,9 +61,10 @@
 //!
 //! [`containers`] is the substrate, and the two families under it are
 //! told apart by what a caller says into the container: a message
-//! for an agent, or MCP. Everything else a container scope carries is the
-//! same wire in all four, defined once in
-//! [`shared::containers`](crate::shared::containers).
+//! for an agent, or MCP. Everything else a container scope carries —
+//! the arguments a container is made with and the schema that says
+//! what they may be among it — is the same wire in all three, defined
+//! once in [`shared::containers`](crate::shared::containers).
 
 mod client_request;
 

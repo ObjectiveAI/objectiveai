@@ -40,6 +40,7 @@ impl Family for Connect {
                 destination: request.destination,
             },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
+            channel_request::Frame::Schema => Opened::Schema,
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
                 Opened::Exchange(tool::Exchange::ListResources(request))

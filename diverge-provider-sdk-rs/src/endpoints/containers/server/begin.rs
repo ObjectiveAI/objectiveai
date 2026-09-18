@@ -1,21 +1,24 @@
 //! The begin scope of a run, whichever family's.
 
+use serde_json::Value;
+
 use crate::client::handle::SendError;
 use crate::container_proxy_endpoints::agents::begin::client::execute::{Chunks, ExecuteHandle as AgentsBegin};
 use crate::container_proxy_endpoints::client::{Ask, Asks};
 use crate::container_proxy_endpoints::tools::begin::client::execute::{ExecuteHandle as ToolsBegin, Finish};
-use crate::endpoints::containers::client::answered::Postgres;
-use crate::endpoints::containers::client::{ChannelStream, OpenError};
+use crate::endpoints::containers::client::answered::{Postgres, Schema};
+use crate::endpoints::containers::client::{ChannelStream, OpenError, UnaryError};
 
 /// The begin scope on a container's proxy connection: the place the
 /// proxy's asks ride, and the family's own exchanges.
 ///
 /// One per run, made by [`Runs::begin`](super::family::Runs::begin),
 /// held by the [`Run`](super::run::Run) for the container's life. The
-/// two families' handles answer the proxy the same way, which is what
-/// the methods here are for; what differs — the agent's exchanges, or
-/// the MCP five — the family's own `serve` reaches through the
-/// variant.
+/// two families' handles answer the proxy the same way, and ask it
+/// the same two things — a database half, the arguments' schema —
+/// which is what the methods here are for; what differs — the
+/// queue's exchanges, or the MCP five — the family's own `serve`
+/// reaches through the variant.
 #[derive(Debug)]
 pub(crate) enum Begin {
     /// An agent container's.
@@ -48,6 +51,15 @@ impl Begin {
         match self {
             Begin::Agents(begin) => begin.postgres(connection_id).await,
             Begin::Tools(begin) => begin.postgres(connection_id).await,
+        }
+    }
+
+    /// What the arguments may be, as the container's server states
+    /// it: the schema channel on either family's begin.
+    pub(crate) async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+        match self {
+            Begin::Agents(begin) => begin.schema().await,
+            Begin::Tools(begin) => begin.schema().await,
         }
     }
 

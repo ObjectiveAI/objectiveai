@@ -1,14 +1,17 @@
 //! Asking for a container.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::{FuseMount, Image, VolumeMount};
 
 /// Ask a provider to create a container.
 ///
 /// Everything here is what a caller may CHOOSE, and it is the same for
-/// every kind of container: what differs between an agent and a tool
-/// server is asked once the container runs, on a channel, not here.
+/// every kind of container — the arguments included, which either
+/// kind is handed once: what differs between an agent and a tool
+/// server is what a caller says into it once it runs, on a channel,
+/// not here.
 /// What a caller may not choose is not here at all rather than here
 /// and ignored — the container's name, its published ports, its
 /// entrypoint and its environment are the provider's, because they
@@ -16,7 +19,7 @@ use super::{FuseMount, Image, VolumeMount};
 /// reaches back. There is no environment: the mounts are the caller's
 /// only provisioning channel, and a field that is accepted and
 /// ignored is a field callers will believe in.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Container {
     /// The image: a name and a digest. See [`Image`].
     pub image: Image,
@@ -81,4 +84,15 @@ pub struct Container {
     /// lie inside it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
+    /// What the image is told once, as the image defines it, for the
+    /// container's life.
+    ///
+    /// A JSON value, because this crate does not know what an image
+    /// takes — an agent's model and tools, a tool server's own knobs
+    /// — and a wire that typed it would have to be revised for every
+    /// image that ever ran. The provider hands it to the container
+    /// and does not read it; what the value MAY be is what
+    /// [`schema`](crate::shared::containers::schema) answers, for
+    /// either kind of container.
+    pub arguments: Value,
 }

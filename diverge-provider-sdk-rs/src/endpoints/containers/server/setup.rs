@@ -70,8 +70,8 @@ pub(crate) struct Mount {
 ///    Where the deployer gets the image is its own.
 /// 2. The container is deployed, its proxy listening.
 /// 3. The proxy is dialled: one WebSocket, for the container's life.
-/// 4. The family's `begin` is opened on it — an agent container's
-///    carrying the agent — and its `Begun` awaited.
+/// 4. The family's `begin` is opened on it — carrying the arguments —
+///    and its `Begun` awaited.
 /// 5. One `fuse::mount` scope per mount, file mounts first, each
 ///    answered before the next is opened.
 ///
@@ -82,7 +82,7 @@ pub(crate) async fn prepare<R, D, G, L>(
     scope: &Arc<ScopeHandle>,
     client_identity: &str,
     request: &Container,
-    agent: Option<Value>,
+    arguments: Value,
     deployer: &D,
     registry: &G,
     held: &Held<L>,
@@ -129,7 +129,7 @@ where
         }
     };
 
-    let begun = match R::begin(&proxy, agent).await {
+    let begun = match R::begin(&proxy, arguments).await {
         Ok(begun) => begun,
         Err(error) => {
             undo(&container, &repository, registry).await;
