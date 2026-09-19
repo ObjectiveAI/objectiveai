@@ -39,6 +39,15 @@ use super::{
 /// its own responses, attributed alike. A nested sub-agent names
 /// its IMMEDIATE spawner, so depth is a chain of ids. The other
 /// chunks are the run's, not any thread's, and carry nothing.
+///
+/// # The image under `_meta`
+///
+/// Every kind of chunk has a `_meta` at its top level — MCP's own on
+/// the flattened content and results, this crate's on the rest — and
+/// the container's proxy sets one key on each as it relays the
+/// stream, `diverge.network/image`, an object of the container's
+/// `name` and `digest`: which image said the chunk. See
+/// [`shared::mcp`](crate::shared::mcp) for the key and its rule.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AgenticLoopChunk {

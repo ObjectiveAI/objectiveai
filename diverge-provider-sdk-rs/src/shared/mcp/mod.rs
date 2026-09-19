@@ -41,7 +41,10 @@
 //! result of each of the four, each tool and each resource of a
 //! list, and each notification — the proxy sets the key too, so a
 //! program that reads a merged list knows which image serves each
-//! tool. The proxy replaces a value the program set under that key
+//! tool. And on every chunk an agent says, which is not MCP but has
+//! the same `_meta` at its top level, the proxy sets the key, so a
+//! caller knows which image spoke. The proxy replaces a value the
+//! program set under that key
 //! and leaves every other key as it was sent; the provider's server
 //! relays all of it verbatim. The key's form is MCP's own rule for
 //! `_meta` names: a prefix of dotted labels, a slash, a name.
