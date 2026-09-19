@@ -9,4 +9,18 @@ repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://diverge.network"
 publish = false
 
+[features]
+# The daemon half and the caller half, each the same half of the wire
+# the provider SDK compiles under the same name: the frame-level
+# server core under `server`, the frame-level client core under
+# `client`. Off by default, as there.
+server = ["diverge-provider-sdk/server"]
+client = ["diverge-provider-sdk/client"]
+
 [dependencies]
+# The wire: frames, the connection, the scope and channel machinery of
+# both halves, and the encode/decode contract. The daemon speaks the
+# same wire the provider protocol does, and takes it from the crate
+# that defines it rather than restating it; the provider's own
+# endpoints come along and are not used.
+diverge-provider-sdk = { path = "../diverge-provider-sdk-rs" }
