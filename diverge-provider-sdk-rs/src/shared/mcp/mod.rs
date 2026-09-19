@@ -27,6 +27,25 @@
 //! Same five exchanges, opposite ways round. A shape defined once per
 //! endpoint would be four definitions that agree until they do not.
 //!
+//! # The image under `_meta`
+//!
+//! A container never addresses one server over another: it sees its
+//! proxy, and the caller merges its servers into one list. So the
+//! proxy says which image is which, under one `_meta` key,
+//! `diverge.network/image`, whose value is an object of the
+//! container's `name` and `digest` as the run request named them —
+//! the proxy learns them on its begin. On the four requests a
+//! program sends outward the proxy sets the key on the params, so a
+//! tool container that receives the call knows which image is
+//! calling. On what a tool container's own server answers — the
+//! result of each of the four, each tool and each resource of a
+//! list, and each notification — the proxy sets the key too, so a
+//! program that reads a merged list knows which image serves each
+//! tool. The proxy replaces a value the program set under that key
+//! and leaves every other key as it was sent; the provider's server
+//! relays all of it verbatim. The key's form is MCP's own rule for
+//! `_meta` names: a prefix of dotted labels, a slash, a name.
+//!
 //! # What is not here
 //!
 //! Initialization, capabilities, prompts, completion, sampling,

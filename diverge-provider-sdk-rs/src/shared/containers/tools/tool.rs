@@ -17,8 +17,13 @@ use super::super::request::Image;
 /// either would be dictating the caller's storage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tool {
-    /// What the program calls it: the MCP server it expects to find
-    /// among the caller's servers, by this name. Unique in the list.
+    /// What the program calls it: the caller's handle for the tool
+    /// container, and the label the caller uses if it prefixes the
+    /// tool's tools when it merges lists. Unique in the list. The
+    /// program never finds a server by it — it calls tools by whatever
+    /// names the caller's merged list shows, and knows which image
+    /// serves each by the image under `_meta`, see
+    /// [`shared::mcp`](crate::shared::mcp).
     pub name: String,
     /// The image: a name and a digest, the pair a
     /// `containers::tools::run` request names.

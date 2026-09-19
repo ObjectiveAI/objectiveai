@@ -10,10 +10,12 @@ use crate::container_proxy_endpoints::client::{Ask, Asks};
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::frame;
+use crate::shared::containers::request::Image;
 use crate::shared::containers::tools::Tool;
 
 /// Begin the server's work on a tool container: open the scope
-/// carrying `arguments`, and wait for the proxy to say it has begun.
+/// carrying `arguments` and `image`, and wait for the proxy to say it
+/// has begun.
 ///
 /// Reads exactly one frame off the main stream before returning,
 /// because nothing may be opened on the scope before its `Begun`: a
@@ -26,9 +28,10 @@ use crate::shared::containers::tools::Tool;
 pub async fn execute(
     handle: &Handle,
     arguments: Value,
+    image: Image,
 ) -> Result<(ExecuteHandle, Asks<Ask>, Finish, Vec<Tool>), ExecuteError> {
     let mut payload = Vec::new();
-    request::Frame { arguments }
+    request::Frame { arguments, image }
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
     let mut scope = handle.send_request(&payload).await.map_err(ExecuteError::Send)?;

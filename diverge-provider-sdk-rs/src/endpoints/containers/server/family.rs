@@ -19,6 +19,7 @@ use crate::container_proxy_endpoints::client::Ask;
 use crate::container_proxy_endpoints::fuse::mount::client::execute::Ask as MountAsk;
 use crate::decode::Decode;
 use crate::encode::Encode;
+use crate::shared::containers::request::Image;
 use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::error::Error;
 use crate::shared::filetree;
@@ -73,10 +74,10 @@ pub(crate) trait Runs: Family {
     type Ask<'a>: Encode + From<Own<'a>>;
 
     /// Begin the container's proxy: the family's begin scope on the
-    /// connection `proxy`, carrying the container's `arguments`. What
-    /// comes back is the scope and what rides it; an error is the
-    /// run's, in the proxy's words where it refused.
-    fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send;
+    /// connection `proxy`, carrying the container's `arguments` and
+    /// its `image`. What comes back is the scope and what rides it; an
+    /// error is the run's, in the proxy's words where it refused.
+    fn begin(proxy: &Handle, arguments: Value, image: Image) -> impl Future<Output = Result<Begun, Error>> + Send;
 
     /// The proxy's ask on the begin scope, as this family's frame to
     /// the caller — or [`None`] for the one that is not carried as it
