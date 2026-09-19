@@ -10,6 +10,7 @@ use tokio::sync::{mpsc, oneshot};
 
 use super::{Cmd, DequeueReply, Fate, Outcome, Queued, run};
 use crate::proxy::Proxy;
+use crate::stamp::Stamp;
 
 /// A message offered to the loop in flight, and not yet fated.
 struct Inflight {
@@ -54,9 +55,9 @@ struct Driver {
 
 /// Start the driver for an agent container that has begun, and hand
 /// back the channel the server's channels speak to it on.
-pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>) -> mpsc::UnboundedSender<Cmd> {
+pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp) -> mpsc::UnboundedSender<Cmd> {
     let (sender, receiver) = mpsc::unbounded_channel();
-    tokio::spawn(drive(proxy, scope, receiver));
+    tokio::spawn(drive(proxy, scope, stamp, receiver));
     sender
 }
 
@@ -71,7 +72,7 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>) -> mpsc::UnboundedSend
 /// drain. The command channel closing is the connection gone — every
 /// channel that held a sender is over — and the driver ends with it;
 /// the calls in flight end with the process.
-async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::UnboundedReceiver<Cmd>) {
+async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut commands: mpsc::UnboundedReceiver<Cmd>) {
     let mut driver = Driver {
         queue: VecDeque::new(),
         inflight: None,
@@ -112,7 +113,7 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
                         for message in batch {
                             let _ = message.fate.send(Fate::Delivered);
                         }
-                        ended = Some(run::relay(response, Arc::clone(&scope)));
+                        ended = Some(run::relay(response, Arc::clone(&scope), stamp.clone()));
                         driver.run = Run::Active;
                     }
                     Ok(Err(error)) => {

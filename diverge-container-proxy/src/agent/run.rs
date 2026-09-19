@@ -14,6 +14,7 @@ use tokio::sync::oneshot;
 
 use crate::program::{refused, status_error};
 use crate::proxy::Proxy;
+use crate::stamp::Stamp;
 
 /// Start one loop on `prompt`, on a task of its own: what comes back
 /// is the `2xx` response whose body is the loop, or the error — a
@@ -52,22 +53,24 @@ pub fn start(proxy: Arc<Proxy>, prompt: String) -> oneshot::Receiver<Result<reqw
 }
 
 /// Relay the loop, on a task of its own: every event's data goes out
-/// on the begin scope's main stream as one `Chunk`, its JSON exactly
-/// as the agent's server wrote it, until the stream ends — cleanly,
+/// on the begin scope's main stream as one `Chunk`, its JSON as the
+/// agent's server wrote it with the container's image under its
+/// `_meta`, until the stream ends — cleanly,
 /// or by dying — which is the loop over. The receiver hears the end
 /// as its sender dropping. Nothing is said on the stream about how
 /// the loop ended: an error there would end the scope, and the
 /// stream has no marker between one loop and the next by design.
-pub fn relay(response: reqwest::Response, scope: Arc<ScopeHandle>) -> oneshot::Receiver<()> {
+pub fn relay(response: reqwest::Response, scope: Arc<ScopeHandle>, stamp: Stamp) -> oneshot::Receiver<()> {
     let (sender, receiver) = oneshot::channel::<()>();
     tokio::spawn(async move {
         let mut events = pin!(response.bytes_stream().eventsource());
         while let Some(Ok(event)) = events.next().await {
             // The chunk's tag, then its JSON as the agent's server
-            // wrote it.
-            let mut bytes = Vec::with_capacity(1 + event.data.len());
+            // wrote it, the image under its `_meta`.
+            let chunk = stamp.chunk(&event.data);
+            let mut bytes = Vec::with_capacity(1 + chunk.len());
             bytes.push(CHUNK);
-            bytes.extend_from_slice(event.data.as_bytes());
+            bytes.extend_from_slice(&chunk);
             scope.send_response(&bytes).await;
         }
         drop(sender);
