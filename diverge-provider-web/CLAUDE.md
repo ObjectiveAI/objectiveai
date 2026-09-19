@@ -227,7 +227,9 @@ the provider's server and the server is the proxy, throughout. Every type shown 
 the crate's file under `container_proxy_endpoints`, included, beside
 the shared frame it aliases. What an ask means is stated once, on the
 Layer 6 channel that relays it; this layer states only how it is
-carried.
+carried, and the one thing the proxy adds to what it carries: the
+container's image under `_meta` on every MCP exchange, in either
+direction.
 
 ### Layer 6 — Endpoints (`/endpoints/`)
 

@@ -11,7 +11,9 @@ draft: false
 
 - **`tools`.** An array of tools, in the order the program declared
   them. Each is an object of five members: `name`, a string, unique
-  in the array; `image`, an object of `name` and `digest` as the
+  in the array, the client's label for the tool container — the
+  container never finds a server by it, and calls tools by whatever
+  names the client's merged list shows; `image`, an object of `name` and `digest` as the
   [request](/endpoints/containers-tools-run/request/) of a tools run
   names one; `memory` and `disk`, limits in bytes as that request
   states them; and `arguments`, any JSON value, the `arguments` of

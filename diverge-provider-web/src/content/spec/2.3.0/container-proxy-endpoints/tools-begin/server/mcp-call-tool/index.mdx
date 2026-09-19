@@ -1,13 +1,14 @@
 ---
 title: 'MCP call tool'
-summary: 'Tag 9: the server relays an MCP `tools/call` exchange a program in the container asked of the caller’s MCP servers, its params verbatim; the client answers with exactly one channel response, the result or the MCP error, which the server relays to the program.'
+summary: 'Tag 9: the server relays an MCP `tools/call` exchange a program in the container asked of the caller’s MCP servers, its params as the program sent them with the container’s image added under `_meta`; the client answers with exactly one channel response, the result or the MCP error, which the server relays to the program.'
 order: 9
 draft: false
 ---
 
 The server opens this channel when a program in the container asks
-for one tool of the MCP servers of the caller, called. The params are sent
-verbatim; the client's one answer is relayed back.
+for one tool of the MCP servers of the caller, called. The params are sent as the program sent them, the
+container's image added under `_meta`; the client's one answer is
+relayed back.
 
 - **The request.** The tag byte `9` followed by the params of the
   MCP method `tools/call` as JSON. [Request](/container-proxy-endpoints/tools-begin/server/mcp-call-tool/request/)

@@ -10,7 +10,13 @@ draft: false
 ```
 
 - **The params.** The params of the MCP method `tools/list`, as JSON,
-  verbatim.
+  as the program sent them, with one addition.
+- **The image.** The server sets `_meta["diverge.network/image"]` on
+  the params to an object of two fields, `{"name":…,"digest":…}`:
+  the `image` the begin request carried, verbatim. A value the
+  program set under that key is replaced. Every other member of
+  `_meta`, and every other member of the params, is sent as the
+  program sent it.
 
 The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/server/channel_request/frame.rs`:
 
