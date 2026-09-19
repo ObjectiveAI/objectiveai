@@ -2,12 +2,12 @@
 //!
 //! In order: the provider's directory is found, its file read and
 //! checked, and the provider run on them until it is told to stop —
-//! see [`config`](diverge_provider::config) and
-//! [`serve`](diverge_provider::serve). The runtime is built
+//! see [`config`](diverge_provider_server::config) and
+//! [`serve`](diverge_provider_server::serve). The runtime is built
 //! here rather than attributed onto `main`, and a start that fails
 //! is the one thing this prints, as the error returned.
 
-use diverge_provider::{config, serve};
+use diverge_provider_server::{config, serve};
 
 fn main() -> Result<(), serve::Error> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
