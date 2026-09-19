@@ -13,6 +13,7 @@ use diverge_provider_sdk::shared::error::Error;
 use super::Family;
 use crate::encode::encoded;
 use crate::proxy::{Begun, Proxy};
+use crate::stamp::Stamp;
 use crate::{agent, inside, program};
 
 /// Serve the begin for the connection's life.
@@ -33,6 +34,7 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         refuse(&scope, begun()).await;
         return;
     }
+    let stamp = Stamp::new(&frame.image);
     let tools = match program::register(&proxy.upstream, frame.arguments).await {
         Ok(tools) => tools,
         Err(error) => {
@@ -48,6 +50,7 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
     proxy.publish(Begun {
         scope: Arc::clone(&scope),
         family: Family::Agents,
+        stamp: stamp.clone(),
     });
     proxy.set_commands(agent::driver(Arc::clone(&proxy), Arc::clone(&scope)));
     tokio::spawn(inside::mcp::notifications(Arc::clone(&proxy)));
