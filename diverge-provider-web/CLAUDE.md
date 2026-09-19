@@ -229,7 +229,7 @@ the shared frame it aliases. What an ask means is stated once, on the
 Layer 6 channel that relays it; this layer states only how it is
 carried, and the one thing the proxy adds to what it carries: the
 container's image under `_meta` on every MCP exchange, in either
-direction.
+direction, and on every chunk of an agent's conversation.
 
 ### Layer 6 — Endpoints (`/endpoints/`)
 
