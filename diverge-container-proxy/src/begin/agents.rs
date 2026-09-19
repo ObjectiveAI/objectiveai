@@ -52,7 +52,7 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         family: Family::Agents,
         stamp: stamp.clone(),
     });
-    proxy.set_commands(agent::driver(Arc::clone(&proxy), Arc::clone(&scope)));
+    proxy.set_commands(agent::driver(Arc::clone(&proxy), Arc::clone(&scope), stamp));
     tokio::spawn(inside::mcp::notifications(Arc::clone(&proxy)));
 
     while let Some(bytes) = scope.recv_channel_request().await {
