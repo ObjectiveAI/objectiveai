@@ -5,9 +5,10 @@
 //!
 //! The scope a begin opens is the CONNECTION's life. It is the
 //! server's first act, once, and it carries the arguments — the
-//! image's, a JSON value, handed over here and never again: what it
-//! opens is the place channels go, and a container that holds its
-//! arguments. The proxy answers
+//! image's, a JSON value, handed over here and never again — and the
+//! image itself, name and digest, for the proxy to put under `_meta`
+//! on every MCP exchange it relays: what it opens is the place
+//! channels go, and a container that holds its arguments. The proxy answers
 //! [`Begun`](server::response::Frame::Begun) on channel `0` once the
 //! container's server has taken them — carrying the tools the server
 //! declared in return, for the provider to have deployed — and then nothing more there for

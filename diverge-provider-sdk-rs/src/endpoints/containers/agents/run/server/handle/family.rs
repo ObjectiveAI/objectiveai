@@ -24,6 +24,7 @@ use crate::endpoints::containers::server::serve::agent;
 use crate::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy_endpoints::agents::begin::client::execute as begin;
 use crate::shared;
+use crate::shared::containers::request::Image;
 use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::containers::{command, fuse, oci, postgres, tools, vault};
 use crate::shared::mcp;
@@ -114,10 +115,10 @@ impl Family for Agents {
 impl Runs for Agents {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value, image: Image) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
         async move {
-            match begin::execute(&proxy, arguments).await {
+            match begin::execute(&proxy, arguments, image).await {
                 Ok((handle, asks, chunks, tools)) => Ok(Begun {
                     begin: Begin::Agents(handle),
                     asks,

@@ -74,8 +74,9 @@ pub(crate) struct Mount {
 ///    Where the deployer gets the image is its own.
 /// 2. The container is deployed, its proxy listening.
 /// 3. The proxy is dialled: one WebSocket, for the container's life.
-/// 4. The family's `begin` is opened on it — carrying the arguments —
-///    and its `Begun` awaited, with the tools the container declared.
+/// 4. The family's `begin` is opened on it — carrying the arguments
+///    and the image — and its `Begun` awaited, with the tools the
+///    container declared.
 /// 5. Beside each other: the caller is asked to deploy those tools,
 ///    when there are any — see [`deploy`] — and one `fuse::mount`
 ///    scope per mount is opened, file mounts first, each answered
@@ -136,7 +137,7 @@ where
         }
     };
 
-    let begun = match R::begin(&proxy, arguments).await {
+    let begun = match R::begin(&proxy, arguments, request.image.clone()).await {
         Ok(begun) => begun,
         Err(error) => {
             undo(&container, &repository, registry).await;

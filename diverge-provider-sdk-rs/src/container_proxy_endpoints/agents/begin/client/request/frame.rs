@@ -5,6 +5,7 @@ use serde_json::Value;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::containers::request::Image;
 
 /// Begin the server's work on an agent container, and hand it its
 /// arguments.
@@ -20,16 +21,26 @@ use crate::encode::{Encode, Writer};
 /// that has begun is a container that holds its arguments, and
 /// [`Begun`](super::super::super::server::response::Frame::Begun) says both.
 ///
+/// The image rides beside them for the proxy's own use: the proxy
+/// cannot see what image it runs in, and it puts the name and the
+/// digest under `_meta` on every MCP exchange it relays — see
+/// [`shared::mcp`](crate::shared::mcp) — so that whoever is on the
+/// other end of a tool call knows which image is calling, and which
+/// image is serving.
+///
 /// # Once, and first
 ///
 /// The server opens this before any other scope on the connection,
 /// and never again on it: a second begin is answered
 /// [`Error`](super::super::super::server::response::Frame::Error) and
 /// finished, and the first goes on.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Frame {
     /// The arguments, as the image defines them.
     pub arguments: Value,
+    /// The image the container was made from, name and digest, as the
+    /// run request named it.
+    pub image: Image,
 }
 
 /// This frame's tag among the scope-opening requests.
