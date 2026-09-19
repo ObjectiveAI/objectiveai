@@ -11,10 +11,12 @@ use crate::filesystem::mount::Mounts;
 use crate::inside::mcp::{Gate, Peers};
 use crate::inside::postgres::Pairs;
 use crate::program::Upstream;
+use crate::stamp::Stamp;
 use crate::tool::Tool;
 
 /// The begin scope, once it has begun: the scope the proxy's own asks
-/// ride, and which family's frames they are.
+/// ride, which family's frames they are, and the container's image
+/// to put under `_meta` on what they carry.
 #[derive(Clone)]
 pub struct Begun {
     /// The scope, shared by every task that asks on it.
@@ -22,6 +24,8 @@ pub struct Begun {
     /// Whose twelve asks: the two families encode the same twelve,
     /// each in its own frame.
     pub family: Family,
+    /// The container's image, for every MCP exchange relayed.
+    pub stamp: Stamp,
 }
 
 /// The one proxy: the connection's latches, the begin scope once it

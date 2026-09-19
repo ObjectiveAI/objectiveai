@@ -15,12 +15,15 @@ use rmcp::{ErrorData, RoleServer, ServerHandler};
 
 use crate::ask::{self, Asked};
 use crate::own::Own;
-use crate::proxy::Proxy;
+use crate::proxy::{Begun, Proxy};
 
 /// A compliant MCP server whose answers all live somewhere else.
 ///
-/// Each method sends its exchange as one of the proxy's own asks on
-/// the begin scope and decodes the one frame that answers it. The
+/// Each method puts the container's image under the params' `_meta`
+/// — with the program's own `_meta`, which rmcp took off the wire
+/// into the context — sends its exchange as one of the proxy's own
+/// asks on the begin scope, and decodes the one frame that answers
+/// it. The
 /// errors an MCP server on the far side sent travel through as
 /// themselves — their JSON-RPC codes are content — and the failures
 /// of the relay itself arrive as internal errors in the same
@@ -54,6 +57,13 @@ impl Handler {
         })?;
         F::decode(&bytes).map_err(|_| unreadable())
     }
+
+    /// The begin, waited for as every ask waits for it: the stamp is
+    /// its, and a proxy without one is a proxy whose connection is
+    /// gone.
+    async fn begun(&self) -> Result<Begun, ErrorData> {
+        self.proxy.begun().await.ok_or_else(gone)
+    }
 }
 
 impl ServerHandler for Handler {
@@ -81,11 +91,13 @@ impl ServerHandler for Handler {
     async fn list_tools(
         &self,
         request: Option<PaginatedRequestParams>,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, ErrorData> {
+        let mut request = request.unwrap_or_default();
+        self.begun().await?.stamp.request(&mut request, &context.meta);
         match self
             .exchange(Own::McpListTools(
-                mcp::list_tools::request::Request(request),
+                mcp::list_tools::request::Request(Some(request)),
             ))
             .await?
         {
@@ -97,11 +109,13 @@ impl ServerHandler for Handler {
     async fn list_resources(
         &self,
         request: Option<PaginatedRequestParams>,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
+        let mut request = request.unwrap_or_default();
+        self.begun().await?.stamp.request(&mut request, &context.meta);
         match self
             .exchange(Own::McpListResources(
-                mcp::list_resources::request::Request(request),
+                mcp::list_resources::request::Request(Some(request)),
             ))
             .await?
         {
@@ -118,9 +132,14 @@ impl ServerHandler for Handler {
     /// distinction the loop on the other side depends on.
     async fn call_tool(
         &self,
-        request: CallToolRequestParams,
-        _context: RequestContext<RoleServer>,
+        mut request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
+        let begun = match self.begun().await {
+            Ok(begun) => begun,
+            Err(error) => return Ok(failed(error).into()),
+        };
+        begun.stamp.request(&mut request, &context.meta);
         let result = match self
             .exchange(Own::McpCallTool(
                 mcp::call_tool::request::Request(request),
@@ -136,9 +155,10 @@ impl ServerHandler for Handler {
 
     async fn read_resource(
         &self,
-        request: ReadResourceRequestParams,
-        _context: RequestContext<RoleServer>,
+        mut request: ReadResourceRequestParams,
+        context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResponse, ErrorData> {
+        self.begun().await?.stamp.request(&mut request, &context.meta);
         match self
             .exchange(Own::McpReadResource(
                 mcp::read_resource::request::Request(request),
