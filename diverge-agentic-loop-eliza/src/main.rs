@@ -228,7 +228,7 @@ async fn run(
 ///
 /// A value this image will not take is `400`; an agent already
 /// registered is `409`, whatever the second carries — the agent
-/// never changes. `200`, with the tools the agent depends on — none — is the agent held.
+/// never changes. `200`, with the tools the agent depends on passed back, is the agent held.
 async fn register(
     Json(request): Json<diverge_container_proxy_sdk::register::request::Request>,
 ) -> Result<(StatusCode, Json<Response>), Refusal> {
@@ -244,8 +244,9 @@ async fn register(
             ));
         }
     };
+    let tools = agent.mcp_tools.clone();
     match registration::register(agent) {
-        Ok(()) => Ok((StatusCode::OK, Json(Response::default()))),
+        Ok(()) => Ok((StatusCode::OK, Json(Response { tools }))),
         Err(_) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({

@@ -1,5 +1,6 @@
 //! The Eliza agent.
 
+use diverge_provider_sdk::shared::containers::tools::Tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -68,4 +69,10 @@ pub struct Agent {
     /// model handler. The run refuses one that does. Absent is none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<Plugin>,
+    /// The tool containers this agent depends on, each one the caller
+    /// runs and serves to it as an MCP server, in the form the
+    /// provider's wire defines. Passed back whole as the registration's
+    /// answer, which is how the caller learns of them. Absent is none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mcp_tools: Vec<Tool>,
 }

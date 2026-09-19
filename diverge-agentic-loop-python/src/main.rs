@@ -249,7 +249,7 @@ async fn run(
 /// pip will not install, with everything pip said; an agent already
 /// registered is `409`, whatever the second carries — the agent
 /// never changes; the disk or pip failing to start is `500`. `200`,
-/// with the tools the agent depends on — none — is the agent held, its source on disk and its packages present.
+/// with the tools the agent depends on passed back, is the agent held, its source on disk and its packages present.
 /// The answer waits for the install, however long it takes.
 async fn register(Json(request): Json<register::request::Request>) -> Result<(StatusCode, Json<Response>), Refusal> {
     let agent: Agent = match serde_json::from_value(request.arguments) {
@@ -264,8 +264,9 @@ async fn register(Json(request): Json<register::request::Request>) -> Result<(St
             ));
         }
     };
+    let tools = agent.mcp_tools.clone();
     match registration::register(agent).await {
-        Ok(()) => Ok((StatusCode::OK, Json(Response::default()))),
+        Ok(()) => Ok((StatusCode::OK, Json(Response { tools }))),
         Err(error) => Err((error.status(), Json(error.message()))),
     }
 }
