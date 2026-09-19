@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 /// happened. A caller need not hold what it names; one that does
 /// answers so when asked.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Image {
     /// The repository path — `library/nginx`, `myorg/myimage`. No
     /// host: where the bytes come from is not the caller's to say.
