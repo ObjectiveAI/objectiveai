@@ -21,7 +21,11 @@
 //!
 //! Two features add halves that do: `server` adds [`server`] and
 //! `client` adds [`client`]. Both are off unless asked for, so nothing
-//! above changes for anyone who does not ask.
+//! above changes for anyone who does not ask. A third, `schemars`,
+//! adds nothing but a derive: `JsonSchema` on
+//! [`Image`](shared::containers::request::Image) and
+//! [`Tool`](shared::containers::tools::Tool), for an image whose own
+//! arguments name the tool containers it depends on.
 //!
 //! [`connection`] appears with either, and carries both kinds of socket
 //! under either. Which end dialled is a fact about TCP, not about the

@@ -16,6 +16,7 @@ use super::super::request::Image;
 /// mount is something the caller serves live, and a tool that named
 /// either would be dictating the caller's storage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Tool {
     /// What the program calls it: the caller's handle for the tool
     /// container, and the label the caller uses if it prefixes the
