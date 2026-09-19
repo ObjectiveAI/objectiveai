@@ -26,8 +26,15 @@ draft: false
   array exactly as the program produced it.
 - **The chunk.** The bytes after the byte `2` are one chunk as the
   [containers::agents::run response](/endpoints/containers-agents-run/response/)
-  defines it, as JSON, which the server sends exactly as the agent's
-  server produced it.
+  defines it, as JSON, which the server sends as the agent's server
+  produced it, with one addition.
+- **The image.** The server sets `_meta["diverge.network/image"]` on
+  each chunk to an object of two fields, `{"name":…,"digest":…}`:
+  the `image` the begin request carried, verbatim. A value the
+  agent's server set under that key is replaced. Every other member
+  of `_meta`, and every other member of the chunk, is sent as the
+  agent's server produced it. A chunk that is not a JSON object is
+  sent as the agent's server produced it.
 - **The error.** After the byte `1`, exactly one JSON value in the
   form defined on the [volumes::list response](/endpoints/volumes-list/response/)
   page. Refused arguments carry the container's own words.
