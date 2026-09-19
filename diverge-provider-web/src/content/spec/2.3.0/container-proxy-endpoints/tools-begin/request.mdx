@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 1 followed by the request as JSON: the arguments, as the image defines them.'
+summary: 'The payload is the tag byte 1 followed by the request as JSON: the arguments, as the image defines them, and the image the container was made from.'
 order: 1
 draft: false
 ---
@@ -14,6 +14,11 @@ draft: false
   request that made the container, verbatim. What the value may be,
   the image defines, and the [schema](/container-proxy-endpoints/tools-begin/client/schema/) channel
   answers.
+- **`image`.** An object of two fields, `{"name":…,"digest":…}`:
+  the `image` of that request, verbatim. It is what the server puts
+  under `_meta` on every MCP exchange it relays, as the
+  [mcp-call-tool](/container-proxy-endpoints/tools-begin/server/mcp-call-tool/) channel and its
+  siblings state.
 - **Once, and first.** The client sends this request before any other
   request on the connection, and never again on it.
 - **Malformed.** A payload that does not decode as stated is answered

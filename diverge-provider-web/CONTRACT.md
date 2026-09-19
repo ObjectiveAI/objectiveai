@@ -737,7 +737,9 @@ that listens on TCP port 14979 and accepts one WebSocket connection
 there; that speaks the Protocol's own frames on it and sends no auth
 frame; that answers exactly one begin Scope per connection, holding the
 arguments it carries for the Container's life and answering with the
-tools the program declared; that makes each mount
+tools the program declared; that sets the request's image under
+`_meta` on every MCP exchange it relays, in either direction, as the
+Specification states, and alters nothing else of them; that makes each mount
 Scope's mount before answering it and holds every mount for its life,
 asking for what the mount needs on channels of that Scope; that
 leaves out of every filetree the paths the tree Scope's request names
