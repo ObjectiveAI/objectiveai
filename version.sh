@@ -248,7 +248,7 @@ CARGO_TOMLS=(
   diverge-broker-sdk/Cargo.toml
   diverge-daemon-sdk-rs/Cargo.toml
   diverge-provider-sdk-rs/Cargo.toml
-  diverge-provider/Cargo.toml
+  diverge-provider-server/Cargo.toml
   objectiveai-sdk-rs/Cargo.toml
   objectiveai-sdk-rs-cffi/Cargo.toml
   objectiveai-sdk-rs-macros/Cargo.toml

@@ -1861,7 +1861,26 @@ name = "diverge-daemon-sdk"
 version = "2.3.0"
 
 [[package]]
-name = "diverge-provider"
+name = "diverge-provider-sdk"
+version = "2.3.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "futures-util",
+ "indexmap 2.14.0",
+ "postcard",
+ "rmcp 3.1.2",
+ "rust_decimal",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite 0.29.0",
+ "uuid",
+]
+
+[[package]]
+name = "diverge-provider-server"
 version = "2.3.0"
 dependencies = [
  "axum",
@@ -1882,25 +1901,6 @@ dependencies = [
  "tokio-tungstenite 0.29.0",
  "uuid",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "diverge-provider-sdk"
-version = "2.3.0"
-dependencies = [
- "axum",
- "bytes",
- "futures-util",
- "indexmap 2.14.0",
- "postcard",
- "rmcp 3.1.2",
- "rust_decimal",
- "schemars 1.2.2",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.29.0",
- "uuid",
 ]
 
 [[package]]

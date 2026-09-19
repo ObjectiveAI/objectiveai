@@ -1,5 +1,5 @@
 [package]
-name = "diverge-provider"
+name = "diverge-provider-server"
 version = "2.3.0"
 edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
@@ -13,7 +13,7 @@ publish = false
 path = "src/lib.rs"
 
 [[bin]]
-name = "diverge-provider"
+name = "diverge-provider-server"
 path = "src/main.rs"
 
 [dependencies]
