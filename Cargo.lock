@@ -1861,6 +1861,8 @@ name = "diverge-daemon-sdk"
 version = "2.3.0"
 dependencies = [
  "diverge-provider-sdk",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
