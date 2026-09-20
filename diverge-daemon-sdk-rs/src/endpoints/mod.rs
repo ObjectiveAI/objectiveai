@@ -6,7 +6,7 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | spawn an agent under a tag |
+//! | [`agents`] | create an agent under a name; delete one by name |
 //!
 //! # The tags
 //!
@@ -17,9 +17,10 @@
 //!
 //! | tag | request |
 //! |-----|---------|
-//! | `0` | [`agents::tag`] |
+//! | `0` | [`agents::create`] |
+//! | `1` | [`agents::delete`] |
 //!
-//! One, so far. Tags are handed out in the order scopes are defined
+//! Two, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

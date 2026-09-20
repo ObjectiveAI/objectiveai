@@ -1,35 +1,21 @@
-//! What a client's request frame carries for a tag.
+//! What a client's request frame carries for a delete.
 
 use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::encode::{Encode, Writer};
-use diverge_provider_sdk::shared::containers::request::Container;
 use serde::{Deserialize, Serialize};
 
-/// Ask the daemon to spawn an agent under a tag.
+/// Ask the daemon to delete an agent, by name.
 ///
-/// Everything the agent container is made from — the
-/// [`Container`] of a provider's `containers::agents::run`, verbatim,
-/// so the daemon relays it to whichever provider it chooses and reads
-/// nothing of it but what it needs to choose — and the tag the agent
-/// is held under from then on. The wire is one object: the
-/// container's members, flattened, and `tag`.
-///
-/// # The tag
-///
-/// A string of the caller's choosing, unique among the caller's
-/// agents: the daemon refuses a request whose tag names an agent that
-/// is running, and says so with a variant of its own, because a
-/// caller acts on it differently from a failure — use the agent it
-/// has, or choose another tag. Nothing here constrains the string's
-/// form; the tag is the caller's word for its agent, and the daemon
-/// compares it and does not read it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// The name is the one a [`create`](crate::endpoints::agents::create) gave
+/// the agent, compared as the daemon compares names and not read. An
+/// agent that is active — one with a loop running — is not deleted,
+/// and the daemon says so with a variant of its own, because a caller
+/// acts on it differently from a failure: wait for the loop to end,
+/// and ask again.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The agent container, as a provider would be asked for it.
-    #[serde(flatten)]
-    pub container: Container,
-    /// The tag, unique among the caller's running agents.
-    pub tag: String,
+    /// The agent's name, as its create gave it.
+    pub name: String,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -44,11 +30,10 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 0;
+const TAG: u8 = 1;
 
-/// JSON, as the container request is on the provider's wire: the
-/// arguments are a JSON value, and a value cannot come back out of
-/// postcard at all.
+/// JSON, as the create is: one string, and the same reader for both
+/// of the agents family's requests.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
@@ -72,7 +57,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A tag request frame that could not be read.
+/// A agents delete request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -90,12 +75,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("agents tag request frame is empty"),
+            FrameError::Empty => f.write_str("agents delete request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected agents tag request tag {TAG}, found {tag}")
+                write!(f, "expected agents delete request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "agents tag request did not parse: {error}")
+                write!(f, "agents delete request did not parse: {error}")
             }
         }
     }

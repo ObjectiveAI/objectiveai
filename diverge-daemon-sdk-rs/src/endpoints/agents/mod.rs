@@ -4,9 +4,11 @@
 //! from the same [`Container`](diverge_provider_sdk::shared::containers::request::Container)
 //! request a caller would send that provider itself — the image, the
 //! limits, the mounts, the arguments — and holds under a name of the
-//! caller's choosing, its tag. The tag is how the caller reaches the
-//! agent after: one tag, one agent, for as long as the agent lives.
+//! caller's choosing. The name is how the caller reaches the agent
+//! after: one name, one agent, for as long as the agent exists.
 //!
-//! [`tag`] is the one scope so far: spawn an agent under a tag.
+//! [`create`] spawns an agent under a name; [`delete`] removes one by
+//! name.
 
-pub mod tag;
+pub mod create;
+pub mod delete;

@@ -27,8 +27,10 @@ use super::agents;
 /// daemon holding bytes it could not name and no scope to complain in.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClientRequest<'a> {
-    /// Tag `0`. Spawn an agent under a tag.
-    AgentsTag(agents::tag::client::request::Frame),
+    /// Tag `0`. Create an agent under a name.
+    AgentsCreate(agents::create::client::request::Frame),
+    /// Tag `1`. Delete an agent by name.
+    AgentsDelete(agents::delete::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -43,13 +45,14 @@ pub enum ClientRequest<'a> {
 }
 
 impl Encode for ClientRequest<'_> {
-    /// The ordinary JSON failure: the one request is JSON after its
+    /// The ordinary JSON failure: every request is JSON after its
     /// tag.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            ClientRequest::AgentsTag(frame) => frame.encode(out),
+            ClientRequest::AgentsCreate(frame) => frame.encode(out),
+            ClientRequest::AgentsDelete(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -74,8 +77,11 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             return Ok(ClientRequest::Invalid(bytes));
         };
         let request = match *tag {
-            0 => agents::tag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::AgentsTag)
+            0 => agents::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsCreate)
+                .ok(),
+            1 => agents::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsDelete)
                 .ok(),
             _ => None,
         };
@@ -86,7 +92,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
 impl fmt::Display for ClientRequest<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ClientRequest::AgentsTag(_) => f.write_str("agents tag"),
+            ClientRequest::AgentsCreate(_) => f.write_str("agents create"),
+            ClientRequest::AgentsDelete(_) => f.write_str("agents delete"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
