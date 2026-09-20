@@ -24,3 +24,7 @@ client = ["diverge-provider-sdk/client"]
 # that defines it rather than restating it; the provider's own
 # endpoints come along and are not used.
 diverge-provider-sdk = { path = "../diverge-provider-sdk-rs" }
+serde = { version = "1.0.229", features = ["derive"] }
+# `preserve_order` as the provider SDK has it, so an arguments value
+# relayed to a provider keeps the order it arrived in.
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
