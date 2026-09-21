@@ -9,6 +9,10 @@ draft: false
 [2][request JSON …]
 ```
 
+- **`key`.** A string the client chooses: what a
+  [dequeue](/container-proxy-endpoints/agents-begin/client/dequeue/) names to withdraw the message, and every
+  other message still waiting under the same key. Two messages may
+  share one. The server relays it verbatim and does not read it.
 - **`content`.** An array of MCP content blocks, in order, each as
   the `ContentBlock` of the crate's MCP dependency states one: text,
   an image, audio, an embedded resource, or a resource link. What the
