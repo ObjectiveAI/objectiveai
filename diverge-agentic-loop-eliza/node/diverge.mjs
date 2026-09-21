@@ -321,12 +321,9 @@ function readResourceAction(client, emit) {
   };
 }
 
-/** Every block, rendered for the model, one after another. */
+/** Every block, rendered for the model, beside each other, joined in order. */
 async function render(runtime, blocks) {
-  const parts = [];
-  for (const block of blocks) {
-    parts.push(await renderBlock(runtime, block));
-  }
+  const parts = await Promise.all(blocks.map((block) => renderBlock(runtime, block)));
   return parts.join("\n");
 }
 
