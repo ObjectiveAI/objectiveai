@@ -23,9 +23,11 @@ use diverge_provider_sdk::encode::{Encode, Writer};
 pub enum Frame {
     /// Take the message back. Tag `0`.
     ///
-    /// Carries nothing — the variant is bare — and nothing comes back
-    /// on this channel: the daemon sends no channel response and no
-    /// channel response finish on it. What comes back is the scope's
+    /// Carries nothing — the variant is bare; the daemon knows which
+    /// message, since it enqueued it under a key of its own, one per
+    /// message, and cancels by a dequeue of that key — and nothing
+    /// comes back on this channel: the daemon sends no channel
+    /// response and no channel response finish on it. What comes back is the scope's
     /// response, which was coming anyway. A cancel of a message the
     /// agent has taken changes nothing, and the response says so; a
     /// second cancel changes nothing either.

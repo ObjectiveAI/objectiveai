@@ -8,7 +8,10 @@
 //! finishes. While the scope is open the client may open one
 //! channel on it, [`cancel`](client::channel_request::Frame::Cancel),
 //! to take the message back; nothing answers on that channel, and
-//! the scope's own response says whether the cancel was in time.
+//! the scope's own response says whether the cancel was in time. The
+//! daemon enqueues each message on the provider's wire under a key
+//! of its own minting, one per message, and a cancel is a dequeue of
+//! that key: one cancel takes back one message and no other.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question and the cancel are in [`client`] — and the daemon
