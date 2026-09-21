@@ -63,7 +63,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_container_proxy_sdk::Client;
-use diverge_container_proxy_sdk::agent::dequeue::Outcome;
+use diverge_container_proxy_sdk::agent::dequeue::{self, Outcome};
 use diverge_container_proxy_sdk::agent::enqueue::Fate;
 use diverge_container_proxy_sdk::register;
 use diverge_container_proxy_sdk::register::response::Response;
@@ -364,7 +364,7 @@ async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<
             })),
         ));
     }
-    let fate = QUEUE.enqueue(request.content).await;
+    let fate = QUEUE.enqueue(request.key, request.content).await;
     match fate.await {
         Ok(fate) => Ok(Json(fate)),
         Err(_) => Err((
@@ -377,14 +377,14 @@ async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<
     }
 }
 
-/// `POST /dequeue`: clear the running loop's queue.
+/// `POST /dequeue`: withdraw the messages waiting under a key.
 ///
-/// Naive, deliberately: whatever is pending is withdrawn — each
-/// message's own `/enqueue` answers `dequeued` — and a queue with
-/// nothing pending, closed or not, answers `empty`. The body, `{}`,
-/// carries nothing and is not read.
-async fn dequeue() -> Json<Outcome> {
-    if QUEUE.dequeue().await {
+/// Naive, deliberately: whatever is pending under the body's key is
+/// withdrawn — each message's own `/enqueue` answers `dequeued` —
+/// every other message stays, and a queue with nothing pending under
+/// the key, closed or not, answers `empty`.
+async fn dequeue(Json(request): Json<dequeue::request::Request>) -> Json<Outcome> {
+    if QUEUE.dequeue(&request.key).await {
         Json(Outcome::Dequeued)
     } else {
         Json(Outcome::Empty)

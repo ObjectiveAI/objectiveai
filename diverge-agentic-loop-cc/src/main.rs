@@ -66,7 +66,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_container_proxy_sdk::Client;
-use diverge_container_proxy_sdk::agent::dequeue::Outcome;
+use diverge_container_proxy_sdk::agent::dequeue::{self, Outcome};
 use diverge_container_proxy_sdk::agent::enqueue::Fate;
 use diverge_container_proxy_sdk::register;
 use diverge_container_proxy_sdk::register::response::Response;
@@ -358,19 +358,19 @@ async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<
         Ok(blocks) => blocks,
         Err(error) => return Err((StatusCode::BAD_REQUEST, Json(error))),
     };
-    Ok(Json(spawn::enqueue(request.content, blocks).await))
+    Ok(Json(spawn::enqueue(request.key, request.content, blocks).await))
 }
 
-/// `POST /dequeue`: clear the running conversation's queue.
+/// `POST /dequeue`: withdraw the messages waiting under a key.
 ///
-/// The answer arrives once Claude Code has replied to every cancel —
-/// however long that takes — and a queue with nothing left to
-/// withdraw, or no run at all, answers `empty`. The body, `{}`,
-/// carries nothing and is not read. The one HTTP failure is the
-/// install's.
-async fn dequeue() -> Result<Json<Outcome>, Refusal> {
+/// The answer arrives once Claude Code has replied to every cancel
+/// of a message under the body's key — however long that takes —
+/// and a queue with nothing left to withdraw under it, or no run at
+/// all, answers `empty`; every other message stays. The one HTTP
+/// failure is the install's.
+async fn dequeue(Json(request): Json<dequeue::request::Request>) -> Result<Json<Outcome>, Refusal> {
     installed().await?;
-    Ok(Json(spawn::dequeue().await))
+    Ok(Json(spawn::dequeue(&request.key).await))
 }
 
 /// The install gate every endpoint stands behind: waits out an
