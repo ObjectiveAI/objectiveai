@@ -31,6 +31,8 @@ pub enum ClientRequest<'a> {
     AgentsCreate(agents::create::client::request::Frame),
     /// Tag `1`. Delete an agent by name.
     AgentsDelete(agents::delete::client::request::Frame),
+    /// Tag `2`. Send an agent a message.
+    AgentsMessage(agents::message::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -53,6 +55,7 @@ impl Encode for ClientRequest<'_> {
         match self {
             ClientRequest::AgentsCreate(frame) => frame.encode(out),
             ClientRequest::AgentsDelete(frame) => frame.encode(out),
+            ClientRequest::AgentsMessage(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -83,6 +86,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             1 => agents::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsDelete)
                 .ok(),
+            2 => agents::message::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsMessage)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -94,6 +100,7 @@ impl fmt::Display for ClientRequest<'_> {
         match self {
             ClientRequest::AgentsCreate(_) => f.write_str("agents create"),
             ClientRequest::AgentsDelete(_) => f.write_str("agents delete"),
+            ClientRequest::AgentsMessage(_) => f.write_str("agents message"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }
