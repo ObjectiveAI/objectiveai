@@ -49,8 +49,8 @@ use crate::shared::error::Error;
 /// running starts one on its message, an enqueue while one runs joins
 /// the queue, and either way what the agent says arrives here, chunk
 /// by chunk, in order, as the proxy sent it. There is no marker
-/// between one turn and the next: a [`UserChunk`](super::UserChunk)
-/// marks each message landing, a
+/// between one turn and the next: a message's user parts — see
+/// [`user_parts`](super::user_parts) — mark it landing, a
 /// [`NotificationChunk`](super::NotificationChunk) with
 /// [`is_fatal`](super::NotificationChunk::is_fatal) set marks a loop
 /// that died, and quiet is an agent with nothing left to say. The

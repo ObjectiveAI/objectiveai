@@ -22,7 +22,9 @@ use super::{AgenticLoopChunk, AssistantToolCallChunk};
 /// `parent_tool_call_id`, so a sub-agent's fragment never fuses onto
 /// the main thread's chunk (or another sub-agent's), whatever the
 /// adjacency. The boundary between threads is as real as any other
-/// kind's.
+/// kind's. Nothing else merges at all: images, audio, tool results,
+/// usage, notifications, and a message's user parts — each part is
+/// whole, and two text parts of one message are two blocks.
 pub fn push(chunks: &mut Vec<AgenticLoopChunk>, chunk: AgenticLoopChunk) {
     match (chunks.last_mut(), chunk) {
         (
