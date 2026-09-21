@@ -7,6 +7,7 @@
 //! its fate is the error and nothing is silently reduced to its
 //! text. [`check`] is that judgment; [`render`] is the text and the image files a checked message becomes.
 
+use futures_util::future;
 use rmcp::model::{ContentBlock, ResourceContents};
 use serde_json::Value;
 
@@ -31,7 +32,7 @@ fn link(name: &str, uri: &str) -> String {
     format!("{name} <{uri}>")
 }
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Refuse a message this agent cannot take whole: one with no block,
 /// or one with audio, a binary resource that is not an image, or a
@@ -112,27 +113,30 @@ pub fn directory() -> PathBuf {
     std::env::temp_dir().join("diverge-codex-images")
 }
 
-/// Write a turn's images and hand back their paths, in order; the
-/// files are the turn's, removed by [`remove`] when it ends.
+/// Write a turn's images, every file beside every other, and hand
+/// back their paths in the message's order; the files are the turn's,
+/// removed by [`remove`] when it ends. One image that will not write
+/// fails the turn; the files already written are the turn's to
+/// remove all the same.
 pub async fn write(images: &[Image]) -> std::io::Result<Vec<PathBuf>> {
     let directory = directory();
     tokio::fs::create_dir_all(&directory).await?;
-    let mut paths = Vec::with_capacity(images.len());
-    for image in images {
-        let bytes = base64_decode(&image.base64)?;
-        let path = directory.join(&image.name);
-        tokio::fs::write(&path, bytes).await?;
-        paths.push(path);
-    }
-    Ok(paths)
+    future::try_join_all(images.iter().map(|image| write_one(&directory, image))).await
 }
 
-/// Remove a turn's images. A file that is already gone is not an
-/// error worth reporting: nothing reads it again.
+/// One image to its file.
+async fn write_one(directory: &Path, image: &Image) -> std::io::Result<PathBuf> {
+    let bytes = base64_decode(&image.base64)?;
+    let path = directory.join(&image.name);
+    tokio::fs::write(&path, bytes).await?;
+    Ok(path)
+}
+
+/// Remove a turn's images, every file beside every other. A file
+/// that is already gone is not an error worth reporting: nothing
+/// reads it again.
 pub async fn remove(paths: &[PathBuf]) {
-    for path in paths {
-        let _ = tokio::fs::remove_file(path).await;
-    }
+    future::join_all(paths.iter().map(tokio::fs::remove_file)).await;
 }
 
 /// Base64, decoded by hand: the standard alphabet with padding, as
