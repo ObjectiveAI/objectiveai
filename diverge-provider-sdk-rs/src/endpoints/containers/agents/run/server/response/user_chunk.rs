@@ -1,6 +1,6 @@
 //! The user chunk.
 
-use rmcp::model::MetaObject;
+use rmcp::model::{ContentBlock, MetaObject};
 use serde::{Deserialize, Serialize};
 
 /// An enqueued message entering the conversation.
@@ -11,12 +11,12 @@ use serde::{Deserialize, Serialize};
 /// only statement of WHERE; this chunk is the statement of THAT, and
 /// of WHICH.
 ///
-/// # It carries the prompt itself
+/// # It carries the content itself
 ///
-/// The delivered message's text, verbatim — so the chunk stands on
-/// its own in the response stream and in any history built from it,
-/// and a caller with several enqueues in flight tells them apart by
-/// content. The
+/// The delivered message's content blocks, verbatim — so the chunk
+/// stands on its own in the response stream and in any history built
+/// from it, and a caller with several enqueues in flight tells them
+/// apart by content. The
 /// [`Delivered`](crate::shared::containers::enqueue::response::Frame::Delivered)
 /// answer on the enqueue's own channel says the same event from the
 /// channel's side.
@@ -27,8 +27,8 @@ pub struct UserChunk {
     /// serde has no tag of its own to read, so each variant's payload
     /// carries a `type` no other variant can match.
     pub r#type: UserChunkType,
-    /// The delivered message's text, exactly as enqueued.
-    pub prompt: String,
+    /// The delivered message's content, exactly as enqueued.
+    pub content: Vec<ContentBlock>,
     /// Arbitrary protocol-level metadata, MCP's `_meta` extension bag.
     ///
     /// Same key and same type as the chunks that flatten rmcp types

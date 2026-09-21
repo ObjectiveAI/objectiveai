@@ -1,5 +1,6 @@
 //! The begin scope, held for the connection's life.
 
+use rmcp::model::ContentBlock;
 use serde_json::Value;
 
 use super::super::channel_request;
@@ -52,8 +53,8 @@ impl ExecuteHandle {
     /// A message for the agent — starting a loop when none runs,
     /// queued when one does — answered with its fate whenever that
     /// is known; nothing times it out.
-    pub async fn enqueue(&self, prompt: String) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { prompt }))
+    pub async fn enqueue(&self, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { content }))
             .map_err(UnaryError::Request)?;
         unary::<Enqueue>(&self.handle, self.scope, &payload).await
     }

@@ -54,7 +54,7 @@ impl Family for Agents {
             },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
             channel_request::Frame::Schema => Opened::Schema,
-            channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.prompt)),
+            channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.content)),
             channel_request::Frame::Dequeue => Opened::Exchange(agent::Exchange::Dequeue),
         }
     }

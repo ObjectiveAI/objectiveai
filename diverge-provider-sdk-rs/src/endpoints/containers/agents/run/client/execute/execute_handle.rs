@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::Stream;
+use rmcp::model::ContentBlock;
 use serde_json::Value;
 
 use super::super::channel_request;
@@ -133,8 +134,8 @@ impl ExecuteHandle {
     /// queued when one does — answered with its fate whenever that
     /// is known, which may be long after the ask; nothing times it
     /// out. What the agent says arrives on the scope's main stream.
-    pub async fn enqueue(&self, prompt: String) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { prompt }))
+    pub async fn enqueue(&self, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { content }))
             .map_err(UnaryError::Request)?;
         self.0.unary::<Enqueue>(&payload).await
     }
