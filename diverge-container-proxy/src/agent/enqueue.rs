@@ -21,11 +21,11 @@ use crate::reply::reply;
 /// channel is answered with its fate whenever that is known — one
 /// frame, then the finish. Nothing times it out. A driver that is
 /// gone, or one that never was, is the finish with nothing before it.
-pub async fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, content: Vec<ContentBlock>) {
+pub async fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, key: String, content: Vec<ContentBlock>) {
     let (fate, heard) = oneshot::channel();
     let sent = proxy
         .commands()
-        .is_some_and(|commands| commands.send(Cmd::Enqueue(Queued { content, fate })).is_ok());
+        .is_some_and(|commands| commands.send(Cmd::Enqueue(Queued { key, content, fate })).is_ok());
     if !sent {
         reply(&scope, channel, None).await;
         return;
@@ -59,10 +59,10 @@ pub enum Outcome {
 /// `POST /enqueue`, held until the agent's server says what became of
 /// it. The driver reads the outcome when it arrives and never waits
 /// on it.
-pub fn deliver(proxy: Arc<Proxy>, content: Vec<ContentBlock>) -> oneshot::Receiver<Outcome> {
+pub fn deliver(proxy: Arc<Proxy>, key: String, content: Vec<ContentBlock>) -> oneshot::Receiver<Outcome> {
     let (sender, receiver) = oneshot::channel();
     tokio::spawn(async move {
-        let Ok(body) = serde_json::to_vec(&agent::enqueue::request::Request { content }) else {
+        let Ok(body) = serde_json::to_vec(&agent::enqueue::request::Request { key, content }) else {
             let _ = sender.send(Outcome::Failed);
             return;
         };
@@ -81,7 +81,6 @@ pub fn deliver(proxy: Arc<Proxy>, content: Vec<ContentBlock>) -> oneshot::Receiv
                 Ok(agent::enqueue::Fate::Missed) => Outcome::Missed,
                 Err(_) => Outcome::Failed,
             },
-            Ok(response) if response.status().is_client_error() => Outcome::Refused(status_error(response).await),
             Ok(response) if response.status().is_client_error() => Outcome::Refused(status_error(response).await),
             Ok(_) | Err(_) => Outcome::Failed,
         };

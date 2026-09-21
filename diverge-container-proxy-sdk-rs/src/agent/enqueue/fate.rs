@@ -21,8 +21,8 @@ use serde::{Deserialize, Serialize};
 pub enum Fate {
     /// The loop took the message into the conversation.
     Delivered,
-    /// A `POST /dequeue` withdrew the message before the loop took
-    /// it.
+    /// A `POST /dequeue` of the message's key withdrew it before the
+    /// loop took it.
     Dequeued,
     /// The loop ended before the message could be taken, or none was
     /// running.

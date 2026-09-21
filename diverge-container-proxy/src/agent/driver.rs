@@ -16,9 +16,9 @@ use crate::stamp::Stamp;
 /// A message offered to the loop in flight, and not yet fated.
 struct Inflight {
     message: Queued,
-    /// The server withdrew the queue while this was on the wire: a
-    /// fate the agent's server does not decide is `Dequeued`, and the
-    /// message is not requeued.
+    /// The server withdrew this message's key while this was on the
+    /// wire: a fate the agent's server does not decide is `Dequeued`,
+    /// and the message is not requeued.
     withdrawn: bool,
 }
 
@@ -89,13 +89,20 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut com
             command = commands.recv() => match command {
                 None => break,
                 Some(Cmd::Enqueue(message)) => driver.queue.push_back(message),
-                Some(Cmd::Dequeue(reply)) => {
-                    let drained = driver.queue.len();
-                    for message in driver.queue.drain(..) {
+                Some(Cmd::Dequeue { key, reply }) => {
+                    // One pass, the messages under the key out and
+                    // answered, every other kept in its order.
+                    let (withdrawn, kept): (Vec<Queued>, Vec<Queued>) =
+                        driver.queue.drain(..).partition(|message| message.key == key);
+                    driver.queue.extend(kept);
+                    let drained = withdrawn.len();
+                    for message in withdrawn {
                         let _ = message.fate.send(Fate::Dequeued);
                     }
                     if let Some(inflight) = &mut driver.inflight {
-                        inflight.withdrawn = true;
+                        if inflight.message.key == key {
+                            inflight.withdrawn = true;
+                        }
                     }
                     let _ = reply.send(DequeueReply {
                         drained,
@@ -174,7 +181,7 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut com
                 let Some(message) = driver.queue.pop_front() else {
                     continue;
                 };
-                delivering = Some(super::deliver(Arc::clone(&proxy), message.content.clone()));
+                delivering = Some(super::deliver(Arc::clone(&proxy), message.key.clone(), message.content.clone()));
                 driver.inflight = Some(Inflight {
                     message,
                     withdrawn: false,

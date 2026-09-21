@@ -2,8 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Whether the program's queue held anything: the JSON body of a
-/// `2xx` from `POST /dequeue`.
+/// Whether the program's queue held anything under the key: the JSON
+/// body of a `2xx` from `POST /dequeue`.
 ///
 /// ```json
 /// {"type": "dequeued"} | {"type": "empty"}
@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Outcome {
-    /// The queue held messages, and they are withdrawn.
+    /// The queue held messages under the key, and they are withdrawn.
     Dequeued,
-    /// The queue held nothing.
+    /// The queue held nothing under the key.
     Empty,
 }
