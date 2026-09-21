@@ -1,4 +1,4 @@
-//! `POST /run`: one loop, on one message.
+//! `POST /run`: one loop, on one or more messages.
 //!
 //! The proxy sends the [`request::Request`] JSON once the arguments
 //! are registered and no loop runs. A `2xx` is the loop as it happens:
