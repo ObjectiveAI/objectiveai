@@ -34,8 +34,8 @@ pub enum Frame {
     /// visible in the scope's main stream; this says only that it
     /// did.
     Delivered,
-    /// The caller withdrew the message before the agent took it.
-    /// Tag `1`.
+    /// The caller withdrew the message before the agent took it, by
+    /// a dequeue of its key. Tag `1`.
     Dequeued,
     /// The agent refused the message, or no run could start on it.
     /// Tag `2`.

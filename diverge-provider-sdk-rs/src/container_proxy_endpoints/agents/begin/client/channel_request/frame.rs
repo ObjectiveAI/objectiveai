@@ -6,7 +6,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::{enqueue, postgres};
+use crate::shared::containers::{dequeue, enqueue, postgres};
 
 /// What the server asks the proxy for once an agent container has
 /// begun.
@@ -53,14 +53,14 @@ pub enum Frame {
     /// the finish. What the agent says in reply is the begin's main
     /// stream. See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),
-    /// Withdraw every message still waiting in the queue. Tag `3`.
+    /// Withdraw every message still waiting under a key. Tag `3`.
     ///
-    /// Carries nothing — the variant is bare. Answered once — by a
+    /// Carries the key, as the enqueues gave it. Answered once — by a
     /// [`dequeue::response::Frame`](crate::shared::containers::dequeue::response::Frame)
-    /// saying whether the queue held anything — and then the finish.
+    /// saying whether anything waited under it — and then the finish.
     /// Each message it withdraws is ALSO answered, on its own enqueue
     /// channel. See [`dequeue`](crate::shared::containers::dequeue).
-    Dequeue,
+    Dequeue(dequeue::request::Request),
 }
 
 /// Tag for [`Frame::Postgres`].
@@ -95,9 +95,9 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ENQUEUE]);
                 request.encode(out)
             }
-            Frame::Dequeue => {
+            Frame::Dequeue(request) => {
                 out.extend_from_slice(&[DEQUEUE]);
-                Ok(())
+                request.encode(out)
             }
         }
     }
@@ -117,7 +117,9 @@ impl Decode<'_> for Frame {
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),
-            DEQUEUE => Ok(Frame::Dequeue),
+            DEQUEUE => dequeue::request::Request::decode(rest)
+                .map(Frame::Dequeue)
+                .map_err(FrameError::Dequeue),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -134,6 +136,8 @@ pub enum FrameError {
     Postgres(postgres::request::PostgresError),
     /// The enqueued message did not parse as JSON.
     Enqueue(serde_json::Error),
+    /// The dequeue's key did not parse as JSON.
+    Dequeue(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -149,6 +153,9 @@ impl fmt::Display for FrameError {
             FrameError::Enqueue(error) => {
                 write!(f, "enqueue request did not parse: {error}")
             }
+            FrameError::Dequeue(error) => {
+                write!(f, "dequeue request did not parse: {error}")
+            }
         }
     }
 }
@@ -156,7 +163,7 @@ impl fmt::Display for FrameError {
 impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameError::Enqueue(error) => Some(error),
+            FrameError::Enqueue(error) | FrameError::Dequeue(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }

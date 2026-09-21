@@ -4,7 +4,8 @@
 //! for the agent, and the provider answers once — with one
 //! [`response::Frame`] naming the message's fate — whenever that
 //! fate is known: taken into the conversation, withdrawn by a
-//! [`dequeue`](crate::shared::containers::dequeue), or the error,
+//! [`dequeue`](crate::shared::containers::dequeue) of its key, or
+//! the error,
 //! when the agent refused it or no run could start on it. Then the
 //! finish. A run ending
 //! does not lose a message: what it left waiting starts the next.
