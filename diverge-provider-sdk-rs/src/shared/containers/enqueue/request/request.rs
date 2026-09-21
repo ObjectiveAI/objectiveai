@@ -26,9 +26,9 @@ use crate::encode::{Encode, Writer};
 /// cannot take one refuses the whole message, in its own words, and
 /// the fate carries them; nothing is reduced to its text on the
 /// caller's behalf. A message with no block is refused too. The
-/// [`UserChunk`](crate::endpoints::containers::agents::run::server::response::UserChunk)
-/// that marks this message's delivery carries the same blocks back,
-/// verbatim, at the position it landed.
+/// [user parts](crate::endpoints::containers::agents::run::server::response::user_parts)
+/// that mark this message's delivery carry the same blocks back, one
+/// chunk each, verbatim, under this key, at the position it landed.
 ///
 /// # The answer says what became of it
 ///
