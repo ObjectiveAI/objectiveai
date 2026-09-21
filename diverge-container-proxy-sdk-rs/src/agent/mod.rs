@@ -43,12 +43,14 @@
 //! The proxy holds every message the provider enqueues and offers
 //! them to the program one at a time: `POST /enqueue` while a loop
 //! runs, held until the program says what became of it; `POST /run`
-//! when none does, the waiting messages joined into one prompt. The
-//! program's own queue is what a loop holds between seams. A
-//! `missed` from the program, or a non-`2xx`, hands the message back
-//! to the proxy, which waits for the loop to end and starts the next
-//! on it — so no message the provider enqueued is lost to a loop
-//! ending.
+//! when none does, the waiting messages' content concatenated into
+//! one. The program's own queue is what a loop holds between seams.
+//! A `missed` from the program, a `5xx`, or no answer hands the
+//! message back to the proxy, which waits for the loop to end and
+//! starts the next on it — so no message the provider enqueued is
+//! lost to a loop ending. A `4xx` is the message refused: content
+//! the program will not take, and its fate is the error, in the
+//! program's words.
 
 pub mod dequeue;
 pub mod enqueue;

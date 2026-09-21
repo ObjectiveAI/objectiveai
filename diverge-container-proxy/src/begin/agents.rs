@@ -69,7 +69,7 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
                 tokio::spawn(program::schema(proxy, scope, channel));
             }
             Ok(channel_request::Frame::Enqueue(request)) => {
-                tokio::spawn(agent::enqueue(proxy, scope, channel, request.prompt));
+                tokio::spawn(agent::enqueue(proxy, scope, channel, request.content));
             }
             Ok(channel_request::Frame::Dequeue) => {
                 tokio::spawn(agent::dequeue(proxy, scope, channel));
