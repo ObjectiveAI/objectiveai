@@ -13,7 +13,7 @@ use super::replies;
 use super::stdin;
 use super::writer;
 
-/// Withdraw everything still queued.
+/// Withdraw everything still queued under a key.
 ///
 /// BOTH locks are taken up front — joined, acquired in parallel, the
 /// only place in the module that ever holds the two at once — and
@@ -28,7 +28,8 @@ use super::writer;
 /// reply is in. The writer's span is the correctness of the
 /// snapshot — no enqueue can interleave between the look and the
 /// cancels, so every message written before the cancels is
-/// snapshotted and cancelled. Messages enqueued during the reply
+/// snapshotted and cancelled — those under the key; a message under
+/// another key is not looked at. Messages enqueued during the reply
 /// wait are after the withdrawal, and none of its business: they
 /// write no control responses, so the replies read stay answers to
 /// the cancels written. No timeout; the wait is as long as Claude
@@ -41,7 +42,7 @@ use super::writer;
 /// it was already taken, and its fate is delivered. A fate already
 /// decided by someone faster, or one nobody is listening to, is
 /// skipped — the reader races this same map on every replay echo.
-pub async fn dequeue() -> Outcome {
+pub async fn dequeue(key: &str) -> Outcome {
     // Joined, in parallel; the writer's fair queue makes this very
     // acquisition the withdrawal boundary.
     let (mut writer, mut replies) =
@@ -59,9 +60,11 @@ pub async fn dequeue() -> Outcome {
     // The pending map's keys ARE the queue: entries leave as fates
     // are decided, so what remains is what a cancel can still speak
     // to. Complete under the writer lock — nothing can be inserted
-    // while this holds it.
+    // while this holds it. Only the messages under the caller's key
+    // are spoken to; the rest stay queued.
     let uuids: Vec<String> = pending::PENDING
         .iter()
+        .filter(|entry| entry.value().key == key)
         .map(|entry| entry.key().clone())
         .collect();
     if uuids.is_empty() {

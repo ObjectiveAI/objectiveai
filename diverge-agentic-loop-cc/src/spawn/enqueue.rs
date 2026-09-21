@@ -19,7 +19,7 @@ use super::writer;
 /// — the reader on a replay echo, a dequeue's cancel, the end of
 /// stream — sends it here. No run to write to, a failed write, or a
 /// fate wire dying undecided all answer missed.
-pub async fn enqueue(content: Vec<ContentBlock>, blocks: Vec<stdin::Block>) -> Fate {
+pub async fn enqueue(key: String, content: Vec<ContentBlock>, blocks: Vec<stdin::Block>) -> Fate {
     let (fate, receiver) = tokio::sync::oneshot::channel();
     let uuid = Uuid::new_v4().to_string();
     {
@@ -38,7 +38,7 @@ pub async fn enqueue(content: Vec<ContentBlock>, blocks: Vec<stdin::Block>) -> F
         .await
         {
             Ok(()) => {
-                pending::PENDING.insert(uuid.clone(), pending::Pending { content, fate });
+                pending::PENDING.insert(uuid.clone(), pending::Pending { key, content, fate });
             }
             // A broken stdin is the process dying: the run is over.
             Err(_) => {

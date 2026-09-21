@@ -27,6 +27,8 @@ pub static QUEUE: Queue = Queue {
 /// One message waiting in the queue: its content, and the wire back
 /// to the caller still holding the `/enqueue` response open.
 pub struct Pending {
+    /// The caller's key, by which a dequeue withdraws it.
+    pub key: String,
     /// The message's content blocks, in order.
     pub content: Vec<ContentBlock>,
     /// Where the fate goes — the SDK's own [`Fate`], because the fate
@@ -95,7 +97,7 @@ impl Queue {
     /// On a closed queue the fate is already known — the run is
     /// over, the message is missed — and the returned receiver
     /// resolves immediately.
-    pub async fn enqueue(&self, content: Vec<ContentBlock>) -> oneshot::Receiver<Fate> {
+    pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> oneshot::Receiver<Fate> {
         let (sender, receiver) = oneshot::channel();
         let mut state = self.state.lock().await;
         if state.closed {
@@ -103,6 +105,7 @@ impl Queue {
             let _ = sender.send(Fate::Missed);
         } else {
             state.pending.push(Pending {
+                key,
                 content,
                 fate: sender,
             });
@@ -110,15 +113,22 @@ impl Queue {
         receiver
     }
 
-    /// Withdraw everything pending, answering each message
-    /// dequeued. Answers whether there was anything to withdraw.
+    /// Withdraw everything pending under `key`, answering each
+    /// message dequeued and leaving every other in its place.
+    /// Answers whether there was anything to withdraw.
     ///
-    /// Naive about the closed flag, deliberately: a closed queue is
-    /// an empty queue, so the honest answer falls out for free.
-    pub async fn dequeue(&self) -> bool {
+    /// One pass under the lock — the messages under the key out, the
+    /// rest back in their order — and the fates sent after it is
+    /// released. Naive about the closed flag, deliberately: a closed
+    /// queue is an empty queue, so the honest answer falls out for
+    /// free.
+    pub async fn dequeue(&self, key: &str) -> bool {
         let taken = {
             let mut state = self.state.lock().await;
-            std::mem::take(&mut state.pending)
+            let (taken, kept): (Vec<Pending>, Vec<Pending>) =
+                std::mem::take(&mut state.pending).into_iter().partition(|pending| pending.key == key);
+            state.pending = kept;
+            taken
         };
         let any = !taken.is_empty();
         for pending in taken {

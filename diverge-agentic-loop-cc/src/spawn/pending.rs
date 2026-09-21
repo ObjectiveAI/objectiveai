@@ -12,6 +12,8 @@ use tokio::sync::oneshot;
 /// carries when the replay echo lands, since the echo carries Claude
 /// Code's blocks and not MCP's — and the wire the fate goes out on.
 pub struct Pending {
+    /// The caller's key, by which a dequeue withdraws it.
+    pub key: String,
     /// The message's content, as enqueued.
     pub content: Vec<ContentBlock>,
     /// Where the fate goes.
