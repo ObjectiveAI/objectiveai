@@ -134,15 +134,16 @@ impl ExecuteHandle {
     /// queued when one does — answered with its fate whenever that
     /// is known, which may be long after the ask; nothing times it
     /// out. What the agent says arrives on the scope's main stream.
-    pub async fn enqueue(&self, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { content }))
+    pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, content }))
             .map_err(UnaryError::Request)?;
         self.0.unary::<Enqueue>(&payload).await
     }
 
-    /// Clear the running loop's queue: whether it held anything.
-    pub async fn dequeue(&self) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
-        let payload = payload(&channel_request::Frame::Dequeue).map_err(UnaryError::Request)?;
+    /// Withdraw every message waiting under `key`: whether any was.
+    pub async fn dequeue(&self, key: String) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
+        let payload = payload(&channel_request::Frame::Dequeue(dequeue::request::Request { key }))
+            .map_err(UnaryError::Request)?;
         self.0.unary::<Dequeue>(&payload).await
     }
 }
