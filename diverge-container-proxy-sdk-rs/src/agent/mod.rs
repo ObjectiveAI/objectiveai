@@ -14,7 +14,7 @@
 //! | `POST /run` | the [`run::request::Request`] JSON | `2xx` as `text/event-stream`, every `data:` one `AgenticLoopChunk` JSON, the stream's end the loop ended; or a non-`2xx` |
 //! | `GET /schema` | nothing | `2xx` with the JSON Schema of the arguments; or a non-`2xx` |
 //! | `POST /enqueue` | the [`enqueue::request::Request`] JSON | `2xx` with one [`enqueue::Fate`], held until the fate is known; or a non-`2xx` |
-//! | `POST /dequeue` | `{}` | `2xx` with one [`dequeue::Outcome`]; or a non-`2xx` |
+//! | `POST /dequeue` | the [`dequeue::request::Request`] JSON | `2xx` with one [`dequeue::Outcome`]; or a non-`2xx` |
 //!
 //! # Registration comes first, and once
 //!
@@ -44,8 +44,10 @@
 //! them to the program one at a time: `POST /enqueue` while a loop
 //! runs, held until the program says what became of it; `POST /run`
 //! when none does, the waiting messages' content concatenated into
-//! one. The program's own queue is what a loop holds between seams.
-//! A `missed` from the program, a `5xx`, or no answer hands the
+//! one. The program's own queue is what a loop holds between seams,
+//! and a `POST /dequeue` names a key: every message under it and not
+//! yet taken is withdrawn, on the proxy's side and the program's, and
+//! every other left waiting. A `missed` from the program, a `5xx`, or no answer hands the
 //! message back to the proxy, which waits for the loop to end and
 //! starts the next on it — so no message the provider enqueued is
 //! lost to a loop ending. A `4xx` is the message refused: content

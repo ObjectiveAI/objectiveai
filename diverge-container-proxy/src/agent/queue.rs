@@ -29,6 +29,8 @@ impl From<Fate> for enqueue::response::Frame {
 
 /// One message in the queue, and where its fate goes.
 pub struct Queued {
+    /// The caller's key, by which a dequeue withdraws it.
+    pub key: String,
     /// The message's content, in order.
     pub content: Vec<ContentBlock>,
     /// The enqueue channel waiting for the fate. A receiver that is
@@ -40,13 +42,19 @@ pub struct Queued {
 pub enum Cmd {
     /// A message for the agent.
     Enqueue(Queued),
-    /// Withdraw every message still waiting, and say how many were.
-    Dequeue(oneshot::Sender<DequeueReply>),
+    /// Withdraw every message still waiting under a key, and say how
+    /// many were.
+    Dequeue {
+        /// The key, as the enqueues gave it.
+        key: String,
+        /// Where the count and the loop's state go.
+        reply: oneshot::Sender<DequeueReply>,
+    },
 }
 
 /// The driver's answer to a dequeue.
 pub struct DequeueReply {
-    /// How many messages the queue held and gave back.
+    /// How many messages the queue held under the key and gave back.
     pub drained: usize,
     /// Whether a loop is running, and so may hold messages of its
     /// own for the agent's server to withdraw.
