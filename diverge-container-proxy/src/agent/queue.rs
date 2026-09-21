@@ -2,6 +2,7 @@
 
 use diverge_provider_sdk::shared::containers::enqueue;
 use diverge_provider_sdk::shared::error::Error;
+use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
 
 /// What became of a message, as the server's enqueue channel is
@@ -11,8 +12,8 @@ pub enum Fate {
     Delivered,
     /// The server withdrew it before a loop took it.
     Dequeued,
-    /// No loop could start on it: the agent's server refused, or
-    /// could not be reached, in its own words.
+    /// The agent's server refused it, or no loop could start on it:
+    /// its own words.
     Error(Error),
 }
 
@@ -28,8 +29,8 @@ impl From<Fate> for enqueue::response::Frame {
 
 /// One message in the queue, and where its fate goes.
 pub struct Queued {
-    /// The message's text.
-    pub prompt: String,
+    /// The message's content, in order.
+    pub content: Vec<ContentBlock>,
     /// The enqueue channel waiting for the fate. A receiver that is
     /// gone is a server that left, and a fate nobody hears.
     pub fate: oneshot::Sender<Fate>,

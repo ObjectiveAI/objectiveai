@@ -1,4 +1,4 @@
-//! The body: the prompt.
+//! The body: the message.
 
 mod request;
 

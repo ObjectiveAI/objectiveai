@@ -10,9 +10,12 @@ use serde::{Deserialize, Serialize};
 /// ```
 ///
 /// Only these three: an error is not a fate, and the program says it
-/// as a non-`2xx`. The first two are the message's fate on the
-/// provider's wire as well. The third is not: a message the loop
-/// missed is the proxy's again, and starts the next loop.
+/// as a non-`2xx` — a `4xx` for a message it will not take, whose
+/// content it cannot convert, which the proxy answers on the wire as
+/// the error and never offers again; a `5xx` for a failure of its
+/// own, which hands the message back. The first two are the message's
+/// fate on the provider's wire as well. The third is not: a message
+/// the loop missed is the proxy's again, and starts the next loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Fate {

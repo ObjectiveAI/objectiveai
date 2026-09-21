@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use diverge_provider_sdk::server::scope_handle::ScopeHandle;
 use diverge_provider_sdk::shared::error::Error;
+use rmcp::model::ContentBlock;
 use tokio::sync::{mpsc, oneshot};
 
 use super::{Cmd, DequeueReply, Fate, Outcome, Queued, run};
@@ -25,7 +26,7 @@ struct Inflight {
 enum Run {
     /// No loop. The next message starts one.
     Idle,
-    /// `/run` is on the wire, with these messages as its prompt; their
+    /// `/run` is on the wire, with these messages as its content; their
     /// fates follow its answer.
     Starting(Vec<Queued>),
     /// A loop runs, and its chunks are being relayed.
@@ -145,6 +146,9 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut com
                     Outcome::Dequeued => {
                         let _ = message.fate.send(Fate::Dequeued);
                     }
+                    Outcome::Refused(error) => {
+                        let _ = message.fate.send(Fate::Error(error));
+                    }
                     Outcome::Missed | Outcome::Failed => {
                         if withdrawn {
                             let _ = message.fate.send(Fate::Dequeued);
@@ -162,15 +166,15 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut com
         match driver.run {
             Run::Idle if !driver.queue.is_empty() => {
                 let batch: Vec<Queued> = driver.queue.drain(..).collect();
-                let prompt = joined(&batch);
-                starting = Some(run::start(Arc::clone(&proxy), prompt));
+                let content = joined(&batch);
+                starting = Some(run::start(Arc::clone(&proxy), content));
                 driver.run = Run::Starting(batch);
             }
             Run::Active if !driver.halted && driver.inflight.is_none() && !driver.queue.is_empty() => {
                 let Some(message) = driver.queue.pop_front() else {
                     continue;
                 };
-                delivering = Some(super::deliver(Arc::clone(&proxy), message.prompt.clone()));
+                delivering = Some(super::deliver(Arc::clone(&proxy), message.content.clone()));
                 driver.inflight = Some(Inflight {
                     message,
                     withdrawn: false,
@@ -181,15 +185,11 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut com
     }
 }
 
-/// The messages as one prompt: joined with a blank line between, in
-/// the order they were enqueued — the join every harness uses for
-/// the messages a loop finds waiting.
-fn joined(batch: &[Queued]) -> String {
-    batch
-        .iter()
-        .map(|message| message.prompt.as_str())
-        .collect::<Vec<_>>()
-        .join("\n\n")
+/// The messages as one content: their blocks concatenated, in the
+/// order they were enqueued — the join every harness sees for the
+/// messages a loop finds waiting.
+fn joined(batch: &[Queued]) -> Vec<ContentBlock> {
+    batch.iter().flat_map(|message| message.content.iter().cloned()).collect()
 }
 
 /// The slot's answer, or forever when there is no slot: a branch
