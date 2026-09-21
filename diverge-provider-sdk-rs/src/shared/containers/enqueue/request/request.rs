@@ -1,5 +1,6 @@
 //! A message for the running loop's queue.
 
+use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
 
@@ -8,32 +9,39 @@ use crate::encode::{Encode, Writer};
 
 /// Send a message to the agent.
 ///
-/// With no loop running, the message starts one, and is its prompt.
+/// With no loop running, the message starts one, and is its input.
 /// With one running, the verb is the mechanism's: the message is QUEUED, not injected —
 /// the turn in flight always runs to completion, and the agent picks
 /// the message up at a seam of its own choosing: folded in beside the
 /// next tool results, or opening the next turn when the assistant has
 /// already finished. Nothing about this interrupts anything, ever.
 ///
-/// # The content is a string
+/// # The content is MCP's
 ///
-/// Plain text, deliberately: a mid-run steer is text. The
+/// A list of content blocks — text, an image, audio, an embedded
+/// resource, a link to one — in order, each as MCP's own
+/// [`ContentBlock`] states it: one vocabulary for what a caller says
+/// to an agent, what a tool answers, and what the agent says back.
+/// What an agent's image makes of a block is its own. An image that
+/// cannot take one refuses the whole message, in its own words, and
+/// the fate carries them; nothing is reduced to its text on the
+/// caller's behalf. A message with no block is refused too. The
 /// [`UserChunk`](crate::endpoints::containers::agents::run::server::response::UserChunk)
-/// that marks this message's delivery carries the same string back,
+/// that marks this message's delivery carries the same blocks back,
 /// verbatim, at the position it landed.
 ///
 /// # The answer says what became of it
 ///
 /// One frame, then the finish: `delivered` when the agent has taken
 /// the message into the conversation, `dequeued` when the caller
-/// withdrew it first, and an error only when no run could start on
-/// it. A run ending with the message still waiting does not lose it:
-/// the message starts the next run. The two fates carry nothing —
-/// the fate is the answer.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+/// withdrew it first, and an error when the agent refused the
+/// message or no run could start on it. A run ending with the
+/// message still waiting does not lose it: the message starts the
+/// next run. The two fates carry nothing — the fate is the answer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
-    /// The message's text.
-    pub prompt: String,
+    /// The message's content, in order.
+    pub content: Vec<ContentBlock>,
 }
 
 /// Its JSON, and nothing in front of it. The tag that says which

@@ -3,6 +3,8 @@
 
 use std::sync::Arc;
 
+use rmcp::model::ContentBlock;
+
 use super::super::begin::Begin;
 use super::super::encoded::encoded;
 use super::super::run::Run;
@@ -10,8 +12,8 @@ use super::super::run::Run;
 /// What an agent container's caller opens, past the shared six.
 #[derive(Debug)]
 pub(crate) enum Exchange {
-    /// A message for the agent.
-    Enqueue(String),
+    /// A message for the agent: its content blocks.
+    Enqueue(Vec<ContentBlock>),
     /// Empty the queue.
     Dequeue,
 }
@@ -28,7 +30,7 @@ pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
         return;
     };
     let answer = match exchange {
-        Exchange::Enqueue(prompt) => begin.enqueue(prompt).await.ok().and_then(|frame| encoded(&frame)),
+        Exchange::Enqueue(content) => begin.enqueue(content).await.ok().and_then(|frame| encoded(&frame)),
         Exchange::Dequeue => begin.dequeue().await.ok().and_then(|frame| encoded(&frame)),
     };
     run.respond(channel, answer).await;

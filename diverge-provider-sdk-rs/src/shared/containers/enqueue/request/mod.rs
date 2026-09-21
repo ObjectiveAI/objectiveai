@@ -1,4 +1,4 @@
-//! The ask: the message.
+//! The ask: the message, as content blocks.
 
 mod request;
 
