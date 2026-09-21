@@ -123,7 +123,11 @@ pub fn messages(
                 }
                 AgenticLoopChunk::Usage(_)
                 | AgenticLoopChunk::Notification(_)
-                | AgenticLoopChunk::User(_) => {}
+                | AgenticLoopChunk::UserTextContent(_)
+                | AgenticLoopChunk::UserImageContent(_)
+                | AgenticLoopChunk::UserAudioContent(_)
+                | AgenticLoopChunk::UserResource(_)
+                | AgenticLoopChunk::UserResourceLink(_) => {}
                 chunk => match &mut current {
                     Some(assistant) => assistant.push(chunk),
                     None => {

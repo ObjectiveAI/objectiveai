@@ -3,8 +3,9 @@
 use diverge_container_proxy_sdk::Client;
 use crate::agent::Agent;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
+use diverge_container_proxy_sdk::agent::run::request::Message;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
-    AgenticLoopChunk, ToolResponseChunk, UserChunk,
+    AgenticLoopChunk, ToolResponseChunk, user_parts,
 };
 use rmcp::model::ContentBlock;
 use futures_util::stream::FuturesUnordered;
@@ -83,7 +84,7 @@ pub async fn r#loop(
     api_key: &str,
     agent: Agent,
     continuation: Option<Continuation>,
-    content: Vec<ContentBlock>,
+    messages: Vec<Message>,
     generation: u64,
 ) -> Result<
     impl Stream<Item = Result<Item, Error>> + Send + Unpin + use<>,
@@ -107,15 +108,18 @@ pub async fn r#loop(
     // Turn one, started here so a failure to start is this function's
     // `Err` and never a stream's leading item.
     let tools = list(&peer).await?;
+    let content: Vec<ContentBlock> = messages.iter().flat_map(|message| message.content.iter().cloned()).collect();
     let stream = fetch::fetch(
         api_key,
         agent.clone(),
         Some(Continuation(items.clone())),
-        content.clone(),
+        content,
         Some(tools),
     )
     .await?;
-    items.push(ContinuationItem::Prompt(content));
+    for message in &messages {
+        items.push(ContinuationItem::Prompt(message.content.clone()));
+    }
 
     let api_key = api_key.to_string();
     // The guard moves INTO the stream — but as a captured local, not
@@ -130,6 +134,16 @@ pub async fn r#loop(
         let peer = peer;
         let mut stream = stream;
         let mut items = items;
+
+        // The messages the run started on, as the stream's first
+        // chunks: their parts, each under its key, before the model
+        // says a word — the turn is already on the wire, so a start
+        // that failed was this function's `Err` and never got here.
+        for message in messages {
+            for chunk in user_parts(&message.key, message.content) {
+                yield Ok(Item::Chunk(chunk));
+            }
+        }
 
         loop {
             // Drain the turn: yield everything immediately, keep what
@@ -184,7 +198,7 @@ pub async fn r#loop(
                 // look, atomic: an empty queue is CLOSED in the same
                 // lock hold that proved it empty, and the loop ends;
                 // messages pending open another turn, each its own
-                // user chunk and its own Prompt item.
+                // user parts and its own Prompt item.
                 if spoke {
                     yield Ok(Item::Rest(Continuation(items.clone())));
                 }
@@ -193,11 +207,9 @@ pub async fn r#loop(
                     return;
                 }
                 for message in taken {
-                    yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
-                        r#type: Default::default(),
-                        content: message.content.clone(),
-                        meta: None,
-                    })));
+                    for chunk in user_parts(&message.key, message.content.clone()) {
+                        yield Ok(Item::Chunk(chunk));
+                    }
                     items.push(ContinuationItem::Prompt(message.content.clone()));
                     message.deliver();
                 }
@@ -241,11 +253,9 @@ pub async fn r#loop(
                 // gives it, and the position it truly enters the
                 // conversation.
                 for message in QUEUE.take().await {
-                    yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
-                        r#type: Default::default(),
-                        content: message.content.clone(),
-                        meta: None,
-                    })));
+                    for chunk in user_parts(&message.key, message.content.clone()) {
+                        yield Ok(Item::Chunk(chunk));
+                    }
                     items.push(ContinuationItem::Prompt(message.content.clone()));
                     message.deliver();
                 }
@@ -305,7 +315,7 @@ async fn list(peer: &Peer<RoleClient>) -> Result<Vec<Tool>, Error> {
 /// streamed kinds coalesce through the SDK's own [`response::push`]:
 /// the history keeps what was said, not how it was cut. Usage and
 /// notifications say nothing the conversation replays, and are not
-/// kept; user chunks are not either — a delivered message enters the
+/// kept; user parts are not either — a delivered message enters the
 /// history as its own `Prompt` item at the seam that delivered it,
 /// not as a chunk.
 fn accumulate(turn: &mut Vec<AgenticLoopChunk>, chunk: &AgenticLoopChunk) {
@@ -313,7 +323,11 @@ fn accumulate(turn: &mut Vec<AgenticLoopChunk>, chunk: &AgenticLoopChunk) {
         chunk,
         AgenticLoopChunk::Usage(_)
             | AgenticLoopChunk::Notification(_)
-            | AgenticLoopChunk::User(_)
+            | AgenticLoopChunk::UserTextContent(_)
+            | AgenticLoopChunk::UserImageContent(_)
+            | AgenticLoopChunk::UserAudioContent(_)
+            | AgenticLoopChunk::UserResource(_)
+            | AgenticLoopChunk::UserResourceLink(_)
     ) {
         return;
     }
@@ -349,8 +363,20 @@ fn strip(chunk: &mut AgenticLoopChunk) {
         AgenticLoopChunk::ToolResponse(chunk) => {
             chunk.inner.meta = None;
         }
-        AgenticLoopChunk::User(chunk) => {
-            chunk.meta = None;
+        AgenticLoopChunk::UserTextContent(chunk) => {
+            chunk.inner.meta = None;
+        }
+        AgenticLoopChunk::UserImageContent(chunk) => {
+            chunk.inner.meta = None;
+        }
+        AgenticLoopChunk::UserAudioContent(chunk) => {
+            chunk.inner.meta = None;
+        }
+        AgenticLoopChunk::UserResource(chunk) => {
+            chunk.inner.meta = None;
+        }
+        AgenticLoopChunk::UserResourceLink(chunk) => {
+            chunk.inner.meta = None;
         }
         AgenticLoopChunk::Usage(chunk) => {
             chunk.meta = None;

@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, AssistantReasoningChunk, AssistantTextContentChunk,
-    AssistantToolCallChunk, NotificationChunk, ToolResponseChunk, UsageChunk, UserChunk,
+    AssistantToolCallChunk, NotificationChunk, ToolResponseChunk, UsageChunk,
 };
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
 use serde_json::Value;
@@ -365,15 +365,6 @@ fn text(text: String) -> AgenticLoopChunk {
         parent_tool_call_id: None,
         logprobs: None,
         inner: rmcp::model::TextContent::new(text),
-    })
-}
-
-/// A `user` chunk: a queued message, at the position it landed.
-pub fn user(content: Vec<ContentBlock>) -> AgenticLoopChunk {
-    AgenticLoopChunk::User(UserChunk {
-        r#type: Default::default(),
-        content,
-        meta: None,
     })
 }
 

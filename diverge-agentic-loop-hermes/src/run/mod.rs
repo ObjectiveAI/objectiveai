@@ -57,8 +57,9 @@ pub use gateway::*;
 use std::sync::Arc;
 
 use diverge_container_proxy_sdk::Client;
+use diverge_container_proxy_sdk::agent::run::request::Message;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
-    AgenticLoopChunk, UserChunk,
+    AgenticLoopChunk, user_parts,
 };
 use futures_util::{Stream, StreamExt as _};
 use rmcp::model::ContentBlock;
@@ -79,7 +80,7 @@ pub fn run(
     client: Arc<Client>,
     pool: PgPool,
     agent: Agent,
-    content: Vec<ContentBlock>,
+    messages: Vec<Message>,
     generation: u64,
     claim: Claim,
 ) -> impl Stream<Item = Result<AgenticLoopChunk, Error>> {
@@ -138,7 +139,9 @@ pub fn run(
 
         let key = prepared.api_server_key;
         let model_options = model_options(&agent);
+        let content: Vec<ContentBlock> = messages.iter().flat_map(|message| message.content.iter().cloned()).collect();
         let mut input = crate::content::render(&content);
+        let mut started_on = messages;
 
         loop {
             let started = raw::run(
@@ -162,6 +165,15 @@ pub fn run(
                     break;
                 }
             };
+            // The messages the run started on, as the stream's first
+            // chunks: their parts, each under its key, before the
+            // harness says a word. The turn is on the wire; a start
+            // that failed was the request's own, above.
+            for message in started_on.drain(..) {
+                for chunk in user_parts(&message.key, message.content) {
+                    yield Ok(chunk);
+                }
+            }
             // A fresh run's session is named after the run.
             if session.is_none() {
                 session = Some(run.run_id.clone());
@@ -202,7 +214,9 @@ pub fn run(
             }
             let mut blocks = Vec::new();
             for message in taken {
-                yield Ok(user(message.content.clone()));
+                for chunk in user_parts(&message.key, message.content.clone()) {
+                    yield Ok(chunk);
+                }
                 blocks.extend(message.content.clone());
                 message.deliver();
             }
@@ -252,15 +266,6 @@ fn model_options(agent: &Agent) -> Option<serde_json::Map<String, serde_json::Va
     let mut options = serde_json::Map::new();
     options.insert("reasoning".to_string(), reasoning);
     Some(options)
-}
-
-/// A `user` chunk: a queued message, at the position it landed.
-fn user(content: Vec<ContentBlock>) -> AgenticLoopChunk {
-    AgenticLoopChunk::User(UserChunk {
-        r#type: Default::default(),
-        content,
-        meta: None,
-    })
 }
 
 /// Settles the run when the stream drops, however it drops — and

@@ -162,7 +162,7 @@ async fn run(
     };
     let generation = QUEUE.open().await;
 
-    if request.content.is_empty() {
+    if request.messages.is_empty() || request.messages.iter().any(|message| message.content.is_empty()) {
         return Err(refuse(
             generation,
             StatusCode::BAD_REQUEST,
@@ -249,7 +249,7 @@ async fn run(
         &api_key,
         agent,
         continuation,
-        request.content,
+        request.messages,
         generation,
     )
     .await

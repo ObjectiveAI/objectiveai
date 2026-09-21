@@ -176,10 +176,24 @@ async fn run(
     };
     installed().await?;
 
-    let blocks = match spawn::blocks(&request.content) {
-        Ok(blocks) => blocks,
-        Err(error) => return Err((StatusCode::BAD_REQUEST, Json(error))),
-    };
+    if request.messages.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "kind": "content",
+                "error": "a run needs a message",
+            })),
+        ));
+    }
+    // Every message's blocks, converted, as one stdin line: the run's
+    // prompt is one message to Claude Code, whichever the caller sent.
+    let mut blocks = Vec::new();
+    for message in &request.messages {
+        match spawn::blocks(&message.content) {
+            Ok(converted) => blocks.extend(converted),
+            Err(error) => return Err((StatusCode::BAD_REQUEST, Json(error))),
+        }
+    }
 
     let pool = match sqlx::postgres::PgPoolOptions::new()
         .max_connections(1)
@@ -225,7 +239,7 @@ async fn run(
         },
     };
 
-    let stream = match spawn::spawn(agent, session_id, blocks, claim).await {
+    let stream = match spawn::spawn(agent, session_id, request.messages, blocks, claim).await {
         Ok(stream) => stream,
         Err(error) => {
             return Err((

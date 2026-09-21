@@ -113,8 +113,20 @@ fn stamp(
         AgenticLoopChunk::Notification(chunk) => {
             &mut chunk.meta.get_or_insert_with(Default::default).0
         }
-        AgenticLoopChunk::User(chunk) => {
-            &mut chunk.meta.get_or_insert_with(Default::default).0
+        AgenticLoopChunk::UserTextContent(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::UserImageContent(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::UserAudioContent(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::UserResource(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::UserResourceLink(chunk) => {
+            &mut chunk.inner.meta.get_or_insert_with(Default::default).0
         }
     };
     map.insert("openrouter".to_string(), openrouter.clone());

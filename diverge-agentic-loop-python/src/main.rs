@@ -187,7 +187,7 @@ async fn run(
         },
     };
 
-    if request.content.is_empty() {
+    if request.messages.is_empty() || request.messages.iter().any(|message| message.content.is_empty()) {
         return Err(refuse(
             generation,
             StatusCode::BAD_REQUEST,
@@ -199,7 +199,7 @@ async fn run(
         .await);
     }
 
-    let mut items = match r#loop::r#loop(&client, continuation, request.content, generation).await {
+    let mut items = match r#loop::r#loop(&client, continuation, request.messages, generation).await {
         Ok(items) => items,
         Err(error) => {
             return Err(refuse(generation, StatusCode::INTERNAL_SERVER_ERROR, error.message()).await);

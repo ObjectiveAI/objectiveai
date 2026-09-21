@@ -150,8 +150,19 @@ async fn run(
     };
     let generation = QUEUE.open().await;
 
-    if let Err(error) = content::check(&request.content) {
+    if let Some(error) = request.messages.iter().find_map(|message| content::check(&message.content).err()) {
         return Err(refuse(generation, StatusCode::BAD_REQUEST, error).await);
+    }
+    if request.messages.is_empty() {
+        return Err(refuse(
+            generation,
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "kind": "content",
+                "error": "a run needs a message",
+            }),
+        )
+        .await);
     }
 
     let pool = match sqlx::postgres::PgPoolOptions::new()
@@ -177,7 +188,7 @@ async fn run(
         client,
         pool,
         agent,
-        request.content,
+        request.messages,
         generation,
         claim,
     ));
