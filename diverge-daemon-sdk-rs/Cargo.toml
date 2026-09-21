@@ -24,6 +24,9 @@ client = ["diverge-provider-sdk/client"]
 # that defines it rather than restating it; the provider's own
 # endpoints come along and are not used.
 diverge-provider-sdk = { path = "../diverge-provider-sdk-rs" }
+# The content of a message, MCP's own; the version every crate of
+# the workspace pins, so the one `ContentBlock` is shared.
+rmcp = { version = "3.1.2", default-features = false }
 serde = { version = "1.0.229", features = ["derive"] }
 # `preserve_order` as the provider SDK has it, so an arguments value
 # relayed to a provider keeps the order it arrived in.

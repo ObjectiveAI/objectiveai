@@ -1861,6 +1861,7 @@ name = "diverge-daemon-sdk"
 version = "2.3.0"
 dependencies = [
  "diverge-provider-sdk",
+ "rmcp 3.1.2",
  "serde",
  "serde_json",
 ]
