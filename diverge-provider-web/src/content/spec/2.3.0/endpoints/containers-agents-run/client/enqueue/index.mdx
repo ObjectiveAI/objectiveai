@@ -6,7 +6,7 @@ draft: false
 ---
 
 The client opens this channel to send a message to the agent. A
-message sent while no loop runs starts one, as its prompt; a message
+message sent while no loop runs starts one, as its input; a message
 sent while one runs is placed in its queue. The server opens an
 enqueue channel on the begin scope of the container's proxy with the
 message and relays the fate the proxy answers. What the agent says in

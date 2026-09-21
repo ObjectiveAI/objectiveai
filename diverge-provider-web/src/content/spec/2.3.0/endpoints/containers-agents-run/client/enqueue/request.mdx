@@ -9,7 +9,13 @@ draft: false
 [7][request JSON …]
 ```
 
-- **`prompt`.** The message, a string, relayed to the proxy verbatim.
+- **`content`.** An array of MCP content blocks, in order, each as
+  the `ContentBlock` of the crate's MCP dependency states one: text,
+  an image, audio, an embedded resource, or a resource link. What the
+  container makes of a block is its own, and a container that cannot
+  take one refuses the whole message, and the fate is the error, in
+  the container's words. A message with no block is refused too. The server relays the message to the proxy
+  verbatim.
 - **Malformed.** A channel request whose payload does not decode as
   stated is answered by a channel response finish that no channel
   response precedes, and the server does nothing else for it.
