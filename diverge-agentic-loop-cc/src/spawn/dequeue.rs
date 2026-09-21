@@ -127,19 +127,19 @@ pub async fn dequeue() -> Outcome {
                         .and_then(serde_json::Value::as_bool)
                     {
                         Some(true) => {
-                            if let Some((_, fate)) =
+                            if let Some((_, pending)) =
                                 pending::PENDING.remove(&uuid)
                             {
-                                let _ = fate.send(
+                                let _ = pending.fate.send(
                                     Fate::Dequeued,
                                 );
                             }
                         }
                         Some(false) => {
-                            if let Some((_, fate)) =
+                            if let Some((_, pending)) =
                                 pending::PENDING.remove(&uuid)
                             {
-                                let _ = fate.send(
+                                let _ = pending.fate.send(
                                     Fate::Delivered,
                                 );
                             }

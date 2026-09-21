@@ -1,6 +1,7 @@
 //! What a Python continuation holds, and where it lives.
 
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use rmcp::model::ContentBlock;
 use sqlx::PgPool;
 
 /// A continuation, opened.
@@ -27,14 +28,15 @@ pub struct Continuation(pub Vec<ContinuationItem>);
 ///
 /// Untagged, and unambiguous without a tag: a chunk serializes as a
 /// JSON object — its `type` member inside — and a prompt as a JSON
-/// string. An object and a string cannot collide.
+/// array of MCP content blocks. An object and an array cannot
+/// collide.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum ContinuationItem {
     /// One chunk the loop produced.
     Chunk(AgenticLoopChunk),
-    /// One turn's user prompt, as its text.
-    Prompt(String),
+    /// One turn's user message, as its content blocks.
+    Prompt(Vec<ContentBlock>),
 }
 
 /// The table: one row, `id` pinned to `1`, the history as jsonb.

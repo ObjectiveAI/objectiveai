@@ -61,6 +61,7 @@ use diverge_provider_sdk::endpoints::containers::agents::run::server::response::
     AgenticLoopChunk, UserChunk,
 };
 use futures_util::{Stream, StreamExt as _};
+use rmcp::model::ContentBlock;
 use sqlx::PgPool;
 
 use crate::agent::{Agent, Effort};
@@ -78,7 +79,7 @@ pub fn run(
     client: Arc<Client>,
     pool: PgPool,
     agent: Agent,
-    prompt: String,
+    content: Vec<ContentBlock>,
     generation: u64,
     claim: Claim,
 ) -> impl Stream<Item = Result<AgenticLoopChunk, Error>> {
@@ -137,7 +138,7 @@ pub fn run(
 
         let key = prepared.api_server_key;
         let model_options = model_options(&agent);
-        let mut input = prompt;
+        let mut input = crate::content::render(&content);
 
         loop {
             let started = raw::run(
@@ -199,13 +200,13 @@ pub fn run(
             if taken.is_empty() {
                 break;
             }
-            let mut prompts = Vec::with_capacity(taken.len());
+            let mut blocks = Vec::new();
             for message in taken {
-                yield Ok(user(message.prompt.clone()));
-                prompts.push(message.prompt.clone());
+                yield Ok(user(message.content.clone()));
+                blocks.extend(message.content.clone());
                 message.deliver();
             }
-            input = prompts.join("\n\n");
+            input = crate::content::render(&blocks);
         }
 
         if let Err(error) = gateway.stop().await {
@@ -253,11 +254,11 @@ fn model_options(agent: &Agent) -> Option<serde_json::Map<String, serde_json::Va
     Some(options)
 }
 
-/// A `user` chunk: a queued prompt, at the position it landed.
-fn user(prompt: String) -> AgenticLoopChunk {
+/// A `user` chunk: a queued message, at the position it landed.
+fn user(content: Vec<ContentBlock>) -> AgenticLoopChunk {
     AgenticLoopChunk::User(UserChunk {
         r#type: Default::default(),
-        prompt,
+        content,
         meta: None,
     })
 }

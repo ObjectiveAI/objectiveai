@@ -1,7 +1,9 @@
 //! User messages.
 
-use super::super::RichContent;
+use rmcp::model::ContentBlock;
 use serde::Serialize;
+
+use super::super::RichContent;
 
 /// A user message from the end user.
 #[derive(
@@ -16,10 +18,13 @@ pub struct UserMessage {
 }
 
 impl UserMessage {
-    /// One turn's prompt, as its text.
-    pub fn new(prompt: String) -> Self {
+    /// One turn's message, its MCP content blocks as OpenRouter's
+    /// parts — the same conversion a tool result's content gets, so
+    /// what a caller says and what a tool answers cross the same
+    /// bridge.
+    pub fn new(content: Vec<ContentBlock>) -> Self {
         UserMessage {
-            content: RichContent::Text(prompt),
+            content: RichContent::Parts(content.into_iter().map(Into::into).collect()),
         }
     }
 }

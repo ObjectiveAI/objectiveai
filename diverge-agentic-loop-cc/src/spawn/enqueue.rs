@@ -1,6 +1,7 @@
 //! The enqueue verb.
 
 use diverge_container_proxy_sdk::agent::enqueue::Fate;
+use rmcp::model::ContentBlock;
 use uuid::Uuid;
 
 use super::pending;
@@ -18,9 +19,7 @@ use super::writer;
 /// — the reader on a replay echo, a dequeue's cancel, the end of
 /// stream — sends it here. No run to write to, a failed write, or a
 /// fate wire dying undecided all answer missed.
-pub async fn enqueue(
-    prompt: String,
-) -> Fate {
+pub async fn enqueue(content: Vec<ContentBlock>, blocks: Vec<stdin::Block>) -> Fate {
     let (fate, receiver) = tokio::sync::oneshot::channel();
     let uuid = Uuid::new_v4().to_string();
     {
@@ -34,12 +33,12 @@ pub async fn enqueue(
         };
         match stdin::write_lines(
             child_stdin,
-            &stdin::user_message_line(prompt, uuid.clone()),
+            &stdin::user_message_line(blocks, uuid.clone()),
         )
         .await
         {
             Ok(()) => {
-                pending::PENDING.insert(uuid.clone(), fate);
+                pending::PENDING.insert(uuid.clone(), pending::Pending { content, fate });
             }
             // A broken stdin is the process dying: the run is over.
             Err(_) => {

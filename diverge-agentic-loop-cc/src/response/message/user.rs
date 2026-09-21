@@ -651,25 +651,6 @@ impl UserMessage {
         self.content.into_chunks(chunks, parent_tool_call_id);
     }
 
-    /// The message's text, plain: the bare string verbatim, or the
-    /// blocks' text joined by blank lines. The reader's replay tap
-    /// uses this for the `user` chunk's prompt — the enqueue wrote a
-    /// plain string, and this is how the echo gives it back.
-    pub fn plain_text(&self) -> String {
-        match &self.content {
-            UserContent::Text(text) => text.clone(),
-            UserContent::Blocks(blocks) => blocks
-                .iter()
-                .filter_map(|block| match block {
-                    ContentBlockParam::Text { text, .. } => {
-                        Some(text.as_str())
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-                .join("\n\n"),
-        }
-    }
 }
 
 impl UserContent {

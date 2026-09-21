@@ -52,7 +52,7 @@ use super::writer;
 pub async fn spawn(
     agent: Agent,
     session_id: Option<String>,
-    prompt: String,
+    blocks: Vec<stdin::Block>,
     claim: Claim,
 ) -> io::Result<
     impl Stream<Item = Result<AgenticLoopChunk, error::Error>> + Send,
@@ -132,7 +132,7 @@ pub async fn spawn(
     // dequeue may cancel it.
     stdin::write_lines(
         &mut child_stdin,
-        &stdin::user_message_line(prompt, Uuid::new_v4().to_string()),
+        &stdin::user_message_line(blocks, Uuid::new_v4().to_string()),
     )
     .await?;
 
@@ -280,16 +280,16 @@ fn read(
                     if user.is_replay == Some(true) =>
                 {
                     if let Some(uuid) = &user.uuid {
-                        if let Some((_, fate)) =
+                        if let Some((_, pending)) =
                             pending::PENDING.remove(uuid)
                         {
-                            let _ = fate.send(
+                            let _ = pending.fate.send(
                                 Fate::Delivered,
                             );
                             chunks.push(AgenticLoopChunk::User(
                                 UserChunk {
                                     r#type: Default::default(),
-                                    prompt: user.message.plain_text(),
+                                    content: pending.content,
                                     meta: None,
                                 },
                             ));
@@ -374,8 +374,8 @@ async fn close() {
         .map(|entry| entry.key().clone())
         .collect();
     for uuid in uuids {
-        if let Some((_, fate)) = pending::PENDING.remove(&uuid) {
-            let _ = fate.send(
+        if let Some((_, pending)) = pending::PENDING.remove(&uuid) {
+            let _ = pending.fate.send(
                 Fate::Missed,
             );
         }

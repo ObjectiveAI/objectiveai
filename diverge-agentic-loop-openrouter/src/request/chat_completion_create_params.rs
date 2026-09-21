@@ -2,6 +2,7 @@
 
 use crate::agent::Agent;
 use indexmap::IndexMap;
+use rmcp::model::ContentBlock;
 use serde::Serialize;
 
 /// Chat completion request parameters formatted for the OpenRouter API.
@@ -98,7 +99,7 @@ impl ChatCompletionCreateParams {
     pub fn new(
         agent: Agent,
         continuation: Option<crate::continuation::Continuation>,
-        prompt: String,
+        content: Vec<ContentBlock>,
         tools: Option<Vec<super::Tool>>,
     ) -> Self {
         // Log probabilities are reported only when the agent asked
@@ -108,7 +109,7 @@ impl ChatCompletionCreateParams {
             messages: super::messages(
                 agent.system_prompt,
                 continuation,
-                prompt,
+                content,
             ),
             provider: agent.provider.map(Into::into),
             model: agent.model,

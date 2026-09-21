@@ -6,6 +6,7 @@ use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, ToolResponseChunk, UserChunk,
 };
+use rmcp::model::ContentBlock;
 use futures_util::stream::FuturesUnordered;
 use futures_util::{Stream, StreamExt as _};
 use rmcp::model::CallToolRequestParams;
@@ -82,7 +83,7 @@ pub async fn r#loop(
     api_key: &str,
     agent: Agent,
     continuation: Option<Continuation>,
-    prompt: String,
+    content: Vec<ContentBlock>,
     generation: u64,
 ) -> Result<
     impl Stream<Item = Result<Item, Error>> + Send + Unpin + use<>,
@@ -110,11 +111,11 @@ pub async fn r#loop(
         api_key,
         agent.clone(),
         Some(Continuation(items.clone())),
-        prompt.clone(),
+        content.clone(),
         Some(tools),
     )
     .await?;
-    items.push(ContinuationItem::Prompt(prompt));
+    items.push(ContinuationItem::Prompt(content));
 
     let api_key = api_key.to_string();
     // The guard moves INTO the stream — but as a captured local, not
@@ -194,10 +195,10 @@ pub async fn r#loop(
                 for message in taken {
                     yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
                         r#type: Default::default(),
-                        prompt: message.prompt.clone(),
+                        content: message.content.clone(),
                         meta: None,
                     })));
-                    items.push(ContinuationItem::Prompt(message.prompt.clone()));
+                    items.push(ContinuationItem::Prompt(message.content.clone()));
                     message.deliver();
                 }
             } else {
@@ -242,10 +243,10 @@ pub async fn r#loop(
                 for message in QUEUE.take().await {
                     yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
                         r#type: Default::default(),
-                        prompt: message.prompt.clone(),
+                        content: message.content.clone(),
                         meta: None,
                     })));
-                    items.push(ContinuationItem::Prompt(message.prompt.clone()));
+                    items.push(ContinuationItem::Prompt(message.content.clone()));
                     message.deliver();
                 }
                 // Every answer is in and the seam's deliveries with
@@ -269,7 +270,7 @@ pub async fn r#loop(
                 &api_key,
                 agent.clone(),
                 Some(Continuation(items.clone())),
-                String::new(),
+                Vec::new(),
                 Some(tools),
             )
             .await

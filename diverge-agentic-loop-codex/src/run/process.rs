@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::io;
+use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 
 use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader, Lines};
@@ -20,16 +21,18 @@ impl Process {
     /// Spawn one turn: `codex exec --json` with the sandbox and the
     /// approvals bypassed (the container is the sandbox), the git
     /// check skipped (the workspace is whatever the caller mounted),
-    /// `resume <thread_id>` when the thread exists, and the prompt
-    /// on stdin — `-` — written whole and closed, because argv caps a
-    /// single argument and joined queue prompts can exceed it. The
+    /// `resume <thread_id>` when the thread exists, `-i <file>` for
+    /// each image of the message, and the text on stdin — `-` —
+    /// written whole and closed, because argv caps a single argument
+    /// and joined queue messages can exceed it. The
     /// environment is the container's plus what the run rendered:
     /// `CODEX_HOME`, and the login's variable when the login is a
     /// key. stderr passes through.
     pub async fn start(
         env: &BTreeMap<String, String>,
         thread_id: Option<&str>,
-        prompt: &str,
+        text: &str,
+        images: &[PathBuf],
     ) -> io::Result<Self> {
         let mut command = Command::new("codex");
         command
@@ -40,6 +43,9 @@ impl Process {
         if let Some(thread_id) = thread_id {
             command.arg("resume").arg(thread_id);
         }
+        for image in images {
+            command.arg("-i").arg(image);
+        }
         command
             .arg("-")
             .envs(env)
@@ -49,7 +55,7 @@ impl Process {
         let mut child = command.spawn()?;
         let mut stdin = child.stdin.take().expect("stdin piped above");
         let stdout = child.stdout.take().expect("stdout piped above");
-        stdin.write_all(prompt.as_bytes()).await?;
+        stdin.write_all(text.as_bytes()).await?;
         stdin.shutdown().await?;
         drop(stdin);
         Ok(Process {
