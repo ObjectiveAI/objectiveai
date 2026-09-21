@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use diverge_provider_sdk::server::scope_handle::ScopeHandle;
 use diverge_provider_sdk::shared::error::Error;
-use rmcp::model::ContentBlock;
+use diverge_container_proxy_sdk::agent::run::request::Message;
 use tokio::sync::{mpsc, oneshot};
 
 use super::{Cmd, DequeueReply, Fate, Outcome, Queued, run};
@@ -173,8 +173,7 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut com
         match driver.run {
             Run::Idle if !driver.queue.is_empty() => {
                 let batch: Vec<Queued> = driver.queue.drain(..).collect();
-                let content = joined(&batch);
-                starting = Some(run::start(Arc::clone(&proxy), content));
+                starting = Some(run::start(Arc::clone(&proxy), messages(&batch)));
                 driver.run = Run::Starting(batch);
             }
             Run::Active if !driver.halted && driver.inflight.is_none() && !driver.queue.is_empty() => {
@@ -192,11 +191,16 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut com
     }
 }
 
-/// The messages as one content: their blocks concatenated, in the
-/// order they were enqueued — the join every harness sees for the
-/// messages a loop finds waiting.
-fn joined(batch: &[Queued]) -> Vec<ContentBlock> {
-    batch.iter().flat_map(|message| message.content.iter().cloned()).collect()
+/// The batch as the loop is asked it: every message, under its key,
+/// in the order they were enqueued.
+fn messages(batch: &[Queued]) -> Vec<Message> {
+    batch
+        .iter()
+        .map(|message| Message {
+            key: message.key.clone(),
+            content: message.content.clone(),
+        })
+        .collect()
 }
 
 /// The slot's answer, or forever when there is no slot: a branch
