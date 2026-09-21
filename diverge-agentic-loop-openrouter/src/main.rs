@@ -162,6 +162,18 @@ async fn run(
     };
     let generation = QUEUE.open().await;
 
+    if request.content.is_empty() {
+        return Err(refuse(
+            generation,
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "kind": "content",
+                "error": "a message needs content",
+            }),
+        )
+        .await);
+    }
+
     let api_key = match client.vault_get(API_KEY).await {
         Ok(Some(bytes)) => match String::from_utf8(bytes.to_vec()) {
             Ok(api_key) => api_key,
@@ -237,7 +249,7 @@ async fn run(
         &api_key,
         agent,
         continuation,
-        request.prompt,
+        request.content,
         generation,
     )
     .await
@@ -343,7 +355,16 @@ async fn schema() -> Json<schemars::Schema> {
 /// channel dying, which the loop's close guard exists to prevent —
 /// answers as HTTP does, with a status.
 async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
-    let fate = QUEUE.enqueue(request.prompt).await;
+    if request.content.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "kind": "content",
+                "error": "a message needs content",
+            })),
+        ));
+    }
+    let fate = QUEUE.enqueue(request.content).await;
     match fate.await {
         Ok(fate) => Ok(Json(fate)),
         Err(_) => Err((

@@ -13,7 +13,8 @@
 # rest is exec'd and it is eval'd — so `main()` on the last line makes
 # the call's return value the turn. Everything runs in one globals
 # dict with three names the script did not define: `input`, the whole
-# conversation in its stored form; `tools`, the MCP tools; and
+# conversation in its stored form — chunk objects, and each user
+# message as an array of MCP content blocks; `tools`, the MCP tools; and
 # `resources`, the MCP resources — both as listed this very turn.
 #
 # stdin is read to its end BEFORE anything else runs and before

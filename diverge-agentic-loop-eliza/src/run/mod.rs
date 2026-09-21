@@ -68,6 +68,7 @@ use std::sync::Arc;
 use diverge_container_proxy_sdk::Client;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use futures_util::Stream;
+use rmcp::model::ContentBlock;
 use sqlx::PgPool;
 
 use crate::agent::{Agent, Plugin};
@@ -87,7 +88,7 @@ pub fn run(
     client: Arc<Client>,
     pool: PgPool,
     agent: Agent,
-    prompt: String,
+    content: Vec<ContentBlock>,
     generation: u64,
     claim: Claim,
 ) -> impl Stream<Item = Result<AgenticLoopChunk, Error>> {
@@ -238,10 +239,10 @@ pub fn run(
         let mut alive = true;
         // Whether the last turn's read-back is still owed.
         let mut owed = false;
-        let mut input = prompt;
+        let mut input = crate::content::linked(content);
 
         'turns: loop {
-            if let Err(error) = entry.send(&Request::Turn { text: input }).await {
+            if let Err(error) = entry.send(&Request::Turn { content: input }).await {
                 yield Ok(notification(
                     serde_json::json!({
                         "kind": "entry",
@@ -353,13 +354,13 @@ pub fn run(
             if taken.is_empty() {
                 break;
             }
-            let mut prompts = Vec::with_capacity(taken.len());
+            let mut blocks = Vec::new();
             for message in taken {
-                yield Ok(user(message.prompt.clone()));
-                prompts.push(message.prompt.clone());
+                yield Ok(user(message.content.clone()));
+                blocks.extend(message.content.clone());
                 message.deliver();
             }
-            input = prompts.join("\n\n");
+            input = crate::content::linked(blocks);
         }
 
         // A turn that ended in failure still owes its read-back, if

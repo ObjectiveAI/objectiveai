@@ -5,6 +5,7 @@ use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, ToolResponseChunk, UserChunk,
 };
+use rmcp::model::ContentBlock;
 use futures_util::stream::FuturesUnordered;
 use futures_util::{Stream, StreamExt as _};
 use rmcp::model::CallToolRequestParams;
@@ -25,10 +26,12 @@ use crate::run::Feed;
 ///
 /// # The script reads the history as it is stored
 ///
-/// The turn's prompt goes into the history FIRST, as its own `Prompt`
-/// item, and the script is fed the items whole: what the database
-/// keeps and what the script reads are the same array, the latest
-/// prompt its last element. There is no request to build.
+/// The turn's message goes into the history FIRST, as its own `Prompt`
+/// item — its MCP content blocks, untouched — and the script is fed
+/// the items whole: what the database keeps and what the script
+/// reads are the same array, the latest message its last element.
+/// There is no request to build, and nothing to convert: what a
+/// script makes of an image or a resource is the script's.
 ///
 /// # Every turn starts fresh
 ///
@@ -88,7 +91,7 @@ use crate::run::Feed;
 pub async fn r#loop(
     client: &Client,
     continuation: Option<Continuation>,
-    prompt: String,
+    content: Vec<ContentBlock>,
     generation: u64,
 ) -> Result<
     impl Stream<Item = Result<Item, Error>> + Send + Unpin + use<>,
@@ -108,7 +111,7 @@ pub async fn r#loop(
 
     let mut items: Vec<ContinuationItem> =
         continuation.map(|history| history.0).unwrap_or_default();
-    items.push(ContinuationItem::Prompt(prompt));
+    items.push(ContinuationItem::Prompt(content));
 
     // Turn one, run here so a failure to start is this function's
     // `Err` and never a stream's leading item.
@@ -177,10 +180,10 @@ pub async fn r#loop(
                 for message in taken {
                     yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
                         r#type: Default::default(),
-                        prompt: message.prompt.clone(),
+                        content: message.content.clone(),
                         meta: None,
                     })));
-                    items.push(ContinuationItem::Prompt(message.prompt.clone()));
+                    items.push(ContinuationItem::Prompt(message.content.clone()));
                     message.deliver();
                 }
             } else {
@@ -219,10 +222,10 @@ pub async fn r#loop(
                 for message in QUEUE.take().await {
                     yield Ok(Item::Chunk(AgenticLoopChunk::User(UserChunk {
                         r#type: Default::default(),
-                        prompt: message.prompt.clone(),
+                        content: message.content.clone(),
                         meta: None,
                     })));
-                    items.push(ContinuationItem::Prompt(message.prompt.clone()));
+                    items.push(ContinuationItem::Prompt(message.content.clone()));
                     message.deliver();
                 }
                 // Every answer is in and the seam's deliveries with

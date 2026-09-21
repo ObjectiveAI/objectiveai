@@ -131,9 +131,11 @@ async fn serve() {
 /// is still running waits for it and is never refused); Claude Code
 /// failing to install (`500`,
 /// and the same on every endpoint, forever — a request during the
-/// install simply waits for the outcome); an empty prompt (`400` — stream-json input
-/// opens the turn with a user message, and an empty one would hang
-/// forever waiting); a database that will not answer, or a session
+/// install simply waits for the outcome); a message with no content, or
+/// content Claude Code cannot take — audio, an image in a format the
+/// API does not read, a binary resource that is not such an image
+/// (`400`, the whole message refused; an empty one would hang the
+/// turn forever waiting); a database that will not answer, or a session
 /// row that will not open (`500`); a subprocess that will not start
 /// (`500`); and the stream's FIRST item, pulled before the response
 /// is decided — an error record there is the request's own failure
@@ -174,15 +176,10 @@ async fn run(
     };
     installed().await?;
 
-    if request.prompt.is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "kind": "prompt",
-                "error": "a turn needs a prompt",
-            })),
-        ));
-    }
+    let blocks = match spawn::blocks(&request.content) {
+        Ok(blocks) => blocks,
+        Err(error) => return Err((StatusCode::BAD_REQUEST, Json(error))),
+    };
 
     let pool = match sqlx::postgres::PgPoolOptions::new()
         .max_connections(1)
@@ -228,7 +225,7 @@ async fn run(
         },
     };
 
-    let stream = match spawn::spawn(agent, session_id, request.prompt, claim).await {
+    let stream = match spawn::spawn(agent, session_id, blocks, claim).await {
         Ok(stream) => stream,
         Err(error) => {
             return Err((
@@ -357,7 +354,11 @@ async fn schema() -> Json<schemars::Schema> {
 /// (missed).
 async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
     installed().await?;
-    Ok(Json(spawn::enqueue(request.prompt).await))
+    let blocks = match spawn::blocks(&request.content) {
+        Ok(blocks) => blocks,
+        Err(error) => return Err((StatusCode::BAD_REQUEST, Json(error))),
+    };
+    Ok(Json(spawn::enqueue(request.content, blocks).await))
 }
 
 /// `POST /dequeue`: clear the running conversation's queue.

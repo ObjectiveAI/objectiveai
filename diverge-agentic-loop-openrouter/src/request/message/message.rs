@@ -3,6 +3,8 @@
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use serde::Serialize;
 
+use rmcp::model::ContentBlock;
+
 use crate::continuation::{Continuation, ContinuationItem};
 
 use super::{
@@ -60,12 +62,12 @@ pub enum Message {
 ///   `system-reminder` section — see
 ///   [`ToolMessage::fold_steer`](super::ToolMessage::fold_steer);
 /// - a run of prompts anywhere else — behind an assistant message,
-///   or opening the conversation — becomes ONE user message, the
-///   texts joined by blank lines.
+///   or opening the conversation — becomes ONE user message, their
+///   blocks concatenated.
 pub fn messages(
     system_prompt: Option<String>,
     continuation: Option<Continuation>,
-    prompt: String,
+    content: Vec<ContentBlock>,
 ) -> Vec<Message> {
     let mut messages = Vec::new();
     let mut current: Option<super::AssistantMessage> = None;
@@ -80,19 +82,19 @@ pub fn messages(
         .peekable();
     while let Some(item) = items.next() {
         match item {
-            ContinuationItem::Prompt(text) => {
+            ContinuationItem::Prompt(blocks) => {
                 // The whole run of consecutive prompts, because what
                 // they become is decided together.
-                let mut run = vec![text];
+                let mut run = blocks;
                 while matches!(
                     items.peek(),
                     Some(ContinuationItem::Prompt(_))
                 ) {
-                    let Some(ContinuationItem::Prompt(text)) = items.next()
+                    let Some(ContinuationItem::Prompt(blocks)) = items.next()
                     else {
                         unreachable!("peeked a prompt above");
                     };
-                    run.push(text);
+                    run.extend(blocks);
                 }
                 // Directly behind a tool response: steered messages,
                 // folded into it. Anywhere else: one user message.
@@ -108,9 +110,7 @@ pub fn messages(
                     if let Some(assistant) = current.take() {
                         messages.push(Message::Assistant(assistant));
                     }
-                    messages.push(Message::User(super::UserMessage::new(
-                        run.join("\n\n"),
-                    )));
+                    messages.push(Message::User(super::UserMessage::new(run)));
                 }
             }
             ContinuationItem::Chunk(chunk) => match chunk {
@@ -137,10 +137,10 @@ pub fn messages(
     if let Some(assistant) = current.take() {
         messages.push(Message::Assistant(assistant));
     }
-    // Turns after the first send no new prompt — it already rode into
-    // the history — and an empty user message is not a message.
-    if !prompt.is_empty() {
-        messages.push(Message::User(super::UserMessage::new(prompt)));
+    // Turns after the first send no new message — it already rode
+    // into the history — and an empty user message is not a message.
+    if !content.is_empty() {
+        messages.push(Message::User(super::UserMessage::new(content)));
     }
     messages
 }

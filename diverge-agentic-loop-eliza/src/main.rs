@@ -43,6 +43,7 @@
 
 mod agent;
 mod claim;
+mod content;
 mod lineage;
 mod plugins;
 mod queue;
@@ -144,16 +145,8 @@ async fn run(
     };
     let generation = QUEUE.open().await;
 
-    if request.prompt.is_empty() {
-        return Err(refuse(
-            generation,
-            StatusCode::BAD_REQUEST,
-            serde_json::json!({
-                "kind": "prompt",
-                "error": "a turn needs a prompt",
-            }),
-        )
-        .await);
+    if let Err(error) = content::check(&request.content) {
+        return Err(refuse(generation, StatusCode::BAD_REQUEST, error).await);
     }
 
     let pool = match sqlx::postgres::PgPoolOptions::new()
@@ -179,7 +172,7 @@ async fn run(
         client,
         pool,
         agent,
-        request.prompt,
+        request.content,
         generation,
         claim,
     ));
@@ -273,7 +266,10 @@ async fn schema() -> Json<schemars::Schema> {
 /// fate channel dying, which the run's close guard exists to prevent
 /// — answers as HTTP does, with a status.
 async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
-    let fate = QUEUE.enqueue(request.prompt).await;
+    if let Err(error) = content::check(&request.content) {
+        return Err((StatusCode::BAD_REQUEST, Json(error)));
+    }
+    let fate = QUEUE.enqueue(request.content).await;
     match fate.await {
         Ok(fate) => Ok(Json(fate)),
         Err(_) => Err((

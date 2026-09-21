@@ -368,11 +368,11 @@ fn text(text: String) -> AgenticLoopChunk {
     })
 }
 
-/// A `user` chunk: a queued prompt, at the position it landed.
-pub fn user(prompt: String) -> AgenticLoopChunk {
+/// A `user` chunk: a queued message, at the position it landed.
+pub fn user(content: Vec<ContentBlock>) -> AgenticLoopChunk {
     AgenticLoopChunk::User(UserChunk {
         r#type: Default::default(),
-        prompt,
+        content,
         meta: None,
     })
 }

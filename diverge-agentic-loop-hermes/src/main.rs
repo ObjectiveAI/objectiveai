@@ -44,6 +44,7 @@
 
 mod agent;
 mod claim;
+mod content;
 mod continuation;
 mod filesystem;
 mod queue;
@@ -116,7 +117,7 @@ async fn serve() {
 /// beside one streaming (`409` — the [`Claim`], released on every
 /// refusal below and otherwise by the run's settlement; a request
 /// that lands while a settlement is still running waits for it and
-/// is never refused); an empty prompt (`400` — a turn needs one); a database
+/// is never refused); a message with no content, or content this agent cannot take (`400`); a database
 /// that will not answer (`500`); and the run's FIRST item, pulled
 /// before the response is decided — the run's one `Err` is the
 /// request's own failure (`500`, in its own words), and a run with
@@ -149,16 +150,8 @@ async fn run(
     };
     let generation = QUEUE.open().await;
 
-    if request.prompt.is_empty() {
-        return Err(refuse(
-            generation,
-            StatusCode::BAD_REQUEST,
-            serde_json::json!({
-                "kind": "prompt",
-                "error": "a turn needs a prompt",
-            }),
-        )
-        .await);
+    if let Err(error) = content::check(&request.content) {
+        return Err(refuse(generation, StatusCode::BAD_REQUEST, error).await);
     }
 
     let pool = match sqlx::postgres::PgPoolOptions::new()
@@ -184,7 +177,7 @@ async fn run(
         client,
         pool,
         agent,
-        request.prompt,
+        request.content,
         generation,
         claim,
     ));
@@ -276,7 +269,10 @@ async fn schema() -> Json<schemars::Schema> {
 /// fate channel dying, which the run's close guard exists to prevent
 /// — answers as HTTP does, with a status.
 async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
-    let fate = QUEUE.enqueue(request.prompt).await;
+    if let Err(error) = content::check(&request.content) {
+        return Err((StatusCode::BAD_REQUEST, Json(error)));
+    }
+    let fate = QUEUE.enqueue(request.content).await;
     match fate.await {
         Ok(fate) => Ok(Json(fate)),
         Err(_) => Err((

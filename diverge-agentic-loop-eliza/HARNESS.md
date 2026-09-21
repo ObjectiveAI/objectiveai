@@ -451,7 +451,7 @@ the port the SDK's `container_proxy_sdk::port()` names (`PORT`, else 8080),
 forwarded to by the proxy the host injects: `POST /register` (the
 agent, once, for the container's life; a second is `409`), `POST /run`
 (a run before registration is `409 unregistered`; a run beside one
-streaming is `409 busy`; an empty prompt `400`; a database that will
+streaming is `409 busy`; a message with no content `400`, its blocks rendered by the entry — an image described, audio transcribed — before the turn; a database that will
 not answer `500`; the run's one `Err` — lineage, vault, install, the
 entry failing before ready — is a `500` in its own words; a run with
 nothing to say is `empty_run`; then the chunks as server-sent events,

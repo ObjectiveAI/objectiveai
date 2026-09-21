@@ -1,5 +1,6 @@
 //! The entry's lines, as the container's chunks.
 
+use rmcp::model::ContentBlock;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, AssistantTextContentChunk, AssistantToolCallChunk, NotificationChunk,
     ToolResponseChunk, UsageChunk, UserChunk,
@@ -72,11 +73,11 @@ pub fn text(text: String) -> AgenticLoopChunk {
     })
 }
 
-/// A `user` chunk: a queued prompt, at the position it landed.
-pub fn user(prompt: String) -> AgenticLoopChunk {
+/// A `user` chunk: a queued message, at the position it landed.
+pub fn user(content: Vec<ContentBlock>) -> AgenticLoopChunk {
     AgenticLoopChunk::User(UserChunk {
         r#type: Default::default(),
-        prompt,
+        content,
         meta: None,
     })
 }

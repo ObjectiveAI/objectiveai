@@ -187,7 +187,19 @@ async fn run(
         },
     };
 
-    let mut items = match r#loop::r#loop(&client, continuation, request.prompt, generation).await {
+    if request.content.is_empty() {
+        return Err(refuse(
+            generation,
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "kind": "content",
+                "error": "a message needs content",
+            }),
+        )
+        .await);
+    }
+
+    let mut items = match r#loop::r#loop(&client, continuation, request.content, generation).await {
         Ok(items) => items,
         Err(error) => {
             return Err(refuse(generation, StatusCode::INTERNAL_SERVER_ERROR, error.message()).await);
@@ -287,7 +299,16 @@ async fn schema() -> Json<schemars::Schema> {
 /// channel dying, which the loop's close guard exists to prevent —
 /// answers as HTTP does, with a status.
 async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
-    let fate = QUEUE.enqueue(request.prompt).await;
+    if request.content.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "kind": "content",
+                "error": "a message needs content",
+            })),
+        ));
+    }
+    let fate = QUEUE.enqueue(request.content).await;
     match fate.await {
         Ok(fate) => Ok(Json(fate)),
         Err(_) => Err((
