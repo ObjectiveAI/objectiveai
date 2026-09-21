@@ -51,11 +51,18 @@ bearing the scope follows the finish.
   that byte as JSON, one chunk of the agent's conversation, exactly as
   the proxy sent it; the server does not read it. The server sends a
   chunk only after the id. A chunk is one of the forms the included
-  files below define, told apart by its `type` member. There is no
-  chunk that marks the end of a turn: a `user` chunk marks a message
-  landing, a `notification` chunk whose `is_fatal` is `true` marks a
-  loop that ended in failure, and quiet is an agent with nothing to
-  say.
+  files below define, told apart by its `type` member. A message of
+  the client's lands as its user parts: one chunk per content block,
+  its `type` the block's kind — `user_text_content`,
+  `user_image_content`, `user_audio_content`, `user_resource`,
+  `user_resource_link` — each carrying the message's `key` as the
+  enqueue gave it, consecutive in the message's order. The first
+  chunks the server sends after the id are the user parts of the
+  message the loop started on, or of every message it started on,
+  in the order sent. There is no chunk that marks the end of a turn:
+  a message's user parts mark it landing, a `notification` chunk
+  whose `is_fatal` is `true` marks a loop that ended in failure, and
+  quiet is an agent with nothing to say.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is none of `0`, `1`, `2` and `3`, a payload whose bytes after `0` do not
   parse as the id, a payload whose bytes after `1` do not parse as
@@ -83,9 +90,34 @@ and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/respo
 ```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/chunk.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_chunk.rs`:
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_parts.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_chunk.rs
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_parts.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_text_content_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_text_content_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_image_content_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_image_content_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_audio_content_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_audio_content_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_resource_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_resource_chunk.rs
+```
+
+and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_resource_link_chunk.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/user_resource_link_chunk.rs
 ```
 
 and by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/response/assistant_text_content_chunk.rs`:

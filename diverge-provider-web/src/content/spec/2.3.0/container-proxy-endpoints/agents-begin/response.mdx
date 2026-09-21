@@ -27,7 +27,10 @@ draft: false
 - **The chunk.** The bytes after the byte `2` are one chunk as the
   [containers::agents::run response](/endpoints/containers-agents-run/response/)
   defines it, as JSON, which the server sends as the agent's server
-  produced it, with one addition.
+  produced it, with one addition. The first chunks of a loop are the
+  user parts of the message it started on — one chunk per content
+  block, each carrying the message's `key` — or of every message it
+  started on, in the order sent.
 - **The image.** The server sets `_meta["diverge.network/image"]` on
   each chunk to an object of two fields, `{"name":…,"digest":…}`:
   the `image` the begin request carried, verbatim. A value the
