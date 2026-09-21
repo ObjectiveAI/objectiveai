@@ -42,7 +42,11 @@ pub fn output(envelope: Envelope) -> Result<Vec<AgenticLoopChunk>, Error> {
 /// The kind a chunk may not be, if it is one.
 fn forbidden(chunk: &AgenticLoopChunk) -> Option<&'static str> {
     match chunk {
-        AgenticLoopChunk::User(_) => Some("user"),
+        AgenticLoopChunk::UserTextContent(_) => Some("user_text_content"),
+        AgenticLoopChunk::UserImageContent(_) => Some("user_image_content"),
+        AgenticLoopChunk::UserAudioContent(_) => Some("user_audio_content"),
+        AgenticLoopChunk::UserResource(_) => Some("user_resource"),
+        AgenticLoopChunk::UserResourceLink(_) => Some("user_resource_link"),
         AgenticLoopChunk::Usage(_) => Some("usage"),
         AgenticLoopChunk::ToolResponse(_) => Some("tool_response"),
         AgenticLoopChunk::AssistantReasoning(_)

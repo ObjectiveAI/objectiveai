@@ -50,7 +50,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use diverge_container_proxy_sdk::Client;
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use diverge_container_proxy_sdk::agent::run::request::Message;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{AgenticLoopChunk, user_parts};
 use futures_util::Stream;
 use rmcp::model::ContentBlock;
 use sqlx::PgPool;
@@ -69,7 +70,7 @@ pub fn run(
     client: Arc<Client>,
     pool: PgPool,
     agent: Agent,
-    content: Vec<ContentBlock>,
+    messages: Vec<Message>,
     generation: u64,
     claim: Claim,
 ) -> impl Stream<Item = Result<AgenticLoopChunk, Error>> {
@@ -119,7 +120,8 @@ pub fn run(
         // Whether any event has been written: before the first, a
         // failure is the request's own; after, a fatal notification.
         let mut spoke = false;
-        let mut input = content;
+        let mut input: Vec<ContentBlock> = messages.iter().flat_map(|message| message.content.iter().cloned()).collect();
+        let mut started_on = messages;
 
         'turns: loop {
             let (text, images) = crate::content::render(&input);
@@ -153,6 +155,15 @@ pub fn run(
                     return;
                 }
             };
+            // The messages the run started on, as the stream's first
+            // chunks: their parts, each under its key, before the
+            // harness says a word. The turn is on the wire; a start
+            // that failed was the request's own, above.
+            for message in started_on.drain(..) {
+                for chunk in user_parts(&message.key, message.content) {
+                    yield Ok(chunk);
+                }
+            }
 
             let mut turn = Turn::new(thread.usage.clone());
             let mut broke = false;
@@ -258,7 +269,9 @@ pub fn run(
             }
             let mut blocks = Vec::new();
             for message in taken {
-                yield Ok(user(message.content.clone()));
+                for chunk in user_parts(&message.key, message.content.clone()) {
+                    yield Ok(chunk);
+                }
                 blocks.extend(message.content.clone());
                 message.deliver();
             }

@@ -4,8 +4,9 @@ use std::io;
 use std::process::Stdio;
 
 use diverge_container_proxy_sdk::agent::enqueue::Fate;
+use diverge_container_proxy_sdk::agent::run::request::Message;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
-    AgenticLoopChunk, UserChunk,
+    AgenticLoopChunk, user_parts,
 };
 use futures_util::Stream;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -52,6 +53,7 @@ use super::writer;
 pub async fn spawn(
     agent: Agent,
     session_id: Option<String>,
+    messages: Vec<Message>,
     blocks: Vec<stdin::Block>,
     claim: Claim,
 ) -> io::Result<
@@ -142,7 +144,7 @@ pub async fn spawn(
     // place.
     *replies::REPLIES.lock().await = Some(reply_receiver);
     *writer::WRITER.lock().await = Some(child_stdin);
-    Ok(read(child_stdout, child, reply_sender, claim))
+    Ok(read(child_stdout, child, reply_sender, claim, messages))
 }
 
 /// The `--effort` value for an SDK tier, 1:1.
@@ -244,6 +246,7 @@ fn read(
         response::control::ControlResponse,
     >,
     claim: Claim,
+    messages: Vec<Message>,
 ) -> impl Stream<Item = Result<AgenticLoopChunk, error::Error>> + Send {
     // Outside the generator, deliberately: a stream dropped before
     // its first poll never runs a line of the body, but its captured
@@ -257,6 +260,15 @@ fn read(
         // One buffer for the whole stream: each record's chunks land
         // here, drain as yields, and the allocation stays.
         let mut chunks: Vec<AgenticLoopChunk> = Vec::new();
+        // The messages the run started on, as the stream's first
+        // chunks: their parts, each under its key, before Claude Code
+        // says a word — the prompt line is written, and a spawn that
+        // failed was the request's own, before this stream existed.
+        for message in messages {
+            for chunk in user_parts(&message.key, message.content) {
+                yield Ok(chunk);
+            }
+        }
         // Whether the session has been named — the capture's latch.
         let mut session_seen = false;
         while let Ok(Some(line)) = lines.next_line().await {
@@ -286,13 +298,7 @@ fn read(
                             let _ = pending.fate.send(
                                 Fate::Delivered,
                             );
-                            chunks.push(AgenticLoopChunk::User(
-                                UserChunk {
-                                    r#type: Default::default(),
-                                    content: pending.content,
-                                    meta: None,
-                                },
-                            ));
+                            chunks.extend(user_parts(&pending.key, pending.content));
                         }
                     }
                 }
