@@ -33,7 +33,7 @@ pub enum ClientRequest<'a> {
     AgentsDelete(agents::delete::client::request::Frame),
     /// Tag `2`. Send an agent a message.
     AgentsMessage(agents::message::client::request::Frame),
-    /// Tag `3`. Read an agent's log from an id on.
+    /// Tag `3`. Run a jq program over an agent's log.
     AgentsLogsQuery(agents::logs::query::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///

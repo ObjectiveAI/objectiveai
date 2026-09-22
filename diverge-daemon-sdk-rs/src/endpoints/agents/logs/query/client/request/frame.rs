@@ -4,22 +4,25 @@ use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-/// Ask the daemon for an agent's log, from an id on.
+/// Ask the daemon to run a jq program over an agent's log.
 ///
 /// The name is the one a [`create`](crate::endpoints::agents::create)
-/// gave the agent. `after` is the `log_id` of the last item the
-/// client has: the daemon sends every item whose `log_id` is greater,
-/// oldest first, and none whose is not. Absent, the daemon sends the
-/// whole log. A `log_id` the log has never held is not an error: the
-/// daemon sends whatever lies after it, which may be nothing.
+/// gave the agent. The program is jq's own language, as the `jq`
+/// command takes it: it is run with each [`Item`] of the log as its
+/// input, oldest first, and everything it yields for every item comes
+/// back, in order. So `.` is the whole log, item by item;
+/// `select(.log_id > 100)` is what lies after an id;
+/// `select(.type == "user_text_content") | .text` is every text a
+/// caller sent, as strings. The daemon does not read the program
+/// beyond running it.
+///
+/// [`Item`]: crate::endpoints::agents::logs::query::server::response::Item
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The agent's name, as its create gave it.
     pub name: String,
-    /// The `log_id` of the last item the client has; absent for the
-    /// whole log.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub after: Option<u64>,
+    /// The jq program, run with each item of the log as its input.
+    pub jq: String,
 }
 
 /// This frame's tag among the scope-opening requests.
