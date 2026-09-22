@@ -7,17 +7,17 @@ use serde::{Deserialize, Serialize};
 /// Ask the daemon for an agent's log, from an id on.
 ///
 /// The name is the one a [`create`](crate::endpoints::agents::create)
-/// gave the agent. `after` is the id of the last item the client
-/// has: the daemon sends every item whose id is greater, oldest
-/// first, and none whose id is not. Absent, the daemon sends the
-/// whole log. An id the log has never held is not an error: the
+/// gave the agent. `after` is the `log_id` of the last item the
+/// client has: the daemon sends every item whose `log_id` is greater,
+/// oldest first, and none whose is not. Absent, the daemon sends the
+/// whole log. A `log_id` the log has never held is not an error: the
 /// daemon sends whatever lies after it, which may be nothing.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The agent's name, as its create gave it.
     pub name: String,
-    /// The id of the last item the client has; absent for the whole
-    /// log.
+    /// The `log_id` of the last item the client has; absent for the
+    /// whole log.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub after: Option<u64>,
 }
