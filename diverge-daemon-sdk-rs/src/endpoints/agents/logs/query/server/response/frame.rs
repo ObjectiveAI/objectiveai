@@ -11,7 +11,7 @@ use super::Item;
 /// A query's answer: one item, or a failure.
 ///
 /// A query is a stream: zero or more of these, each one item of the
-/// log after the requested id, oldest first, then the finish; or
+/// log after the requested `log_id`, oldest first, then the finish; or
 /// exactly one error, then the finish. A payload leads with one byte
 /// saying which — `0` for [`Item`](Self::Item), `1` for
 /// [`Error`](Self::Error) — and the rest is that variant's own JSON.
