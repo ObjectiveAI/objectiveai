@@ -8,8 +8,10 @@
 //! after: one name, one agent, for as long as the agent exists.
 //!
 //! [`create`] spawns an agent under a name; [`delete`] removes one by
-//! name; [`message`] sends one a message, and may take it back.
+//! name; [`message`] sends one a message, and may take it back;
+//! [`logs`] reads what one said and what was said to it.
 
 pub mod create;
 pub mod delete;
+pub mod logs;
 pub mod message;
