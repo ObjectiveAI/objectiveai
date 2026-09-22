@@ -6,7 +6,7 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log |
+//! | [`agents`] | create an agent under a name; delete one by name; send one a message; query one's log |
 //!
 //! # The tags
 //!

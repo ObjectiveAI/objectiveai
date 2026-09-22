@@ -9,7 +9,7 @@
 //!
 //! [`create`] spawns an agent under a name; [`delete`] removes one by
 //! name; [`message`] sends one a message, and may take it back;
-//! [`logs`] reads what one said and what was said to it.
+//! [`logs`] queries what one said and what was said to it.
 
 pub mod create;
 pub mod delete;

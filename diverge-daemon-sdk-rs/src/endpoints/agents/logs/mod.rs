@@ -8,6 +8,6 @@
 //! log outlives the run: it is the daemon's, kept until the agent is
 //! deleted.
 //!
-//! [`query`] reads it from an id on.
+//! [`query`] runs a jq program over it.
 
 pub mod query;
