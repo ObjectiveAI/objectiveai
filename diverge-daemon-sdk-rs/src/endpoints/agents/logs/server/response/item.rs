@@ -1,31 +1,31 @@
-//! One entry of an agent's log.
+//! What one log entry holds.
 
-use chrono::{DateTime, Utc};
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use serde::{Deserialize, Serialize};
 
-use super::Kept;
+use super::Error;
 
-/// One entry: its place in the log, when it was kept, and what it
-/// holds — a chunk's own members flattened beside the two of the
-/// log's, so an item reads as the chunk it is with `logs_index` and
-/// `created` added; or an error, whole, under `error`. Whose message
-/// a user part is, its own `key` says.
+/// What the log kept: one chunk of the agent's conversation, or one
+/// error a run answered with.
 ///
-/// `logs_index` rather than `id`, because a tool call and a tool
-/// response carry an `id` of their own, and flattening would put the
-/// two in one object. `created` is nobody else's, and `error` is no
-/// chunk's.
+/// Flattened into the [`ItemWrapper`](super::ItemWrapper) that holds
+/// it, and every kind carries a `type` that names it — a chunk its
+/// own, an error the string `error` — so the `type` alone says what
+/// an item is, and the request's [`type`] picks by it. An error's
+/// value lands whole under one member, `error`, because it is an
+/// arbitrary JSON value and its members are nobody's promise; a
+/// reader never looks inside it to tell an error from a chunk.
+///
+/// [`type`]: crate::endpoints::agents::logs::client::request::Frame::type
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Item {
-    /// The item's index: counts up by one per item of the agent's
-    /// log, from `1`, and never repeats. What the request's
-    /// `logs_index_from` and `logs_index_to` span.
-    pub logs_index: u64,
-    /// When the daemon kept the item. On the wire an RFC 3339
-    /// timestamp in UTC, `2026-09-21T15:04:05.123456Z`. What the
-    /// request's `created_from` and `created_to` span.
-    pub created: DateTime<Utc>,
-    /// What the item holds, its members beside these.
-    #[serde(flatten)]
-    pub kept: Kept,
+#[serde(untagged)]
+pub enum Item {
+    /// One chunk, as the run streamed it — a user part, what the
+    /// agent said, a tool call or its answer, usage, a notification.
+    /// Its members are the item's.
+    Chunk(AgenticLoopChunk),
+    /// One error a run answered with: the run that would not start,
+    /// or the message the agent refused, in the words the daemon
+    /// received.
+    Error(Error),
 }
