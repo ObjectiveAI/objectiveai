@@ -6,7 +6,7 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | create an agent under a name; delete one by name; send one a message; query one's log |
+//! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log |
 //!
 //! # The tags
 //!
@@ -20,7 +20,7 @@
 //! | `0` | [`agents::create`] |
 //! | `1` | [`agents::delete`] |
 //! | `2` | [`agents::message`] |
-//! | `3` | [`agents::logs::query`] |
+//! | `3` | [`agents::logs`] |
 //!
 //! Four, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value

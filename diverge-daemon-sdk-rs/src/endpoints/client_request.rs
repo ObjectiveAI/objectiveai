@@ -33,8 +33,8 @@ pub enum ClientRequest<'a> {
     AgentsDelete(agents::delete::client::request::Frame),
     /// Tag `2`. Send an agent a message.
     AgentsMessage(agents::message::client::request::Frame),
-    /// Tag `3`. Run a jq program over an agent's log.
-    AgentsLogsQuery(agents::logs::query::client::request::Frame),
+    /// Tag `3`. Read an agent's log, filtered, and perhaps kept open.
+    AgentsLogs(agents::logs::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -58,7 +58,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsCreate(frame) => frame.encode(out),
             ClientRequest::AgentsDelete(frame) => frame.encode(out),
             ClientRequest::AgentsMessage(frame) => frame.encode(out),
-            ClientRequest::AgentsLogsQuery(frame) => frame.encode(out),
+            ClientRequest::AgentsLogs(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -92,8 +92,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             2 => agents::message::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsMessage)
                 .ok(),
-            3 => agents::logs::query::client::request::Frame::decode(bytes)
-                .map(ClientRequest::AgentsLogsQuery)
+            3 => agents::logs::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsLogs)
                 .ok(),
             _ => None,
         };
@@ -107,7 +107,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsCreate(_) => f.write_str("agents create"),
             ClientRequest::AgentsDelete(_) => f.write_str("agents delete"),
             ClientRequest::AgentsMessage(_) => f.write_str("agents message"),
-            ClientRequest::AgentsLogsQuery(_) => f.write_str("agents logs query"),
+            ClientRequest::AgentsLogs(_) => f.write_str("agents logs"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

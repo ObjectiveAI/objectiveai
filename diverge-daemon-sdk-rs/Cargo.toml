@@ -26,6 +26,10 @@ client = ["diverge-provider-sdk/client"]
 diverge-provider-sdk = { path = "../diverge-provider-sdk-rs" }
 # The content of a message, MCP's own; the version every crate of
 # the workspace pins, so the one `ContentBlock` is shared.
+# The time a log item was kept: RFC 3339 on the wire, and the type
+# sqlx reads a Postgres `timestamptz` into, so a daemon keeps it as
+# it is.
+chrono = { version = "0.4.39", default-features = false, features = ["std", "serde"] }
 rmcp = { version = "3.1.2", default-features = false }
 serde = { version = "1.0.229", features = ["derive"] }
 # `preserve_order` as the provider SDK has it, so an arguments value
