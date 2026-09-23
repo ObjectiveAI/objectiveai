@@ -13,10 +13,11 @@ use serde_json::Value;
 /// A read is a stream: zero or more values, each one matching item
 /// as it is — or, with a program, one value the program yielded —
 /// in the log's order oldest first, then the finish; or exactly one
-/// error, then the finish. Watching, the values go on as items land,
-/// and the finish comes when the filter can never match again, on a
-/// cancel, or on the agent's deletion — the request frame says
-/// exactly when. A payload leads with one byte saying which — `0`
+/// error, then the finish. A count on the request caps the values,
+/// watching or not. Watching, the values go on as items land, and
+/// the finish comes when the count is met, when the filter can never
+/// match again, on a cancel, or on the agent's deletion — the
+/// request frame says exactly when. A payload leads with one byte saying which — `0`
 /// for [`Value`](Self::Value), `1` for [`Error`](Self::Error) — and
 /// the rest is that variant's own JSON. A value is an
 /// [`Item`](super::Item) without a program, and with one whatever the
