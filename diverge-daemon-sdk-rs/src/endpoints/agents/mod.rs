@@ -9,9 +9,11 @@
 //!
 //! [`create`] spawns an agent under a name; [`delete`] removes one by
 //! name; [`message`] sends one a message, and may take it back;
-//! [`logs`] reads what one said and what was said to it.
+//! [`logs`] reads what one said and what was said to it; [`list`]
+//! names every one the caller has.
 
 pub mod create;
 pub mod delete;
+pub mod list;
 pub mod logs;
 pub mod message;
