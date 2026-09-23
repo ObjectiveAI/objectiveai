@@ -5,6 +5,8 @@ use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use super::ItemType;
+
 /// Ask the daemon for an agent's log, narrowed, and perhaps
 /// watched.
 ///
@@ -15,8 +17,9 @@ use serde::{Deserialize, Serialize};
 /// The spans are inclusive at both ends.
 /// The daemon applies the spans and the type before the program, so
 /// the program sees only what they let through, and runs over each
-/// [`Item`] of that, oldest first; what the program yields is what
-/// comes back, and without one the items come back as they are.
+/// [`ItemWrapper`] of that, oldest first; what the program yields is
+/// what comes back, and without one the items come back as they
+/// are.
 ///
 /// # Historical, then live
 ///
@@ -59,7 +62,7 @@ use serde::{Deserialize, Serialize};
 /// on an error. `logs_index_from` and `created_from` never end one:
 /// an item before them is skipped, and one after can always come.
 ///
-/// [`Item`]: crate::endpoints::agents::logs::server::response::Item
+/// [`ItemWrapper`]: crate::endpoints::agents::logs::server::response::ItemWrapper
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Frame {
     /// The agent's name, as its create gave it.
@@ -80,13 +83,10 @@ pub struct Frame {
     /// last — and, watching, no last at all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_to: Option<DateTime<Utc>>,
-    /// One kind of item, by its `type` as an [`Item`] carries it —
-    /// `user_text_content`, `assistant_tool_call`, `usage`, and the
-    /// rest — or `error` for the errors; absent, every kind.
-    ///
-    /// [`Item`]: crate::endpoints::agents::logs::server::response::Item
+    /// One kind of item, by its `type` as an [`ItemWrapper`](crate::endpoints::agents::logs::server::response::ItemWrapper) carries
+    /// it; absent, every kind.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<String>,
+    pub r#type: Option<ItemType>,
     /// A jq program, as the `jq` command takes one, run with each
     /// matching item as its input; everything it yields comes back,
     /// in order. So `.text` on `type: user_text_content` is every

@@ -2,10 +2,11 @@
 //!
 //! What a caller hands the daemon to read an agent's log: the name,
 //! every way of narrowing what comes back, and a cap on how much,
-//! each optional. There
-//! is nothing to establish and nothing to resume, which is why this
-//! is one type and not a module of them.
+//! each optional. [`ItemType`] is the vocabulary of one of those
+//! narrowings, the kind of item.
 
 mod frame;
+mod item_type;
 
 pub use frame::*;
+pub use item_type::*;

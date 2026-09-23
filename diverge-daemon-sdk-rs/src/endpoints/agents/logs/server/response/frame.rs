@@ -20,10 +20,10 @@ use serde_json::Value;
 /// request frame says exactly when. A payload leads with one byte saying which — `0`
 /// for [`Value`](Self::Value), `1` for [`Error`](Self::Error) — and
 /// the rest is that variant's own JSON. A value is an
-/// [`Item`](super::Item) without a program, and with one whatever the
-/// program made — a string, a number, an object of its own — so this
-/// crate types it as JSON; a reader that sent no program reads each
-/// as an [`Item`](super::Item).
+/// [`ItemWrapper`](super::ItemWrapper) without a program, and with
+/// one whatever the program made — a string, a number, an object of
+/// its own — so this crate types it as JSON; a reader that sent no
+/// program reads each as an [`ItemWrapper`](super::ItemWrapper).
 ///
 /// # A finish with nothing is an answer
 ///
