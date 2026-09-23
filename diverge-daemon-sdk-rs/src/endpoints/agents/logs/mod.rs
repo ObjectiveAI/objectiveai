@@ -9,18 +9,19 @@
 //! deleted.
 //!
 //! One scope reads it. A client names an agent of its own and says
-//! what it wants: a span of ids, a span of time, one kind of item, a
-//! jq program to run over what matches, and whether to watch —
-//! every one optional, and a request that says nothing is the whole
-//! log. The daemon runs the whole filter over the log as it stands,
-//! oldest first, one response per value, and finishes; or, watching,
-//! goes on to run the same filter over each item as it lands, and
-//! stays open until the filter can never match again — the log has
-//! reached the request's last id, or the clock its last time — or
-//! the client cancels, or the agent is deleted. A filter with no
-//! last id and no last time can always match again, and a watch on
-//! it never ends on its own. An agent that does not exist, or a
-//! program that will not compile or fails while it runs, is the
+//! what it wants: a span of indexes, a span of time, one kind of
+//! item, a jq program to run over what matches, how many values at
+//! most, and whether to watch — every one optional, and a request
+//! that says nothing is the whole log. The daemon runs the whole
+//! filter over the log as it stands, oldest first, one response per
+//! value, and finishes; or, watching, goes on to run the same filter
+//! over each item as it lands, and stays open until the filter can
+//! never match again — the log has reached the request's last
+//! index, or the clock its last time — or the count is met, or the
+//! client cancels, or the agent is deleted. A filter with no last
+//! index, no last time and no count can always match again, and a
+//! watch on it never ends on its own. An agent that does not exist,
+//! or a program that will not compile or fails while it runs, is the
 //! scope's error.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the

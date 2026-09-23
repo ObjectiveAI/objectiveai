@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 /// The name is the one a [`create`](crate::endpoints::agents::create)
 /// gave the agent. Everything else is optional. The spans, the type
 /// and the program together are the filter, and a request with none
-/// of them is the whole log. The spans are inclusive at both ends.
+/// of them is the whole log; the count caps what the filter yields.
+/// The spans are inclusive at both ends.
 /// The daemon applies the spans and the type before the program, so
 /// the program sees only what they let through, and runs over each
 /// [`Item`] of that, oldest first; what the program yields is what
@@ -31,12 +32,15 @@ use serde::{Deserialize, Serialize};
 ///
 /// # When a watch ends
 ///
-/// A watch ends on its own only when the filter can never match
-/// again, which the daemon decides from the spans alone — the type
-/// and the program never rule an item out before it is seen — and
-/// from the fact that the log's indexes and times only go up: a later
-/// item never has a smaller `logs_index` or an earlier `created`. So:
+/// A watch ends on its own only when nothing more can come back:
+/// the count is met, or the filter can never match again, which the
+/// daemon decides from the spans alone — the type and the program
+/// never rule an item out before it is seen — and from the fact
+/// that the log's indexes and times only go up: a later item never
+/// has a smaller `logs_index` or an earlier `created`. So:
 ///
+/// - `count` given: the watch ends once that many values have been
+///   sent, and the scope finishes after the last of them.
 /// - `logs_index_to` given: the watch ends once the log holds an
 ///   item whose `logs_index` is `logs_index_to` or greater. That
 ///   item is sent first if it matches, and the scope finishes after
@@ -46,8 +50,8 @@ use serde::{Deserialize, Serialize};
 ///   daemon's clock passes `created_to` with no such item — both
 ///   mean nothing later can be in the span. An item at the bound is
 ///   in the span and is sent first if it matches.
-/// - Both given: whichever comes first.
-/// - Neither given: the watch never ends on its own. It ends when
+/// - Several given: whichever comes first.
+/// - None given: the watch never ends on its own. It ends when
 ///   the client [cancels](crate::endpoints::agents::logs::client::channel_request::Frame::Cancel),
 ///   closes the scope, or the agent is deleted.
 ///
@@ -91,11 +95,18 @@ pub struct Frame {
     /// it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jq: Option<String>,
+    /// How many values to send at most, counting what comes back —
+    /// items as they are, or what the program yields — and not what
+    /// the filter reads; once that many have been sent the scope
+    /// finishes, whether or not more would have matched. `0` sends
+    /// nothing and finishes at once. Absent, no cap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub count: Option<u64>,
     /// Whether to watch: `true`, the daemon sends what matches now
     /// and then runs the filter over each item as it lands, until
-    /// the filter can never match again, a cancel, or the agent's
-    /// deletion; `false` or absent, the daemon sends what matches
-    /// now and finishes.
+    /// the count is met, the filter can never match again, a cancel,
+    /// or the agent's deletion; `false` or absent, the daemon sends
+    /// what matches now and finishes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub watch: Option<bool>,
 }
