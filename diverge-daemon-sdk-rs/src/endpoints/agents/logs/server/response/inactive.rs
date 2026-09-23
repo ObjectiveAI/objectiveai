@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::shared::provider::Provider;
+use super::Provider;
 
 /// The agent became inactive: it no longer runs on the provider
 /// named. `type` is the string `inactive`, and the provider's members

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::shared::provider::Provider;
+use super::Provider;
 
 /// The agent became active: its container came up on the provider
 /// named, and the agent is running there. `type` is the string
