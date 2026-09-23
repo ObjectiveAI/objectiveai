@@ -12,14 +12,15 @@ use serde::{Deserialize, Serialize};
 /// reason: a discriminator added later is a wire break, and one
 /// present from the start costs a reader nothing.
 ///
-/// # `brokered` is reserved
+/// # `incoming_brokered` is reserved
 ///
 /// A provider that dials the daemon with a brokered credential — a
 /// third party vouching for it, the credential mode the protocol
 /// reserves and does not yet define — will be a third variant here,
-/// `kind: "brokered"`, when `diverge-broker-sdk` defines the mode.
-/// Nothing about its shape is guessed at now; the `kind` is there so
-/// that it can land beside these two without moving either.
+/// `kind: "incoming_brokered"`, when `diverge-broker-sdk` defines
+/// the mode. Nothing about its shape is guessed at now; the `kind`
+/// is there so that it can land beside these two without moving
+/// either.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum Identity {
@@ -31,14 +32,16 @@ pub enum Identity {
     /// told the daemon anything it did not already know.
     #[serde(rename = "outgoing")]
     Outgoing {
-        /// Where the provider was dialled: `host:port`, as the
-        /// daemon's configuration writes it — the host a name the
-        /// resolver answers for or an IP address, `[…]:port` for an
-        /// IPv6 address.
+        /// Where the provider was dialled, as the daemon's
+        /// configuration writes it: a URL, `wss://provider.example/`,
+        /// or a bare `host:port` — the host a name the resolver
+        /// answers for or an IP address, `[…]:port` for an IPv6
+        /// address. It is the string the daemon dialled and not the
+        /// address the socket resolved to, so a name stays a name.
         address: String,
     },
     /// The provider dialled the daemon and presented an unbrokered
-    /// credential. `kind: "unbrokered"`.
+    /// credential. `kind: "incoming_unbrokered"`.
     ///
     /// The identity is what the daemon's judging of the credential
     /// answered: the string a key names, or a hook returns — the same
@@ -46,8 +49,8 @@ pub enum Identity {
     /// being the provider's mirror in this. The credential itself is
     /// never here; it is a secret, and the identity is what it
     /// established.
-    #[serde(rename = "unbrokered")]
-    Unbrokered {
+    #[serde(rename = "incoming_unbrokered")]
+    IncomingUnbrokered {
         /// The provider's identity, as the daemon's judging of its
         /// credential answered.
         identity: String,
