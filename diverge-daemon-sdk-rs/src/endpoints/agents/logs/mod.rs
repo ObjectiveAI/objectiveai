@@ -10,18 +10,23 @@
 //!
 //! One scope reads it. A client names an agent of its own and says
 //! what it wants: a span of ids, a span of time, one kind of item, a
-//! jq program to run over what matches, and whether to stay
-//! subscribed — every one optional, and a request that says nothing
-//! is the whole log. The daemon sends what matches, oldest first,
-//! one response each, then finishes; or, subscribed, stays open and
-//! sends each item as it lands, and says when the agent goes idle,
-//! for as long as the client keeps the scope. An agent that does not
-//! exist, or a program that will not compile or fails while it runs,
-//! is the scope's error.
+//! jq program to run over what matches, and whether to watch —
+//! every one optional, and a request that says nothing is the whole
+//! log. The daemon runs the whole filter over the log as it stands,
+//! oldest first, one response per value, and finishes; or, watching,
+//! goes on to run the same filter over each item as it lands, and
+//! stays open until the filter can never match again — the log has
+//! reached the request's last id, or the clock its last time — or
+//! the client cancels, or the agent is deleted. A filter with no
+//! last id and no last time can always match again, and a watch on
+//! it never ends on its own. An agent that does not exist, or a
+//! program that will not compile or fails while it runs, is the
+//! scope's error.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
-//! question is in [`client`] — and the daemon answers, so the answer
-//! is in [`server`]. Neither side holds both halves of the exchange.
+//! question and the cancel are in [`client`] — and the daemon
+//! answers, so the answer is in [`server`]. Neither side holds both
+//! halves of the exchange.
 
 pub mod client;
 pub mod server;
