@@ -33,7 +33,9 @@
 //! going out, or the provider's being judged by the
 //! [`unbrokered_authorizer`] a caller supplies — and the
 //! [`Connection`](crate::connection::Connection) comes back out ready
-//! to be split. See [`authorization`] for which side does which.
+//! to be split, as an [`authorized`] that names the provider beside
+//! it. See [`authorization`] for which side does which, and where the
+//! name comes from.
 //!
 //! [`router`] is the read loop: frames off the socket, forwarded to
 //! whoever is waiting. [`handle`] is the write half and what a caller
@@ -111,6 +113,8 @@ pub mod scope;
 pub mod authorization;
 #[cfg(feature = "client")]
 pub mod authorize;
+#[cfg(feature = "client")]
+pub mod authorized;
 #[cfg(feature = "client")]
 pub mod unbrokered_authorizer;
 
