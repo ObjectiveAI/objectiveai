@@ -1,4 +1,4 @@
-//! The client side of a query: what a client sends.
+//! The client side of a logs read: what a client sends.
 //!
 //! [`request`] is the whole of what goes on the wire. A client asks and
 //! then listens; it has nothing to send back, so there is no `response`
