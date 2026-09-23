@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 
 /// One kind of log item, as the `type` member of an
 /// [`ItemWrapper`] names it: one variant per chunk the agent's run
-/// can stream, and one for the errors. What a request's
+/// can stream, one for the errors, and two for the agent starting and
+/// ceasing to run on a provider. What a request's
 /// [`type`](super::Frame::type) picks by.
 ///
 /// | on the wire | item |
@@ -24,9 +25,13 @@ use serde::{Deserialize, Serialize};
 /// | `usage` | [`UsageChunk`] |
 /// | `notification` | [`NotificationChunk`] |
 /// | `error` | [`Error`] |
+/// | `active` | [`Active`] |
+/// | `inactive` | [`Inactive`] |
 ///
 /// [`ItemWrapper`]: crate::endpoints::agents::logs::server::response::ItemWrapper
 /// [`Error`]: crate::endpoints::agents::logs::server::response::Error
+/// [`Active`]: crate::endpoints::agents::logs::server::response::Active
+/// [`Inactive`]: crate::endpoints::agents::logs::server::response::Inactive
 /// [`UserTextContentChunk`]: diverge_provider_sdk::endpoints::containers::agents::run::server::response::UserTextContentChunk
 /// [`UserImageContentChunk`]: diverge_provider_sdk::endpoints::containers::agents::run::server::response::UserImageContentChunk
 /// [`UserAudioContentChunk`]: diverge_provider_sdk::endpoints::containers::agents::run::server::response::UserAudioContentChunk
@@ -88,4 +93,10 @@ pub enum ItemType {
     /// An error a run answered with.
     #[serde(rename = "error")]
     Error,
+    /// The agent began running on a provider.
+    #[serde(rename = "active")]
+    Active,
+    /// The agent ceased running on a provider.
+    #[serde(rename = "inactive")]
+    Inactive,
 }

@@ -3,10 +3,11 @@
 //! The daemon keeps, for every agent it runs, every chunk the
 //! agent's run streamed — the user parts of each message that landed,
 //! everything the agent said, its tool calls and their answers, its
-//! usage and notifications — and every error the run answered with,
-//! each under an id that counts up and the time it was kept. The
-//! log outlives the run: it is the daemon's, kept until the agent is
-//! deleted.
+//! usage and notifications — every error the run answered with, and
+//! when the agent began running on a provider, and which, and when
+//! it ceased to — each under an index that counts up and the time it
+//! was kept. The log outlives the run: it is the daemon's, kept
+//! until the agent is deleted.
 //!
 //! One scope reads it. A client names an agent of its own and says
 //! what it wants: a span of indexes, a span of time, one kind of
