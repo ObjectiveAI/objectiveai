@@ -1,11 +1,13 @@
 //! The handshake, before the connection is anything else.
 
 use std::fmt;
+use std::net::IpAddr;
 
 use bytes::Bytes;
 use futures_util::{SinkExt as _, StreamExt as _};
 
 use super::authorization::{self, Authorization};
+use super::authorized::Authorized;
 use super::unbrokered_authorizer::UnbrokeredAuthorizer;
 use crate::connection::Connection;
 use crate::decode::Decode;
@@ -19,24 +21,28 @@ use crate::frame::server::ServerFrame;
 /// The first step of using one, before the split and before anything
 /// is built: the credential is the connection's first frame and
 /// nothing may precede it, so this takes the [`Connection`] whole and
-/// hands it back once the handshake is done — what comes out is what
-/// [`Router::new`](super::router::Router::new) and
-/// [`Handle::new`](super::handle::Handle::new) are built from.
+/// hands it back once the handshake is done, as an [`Authorized`] —
+/// the connection [`Router::new`](super::router::Router::new) and
+/// [`Handle::new`](super::handle::Handle::new) are built from, and the
+/// provider's identity beside it.
 ///
 /// The mirror of the handshake at the top of the server's
 /// [`handle`](crate::server::handle::handle), with the dial direction
-/// inverted and no identity produced — see [`UnbrokeredAuthorizer`]
-/// for why acceptance is the whole of a caller's answer.
+/// inverted: the identity comes from the same two places, the
+/// argument on one variant and the [`UnbrokeredAuthorizer`] on the
+/// other, and `address` is the peer's, as the OS reported it, for the
+/// authorizer to see.
 ///
 /// # [`Outgoing`](Authorization::Outgoing) sends and is done
 ///
 /// This end dialled, so this end authenticates: the credential goes
 /// out and the connection comes back, with nothing read and nothing
-/// waited for. There is no answer to wait FOR — an accepted credential
-/// is followed by the connection simply working, a rejected one by a
-/// close, and the caller meets either through its ordinary reads. A
-/// send that does not land is ignored for the same reason: the
-/// connection is already over, and the very next read will say so.
+/// waited for, under the identity the caller supplied. There is no
+/// answer to wait FOR — an accepted credential is followed by the
+/// connection simply working, a rejected one by a close, and the
+/// caller meets either through its ordinary reads. A send that does
+/// not land is ignored for the same reason: the connection is already
+/// over, and the very next read will say so.
 ///
 /// # [`Incoming`](Authorization::Incoming) demands the credential
 /// first
@@ -52,10 +58,10 @@ use crate::frame::server::ServerFrame;
 /// Frames that will not decode at all are skipped rather than judged,
 /// the same way every read loop in this crate skips them — the first
 /// frame this end can READ is the one that must be the credential. A
-/// connection that ends before producing one is handed back as it is:
-/// nothing was judged and nothing was served, and everything built on
-/// it learns it is dead at the first read, which is the ordinary
-/// ending everywhere in this crate.
+/// connection that ends before producing one is
+/// [`Ended`](AuthorizeError::Ended): nothing was judged and nothing
+/// was served, and there is no identity to serve it under, so there
+/// is nothing to hand back.
 ///
 /// # After this, a credential is never legitimate again
 ///
@@ -67,12 +73,16 @@ use crate::frame::server::ServerFrame;
 pub async fn authorize<U>(
     mut connection: Connection,
     authorization: Authorization<U>,
-) -> Result<Connection, AuthorizeError<U::Error>>
+    address: IpAddr,
+) -> Result<Authorized, AuthorizeError<U::Error>>
 where
     U: UnbrokeredAuthorizer,
 {
     match authorization {
-        Authorization::Outgoing { auth } => {
+        Authorization::Outgoing {
+            auth,
+            provider_identity,
+        } => {
             let mut payload = Vec::new();
             match &auth {
                 authorization::Auth::Unbrokered(credential) => {
@@ -86,14 +96,16 @@ where
                 .encode(&mut Writer::new(&mut buffer))
                 .unwrap_or_else(|error| match error {});
             let _ = connection.send(Bytes::from(buffer)).await;
-            Ok(connection)
+            Ok(Authorized {
+                connection,
+                provider_identity,
+            })
         }
         Authorization::Incoming { unbrokered } => loop {
             let Some(received) = connection.next().await else {
-                // Gone before speaking. Nothing was judged and nothing
-                // was served, which is the ordinary ending everywhere
-                // in this crate.
-                return Ok(connection);
+                // Gone before speaking. Nothing was judged, so there
+                // is nobody to serve the connection as.
+                return Err(AuthorizeError::Ended);
             };
             // A transport error yields no frame, and a frame this end
             // cannot read is not one to judge. The loop takes the next,
@@ -111,8 +123,11 @@ where
                 Ok(auth::Auth::Unbrokered(credential)) => credential,
                 Err(error) => return Err(AuthorizeError::Auth(error)),
             };
-            return match unbrokered.authorize(credential).await {
-                Ok(()) => Ok(connection),
+            return match unbrokered.authorize(credential, address).await {
+                Ok(provider_identity) => Ok(Authorized {
+                    connection,
+                    provider_identity,
+                }),
                 Err(error) => Err(AuthorizeError::Unauthorized(error)),
             };
         },
@@ -134,6 +149,13 @@ where
 /// this returns and may want its log to say why.
 #[derive(Debug)]
 pub enum AuthorizeError<E> {
+    /// The connection ended before the provider presented anything.
+    ///
+    /// Not a refusal and not a defect — the ordinary ending, arrived
+    /// early — but an error all the same, because a connection that
+    /// nobody was judged on has no identity to be served under, and
+    /// nothing else this returns is built without one.
+    Ended,
     /// The provider's first frame was not its credential.
     ///
     /// Whatever it was, the provider skipped the handshake, and
@@ -157,6 +179,9 @@ pub enum AuthorizeError<E> {
 impl<E> fmt::Display for AuthorizeError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            AuthorizeError::Ended => f.write_str(
+                "the connection ended before the provider presented a credential",
+            ),
             AuthorizeError::Unauthenticated => f.write_str(
                 "the provider's first frame was not its credential",
             ),
@@ -181,7 +206,8 @@ where
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             AuthorizeError::Auth(error) => Some(error),
-            AuthorizeError::Unauthenticated
+            AuthorizeError::Ended
+            | AuthorizeError::Unauthenticated
             | AuthorizeError::Unauthorized(_) => None,
         }
     }
