@@ -11,6 +11,8 @@
 //! half — and defines its own [`endpoints`] on top, as the provider
 //! SDK defines its own. The provider's endpoints are not the daemon's,
 //! and nothing here names them but the container request a daemon
-//! spawns an agent from.
+//! spawns an agent from. [`shared`] is what more than one endpoint
+//! speaks of: today, the provider an agent runs on.
 
 pub mod endpoints;
+pub mod shared;
