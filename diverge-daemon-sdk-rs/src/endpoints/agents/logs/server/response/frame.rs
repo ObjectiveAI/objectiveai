@@ -8,43 +8,21 @@ use diverge_provider_sdk::shared::error::Error;
 
 use serde_json::Value;
 
-/// A logs read's answer: one value, the agent gone idle, or a
-/// failure.
+/// A logs read's answer: one value, or a failure.
 ///
 /// A read is a stream: zero or more values, each one matching item
 /// as it is — or, with a program, one value the program yielded —
 /// in the log's order oldest first, then the finish; or exactly one
-/// error, then the finish. Subscribed, the finish does not come: the
-/// scope stays open and each item that lands after is sent as it
-/// lands, until the client closes the scope, the agent is deleted —
-/// the finish, with nothing before it — or an error. A payload leads
-/// with one byte saying which — `0` for [`Value`](Self::Value), `1`
-/// for [`Inactive`](Self::Inactive), `2` for [`Error`](Self::Error)
-/// — and the rest is that variant's own JSON, of which
-/// [`Inactive`](Self::Inactive) has none. A value is an
+/// error, then the finish. Watching, the values go on as items land,
+/// and the finish comes when the filter can never match again, on a
+/// cancel, or on the agent's deletion — the request frame says
+/// exactly when. A payload leads with one byte saying which — `0`
+/// for [`Value`](Self::Value), `1` for [`Error`](Self::Error) — and
+/// the rest is that variant's own JSON. A value is an
 /// [`Item`](super::Item) without a program, and with one whatever the
 /// program made — a string, a number, an object of its own — so this
 /// crate types it as JSON; a reader that sent no program reads each
 /// as an [`Item`](super::Item).
-///
-/// # Idle, only when subscribed
-///
-/// A subscription is told when the agent has nothing to do: no loop
-/// running and nothing queued. The daemon sends
-/// [`Inactive`](Self::Inactive) once when a subscription opens on an
-/// agent already idle, after everything that matched, and once each
-/// time the agent goes idle after; the items a loop kept precede it.
-/// A read that does not subscribe never sees it, since there is no
-/// later for it to be idle in.
-///
-/// # No watermark
-///
-/// The daemon does not remember what a client has read. A
-/// subscription that opens while the agent is running sends what
-/// matches at the moment it opens and then what lands after; an item
-/// kept between the two may be sent twice or not at all, and its
-/// `logs_id` tells a reader which. A reader that must not miss one
-/// asks again from the last `logs_id` it has.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -59,11 +37,7 @@ use serde_json::Value;
 pub enum Frame {
     /// One matching item, or one value the program yielded. Tag `0`.
     Value(Value),
-    /// The agent has gone idle, or was when the subscription opened.
-    /// Tag `1`, and nothing after it. Only ever sent to a
-    /// subscription.
-    Inactive,
-    /// A failure. Tag `2`.
+    /// A failure. Tag `1`.
     ///
     /// See [`shared::error::Error`](diverge_provider_sdk::shared::error::Error)
     /// for why it says so little.
@@ -73,11 +47,8 @@ pub enum Frame {
 /// Tag for [`Frame::Value`].
 const VALUE: u8 = 0;
 
-/// Tag for [`Frame::Inactive`].
-const INACTIVE: u8 = 1;
-
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 1;
 
 /// A tag, then the variant's own JSON.
 impl Encode for Frame {
@@ -91,10 +62,6 @@ impl Encode for Frame {
             Frame::Value(value) => {
                 out.extend_from_slice(&[VALUE]);
                 serde_json::to_writer(out, value)
-            }
-            Frame::Inactive => {
-                out.extend_from_slice(&[INACTIVE]);
-                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -113,7 +80,6 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             VALUE => serde_json::from_slice(rest).map(Frame::Value).map_err(FrameError::Value),
-            INACTIVE => Ok(Frame::Inactive),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -125,7 +91,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is neither of this frame's two.
     UnknownTag(u8),
     /// The value did not parse.
     Value(serde_json::Error),

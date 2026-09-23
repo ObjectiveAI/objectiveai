@@ -5,17 +5,54 @@ use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-/// Ask the daemon for an agent's log, narrowed, and perhaps kept
-/// open.
+/// Ask the daemon for an agent's log, narrowed, and perhaps
+/// watched.
 ///
 /// The name is the one a [`create`](crate::endpoints::agents::create)
-/// gave the agent. Everything else is optional, and each narrows what
-/// comes back; a request with none of them is the whole log. The
-/// spans are inclusive at both ends. The daemon applies the spans
-/// and the type before the program, so the program sees only what
-/// they let through, and runs over each [`Item`] of that, oldest
-/// first; what the program yields is what comes back, and without
-/// one the items come back as they are.
+/// gave the agent. Everything else is optional. The spans, the type
+/// and the program together are the filter, and a request with none
+/// of them is the whole log. The spans are inclusive at both ends.
+/// The daemon applies the spans and the type before the program, so
+/// the program sees only what they let through, and runs over each
+/// [`Item`] of that, oldest first; what the program yields is what
+/// comes back, and without one the items come back as they are.
+///
+/// # Historical, then live
+///
+/// The daemon runs the filter over the log as it stands at the
+/// request, oldest first, and sends every value. Without `watch`
+/// that is the read, and the scope finishes. With `watch` the daemon
+/// then runs the same filter over each item as it lands, sends what
+/// it yields as it yields it, and keeps the scope open. The daemon
+/// does not mark where the historical read ended and the live one
+/// began; an item kept as the one gives way to the other is sent
+/// once, not twice and not never — that is the daemon's to get
+/// right, and the id says whether it did.
+///
+/// # When a watch ends
+///
+/// A watch ends on its own only when the filter can never match
+/// again, which the daemon decides from the spans alone — the type
+/// and the program never rule an item out before it is seen — and
+/// from the fact that the log's ids and times only go up: a later
+/// item never has a smaller `logs_id` or an earlier `created`. So:
+///
+/// - `logs_id_to` given: the watch ends once the log holds an item
+///   whose `logs_id` is `logs_id_to` or greater. That item is sent
+///   first if it matches, and the scope finishes after it.
+/// - `created_to` given: the watch ends once the log holds an item
+///   whose `created` is later than `created_to`, or once the
+///   daemon's clock passes `created_to` with no such item — both
+///   mean nothing later can be in the span. An item at the bound is
+///   in the span and is sent first if it matches.
+/// - Both given: whichever comes first.
+/// - Neither given: the watch never ends on its own. It ends when
+///   the client [cancels](crate::endpoints::agents::logs::client::channel_request::Frame::Cancel),
+///   closes the scope, or the agent is deleted.
+///
+/// Every watch also ends on a cancel, on the agent's deletion, and
+/// on an error. `logs_id_from` and `created_from` never end one:
+/// an item before them is skipped, and one after can always come.
 ///
 /// [`Item`]: crate::endpoints::agents::logs::server::response::Item
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -27,7 +64,7 @@ pub struct Frame {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logs_id_from: Option<u64>,
     /// The last `logs_id` to read, inclusive; absent, the log's last
-    /// — and, subscribed, no last at all.
+    /// — and, watching, no last at all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logs_id_to: Option<u64>,
     /// The earliest `created` to read, inclusive; absent, the log's
@@ -35,7 +72,7 @@ pub struct Frame {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_from: Option<DateTime<Utc>>,
     /// The latest `created` to read, inclusive; absent, the log's
-    /// last — and, subscribed, no last at all.
+    /// last — and, watching, no last at all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_to: Option<DateTime<Utc>>,
     /// One kind of item, by its `type` as an [`Item`] carries it —
@@ -53,13 +90,13 @@ pub struct Frame {
     /// it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jq: Option<String>,
-    /// Whether to stay open: `true`, the daemon sends what matches
-    /// and then each item that lands after, as it lands, for as long
-    /// as the client keeps the scope, and says when the agent goes
-    /// idle; `false` or absent, the daemon sends what matches and
-    /// finishes.
+    /// Whether to watch: `true`, the daemon sends what matches now
+    /// and then runs the filter over each item as it lands, until
+    /// the filter can never match again, a cancel, or the agent's
+    /// deletion; `false` or absent, the daemon sends what matches
+    /// now and finishes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub subscribe: Option<bool>,
+    pub watch: Option<bool>,
 }
 
 /// This frame's tag among the scope-opening requests.
