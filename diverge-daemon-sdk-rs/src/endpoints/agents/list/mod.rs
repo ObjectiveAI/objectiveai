@@ -4,8 +4,8 @@
 //! holds under the caller's identity, one response each, oldest
 //! created first, then finishes: what each is called, what image it
 //! runs, whether it is active now, when its activity last changed
-//! and where it ran, how long its log is, and what waits for it. A
-//! caller with no agents sees the finish and nothing before it. The
+//! and where it ran, and how long its log is. A caller with no
+//! agents sees the finish and nothing before it. The
 //! daemon does not stay open; a caller that wants to know when an
 //! agent's activity changes reads its [`logs`](super::logs).
 //!
