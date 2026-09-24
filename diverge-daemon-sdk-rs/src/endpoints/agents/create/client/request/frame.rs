@@ -2,17 +2,22 @@
 
 use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::encode::{Encode, Writer};
-use diverge_provider_sdk::shared::containers::request::Container;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use super::{FuseMount, Image, VolumeMount};
 
 /// Ask the daemon to create an agent under a name.
 ///
-/// Everything the agent container is made from — the
-/// [`Container`] of a provider's `containers::agents::run`, verbatim,
-/// so the daemon relays it to whichever provider it chooses and reads
-/// nothing of it but what it needs to choose — and the name the agent
-/// is held under from then on. The wire is one object: the
-/// container's members, flattened, and `name`.
+/// Everything the agent is made from — the image, the limits, the
+/// mounts, the arguments — and the name the agent is held under from
+/// then on. What a caller may not choose is not here at all rather
+/// than here and ignored: the container's name, its ports, its
+/// entrypoint and its environment are the provider's, because they
+/// are how the provider reaches the container and how the container
+/// reaches back. There is no environment: the mounts are the
+/// caller's only provisioning channel, and a field that is accepted
+/// and ignored is a field callers will believe in.
 ///
 /// # The name
 ///
@@ -25,9 +30,68 @@ use serde::{Deserialize, Serialize};
 /// compares it and does not read it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Frame {
-    /// The agent container, as a provider would be asked for it.
-    #[serde(flatten)]
-    pub container: Container,
+    /// The image: a name and a digest. See [`Image`].
+    pub image: Image,
+    /// How much memory the container may have, in BYTES.
+    ///
+    /// A ceiling, not a hint. A process that exceeds what the
+    /// container is allowed is killed by the kernel rather than told
+    /// — no failed allocation to catch, no warning first — and the
+    /// container will not see this number in its own
+    /// `/proc/meminfo`, which reports the host's. An image that sizes
+    /// itself off what it thinks it has will size itself wrong.
+    ///
+    /// Bytes rather than megabytes because a unit that has to be
+    /// spelled out in prose is a unit half of everyone gets wrong.
+    pub memory: u64,
+    /// How much the container may WRITE, in BYTES.
+    ///
+    /// Its own filesystem only — what it adds to or changes over the
+    /// image it came from. The image's layers are read-only and are
+    /// not counted, so a container starts at nothing however large
+    /// the image is. It does not govern the mounts: a volume is
+    /// storage that already existed, with a size of its own.
+    ///
+    /// Bytes rather than megabytes, for the reason
+    /// [`memory`](Self::memory) gives.
+    pub disk: u64,
+    /// Volumes made visible inside the container.
+    ///
+    /// Ordered, and applied in order. See [`VolumeMount`] for how one
+    /// is named without a host path. No mount's path, in any list, is
+    /// a prefix of another's: mounting INTO a directory the image
+    /// owns is the point, and mounts stacking on each other is not.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub volume_mounts: Vec<VolumeMount>,
+    /// Files the caller serves LIVE, mounted one each over FUSE.
+    ///
+    /// Each names a file by a path and an id of the caller's — see
+    /// [`FuseMount`]. Every one is mounted before the agent runs, and
+    /// every open and every changed close inside the container is one
+    /// ask back to the caller, by that id. The file is overwritten in
+    /// place only; a program that replaces its file by rename needs a
+    /// directory mount. Its path is no other mount's and lies inside
+    /// none, as every mount's.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fuse_file_mounts: Vec<FuseMount>,
+    /// Directories the caller serves LIVE, mounted one each over
+    /// FUSE.
+    ///
+    /// Each names a directory by a path and an id of the caller's —
+    /// see [`FuseMount`]. The whole tree under the path is the
+    /// caller's: every listing, read, write, creation, removal and
+    /// rename inside the container is one ask back to the caller, by
+    /// that id. No other mount may lie inside it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fuse_directory_mounts: Vec<FuseMount>,
+    /// What the image is told once, as the image defines it, for the
+    /// agent's life.
+    ///
+    /// A JSON value, because this crate does not know what an image
+    /// takes — a model, tools, an image's own knobs — and a wire that
+    /// typed it would have to be revised for every image that ever
+    /// ran. It is handed to the container and not read here.
+    pub arguments: Value,
     /// The name, unique among the caller's agents.
     pub name: String,
 }
