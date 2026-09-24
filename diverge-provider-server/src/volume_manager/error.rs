@@ -51,6 +51,9 @@ pub enum Error {
     /// A fixed volume's directory could not be watched, or its watch
     /// died; see [`watch::Error`].
     Watch(watch::Error),
+    /// A stored volume's mode file did not hold a mode, or a mode
+    /// could not be written as one.
+    Mode(serde_json::Error),
 }
 
 impl fmt::Display for Error {
@@ -67,6 +70,7 @@ impl fmt::Display for Error {
             Error::Format(error) => write!(f, "the image could not be handled: {error}"),
             Error::Tool(error) => write!(f, "the volume could not be resized: {error}"),
             Error::Watch(error) => write!(f, "the volume could not be watched: {error}"),
+            Error::Mode(error) => write!(f, "the volume's mode file could not be read: {error}"),
         }
     }
 }
@@ -78,6 +82,7 @@ impl std::error::Error for Error {
             Error::Format(error) => Some(error),
             Error::Tool(error) => Some(error),
             Error::Watch(error) => Some(error),
+            Error::Mode(error) => Some(error),
             Error::Name(_)
             | Error::Exists(_)
             | Error::Unknown(_)
@@ -113,6 +118,12 @@ impl From<watch::Error> for Error {
     }
 }
 
+impl From<serde_json::Error> for Error {
+    fn from(error: serde_json::Error) -> Self {
+        Error::Mode(error)
+    }
+}
+
 /// What the SDK puts on the wire for one of these: the variant's
 /// kind, and the message.
 ///
@@ -133,6 +144,7 @@ impl From<Error> for error::Error {
             Error::Format(_) => "format",
             Error::Tool(_) => "tool",
             Error::Watch(_) => "watch",
+            Error::Mode(_) => "mode",
         };
         error::Error(json!({
             "kind": kind,

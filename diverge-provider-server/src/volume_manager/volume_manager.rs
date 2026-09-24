@@ -12,7 +12,7 @@ use diverge_provider_sdk::server::volume_manager;
 use futures_util::future;
 use tokio::fs;
 
-use super::{Error, Identity, Place, Reservation, Volume, image, name};
+use super::{Error, Identity, Mode, Place, Reservation, Volume, image, mode, name};
 use crate::config::volumes::{Fixed, HookInput, HookOutput, Volumes};
 use crate::hook;
 
@@ -101,7 +101,8 @@ impl VolumeManager {
             .is_ok_and(|output| output.authorized)
     }
 
-    /// The fixed volume as a [`Volume`].
+    /// The fixed volume as a [`Volume`], in the mode the configuration
+    /// declares.
     fn fixed_volume(&self, fixed: &Fixed) -> Volume {
         Volume::new(
             &fixed.name,
@@ -110,6 +111,7 @@ impl VolumeManager {
                 bytes: fixed.bytes,
                 started: self.started,
             },
+            fixed.persist,
         )
     }
 
@@ -194,7 +196,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     /// first store that has them, by one atomic update and no I/O;
     /// the image is made, sized and formatted; and the volume is
     /// entered. A failure after the bytes were taken gives them back.
-    async fn create(&self, client_identity: &str, name: &str, bytes: u64) -> Result<Creation, Error> {
+    async fn create(&self, client_identity: &str, name: &str, bytes: u64, persist: bool) -> Result<Creation, Error> {
         if !name::ok(name) || self.fixed_named(name).is_some() {
             return Err(Error::Name(name.to_string()));
         }
@@ -213,7 +215,15 @@ impl volume_manager::VolumeManager for VolumeManager {
         };
         let store = self.reservation.store(index);
         let path = image::image_path(&store.path, client_identity, name);
-        if let Err(error) = make_image(&store.path.join(client_identity), &path, bytes).await {
+        let mode_path = mode::mode_path(&store.path, client_identity, name);
+        let made = async {
+            fs::create_dir_all(store.path.join(client_identity)).await?;
+            mode::write_mode(&mode_path, Mode { persist }).await?;
+            make_image(&path, bytes).await
+        }
+        .await;
+        if let Err(error) = made {
+            let _ = future::join(fs::remove_file(&path), fs::remove_file(&mode_path)).await;
             self.reservation.release(index, bytes).await;
             return Err(error);
         }
@@ -224,6 +234,7 @@ impl volume_manager::VolumeManager for VolumeManager {
                 image: path,
                 reservation: Arc::clone(&self.reservation),
             },
+            persist,
         ));
         Ok(Creation::Created)
     }
@@ -254,24 +265,32 @@ impl volume_manager::VolumeManager for VolumeManager {
         };
         if let Place::Stored { store, image, reservation } = volume.place() {
             let length = image_length(image).await;
-            match fs::remove_file(image).await {
-                Ok(()) => {}
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                Err(error) => return Err(Error::Io(error)),
-            }
+            // The image first, then its mode file: a crash between
+            // the two leaves a mode file alone, which is nothing, and
+            // never an image alone that a store would bill.
+            remove(image).await?;
+            let name = image.file_name().map(|name| name.to_string_lossy()).unwrap_or_default();
+            remove(&image.with_file_name(format!(".{name}"))).await?;
             reservation.release(*store, length).await;
         }
         Ok(())
     }
 }
 
-/// The identity's directory made, the image reserved in it, and
-/// formatted: the three steps a create takes after its bytes are
-/// taken, so one failure path gives them back.
-async fn make_image(dir: &Path, path: &Path, bytes: u64) -> Result<(), Error> {
-    fs::create_dir_all(dir).await?;
+/// The image made at `path`, its directory being there already:
+/// reserved sparse, then formatted.
+async fn make_image(path: &Path, bytes: u64) -> Result<(), Error> {
     image::reserve_image(path, bytes).await?;
     image::format_image(path, bytes).await
+}
+
+/// One file removed, a file already gone being nothing.
+async fn remove(path: &Path) -> Result<(), Error> {
+    match fs::remove_file(path).await {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(Error::Io(error)),
+    }
 }
 
 /// The image's length, which a delete gives back to its store; an

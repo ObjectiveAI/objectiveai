@@ -8,12 +8,20 @@
 //! image, formatted here in pure Rust and loop-mounted by podman when
 //! a container mounts the volume. The file's length is the volume's
 //! size — reserved, not taken, since the image is sparse — and its
-//! birth time is when the volume came into being. Nothing is kept
-//! beside it: what a listing reports is what the filesystem records
-//! about the file, and what a stat reports is read out of the image.
-//! An edit lengthens or shortens the file and resizes the filesystem
-//! in it to match, with the system's `e2fsck` and `resize2fs`: the
-//! Linux host's own, or the podman machine's on macOS and Windows.
+//! birth time is when the volume came into being. One thing is kept
+//! beside it, the dotfile `<store>/<identity>/.<name>` holding the
+//! volume's persist mode as JSON — see [`Mode`] — and an image
+//! without its mode file is not a volume, as a mode file without its
+//! image is not: the two are made together, image last, and removed
+//! together, image first. What a listing reports beyond the mode is
+//! what the filesystem records about the image, and what a stat
+//! reports is read out of it. An edit of the size lengthens or
+//! shortens the file and resizes the filesystem in it to match, with
+//! the system's `e2fsck` and `resize2fs`: the Linux host's own, or
+//! the podman machine's on macOS and Windows. An edit of the mode
+//! rewrites the mode file. A container mounts the volume's image
+//! plainly when its mode is persist, and under podman's overlay
+//! option, its writes discarded with the container, when it is not.
 //!
 //! A fixed volume is a directory the configuration names, offered as
 //! it is: its size is declared in the configuration, its creation
@@ -35,8 +43,9 @@
 //! `dirhash`. [`walk_directory`] is the walk of a fixed volume's
 //! directory and [`walk_image`] the walk of a stored volume's image;
 //! [`reserve_image`] and [`format_image`] are how an image is made,
-//! at [`image_path`]; the filesystem in one is resized by
-//! [`tools::resize`](crate::tools::resize). [`Reservation`] is the
+//! at [`image_path`], and [`read_mode`] and [`write_mode`] read and
+//! write the [`Mode`] at [`mode_path`] beside it; the filesystem in
+//! one is resized by [`tools::resize`](crate::tools::resize). [`Reservation`] is the
 //! stores and the bytes reserved in
 //! each, kept in memory and taken by compare-and-swap, shared by the
 //! manager that creates and every volume that grows or shrinks.
@@ -52,6 +61,7 @@
 mod error;
 mod identity;
 mod image;
+mod mode;
 mod name;
 mod reservation;
 mod sparse;
@@ -62,6 +72,7 @@ mod walk;
 pub use error::*;
 pub use identity::*;
 pub use image::*;
+pub use mode::*;
 pub use name::*;
 pub use reservation::*;
 pub use sparse::*;

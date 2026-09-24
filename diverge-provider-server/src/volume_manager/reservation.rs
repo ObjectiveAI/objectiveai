@@ -7,6 +7,7 @@ use futures_util::future;
 use tokio::fs;
 use tokio::sync::OnceCell;
 
+use super::name;
 use crate::config::volumes::Store;
 
 /// The stores volumes are created in, and how many bytes each has
@@ -156,9 +157,13 @@ async fn scan_identity(dir: &Path) -> u64 {
     let Ok(mut entries) = fs::read_dir(dir).await else {
         return 0;
     };
+    // Only what could be an image: a mode file is a dotfile, and no
+    // volume's name is one, so it is never billed.
     let mut images = Vec::new();
     while let Ok(Some(entry)) = entries.next_entry().await {
-        images.push(entry.path());
+        if entry.file_name().to_str().is_some_and(name::ok) {
+            images.push(entry.path());
+        }
     }
     future::join_all(images.iter().map(|image| image_length(image)))
         .await
