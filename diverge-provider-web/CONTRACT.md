@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the twelve endpoints and their
+types, the authorization handshake, the fifteen endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,13 +94,15 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the twelve scope-opening requests
+1.9 **"Endpoint"** means one of the fifteen scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `containers::tools::connect`, `3` `volumes::list`, `4`
-`volumes::stat`, `5` `volumes::create_capacity`, `6`
-`volumes::create`, `7` `volumes::edit_capacity`, `8` `volumes::edit`,
-`9` `volumes::delete`, `10` `images::check`, `11` `version`.
+`volumes::stat`, `5` `volumes::read`, `6` `volumes::write`, `7`
+`volumes::filetree`, `8` `volumes::create_capacity`, `9`
+`volumes::create`, `10` `volumes::edit_capacity`, `11`
+`volumes::edit`, `12` `volumes::delete`, `13` `images::check`, `14`
+`version`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
 a container request by a repository path and a manifest digest, as
@@ -401,7 +403,7 @@ byte the Specification does not require.
 that follow a request, the Provider shall ignore them and shall not
 treat the request as malformed on their account.
 
-### 5.5 `version` (tag 11)
+### 5.5 `version` (tag 14)
 
 The Provider shall answer every `version` request with exactly one
 Response whose payload is the string `2.3.0` encoded as UTF-8 with no
@@ -409,7 +411,7 @@ tag and no length prefix, followed by the Response Finish. The
 Provider shall not send any other string, shall not send an empty
 string, and shall not send an error on this Endpoint.
 
-### 5.6 `images::check` (tag 10)
+### 5.6 `images::check` (tag 13)
 
 The Provider shall answer every `images::check` request with exactly
 one Response and the Response Finish: the byte `0` followed by exactly
@@ -441,11 +443,67 @@ carrying the Volume's `name`, `bytes`, `created` and `persist`, its
 and its `dirhash` as the Specification defines each, as of the time of
 the Response; and shall answer a name not in the listing, or a Volume
 mounted in a running Container or under another `volumes::stat`, a
+`volumes::read`, a `volumes::write`, a `volumes::filetree`, a
 `volumes::edit` or a `volumes::delete` at the time of the request,
 with an error. The Provider shall not examine a Volume that is
 mounted in a running Container at the time of the request.
 
-(c) **Capacity.** The Provider shall answer every
+(c) **Reading.** The Provider shall answer every `volumes::read`
+request naming a Volume in the Identity's listing and a path of one
+file in it with the bytes of that file as Responses whose first byte
+is `0`, each of at most `CHUNK_SIZE` bytes, in order, and the
+Response Finish, a file of zero bytes being exactly one such Response
+of zero bytes; or with the Responses sent so far, exactly one
+Response whose first byte is `1` followed by an error, and the
+Response Finish. The Provider shall hold the Volume to itself from
+the moment it accepts the request until the Response Finish, shall
+refuse every run naming the Volume for as long as it holds it, and
+shall answer a request naming a Volume mounted in a running Container
+or held by another `volumes::stat`, `volumes::read`,
+`volumes::write`, `volumes::filetree`, `volumes::edit` or
+`volumes::delete` at the time of the request with an error and
+nothing read. The Provider shall answer a path that is not of the
+form the Specification states, and a path that names no regular
+file, with an error.
+
+(d) **Writing.** The Provider shall answer every `volumes::write`
+request naming a Volume in the Identity's listing and a path of one
+file in it by holding the Volume to itself from the moment it accepts
+the request until the Response Finish, creating every missing
+directory above the file, opening exactly one Channel for the
+content, writing the content the Identity sends on it, putting the
+file in place whole, and answering with exactly one Response, the
+byte `0` only after the file is at the path, or the byte `1` followed
+by an error, and the Response Finish. The Provider shall refuse every
+run naming the Volume for as long as it holds it, and shall answer a
+request naming a Volume mounted in a running Container or held by
+another `volumes::stat`, `volumes::read`, `volumes::write`,
+`volumes::filetree`, `volumes::edit` or `volumes::delete` at the time
+of the request with the byte `1` followed by an error, opening no
+Channel. The Provider shall leave at the destination either what was
+there or the whole new file, and never a part of the new file, and
+shall leave the destination as it was on any failure, a content
+Channel that ends in an error included. From the moment the Provider
+sends the byte `0`, every `volumes::stat` Response the Provider sends
+the Identity shall report the Volume with the file in place.
+
+(e) **Filetree.** The Provider shall answer every `volumes::filetree`
+request naming a Volume in the Identity's listing and a path of a
+directory in it, the root included, with exactly one Response: the
+byte `0` followed by the entries of that directory, each with
+everything beneath it, as the nodes the Specification's filetree
+defines, every `Directory` with `changes` `0`; or the byte `1`
+followed by an error. The Provider shall hold the Volume to itself
+from the moment it accepts the request until the Response Finish,
+shall refuse every run naming the Volume for as long as it holds it,
+shall send no change after the Response, and shall answer a request
+naming a Volume mounted in a running Container or held by another
+`volumes::stat`, `volumes::read`, `volumes::write`,
+`volumes::filetree`, `volumes::edit` or `volumes::delete` at the time
+of the request, a path that is not of the form the Specification
+states, or a path that names no directory, with an error.
+
+(f) **Capacity.** The Provider shall answer every
 `volumes::create_capacity` request with the largest size in bytes of a
 Volume the Identity could create at the time of the Response, and
 every `volumes::edit_capacity` request naming a Volume in the
@@ -454,7 +512,7 @@ size could be increased at the time of the Response, each as a
 postcard varint after the byte `0`, or an error after the byte `1`.
 Neither answer reserves anything.
 
-(d) **Creation.** The Provider shall answer every `volumes::create`
+(g) **Creation.** The Provider shall answer every `volumes::create`
 request with exactly one Response: the byte `0` only after a Volume
 of the stated name, size and persist mode exists for the Identity; the
 byte `1` when
@@ -468,7 +526,7 @@ which the Identity mounts the Volume changes its content. The
 Provider shall refuse, by the byte `2`, a creation whose name is
 already in the Identity's listing.
 
-(e) **Editing.** The Provider shall answer every `volumes::edit`
+(h) **Editing.** The Provider shall answer every `volumes::edit`
 request naming a Volume in the Identity's listing with exactly one
 Response: the byte `0` only after the Volume has what the request's
 change states, its size, its persist mode, or both; the byte `1` when
@@ -489,7 +547,7 @@ and the new persist mode, and every Container in which the Identity
 mounts the Volume after that moment shall be bound under the new
 persist mode.
 
-(f) **Deletion.** The Provider shall answer every `volumes::delete`
+(i) **Deletion.** The Provider shall answer every `volumes::delete`
 request naming a Volume in the Identity's listing with exactly one
 Response: the byte `0` only after the Volume no longer exists; the
 byte `1` when the Volume is mounted in a running Container, or under
@@ -502,10 +560,11 @@ Identity shall omit the Volume, and no listing shall contain a Volume
 that has been deleted. An error shall leave the Volume, its content
 and the listing as they were.
 
-(g) **Identity of the Volume namespace.** The Provider shall resolve
+(j) **Identity of the Volume namespace.** The Provider shall resolve
 every Volume name against the Identity of the Connection on which it
 is named and against no other. A Client shall not be able to name,
-mount, stat, edit or delete a Volume of another Identity.
+mount, stat, read, write, walk, edit or delete a Volume of another
+Identity.
 
 ### 5.8 Container Deployment — `containers::agents::run` (tag 0) and `containers::tools::run` (tag 1)
 
@@ -729,7 +788,8 @@ has answered.
 The Provider shall never: (a) refuse, alter or withhold a FUSE ask on
 its own account, whether a change to a FUSE Mount is allowed being the
 Client's answer to that ask; (b) write to a Volume or a mount on its
-own account; (c) send a second id on a run Scope; (d) send an error on
+own account, a `volumes::write` request of the Identity being on the
+Identity's account; (c) send a second id on a run Scope; (d) send an error on
 the main stream of a run Scope after the id; (e) retry any ask; (f)
 read, inspect, parse, log the content of, or act upon the content of
 a Relayed Exchange, save to the extent necessary to relay it; (g)

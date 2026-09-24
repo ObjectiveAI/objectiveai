@@ -1,12 +1,12 @@
 ---
 title: 'volumes::edit'
-summary: 'Tag 8: a client names a volume from its listing and states a change to it, its size, its persist mode, or both; the server sends exactly one response stating that the volume has what was stated, that the server has insufficient capacity for the size, that the content of the volume exceeds the size, or an error, and the scope finishes; the size and the persist mode are the only properties an edit changes.'
-order: 8
+summary: 'Tag 11: a client names a volume from its listing and states a change to it, its size, its persist mode, or both; the server sends exactly one response stating that the volume has what was stated, that the server has insufficient capacity for the size, that the content of the volume exceeds the size, or an error, and the scope finishes; the size and the persist mode are the only properties an edit changes.'
+order: 11
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`8` followed by the name of a volume and a change: a size, a persist
+`11` followed by the name of a volume and a change: a size, a persist
 mode, or both. The server sends exactly one response, which states
 that the volume has what was stated, that the server has
 insufficient capacity for the size stated, that the content of the

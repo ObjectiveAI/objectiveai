@@ -1,12 +1,12 @@
 ---
 title: 'volumes::create_capacity'
-summary: 'Tag 5: a client asks how large a volume it could create; the server sends exactly one response carrying the largest size, in bytes, of a volume the client could create at that time, or an error, and the scope finishes; the answer reserves nothing.'
-order: 5
+summary: 'Tag 8: a client asks how large a volume it could create; the server sends exactly one response carrying the largest size, in bytes, of a volume the client could create at that time, or an error, and the scope finishes; the answer reserves nothing.'
+order: 8
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`5` and nothing more. The server sends exactly one response, which
+`8` and nothing more. The server sends exactly one response, which
 carries either a number of bytes or an error. The response finish
 follows the response, and no frame follows the finish.
 

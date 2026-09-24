@@ -19,9 +19,10 @@ container.
   mount and reports no change under one.
 - **What the tree contains.** Every volume mount of the container is
   in the tree, and a change under one is reported as any other change
-  is. A volume is observed by this channel of a container it is
-  mounted in, and by nothing else in this specification. How the
-  server watches a volume mount is not prescribed.
+  is. A volume is observed live by this channel of a container it is
+  mounted in, and, while it is mounted nowhere, once, by a
+  [volumes::filetree](/endpoints/volumes-filetree/) of its own. How
+  the server watches a volume mount is not prescribed.
 - **Not before the mounts.** The server does not open a tree scope
   before the last FUSE mount of the container is complete. A
   filetree channel opened earlier waits.
