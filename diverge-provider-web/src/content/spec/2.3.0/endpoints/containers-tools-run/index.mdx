@@ -56,8 +56,8 @@ about the client, which may open any channel at any time.
    what it obtains is not prescribed.
 3. **The server deploys the container.** The server starts the image
    with `memory` and `disk` as limits; every volume mount resolved by
-   `host_name` against the identity under which the connection was
-   authorized, descended by `host_relative_path`, at `container_path`;
+   `volume_name` against the identity under which the connection was
+   authorized, descended by `volume_relative_path`, at `container_path`;
    the container proxy
    injected into the container and started; and TCP
    port `14979` of the container reachable to the server. The deploy

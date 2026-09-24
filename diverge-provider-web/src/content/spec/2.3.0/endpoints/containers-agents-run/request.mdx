@@ -21,7 +21,7 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   use, and the bytes the container may write to its own filesystem.
   Neither governs a mount.
 - **`volume_mounts`.** Ordered; the server applies them in order.
-  `host_name` is a `name` in the client's listing; `host_relative_path`
+  `volume_name` is a `name` in the client's listing; `volume_relative_path`
   and `container_path` are components. An empty `container_path`
   names the root, which the server refuses. Whether the changes the
   container makes to the volume are in the volume when the container

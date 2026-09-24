@@ -548,8 +548,8 @@ prescribed.
 
 (c) **Deploy.** The Provider shall perform Container Deployment as
 Section 1.12 defines it, with `memory` and `disk` of the request as
-ceilings; every Volume Mount resolved by `host_name` against the
-Identity, descended by `host_relative_path`, and made present at
+ceilings; every Volume Mount resolved by `volume_name` against the
+Identity, descended by `volume_relative_path`, and made present at
 `container_path`, the Container's changes to it being in the Volume
 when the Container ends if the Volume's persist mode is `true` and the
 Volume being as it was before the run when the Container ends if the
