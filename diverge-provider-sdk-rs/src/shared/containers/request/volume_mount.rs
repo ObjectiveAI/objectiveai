@@ -23,6 +23,16 @@ use serde::{Deserialize, Serialize};
 /// chose and then descends. A caller cannot escape upward, because
 /// there is no component it can write that means "up" — the offset is
 /// components, and `..` is a name, not an instruction.
+///
+/// # Whether the changes stay is the volume's
+///
+/// Not here. Whether what a container writes into the volume is in
+/// the volume when the container ends is the volume's `persist`, as
+/// its [listing](crate::endpoints::volumes::list::server::response::Volume::persist)
+/// reports it and as a [`create`](crate::endpoints::volumes::create)
+/// stated or an [`edit`](crate::endpoints::volumes::edit) changed it
+/// — a fact of the volume, the same for every container that mounts
+/// it, and not a mount's to say.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct VolumeMount {
     /// Which offered volume, by the name a listing gave it.
@@ -43,16 +53,4 @@ pub struct VolumeMount {
     /// Empty means the root itself, which a provider will almost
     /// certainly refuse — the image's own filesystem is there.
     pub container_path: Vec<String>,
-    /// Whether the container's changes to the volume outlive the
-    /// container.
-    ///
-    /// `true`: every change the container makes is in the volume
-    /// when the container ends. `false`: the volume is as it was
-    /// before the run when the container ends. Either way the
-    /// container sees the volume's content as of its start. How a
-    /// provider makes `false` hold — an overlay, a copy — is its own.
-    ///
-    /// Present, always: a request states it and a provider never
-    /// infers it.
-    pub persist: bool,
 }

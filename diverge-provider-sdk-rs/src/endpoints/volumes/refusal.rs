@@ -23,7 +23,9 @@ pub fn unknown(name: &str) -> Error {
 /// The error for a volume whose exclusive hold,
 /// [`lock`](crate::server::volume::Volume::lock), could not be taken:
 /// mounted in a running container, or under a stat, an edit or a
-/// delete in flight. The endpoints with a frame of their own for it
+/// delete in flight. What a stat and an edit — of the size, of the
+/// persist mode, of both — answer, since neither has a frame of its
+/// own for it. The endpoints with a frame of their own for it
 /// — a delete's
 /// [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted),
 /// a run's

@@ -171,7 +171,9 @@ pub trait VolumeManager: Send + Sync {
         client_identity: &str,
     ) -> impl Future<Output = Result<u64, Self::Error>> + Send;
 
-    /// Make a new volume for this caller, of this size in BYTES.
+    /// Make a new volume for this caller, of this size in BYTES, and
+    /// in this persist mode: `true`, it keeps what containers write
+    /// into it; `false`, every run leaves it as it was.
     ///
     /// The name is the caller's to choose, and it is chosen HERE — this
     /// is the one place a name enters the namespace, and everywhere
@@ -204,6 +206,7 @@ pub trait VolumeManager: Send + Sync {
         client_identity: &str,
         name: &str,
         bytes: u64,
+        persist: bool,
     ) -> impl Future<Output = Result<Creation, Self::Error>> + Send;
 
     /// How many BYTES this caller's volume could grow by right now.

@@ -4,8 +4,9 @@
 //! [`list`] says which volumes exist; [`stat`] names one and says how
 //! much of it is used and what is in it; [`create_capacity`] says how
 //! large a volume may be made and [`create`] makes one; [`edit_capacity`] says
-//! how far one may grow and [`edit`] changes how much it reserves; and
-//! [`delete`] destroys it. Every one of them but [`create`] and
+//! how far one may grow and [`edit`] changes how much it reserves,
+//! whether it keeps what is written into it, or both; and [`delete`]
+//! destroys it. Every one of them but [`create`] and
 //! [`create_capacity`] names a volume rather than describing one: a caller
 //! can only ask for what it was offered, and [`create`] is the move
 //! that puts something in the offering.

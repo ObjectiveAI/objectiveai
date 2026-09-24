@@ -2,20 +2,22 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::Change;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Change how many bytes a volume reserves.
+/// Change a volume's size, its persist mode, or both.
 ///
-/// The only thing about a volume that can be edited. Its
-/// [`name`](Self::name) cannot — the name is the handle, and a handle
-/// that changed would leave every
+/// The two things about a volume that can be edited, and an edit is
+/// one [`Change`]: the size, the mode, or both at once. Its
+/// [`name`](Self::name) cannot be edited — the name is the handle,
+/// and a handle that changed would leave every
 /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
 /// naming something that is no longer there.
 ///
-/// So this names the volume and states the new size. Both fields, and
+/// So this names the volume and states the change. Two fields, and
 /// only one of them is being set.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// Which volume, by the name a listing gave it.
     ///
@@ -23,16 +25,9 @@ pub struct Frame {
     /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
     /// and mean nothing outside the provider that published them.
     pub name: String,
-    /// How many bytes it should reserve from now on.
-    ///
-    /// An absolute size, not a delta. A caller states what it wants
-    /// the volume to be rather than how far to move it, so two edits
-    /// that cross leave the volume at one of the two stated sizes
-    /// rather than at their sum.
-    ///
-    /// This is what a listing then reports as
-    /// [`Volume::bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes).
-    pub bytes: u64,
+    /// What to change: the size, the persist mode, or both. See
+    /// [`Change`].
+    pub change: Change,
 }
 
 /// This frame's tag among the scope-opening requests.

@@ -7,11 +7,12 @@ use crate::encode::{Encode, Writer};
 
 /// Ask a provider for a volume of its own.
 ///
-/// Two fields, and neither says where it goes. A caller names the
-/// volume and says how big it is; everything about how a provider
-/// satisfies that — a subvolume, a quota, a file with a filesystem in
-/// it, a directory on a disk with room to spare — is the provider's,
-/// and none of it is expressible here.
+/// Three fields, and none says where it goes. A caller names the
+/// volume, says how big it is, and says whether it keeps what is
+/// written into it; everything about how a provider satisfies that —
+/// a subvolume, a quota, a file with a filesystem in it, a directory
+/// on a disk with room to spare, an overlay — is the provider's, and
+/// none of it is expressible here.
 ///
 /// # The name is the caller's, unlike a listed one
 ///
@@ -67,6 +68,22 @@ pub struct Frame {
     /// Bytes rather than megabytes because a unit that has to be
     /// spelled out in prose is a unit half of everyone gets wrong.
     pub bytes: u64,
+    /// Whether the volume keeps what containers write into it.
+    ///
+    /// The mode it starts in, and what a listing reports back as
+    /// [`Volume::persist`](crate::endpoints::volumes::list::server::response::Volume::persist)
+    /// until an [`edit`](crate::endpoints::volumes::edit) changes it.
+    /// `true`: every change a container makes is in the volume when
+    /// the container ends. `false`: the volume is as it was before
+    /// each run when the container ends, and every container sees
+    /// its content as of that container's start. How a provider
+    /// makes `false` hold — an overlay, a copy — is its own.
+    ///
+    /// A fact of the volume and not of a mount: every container that
+    /// mounts the volume gets the same answer, and a
+    /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
+    /// does not say otherwise.
+    pub persist: bool,
 }
 
 /// This frame's tag among the scope-opening requests.
