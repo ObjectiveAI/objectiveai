@@ -1,6 +1,6 @@
 ---
 title: 'volumes::list'
-summary: 'Tag 3: a client asks which volumes are available to it; the server sends exactly one response carrying every such volume by name, size and age, or an error, and the scope finishes.'
+summary: 'Tag 3: a client asks which volumes are available to it; the server sends exactly one response carrying every such volume by name, size, age and persist mode, or an error, and the scope finishes.'
 order: 3
 draft: false
 ---
@@ -30,8 +30,9 @@ response, and no frame follows the finish.
   connection was authorized, as [Authorization](/authorization/)
   provides. The listing is that identity's listing.
 - **Mounting.** Every volume in the listing may be mounted in any
-  number of the client's running containers at once, whatever the
-  `persist` of each mount. A [volumes::stat](/endpoints/volumes-stat/),
+  number of the client's running containers at once, whatever its
+  `persist`; every container that mounts it is bound under that
+  `persist`. A [volumes::stat](/endpoints/volumes-stat/),
   [volumes::edit](/endpoints/volumes-edit/) or
   [volumes::delete](/endpoints/volumes-delete/) of a volume is
   refused while any container has it mounted, and a run naming a

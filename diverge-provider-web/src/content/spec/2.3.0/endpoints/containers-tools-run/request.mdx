@@ -23,11 +23,12 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 - **`volume_mounts`.** Ordered; the server applies them in order.
   `host_name` is a `name` in the client's listing; `host_relative_path`
   and `container_path` are components. An empty `container_path`
-  names the root, which the server refuses. `persist` is present and
-  is `true` or `false`: `true`, every change the container makes to
-  the volume is in the volume when the container ends; `false`, the
-  volume is as it was before the run when the container ends. The
-  container sees the volume's content as of its start either way.
+  names the root, which the server refuses. Whether the changes the
+  container makes to the volume are in the volume when the container
+  ends is the volume's `persist`, as the client's listing reports it:
+  `true`, every change is in the volume; `false`, the volume is as it
+  was before the run. The container sees the volume's content as of
+  its start either way, and a mount states nothing about it.
 - **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path
   and an `id` the client chose. Every one is mounted before the id
   is sent. A directory mount is a tree the client serves: every entry
