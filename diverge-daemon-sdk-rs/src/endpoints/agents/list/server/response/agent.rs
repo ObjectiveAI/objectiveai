@@ -38,7 +38,4 @@ pub struct Agent {
     /// and where a read that wants only what comes next starts.
     /// `0` for an empty log.
     pub logs_index: u64,
-    /// How many messages wait for it: enqueued and not yet taken into
-    /// its conversation.
-    pub queued: u64,
 }
