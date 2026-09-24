@@ -19,7 +19,10 @@
 //! shortens the file and resizes the filesystem in it to match, with
 //! the system's `e2fsck` and `resize2fs`: the Linux host's own, or
 //! the podman machine's on macOS and Windows. An edit of the mode
-//! rewrites the mode file. A container mounts the volume's image
+//! rewrites the mode file. A file is read out of the image, written
+//! into it, and its tree walked, in pure Rust as well, with the
+//! volume held to itself, so an image is never mounted for anything
+//! but a container. A container mounts the volume's image
 //! plainly when its mode is persist, and under podman's overlay
 //! option, its writes discarded with the container, when it is not.
 //!
@@ -42,6 +45,8 @@
 //! [`Walked`], the bytes in use and the
 //! `dirhash`. [`walk_directory`] is the walk of a fixed volume's
 //! directory and [`walk_image`] the walk of a stored volume's image;
+//! [`read_file`], [`write_file`] and [`tree`] read a file out of an
+//! image, write one in, and walk its subtree into a snapshot's nodes;
 //! [`reserve_image`] and [`format_image`] are how an image is made,
 //! at [`image_path`], and [`read_mode`] and [`write_mode`] read and
 //! write the [`Mode`] at [`mode_path`] beside it; the filesystem in

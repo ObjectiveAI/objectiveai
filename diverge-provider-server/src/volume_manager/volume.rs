@@ -6,16 +6,21 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use bytes::Bytes;
+use diverge_provider_sdk::CHUNK_SIZE;
 use diverge_provider_sdk::endpoints::volumes::edit::client::request::Change;
 use diverge_provider_sdk::endpoints::volumes::edit::server::response::Edit;
 use diverge_provider_sdk::endpoints::volumes::list::server::response;
 use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
 use diverge_provider_sdk::server::holders::Holders;
 use diverge_provider_sdk::server::volume;
-use futures_util::stream::MapErr;
-use futures_util::{TryStreamExt as _, future};
+use diverge_provider_sdk::shared::error;
+use diverge_provider_sdk::shared::filetree::response::Node;
+use futures_util::stream::{BoxStream, MapErr};
+use futures_util::{Stream, StreamExt as _, TryStreamExt as _, future};
 use tokio::fs;
-use tokio::sync::Mutex;
+use tokio::io::AsyncReadExt as _;
+use tokio::sync::{Mutex, mpsc};
 
 use super::{Error, Mode, Reservation, Walked, image, mode, walk};
 use crate::tools::{mount, resize};
@@ -284,6 +289,102 @@ impl Volume {
     }
 }
 
+/// A channel's receiver as a stream: each item as it arrives, ended
+/// when the sender is gone.
+fn receiver_stream<T: Send + 'static>(receiver: mpsc::Receiver<T>) -> impl Stream<Item = T> + Send + 'static {
+    futures_util::stream::unfold(receiver, |mut receiver| async move {
+        receiver.recv().await.map(|item| (item, receiver))
+    })
+}
+
+/// Every piece of `content` forwarded down `sender`, until the
+/// content ends or the receiver is gone.
+async fn forward<S>(content: S, sender: mpsc::Sender<Result<Bytes, error::Error>>)
+where
+    S: Stream<Item = Result<Bytes, error::Error>> + Send + 'static,
+{
+    let mut content = std::pin::pin!(content);
+    while let Some(piece) = content.next().await {
+        if sender.send(piece).await.is_err() {
+            break;
+        }
+    }
+}
+
+/// A fixed volume's file read out through `tokio::fs`, in pieces of
+/// at most [`CHUNK_SIZE`], down `sender`: a zero-byte file one empty
+/// piece, a failure last.
+async fn read_host(mut file: fs::File, sender: mpsc::Sender<Result<Bytes, Error>>) {
+    let mut buffer = vec![0u8; CHUNK_SIZE];
+    let mut sent = 0u64;
+    loop {
+        let read = file.read(&mut buffer).await;
+        let n = match read {
+            Ok(n) => n,
+            Err(error) => {
+                let _ = sender.send(Err(Error::Io(error))).await;
+                return;
+            }
+        };
+        if n == 0 && sent > 0 {
+            return;
+        }
+        sent += n as u64;
+        if sender.send(Ok(Bytes::copy_from_slice(&buffer[..n]))).await.is_err() || n == 0 {
+            return;
+        }
+    }
+}
+
+/// A fixed volume's file written in through `tokio::fs`: every
+/// missing parent made, the content into a temporary beside the
+/// destination, the temporary renamed over it; a failure removes the
+/// temporary and leaves the destination.
+async fn write_host<S>(root: &Path, path: &[String], content: S) -> Result<(), Error>
+where
+    S: Stream<Item = Result<Bytes, error::Error>> + Send + 'static,
+{
+    let (name, parents) = path.split_last().expect("the handler refused an empty path");
+    let mut dir = root.to_path_buf();
+    dir.extend(parents);
+    fs::create_dir_all(&dir).await.map_err(|error| match error.kind() {
+        std::io::ErrorKind::NotADirectory | std::io::ErrorKind::AlreadyExists => Error::NotADirectory(parents.to_vec()),
+        _ => Error::Io(error),
+    })?;
+    let destination = dir.join(name);
+    if fs::metadata(&destination).await.is_ok_and(|meta| !meta.is_file()) {
+        return Err(Error::NotAFile(path.to_vec()));
+    }
+    let temporary = dir.join(format!(".{name}.{}", uuid::Uuid::new_v4()));
+    let filled = fill_host(&temporary, content).await;
+    let placed = match filled {
+        Ok(()) => fs::rename(&temporary, &destination).await.map_err(Error::Io),
+        Err(error) => Err(error),
+    };
+    if placed.is_err() {
+        let _ = fs::remove_file(&temporary).await;
+    }
+    placed
+}
+
+/// The temporary at `temporary` made and filled with every piece of
+/// `content`, in order; a piece that is the caller's error is
+/// [`Error::Content`].
+async fn fill_host<S>(temporary: &Path, content: S) -> Result<(), Error>
+where
+    S: Stream<Item = Result<Bytes, error::Error>> + Send + 'static,
+{
+    use tokio::io::AsyncWriteExt as _;
+    let mut file = fs::File::create(temporary).await?;
+    let mut content = std::pin::pin!(content);
+    while let Some(piece) = content.next().await {
+        let bytes = piece.map_err(Error::Content)?;
+        file.write_all(&bytes).await?;
+    }
+    file.flush().await?;
+    Ok(())
+}
+
 /// The mode file beside a stored volume's image: the dotfile of the
 /// image's own name, in the image's directory — [`mode_path`] for a
 /// path already built.
@@ -398,6 +499,95 @@ impl volume::Volume for Volume {
         let mut dir = root.clone();
         dir.extend(path);
         Ok(crate::watch::watch(&dir).await?.map_err(Error::Watch as fn(crate::watch::Error) -> Error))
+    }
+
+    /// The file's pieces, as a channel a reader fills from the
+    /// blocking pool or from `tokio::fs`, boxed: one shape for a
+    /// stored volume's image and a fixed volume's directory.
+    type Read = BoxStream<'static, Result<Bytes, Error>>;
+
+    /// The file at `path` read out: from a stored volume's image
+    /// through `fstool`, on the blocking pool, and from a fixed
+    /// volume's directory through `tokio::fs`, a link followed by the
+    /// OS. Either way a bounded channel carries the pieces, so the
+    /// reader runs no further ahead than the caller takes; a file
+    /// that cannot be opened is the error here, and a read that dies
+    /// partway the last item.
+    async fn read(&self, path: &[String]) -> Result<Self::Read, Error> {
+        let (sender, receiver) = mpsc::channel(2);
+        match &self.inner.place {
+            Place::Stored { image, .. } => {
+                let image = image.clone();
+                let path = path.to_vec();
+                tokio::spawn(async move { image::read_file(&image, &path, sender).await });
+            }
+            Place::Fixed { root, .. } => {
+                let mut file = root.clone();
+                file.extend(path);
+                let opened = fs::File::open(&file).await;
+                let meta = fs::metadata(&file).await;
+                let file = match (opened, meta) {
+                    (Err(error), _) if error.kind() == std::io::ErrorKind::NotFound => {
+                        return Err(Error::Missing(path.to_vec()));
+                    }
+                    (Err(error), _) => return Err(Error::Io(error)),
+                    (Ok(_), Ok(meta)) if !meta.is_file() => return Err(Error::NotAFile(path.to_vec())),
+                    (Ok(file), _) => file,
+                };
+                tokio::spawn(read_host(file, sender));
+            }
+        }
+        Ok(receiver_stream(receiver).boxed())
+    }
+
+    /// The file at `path` written in, whole, from `content`: into a
+    /// stored volume's image through `fstool`, on the blocking pool,
+    /// and into a fixed volume's directory through `tokio::fs` — every
+    /// missing parent made, the content into a temporary beside the
+    /// destination, the temporary moved over. Whatever a walk found is
+    /// forgotten first: the content is about to change.
+    async fn write<S>(&self, path: &[String], content: S) -> Result<(), Error>
+    where
+        S: Stream<Item = Result<Bytes, error::Error>> + Send + 'static,
+    {
+        *self.inner.walked.lock().await = None;
+        match &self.inner.place {
+            Place::Stored { image, .. } => {
+                let (sender, receiver) = mpsc::channel(2);
+                let forward = tokio::spawn(forward(content, sender));
+                let written = image::write_file(image, path, receiver).await;
+                forward.abort();
+                written
+            }
+            Place::Fixed { root, .. } => write_host(root, path, content).await,
+        }
+    }
+
+    /// The subtree at `path` as a snapshot's nodes: a stored volume's
+    /// image walked through `fstool`, a fixed volume's directory
+    /// walked by the watch's own walker with every directory dark, so
+    /// `changes` is `false` throughout.
+    async fn filetree(&self, path: &[String]) -> Result<Vec<Node>, Error> {
+        match &self.inner.place {
+            Place::Stored { image, .. } => image::tree(image, path).await,
+            Place::Fixed { root, .. } => {
+                let mut dir = root.clone();
+                dir.extend(path);
+                let root = root.clone();
+                let meta = fs::metadata(&dir).await;
+                match meta {
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                        return Err(Error::Missing(path.to_vec()));
+                    }
+                    Err(error) => return Err(Error::Io(error)),
+                    Ok(meta) if !meta.is_dir() => return Err(Error::NotADirectory(path.to_vec())),
+                    Ok(_) => {}
+                }
+                tokio::task::spawn_blocking(move || crate::watch::children(&dir, &root, &[root.clone()]))
+                    .await
+                    .map_err(|error| Error::Io(std::io::Error::other(error)))
+            }
+        }
     }
 
     /// The listing and the walk, at once.

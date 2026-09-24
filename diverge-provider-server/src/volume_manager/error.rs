@@ -54,6 +54,17 @@ pub enum Error {
     /// A stored volume's mode file did not hold a mode, or a mode
     /// could not be written as one.
     Mode(serde_json::Error),
+    /// Nothing is at the path, or a link there leads nowhere.
+    Missing(Vec<String>),
+    /// A file was named and what is at the path is not a regular
+    /// file — a directory, a device.
+    NotAFile(Vec<String>),
+    /// A directory was named — a parent of a file to write, a subtree
+    /// to walk — and what is at the path is not one.
+    NotADirectory(Vec<String>),
+    /// A write's content ended in the caller's own error before it was
+    /// whole; the write was abandoned. The error is the caller's.
+    Content(error::Error),
 }
 
 impl fmt::Display for Error {
@@ -71,6 +82,10 @@ impl fmt::Display for Error {
             Error::Tool(error) => write!(f, "the volume could not be resized: {error}"),
             Error::Watch(error) => write!(f, "the volume could not be watched: {error}"),
             Error::Mode(error) => write!(f, "the volume's mode file could not be read: {error}"),
+            Error::Missing(path) => write!(f, "nothing is at `{}`", path.join("/")),
+            Error::NotAFile(path) => write!(f, "`{}` is not a file", path.join("/")),
+            Error::NotADirectory(path) => write!(f, "`{}` is not a directory", path.join("/")),
+            Error::Content(_) => f.write_str("the content ended in an error, and the write was abandoned"),
         }
     }
 }
@@ -83,7 +98,11 @@ impl std::error::Error for Error {
             Error::Tool(error) => Some(error),
             Error::Watch(error) => Some(error),
             Error::Mode(error) => Some(error),
-            Error::Name(_)
+            Error::Content(_)
+            | Error::Missing(_)
+            | Error::NotAFile(_)
+            | Error::NotADirectory(_)
+            | Error::Name(_)
             | Error::Exists(_)
             | Error::Unknown(_)
             | Error::Fixed(_)
@@ -145,6 +164,12 @@ impl From<Error> for error::Error {
             Error::Tool(_) => "tool",
             Error::Watch(_) => "watch",
             Error::Mode(_) => "mode",
+            Error::Missing(_) => "missing",
+            Error::NotAFile(_) => "not_a_file",
+            Error::NotADirectory(_) => "not_a_directory",
+            // The caller's own error, as it was: it said what it
+            // said, and a wrapper would say less.
+            Error::Content(error) => return error.clone(),
         };
         error::Error(json!({
             "kind": kind,
