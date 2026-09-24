@@ -1,12 +1,12 @@
 ---
 title: 'volumes::create'
-summary: 'Tag 6: a client names a volume, its size in bytes and its persist mode; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
-order: 6
+summary: 'Tag 9: a client names a volume, its size in bytes and its persist mode; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
+order: 9
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`6` followed by the name, the size and the persist mode of the
+`9` followed by the name, the size and the persist mode of the
 volume. The server sends
 exactly one response, which states that the volume exists, that the
 server has insufficient capacity for it, or an error. The response

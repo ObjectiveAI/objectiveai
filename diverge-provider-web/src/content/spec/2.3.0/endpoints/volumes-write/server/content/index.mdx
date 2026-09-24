@@ -1,0 +1,20 @@
+---
+title: 'Content'
+summary: 'The server asks for the content of the file by opening one channel once it holds the volume; the client answers with the bytes as channel responses and the finish, or an error and the finish.'
+order: 0
+draft: false
+---
+
+The server opens exactly one channel on the scope, once it holds the
+volume and before anything is written: the content. The client
+answers on it with the bytes of the file.
+
+- **The request.** The payload of the channel request is empty.
+  [Request](/endpoints/volumes-write/server/content/request/) states
+  its form.
+- **The response.** Zero or more channel responses carrying bytes and
+  the channel response finish, or an error last.
+  [Response](/endpoints/volumes-write/server/content/response/)
+  states the sequence.
+- **The scope answers after.** The server sends the scope's response
+  only once this channel has finished.

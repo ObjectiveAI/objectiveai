@@ -1,0 +1,18 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request is empty; the channel carries no tag.'
+order: 1
+draft: false
+---
+
+```text
+[]
+```
+
+- **No parameter.** The channel request carries nothing. Which write
+  the content is for, the scope states.
+
+The channel request is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/write/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/write/server/channel_request/frame.rs
+```
