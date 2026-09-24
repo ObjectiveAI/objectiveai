@@ -18,6 +18,14 @@ use serde::{Deserialize, Serialize};
 /// cannot escape upward, because there is no component it can write
 /// that means "up" — the offset is components, and `..` is a name,
 /// not an instruction.
+///
+/// # Whether the changes stay is the volume's
+///
+/// Not here. Whether what the container writes into the volume is in
+/// the volume when the container ends is the volume's own persist
+/// mode, stated when the volume was made and changed only by an edit
+/// of it — the same for every container that mounts it, and not a
+/// mount's to say.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct VolumeMount {
     /// Which volume, by the name it was published under.
@@ -34,14 +42,4 @@ pub struct VolumeMount {
     /// Empty means the root itself, which is refused — the image's
     /// own filesystem is there.
     pub container_path: Vec<String>,
-    /// Whether the container's changes to the volume outlive the
-    /// container.
-    ///
-    /// `true`: every change the container makes is in the volume
-    /// when the container ends. `false`: the volume is as it was
-    /// before the run when the container ends. Either way the
-    /// container sees the volume's content as of its start.
-    ///
-    /// Present, always: a request states it and nothing infers it.
-    pub persist: bool,
 }
