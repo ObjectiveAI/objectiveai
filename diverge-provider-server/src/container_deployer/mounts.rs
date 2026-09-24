@@ -61,7 +61,7 @@ fn check(mounts: &[Mount]) -> Result<(), Error> {
         if mount.container_path.is_empty() {
             return Err(Error::Path("the container's root".to_string()));
         }
-        for component in mount.container_path.iter().chain(&mount.host_relative_path) {
+        for component in mount.container_path.iter().chain(&mount.volume_relative_path) {
             if !component_ok(component) {
                 return Err(Error::Path(format!("the component `{component}` is not a name")));
             }
@@ -100,11 +100,11 @@ fn component_ok(component: &str) -> bool {
 async fn one(deployer: &ContainerDeployer, mount: &Mount) -> Result<Bound, Error> {
     let volume = deployer
         .volumes
-        .get(&mount.client_identity, &mount.host_name)
+        .get(&mount.client_identity, &mount.volume_name)
         .await?
-        .ok_or_else(|| Error::Volume(mount.host_name.clone()))?;
+        .ok_or_else(|| Error::Volume(mount.volume_name.clone()))?;
     let dir = volume.attach(&deployer.mounts_dir).await.map_err(Error::Mount)?;
-    let host = descend(&dir, &mount.host_relative_path);
+    let host = descend(&dir, &mount.volume_relative_path);
     let mut argument = format!("{host}:/{}", mount.container_path.join("/"));
     if !volume.persist() {
         argument.push_str(":O");
