@@ -25,19 +25,23 @@
 //! | `2` | [`containers::tools::connect`] |
 //! | `3` | [`volumes::list`] |
 //! | `4` | [`volumes::stat`] |
-//! | `5` | [`volumes::create_capacity`] |
-//! | `6` | [`volumes::create`] |
-//! | `7` | [`volumes::edit_capacity`] |
-//! | `8` | [`volumes::edit`] |
-//! | `9` | [`volumes::delete`] |
-//! | `10` | [`images::check`] |
-//! | `11` | [`version`] |
+//! | `5` | [`volumes::read`] |
+//! | `6` | [`volumes::write`] |
+//! | `7` | [`volumes::filetree`] |
+//! | `8` | [`volumes::create_capacity`] |
+//! | `9` | [`volumes::create`] |
+//! | `10` | [`volumes::edit_capacity`] |
+//! | `11` | [`volumes::edit`] |
+//! | `12` | [`volumes::delete`] |
+//! | `13` | [`images::check`] |
+//! | `14` | [`version`] |
 //!
-//! Twelve, grouped by endpoint and ordered within it. The three
+//! Fifteen, grouped by endpoint and ordered within it. The three
 //! container scopes lead: the agents' run, then the tools' run and the
-//! connect that joins one. The seven volume scopes follow in the order
-//! a caller uses them: find one, examine it, ask how large one may be
-//! made, make one, ask how far one may grow, resize it, destroy it.
+//! connect that joins one. The ten volume scopes follow in the order
+//! a caller uses them: find one, examine it, read a file out of it,
+//! write one in, see its tree, ask how large one may be made, make
+//! one, ask how far one may grow, resize it, destroy it.
 //! Then the two that ask rather than do:
 //! [`images::check`], and [`version`].
 //!

@@ -2,21 +2,25 @@
 
 use std::future::Future;
 
+use bytes::Bytes;
 use futures_util::Stream;
 
 use super::holders::Holders;
 use crate::endpoints::volumes::edit::client::request::Change;
 use crate::endpoints::volumes::edit::server::response::Edit;
 use crate::endpoints::volumes::stat::server::response::Stat;
-use crate::shared::filetree::response::Frame;
+use crate::shared::error::Error;
+use crate::shared::filetree::response::{Frame, Node};
 
 /// One named directory of one caller, found by
 /// [`VolumeManager::get`](super::volume_manager::VolumeManager::get).
 ///
 /// What a [`VolumeManager`](super::volume_manager::VolumeManager)
 /// hands back for a name it holds. The verbs that act on an existing
-/// volume in place live here — [`stat`](Self::stat) and
-/// [`edit`](Self::edit) — and so does the one fact this crate keeps
+/// volume in place live here — [`stat`](Self::stat),
+/// [`read`](Self::read), [`write`](Self::write),
+/// [`filetree`](Self::filetree) and [`edit`](Self::edit) — and so
+/// does the one fact this crate keeps
 /// about a volume for itself: who is using it, which is the hold —
 /// [`mount`](Self::mount), shared, and [`lock`](Self::lock),
 /// exclusive.
@@ -24,9 +28,9 @@ use crate::shared::filetree::response::Frame;
 /// # Two holds: many mounters, or one editor
 ///
 /// A volume may be mounted in any number of containers of its caller
-/// at once, and nothing examines, resizes or deletes a volume while
-/// any container has it. Both rules are one hold with two modes,
-/// taken by whoever is using the volume:
+/// at once, and nothing examines, reads, writes, walks, resizes or
+/// deletes a volume while any container has it. Both rules are one
+/// hold with two modes, taken by whoever is using the volume:
 ///
 /// - A run takes the SHARED hold, [`mount`](Self::mount), on every
 ///   volume its request names before it fetches or deploys anything,
@@ -37,14 +41,18 @@ use crate::shared::filetree::response::Frame;
 ///   [`VolumeHeld`](crate::shared::containers::response::VolumeHeld).
 /// - A [`stat`](crate::endpoints::volumes::stat) takes the EXCLUSIVE
 ///   hold, [`lock`](Self::lock), for the length of the examination,
-///   an [`edit`](crate::endpoints::volumes::edit) for the length of
-///   the resize, and a [`delete`](crate::endpoints::volumes::delete)
-///   takes it and never gives it back, the volume being gone. A
-///   volume held at all — mounted anywhere, or under another of the
-///   three — when any of them asks is that request refused: a delete
-///   with its own
+///   a [`read`](crate::endpoints::volumes::read) for the length of
+///   the file, a [`write`](crate::endpoints::volumes::write) until
+///   the file has landed, a
+///   [`filetree`](crate::endpoints::volumes::filetree) for the length
+///   of the walk, an [`edit`](crate::endpoints::volumes::edit) for
+///   the length of the change, and a
+///   [`delete`](crate::endpoints::volumes::delete) takes it and never
+///   gives it back, the volume being gone. A volume held at all —
+///   mounted anywhere, or under another of the six — when any of
+///   them asks is that request refused: a delete with its own
 ///   [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted),
-///   a stat or an edit with the endpoint's error.
+///   the others with the endpoint's error.
 ///
 /// There is no verb on a volume that does not take one of the holds,
 /// and [`watch`](Self::watch) runs under the shared one: a volume the
@@ -175,6 +183,59 @@ pub trait Volume: Send + Sync {
     /// Called under the exclusive hold, so no container writes while
     /// it walks, and what it reports is the volume at rest.
     fn stat(&self) -> impl Future<Output = Result<Stat, Self::Error>> + Send;
+
+    /// A file's bytes, as [`read`](Self::read) hands them back: pieces
+    /// in order, each at most [`CHUNK_SIZE`](crate::CHUNK_SIZE), or
+    /// the provider's error where the read died.
+    type Read: Stream<Item = Result<Bytes, Self::Error>> + Send + 'static;
+
+    /// Read the file at `path` — components from the volume's root,
+    /// at least one, every one a name, as the handler checked — out
+    /// of the volume.
+    ///
+    /// Called under the exclusive hold, so the file is at rest and
+    /// the stream is the whole of it, with nothing writing underneath.
+    /// An [`Err`] here is a file that could not be opened — nothing at
+    /// the path, a directory there, a link that leads nowhere — and an
+    /// [`Err`] item a read that died partway; the handler sends either
+    /// as the scope's error, last. A zero-byte file is one empty piece.
+    /// Served for every volume the provider offers, whatever it keeps
+    /// one in.
+    fn read(&self, path: &[String]) -> impl Future<Output = Result<Self::Read, Self::Error>> + Send;
+
+    /// Write `content` to the file at `path` — components from the
+    /// volume's root, at least one, every one a name, as the handler
+    /// checked — into the volume, whole.
+    ///
+    /// Called under the exclusive hold, so no container has the volume
+    /// while the file lands. Every missing parent directory is made; a
+    /// parent that exists and is not a directory is the provider's
+    /// error. The destination is replaced whole: it is what it was, or
+    /// the new file, and never the half between, however the provider
+    /// arranges that — a temporary beside it moved over, a write under
+    /// a lock nobody else can take. `content` is the client's pieces
+    /// in order, and an [`Err`] item is the client saying it cannot
+    /// finish: the write is abandoned, the destination is as it was,
+    /// and that error — or the provider's own — is the answer. What a
+    /// [`stat`](Self::stat) reported before is stale after a write
+    /// that landed, and a provider that caches a walk forgets it.
+    fn write<S>(&self, path: &[String], content: S) -> impl Future<Output = Result<(), Self::Error>> + Send
+    where
+        S: Stream<Item = Result<Bytes, Error>> + Send + 'static;
+
+    /// The volume's subtree at `path` — components from the volume's
+    /// root, every one a name, empty for the whole — as the nodes a
+    /// [`Snapshot`](crate::shared::filetree::response::Frame::Snapshot)
+    /// carries, once.
+    ///
+    /// Called under the exclusive hold, so the tree is the volume at
+    /// rest. Every directory's `changes` is `false`, since nothing
+    /// watches; a symlink's `path` is its target as components
+    /// relative to the volume's root, as a [`watch`](Self::watch)
+    /// reports one. Nothing at the path, or a file there, is the
+    /// provider's error. Served for every volume the provider offers,
+    /// a stored image and a fixed directory alike.
+    fn filetree(&self, path: &[String]) -> impl Future<Output = Result<Vec<Node>, Self::Error>> + Send;
 
     /// Change how big the volume may be, in BYTES, whether it keeps
     /// what containers write into it, or both.

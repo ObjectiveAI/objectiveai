@@ -9,14 +9,15 @@ use crate::endpoints::volumes::list::server::response::Volume;
 
 /// A namespace of named directories, one per caller.
 ///
-/// The seven [`volumes`](crate::endpoints::volumes) endpoints are
-/// seven verbs over one thing, and this is the thing: what a listing
+/// The ten [`volumes`](crate::endpoints::volumes) endpoints are ten
+/// verbs over one thing, and this is the thing: what a listing
 /// reports, what a create adds and a delete takes away, and where a
-/// name is looked up. The verbs on a volume that exists —
-/// examining it, resizing it — are on the
-/// [`Volume`](volume::Volume) that [`get`](Self::get) hands back; the
-/// verbs on the NAMESPACE are here. A provider that implements both
-/// can answer all seven; there is nothing else they need.
+/// name is looked up. The verbs on a volume that exists — examining
+/// it, reading a file out of it, writing one in, seeing its tree,
+/// resizing it — are on the [`Volume`](volume::Volume) that
+/// [`get`](Self::get) hands back; the verbs on the NAMESPACE are
+/// here. A provider that implements both can answer all ten; there
+/// is nothing else they need.
 ///
 /// # Why the split falls where it does
 ///
@@ -134,9 +135,9 @@ pub trait VolumeManager: Send + Sync {
     /// has none by it.
     ///
     /// The lookup every verb on an existing volume starts with: a
-    /// stat, an edit, a delete, and a run that names the volume in a
-    /// mount all ask this first and then act on what comes
-    /// back. What comes back is the provider's own handle — see
+    /// stat, a read, a write, a filetree, an edit, a delete, and a run
+    /// that names the volume in a mount all ask this first and then
+    /// act on what comes back. What comes back is the provider's own handle — see
     /// [`Volume`](volume::Volume) — and asking for it changes
     /// nothing.
     ///
