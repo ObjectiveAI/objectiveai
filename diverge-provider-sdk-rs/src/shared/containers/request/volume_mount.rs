@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 /// # Why the host side is a name and an offset
 ///
 /// Because a host path is not something a caller is allowed to state.
-/// [`host_name`](Self::host_name) is a
+/// [`volume_name`](Self::volume_name) is a
 /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
 /// the provider published, and
-/// [`host_relative_path`](Self::host_relative_path) descends from
+/// [`volume_relative_path`](Self::volume_relative_path) descends from
 /// wherever that maps to — so a caller reaches a subdirectory of
 /// something it was offered, and nothing else.
 ///
@@ -40,13 +40,13 @@ pub struct VolumeMount {
     /// Names come from
     /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
     /// and mean nothing outside the provider that published them.
-    pub host_name: String,
+    pub volume_name: String,
     /// How far into that volume to start, as path components
     /// relative to it.
     ///
     /// Empty mounts the volume itself, which is the common case;
     /// anything else mounts a subdirectory of it.
-    pub host_relative_path: Vec<String>,
+    pub volume_relative_path: Vec<String>,
     /// Where it appears inside the container, as path components from
     /// the container's root.
     ///

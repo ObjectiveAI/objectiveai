@@ -76,7 +76,7 @@ pub(crate) async fn run<R, D, G, V>(
         return;
     }
 
-    let names: Vec<&str> = request.volume_mounts.iter().map(|mount| mount.host_name.as_str()).collect();
+    let names: Vec<&str> = request.volume_mounts.iter().map(|mount| mount.volume_name.as_str()).collect();
     let held = match Held::take(manager, client_identity, names).await {
         Ok(held) => held,
         Err(Refused::Held(name)) => {

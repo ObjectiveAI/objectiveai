@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 /// without breaking someone.
 ///
 /// The paths a mount's
-/// [`host_relative_path`](crate::shared::containers::request::VolumeMount::host_relative_path)
+/// [`volume_relative_path`](crate::shared::containers::request::VolumeMount::volume_relative_path)
 /// names still mean what they meant. They are relative to the volume;
 /// the volume is simply no longer described in terms of anywhere
 /// else.
