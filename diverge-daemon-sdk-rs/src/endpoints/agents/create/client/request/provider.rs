@@ -34,7 +34,7 @@ pub struct Provider {
     /// Volumes of that provider, made visible inside the container.
     ///
     /// Ordered, and applied in order. See [`VolumeMount`] for how one
-    /// is named without a host path; the `host_name` is a name in the
+    /// is named without a host path; the `volume_name` is a name in the
     /// daemon's listing from THAT provider. No mount's path, in any
     /// list of the create, is a prefix of another's: mounting INTO a
     /// directory the image owns is the point, and mounts stacking on
