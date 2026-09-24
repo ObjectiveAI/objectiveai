@@ -3,9 +3,10 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use diverge_provider_sdk::endpoints::volumes::edit::client::request::Change;
 use diverge_provider_sdk::endpoints::volumes::edit::server::response::Edit;
 use diverge_provider_sdk::endpoints::volumes::list::server::response;
 use diverge_provider_sdk::endpoints::volumes::stat::server::response::Stat;
@@ -16,7 +17,7 @@ use futures_util::{TryStreamExt as _, future};
 use tokio::fs;
 use tokio::sync::Mutex;
 
-use super::{Error, Reservation, Walked, image, walk};
+use super::{Error, Mode, Reservation, Walked, image, mode, walk};
 use crate::tools::{mount, resize};
 
 /// The hold's count when the one exclusive holder has it: every
@@ -81,6 +82,11 @@ pub struct Volume {
 struct Inner {
     name: String,
     place: Place,
+    /// Whether the volume keeps what containers write into it: what
+    /// its mode file holds, or the configuration declares for a fixed
+    /// volume. Changed only under the exclusive hold, so no container
+    /// is bound while it moves.
+    persist: AtomicBool,
     /// The SDK's hold: free, some number of mounters, or [`LOCKED`].
     holders: AtomicU32,
     /// What the last walk found, if one has happened since the
@@ -104,11 +110,12 @@ struct Attached {
 }
 
 impl Volume {
-    pub fn new(name: &str, place: Place) -> Self {
+    pub fn new(name: &str, place: Place, persist: bool) -> Self {
         Volume {
             inner: Arc::new(Inner {
                 name: name.to_string(),
                 place,
+                persist: AtomicBool::new(persist),
                 holders: AtomicU32::new(0),
                 walked: Mutex::new(None),
                 attached: Mutex::new(None),
@@ -126,6 +133,13 @@ impl Volume {
         &self.inner.place
     }
 
+    /// Whether the volume keeps what containers write into it, as of
+    /// now: what a mount reads to bind the volume plainly or under an
+    /// overlay.
+    pub fn persist(&self) -> bool {
+        self.inner.persist.load(Ordering::Acquire)
+    }
+
     /// The volume as a listing reports it, read from the filesystem
     /// now.
     ///
@@ -134,7 +148,8 @@ impl Volume {
     /// where the filesystem records no birth. A fixed volume's size
     /// is what the configuration declares and its creation time the
     /// directory's birth time, or when this provider started where
-    /// the filesystem records none.
+    /// the filesystem records none. Either's persist mode is what
+    /// this holds.
     pub async fn listing(&self) -> io::Result<response::Volume> {
         match &self.inner.place {
             Place::Stored { image, .. } => {
@@ -143,6 +158,7 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: meta.len(),
                     created: meta.created().or_else(|_| meta.modified()).map(seconds).unwrap_or(0),
+                    persist: self.persist(),
                 })
             }
             Place::Fixed { root, bytes, started } => {
@@ -151,6 +167,7 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: *bytes,
                     created: meta.created().map(seconds).unwrap_or(*started),
+                    persist: self.persist(),
                 })
             }
         }
@@ -265,6 +282,16 @@ impl Volume {
         }
         Ok(Edit::Edited)
     }
+}
+
+/// The mode file beside a stored volume's image: the dotfile of the
+/// image's own name, in the image's directory — [`mode_path`] for a
+/// path already built.
+///
+/// [`mode_path`]: super::mode_path
+fn mode_file(image: &Path) -> PathBuf {
+    let name = image.file_name().map(|name| name.to_string_lossy()).unwrap_or_default();
+    image.with_file_name(format!(".{name}"))
 }
 
 /// The image's length set to `bytes`: past its end, a hole, since the
@@ -387,24 +414,67 @@ impl volume::Volume for Volume {
         })
     }
 
+    /// The volume changed: its image resized, with the filesystem in
+    /// it; its mode file rewritten; or the one and then the other.
+    ///
+    /// Under the SDK's exclusive hold, so no container has the image.
+    /// A fixed volume is refused whatever the change. A change of the
+    /// size is [`resize`](Self::resize); a change of the mode writes
+    /// the mode file and then what this holds, so a reader never sees
+    /// a mode the disk does not; a change of both resizes first and
+    /// changes the mode only on `Edited`, so a size refused leaves
+    /// the mode as it was and the answer means the volume is as it
+    /// was in every respect.
+    async fn edit(&self, change: Change) -> Result<Edit, Error> {
+        if let Place::Fixed { .. } = &self.inner.place {
+            return Err(Error::Fixed(self.inner.name.clone()));
+        }
+        match change {
+            Change::Bytes(bytes) => self.resize(bytes).await,
+            Change::Persist(persist) => {
+                self.set_persist(persist).await?;
+                Ok(Edit::Edited)
+            }
+            Change::Both { bytes, persist } => {
+                let edit = self.resize(bytes).await?;
+                if edit == Edit::Edited {
+                    self.set_persist(persist).await?;
+                }
+                Ok(edit)
+            }
+        }
+    }
+}
+
+impl Volume {
+    /// The mode file rewritten and then what this holds, in that
+    /// order: a failure to write leaves both as they were.
+    async fn set_persist(&self, persist: bool) -> Result<(), Error> {
+        let Place::Stored { image, .. } = &self.inner.place else {
+            return Err(Error::Fixed(self.inner.name.clone()));
+        };
+        let path = mode_file(image);
+        mode::write_mode(&path, Mode { persist }).await?;
+        self.inner.persist.store(persist, Ordering::Release);
+        Ok(())
+    }
+
     /// The image resized, with the filesystem in it.
     ///
-    /// Under the SDK's exclusive hold, so no container has the image. A fixed
-    /// volume is refused, and so is a size the volume could not have
-    /// been created at — under 4 MiB, or over what the formatter
-    /// addresses. The size it has already is answered `Edited` with
-    /// nothing run. Smaller is a shrink: refused as
-    /// `ContentTooLarge` when the walk's `bytes_used` exceeds the
-    /// size, else the filesystem shrunk and then the file. Larger is
-    /// a grow: refused as `InsufficientCapacity` when
-    /// the store lacks the difference, else the file lengthened and
-    /// then the filesystem. Either way the tools are the system's
-    /// `e2fsck` and `resize2fs` — see [`resize`] for where — and a
-    /// content that fits the size but whose metadata does not is
-    /// their refusal, returned as the error, with the volume as it
-    /// was. A resize changes no file's content, so what a walk found
-    /// stands.
-    async fn edit(&self, bytes: u64) -> Result<Edit, Error> {
+    /// A size the volume could not have been created at is refused —
+    /// under 4 MiB, or over what the formatter addresses. The size it
+    /// has already is answered `Edited` with nothing run. Smaller is
+    /// a shrink: refused as `ContentTooLarge` when the walk's
+    /// `bytes_used` exceeds the size, else the filesystem shrunk and
+    /// then the file. Larger is a grow: refused as
+    /// `InsufficientCapacity` when the store lacks the difference,
+    /// else the file lengthened and then the filesystem. Either way
+    /// the tools are the system's `e2fsck` and `resize2fs` — see
+    /// [`resize`] for where — and a content that fits the size but
+    /// whose metadata does not is their refusal, returned as the
+    /// error, with the volume as it was. A resize changes no file's
+    /// content, so what a walk found stands.
+    async fn resize(&self, bytes: u64) -> Result<Edit, Error> {
         let Place::Stored { store, image, reservation } = &self.inner.place else {
             return Err(Error::Fixed(self.inner.name.clone()));
         };

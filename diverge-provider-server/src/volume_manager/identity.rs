@@ -7,7 +7,7 @@ use futures_util::future;
 use tokio::fs::DirEntry;
 use tokio::sync::{Mutex, OnceCell};
 
-use super::{Place, Reservation, Volume, name};
+use super::{Place, Reservation, Volume, mode, name};
 use crate::config::volumes::Store;
 
 /// The volumes one identity created, held by name.
@@ -80,7 +80,10 @@ impl Identity {
     }
 
     /// One entry of a store: a stored volume when it is a regular
-    /// file with a name a volume may have; nothing otherwise.
+    /// file with a name a volume may have and its mode file beside
+    /// it; nothing otherwise — an image without a mode file is not a
+    /// volume, and a mode file is a dotfile, which no name passes.
+    /// The file's type and the mode file are read at once.
     async fn load_entry(&self, index: usize, entry: DirEntry, reservation: &Arc<Reservation>) {
         let Ok(name) = entry.file_name().into_string() else {
             return;
@@ -88,18 +91,25 @@ impl Identity {
         if !name::ok(&name) {
             return;
         }
-        if !entry.file_type().await.is_ok_and(|kind| kind.is_file()) {
+        let path = entry.path();
+        let mode_path = path.with_file_name(format!(".{name}"));
+        let (kind, mode) = future::join(entry.file_type(), mode::read_mode(&mode_path)).await;
+        if !kind.is_ok_and(|kind| kind.is_file()) {
             return;
         }
+        let Ok(Some(mode)) = mode else {
+            return;
+        };
         self.volumes.insert(
             name.clone(),
             Volume::new(
                 &name,
                 Place::Stored {
                     store: index,
-                    image: entry.path(),
+                    image: path,
                     reservation: Arc::clone(reservation),
                 },
+                mode.persist,
             ),
         );
     }

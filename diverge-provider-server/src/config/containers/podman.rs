@@ -24,7 +24,7 @@ pub struct Podman {
     pub registries: Vec<Registry>,
     /// The directory podman's data is kept under: the image cache,
     /// what a container writes over its image, and what holds a
-    /// volume's changes apart while `persist` is `false`. On Linux it
+    /// volume's changes apart when its `persist` is `false`. On Linux it
     /// is podman's storage root, the `graphroot`: every podman
     /// invocation the provider makes is given it as `--root`, so it
     /// is the whole store the provider sees, and an image the provider

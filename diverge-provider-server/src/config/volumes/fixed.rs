@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 
 /// A volume that exists already, under a name the provider chose.
 ///
-/// Of what a listing reports beside the name, `bytes` is declared
-/// here and `created` is read: the directory's birth time, or the
-/// provider's own start where the filesystem records none.
+/// Of what a listing reports beside the name, `bytes` and `persist`
+/// are declared here and `created` is read: the directory's birth
+/// time, or the provider's own start where the filesystem records
+/// none.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Fixed {
@@ -27,6 +28,13 @@ pub struct Fixed {
     /// number is the provider's word. A fixed volume is never
     /// resized, so `volumes::edit_capacity` answers `0` for it.
     pub bytes: u64,
+    /// Whether the volume keeps what containers write into it, as a
+    /// listing reports it: `true`, a container's changes are in the
+    /// directory when the container ends; `false`, every container
+    /// writes into an overlay podman discards, and the directory is
+    /// never written. Declared, like the size, and never edited: a
+    /// fixed volume refuses every edit.
+    pub persist: bool,
     /// The hook, by name, that says which identities the volume is
     /// listed to: the folder `hooks/<name>/` of the provider's
     /// directory, run as [`hook`](crate::hook) provides. It reads a

@@ -58,6 +58,7 @@
 //!     - name: datasets
 //!       path: /srv/datasets
 //!       bytes: 536870912000
+//!       persist: false
 //!       authorize_hook: datasets
 //! ```
 //!

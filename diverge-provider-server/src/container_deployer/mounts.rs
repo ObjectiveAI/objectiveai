@@ -15,8 +15,9 @@ use crate::volume_manager::Volume;
 /// container is gone.
 #[derive(Debug, Clone)]
 pub struct Bound {
-    /// `<host>:<container>` with `:O` after it for a mount whose
-    /// changes do not persist.
+    /// `<host>:<container>` with `:O` after it for a volume whose
+    /// mode is not persist: podman's overlay, the container's writes
+    /// discarded with it.
     pub argument: String,
     /// The volume, attached once for this mount.
     pub volume: Volume,
@@ -94,7 +95,8 @@ fn component_ok(component: &str) -> bool {
 /// One mount resolved: the volume looked up for its identity and
 /// attached — its image loop-mounted if this is the first container
 /// to have it — the relative path descended on the directory it
-/// answers, and the argument built.
+/// answers, and the argument built, under podman's overlay when the
+/// volume's mode is not persist.
 async fn one(deployer: &ContainerDeployer, mount: &Mount) -> Result<Bound, Error> {
     let volume = deployer
         .volumes
@@ -104,7 +106,7 @@ async fn one(deployer: &ContainerDeployer, mount: &Mount) -> Result<Bound, Error
     let dir = volume.attach(&deployer.mounts_dir).await.map_err(Error::Mount)?;
     let host = descend(&dir, &mount.host_relative_path);
     let mut argument = format!("{host}:/{}", mount.container_path.join("/"));
-    if !mount.persist {
+    if !volume.persist() {
         argument.push_str(":O");
     }
     Ok(Bound { argument, volume })
