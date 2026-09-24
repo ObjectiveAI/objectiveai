@@ -16,5 +16,9 @@
 //! tree pays for none, and two callers on one container can each
 //! watch on their own terms. Every channel is a fresh subscription,
 //! starting whole.
+//!
+//! A volume mounted nowhere has no proxy to watch it; what it holds
+//! is answered once, as the snapshot alone, by
+//! [`volumes::filetree`](crate::endpoints::volumes::filetree).
 
 pub mod response;

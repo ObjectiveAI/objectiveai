@@ -35,7 +35,7 @@ pub struct Frame;
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 5;
+const TAG: u8 = 8;
 
 impl Encode for Frame {
     /// [`Infallible`]: writing one known byte has no failure mode.

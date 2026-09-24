@@ -122,7 +122,7 @@
 //! endpoint's handler with the decoded request. One call per
 //! connection is a provider's whole loop.
 //!
-//! The seven [`volumes`](crate::endpoints::volumes),
+//! The ten [`volumes`](crate::endpoints::volumes),
 //! [`images::check`](crate::endpoints::images::check) and
 //! [`version`](crate::endpoints::version) answer and finish, which is
 //! the whole of what those endpoints do. The three
@@ -181,7 +181,7 @@
 //! which is a fact only this half of the connection has.
 //!
 //! [`volume_manager`] is the second, and with [`volume`] it is the
-//! seven [`volumes`](crate::endpoints::volumes) endpoints: the
+//! ten [`volumes`](crate::endpoints::volumes) endpoints: the
 //! directories a provider offers. The manager is the namespace —
 //! listed, looked up by name, created, deleted, and asked how much
 //! room there is — and the [`volume`] it hands back for a name is
@@ -230,7 +230,7 @@
 //! to find its run scope to be authorized on, and its address to dial.
 //!
 //! Nothing implements any of them, and all are consumed:
-//! [`volume_manager`] and [`volume`] by the seven
+//! [`volume_manager`] and [`volume`] by the ten
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](crate::endpoints::images::check)'s, and

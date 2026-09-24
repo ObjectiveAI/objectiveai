@@ -2,7 +2,9 @@
 //! life of one.
 //!
 //! [`list`] says which volumes exist; [`stat`] names one and says how
-//! much of it is used and what is in it; [`create_capacity`] says how
+//! much of it is used and what is in it; [`read`] takes one file out
+//! of one, [`write`](mod@write) puts one in, and [`filetree`] says what one
+//! holds, once; [`create_capacity`] says how
 //! large a volume may be made and [`create`] makes one; [`edit_capacity`] says
 //! how far one may grow and [`edit`] changes how much it reserves,
 //! whether it keeps what is written into it, or both; and [`delete`]
@@ -14,11 +16,13 @@
 //! # Many mounters, or one editor
 //!
 //! A volume may be mounted in any number of containers of its caller
-//! at once, and nothing examines, resizes or deletes a volume while
-//! any container has it. On the server half that is one hold per
-//! volume with two modes — shared, taken by a run for its life, and
-//! exclusive, taken by a [`stat`], an [`edit`] or a [`delete`] for
-//! its duration — taken by the handlers, never by the provider;
+//! at once, and nothing examines, reads, writes, walks, resizes or
+//! deletes a volume while any container has it. On the server half
+//! that is one hold per volume with two modes — shared, taken by a
+//! run for its life, and exclusive, taken by a [`stat`], a [`read`],
+//! a [`write`](mod@write), a [`filetree`], an [`edit`] or a [`delete`]
+//! for its
+//! duration — taken by the handlers, never by the provider;
 //! [`refusal`] is what a handler answers when the hold cannot be
 //! taken and the endpoint has no frame of its own for it. See
 //! [`Volume`](crate::server::volume::Volume) for the rule in full.
@@ -26,7 +30,8 @@
 //! mounted in, watched there by the container's proxy or, where the
 //! provider keeps a volume out of the proxy's tree, by the provider
 //! itself through [`Volume::watch`](crate::server::volume::Volume::watch)
-//! — one tree to the caller either way.
+//! — one tree to the caller either way — and seen at rest, mounted
+//! nowhere, through a [`filetree`] of its own.
 //!
 //! # Volumes rather than paths
 //!
@@ -64,8 +69,13 @@ pub mod create_capacity;
 pub mod delete;
 pub mod edit;
 pub mod edit_capacity;
+pub mod filetree;
 pub mod list;
+pub mod read;
 pub mod stat;
+pub mod write;
 
+#[cfg(feature = "server")]
+pub mod names;
 #[cfg(feature = "server")]
 pub mod refusal;

@@ -40,19 +40,26 @@ pub enum ClientRequest<'a> {
     VolumesList(volumes::list::client::request::Frame),
     /// Tag `4`. Examine one of them.
     VolumesStat(volumes::stat::client::request::Frame),
-    /// Tag `5`. Ask how large a volume may be made.
+    /// Tag `5`. Read one file out of one.
+    VolumesRead(volumes::read::client::request::Frame),
+    /// Tag `6`. Write one file into one.
+    VolumesWrite(volumes::write::client::request::Frame),
+    /// Tag `7`. See what one holds.
+    VolumesFiletree(volumes::filetree::client::request::Frame),
+    /// Tag `8`. Ask how large a volume may be made.
     VolumesCreateCapacity(volumes::create_capacity::client::request::Frame),
-    /// Tag `6`. Make a volume.
+    /// Tag `9`. Make a volume.
     VolumesCreate(volumes::create::client::request::Frame),
-    /// Tag `7`. Ask how far one may grow.
+    /// Tag `10`. Ask how far one may grow.
     VolumesEditCapacity(volumes::edit_capacity::client::request::Frame),
-    /// Tag `8`. Change how much one reserves.
+    /// Tag `11`. Change how much one reserves, or whether it keeps
+    /// what is written into it.
     VolumesEdit(volumes::edit::client::request::Frame),
-    /// Tag `9`. Destroy one.
+    /// Tag `12`. Destroy one.
     VolumesDelete(volumes::delete::client::request::Frame),
-    /// Tag `10`. Ask whether an image can be supplied.
+    /// Tag `13`. Ask whether an image can be supplied.
     ImagesCheck(images::check::client::request::Frame),
-    /// Tag `11`. Ask what the provider is.
+    /// Tag `14`. Ask what the provider is.
     Version(version::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -64,7 +71,7 @@ pub enum ClientRequest<'a> {
     /// # It is answered, not dropped
     ///
     /// A server finishes the scope over it, with nothing in front:
-    /// twelve endpoints have twelve error vocabularies, and an invalid
+    /// fifteen endpoints have fifteen error vocabularies, and an invalid
     /// request names none of them — where a finish with nothing before
     /// it is already what the wire means by a request that could not
     /// be served, and every executor reads it as its own "unanswered".
@@ -77,14 +84,14 @@ pub enum ClientRequest<'a> {
     /// A server that wants one has the bytes and can ask the specific
     /// request to decode them, which answers precisely: an unknown
     /// tag, a body that would not parse, or nothing at all. Storing a
-    /// reason here would mean this type choosing which of twelve error
-    /// vocabularies to speak, and choosing wrong for eleven of them.
+    /// reason here would mean this type choosing which of fifteen error
+    /// vocabularies to speak, and choosing wrong for fourteen of them.
     Invalid(&'a [u8]),
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Two ways to fail, because twelve requests use two encodings
-    /// between them — and three of the twelve use neither, having
+    /// Two ways to fail, because fifteen requests use two encodings
+    /// between them — and three of the fifteen use neither, having
     /// nothing to encode.
     type Error = ClientRequestEncodeError;
 
@@ -108,6 +115,15 @@ impl Encode for ClientRequest<'_> {
                 frame.encode(out).map_err(|error| match error {})
             }
             ClientRequest::VolumesStat(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+            }
+            ClientRequest::VolumesRead(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+            }
+            ClientRequest::VolumesWrite(frame) => {
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
+            }
+            ClientRequest::VolumesFiletree(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::VolumesCreateCapacity(frame) => {
@@ -174,25 +190,34 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             4 => volumes::stat::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesStat)
                 .ok(),
-            5 => volumes::create_capacity::client::request::Frame::decode(bytes)
+            5 => volumes::read::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesRead)
+                .ok(),
+            6 => volumes::write::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesWrite)
+                .ok(),
+            7 => volumes::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesFiletree)
+                .ok(),
+            8 => volumes::create_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreateCapacity)
                 .ok(),
-            6 => volumes::create::client::request::Frame::decode(bytes)
+            9 => volumes::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreate)
                 .ok(),
-            7 => volumes::edit_capacity::client::request::Frame::decode(bytes)
+            10 => volumes::edit_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEditCapacity)
                 .ok(),
-            8 => volumes::edit::client::request::Frame::decode(bytes)
+            11 => volumes::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEdit)
                 .ok(),
-            9 => volumes::delete::client::request::Frame::decode(bytes)
+            12 => volumes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDelete)
                 .ok(),
-            10 => images::check::client::request::Frame::decode(bytes)
+            13 => images::check::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesCheck)
                 .ok(),
-            11 => version::client::request::Frame::decode(bytes)
+            14 => version::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Version)
                 .ok(),
             _ => None,
