@@ -10,7 +10,7 @@ the postcard wire format, as the postcard reading of
 [Notation](/endpoints/#notation) provides:
 
 ```text
-[10][name_len: varint][name: utf8 …]
+[9][name_len: varint][name: utf8 …]
 ```
 
 - **`name`.** The name of the volume, UTF-8, preceded by its byte
@@ -20,7 +20,7 @@ the postcard wire format, as the postcard reading of
   follows the `name` field. A request whose payload extends past the
   request is not malformed.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `10`, and a payload whose bytes after the tag do not decode
+  is not `9`, and a payload whose bytes after the tag do not decode
   as the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 

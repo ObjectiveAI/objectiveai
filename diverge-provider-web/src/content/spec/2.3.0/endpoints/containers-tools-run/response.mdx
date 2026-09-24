@@ -47,7 +47,7 @@ the scope. No frame bearing the scope follows the finish.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is none of `0`, `1` and `2`, a payload whose bytes after `0` do not
   parse as the id, a payload whose bytes after `1` do not parse as
-  the refusal, and a payload whose bytes after `2` are not one JSON
+  the refusal and a payload whose bytes after `2` are not one JSON
   value are malformed.
 
 The response is defined by `diverge-provider-sdk-rs/src/endpoints/containers/tools/run/server/response/frame.rs`:

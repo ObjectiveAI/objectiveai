@@ -152,7 +152,10 @@ program.
 1.15 **"Volume"** means a directory of persistent storage the Provider
 holds under a name for one Identity, as the Specification's volume
 endpoints define: created by `volumes::create`, listed by
-`volumes::list`, and ended only by `volumes::delete`.
+`volumes::list`, and ended only by `volumes::delete`. A Volume has a
+persist mode, `true` or `false`, stated at its creation and changed
+only by `volumes::edit`, which governs whether the changes a
+Container makes to it are in it when the Container ends.
 
 1.16 **"Volume Mount"** and **"FUSE Mount"** mean, respectively, an
 entry of `volume_mounts`, and of `fuse_file_mounts` or
@@ -427,12 +430,14 @@ Identity created by `volumes::create` and has not deleted by
 `volumes::delete`; it may contain other Volumes at the Provider's
 discretion; every Volume it contains shall be available to the
 Identity to mount; no two Volumes in one listing shall share a name.
-The Provider shall report for each Volume its `name`, its `bytes`, and
-its `created` as the Specification defines them, and nothing more.
+The Provider shall report for each Volume its `name`, its `bytes`,
+its `created` and its `persist` as the Specification defines them, and
+nothing more.
 
 (b) **Stat.** The Provider shall answer every `volumes::stat` request
 naming a Volume in the Identity's listing with exactly one Response
-carrying the Volume's `name`, `bytes` and `created`, its `bytes_used`,
+carrying the Volume's `name`, `bytes`, `created` and `persist`, its
+`bytes_used`,
 and its `dirhash` as the Specification defines each, as of the time of
 the Response; and shall answer a name not in the listing, or a Volume
 mounted in a running Container or under another `volumes::stat`, a
@@ -451,7 +456,8 @@ Neither answer reserves anything.
 
 (d) **Creation.** The Provider shall answer every `volumes::create`
 request with exactly one Response: the byte `0` only after a Volume
-of the stated name and size exists for the Identity; the byte `1` when
+of the stated name, size and persist mode exists for the Identity; the
+byte `1` when
 the Provider cannot reserve the size stated; or the byte `2` followed
 by an error for any other reason. From the moment the Provider sends
 the byte `0`, every listing the Provider sends the Identity shall
@@ -464,18 +470,24 @@ already in the Identity's listing.
 
 (e) **Editing.** The Provider shall answer every `volumes::edit`
 request naming a Volume in the Identity's listing with exactly one
-Response: the byte `0` only after the Volume has the size stated; the
-byte `1` when the Provider cannot reserve the size stated; the byte
-`2` when the content of the Volume exceeds the size stated; or the
-byte `3` followed by an error for any other reason. The Provider
-shall not change the size of a Volume that is mounted in a running
-Container at the time of the request, and shall answer a request
-naming one, or naming a Volume under a `volumes::stat`, another
-`volumes::edit` or a `volumes::delete` at the time of the request,
-with the byte `3` followed by an error. The size is the
-only property an edit changes. From the moment the Provider sends the
-byte `0`, every listing and every stat the Provider sends the Identity
-shall report the new size.
+Response: the byte `0` only after the Volume has what the request's
+change states, its size, its persist mode, or both; the byte `1` when
+the Provider cannot reserve the size stated; the byte `2` when the
+content of the Volume exceeds the size stated; or the byte `3`
+followed by an error for any other reason. A change that states a
+size and a persist mode is one edit: the Provider shall not change
+the persist mode of a Volume whose size it refuses. The Provider
+shall not change the size or the persist mode of a Volume that is
+mounted in a running Container at the time of the request, and shall
+answer a request naming one, or naming a Volume under a
+`volumes::stat`, another `volumes::edit` or a `volumes::delete` at
+the time of the request, with the byte `3` followed by an error. The
+size and the persist mode are the only properties an edit changes.
+From the moment the Provider sends the byte `0`, every listing and
+every stat the Provider sends the Identity shall report the new size
+and the new persist mode, and every Container in which the Identity
+mounts the Volume after that moment shall be bound under the new
+persist mode.
 
 (f) **Deletion.** The Provider shall answer every `volumes::delete`
 request naming a Volume in the Identity's listing with exactly one
@@ -516,7 +528,7 @@ or a `volumes::delete` at the time of the request by exactly one
 Response, the byte `1` followed by the name of that Volume as JSON,
 and the Response Finish, fetching nothing and deploying nothing for
 it. A Volume may be mounted in any number of Containers of its
-Identity at once, whatever its `persist`, and a request that names
+Identity at once, whatever its persist mode, and a request that names
 one Volume more than once mounts it at each path named.
 
 (b) **Obtain the image.** The Provider shall obtain the image the
@@ -539,9 +551,9 @@ Section 1.12 defines it, with `memory` and `disk` of the request as
 ceilings; every Volume Mount resolved by `host_name` against the
 Identity, descended by `host_relative_path`, and made present at
 `container_path`, the Container's changes to it being in the Volume
-when the Container ends if `persist` is `true` and the Volume being as
-it was before the run when the Container ends if `persist` is
-`false`; the Container Proxy placed inside
+when the Container ends if the Volume's persist mode is `true` and the
+Volume being as it was before the run when the Container ends if the
+Volume's persist mode is `false`; the Container Proxy placed inside
 and started; and
 TCP port 14979 reachable to the Provider's Server. The Provider shall
 set no environment variable in the Container from the request, and

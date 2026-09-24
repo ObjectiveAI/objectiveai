@@ -124,7 +124,7 @@ about the client, which may open any channel at any time.
 ## The rules that hold throughout
 
 - **Many containers per volume.** A volume may be mounted in any
-  number of containers of its client at once, whatever `persist`.
+  number of containers of its client at once, whatever its `persist`.
   The server holds every volume a request names, shared, from the
   moment it accepts the request until the run ends: a stat, an edit
   or a delete of a volume so held is refused for as long as any run
