@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 /// # Why the host side is a name and an offset
 ///
 /// Because a host path is not something a caller is allowed to
-/// state. [`host_name`](Self::host_name) is a volume's name as it
-/// was published, and [`host_relative_path`](Self::host_relative_path)
+/// state. [`volume_name`](Self::volume_name) is a volume's name as it
+/// was published, and [`volume_relative_path`](Self::volume_relative_path)
 /// descends from wherever that maps to — so a caller reaches a
 /// subdirectory of something it was offered, and nothing else. A
 /// name is resolved and then descended, never validated: a caller
@@ -33,13 +33,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct VolumeMount {
     /// Which volume, by the name the provider's listing gives it.
-    pub host_name: String,
+    pub volume_name: String,
     /// How far into that volume to start, as path components
     /// relative to it.
     ///
     /// Empty mounts the volume itself, which is the common case;
     /// anything else mounts a subdirectory of it.
-    pub host_relative_path: Vec<String>,
+    pub volume_relative_path: Vec<String>,
     /// Where it appears inside the container, as path components from
     /// the container's root.
     ///
