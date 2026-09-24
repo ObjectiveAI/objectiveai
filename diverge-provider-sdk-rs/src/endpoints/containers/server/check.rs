@@ -47,7 +47,7 @@ pub(crate) fn check(request: &Container) -> Result<(), Error> {
     for component in mounts
         .iter()
         .flat_map(|mount| mount.path.iter())
-        .chain(request.volume_mounts.iter().flat_map(|mount| mount.host_relative_path.iter()))
+        .chain(request.volume_mounts.iter().flat_map(|mount| mount.volume_relative_path.iter()))
     {
         if !name(component) {
             return Err(render::path_refused(&format!("the component `{component}` is not a name")));

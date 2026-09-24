@@ -147,7 +147,7 @@ pub trait Volume: Send + Sync {
     type Watch: Stream<Item = Result<Frame, Self::Error>> + Send + 'static;
 
     /// Watch the volume's subtree at `path` — components from the
-    /// volume's root, the mount's `host_relative_path`, empty for the
+    /// volume's root, the mount's `volume_relative_path`, empty for the
     /// whole volume — for as long as the stream is held.
     ///
     /// The first frame is a

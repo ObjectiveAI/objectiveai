@@ -12,7 +12,7 @@ use super::super::request::Image;
 /// A [`Container`](crate::shared::containers::request::Container) is
 /// an image, two limits, mounts and arguments. The first four are
 /// here, member for member; the mounts are not, because a volume is
-/// named by a `host_name` in the caller's own listing and a FUSE
+/// named by a `volume_name` in the caller's own listing and a FUSE
 /// mount is something the caller serves live, and a tool that named
 /// either would be dictating the caller's storage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

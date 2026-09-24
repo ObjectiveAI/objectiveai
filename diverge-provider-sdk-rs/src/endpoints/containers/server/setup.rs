@@ -249,8 +249,8 @@ fn deployment(client_identity: &str, request: &Container) -> Deployment {
             .iter()
             .map(|mount| DeployedMount {
                 client_identity: client_identity.to_string(),
-                host_name: mount.host_name.clone(),
-                host_relative_path: mount.host_relative_path.clone(),
+                volume_name: mount.volume_name.clone(),
+                volume_relative_path: mount.volume_relative_path.clone(),
                 container_path: mount.container_path.clone(),
             })
             .collect(),
@@ -288,7 +288,7 @@ where
             container_path: mount.container_path.clone(),
             watcher: Arc::new(Watching {
                 volume: Arc::clone(volume),
-                path: mount.host_relative_path.clone(),
+                path: mount.volume_relative_path.clone(),
             }),
         });
     }

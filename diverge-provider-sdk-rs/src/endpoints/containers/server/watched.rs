@@ -53,7 +53,7 @@ pub(crate) trait Watcher: Send + Sync {
 pub(crate) struct Watching<V: Volume> {
     /// The volume, held shared by the run for as long as this lives.
     pub volume: Arc<V>,
-    /// The mount's `host_relative_path`: what the watch is asked for.
+    /// The mount's `volume_relative_path`: what the watch is asked for.
     pub path: Vec<String>,
 }
 

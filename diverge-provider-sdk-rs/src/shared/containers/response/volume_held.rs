@@ -20,6 +20,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VolumeHeld {
-    /// The `host_name` of the volume, as the request named it.
+    /// The `volume_name` of the volume, as the request named it.
     pub name: String,
 }
