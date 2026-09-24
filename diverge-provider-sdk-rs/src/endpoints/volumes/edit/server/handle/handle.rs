@@ -9,23 +9,23 @@ use crate::server::volume::Volume as _;
 use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
-/// Resize the volume and end the scope.
+/// Change the volume and end the scope.
 ///
-/// The same three arguments a
-/// [`create`](crate::endpoints::volumes::create) carries and a
-/// different meaning: there the name is being made, here it is being
-/// found.
+/// A name and a change: there a [`create`](crate::endpoints::volumes::create)
+/// makes the name, here it is found.
 ///
 /// # Under the exclusive hold
 ///
 /// The volume is [`got`](VolumeManager::get) and then
 /// [`locked`](crate::server::volume::Volume::lock) for the length of
-/// the resize, so no container writes to it while its size changes.
-/// A volume held at all — mounted in a running container, or under
-/// another request — is the edit refused with [`refusal::mounted`]
-/// and the size unchanged: the hold never waits, and the endpoint
-/// has no frame for it but the error. The hold is given back
-/// whatever the resize answered.
+/// the change, so no container has it while its size or its mode
+/// changes — which is what makes the mode changeable at all, since
+/// a container is bound under one mode for its life. A volume held
+/// at all — mounted in a running container, or under another
+/// request — is the edit refused with [`refusal::mounted`] and the
+/// volume as it was: the hold never waits, and the endpoint has no
+/// frame for it but the error. The hold is given back whatever the
+/// change answered.
 ///
 /// # The volume says why not
 ///
@@ -54,7 +54,7 @@ pub async fn handle<M>(
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let frame = match edit(manager, client_identity, &request.name, request.bytes).await {
+    let frame = match edit(manager, client_identity, &request.name, request.change).await {
         Ok(response::Edit::Edited) => response::Frame::Edited,
         Ok(response::Edit::InsufficientCapacity) => {
             response::Frame::InsufficientCapacity
@@ -70,13 +70,13 @@ pub async fn handle<M>(
     scope.send_response_finish().await;
 }
 
-/// The volume found, locked, resized, and unlocked; or the one error
+/// The volume found, locked, changed, and unlocked; or the one error
 /// the endpoint answers with, whichever step it came from.
 async fn edit<M>(
     manager: &M,
     client_identity: &str,
     name: &str,
-    bytes: u64,
+    change: request::Change,
 ) -> Result<response::Edit, Error>
 where
     M: VolumeManager,
@@ -90,7 +90,7 @@ where
     if !volume.lock().await {
         return Err(refusal::mounted(name));
     }
-    let edit = volume.edit(bytes).await;
+    let edit = volume.edit(change).await;
     volume.unlock().await;
     edit.map_err(Into::into)
 }

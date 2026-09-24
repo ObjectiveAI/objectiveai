@@ -5,6 +5,7 @@ use std::future::Future;
 use futures_util::Stream;
 
 use super::holders::Holders;
+use crate::endpoints::volumes::edit::client::request::Change;
 use crate::endpoints::volumes::edit::server::response::Edit;
 use crate::endpoints::volumes::stat::server::response::Stat;
 use crate::shared::filetree::response::Frame;
@@ -175,10 +176,17 @@ pub trait Volume: Send + Sync {
     /// it walks, and what it reports is the volume at rest.
     fn stat(&self) -> impl Future<Output = Result<Stat, Self::Error>> + Send;
 
-    /// Change how big the volume may be, in BYTES.
+    /// Change how big the volume may be, in BYTES, whether it keeps
+    /// what containers write into it, or both.
     ///
-    /// Capacity and nothing else. Called under the exclusive hold, so
-    /// no container writes while it resizes.
+    /// The two things that can change, and nothing else. Called under
+    /// the exclusive hold, so no container has the volume while its
+    /// size or its mode changes — which is what makes the mode
+    /// changeable at all, since a container is bound under one mode
+    /// for its life and the provider need never move a running one.
+    /// A [`Change::Both`] that is refused for its size — no room, or
+    /// content that exceeds it — leaves the mode as it was too: the
+    /// answer means the volume is as it was in every respect.
     ///
     /// # Why a rename is not an edit
     ///
@@ -199,5 +207,5 @@ pub trait Volume: Send + Sync {
     /// size is as it was. The provider is what knows its room and the
     /// volume's contents, which is why both answers are the provider's
     /// to give.
-    fn edit(&self, bytes: u64) -> impl Future<Output = Result<Edit, Self::Error>> + Send;
+    fn edit(&self, change: Change) -> impl Future<Output = Result<Edit, Self::Error>> + Send;
 }
