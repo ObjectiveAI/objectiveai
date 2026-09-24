@@ -5,13 +5,13 @@ use diverge_provider_sdk::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{FuseMount, Image, VolumeMount};
+use super::{FuseMount, Image, Provider};
 
 /// Ask the daemon to create an agent under a name.
 ///
 /// Everything the agent is made from — the image, the limits, the
-/// mounts, the arguments — and the name the agent is held under from
-/// then on. What a caller may not choose is not here at all rather
+/// mounts, the arguments, and the provider it is pinned to, if any —
+/// and the name the agent is held under from then on. What a caller may not choose is not here at all rather
 /// than here and ignored: the container's name, its ports, its
 /// entrypoint and its environment are the provider's, because they
 /// are how the provider reaches the container and how the container
@@ -55,14 +55,15 @@ pub struct Frame {
     /// Bytes rather than megabytes, for the reason
     /// [`memory`](Self::memory) gives.
     pub disk: u64,
-    /// Volumes made visible inside the container.
+    /// The one provider the agent runs on, and the volumes of that
+    /// provider made visible inside the container. See [`Provider`].
     ///
-    /// Ordered, and applied in order. See [`VolumeMount`] for how one
-    /// is named without a host path. No mount's path, in any list, is
-    /// a prefix of another's: mounting INTO a directory the image
-    /// owns is the point, and mounts stacking on each other is not.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub volume_mounts: Vec<VolumeMount>,
+    /// Absent, the agent runs on whichever provider the daemon
+    /// chooses, and mounts no volume: a volume is a provider's own
+    /// and does not carry across, so an agent with state on a
+    /// provider's disk is an agent of that provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<Provider>,
     /// Files the caller serves LIVE, mounted one each over FUSE.
     ///
     /// Each names a file by a path and an id of the caller's — see

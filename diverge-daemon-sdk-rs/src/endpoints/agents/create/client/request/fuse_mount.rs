@@ -36,7 +36,7 @@ pub struct FuseMount {
     /// Where the mount appears inside the container, as path
     /// components from the container's root, as
     /// [`container_path`](super::VolumeMount::container_path) is for
-    /// a volume.
+    /// a volume on the create's provider.
     ///
     /// No component is empty, `.` or `..`. The path is not the root,
     /// is no other mount's, and lies inside no other mount's — a

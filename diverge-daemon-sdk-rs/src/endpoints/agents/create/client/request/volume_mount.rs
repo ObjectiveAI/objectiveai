@@ -1,8 +1,12 @@
-//! One volume made visible inside an agent's container.
+//! One volume of the agent's provider made visible inside its
+//! container.
 
 use serde::{Deserialize, Serialize};
 
-/// A volume, mounted into the agent's container.
+/// A volume of the provider the agent is pinned to, mounted into the
+/// agent's container. Named on the create's
+/// [`Provider`](super::Provider), never on the create itself: a
+/// volume is one provider's, and so is an agent that mounts one.
 ///
 /// Host side first, then the container side — source before
 /// destination, the order a mount reads in everywhere else.
@@ -28,7 +32,7 @@ use serde::{Deserialize, Serialize};
 /// mount's to say.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct VolumeMount {
-    /// Which volume, by the name it was published under.
+    /// Which volume, by the name the provider's listing gives it.
     pub host_name: String,
     /// How far into that volume to start, as path components
     /// relative to it.
