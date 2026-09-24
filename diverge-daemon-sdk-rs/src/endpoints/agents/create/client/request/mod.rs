@@ -1,9 +1,19 @@
 //! Create request data.
 //!
-//! What a caller hands the daemon to create an agent under a name: the
-//! container, and the name. There is nothing to establish and nothing
-//! to resume, which is why this is one type and not a module of them.
+//! What a caller hands the daemon to create an agent under a name:
+//! the [`Frame`] itself carries everything the agent is made from —
+//! its [`Image`], its limits, its [`VolumeMount`]s and
+//! [`FuseMount`]s, its arguments — and the name. The daemon's own
+//! definitions, not the provider's container request: what a daemon
+//! asks a provider for on an agent's behalf is the daemon's to
+//! compose, and the two will part.
 
 mod frame;
+mod fuse_mount;
+mod image;
+mod volume_mount;
 
 pub use frame::*;
+pub use fuse_mount::*;
+pub use image::*;
+pub use volume_mount::*;

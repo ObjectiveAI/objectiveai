@@ -1,9 +1,9 @@
 //! One agent, as the daemon holds it.
 
 use chrono::{DateTime, Utc};
-use diverge_provider_sdk::shared::containers::request::Image;
 use serde::{Deserialize, Serialize};
 
+use crate::endpoints::agents::create::client::request::Image;
 use crate::endpoints::agents::logs::server::response::Provider;
 
 /// One agent of the caller's: what the daemon knows of it without
