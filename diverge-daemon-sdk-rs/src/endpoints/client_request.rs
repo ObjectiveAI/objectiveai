@@ -6,7 +6,7 @@ use std::fmt;
 use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::encode::{Encode, Writer};
 
-use super::agents;
+use super::{agents, filesystem};
 
 /// The payload of a
 /// [`Request`](diverge_provider_sdk::frame::client::ClientFrame::Request).
@@ -37,6 +37,12 @@ pub enum ClientRequest<'a> {
     AgentsLogs(agents::logs::client::request::Frame),
     /// Tag `4`. List the caller's agents.
     AgentsList(agents::list::client::request::Frame),
+    /// Tag `5`. Read one file off the daemon's host.
+    FilesystemRead(filesystem::read::client::request::Frame),
+    /// Tag `6`. Write one file onto the daemon's host.
+    FilesystemWrite(filesystem::write::client::request::Frame),
+    /// Tag `7`. Watch a directory of the daemon's host.
+    FilesystemFiletree(filesystem::filetree::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -62,6 +68,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsMessage(frame) => frame.encode(out),
             ClientRequest::AgentsLogs(frame) => frame.encode(out),
             ClientRequest::AgentsList(frame) => frame.encode(out),
+            ClientRequest::FilesystemRead(frame) => frame.encode(out),
+            ClientRequest::FilesystemWrite(frame) => frame.encode(out),
+            ClientRequest::FilesystemFiletree(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -101,6 +110,15 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             4 => agents::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsList)
                 .ok(),
+            5 => filesystem::read::client::request::Frame::decode(bytes)
+                .map(ClientRequest::FilesystemRead)
+                .ok(),
+            6 => filesystem::write::client::request::Frame::decode(bytes)
+                .map(ClientRequest::FilesystemWrite)
+                .ok(),
+            7 => filesystem::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::FilesystemFiletree)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -115,6 +133,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsMessage(_) => f.write_str("agents message"),
             ClientRequest::AgentsLogs(_) => f.write_str("agents logs"),
             ClientRequest::AgentsList(_) => f.write_str("agents list"),
+            ClientRequest::FilesystemRead(_) => f.write_str("filesystem read"),
+            ClientRequest::FilesystemWrite(_) => f.write_str("filesystem write"),
+            ClientRequest::FilesystemFiletree(_) => f.write_str("filesystem filetree"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

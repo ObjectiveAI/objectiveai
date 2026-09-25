@@ -1862,6 +1862,7 @@ version = "2.3.0"
 dependencies = [
  "chrono",
  "diverge-provider-sdk",
+ "postcard",
  "rmcp 3.1.2",
  "serde",
  "serde_json",
