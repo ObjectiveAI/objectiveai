@@ -64,25 +64,28 @@ pub struct Frame {
     /// provider's disk is an agent of that provider.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<Provider>,
-    /// Files the caller serves LIVE, mounted one each over FUSE.
-    ///
-    /// Each names a file by a path and an id of the caller's — see
-    /// [`FuseMount`]. Every one is mounted before the agent runs, and
-    /// every open and every changed close inside the container is one
-    /// ask back to the caller, by that id. The file is overwritten in
-    /// place only; a program that replaces its file by rename needs a
-    /// directory mount. Its path is no other mount's and lies inside
-    /// none, as every mount's.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<FuseMount>,
-    /// Directories the caller serves LIVE, mounted one each over
+    /// Files of the daemon's host served LIVE, mounted one each over
     /// FUSE.
     ///
-    /// Each names a directory by a path and an id of the caller's —
-    /// see [`FuseMount`]. The whole tree under the path is the
-    /// caller's: every listing, read, write, creation, removal and
-    /// rename inside the container is one ask back to the caller, by
-    /// that id. No other mount may lie inside it.
+    /// Each names a file by its path on the host and its path in the
+    /// container — see [`FuseMount`]. Every one is mounted before the
+    /// agent runs, and every open and every changed close inside the
+    /// container is one ask to the daemon, served from the host's
+    /// file. The file is overwritten in place only; a program that
+    /// replaces its file by rename needs a directory mount. Its
+    /// container path is no other mount's and lies inside none, as
+    /// every mount's.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fuse_file_mounts: Vec<FuseMount>,
+    /// Directories of the daemon's host served LIVE, mounted one each
+    /// over FUSE.
+    ///
+    /// Each names a directory by its path on the host and its path in
+    /// the container — see [`FuseMount`]. The whole tree under the
+    /// host path is what the container sees: every listing, read,
+    /// write, creation, removal and rename inside the container is one
+    /// ask to the daemon, served from the host's tree. No other mount
+    /// may lie inside it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
     /// What the image is told once, as the image defines it, for the
