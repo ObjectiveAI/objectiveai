@@ -1,0 +1,488 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent",
+  "description": "An agent running against OpenRouter.\n\nThe widest parameter set of any upstream, because OpenRouter fronts\nmany providers and exposes what each of them accepts.",
+  "type": "object",
+  "properties": {
+    "model": {
+      "description": "The model to route to, in OpenRouter's `vendor/name` form.",
+      "type": "string"
+    },
+    "system_prompt": {
+      "description": "The system prompt's text, sent as the conversation's leading\nmessage.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "top_logprobs": {
+      "description": "How many alternatives to report per token. Absent means report\nno log probabilities at all.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "frequency_penalty": {
+      "description": "Penalise tokens by how often they have appeared.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "logit_bias": {
+      "description": "Per-token additive bias on the logits, keyed by token id.\n\nAn `IndexMap` rather than a `HashMap`: insertion order is\npreserved, so the same bias set serializes identically every\ntime instead of shuffling between runs.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "integer",
+        "format": "int64"
+      }
+    },
+    "max_completion_tokens": {
+      "description": "Cap on generated tokens, counting reasoning tokens.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "presence_penalty": {
+      "description": "Penalise tokens for having appeared at all, regardless of count.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "stop": {
+      "description": "Sequences that end generation.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Stop"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "temperature": {
+      "description": "Sampling temperature.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "top_p": {
+      "description": "Nucleus sampling threshold.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "max_tokens": {
+      "description": "Cap on generated tokens, excluding reasoning tokens.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "min_p": {
+      "description": "Minimum probability, relative to the most likely token, for a\ntoken to be considered.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "provider": {
+      "description": "Which backing providers to route to.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Provider"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reasoning": {
+      "description": "Reasoning configuration.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Reasoning"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "repetition_penalty": {
+      "description": "Multiplicative penalty on tokens already produced.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "top_a": {
+      "description": "Sample only from tokens above a threshold scaled by the most\nlikely token's probability.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "top_k": {
+      "description": "Sample only from the k most likely tokens.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "verbosity": {
+      "description": "How detailed responses should be.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Verbosity"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "context_compression": {
+      "description": "What to do when the request exceeds the context window.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContextCompression"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "mcp_tools": {
+      "description": "The tool containers this agent depends on, each one the caller\nruns and serves to it as an MCP server, in the form the\nprovider's wire defines. Passed back whole as the registration's\nanswer, which is how the caller learns of them. Absent is none.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Tool"
+      }
+    }
+  },
+  "required": [
+    "model"
+  ],
+  "$defs": {
+    "Stop": {
+      "description": "Sequences that end generation when produced.\n\nUntagged: one sequence goes on the wire as a bare string and\nseveral as an array, matching what providers accept without a\ncaller having to wrap a single sequence in a list.",
+      "anyOf": [
+        {
+          "description": "One sequence.",
+          "type": "string"
+        },
+        {
+          "description": "Several. Providers typically cap this around four.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "Provider": {
+      "description": "Which backing providers OpenRouter may route to, and in what order.\n\nOpenRouter fronts many providers for one model, and they differ in\nprice, throughput and quantization — so \"which model\" does not\nfully determine what answers.",
+      "type": "object",
+      "properties": {
+        "allow_fallbacks": {
+          "description": "Whether to fall back to a provider outside the preferences when\nnone of them can serve the request.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "require_parameters": {
+          "description": "Only route to providers supporting every parameter sent.\nWithout this, unsupported parameters are silently dropped.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "order": {
+          "description": "Preferred providers, most preferred first.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "only": {
+          "description": "Route to these and no others.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "ignore": {
+          "description": "Never route to these.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "quantizations": {
+          "description": "Acceptable weight quantizations. A more aggressively quantized\nmodel is cheaper and measurably different.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/ProviderQuantization"
+          }
+        }
+      }
+    },
+    "ProviderQuantization": {
+      "description": "A weight quantization level.",
+      "oneOf": [
+        {
+          "description": "4-bit integer.",
+          "type": "string",
+          "const": "int4"
+        },
+        {
+          "description": "8-bit integer.",
+          "type": "string",
+          "const": "int8"
+        },
+        {
+          "description": "4-bit float.",
+          "type": "string",
+          "const": "fp4"
+        },
+        {
+          "description": "6-bit float.",
+          "type": "string",
+          "const": "fp6"
+        },
+        {
+          "description": "8-bit float.",
+          "type": "string",
+          "const": "fp8"
+        },
+        {
+          "description": "16-bit float (half).",
+          "type": "string",
+          "const": "fp16"
+        },
+        {
+          "description": "16-bit brain float.",
+          "type": "string",
+          "const": "bf16"
+        },
+        {
+          "description": "32-bit float (full).",
+          "type": "string",
+          "const": "fp32"
+        },
+        {
+          "description": "Not reported.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
+    "Reasoning": {
+      "description": "How much the model should reason before answering, and how much of\nthat reasoning to report.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether to reason at all.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "max_tokens": {
+          "description": "A token budget for reasoning. Mutually exclusive with\n[`effort`](Self::effort) on most models — a budget and a level\nare two ways of saying the same thing.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "effort": {
+          "description": "How hard to reason, as a level rather than a budget.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary_verbosity": {
+          "description": "How much of the reasoning to summarise back.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasoningSummaryVerbosity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ReasoningEffort": {
+      "description": "How hard the model should reason.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ]
+        },
+        {
+          "description": "Do not reason.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
+    "ReasoningSummaryVerbosity": {
+      "description": "How much of the reasoning to summarise in the response.",
+      "oneOf": [
+        {
+          "description": "Let the model decide.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Brief.",
+          "type": "string",
+          "const": "concise"
+        },
+        {
+          "description": "Thorough.",
+          "type": "string",
+          "const": "detailed"
+        }
+      ]
+    },
+    "Verbosity": {
+      "description": "How detailed the model's responses should be. A hint — not every\nmodel honours it.",
+      "oneOf": [
+        {
+          "description": "Concise.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Balanced.",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "Thorough.",
+          "type": "string",
+          "const": "high"
+        },
+        {
+          "description": "As detailed as the model will go.",
+          "type": "string",
+          "const": "max"
+        }
+      ]
+    },
+    "ContextCompression": {
+      "description": "Which compression engine to enable when a request would otherwise\nexceed the model's context window. Maps onto OpenRouter's\nrequest-body `plugins` array.",
+      "oneOf": [
+        {
+          "description": "Drops content from the middle of the conversation. The only\nengine documented today.",
+          "type": "string",
+          "const": "middle_out"
+        }
+      ]
+    },
+    "Tool": {
+      "description": "One tool container the program depends on: everything the caller\nneeds to run it that the image can know, and nothing the caller\nalone can know.\n\nA [`Container`](crate::shared::containers::request::Container) is\nan image, two limits, mounts and arguments. The first four are\nhere, member for member; the mounts are not, because a volume is\nnamed by a `volume_name` in the caller's own listing and a FUSE\nmount is something the caller serves live, and a tool that named\neither would be dictating the caller's storage.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "What the program calls it: the caller's handle for the tool\ncontainer, and the label the caller uses if it prefixes the\ntool's tools when it merges lists. Unique in the list. The\nprogram never finds a server by it — it calls tools by whatever\nnames the caller's merged list shows, and knows which image\nserves each by the image under `_meta`, see\n[`shared::mcp`](crate::shared::mcp).",
+          "type": "string"
+        },
+        "image": {
+          "description": "The image: a name and a digest, the pair a\n`containers::tools::run` request names.",
+          "$ref": "#/$defs/Image"
+        },
+        "memory": {
+          "description": "The memory the tool container needs, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "disk": {
+          "description": "The bytes the tool container may write, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "arguments": {
+          "description": "The arguments the tool container is registered with — the\n`arguments` of the run request that makes it, verbatim."
+        }
+      },
+      "required": [
+        "name",
+        "image",
+        "memory",
+        "disk",
+        "arguments"
+      ]
+    },
+    "Image": {
+      "description": "The image, by its repository path and its manifest digest — the\npair [`images::check`](crate::endpoints::images::check::client::request::Frame)\nasks about, so a check that came back available names an image a\nrun can ask for, with nothing to translate between them.\n\n# The digest is the image\n\nA digest cannot be repointed at different content, so an image\nmeans the same bytes every time, wherever they come from. That is\nthe whole of what the wire asserts: the provider runs the image\nthe digest names and no other.\n\n# Who supplies the bytes is the provider's\n\nNot on the wire. A provider may hold the image already, pull it\nfrom a registry it uses, or take it from the caller — asking on\nthe run scope whether the caller holds it and, when it does, for\nits manifest and blobs, see [`oci`](crate::shared::containers::oci).\nWhich of those, in what order, and which registries, is the\nprovider's policy, and a caller learns only whether the run\nhappened. A caller need not hold what it names; one that does\nanswers so when asked.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The repository path — `library/nginx`, `myorg/myimage`. No\nhost: where the bytes come from is not the caller's to say.\n\nIt lands in a reference by concatenation wherever a provider\npulls from, so a provider refuses one that is not a repository\npath and normalizes nothing.",
+          "type": "string"
+        },
+        "digest": {
+          "description": "The manifest digest, `<algorithm>:<hex>`.\n\nWhat actually identifies the image: a runtime hashes what it\npulls, so a source serving other bytes under it fails before\nanything runs.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "digest"
+      ]
+    }
+  }
+}

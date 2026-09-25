@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent",
+  "description": "An agent running against Eliza (elizaOS).\n\nEvery field here is HONORABLE: it names something the harness\nhands the runtime it constructs — a character field Eliza renders\ninto its prompts, a constructor option, a plugin the container\nloads — and nothing else made the cut. Nothing here is a secret:\nevery credential a plugin needs lives in the caller's vault, under\na key the plugin's entry names, and is read per run. The one place\nthis vocabulary bends the protocol's post-transform rule is\n[`character`](Self::character), and the bend is stated there.\n\n# Nothing is pre-wired but the adapter\n\nThe harness itself loads exactly two plugins: `@elizaos/plugin-sql`,\nthe database adapter, pointed at the caller's database; and its own\ndiverge plugin, the caller's MCP tools and resources. Every other\nplugin — the model that speaks, the one that embeds, the tools —\nis the caller's to list here, by package name, with its own\nsettings and secrets. The packages the image carries are\npre-installed and nothing more: listed, they load at the image's\npin; unlisted, they are not touched. An agent that lists no\n[`model_provider_plugins`](Self::model_provider_plugins) has no\nmodel, and its run fails as Eliza's own failure.",
+  "type": "object",
+  "properties": {
+    "character": {
+      "description": "Who the agent is: the fields Eliza re-renders into its prompt\nEVERY turn. A parameter of the call, not a transform applied\nupstream — Eliza will not take a finished prompt, so a caller\nwho authored a personality renders it into these fields. See\n[`Character`].",
+      "$ref": "#/$defs/Character"
+    },
+    "memory": {
+      "description": "What a turn accumulates beyond the conversation itself —\nreflection, long-term memory, relationships, documents,\nplanning — each a cost per turn and a growth of the\ncontinuation. Absent is everything off. See [`Memory`].",
+      "$ref": "#/$defs/Memory",
+      "default": {}
+    },
+    "generate_media": {
+      "description": "Whether the model may GENERATE media: core's own\n`GENERATE_MEDIA` action, registered unconditionally and\nunregistered after initialize when this is off. Absent is off.\nThe action's images come from whichever model-provider plugin\nregisters an image-generation tier; none, and the action fails\nas itself. The tiers that READ media — image description,\ntranscription — are not this switch's: a tool's image or audio\nis read to the model by whichever provider registers them, and\ndescribed as bytes otherwise.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "model_provider_plugins": {
+      "description": "The plugins that register model handlers — the model that\nspeaks, the one that embeds, the one that describes an image —\nin PRIORITY ORDER: the first listed answers every model type it\nregisters, the next is its failover, and so on. See [`Plugin`],\nand the rule in [the agent module](super): a plugin that\nregisters a model handler belongs here and nowhere else, and\nthe run refuses one listed under [`plugins`](Self::plugins).\nAbsent is no model at all.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Plugin"
+      }
+    },
+    "plugins": {
+      "description": "Every other plugin: actions, providers, services, evaluators —\nany npm package that is an elizaOS plugin and registers no\nmodel handler. The run refuses one that does. Absent is none.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Plugin"
+      }
+    },
+    "mcp_tools": {
+      "description": "The tool containers this agent depends on, each one the caller\nruns and serves to it as an MCP server, in the form the\nprovider's wire defines. Passed back whole as the registration's\nanswer, which is how the caller learns of them. Absent is none.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Tool"
+      }
+    }
+  },
+  "required": [
+    "character"
+  ],
+  "$defs": {
+    "Character": {
+      "description": "Who the agent is, as Eliza renders it.\n\n[`name`](Self::name) is the one required field — Eliza's own\nminimum, and the prompt's `{{agentName}}`. Everything else is\nan ingredient Eliza samples or blocks into the prompt, empty\nmeaning \"nothing to say\", which is how a caller whose whole\npersonality is the system prompt states that.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The agent's name. The prompt's `{{agentName}}` and\n`{{name}}`; every prompt block is headed by it.",
+          "type": "string"
+        },
+        "system": {
+          "description": "The system prompt head. Absent gives Eliza's own: \"You are\n{{name}}, an autonomous AI agent powered by elizaOS.\"",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bio": {
+          "description": "Biography lines. Blocked whole into the canonical system\nprompt as \"About {{name}}\", and sampled (up to ten,\ndeterministically) by the character provider.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "topics": {
+          "description": "Interests. One is rendered as what the agent is \"currently\ninterested in\" and up to five more as \"also interested in\",\npicked deterministically per room.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "adjectives": {
+          "description": "Traits. One is rendered as \"{{name}} is {{adjective}}\", picked\ndeterministically per room.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "style": {
+          "description": "Style directions. See [`Style`].",
+          "$ref": "#/$defs/Style"
+        },
+        "message_examples": {
+          "description": "Example conversations, each a group of turns in order. Five\ngroups are sampled into chat-room prompts, deterministically\nper room. See [`Example`].",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Example"
+            }
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "Style": {
+      "description": "How the agent writes, as direction lines.\n\nEliza composes two lists from three: chat style is\n[`all`](Self::all) then [`chat`](Self::chat), post style is\n[`all`](Self::all) then [`post`](Self::post). The loop's one room\nis a chat room, so [`post`](Self::post) never renders here; it is\nkept because the character is one document and a caller may\ncarry it whole.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "description": "Directions for everything the agent writes.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "chat": {
+          "description": "Directions for conversation, after [`all`](Self::all).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "post": {
+          "description": "Directions for posts, after [`all`](Self::all). Never rendered\nin the loop's room.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Example": {
+      "description": "One turn in a group of [`message_examples`](super::Character::message_examples).\n\nEliza's `MessageExample` reduced to what renders: who spoke and\nwhat they said. A speaker equal to the character's\n[`name`](super::Character::name) is the agent's own turn; any\nother name is a user's.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Who spoke.",
+          "type": "string"
+        },
+        "text": {
+          "description": "What they said.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "text"
+      ]
+    },
+    "Memory": {
+      "description": "The memory-shaping switches, every one stated.\n\nEach names a runtime construction fact — a constructor option or\na character flag — that adds model calls to a turn and rows to\nthe continuation; together they are what makes an Eliza agent an\nEliza agent rather than a chat loop, which is why they are the\ncaller's and not the harness's. Each an `Option<bool>` where\nabsent is off — the same as `false` — so a request names only\nwhat it pays for.\n\nNot a switch, because nothing switches it: the per-turn FACTS\nstage. The message handler's first pass extracts facts and\nrelationships as part of its one structured envelope, and they\nare persisted whenever it found any — a cost already inside the\nturn the caller asked for.",
+      "type": "object",
+      "properties": {
+        "advanced_capabilities": {
+          "description": "The advanced-capabilities bundle: the post-turn reflection\nevaluators (fact memory, relationships, identities, success),\nexperience, personality and form providers and actions — one\nmerged small-model call after each reply. Constructor option\n`advancedCapabilities`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "advanced_memory": {
+          "description": "Long-term memory: distilled episodic, semantic and procedural\nmemories in their own table, written by the advanced-memory\nevaluator. Character flag `advancedMemory`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "relationships": {
+          "description": "The relationships feature: the native entity graph, its\nservice and provider. Constructor option `enableRelationships`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "documents": {
+          "description": "The documents feature: document and fragment memories,\ningested and searched. Constructor option `enableDocuments`, a\nnative runtime feature like\n[`relationships`](Self::relationships). The plugin that\ningests files is `@elizaos/plugin-documents`, the caller's to\nlist under `plugins` with `DOCUMENTS_PATH` and\n`LOAD_DOCS_ON_STARTUP` as its settings; vectors need a\nmodel-provider plugin that embeds, and without one the search\nis by keyword.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "advanced_planning": {
+          "description": "Advanced planning: the multi-step planner over the simple\nreply path. Character flag `advancedPlanning`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "Plugin": {
+      "description": "An elizaOS plugin the container installs and loads for the run —\nany npm package that exports a `Plugin`, configured by its own\nsetting names, its secrets the vault's.\n\nHOW THE HARNESS APPLIES IT: at the start of the run, every named\npackage the image's project does not already hold is installed\ninto it (`bun add --ignore-scripts`, the command elizaOS's own\ninstaller runs), imported, and handed to the runtime's constructor\nbeside the image's plugins; the version the registry resolved is\nrecorded in the lineage's row, and every later run of the lineage\ninstalls that version, whatever this spec says, so a conversation\nis never resumed against a plugin that changed under it. Each\n[`settings`](Self::settings) entry and each [`secrets`](Self::secrets)\nvalue read from the vault goes in the runtime's constructor\nsettings map and the entry process's environment both — the\ncore's `getSetting` never reads the environment, and some plugins\nread nothing else — the vault's values at the top of Eliza's\nprecedence. A package the registry cannot resolve, one that is\nnot a plugin once imported, or a secret the vault does not hold\nrefuses the run before the runtime starts.\n\nThe plugin runs in the agent's process with the caller's tools in\nreach; the container is the sandbox.",
+      "type": "object",
+      "properties": {
+        "package": {
+          "description": "The npm spec: `@elizaos/plugin-discord`,\n`@elizaos/plugin-discord@2.0.4`, `@scope/anything`. A spec\nwithout a version resolves to the registry's latest on the\nlineage's first run, and to that resolved version after.",
+          "type": "string"
+        },
+        "settings": {
+          "description": "The plugin's non-secret configuration, by the setting names\nthe plugin reads — its own vocabulary, which the caller who\nchose it knows. JSON values; the harness renders each as the\nstring Eliza's settings carry, and Eliza reads `\"true\"` and\n`\"false\"` back as booleans. Absent is nothing configured.",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "secrets": {
+          "description": "The settings that are secrets, each a vault key: a bare name\nfor a static secret, an object for one the run rotates and\nwhere the rotated value is left. See [`Secret`]. Absent is no\nsecrets.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Secret"
+          }
+        }
+      },
+      "required": [
+        "package"
+      ]
+    },
+    "Secret": {
+      "description": "A secret the plugin reads: a setting name that IS the vault key\nthe value lives under.\n\nUntagged: a bare string is a static secret, read from the vault\nonce per run and set as that setting — the common case, an API\nkey. An object names a secret the run ROTATES — an OAuth login\nwhose refresh token is single-use — and where the plugin leaves\nthe rotated value, so the harness can put it back: the key is\nlocked for the run, read, set as the setting, read back after\nevery turn and at the end from the place [`rotates`](Self::Rotating)\nnames, set into the vault, and unlocked when the run ends. The\nvalue never appears in this document, in the character, or in\nthe schema.\n\n# Credentials never live in the database\n\nThe rotated value's home is the vault, never Eliza's database:\nthe caller's database will be snapshotted and rewound, and a\ncredential rewound is a login burned. Eliza is built on the same\nexpectation — a plugin keeps its credentials in settings, not in\ntables — and this container assumes it: a plugin that persists a\nrotating credential in a table of its own cannot be supported.\nThe three places a plugin may leave a rotated value are its\nsetting, a file, and Eliza's own vault — the encrypted store the\n`@elizaos/vault` library keeps on disk, on by default with a\npassphrase the harness holds — and the harness re-applies the\nvault's copy at the top of Eliza's precedence at every run's\nstart, so a rewound row never wins over the vault.",
+      "anyOf": [
+        {
+          "description": "A static secret: the vault key, read once per run, set as\nthe setting of the same name, never written back.",
+          "type": "string"
+        },
+        {
+          "description": "A secret the run rotates.",
+          "type": "object",
+          "properties": {
+            "key": {
+              "description": "The setting name, and the vault key.",
+              "type": "string"
+            },
+            "rotates": {
+              "description": "Where the plugin leaves the rotated value.",
+              "$ref": "#/$defs/Rotates"
+            }
+          },
+          "required": [
+            "key",
+            "rotates"
+          ]
+        }
+      ]
+    },
+    "Rotates": {
+      "description": "Where the harness reads a rotated value back from, after every\nturn and at the run's end — the three channels an elizaOS plugin\nhas for a credential it rotates. Untagged.\n\n```json\ntrue                                   // the setting of the same name\n{\"setting\": \"GOOGLE_TOKENS\"}           // another setting\n{\"file\": [\"root\", \".qwen\", \"oauth_creds.json\"]}\n{\"vault\": \"agent.{agent_id}.wallet.evm\"}   // Eliza's own vault\n```\n\nA setting is read through the runtime the harness constructs —\n`getSetting`, which a plugin wrote with `setSetting` — and a\nnon-string value goes to the vault as its JSON; a file goes as\nits bytes; an entry of Eliza's own vault is read through the\n`@elizaos/vault` library with the master key the harness holds,\nand goes as its decrypted value. Nothing else is a channel:\nEliza's cache and its tables are the database, and a credential\ndoes not live there (see [`Secret`](super::Secret)). A read-back that finds nothing\nnew is not an error — the plugin may not have rotated — but a\nread-back that finds nothing at all is a warning at the run's\nend, naming the key, so the caller learns their copy may be stale\nbefore the next login fails.",
+      "anyOf": [
+        {
+          "description": "`true`: the plugin rotates the setting in place, so the\nrotated value is the setting of the same name. `false` is a\nstatic secret said the long way.",
+          "type": "boolean"
+        },
+        {
+          "description": "The plugin leaves the rotated value under another setting.",
+          "type": "object",
+          "properties": {
+            "setting": {
+              "description": "The setting's name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "setting"
+          ]
+        },
+        {
+          "description": "The plugin leaves the rotated value in a file.",
+          "type": "object",
+          "properties": {
+            "file": {
+              "description": "The file's path, as components from the container's root\n— the shape every path in this system takes.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "file"
+          ]
+        },
+        {
+          "description": "The plugin leaves the rotated value in Eliza's own vault.",
+          "type": "object",
+          "properties": {
+            "vault": {
+              "description": "The entry's key, as the plugin names it. `{agent_id}` in\nit is replaced with the lineage's agent id, which the\nharness minted and the caller cannot know — the wallet\nplugin's `agent.<agentId>.wallet.<chain>` is the shape.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "vault"
+          ]
+        }
+      ]
+    },
+    "Tool": {
+      "description": "One tool container the program depends on: everything the caller\nneeds to run it that the image can know, and nothing the caller\nalone can know.\n\nA [`Container`](crate::shared::containers::request::Container) is\nan image, two limits, mounts and arguments. The first four are\nhere, member for member; the mounts are not, because a volume is\nnamed by a `volume_name` in the caller's own listing and a FUSE\nmount is something the caller serves live, and a tool that named\neither would be dictating the caller's storage.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "What the program calls it: the caller's handle for the tool\ncontainer, and the label the caller uses if it prefixes the\ntool's tools when it merges lists. Unique in the list. The\nprogram never finds a server by it — it calls tools by whatever\nnames the caller's merged list shows, and knows which image\nserves each by the image under `_meta`, see\n[`shared::mcp`](crate::shared::mcp).",
+          "type": "string"
+        },
+        "image": {
+          "description": "The image: a name and a digest, the pair a\n`containers::tools::run` request names.",
+          "$ref": "#/$defs/Image"
+        },
+        "memory": {
+          "description": "The memory the tool container needs, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "disk": {
+          "description": "The bytes the tool container may write, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "arguments": {
+          "description": "The arguments the tool container is registered with — the\n`arguments` of the run request that makes it, verbatim."
+        }
+      },
+      "required": [
+        "name",
+        "image",
+        "memory",
+        "disk",
+        "arguments"
+      ]
+    },
+    "Image": {
+      "description": "The image, by its repository path and its manifest digest — the\npair [`images::check`](crate::endpoints::images::check::client::request::Frame)\nasks about, so a check that came back available names an image a\nrun can ask for, with nothing to translate between them.\n\n# The digest is the image\n\nA digest cannot be repointed at different content, so an image\nmeans the same bytes every time, wherever they come from. That is\nthe whole of what the wire asserts: the provider runs the image\nthe digest names and no other.\n\n# Who supplies the bytes is the provider's\n\nNot on the wire. A provider may hold the image already, pull it\nfrom a registry it uses, or take it from the caller — asking on\nthe run scope whether the caller holds it and, when it does, for\nits manifest and blobs, see [`oci`](crate::shared::containers::oci).\nWhich of those, in what order, and which registries, is the\nprovider's policy, and a caller learns only whether the run\nhappened. A caller need not hold what it names; one that does\nanswers so when asked.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The repository path — `library/nginx`, `myorg/myimage`. No\nhost: where the bytes come from is not the caller's to say.\n\nIt lands in a reference by concatenation wherever a provider\npulls from, so a provider refuses one that is not a repository\npath and normalizes nothing.",
+          "type": "string"
+        },
+        "digest": {
+          "description": "The manifest digest, `<algorithm>:<hex>`.\n\nWhat actually identifies the image: a runtime hashes what it\npulls, so a source serving other bytes under it fails before\nanything runs.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "digest"
+      ]
+    }
+  }
+}

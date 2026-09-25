@@ -1,5 +1,6 @@
 packages:
   - diverge-provider-web
+  - diverge-desktop
   - objectiveai-sdk-js
   - objectiveai-web
   - objectiveai-viewer

@@ -1,0 +1,1876 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent",
+  "description": "An agent running against Hermes (Nous Research's agent harness).\n\nEvery field here is HONORABLE: it names a mechanism the container\nactually has — a `config.yaml` key its harness writes before\nHermes starts, or a per-request field on the run it drives — and\nnothing else made the cut. What Hermes cannot be told through its\nwire is not here: no skill preloading (skills arrive as mounts\nunder `/root/.hermes/external-skills/`, one directory per skill\nholding its `SKILL.md`, and Hermes indexes them itself — that\npath, not its own `skills/`, which it writes into), no\ntemperature (Hermes has no\nmain-agent sampling key), no thinking-token budget (the\n[`effort`](Self::effort) ladder is the whole reasoning\nvocabulary).",
+  "type": "object",
+  "properties": {
+    "provider": {
+      "description": "The inference source, credentials and all — Hermes is\nmulti-provider by design, this picks which, and the pick\ncarries its own auth as arguments. See [`Provider`].",
+      "$ref": "#/$defs/Provider"
+    },
+    "model": {
+      "description": "The model to run, in the provider's own naming.",
+      "type": "string"
+    },
+    "system_prompt": {
+      "description": "The system prompt, applied per request.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "effort": {
+      "description": "Reasoning effort. Absent = the provider's own default;\n[`none`](Effort::None) = explicitly disabled — Hermes's own\ndisable sentinel, which is why absence and `none` are\ndifferent facts. See [`Effort`].",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Effort"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "toolsets": {
+      "description": "Hermes's LOCAL capabilities, one switch each: an\n`Option<bool>` where a tool takes nothing, that tool's own\nargument structure where it does — absent is off either way,\nand the whole structure absent is everything off. (The\ncaller's MCP tools ride beside these regardless, and the tool\ncontainers the agent asks for are\n[`mcp_tools`](Self::mcp_tools).) See [`Toolsets`].",
+      "$ref": "#/$defs/Toolsets",
+      "default": {}
+    },
+    "mcp_tools": {
+      "description": "The tool containers this agent depends on, each one the caller\nruns and serves to it as an MCP server, in the form the\nprovider's wire defines. Passed back whole as the registration's\nanswer, which is how the caller learns of them. Absent is none.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Tool"
+      }
+    }
+  },
+  "required": [
+    "provider",
+    "model"
+  ],
+  "$defs": {
+    "Provider": {
+      "description": "The inference source, credentials and all.\n\nUntagged, discriminated by each variant's own `provider` constant\n— the same discipline the [`Agent`](super::super::super::Agent)\nunion uses for `upstream`. One variant per provider because the\nargument sets genuinely differ: most are a single key, but\nbedrock is AWS credentials, vertex is a service-account document,\nazure-foundry and custom carry their endpoints — and each key\napplies through a different mechanism the variant's own docs\nspell out.\n\nCLOSED at the pin, deliberately: user plugins can extend Hermes's\nregistry, but the container runs stock Hermes, so the bundled set\nis the whole vocabulary — minus `copilot-acp`, whose auth is not\nHermes's to hold (see [the module](super)). Rotating-OAuth\nproviders carry their state as RESOURCES rather than plain\nvalues; the module doc says what that means.\n\nHermes's own `auto` — provider detection from whatever\ncredentials happen to be present — is deliberately NOT here, and\nunder auth-as-arguments it is not even coherent: the request\ncarries exactly one provider's credentials, so there is nothing\nto detect.",
+      "anyOf": [
+        {
+          "description": "See [`actual::Provider`](super::actual::Provider).",
+          "$ref": "#/$defs/Provider2"
+        },
+        {
+          "description": "See [`ai_gateway::Provider`](super::ai_gateway::Provider).",
+          "$ref": "#/$defs/Provider3"
+        },
+        {
+          "description": "See [`alibaba::Provider`](super::alibaba::Provider).",
+          "$ref": "#/$defs/Provider4"
+        },
+        {
+          "description": "See [`alibaba_coding_plan::Provider`](super::alibaba_coding_plan::Provider).",
+          "$ref": "#/$defs/Provider5"
+        },
+        {
+          "description": "See [`anthropic::Provider`](super::anthropic::Provider).",
+          "$ref": "#/$defs/Provider6"
+        },
+        {
+          "description": "See [`arcee::Provider`](super::arcee::Provider).",
+          "$ref": "#/$defs/Provider7"
+        },
+        {
+          "description": "See [`azure_foundry::Provider`](super::azure_foundry::Provider).",
+          "$ref": "#/$defs/Provider8"
+        },
+        {
+          "description": "See [`bedrock::Provider`](super::bedrock::Provider).",
+          "$ref": "#/$defs/Provider9"
+        },
+        {
+          "description": "See [`commandcode::Provider`](super::commandcode::Provider).",
+          "$ref": "#/$defs/Provider10"
+        },
+        {
+          "description": "See [`commandcode_anthropic::Provider`](super::commandcode_anthropic::Provider).",
+          "$ref": "#/$defs/Provider11"
+        },
+        {
+          "description": "See [`copilot::Provider`](super::copilot::Provider).",
+          "$ref": "#/$defs/Provider12"
+        },
+        {
+          "description": "See [`custom::Provider`](super::custom::Provider).",
+          "$ref": "#/$defs/Provider13"
+        },
+        {
+          "description": "See [`deepinfra::Provider`](super::deepinfra::Provider).",
+          "$ref": "#/$defs/Provider14"
+        },
+        {
+          "description": "See [`deepseek::Provider`](super::deepseek::Provider).",
+          "$ref": "#/$defs/Provider15"
+        },
+        {
+          "description": "See [`fireworks::Provider`](super::fireworks::Provider).",
+          "$ref": "#/$defs/Provider16"
+        },
+        {
+          "description": "See [`gemini::Provider`](super::gemini::Provider).",
+          "$ref": "#/$defs/Provider17"
+        },
+        {
+          "description": "See [`gmi::Provider`](super::gmi::Provider).",
+          "$ref": "#/$defs/Provider18"
+        },
+        {
+          "description": "See [`huggingface::Provider`](super::huggingface::Provider).",
+          "$ref": "#/$defs/Provider19"
+        },
+        {
+          "description": "See [`kilocode::Provider`](super::kilocode::Provider).",
+          "$ref": "#/$defs/Provider20"
+        },
+        {
+          "description": "See [`kimi_coding::Provider`](super::kimi_coding::Provider).",
+          "$ref": "#/$defs/Provider21"
+        },
+        {
+          "description": "See [`kimi_coding_cn::Provider`](super::kimi_coding_cn::Provider).",
+          "$ref": "#/$defs/Provider22"
+        },
+        {
+          "description": "See [`meta_ai::Provider`](super::meta_ai::Provider).",
+          "$ref": "#/$defs/Provider23"
+        },
+        {
+          "description": "See [`minimax::Provider`](super::minimax::Provider).",
+          "$ref": "#/$defs/Provider24"
+        },
+        {
+          "description": "See [`minimax_cn::Provider`](super::minimax_cn::Provider).",
+          "$ref": "#/$defs/Provider25"
+        },
+        {
+          "description": "See [`minimax_oauth::Provider`](super::minimax_oauth::Provider).",
+          "$ref": "#/$defs/Provider26"
+        },
+        {
+          "description": "See [`nebius_token_factory::Provider`](super::nebius_token_factory::Provider).",
+          "$ref": "#/$defs/Provider27"
+        },
+        {
+          "description": "See [`nous::Provider`](super::nous::Provider).",
+          "$ref": "#/$defs/Provider28"
+        },
+        {
+          "description": "See [`novita::Provider`](super::novita::Provider).",
+          "$ref": "#/$defs/Provider29"
+        },
+        {
+          "description": "See [`nvidia::Provider`](super::nvidia::Provider).",
+          "$ref": "#/$defs/Provider30"
+        },
+        {
+          "description": "See [`ollama_cloud::Provider`](super::ollama_cloud::Provider).",
+          "$ref": "#/$defs/Provider31"
+        },
+        {
+          "description": "See [`openai_codex::Provider`](super::openai_codex::Provider).",
+          "$ref": "#/$defs/Provider32"
+        },
+        {
+          "description": "See [`opencode_free::Provider`](super::opencode_free::Provider).",
+          "$ref": "#/$defs/Provider33"
+        },
+        {
+          "description": "See [`opencode_go::Provider`](super::opencode_go::Provider).",
+          "$ref": "#/$defs/Provider34"
+        },
+        {
+          "description": "See [`opencode_zen::Provider`](super::opencode_zen::Provider).",
+          "$ref": "#/$defs/Provider35"
+        },
+        {
+          "description": "See [`openrouter::Provider`](super::openrouter::Provider).",
+          "$ref": "#/$defs/Provider36"
+        },
+        {
+          "description": "See [`qwen_oauth::Provider`](super::qwen_oauth::Provider).",
+          "$ref": "#/$defs/Provider37"
+        },
+        {
+          "description": "See [`router::Provider`](super::router::Provider).",
+          "$ref": "#/$defs/Provider38"
+        },
+        {
+          "description": "See [`stepfun::Provider`](super::stepfun::Provider).",
+          "$ref": "#/$defs/Provider39"
+        },
+        {
+          "description": "See [`upstage::Provider`](super::upstage::Provider).",
+          "$ref": "#/$defs/Provider40"
+        },
+        {
+          "description": "See [`vertex::Provider`](super::vertex::Provider).",
+          "$ref": "#/$defs/Provider41"
+        },
+        {
+          "description": "See [`xai::Provider`](super::xai::Provider).",
+          "$ref": "#/$defs/Provider42"
+        },
+        {
+          "description": "See [`xiaomi::Provider`](super::xiaomi::Provider).",
+          "$ref": "#/$defs/Provider43"
+        },
+        {
+          "description": "See [`zai::Provider`](super::zai::Provider).",
+          "$ref": "#/$defs/Provider44"
+        }
+      ]
+    },
+    "Provider2": {
+      "description": "Actual Computer.\n\nAPPLICATION: the harness sets `ACTUAL_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `actual`.",
+          "$ref": "#/$defs/Actual"
+        },
+        "api_key": {
+          "description": "The API key, applied as `ACTUAL_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Actual": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "actual"
+      ]
+    },
+    "Provider3": {
+      "description": "Vercel AI Gateway.\n\nAPPLICATION: the harness sets `AI_GATEWAY_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `ai-gateway`.",
+          "$ref": "#/$defs/AiGateway"
+        },
+        "api_key": {
+          "description": "The API key, applied as `AI_GATEWAY_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "AiGateway": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "ai-gateway"
+      ]
+    },
+    "Provider4": {
+      "description": "Alibaba Cloud (DashScope).\n\nAPPLICATION: the harness sets `DASHSCOPE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `alibaba`.",
+          "$ref": "#/$defs/Alibaba"
+        },
+        "api_key": {
+          "description": "The API key, applied as `DASHSCOPE_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Alibaba": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "alibaba"
+      ]
+    },
+    "Provider5": {
+      "description": "Alibaba Cloud's dedicated coding tier.\n\nAPPLICATION: the harness sets `ALIBABA_CODING_PLAN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.\n(`DASHSCOPE_API_KEY` is an accepted fallback in Hermes; the\nspecific var is the one set.)",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `alibaba-coding-plan`.",
+          "$ref": "#/$defs/AlibabaCodingPlan"
+        },
+        "api_key": {
+          "description": "The API key, applied as `ALIBABA_CODING_PLAN_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "AlibabaCodingPlan": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "alibaba-coding-plan"
+      ]
+    },
+    "Provider6": {
+      "description": "Anthropic, over the Messages API.\n\nAPPLICATION: the harness sets `ANTHROPIC_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `anthropic`.",
+          "$ref": "#/$defs/Anthropic"
+        },
+        "api_key": {
+          "description": "The API key, applied as `ANTHROPIC_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Anthropic": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "anthropic"
+      ]
+    },
+    "Provider7": {
+      "description": "Arcee AI.\n\nAPPLICATION: the harness sets `ARCEEAI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `arcee`.",
+          "$ref": "#/$defs/Arcee"
+        },
+        "api_key": {
+          "description": "The API key, applied as `ARCEEAI_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Arcee": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "arcee"
+      ]
+    },
+    "Provider8": {
+      "description": "Microsoft Azure Foundry — a caller-supplied deployment, so the\nendpoint is as much the credential as the key is.\n\nAPPLICATION: the harness sets `AZURE_FOUNDRY_API_KEY` to\n[`api_key`](Self::api_key) and `AZURE_FOUNDRY_BASE_URL` to\n[`base_url`](Self::base_url) in the gateway's process environment\nbefore Hermes starts. Both are required: Hermes raises a hard\nauth error on a missing base URL. The Entra-ID mode is\ndeliberately absent — ambient Azure identity is not an argument.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `azure-foundry`.",
+          "$ref": "#/$defs/AzureFoundry"
+        },
+        "api_key": {
+          "description": "The API key, applied as `AZURE_FOUNDRY_API_KEY`.",
+          "type": "string"
+        },
+        "base_url": {
+          "description": "The deployment's endpoint, applied as\n`AZURE_FOUNDRY_BASE_URL`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key",
+        "base_url"
+      ]
+    },
+    "AzureFoundry": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "azure-foundry"
+      ]
+    },
+    "Provider9": {
+      "description": "AWS Bedrock — AWS credentials, not a provider key.\n\nAPPLICATION: the harness sets the AWS SDK's own env vars in the\ngateway's process environment before Hermes starts — see\n[`Auth`] for which — plus `AWS_REGION` to\n[`region`](Self::region) when present. These must be REAL\nprocess env: the botocore chain underneath never reads Hermes's\ndotenv.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `bedrock`.",
+          "$ref": "#/$defs/Bedrock"
+        },
+        "auth": {
+          "description": "The credential itself. See [`Auth`].",
+          "$ref": "#/$defs/Auth"
+        },
+        "region": {
+          "description": "The region, applied as `AWS_REGION`; absent = Hermes's own\ndefault (`us-east-1`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "provider",
+        "auth"
+      ]
+    },
+    "Bedrock": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "bedrock"
+      ]
+    },
+    "Auth": {
+      "description": "One of AWS's two static credential shapes. Untagged — the field\nnames are disjoint, so the shape is its own discriminator.\n\nThe rest of the botocore chain (profiles, container/IMDS roles,\nweb identity) is deliberately absent: those are facts about a\nmachine, and a request has no machine.",
+      "anyOf": [
+        {
+          "description": "A Bedrock API key, applied as `AWS_BEARER_TOKEN_BEDROCK` —\nthe first credential the chain checks.",
+          "type": "object",
+          "properties": {
+            "bearer_token": {
+              "description": "The key.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "bearer_token"
+          ]
+        },
+        {
+          "description": "Static SigV4 credentials, applied as `AWS_ACCESS_KEY_ID`,\n`AWS_SECRET_ACCESS_KEY` and, when present,\n`AWS_SESSION_TOKEN`.",
+          "type": "object",
+          "properties": {
+            "access_key_id": {
+              "description": "The access key id.",
+              "type": "string"
+            },
+            "secret_access_key": {
+              "description": "The secret access key.",
+              "type": "string"
+            },
+            "session_token": {
+              "description": "The session token, for temporary credentials.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "access_key_id",
+            "secret_access_key"
+          ]
+        }
+      ]
+    },
+    "Provider10": {
+      "description": "CommandCode.\n\nAPPLICATION: the harness sets `COMMANDCODE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `commandcode`.",
+          "$ref": "#/$defs/Commandcode"
+        },
+        "api_key": {
+          "description": "The API key, applied as `COMMANDCODE_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Commandcode": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "commandcode"
+      ]
+    },
+    "Provider11": {
+      "description": "CommandCode's Anthropic-dialect route.\n\nAPPLICATION: the harness sets `COMMANDCODE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.\n(The same key as [`commandcode`](super::commandcode::Provider)\n— one credential, two wires.)",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `commandcode-anthropic`.",
+          "$ref": "#/$defs/CommandcodeAnthropic"
+        },
+        "api_key": {
+          "description": "The API key, applied as `COMMANDCODE_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "CommandcodeAnthropic": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "commandcode-anthropic"
+      ]
+    },
+    "Provider12": {
+      "description": "GitHub Copilot (token exchange).\n\nAPPLICATION: the harness sets `COPILOT_GITHUB_TOKEN` to\n[`github_token`](Self::github_token) in the gateway's process\nenvironment before Hermes starts; Hermes performs the\nGitHub-token → Copilot-api-token exchange on its own, and setting\nthe var also suppresses its `gh auth token` fallback.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `copilot`.",
+          "$ref": "#/$defs/Copilot"
+        },
+        "github_token": {
+          "description": "The GitHub token the exchange starts from, applied as\n`COPILOT_GITHUB_TOKEN`. Must be an OAuth or fine-grained\ntoken (`gho_`/`ghu_`/`github_pat_`) — Hermes rejects classic\n`ghp_` PATs.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "github_token"
+      ]
+    },
+    "Copilot": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "copilot"
+      ]
+    },
+    "Provider13": {
+      "description": "Any OpenAI-compatible endpoint the caller names — the local\nruntimes' home (ollama, vllm, llama.cpp all alias onto it in\nHermes itself).\n\nAPPLICATION: the harness sets `CUSTOM_BASE_URL` to\n[`base_url`](Self::base_url) in the gateway's process environment\nbefore Hermes starts, and writes the same URL as `model.base_url`\nin the config it already owns, beside `model.api_key` when\n[`api_key`](Self::api_key) is present — Hermes reads that key only\nnext to a configured URL. With no key, Hermes supplies its own\n`no-key-required` placeholder — the keyless case is the endpoint's\nbusiness, not a protocol gap.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `custom`.",
+          "$ref": "#/$defs/Custom"
+        },
+        "base_url": {
+          "description": "The endpoint, applied as `CUSTOM_BASE_URL` and `model.base_url`.",
+          "type": "string"
+        },
+        "api_key": {
+          "description": "The API key the endpoint expects, if it expects one; applied\nas `model.api_key`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "provider",
+        "base_url"
+      ]
+    },
+    "Custom": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "custom"
+      ]
+    },
+    "Provider14": {
+      "description": "DeepInfra.\n\nAPPLICATION: the harness sets `DEEPINFRA_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `deepinfra`.",
+          "$ref": "#/$defs/Deepinfra"
+        },
+        "api_key": {
+          "description": "The API key, applied as `DEEPINFRA_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Deepinfra": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "deepinfra"
+      ]
+    },
+    "Provider15": {
+      "description": "DeepSeek.\n\nAPPLICATION: the harness sets `DEEPSEEK_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `deepseek`.",
+          "$ref": "#/$defs/Deepseek"
+        },
+        "api_key": {
+          "description": "The API key, applied as `DEEPSEEK_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Deepseek": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "deepseek"
+      ]
+    },
+    "Provider16": {
+      "description": "Fireworks AI.\n\nAPPLICATION: the harness sets `FIREWORKS_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `fireworks`.",
+          "$ref": "#/$defs/Fireworks"
+        },
+        "api_key": {
+          "description": "The API key, applied as `FIREWORKS_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Fireworks": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "fireworks"
+      ]
+    },
+    "Provider17": {
+      "description": "Google Gemini (AI Studio).\n\nAPPLICATION: the harness sets `GEMINI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.\nThe harness must NOT set `GOOGLE_API_KEY`, which Hermes\nchecks first.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `gemini`.",
+          "$ref": "#/$defs/Gemini"
+        },
+        "api_key": {
+          "description": "The API key, applied as `GEMINI_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Gemini": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "gemini"
+      ]
+    },
+    "Provider18": {
+      "description": "GMI Cloud.\n\nAPPLICATION: the harness sets `GMI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `gmi`.",
+          "$ref": "#/$defs/Gmi"
+        },
+        "api_key": {
+          "description": "The API key, applied as `GMI_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Gmi": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "gmi"
+      ]
+    },
+    "Provider19": {
+      "description": "HuggingFace's inference router.\n\nAPPLICATION: the harness sets `HF_TOKEN` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `huggingface`.",
+          "$ref": "#/$defs/Huggingface"
+        },
+        "api_key": {
+          "description": "The API key, applied as `HF_TOKEN`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Huggingface": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "huggingface"
+      ]
+    },
+    "Provider20": {
+      "description": "Kilo Code's gateway.\n\nAPPLICATION: the harness sets `KILOCODE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `kilocode`.",
+          "$ref": "#/$defs/Kilocode"
+        },
+        "api_key": {
+          "description": "The API key, applied as `KILOCODE_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Kilocode": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "kilocode"
+      ]
+    },
+    "Provider21": {
+      "description": "Moonshot's Kimi coding tier.\n\nAPPLICATION: the harness sets `KIMI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `kimi-coding`.",
+          "$ref": "#/$defs/KimiCoding"
+        },
+        "api_key": {
+          "description": "The API key, applied as `KIMI_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "KimiCoding": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "kimi-coding"
+      ]
+    },
+    "Provider22": {
+      "description": "Moonshot's Kimi coding tier, China endpoint.\n\nAPPLICATION: the harness sets `KIMI_CN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `kimi-coding-cn`.",
+          "$ref": "#/$defs/KimiCodingCn"
+        },
+        "api_key": {
+          "description": "The API key, applied as `KIMI_CN_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "KimiCodingCn": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "kimi-coding-cn"
+      ]
+    },
+    "Provider23": {
+      "description": "Meta's Model API (Muse Spark).\n\nAPPLICATION: the harness sets `MODEL_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `meta-ai`.",
+          "$ref": "#/$defs/MetaAi"
+        },
+        "api_key": {
+          "description": "The API key, applied as `MODEL_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "MetaAi": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "meta-ai"
+      ]
+    },
+    "Provider24": {
+      "description": "MiniMax.\n\nAPPLICATION: the harness sets `MINIMAX_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `minimax`.",
+          "$ref": "#/$defs/Minimax"
+        },
+        "api_key": {
+          "description": "The API key, applied as `MINIMAX_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Minimax": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "minimax"
+      ]
+    },
+    "Provider25": {
+      "description": "MiniMax, China endpoint.\n\nAPPLICATION: the harness sets `MINIMAX_CN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `minimax-cn`.",
+          "$ref": "#/$defs/MinimaxCn"
+        },
+        "api_key": {
+          "description": "The API key, applied as `MINIMAX_CN_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "MinimaxCn": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "minimax-cn"
+      ]
+    },
+    "Provider26": {
+      "description": "MiniMax over OAuth. Single-use rotating refresh tokens, so the\ncredential is a RESOURCE: the caller provides its current state,\nthe run rotates it, and the rotated state is surfaced back to\nthe caller instead of silently burning their login. (Keyed\nMiniMax is [`minimax`](super::minimax::Provider) /\n[`minimax_cn`](super::minimax_cn::Provider).)\n\nAPPLICATION: the document lives in the vault under\n[`MINIMAX_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::MINIMAX_OAUTH). The harness locks that\nkey for the run, reads the document, and writes it as the\n`providers.minimax-oauth` entry of `$HERMES_HOME/auth.json`\nbefore Hermes starts — provider selection rides the config the\nharness already owns, never the file's `active_provider`. On\ntoken refresh Hermes rewrites the entry in place; at the run's\nend the rewritten document is set back under the key, and the\nkey unlocked. Nothing about it is an argument: choosing this\nprovider is the whole ask.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `minimax-oauth`.",
+          "$ref": "#/$defs/MinimaxOauth"
+        }
+      },
+      "required": [
+        "provider"
+      ]
+    },
+    "MinimaxOauth": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "minimax-oauth"
+      ]
+    },
+    "Provider27": {
+      "description": "Nebius Token Factory.\n\nAPPLICATION: the harness sets `NEBIUS_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `nebius-token-factory`.",
+          "$ref": "#/$defs/NebiusTokenFactory"
+        },
+        "api_key": {
+          "description": "The API key, applied as `NEBIUS_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "NebiusTokenFactory": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "nebius-token-factory"
+      ]
+    },
+    "Provider28": {
+      "description": "Nous Research — the Portal, Hermes's home team. OAuth with\nsingle-use rotating refresh tokens, so the credential is a\nRESOURCE: the caller provides its current state, the run rotates\nit, and the rotated state is surfaced back to the caller instead\nof silently burning their login.\n\nAPPLICATION: the document lives in the vault under\n[`NOUS_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::NOUS_OAUTH). The harness locks that key\nfor the run, reads the document, and writes it as the\n`providers.nous` entry of `$HERMES_HOME/auth.json` before Hermes\nstarts — provider selection rides the config the harness already\nowns, never the file's `active_provider`, which Hermes treats as\na last-resort fallback. On token refresh Hermes rewrites the\nentry in place; at the run's end the rewritten document is set\nback under the key, and the key unlocked. Nothing about it is an\nargument: choosing this provider is the whole ask.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `nous`.",
+          "$ref": "#/$defs/Nous"
+        }
+      },
+      "required": [
+        "provider"
+      ]
+    },
+    "Nous": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "nous"
+      ]
+    },
+    "Provider29": {
+      "description": "NovitaAI.\n\nAPPLICATION: the harness sets `NOVITA_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `novita`.",
+          "$ref": "#/$defs/Novita"
+        },
+        "api_key": {
+          "description": "The API key, applied as `NOVITA_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Novita": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "novita"
+      ]
+    },
+    "Provider30": {
+      "description": "NVIDIA NIM.\n\nAPPLICATION: the harness sets `NVIDIA_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `nvidia`.",
+          "$ref": "#/$defs/Nvidia"
+        },
+        "api_key": {
+          "description": "The API key, applied as `NVIDIA_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Nvidia": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "nvidia"
+      ]
+    },
+    "Provider31": {
+      "description": "Ollama Cloud (the hosted service, not a local ollama — that is\n[`custom`](super::custom::Provider)).\n\nAPPLICATION: the harness sets `OLLAMA_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `ollama-cloud`.",
+          "$ref": "#/$defs/OllamaCloud"
+        },
+        "api_key": {
+          "description": "The API key, applied as `OLLAMA_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "OllamaCloud": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "ollama-cloud"
+      ]
+    },
+    "Provider32": {
+      "description": "The ChatGPT Codex backend, over external OAuth. Single-use\nrotating refresh tokens, so the credential is a RESOURCE: the\ncaller provides its current state, the run rotates it, and the\nrotated state is surfaced back to the caller instead of silently\nburning their login.\n\nAPPLICATION: the document lives in the vault under\n[`OPENAI_CODEX_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::OPENAI_CODEX_OAUTH). The harness\nlocks that key for the run, reads the document, and writes it as\nthe `providers.openai-codex` entry of `$HERMES_HOME/auth.json`\nbefore Hermes starts — provider selection rides the config the\nharness already owns, never the file's `active_provider`. On\ntoken refresh Hermes rewrites the entry in place; at the run's\nend the rewritten document is set back under the key, and the\nkey unlocked. Nothing about it is an argument: choosing this\nprovider is the whole ask.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `openai-codex`.",
+          "$ref": "#/$defs/OpenaiCodex"
+        }
+      },
+      "required": [
+        "provider"
+      ]
+    },
+    "OpenaiCodex": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "openai-codex"
+      ]
+    },
+    "Provider33": {
+      "description": "OpenCode's free tier — keyless by design.\n\nAPPLICATION: nothing. Hermes short-circuits this provider to an\nanonymous placeholder before any credential check, so the marker\nis the whole argument.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `opencode-free`.",
+          "$ref": "#/$defs/OpencodeFree"
+        }
+      },
+      "required": [
+        "provider"
+      ]
+    },
+    "OpencodeFree": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "opencode-free"
+      ]
+    },
+    "Provider34": {
+      "description": "OpenCode Go.\n\nAPPLICATION: the harness sets `OPENCODE_GO_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `opencode-go`.",
+          "$ref": "#/$defs/OpencodeGo"
+        },
+        "api_key": {
+          "description": "The API key, applied as `OPENCODE_GO_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "OpencodeGo": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "opencode-go"
+      ]
+    },
+    "Provider35": {
+      "description": "OpenCode Zen.\n\nAPPLICATION: the harness sets `OPENCODE_ZEN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `opencode-zen`.",
+          "$ref": "#/$defs/OpencodeZen"
+        },
+        "api_key": {
+          "description": "The API key, applied as `OPENCODE_ZEN_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "OpencodeZen": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "opencode-zen"
+      ]
+    },
+    "Provider36": {
+      "description": "OpenRouter.\n\nAPPLICATION: the harness sets `OPENROUTER_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.\nHermes discards keys that do not start with `sk-or-`.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `openrouter`.",
+          "$ref": "#/$defs/Openrouter"
+        },
+        "api_key": {
+          "description": "The API key, applied as `OPENROUTER_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Openrouter": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "openrouter"
+      ]
+    },
+    "Provider37": {
+      "description": "Qwen's portal, over OAuth. Single-use rotating refresh tokens,\nso the credential is a RESOURCE: the caller provides its current\nstate, the run rotates it, and the rotated state is surfaced\nback to the caller instead of silently burning their login.\n\nAPPLICATION: unlike the other OAuth providers this state is not\nHermes's own — it is the Qwen CLI's token file. The document\nlives in the vault under [`QWEN_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::QWEN_OAUTH); the\nharness locks that key for the run, reads the document, and\nwrites it to `~/.qwen/oauth_creds.json` at the REAL home\ndirectory (Hermes hardcodes that path; it ignores\n`$HERMES_HOME`). On token refresh Hermes rewrites the creds file;\nat the run's end the rewritten document is set back under the\nkey, and the key unlocked. Nothing about it is an argument:\nchoosing this provider is the whole ask.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `qwen-oauth`.",
+          "$ref": "#/$defs/QwenOauth"
+        }
+      },
+      "required": [
+        "provider"
+      ]
+    },
+    "QwenOauth": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "qwen-oauth"
+      ]
+    },
+    "Provider38": {
+      "description": "Ramp Router.\n\nAPPLICATION: the harness sets `RAMP_ROUTER_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `router`.",
+          "$ref": "#/$defs/Router"
+        },
+        "api_key": {
+          "description": "The API key, applied as `RAMP_ROUTER_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Router": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "router"
+      ]
+    },
+    "Provider39": {
+      "description": "StepFun's step plan.\n\nAPPLICATION: the harness sets `STEPFUN_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `stepfun`.",
+          "$ref": "#/$defs/Stepfun"
+        },
+        "api_key": {
+          "description": "The API key, applied as `STEPFUN_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Stepfun": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "stepfun"
+      ]
+    },
+    "Provider40": {
+      "description": "Upstage Solar.\n\nAPPLICATION: the harness sets `UPSTAGE_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `upstage`.",
+          "$ref": "#/$defs/Upstage"
+        },
+        "api_key": {
+          "description": "The API key, applied as `UPSTAGE_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Upstage": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "upstage"
+      ]
+    },
+    "Provider41": {
+      "description": "GCP Vertex AI — a service account, not an API key.\n\nAPPLICATION: the harness writes\n[`service_account_json`](Self::service_account_json) to a file\nand sets `VERTEX_CREDENTIALS_PATH` to it in the gateway's process\nenvironment before Hermes starts; access tokens are minted from\nit per call. `VERTEX_PROJECT_ID` and `VERTEX_REGION` are set from\nthe optional fields when present. Ambient application-default\ncredentials are deliberately absent — those are facts about a\nmachine, and a request has no machine.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `vertex`.",
+          "$ref": "#/$defs/Vertex"
+        },
+        "service_account_json": {
+          "description": "The service-account key document, verbatim JSON.",
+          "type": "string"
+        },
+        "project_id": {
+          "description": "The project, applied as `VERTEX_PROJECT_ID`; absent = the\nproject named inside the service-account document.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "region": {
+          "description": "The region, applied as `VERTEX_REGION`; absent = Hermes's own\ndefault (`global`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "provider",
+        "service_account_json"
+      ]
+    },
+    "Vertex": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "vertex"
+      ]
+    },
+    "Provider42": {
+      "description": "xAI.\n\nAPPLICATION: the harness sets `XAI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `xai`.",
+          "$ref": "#/$defs/Xai"
+        },
+        "api_key": {
+          "description": "The API key, applied as `XAI_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Xai": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "xai"
+      ]
+    },
+    "Provider43": {
+      "description": "Xiaomi MiMo.\n\nAPPLICATION: the harness sets `XIAOMI_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `xiaomi`.",
+          "$ref": "#/$defs/Xiaomi"
+        },
+        "api_key": {
+          "description": "The API key, applied as `XIAOMI_API_KEY`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Xiaomi": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "xiaomi"
+      ]
+    },
+    "Provider44": {
+      "description": "Z.AI (GLM / Zhipu).\n\nAPPLICATION: the harness sets `GLM_API_KEY` to\n[`api_key`](Self::api_key) in the gateway's process environment\nbefore Hermes starts, and `GLM_BASE_URL` to\n[`base_url`](Self::base_url) when present.\n\nThe optional endpoint is the one such override in the vocabulary,\nand it earns its place: without a pinned base URL, Hermes's first\nuse fires a live probe across four candidate endpoints and caches\nthe winner to disk — a network round-trip at start, guessing at a\nfact the caller knows (which of Z.AI's global and CN surfaces\ntheir key belongs to).",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "The discriminator. Always `zai`.",
+          "$ref": "#/$defs/Zai"
+        },
+        "api_key": {
+          "description": "The API key, applied as `GLM_API_KEY`.",
+          "type": "string"
+        },
+        "base_url": {
+          "description": "The endpoint the key belongs to, applied as `GLM_BASE_URL`;\nabsent = Hermes's own endpoint probe.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "provider",
+        "api_key"
+      ]
+    },
+    "Zai": {
+      "description": "[`Provider`]'s discriminator.\n\nOne variant, and the reason the [union](super::Provider) can be\nuntagged: no other provider's arguments can produce this value.",
+      "type": "string",
+      "enum": [
+        "zai"
+      ]
+    },
+    "Effort": {
+      "description": "Hermes's reasoning ladder, whole:\n`none < minimal < low < medium < high < xhigh < max < ultra`.\n\nDeliberately NOT the five-tier `Effort` the claude_code and\ncodex agents share: a different upstream owns a different\nvocabulary — [`none`](Self::None) and [`ultra`](Self::Ultra)\nexist only here, `none` being Hermes's explicit\nreasoning-disabled sentinel (which is why the agent's field is\nan `Option`: absent means the provider's default, `none` means\noff, and those are different facts). Hermes clamps to each\nwire's supported subset itself, always to the nearest WEAKER\nlevel — a caller never has to know which rungs a given model\nexposes.",
+      "oneOf": [
+        {
+          "description": "Reasoning explicitly disabled.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Least.",
+          "type": "string",
+          "const": "minimal"
+        },
+        {
+          "description": "Less.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Balanced.",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "More.",
+          "type": "string",
+          "const": "high"
+        },
+        {
+          "description": "Above high, below max.",
+          "type": "string",
+          "const": "xhigh"
+        },
+        {
+          "description": "As much as the model will spend.",
+          "type": "string",
+          "const": "max"
+        },
+        {
+          "description": "Above even max, where a wire supports it.",
+          "type": "string",
+          "const": "ultra"
+        }
+      ]
+    },
+    "Toolsets": {
+      "description": "Per-toolset switches over Hermes's configurable checklist — the\nlist its own configuration wizard manages, closed at the pin,\nand narrowed to what a REQUEST can actually make work.\n\nTwo field shapes, by whether the toolset takes arguments. A\ntoolset with nothing to configure is an `Option<bool>` where\nABSENT IS OFF — the same as `false` — so nothing is on by\nomission and Hermes's own API-server defaults are never\nconsulted. A toolset with arguments is an `Option` of its own\nstructure — absent is off, present is the switch thrown on WITH\nthat tool's credentials and endpoint facts, each documented in\nits own file with the mechanism the harness applies. Enabling a\ntool without its prerequisites is not a protocol error — the\ntools simply fail as themselves when used.\n\nThese are the agent's LOCAL capabilities: what Hermes itself can\ndo beside the conversation. The caller's MCP tools are not in\nthis vocabulary and never need to be — each configured MCP\nserver becomes its own toolset in Hermes automatically, and the\ncontainer always wires the caller's in. The SKILLS toolset is\nnot here either, on purpose: whether the agent can browse skills\nfollows from whether the request mounted any, not from a switch\nthat could contradict that fact.\n\nWhat is deliberately ABSENT, and why, is [the module](super)'s\nto say.",
+      "type": "object",
+      "properties": {
+        "web": {
+          "description": "Web search and page extraction. See [`web`](super::web).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Toolset"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "browser": {
+          "description": "Browser automation. See [`browser`](super::browser).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Toolset2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "terminal": {
+          "description": "Terminal and process control. Nothing to configure — the\ncontainer is the sandbox, and the local backend reads no\ncredentials.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "file": {
+          "description": "File operations: read, write, patch, search. Nothing to\nconfigure.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "code_execution": {
+          "description": "Code execution. Nothing of its own to configure — scripts\ncall other tools over RPC, and each called tool's own\narguments apply transitively.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "vision": {
+          "description": "Image analysis. Nothing to configure — analysis rides the\nrun's own inference provider.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "video": {
+          "description": "Video analysis. Nothing to configure — it rides the run's\nown inference provider, exactly as vision does.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "image_gen": {
+          "description": "Image generation. See [`image_gen`](super::image_gen).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Toolset3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "video_gen": {
+          "description": "Video generation. See [`video_gen`](super::video_gen).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Toolset4"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "x_search": {
+          "description": "X (Twitter) search. See [`x_search`](super::x_search).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Toolset5"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tts": {
+          "description": "Text-to-speech. See [`tts`](super::tts).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Toolset6"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "todo": {
+          "description": "Task planning (todo). Nothing to configure — the store is\nin-memory and the run's own.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "session_search": {
+          "description": "Searching past conversations. Nothing to configure — the\nlocal session database, credential-free. The database rides\nthe continuation whole, so the searchable past is the\nlineage's, not just this run's.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "memory": {
+          "description": "Hermes's own memory: the two capped files, `MEMORY.md` (the\nagent's notes) and `USER.md` (the user profile), injected into\nthe system prompt at session start and edited by the `memory`\ntool. Nothing to configure — and the files ride the\ncontinuation, so what the tool writes is what the next run\nstarts with. (External memory-provider plugins are a separate\nconfig switch the harness leaves off.)",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "homeassistant": {
+          "description": "Home Assistant control. See\n[`homeassistant`](super::homeassistant).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Toolset7"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spotify": {
+          "description": "Spotify control. See [`spotify`](super::spotify).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Toolset8"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Toolset": {
+      "description": "Web search and page extraction, with its arguments. The field\nbeing absent from [`Toolsets`](super::Toolsets) is Hermes's own\ndefault for this toolset; present is the switch thrown on.\n\nTwo roles, two slots: [`search`](Self::search) is what answers\nqueries, [`extract`](Self::extract) is what turns a page into\ntext — different tools, different backends, independently\nkeyed. Each slot names ONE backend and carries its credential;\na slot left absent runs on Hermes's keyless free-tier ring,\nwhich needs nothing — the keys buy quality and quota, not\nexistence. Every combination is coherent, the empty object\nincluded.",
+      "type": "object",
+      "properties": {
+        "search": {
+          "description": "The search backend, one of [`Search`]'s; absent = the\nkeyless ring.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Search"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extract": {
+          "description": "The extraction backend, one of [`Extract`]'s; absent = the\nkeyless ring.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extract"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Search": {
+      "description": "One search backend, named by the credential it takes. Untagged —\nevery variant carries exactly one distinctly-named field, so the\nfield name is the discriminator and no marker is needed.\n\nOne backend, deliberately: Hermes can pool several keys as\nfallbacks for each other, but a vocabulary where extra keys\nquietly change behavior is the environment-dependent meaning\nthis module keeps rejecting. The caller names the backend; the\nkeyless ring remains the fallback story. The harness applies\nthe variant's env var in the gateway's process environment and\npins `web.search_backend` to the named provider in the config\nit owns.",
+      "anyOf": [
+        {
+          "description": "Tavily, applied as `TAVILY_API_KEY`.",
+          "type": "object",
+          "properties": {
+            "tavily_api_key": {
+              "description": "The key.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tavily_api_key"
+          ]
+        },
+        {
+          "description": "Exa, applied as `EXA_API_KEY`.",
+          "type": "object",
+          "properties": {
+            "exa_api_key": {
+              "description": "The key.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "exa_api_key"
+          ]
+        },
+        {
+          "description": "Parallel, applied as `PARALLEL_API_KEY`.",
+          "type": "object",
+          "properties": {
+            "parallel_api_key": {
+              "description": "The key.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "parallel_api_key"
+          ]
+        },
+        {
+          "description": "Keenable, applied as `KEENABLE_API_KEY`.",
+          "type": "object",
+          "properties": {
+            "keenable_api_key": {
+              "description": "The key.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "keenable_api_key"
+          ]
+        },
+        {
+          "description": "Brave, applied as `BRAVE_SEARCH_API_KEY`.",
+          "type": "object",
+          "properties": {
+            "brave_search_api_key": {
+              "description": "The key.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "brave_search_api_key"
+          ]
+        },
+        {
+          "description": "A self-hosted SearXNG instance, applied as `SEARXNG_URL` —\nthe one backend whose credential is an address.",
+          "type": "object",
+          "properties": {
+            "searxng_url": {
+              "description": "The instance.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "searxng_url"
+          ]
+        }
+      ]
+    },
+    "Extract": {
+      "description": "One extraction backend, named by the credential it takes —\n[`Search`]'s discipline exactly, single-variant today because\nHermes has one keyed extractor at this pin. The harness applies\nthe env var and pins `web.extract_backend`.",
+      "anyOf": [
+        {
+          "description": "Firecrawl, applied as `FIRECRAWL_API_KEY`.",
+          "type": "object",
+          "properties": {
+            "firecrawl_api_key": {
+              "description": "The key.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "firecrawl_api_key"
+          ]
+        }
+      ]
+    },
+    "Toolset2": {
+      "description": "Browser automation, with its arguments. The field being absent\nfrom [`Toolsets`](super::Toolsets) is Hermes's own default for\nthis toolset; present is the switch thrown on.\n\nThe one slot is optional because the default backend is the\ncontainer's own headless Chromium, which needs nothing — the\nslot points the toolset at a browser somewhere else instead,\nand the empty object is the local browser, coherently.",
+      "type": "object",
+      "properties": {
+        "remote": {
+          "description": "The remote backend, one of [`Remote`]'s; absent = the local\nheadless Chromium.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Remote"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Remote": {
+      "description": "One remote browser backend, named by the credentials it takes.\nUntagged — the variants' field sets are disjoint, so the fields\nare the discriminator and no marker is needed. One slot for\nboth because they are the same role: Browserbase IS a CDP\nprovider, and a request naming a raw endpoint and a managed one\nwould be contradicting itself.",
+      "anyOf": [
+        {
+          "description": "Any browser reachable over CDP, applied as\n`BROWSER_CDP_URL`.",
+          "type": "object",
+          "properties": {
+            "cdp_url": {
+              "description": "The endpoint.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "cdp_url"
+          ]
+        },
+        {
+          "description": "Browserbase — the pair is one credential, and the type now\nsays so. Applied as `BROWSERBASE_API_KEY` and\n`BROWSERBASE_PROJECT_ID`.",
+          "type": "object",
+          "properties": {
+            "browserbase_api_key": {
+              "description": "The key.",
+              "type": "string"
+            },
+            "browserbase_project_id": {
+              "description": "The project.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "browserbase_api_key",
+            "browserbase_project_id"
+          ]
+        }
+      ]
+    },
+    "Toolset3": {
+      "description": "Image generation over FAL, the built-in path, with its\narguments. The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on. Hermes's other image\nproviders (openai, krea, deepinfra, xai) are deliberately\nabsent at this pin — one keyed path is enough until asked for\nmore.\n\nThe key is REQUIRED: generation has no keyless path, so a\nswitch thrown on without one could only mean a dead toolset.",
+      "type": "object",
+      "properties": {
+        "fal_key": {
+          "description": "The FAL key, applied as `FAL_KEY` in the gateway's process\nenvironment. [`video_gen`](super::video_gen) names the same\nvariable; a request supplying both MUST agree with itself.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fal_key"
+      ]
+    },
+    "Toolset4": {
+      "description": "Video generation over FAL, the built-in path, with its\narguments — the same deliberate one-provider scope as\n[`image_gen`](super::image_gen). The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on.\n\nThe key is REQUIRED: generation has no keyless path, so a\nswitch thrown on without one could only mean a dead toolset.",
+      "type": "object",
+      "properties": {
+        "fal_key": {
+          "description": "The FAL key, applied as `FAL_KEY` in the gateway's process\nenvironment. [`image_gen`](super::image_gen) names the same\nvariable; a request supplying both MUST agree with itself.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fal_key"
+      ]
+    },
+    "Toolset5": {
+      "description": "X (Twitter) search over the xAI API, with its arguments. The\nfield being absent from [`Toolsets`](super::Toolsets) is\nHermes's own default for this toolset (off); present is the\nswitch thrown on.\n\nThe key path ONLY, deliberately: Hermes's own dispatch prefers\nthe key, and the xAI subscription OAuth bearer answers this\ntool in a degraded no-citation mode — the rotating path is a\nworse product here, not a missing feature.",
+      "type": "object",
+      "properties": {
+        "api_key": {
+          "description": "The xAI API key, applied as `XAI_API_KEY` in the gateway's\nprocess environment.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_key"
+      ]
+    },
+    "Toolset6": {
+      "description": "Text-to-speech, with its arguments. The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on.\n\nThe key is OPTIONAL by the keyless-floor rule: Hermes's default\nvoice is edge-tts, which needs nothing — the empty object is\nspeech on the free voice, coherently. The key is the upgrade,\nnot the existence.",
+      "type": "object",
+      "properties": {
+        "elevenlabs_api_key": {
+          "description": "ElevenLabs, applied as `ELEVENLABS_API_KEY` in the\ngateway's process environment; when present the harness\nalso selects the provider (`tts.provider: elevenlabs` in\nthe config it owns). Hermes's other keyed voices are\ndeliberately absent at this pin.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "Toolset7": {
+      "description": "Home Assistant control, with its arguments. The field being\nabsent from [`Toolsets`](super::Toolsets) is Hermes's own\ndefault for this toolset; present is the switch thrown on.\n\nBoth arguments are REQUIRED here even though Hermes treats the\nurl as optional: its fallback is `homeassistant.local`, an mDNS\nname that is dead inside a container — an instance the caller\ndoes not name is an instance this run cannot reach.",
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "The instance, applied as `HASS_URL` in the gateway's\nprocess environment.",
+          "type": "string"
+        },
+        "token": {
+          "description": "The long-lived access token, applied as `HASS_TOKEN` —\nstatic by Home Assistant's own design, never rotated.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "token"
+      ]
+    },
+    "Toolset8": {
+      "description": "Spotify control, with its arguments — back in the vocabulary,\nbecause its only blocker was rotation and rotation is what the\nvault's lock exists for: Hermes refreshes the PKCE state on\neffectively every Spotify tool call and rewrites the store each\ntime, so the login flows in from the vault and its rotated form\nflows back. The field being absent from\n[`Toolsets`](super::Toolsets) is Hermes's own default for this\ntoolset; present is the switch thrown on.\n\nAPPLICATION: the harness sets `HERMES_SPOTIFY_CLIENT_ID` to\n[`client_id`](Self::client_id) in the gateway's process\nenvironment; the login document lives in the vault under\n[`SPOTIFY_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::SPOTIFY_OAUTH), which the harness locks\nfor the run, reads, and writes as the `providers.spotify` entry\nof `$HERMES_HOME/auth.json` (Hermes keeps this entry inert for\nprovider selection by its own design); at the run's end the\nrotated document is set back under the key, and the key\nunlocked.",
+      "type": "object",
+      "properties": {
+        "client_id": {
+          "description": "The caller's own Spotify app (PKCE — there is no secret,\nand Hermes ships no default app). Static, so a plain\nargument.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "client_id"
+      ]
+    },
+    "Tool": {
+      "description": "One tool container the program depends on: everything the caller\nneeds to run it that the image can know, and nothing the caller\nalone can know.\n\nA [`Container`](crate::shared::containers::request::Container) is\nan image, two limits, mounts and arguments. The first four are\nhere, member for member; the mounts are not, because a volume is\nnamed by a `volume_name` in the caller's own listing and a FUSE\nmount is something the caller serves live, and a tool that named\neither would be dictating the caller's storage.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "What the program calls it: the caller's handle for the tool\ncontainer, and the label the caller uses if it prefixes the\ntool's tools when it merges lists. Unique in the list. The\nprogram never finds a server by it — it calls tools by whatever\nnames the caller's merged list shows, and knows which image\nserves each by the image under `_meta`, see\n[`shared::mcp`](crate::shared::mcp).",
+          "type": "string"
+        },
+        "image": {
+          "description": "The image: a name and a digest, the pair a\n`containers::tools::run` request names.",
+          "$ref": "#/$defs/Image"
+        },
+        "memory": {
+          "description": "The memory the tool container needs, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "disk": {
+          "description": "The bytes the tool container may write, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "arguments": {
+          "description": "The arguments the tool container is registered with — the\n`arguments` of the run request that makes it, verbatim."
+        }
+      },
+      "required": [
+        "name",
+        "image",
+        "memory",
+        "disk",
+        "arguments"
+      ]
+    },
+    "Image": {
+      "description": "The image, by its repository path and its manifest digest — the\npair [`images::check`](crate::endpoints::images::check::client::request::Frame)\nasks about, so a check that came back available names an image a\nrun can ask for, with nothing to translate between them.\n\n# The digest is the image\n\nA digest cannot be repointed at different content, so an image\nmeans the same bytes every time, wherever they come from. That is\nthe whole of what the wire asserts: the provider runs the image\nthe digest names and no other.\n\n# Who supplies the bytes is the provider's\n\nNot on the wire. A provider may hold the image already, pull it\nfrom a registry it uses, or take it from the caller — asking on\nthe run scope whether the caller holds it and, when it does, for\nits manifest and blobs, see [`oci`](crate::shared::containers::oci).\nWhich of those, in what order, and which registries, is the\nprovider's policy, and a caller learns only whether the run\nhappened. A caller need not hold what it names; one that does\nanswers so when asked.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The repository path — `library/nginx`, `myorg/myimage`. No\nhost: where the bytes come from is not the caller's to say.\n\nIt lands in a reference by concatenation wherever a provider\npulls from, so a provider refuses one that is not a repository\npath and normalizes nothing.",
+          "type": "string"
+        },
+        "digest": {
+          "description": "The manifest digest, `<algorithm>:<hex>`.\n\nWhat actually identifies the image: a runtime hashes what it\npulls, so a source serving other bytes under it fails before\nanything runs.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "digest"
+      ]
+    }
+  }
+}

@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent",
+  "description": "An agent running against Claude Code.\n\nFar fewer knobs than OpenRouter's, and not because anything is\nmissing: Claude Code is an agent harness in its own right, so\nthe sampling decisions OpenRouter exposes are made inside it.\nWhat it does expose is its tools: [`tools`](Self::tools) is the\nexact set of built-ins the model is given, every switch stated,\npassed to Claude Code as `--tools`; [`mcp_tools`](Self::mcp_tools)\nis the other kind, the tool containers the agent asks the caller\nto run for it.",
+  "type": "object",
+  "properties": {
+    "model": {
+      "description": "The model to run.",
+      "type": "string"
+    },
+    "tools": {
+      "description": "The switchable built-in tools — each absent or `false` is\noff, and the whole structure absent is every tool off. The\nMCP tools and `Skill` are on regardless; see [`Tools`].",
+      "$ref": "#/$defs/Tools",
+      "default": {}
+    },
+    "thinking": {
+      "description": "Whether to think before answering.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "effort": {
+      "description": "How much effort to spend thinking. Meaningful only with\n[`thinking`](Self::thinking) on.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Effort"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "mcp_tools": {
+      "description": "The tool containers this agent depends on, each one the caller\nruns and serves to it as an MCP server, in the form the\nprovider's wire defines. Passed back whole as the registration's\nanswer, which is how the caller learns of them. Absent is none.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Tool"
+      }
+    }
+  },
+  "required": [
+    "model"
+  ],
+  "$defs": {
+    "Tools": {
+      "description": "The built-in tools Claude Code is given, every one stated.\n\nClaude Code's `--tools` flag takes the exact set of built-ins the\nmodel may call, and this is that set: a switch per tool, each an\n`Option<bool>` where ABSENT IS OFF — the same as `false` — so\nnothing is on by omission and a request names only what it\nturns on. The harness renders the `true` switches as the flag's\nlist, in this order, after the always-on names.\n\nAlways on, no switch: the `mcp__*` tools — the caller's own\ntools, served through the proxy — are not built-ins and are\npresent whatever `--tools` says: the tool channel is what the\nprotocol is built around. Beside them the harness always lists\nthe four MCP resource built-ins (`ListMcpResources`,\n`ReadMcpResource`, `ReadMcpResourceDir`, `RefreshMcpTools` — the\ncaller's resources, through the same proxy), `Skill` (skills are\nthe directories mounted under `~/.claude/skills`; the tool is\noffered whether or not any are, and a call names a skill that is\nnot there fails as \"unknown skill\"), and `ToolSearch`, by which\nthe model loads deferred tools' schemas.\n\nAlways off, no switch: `LSP` (nothing in the image installs a\nlanguage server). Nor does a switch exist for what cannot work\nin the container, which the harness never lists:\n`AskUserQuestion`, `EnterPlanMode`,\n`ExitPlanMode`, `ProposeGoal` and `ProposeSkills` (a call waits\non a user who is not there); `CronCreate`, `CronDelete`,\n`CronList` and `ScheduleWakeup` (the container does not outlive\nthe run); `Artifact`, `Projects`, `ClaudeDesign`, `RemoteTrigger`,\n`PushNotification`, `SendFeedback`, `ReadNotifications`,\n`ShowOnboardingRolePicker` and `EndConversation` (claude.ai\naccount and host features). Nor for the legacy names the binary\nstill answers to (`MultiEdit`, `BashOutput`, `KillShell`): they\nare the old spellings of switches here.\n\nWhether the pinned build honors every name here under `-p` with\nstream-json input is a live-run check, not a promise of this\ntype; the names are as the runtime spells them.",
+      "type": "object",
+      "properties": {
+        "bash": {
+          "description": "`Bash`: runs a command, with an optional timeout and\noptionally in the background.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "read": {
+          "description": "`Read`: reads a file by absolute path, with `offset` and `limit`\nfor large files and `pages` for PDFs.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "write": {
+          "description": "`Write`: writes a whole file, overwriting.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "edit": {
+          "description": "`Edit`: exact-string replacement in a file.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "notebook_edit": {
+          "description": "`NotebookEdit`: replaces, inserts or deletes one Jupyter cell.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "glob": {
+          "description": "`Glob`: file pattern matching.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "grep": {
+          "description": "`Grep`: ripgrep over the workspace (ripgrep ships with the\nbinary).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "task": {
+          "description": "`Task` (also spelled `Agent`): launches a sub-agent. Its chunks\nreach the run's stream attributed by `parent_tool_call_id`.\nLocal sub-agents only: `isolation: remote` needs a cloud\nenvironment the container has no account for.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "send_message": {
+          "description": "`SendMessage`: messages a running named agent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "list_agents": {
+          "description": "`ListAgents`: lists addressable agents.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "task_output": {
+          "description": "`TaskOutput`: reads the output of a background task, blocking\nor not.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "task_stop": {
+          "description": "`TaskStop`: stops a background task by id.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "monitor": {
+          "description": "`Monitor`: watches a command's stdout lines or a WebSocket's\nframes as events.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "workflow": {
+          "description": "`Workflow`: runs a deterministic multi-agent orchestration\nscript.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "todo_write": {
+          "description": "`TodoWrite`: the session's structured todo list.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "task_create": {
+          "description": "`TaskCreate`: creates an entry on the session's task board.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "task_get": {
+          "description": "`TaskGet`: reads one task board entry.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "task_update": {
+          "description": "`TaskUpdate`: updates one task board entry.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "task_list": {
+          "description": "`TaskList`: lists the task board.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "report_findings": {
+          "description": "`ReportFindings`: reports code-review findings as a typed list.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "repl": {
+          "description": "`REPL`: runs JavaScript with persistent state and top-level\nawait.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "web_fetch": {
+          "description": "`WebFetch`: fetches a URL and runs a prompt over the content.\nNeeds outbound network from the container.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "web_search": {
+          "description": "`WebSearch`: searches the web, with domain allow and block\nlists. Needs outbound network from the container.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enter_worktree": {
+          "description": "`EnterWorktree`: creates or switches into a git worktree. Needs\nthe workspace to be a git repository.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "exit_worktree": {
+          "description": "`ExitWorktree`: leaves the worktree, keeping or removing it.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sleep": {
+          "description": "`Sleep`: waits.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "Effort": {
+      "description": "How much effort the model should spend before answering.",
+      "oneOf": [
+        {
+          "description": "Least.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Balanced.",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "More.",
+          "type": "string",
+          "const": "high"
+        },
+        {
+          "description": "Above high, below max.",
+          "type": "string",
+          "const": "xhigh"
+        },
+        {
+          "description": "As much as the model will spend.",
+          "type": "string",
+          "const": "max"
+        }
+      ]
+    },
+    "Tool": {
+      "description": "One tool container the program depends on: everything the caller\nneeds to run it that the image can know, and nothing the caller\nalone can know.\n\nA [`Container`](crate::shared::containers::request::Container) is\nan image, two limits, mounts and arguments. The first four are\nhere, member for member; the mounts are not, because a volume is\nnamed by a `volume_name` in the caller's own listing and a FUSE\nmount is something the caller serves live, and a tool that named\neither would be dictating the caller's storage.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "What the program calls it: the caller's handle for the tool\ncontainer, and the label the caller uses if it prefixes the\ntool's tools when it merges lists. Unique in the list. The\nprogram never finds a server by it — it calls tools by whatever\nnames the caller's merged list shows, and knows which image\nserves each by the image under `_meta`, see\n[`shared::mcp`](crate::shared::mcp).",
+          "type": "string"
+        },
+        "image": {
+          "description": "The image: a name and a digest, the pair a\n`containers::tools::run` request names.",
+          "$ref": "#/$defs/Image"
+        },
+        "memory": {
+          "description": "The memory the tool container needs, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "disk": {
+          "description": "The bytes the tool container may write, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "arguments": {
+          "description": "The arguments the tool container is registered with — the\n`arguments` of the run request that makes it, verbatim."
+        }
+      },
+      "required": [
+        "name",
+        "image",
+        "memory",
+        "disk",
+        "arguments"
+      ]
+    },
+    "Image": {
+      "description": "The image, by its repository path and its manifest digest — the\npair [`images::check`](crate::endpoints::images::check::client::request::Frame)\nasks about, so a check that came back available names an image a\nrun can ask for, with nothing to translate between them.\n\n# The digest is the image\n\nA digest cannot be repointed at different content, so an image\nmeans the same bytes every time, wherever they come from. That is\nthe whole of what the wire asserts: the provider runs the image\nthe digest names and no other.\n\n# Who supplies the bytes is the provider's\n\nNot on the wire. A provider may hold the image already, pull it\nfrom a registry it uses, or take it from the caller — asking on\nthe run scope whether the caller holds it and, when it does, for\nits manifest and blobs, see [`oci`](crate::shared::containers::oci).\nWhich of those, in what order, and which registries, is the\nprovider's policy, and a caller learns only whether the run\nhappened. A caller need not hold what it names; one that does\nanswers so when asked.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The repository path — `library/nginx`, `myorg/myimage`. No\nhost: where the bytes come from is not the caller's to say.\n\nIt lands in a reference by concatenation wherever a provider\npulls from, so a provider refuses one that is not a repository\npath and normalizes nothing.",
+          "type": "string"
+        },
+        "digest": {
+          "description": "The manifest digest, `<algorithm>:<hex>`.\n\nWhat actually identifies the image: a runtime hashes what it\npulls, so a source serving other bytes under it fails before\nanything runs.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "digest"
+      ]
+    }
+  }
+}

@@ -1,0 +1,97 @@
+/* Tokens — from the protocol site (diverge-provider-web/src/layouts/
+   Layout.astro on main, Maya's palette of 2026-09-14). Its own rules:
+   ink #fbeacd, links #ffb2ff, and gold #eba52a for ONE thing only —
+   where you are. The mark's plum #280022 stays the mark's; the ground is
+   that plum taken to near black, #11000e. Surfaces are tints of it,
+   never neutral greys: #22091d raised, #351d30 a rule. A note is #431723
+   with a pink edge. System fonts, 4px corners, dark, no glows.
+
+   Status colours (ok / bad) are NOT from the site — it never needed them.
+   They are the only invented values here, and Maya's to replace. Users
+   will set themes later, so nothing in the app names a colour directly. */
+
+:root {
+  color-scheme: dark;
+
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 15px;
+  --text-xl: 19px;
+  --leading: 1.6;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+
+  --rail-width: 244px;
+  --strip-height: 38px;
+
+  /* the site's */
+  --plum: #280022;
+  --ground: #11000e;
+  --raised: #22091d;
+  --rule: #351d30;
+  --ink: #fbeacd;
+  --pink: #ffb2ff;
+  --gold: #eba52a;
+  --note: #431723;
+
+  /* roles, built only from the site's colours */
+  --bg: var(--ground);
+  --rail: var(--ground);
+  --surface: var(--raised);
+  --surface-2: color-mix(in srgb, var(--raised) 55%, var(--rule));
+  --surface-3: var(--rule);
+  --line: var(--rule);
+  --line-strong: color-mix(in srgb, var(--rule) 80%, var(--ink));
+  --text: var(--ink);
+  --text-2: color-mix(in srgb, var(--ink) 76%, var(--ground));
+  --text-3: color-mix(in srgb, var(--ink) 52%, var(--ground));
+  --accent: var(--pink);
+  --accent-soft: color-mix(in srgb, var(--pink) 14%, var(--ground));
+  --on-accent: var(--plum);
+  --here: var(--gold);
+  --warn: var(--pink);
+  --warn-soft: var(--note);
+  --user: var(--raised);
+
+  /* invented: status the site never needed */
+  --ok: #9dd9ae;
+  --ok-soft: color-mix(in srgb, #9dd9ae 12%, var(--ground));
+  --bad: #ff9a8f;
+  --bad-soft: color-mix(in srgb, #ff9a8f 14%, var(--ground));
+
+  --focus: 0 0 0 2px color-mix(in srgb, var(--pink) 55%, transparent);
+  --shadow: none;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: var(--leading);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+input, textarea, [contenteditable], .selectable { user-select: text; cursor: auto; }
+code, pre, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+:focus-visible { outline: none; box-shadow: var(--focus); }
+h1, h2, h3, p { margin: 0; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }

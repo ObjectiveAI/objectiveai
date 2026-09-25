@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent",
+  "description": "An agent running against Codex.\n\nFew knobs, and not because anything is missing: Codex decides its\nown sampling, its own tools and its own loop, and what it exposes\nto a caller is the model, how hard it reasons and how it speaks,\nwhether it may search the web, and where it sends its requests.\nHow it logs in is not the agent's to say: the login is a mount or\nthe vault's (see [the module](super)). Each field is one config\nkey or flag, named in its\ndoc; every `Option` absent leaves that key unset, so Codex applies\nits own default for the model — except [`web_search`](Self::web_search),\nwhere absent is off, because nothing is on by omission.",
+  "type": "object",
+  "properties": {
+    "model": {
+      "description": "The model to run: `model` (`--model`), in the endpoint's own\nnaming.",
+      "type": "string"
+    },
+    "effort": {
+      "description": "How much effort the model spends reasoning:\n`model_reasoning_effort`. See [`Effort`].",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Effort"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reasoning_summary": {
+      "description": "How much of its reasoning the model says out loud:\n`model_reasoning_summary`. What the stream's reasoning chunks\ncarry. See [`Summary`].",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Summary"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "verbosity": {
+      "description": "How long the model's answers run: `model_verbosity`. See\n[`Verbosity`].",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Verbosity"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "web_search": {
+      "description": "Whether, and how, the model may search the web: `web_search`.\nA capability of Codex itself rather than a tool of the\ncaller's — Codex performs the search and never calls out.\nABSENT IS `disabled`. See [`WebSearch`].",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WebSearch"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "provider": {
+      "description": "Where requests go instead of OpenAI: a `model_providers` entry\nthe harness writes and selects, its key the `OPENAI_API_KEY`\nthe run found. Absent is OpenAI's own endpoint. See\n[`Provider`].",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Provider"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "mcp_tools": {
+      "description": "The tool containers this agent depends on, each one the caller\nruns and serves to it as an MCP server, in the form the\nprovider's wire defines. Passed back whole as the registration's\nanswer, which is how the caller learns of them. Absent is none.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Tool"
+      }
+    }
+  },
+  "required": [
+    "model"
+  ],
+  "$defs": {
+    "Effort": {
+      "description": "How much effort the model spends before answering: Codex's\n`model_reasoning_effort`, its five rungs as Codex spells them.\nThere is no `max`: `xhigh` is the top, and a model that has fewer\nrungs takes the nearest it has.",
+      "oneOf": [
+        {
+          "description": "Least.",
+          "type": "string",
+          "const": "minimal"
+        },
+        {
+          "description": "Little.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Balanced.",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "More.",
+          "type": "string",
+          "const": "high"
+        },
+        {
+          "description": "As much as the model will spend.",
+          "type": "string",
+          "const": "xhigh"
+        }
+      ]
+    },
+    "Summary": {
+      "description": "How much of its reasoning the model says out loud: Codex's\n`model_reasoning_summary`. What the run's reasoning chunks carry —\nCodex streams the summary, never the raw reasoning, so this is\nthe whole of what a caller can see of the model thinking.",
+      "oneOf": [
+        {
+          "description": "The model decides.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Short.",
+          "type": "string",
+          "const": "concise"
+        },
+        {
+          "description": "Long.",
+          "type": "string",
+          "const": "detailed"
+        },
+        {
+          "description": "No summary: the reasoning chunks stay empty.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
+    "Verbosity": {
+      "description": "How long the model's answers run: Codex's `model_verbosity`,\nhonored by the models that take it (the reference names the GPT-5\nfamily on the Responses API) and unset otherwise.",
+      "oneOf": [
+        {
+          "description": "Terse.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Balanced.",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "Expansive.",
+          "type": "string",
+          "const": "high"
+        }
+      ]
+    },
+    "WebSearch": {
+      "description": "Whether, and how, the model may search the web: Codex's\n`web_search`, its four values as Codex spells them. Codex performs\nthe search itself — it is a capability of the upstream, not a tool\nthe caller serves — so a search never appears on the stream as\none of the caller's tool calls. The harness writes `disabled` when\nthe agent says nothing.",
+      "oneOf": [
+        {
+          "description": "No search at all.",
+          "type": "string",
+          "const": "disabled"
+        },
+        {
+          "description": "Search over a cached index.",
+          "type": "string",
+          "const": "cached"
+        },
+        {
+          "description": "Search over the live index.",
+          "type": "string",
+          "const": "indexed"
+        },
+        {
+          "description": "Live fetches of the pages themselves.",
+          "type": "string",
+          "const": "live"
+        }
+      ]
+    },
+    "Provider": {
+      "description": "An endpoint other than OpenAI's: one `model_providers` entry the\nharness writes as `model_providers.diverge` and selects with\n`model_provider = \"diverge\"`. The entry's `env_key` is\n`OPENAI_API_KEY`, the vault's, and its `wire_api` is `responses`,\nthe one value the configuration reference names — so the endpoint\nmust speak the Responses API, which the Diverge relay and every\nupstream this protocol routes do.\n\nAbsent, Codex's own `openai` provider is used, with whatever\nlogin the run found. Present, the entry is keyed by the\n`OPENAI_API_KEY` the run found — a ChatGPT login speaks only to\nOpenAI's own backend, and a provider beside one fails as itself,\nin Codex's words.",
+      "type": "object",
+      "properties": {
+        "base_url": {
+          "description": "The base URL, `/v1` included: `model_providers.diverge.base_url`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "base_url"
+      ]
+    },
+    "Tool": {
+      "description": "One tool container the program depends on: everything the caller\nneeds to run it that the image can know, and nothing the caller\nalone can know.\n\nA [`Container`](crate::shared::containers::request::Container) is\nan image, two limits, mounts and arguments. The first four are\nhere, member for member; the mounts are not, because a volume is\nnamed by a `volume_name` in the caller's own listing and a FUSE\nmount is something the caller serves live, and a tool that named\neither would be dictating the caller's storage.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "What the program calls it: the caller's handle for the tool\ncontainer, and the label the caller uses if it prefixes the\ntool's tools when it merges lists. Unique in the list. The\nprogram never finds a server by it — it calls tools by whatever\nnames the caller's merged list shows, and knows which image\nserves each by the image under `_meta`, see\n[`shared::mcp`](crate::shared::mcp).",
+          "type": "string"
+        },
+        "image": {
+          "description": "The image: a name and a digest, the pair a\n`containers::tools::run` request names.",
+          "$ref": "#/$defs/Image"
+        },
+        "memory": {
+          "description": "The memory the tool container needs, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "disk": {
+          "description": "The bytes the tool container may write, in bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "arguments": {
+          "description": "The arguments the tool container is registered with — the\n`arguments` of the run request that makes it, verbatim."
+        }
+      },
+      "required": [
+        "name",
+        "image",
+        "memory",
+        "disk",
+        "arguments"
+      ]
+    },
+    "Image": {
+      "description": "The image, by its repository path and its manifest digest — the\npair [`images::check`](crate::endpoints::images::check::client::request::Frame)\nasks about, so a check that came back available names an image a\nrun can ask for, with nothing to translate between them.\n\n# The digest is the image\n\nA digest cannot be repointed at different content, so an image\nmeans the same bytes every time, wherever they come from. That is\nthe whole of what the wire asserts: the provider runs the image\nthe digest names and no other.\n\n# Who supplies the bytes is the provider's\n\nNot on the wire. A provider may hold the image already, pull it\nfrom a registry it uses, or take it from the caller — asking on\nthe run scope whether the caller holds it and, when it does, for\nits manifest and blobs, see [`oci`](crate::shared::containers::oci).\nWhich of those, in what order, and which registries, is the\nprovider's policy, and a caller learns only whether the run\nhappened. A caller need not hold what it names; one that does\nanswers so when asked.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The repository path — `library/nginx`, `myorg/myimage`. No\nhost: where the bytes come from is not the caller's to say.\n\nIt lands in a reference by concatenation wherever a provider\npulls from, so a provider refuses one that is not a repository\npath and normalizes nothing.",
+          "type": "string"
+        },
+        "digest": {
+          "description": "The manifest digest, `<algorithm>:<hex>`.\n\nWhat actually identifies the image: a runtime hashes what it\npulls, so a source serving other bytes under it fails before\nanything runs.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "digest"
+      ]
+    }
+  }
+}

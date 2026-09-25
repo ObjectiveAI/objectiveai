@@ -36,6 +36,9 @@ members = [
     "tests/plugins/daemon-echo-plugin",
     "tests/plugins/stderr-plugin",
     "objectiveai-viewer/src-tauri",
+    # The Diverge desktop app, draft one (Maya). Links diverge-daemon-sdk,
+    # which is publish = false with path dependencies, so it lives here.
+    "diverge-desktop/src-tauri",
     "tests/objectiveai-tests",
     "tests/objectiveai-api-tests",
     "tests/objectiveai-cli-tests",
