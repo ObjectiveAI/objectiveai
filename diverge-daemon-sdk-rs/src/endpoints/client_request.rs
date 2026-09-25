@@ -6,7 +6,7 @@ use std::fmt;
 use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::encode::{Encode, Writer};
 
-use super::{agents, filesystem};
+use super::{agents, volumes};
 
 /// The payload of a
 /// [`Request`](diverge_provider_sdk::frame::client::ClientFrame::Request).
@@ -37,12 +37,26 @@ pub enum ClientRequest<'a> {
     AgentsLogs(agents::logs::client::request::Frame),
     /// Tag `4`. List the caller's agents.
     AgentsList(agents::list::client::request::Frame),
-    /// Tag `5`. Read one file off the daemon's host.
-    FilesystemRead(filesystem::read::client::request::Frame),
-    /// Tag `6`. Write one file onto the daemon's host.
-    FilesystemWrite(filesystem::write::client::request::Frame),
-    /// Tag `7`. Watch a directory of the daemon's host.
-    FilesystemFiletree(filesystem::filetree::client::request::Frame),
+    /// Tag `5`. List the daemon's volumes.
+    VolumesList(volumes::list::client::request::Frame),
+    /// Tag `6`. Examine one of them.
+    VolumesStat(volumes::stat::client::request::Frame),
+    /// Tag `7`. Read one file out of one.
+    VolumesRead(volumes::read::client::request::Frame),
+    /// Tag `8`. Write one file into one.
+    VolumesWrite(volumes::write::client::request::Frame),
+    /// Tag `9`. See what one holds.
+    VolumesFiletree(volumes::filetree::client::request::Frame),
+    /// Tag `10`. Ask how large a volume may be made.
+    VolumesCreateCapacity(volumes::create_capacity::client::request::Frame),
+    /// Tag `11`. Make a volume.
+    VolumesCreate(volumes::create::client::request::Frame),
+    /// Tag `12`. Ask how far one may grow.
+    VolumesEditCapacity(volumes::edit_capacity::client::request::Frame),
+    /// Tag `13`. Change how much one reserves, or whether it keeps what is written into it.
+    VolumesEdit(volumes::edit::client::request::Frame),
+    /// Tag `14`. Destroy one.
+    VolumesDelete(volumes::delete::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -57,20 +71,29 @@ pub enum ClientRequest<'a> {
 }
 
 impl Encode for ClientRequest<'_> {
-    /// The ordinary JSON failure: every request is JSON after its
-    /// tag.
-    type Error = serde_json::Error;
+    /// Two ways to fail, because the requests use two encodings
+    /// between them: the agents family is JSON after its tag, and the
+    /// volumes family is postcard, as the provider's is — and two of
+    /// the volumes requests use neither, having nothing to encode.
+    type Error = ClientRequestEncodeError;
 
-    fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), ClientRequestEncodeError> {
         match self {
-            ClientRequest::AgentsCreate(frame) => frame.encode(out),
-            ClientRequest::AgentsDelete(frame) => frame.encode(out),
-            ClientRequest::AgentsMessage(frame) => frame.encode(out),
-            ClientRequest::AgentsLogs(frame) => frame.encode(out),
-            ClientRequest::AgentsList(frame) => frame.encode(out),
-            ClientRequest::FilesystemRead(frame) => frame.encode(out),
-            ClientRequest::FilesystemWrite(frame) => frame.encode(out),
-            ClientRequest::FilesystemFiletree(frame) => frame.encode(out),
+            ClientRequest::AgentsCreate(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Json),
+            ClientRequest::AgentsDelete(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Json),
+            ClientRequest::AgentsMessage(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Json),
+            ClientRequest::AgentsLogs(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Json),
+            ClientRequest::AgentsList(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Json),
+            ClientRequest::VolumesList(frame) => frame.encode(out).map_err(|error| match error {}),
+            ClientRequest::VolumesStat(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
+            ClientRequest::VolumesRead(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
+            ClientRequest::VolumesWrite(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
+            ClientRequest::VolumesFiletree(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
+            ClientRequest::VolumesCreateCapacity(frame) => frame.encode(out).map_err(|error| match error {}),
+            ClientRequest::VolumesCreate(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
+            ClientRequest::VolumesEditCapacity(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
+            ClientRequest::VolumesEdit(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
+            ClientRequest::VolumesDelete(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -110,14 +133,35 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             4 => agents::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsList)
                 .ok(),
-            5 => filesystem::read::client::request::Frame::decode(bytes)
-                .map(ClientRequest::FilesystemRead)
+            5 => volumes::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesList)
                 .ok(),
-            6 => filesystem::write::client::request::Frame::decode(bytes)
-                .map(ClientRequest::FilesystemWrite)
+            6 => volumes::stat::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesStat)
                 .ok(),
-            7 => filesystem::filetree::client::request::Frame::decode(bytes)
-                .map(ClientRequest::FilesystemFiletree)
+            7 => volumes::read::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesRead)
+                .ok(),
+            8 => volumes::write::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesWrite)
+                .ok(),
+            9 => volumes::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesFiletree)
+                .ok(),
+            10 => volumes::create_capacity::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesCreateCapacity)
+                .ok(),
+            11 => volumes::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesCreate)
+                .ok(),
+            12 => volumes::edit_capacity::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesEditCapacity)
+                .ok(),
+            13 => volumes::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesEdit)
+                .ok(),
+            14 => volumes::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesDelete)
                 .ok(),
             _ => None,
         };
@@ -133,10 +177,48 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsMessage(_) => f.write_str("agents message"),
             ClientRequest::AgentsLogs(_) => f.write_str("agents logs"),
             ClientRequest::AgentsList(_) => f.write_str("agents list"),
-            ClientRequest::FilesystemRead(_) => f.write_str("filesystem read"),
-            ClientRequest::FilesystemWrite(_) => f.write_str("filesystem write"),
-            ClientRequest::FilesystemFiletree(_) => f.write_str("filesystem filetree"),
+            ClientRequest::VolumesList(_) => f.write_str("volumes list"),
+            ClientRequest::VolumesStat(_) => f.write_str("volumes stat"),
+            ClientRequest::VolumesRead(_) => f.write_str("volumes read"),
+            ClientRequest::VolumesWrite(_) => f.write_str("volumes write"),
+            ClientRequest::VolumesFiletree(_) => f.write_str("volumes filetree"),
+            ClientRequest::VolumesCreateCapacity(_) => f.write_str("volumes create capacity"),
+            ClientRequest::VolumesCreate(_) => f.write_str("volumes create"),
+            ClientRequest::VolumesEditCapacity(_) => f.write_str("volumes edit capacity"),
+            ClientRequest::VolumesEdit(_) => f.write_str("volumes edit"),
+            ClientRequest::VolumesDelete(_) => f.write_str("volumes delete"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
+        }
+    }
+}
+
+/// A request that would not serialize, by which library refused it.
+#[derive(Debug)]
+pub enum ClientRequestEncodeError {
+    /// A JSON request that would not serialize.
+    Json(serde_json::Error),
+    /// A postcard request that would not serialize.
+    Postcard(postcard::Error),
+}
+
+impl fmt::Display for ClientRequestEncodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClientRequestEncodeError::Json(error) => {
+                write!(f, "request did not serialize as json: {error}")
+            }
+            ClientRequestEncodeError::Postcard(error) => {
+                write!(f, "request did not serialize as postcard: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ClientRequestEncodeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ClientRequestEncodeError::Json(error) => Some(error),
+            ClientRequestEncodeError::Postcard(error) => Some(error),
         }
     }
 }
