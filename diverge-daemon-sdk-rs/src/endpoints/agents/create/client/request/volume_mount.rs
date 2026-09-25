@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 /// A volume of the provider the agent is pinned to, mounted into the
 /// agent's container. Named on the create's
 /// [`Provider`](super::Provider), never on the create itself: a
-/// volume is one provider's, and so is an agent that mounts one.
+/// volume is one provider's, and so is an agent that mounts one. Not
+/// one of the daemon's own [volumes](crate::endpoints::volumes) —
+/// those reach a container as a [`FuseMount`](super::FuseMount),
+/// served across by the daemon.
 ///
 /// Host side first, then the container side — source before
 /// destination, the order a mount reads in everywhere else.

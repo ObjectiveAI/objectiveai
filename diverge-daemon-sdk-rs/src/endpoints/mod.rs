@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them all |
-//! | [`filesystem`] | read a file off the daemon's host; write one onto it; watch a directory of it |
+//! | [`volumes`] | the daemon's own volumes, as a provider's: list them; examine, read, write, walk, resize or destroy one; ask how large one may be made or grow; make one |
 //!
 //! # The tags
 //!
@@ -23,11 +23,19 @@
 //! | `2` | [`agents::message`] |
 //! | `3` | [`agents::logs`] |
 //! | `4` | [`agents::list`] |
-//! | `5` | [`filesystem::read`] |
-//! | `6` | [`filesystem::write`] |
-//! | `7` | [`filesystem::filetree`] |
+//! | `5` | [`volumes::list`] |
+//! | `6` | [`volumes::stat`] |
+//! | `7` | [`volumes::read`] |
+//! | `8` | [`volumes::write`] |
+//! | `9` | [`volumes::filetree`] |
+//! | `10` | [`volumes::create_capacity`] |
+//! | `11` | [`volumes::create`] |
+//! | `12` | [`volumes::edit_capacity`] |
+//! | `13` | [`volumes::edit`] |
+//! | `14` | [`volumes::delete`] |
 //!
-//! Eight, so far. Tags are handed out in the order scopes are defined
+//! Fifteen, so far. The ten volume scopes are the provider's ten, in
+//! the provider's order, behind the daemon's own tags. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,
@@ -51,4 +59,4 @@ mod client_request;
 pub use client_request::*;
 
 pub mod agents;
-pub mod filesystem;
+pub mod volumes;
