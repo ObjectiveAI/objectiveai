@@ -1,6 +1,7 @@
 import { useShared } from "../lib/context";
 import { kindTitle, providerName } from "../lib/format";
 import { t } from "../strings";
+import wordmark from "../assets/wordmark.svg";
 import { Dot, Icon } from "./ui";
 
 export function Rail(props: { focused: string | null }) {
@@ -9,7 +10,7 @@ export function Rail(props: { focused: string | null }) {
   return (
     <nav className="rail">
       <div className="rail-brand">
-        <span className="brand-name">{t.app.name}</span>
+        <img className="brand-wordmark" src={wordmark} alt={t.app.name} draggable={false} />
         <span className="brand-draft">{t.app.draft}</span>
       </div>
 
