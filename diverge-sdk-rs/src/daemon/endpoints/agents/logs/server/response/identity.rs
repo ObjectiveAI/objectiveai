@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 /// A provider that dials the daemon with a brokered credential — a
 /// third party vouching for it, the credential mode the protocol
 /// reserves and does not yet define — will be a third variant here,
-/// `kind: "incoming_brokered"`, when `diverge-broker-sdk` defines
-/// the mode. Nothing about its shape is guessed at now; the `kind`
+/// `kind: "incoming_brokered"`, when the brokered mode is
+/// defined. Nothing about its shape is guessed at now; the `kind`
 /// is there so that it can land beside these two without moving
 /// either.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -26,8 +26,8 @@ use crate::wire::encode::{Encode, Writer};
 /// comes after it rather than for what is there now.
 ///
 /// **Brokered** is the mode that is not here. A broker vouching for a
-/// peer is a different exchange with a different shape — see
-/// `diverge-broker-sdk`, where it will be defined — and reserving tag
+/// peer is a different exchange with a different shape, not yet
+/// defined — and reserving tag
 /// `1` for it costs nothing while guessing at it would cost the
 /// design.
 ///

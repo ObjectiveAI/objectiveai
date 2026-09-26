@@ -1809,14 +1809,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diverge-broker-sdk"
-version = "2.3.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "diverge-container-proxy"
 version = "2.3.0"
 dependencies = [

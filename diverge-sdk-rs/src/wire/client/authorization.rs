@@ -77,8 +77,8 @@ pub enum Authorization<U> {
 ///
 /// One variant today, and an enum anyway, for the reason the wire type
 /// spends a mode byte on one mode: a Brokered credential is coming —
-/// see `diverge-broker-sdk` — and it will be a second variant here the
-/// day it is tag `1` there. An argument that started as a bare string
+/// the mode the wire reserves — and it will be a second variant here
+/// the day it is defined as tag `1`. An argument that started as a bare string
 /// would make that day a signature break on every caller.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Auth {
