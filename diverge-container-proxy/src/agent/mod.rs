@@ -2,7 +2,7 @@
 //! the queue held, the conversation relayed.
 //!
 //! An agent container's entrypoint is an HTTP server on the loopback,
-//! at the port [`diverge_container_proxy_sdk::port()`] names, and the
+//! at the port [`diverge_sdk::container_proxy::inside::port()`] names, and the
 //! loop's three calls are what this module makes of it: `/run`
 //! whenever messages wait and no loop runs; `/enqueue` for each
 //! message while one does; `/dequeue` when the server clears the

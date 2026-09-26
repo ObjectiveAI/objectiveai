@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use diverge_provider_sdk::server::container;
+use diverge_sdk::provider::server::container;
 use futures_util::future;
 use tokio::process::Child;
 use tokio::sync::Mutex;

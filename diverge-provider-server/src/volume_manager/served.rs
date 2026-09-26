@@ -26,11 +26,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytes::Bytes;
-use diverge_provider_sdk::endpoints::volumes::Mode;
-use diverge_provider_sdk::server::served;
-use diverge_provider_sdk::shared::containers::fuse::ack::Refused;
-use diverge_provider_sdk::shared::containers::fuse::stat::Stat;
-use diverge_provider_sdk::shared::containers::fuse::{Attrs, Kind, Listed, Time};
+use diverge_sdk::provider::endpoints::volumes::Mode;
+use diverge_sdk::provider::server::served;
+use diverge_sdk::shared::containers::fuse::ack::Refused;
+use diverge_sdk::shared::containers::fuse::stat::Stat;
+use diverge_sdk::shared::containers::fuse::{Attrs, Kind, Listed, Time};
 use fstool::block::{BlockDevice, FileBackend};
 use fstool::fs::ext::Ext;
 use fstool::fs::{EntryKind, FileMeta, Filesystem as _, OpenFlags, SetAttrs};
@@ -437,9 +437,9 @@ mod host {
     use std::path::Path;
 
     use bytes::Bytes;
-    use diverge_provider_sdk::shared::containers::fuse::ack::Refused;
-    use diverge_provider_sdk::shared::containers::fuse::stat::Stat;
-    use diverge_provider_sdk::shared::containers::fuse::{Attrs, Kind, Listed, Time};
+    use diverge_sdk::shared::containers::fuse::ack::Refused;
+    use diverge_sdk::shared::containers::fuse::stat::Stat;
+    use diverge_sdk::shared::containers::fuse::{Attrs, Kind, Listed, Time};
     use tokio::fs;
     use tokio::io::{AsyncReadExt as _, AsyncSeekExt as _, AsyncWriteExt as _};
 

@@ -2,7 +2,7 @@
 //! as environment, their backend pins, spotify's login as a vault
 //! document.
 
-use diverge_provider_sdk::shared::containers::vault::keys;
+use diverge_sdk::shared::containers::vault::keys;
 
 use super::{Document, Plan, PrepareError, Target};
 use crate::agent::Toolsets;

@@ -3,7 +3,7 @@
 Wire types for the Diverge broker API.
 
 This crate is the **normative artifact** of the broker specification,
-the same way [`diverge-provider-sdk`](../diverge-provider-sdk) is of
+the same way [`diverge-sdk`](../diverge-sdk-rs) is of
 the provider's. The Rust types defined here *are* the protocol. Prose
 documents the requirements a broker must satisfy; it does not define
 the messages.

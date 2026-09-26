@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use diverge_provider_sdk::decode::Decode as _;
-use diverge_provider_sdk::shared::mcp;
+use diverge_sdk::wire::decode::Decode as _;
+use diverge_sdk::shared::mcp;
 
 use crate::answer::{self, Answer};
 use crate::ask;

@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use diverge_container_proxy_sdk::agent::dequeue::{Outcome, request};
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::containers::dequeue::response;
+use diverge_sdk::container_proxy::inside::agent::dequeue::{Outcome, request};
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers::dequeue::response;
 use reqwest::header::CONTENT_TYPE;
 use tokio::sync::oneshot;
 
@@ -69,7 +69,7 @@ pub async fn dequeue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, k
                 Ok(Outcome::Dequeued) => response::Frame::Dequeued,
                 Ok(Outcome::Empty) if replied.drained > 0 => response::Frame::Dequeued,
                 Ok(Outcome::Empty) => response::Frame::Empty,
-                Err(error) => response::Frame::Error(diverge_provider_sdk::shared::error::Error(serde_json::json!({
+                Err(error) => response::Frame::Error(diverge_sdk::shared::error::Error(serde_json::json!({
                     "kind": "agent",
                     "error": format!("the outcome did not parse: {error}"),
                 }))),

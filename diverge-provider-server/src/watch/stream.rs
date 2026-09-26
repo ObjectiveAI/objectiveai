@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use diverge_provider_sdk::shared::filetree::response::Frame;
+use diverge_sdk::shared::filetree::response::Frame;
 use futures_util::Stream;
 use tokio::sync::{Mutex, mpsc};
 use tokio::task::JoinHandle;

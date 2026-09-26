@@ -20,7 +20,7 @@ use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use diverge_provider_sdk::shared::containers::vault;
+use diverge_sdk::shared::containers::vault;
 
 use crate::ask::{self, Asked};
 use crate::own::Own;

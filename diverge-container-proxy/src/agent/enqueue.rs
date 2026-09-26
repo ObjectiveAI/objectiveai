@@ -3,10 +3,10 @@
 
 use std::sync::Arc;
 
-use diverge_container_proxy_sdk::agent;
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::containers::enqueue::response;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::container_proxy::inside::agent;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers::enqueue::response;
+use diverge_sdk::shared::error::Error;
 use reqwest::header::CONTENT_TYPE;
 use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;

@@ -1,10 +1,10 @@
 //! The arguments, told to the program's server once: `POST
 //! /register`, answered with the tools the program depends on.
 
-use diverge_container_proxy_sdk::register::request::Request;
-use diverge_container_proxy_sdk::register::response::Response;
-use diverge_provider_sdk::shared::containers::tools::Tool;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::container_proxy::inside::register::request::Request;
+use diverge_sdk::container_proxy::inside::register::response::Response;
+use diverge_sdk::shared::containers::tools::Tool;
+use diverge_sdk::shared::error::Error;
 use reqwest::header::CONTENT_TYPE;
 use serde_json::Value;
 

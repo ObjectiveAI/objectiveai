@@ -1,8 +1,8 @@
 //! What the container's server says on its own account, for as long
 //! as the channel lives.
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::mcp::notifications::response;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::mcp::notifications::response;
 use tokio::sync::broadcast;
 
 use super::Tool;

@@ -5,9 +5,9 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use diverge_provider_sdk::container_proxy_endpoints::OUTSIDE_PORT;
-use diverge_provider_sdk::server::caller::Caller;
-use diverge_provider_sdk::server::deployment::Deployment;
+use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
+use diverge_sdk::provider::server::caller::Caller;
+use diverge_sdk::provider::server::deployment::Deployment;
 use futures_util::future;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::TcpStream;

@@ -1,6 +1,6 @@
 //! The `result` records: how a turn ended.
 
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response;
 use serde::Deserialize;
 
 use super::message::{CacheCreation, ServerToolUse};

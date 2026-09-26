@@ -3,7 +3,7 @@
 use std::net::IpAddr;
 use std::path::PathBuf;
 
-use diverge_provider_sdk::server::unbrokered_authorizer;
+use diverge_sdk::wire::server::unbrokered_authorizer;
 use futures_util::future;
 
 use super::Error;

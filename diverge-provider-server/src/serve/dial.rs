@@ -3,8 +3,8 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
-use diverge_provider_sdk::connection::Connection;
-use diverge_provider_sdk::server::authorization::{Auth, Authorization};
+use diverge_sdk::wire::connection::Connection;
+use diverge_sdk::wire::server::authorization::{Auth, Authorization};
 use tokio::net::TcpStream;
 use tokio::time::{Duration, sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};

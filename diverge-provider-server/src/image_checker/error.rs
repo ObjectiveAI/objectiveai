@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use diverge_provider_sdk::shared::error;
+use diverge_sdk::shared::error;
 use serde_json::json;
 
 use crate::tools;

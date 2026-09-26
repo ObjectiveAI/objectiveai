@@ -18,7 +18,7 @@
 use std::ffi::OsStr;
 use std::time::SystemTime;
 
-use diverge_provider_sdk::shared::containers::fuse;
+use diverge_sdk::shared::containers::fuse;
 use fuser::{
     BsdFileFlags, Errno, FileAttr, FileHandle, Filesystem, INodeNo, KernelConfig, LockOwner,
     OpenAccMode, OpenFlags, ReplyAttr, ReplyData, ReplyEmpty, ReplyEntry, ReplyOpen, ReplyWrite,

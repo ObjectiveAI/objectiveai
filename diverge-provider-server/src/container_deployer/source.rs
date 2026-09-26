@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use diverge_provider_sdk::server::caller::Caller;
+use diverge_sdk::provider::server::caller::Caller;
 use futures_util::StreamExt as _;
 use futures_util::future::Either;
 use futures_util::stream::FuturesUnordered;

@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use diverge_container_proxy_sdk::agent::dequeue::Outcome;
-use diverge_container_proxy_sdk::agent::enqueue::Fate;
+use diverge_sdk::container_proxy::inside::agent::dequeue::Outcome;
+use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
 use uuid::Uuid;
 
 use crate::response;

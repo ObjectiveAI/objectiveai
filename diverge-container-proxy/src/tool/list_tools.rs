@@ -1,7 +1,7 @@
 //! What tools the container's server offers.
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::mcp::list_tools::{request, response};
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::mcp::list_tools::{request, response};
 
 use super::{Tool, outcome};
 use crate::encode::encoded;

@@ -1,7 +1,7 @@
 //! The provider's contribution: its credential as environment, its
 //! id as the config's selection, its login as a vault document.
 
-use diverge_provider_sdk::shared::containers::vault::keys;
+use diverge_sdk::shared::containers::vault::keys;
 
 use super::{Document, Plan, PrepareError, Target, VERTEX_FILE};
 use super::HERMES_HOME;

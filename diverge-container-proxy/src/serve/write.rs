@@ -4,12 +4,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use diverge_provider_sdk::container_proxy_endpoints::filesystem::write::client::{channel_response, request};
-use diverge_provider_sdk::container_proxy_endpoints::filesystem::write::server::{channel_request, response};
-use diverge_provider_sdk::decode::Decode as _;
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::containers::write_path;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::container_proxy::outside::filesystem::write::client::{channel_response, request};
+use diverge_sdk::container_proxy::outside::filesystem::write::server::{channel_request, response};
+use diverge_sdk::wire::decode::Decode as _;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers::write_path;
+use diverge_sdk::shared::error::Error;
 use tokio::fs;
 use tokio::io::AsyncWriteExt as _;
 

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// of silently burning their login.
 ///
 /// APPLICATION: the document lives in the vault under
-/// [`NOUS_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::NOUS_OAUTH). The harness locks that key
+/// [`NOUS_OAUTH`](diverge_sdk::shared::containers::vault::keys::NOUS_OAUTH). The harness locks that key
 /// for the run, reads the document, and writes it as the
 /// `providers.nous` entry of `$HERMES_HOME/auth.json` before Hermes
 /// starts — provider selection rides the config the harness already

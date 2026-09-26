@@ -4,8 +4,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use diverge_provider_sdk::server::image_registry;
-use diverge_provider_sdk::server::image_source::ImageSource;
+use diverge_sdk::provider::server::image_registry;
+use diverge_sdk::provider::server::image_source::ImageSource;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 

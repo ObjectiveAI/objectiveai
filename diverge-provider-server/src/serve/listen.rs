@@ -8,7 +8,7 @@ use axum::extract::connect_info::ConnectInfo;
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
-use diverge_provider_sdk::connection::Connection;
+use diverge_sdk::wire::connection::Connection;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 

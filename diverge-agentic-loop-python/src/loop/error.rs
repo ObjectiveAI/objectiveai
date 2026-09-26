@@ -12,7 +12,7 @@ pub enum Error {
 
     /// The proxy's MCP session could not be made.
     #[error("connecting to the proxy's MCP server failed: {0}")]
-    Connect(diverge_container_proxy_sdk::Error),
+    Connect(diverge_sdk::container_proxy::inside::Error),
 
     /// The proxy could not list the tools.
     #[error("listing tools failed: {0}")]

@@ -3,9 +3,9 @@
 use std::io;
 use std::process::Stdio;
 
-use diverge_container_proxy_sdk::agent::enqueue::Fate;
-use diverge_container_proxy_sdk::agent::run::request::Message;
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
+use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
+use diverge_sdk::container_proxy::inside::agent::run::request::Message;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, user_parts,
 };
 use futures_util::Stream;
@@ -86,7 +86,7 @@ pub async fn spawn(
                 "mcpServers": {
                     "diverge": {
                         "type": "http",
-                        "url": diverge_container_proxy_sdk::mcp_url(),
+                        "url": diverge_sdk::container_proxy::inside::mcp_url(),
                     }
                 }
             })

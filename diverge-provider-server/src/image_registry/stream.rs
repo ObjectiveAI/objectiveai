@@ -3,7 +3,7 @@
 use std::io;
 
 use bytes::Bytes;
-use diverge_provider_sdk::server::image_source::BlobStream;
+use diverge_sdk::provider::server::image_source::BlobStream;
 use futures_util::{Stream, StreamExt as _, stream};
 
 use super::{Digest, Hasher};
@@ -30,7 +30,7 @@ struct Passing {
 /// connection and podman into a failed pull. A caller that goes away
 /// mid-blob leaves a stream that ends short, which hashes wrong and
 /// ends the same way. What is ever in memory is one piece, at most
-/// [`CHUNK_SIZE`](diverge_provider_sdk::CHUNK_SIZE), per blob in
+/// [`CHUNK_SIZE`](diverge_sdk::CHUNK_SIZE), per blob in
 /// flight. Nothing empty is ever yielded: the first piece is held
 /// without a yield, and a blob of no pieces yields its verdict alone.
 pub fn verified(digest: Digest, pieces: BlobStream) -> impl Stream<Item = Result<Bytes, io::Error>> {

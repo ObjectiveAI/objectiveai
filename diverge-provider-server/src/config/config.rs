@@ -1,6 +1,6 @@
 //! The document that is `config.yaml`.
 
-use diverge_provider_sdk::container_proxy_endpoints::OUTSIDE_PORT;
+use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
 use serde::{Deserialize, Serialize};
 
 use super::auth::Auth;

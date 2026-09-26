@@ -6,13 +6,13 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use dashmap::DashMap;
-use diverge_provider_sdk::endpoints::volumes::create::server::response::Creation;
-use diverge_provider_sdk::endpoints::volumes::list::server::response;
-use diverge_provider_sdk::server::volume_manager;
+use diverge_sdk::provider::endpoints::volumes::create::server::response::Creation;
+use diverge_sdk::provider::endpoints::volumes::list::server::response;
+use diverge_sdk::provider::server::volume_manager;
 use futures_util::future;
 use tokio::fs;
 
-use diverge_provider_sdk::endpoints::volumes::Mode;
+use diverge_sdk::provider::endpoints::volumes::Mode;
 
 use super::{Error, Identity, ModeFile, Place, Reservation, Scratch, Volume, image, mode, name};
 use crate::config::volumes::{Fixed, HookInput, HookOutput, Volumes};

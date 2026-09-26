@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use diverge_provider_sdk::shared::filetree::response::Node;
+use diverge_sdk::shared::filetree::response::Node;
 
 use super::Ignore;
 

@@ -1,6 +1,6 @@
 //! The Hermes agent.
 
-use diverge_provider_sdk::shared::containers::tools::Tool;
+use diverge_sdk::shared::containers::tools::Tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

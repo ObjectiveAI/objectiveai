@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// [`minimax_cn`](super::minimax_cn::Provider).)
 ///
 /// APPLICATION: the document lives in the vault under
-/// [`MINIMAX_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::MINIMAX_OAUTH). The harness locks that
+/// [`MINIMAX_OAUTH`](diverge_sdk::shared::containers::vault::keys::MINIMAX_OAUTH). The harness locks that
 /// key for the run, reads the document, and writes it as the
 /// `providers.minimax-oauth` entry of `$HERMES_HOME/auth.json`
 /// before Hermes starts — provider selection rides the config the

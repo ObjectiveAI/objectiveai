@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// APPLICATION: unlike the other OAuth providers this state is not
 /// Hermes's own — it is the Qwen CLI's token file. The document
-/// lives in the vault under [`QWEN_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::QWEN_OAUTH); the
+/// lives in the vault under [`QWEN_OAUTH`](diverge_sdk::shared::containers::vault::keys::QWEN_OAUTH); the
 /// harness locks that key for the run, reads the document, and
 /// writes it to `~/.qwen/oauth_creds.json` at the REAL home
 /// directory (Hermes hardcodes that path; it ignores

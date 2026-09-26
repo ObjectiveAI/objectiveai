@@ -1,7 +1,7 @@
 //! The reference provider of the Diverge provider protocol.
 //!
 //! A provider is a server of the protocol that
-//! [`diverge-provider-sdk`](https://docs.rs/diverge-provider-sdk)
+//! [`diverge-sdk`](https://docs.rs/diverge-sdk)
 //! defines and `https://provider.diverge.network` specifies. The SDK
 //! holds the socket, reads every request, and serves every endpoint;
 //! what it cannot supply is what a provider IS — a place to run

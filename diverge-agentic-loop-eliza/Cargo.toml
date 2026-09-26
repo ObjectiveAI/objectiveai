@@ -21,8 +21,7 @@ axum = { version = "0.8.9" }
 # the chunks, the fates; the container SDK is the proxy beside this
 # program — the vault, the database URL, and the MCP URL the entry's
 # diverge plugin dials.
-diverge-provider-sdk = { path = "../diverge-provider-sdk-rs", features = ["schemars"] }
-diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk-rs" }
+diverge-sdk = { path = "../diverge-sdk-rs" }
 # The agent's JSON Schema, derived from the agent types for
 # `GET /schema`.
 schemars = { version = "1.2.1" }

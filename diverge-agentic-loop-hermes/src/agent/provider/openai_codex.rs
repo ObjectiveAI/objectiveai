@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// burning their login.
 ///
 /// APPLICATION: the document lives in the vault under
-/// [`OPENAI_CODEX_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::OPENAI_CODEX_OAUTH). The harness
+/// [`OPENAI_CODEX_OAUTH`](diverge_sdk::shared::containers::vault::keys::OPENAI_CODEX_OAUTH). The harness
 /// locks that key for the run, reads the document, and writes it as
 /// the `providers.openai-codex` entry of `$HERMES_HOME/auth.json`
 /// before Hermes starts — provider selection rides the config the

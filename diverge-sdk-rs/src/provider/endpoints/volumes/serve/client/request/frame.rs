@@ -1,0 +1,126 @@
+//! What a client's request frame carries for a volume serve.
+
+use serde::{Deserialize, Serialize};
+
+use crate::wire::decode::Decode;
+use crate::wire::encode::{Encode, Writer};
+
+/// Serve one volume: hold it mounted, and answer the FUSE asks the
+/// caller opens on the scope from it.
+///
+/// # A name, and the same access model as everything else
+///
+/// The name is a
+/// [`Volume::name`](crate::provider::endpoints::volumes::list::server::response::Volume::name)
+/// from a listing. A caller cannot examine a volume it was not
+/// offered, cannot reach one by naming components, and cannot probe
+/// for what exists by asking and reading the error — because a path
+/// it invents is not something this request can express.
+///
+/// Which is the same protection a
+/// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
+/// and a [`delete`](crate::provider::endpoints::volumes::delete) have, for the
+/// same reason: a provider resolves a name it published, against the
+/// caller it published it to, and nothing else.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub struct Frame {
+    /// Which volume, by the name a listing gave it.
+    ///
+    /// Names come from
+    /// [`Volume::name`](crate::provider::endpoints::volumes::list::server::response::Volume::name)
+    /// and mean nothing outside the provider that published them.
+    pub name: String,
+    /// The most bytes this serve's own layer may hold, for an
+    /// ephemeral volume.
+    ///
+    /// A serve of an [`Ephemeral`](crate::provider::endpoints::volumes::Mode::Ephemeral)
+    /// volume takes every mutation into a layer of its own, discarded
+    /// at the finish, and this is that layer's cap: a mutation that
+    /// would need room past it is answered with an error and the
+    /// serve continues. A provider that cannot set the cap aside when
+    /// the serve opens refuses the serve. For a volume in any other
+    /// mode the value has no effect.
+    pub overlay_disk: u64,
+}
+
+/// This frame's tag among the scope-opening requests.
+///
+/// One byte at the front of the payload, which is what tells a reader
+/// which request it holds. The frame layer does not discriminate them
+/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// is one type carrying bytes — so the distinction has to be in the
+/// bytes, and each request owns the value that names it.
+///
+/// See the table in [`endpoints`](crate::provider::endpoints) for the whole
+/// allocation. The values are chosen across modules that do not know
+/// about each other, so the table is the only place they can be seen
+/// at once.
+const TAG: u8 = 8;
+
+/// Postcard, matching the rest of [`volumes`](crate::provider::endpoints::volumes).
+impl Encode for Frame {
+    /// Postcard's own failure. The tag cannot fail.
+    type Error = postcard::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        out.extend_from_slice(&[TAG]);
+        postcard::to_io(self, &mut *out)?;
+        Ok(())
+    }
+}
+
+impl Decode<'_> for Frame {
+    /// Three ways to fail, and only one of them is postcard's.
+    type Error = FrameError;
+
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
+        if *tag != TAG {
+            return Err(FrameError::UnexpectedTag(*tag));
+        }
+        postcard::from_bytes(rest).map_err(FrameError::Body)
+    }
+}
+
+/// A volume serve request that could not be read.
+#[derive(Debug)]
+pub enum FrameError {
+    /// No bytes at all, so not even a tag.
+    Empty,
+    /// A tag naming some other request.
+    ///
+    /// A reader that dispatched on the tag will not see this. One that
+    /// assumed which request it held, and was wrong, will — which is
+    /// the point of checking a tag rather than skipping it.
+    UnexpectedTag(u8),
+    /// The request did not parse.
+    Body(postcard::Error),
+}
+
+impl std::fmt::Display for FrameError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FrameError::Empty => {
+                f.write_str("volume serve request frame is empty")
+            }
+            FrameError::UnexpectedTag(tag) => {
+                write!(
+                    f,
+                    "expected volume serve request tag {TAG}, found {tag}"
+                )
+            }
+            FrameError::Body(error) => {
+                write!(f, "volume serve request did not parse: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Body(error) => Some(error),
+            FrameError::Empty | FrameError::UnexpectedTag(_) => None,
+        }
+    }
+}

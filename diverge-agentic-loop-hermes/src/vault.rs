@@ -6,7 +6,7 @@
 //! in the caller's vault must be the current one when the next run
 //! reads it, wherever that run happens. The document lives in the
 //! vault under a well-known key (the SDK's
-//! [`vault::keys`](diverge_provider_sdk::shared::containers::vault::keys)),
+//! [`vault::keys`](diverge_sdk::shared::containers::vault::keys)),
 //! and every run that needs it owes the cycle: [`acquire`] locks the
 //! key and reads the document; the run writes it where Hermes reads
 //! it and runs; [`Held::release`] sets the document as the run left
@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use diverge_container_proxy_sdk::Client;
+use diverge_sdk::container_proxy::inside::Client;
 use tokio::task::JoinHandle;
 
 /// How long each lock is granted for, in seconds.
@@ -154,12 +154,12 @@ pub enum Error {
     /// The key could not be locked.
     Lock {
         key: &'static str,
-        error: diverge_container_proxy_sdk::Error,
+        error: diverge_sdk::container_proxy::inside::Error,
     },
     /// The key could not be read.
     Get {
         key: &'static str,
-        error: diverge_container_proxy_sdk::Error,
+        error: diverge_sdk::container_proxy::inside::Error,
     },
     /// The vault holds nothing under the key.
     Missing(&'static str),
@@ -169,12 +169,12 @@ pub enum Error {
     /// The rotated document could not be set back.
     Set {
         key: &'static str,
-        error: diverge_container_proxy_sdk::Error,
+        error: diverge_sdk::container_proxy::inside::Error,
     },
     /// The key could not be unlocked.
     Unlock {
         key: &'static str,
-        error: diverge_container_proxy_sdk::Error,
+        error: diverge_sdk::container_proxy::inside::Error,
     },
 }
 

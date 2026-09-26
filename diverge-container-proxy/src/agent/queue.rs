@@ -1,7 +1,7 @@
 //! What the queue holds, and what the server's channels say to it.
 
-use diverge_provider_sdk::shared::containers::enqueue;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::shared::containers::enqueue;
+use diverge_sdk::shared::error::Error;
 use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
 

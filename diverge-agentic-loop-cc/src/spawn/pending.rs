@@ -3,7 +3,7 @@
 use std::sync::LazyLock;
 
 use dashmap::DashMap;
-use diverge_container_proxy_sdk::agent::enqueue::Fate;
+use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
 use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
 

@@ -3,7 +3,7 @@
 use std::fmt;
 use std::io;
 
-use diverge_provider_sdk::shared::error;
+use diverge_sdk::shared::error;
 use serde_json::json;
 
 /// What [`ImageRegistry`](super::ImageRegistry) fails with.

@@ -31,7 +31,7 @@
 //! tool container it is the caller's MCP client, one exchange per
 //! channel the server opens.
 //!
-//! [`container_proxy_endpoints`]: diverge_provider_sdk::container_proxy_endpoints
+//! [`container_proxy_endpoints`]: diverge_sdk::container_proxy::outside
 
 mod agent;
 mod answer;
@@ -53,8 +53,8 @@ mod tool;
 use std::future::IntoFuture as _;
 use std::sync::Arc;
 
-use diverge_container_proxy_sdk::{INSIDE_PORT, POSTGRES_LOOPBACK_PORT};
-use diverge_provider_sdk::container_proxy_endpoints::OUTSIDE_PORT;
+use diverge_sdk::container_proxy::inside::{INSIDE_PORT, POSTGRES_LOOPBACK_PORT};
+use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
 use futures_util::future;
 use rmcp::transport::streamable_http_server::StreamableHttpService;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;

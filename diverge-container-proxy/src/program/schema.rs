@@ -3,9 +3,9 @@
 
 use std::sync::Arc;
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::containers::schema::response;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers::schema::response;
+use diverge_sdk::shared::error::Error;
 use serde_json::Value;
 
 use super::{refused, status_error};

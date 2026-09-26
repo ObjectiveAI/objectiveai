@@ -3,10 +3,10 @@
 use std::pin::pin;
 use std::sync::Arc;
 
-use diverge_container_proxy_sdk::agent::run::request::{Message, Request};
-use diverge_provider_sdk::container_proxy_endpoints::agents::begin::server::response::CHUNK;
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::container_proxy::inside::agent::run::request::{Message, Request};
+use diverge_sdk::container_proxy::outside::agents::begin::server::response::CHUNK;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::error::Error;
 use eventsource_stream::Eventsource as _;
 use futures_util::StreamExt as _;
 use reqwest::header::CONTENT_TYPE;

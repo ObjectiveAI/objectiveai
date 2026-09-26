@@ -3,11 +3,11 @@
 
 use std::sync::{Arc, Mutex};
 
-use diverge_provider_sdk::container_proxy_endpoints::filesystem::tree::client::request;
-use diverge_provider_sdk::container_proxy_endpoints::filesystem::tree::server::response;
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::error::Error;
-use diverge_provider_sdk::shared::filetree;
+use diverge_sdk::container_proxy::outside::filesystem::tree::client::request;
+use diverge_sdk::container_proxy::outside::filesystem::tree::server::response;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::error::Error;
+use diverge_sdk::shared::filetree;
 use tokio::sync::mpsc;
 
 use crate::encode::encoded;
