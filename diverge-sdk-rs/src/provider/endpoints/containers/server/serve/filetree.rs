@@ -12,7 +12,7 @@ use super::super::family::Family;
 use super::super::render;
 use super::super::run::Run;
 use super::super::watched::Watch;
-use crate::container_proxy::outside::filesystem::tree::client::execute as tree;
+use crate::container_proxy::outside::endpoints::filesystem::tree::client::execute as tree;
 use crate::shared::error::Error;
 use crate::shared::filetree::response::{Frame, Node};
 

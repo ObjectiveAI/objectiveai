@@ -3,8 +3,8 @@
 
 use std::sync::{Arc, Mutex};
 
-use diverge_sdk::container_proxy::outside::filesystem::tree::client::request;
-use diverge_sdk::container_proxy::outside::filesystem::tree::server::response;
+use diverge_sdk::container_proxy::outside::endpoints::filesystem::tree::client::request;
+use diverge_sdk::container_proxy::outside::endpoints::filesystem::tree::server::response;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree;

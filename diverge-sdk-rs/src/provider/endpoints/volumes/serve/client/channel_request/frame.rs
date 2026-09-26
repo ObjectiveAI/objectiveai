@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use crate::container_proxy::outside::fuse::mount::server::channel_request as mount;
+use crate::container_proxy::outside::endpoints::fuse::mount::server::channel_request as mount;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 

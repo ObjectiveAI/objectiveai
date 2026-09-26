@@ -8,7 +8,7 @@ use tokio::sync::watch;
 use crate::wire::server::scope_handle::ScopeHandle;
 use crate::provider::endpoints::containers::server::watched::Watched;
 use crate::wire::client::handle::Handle;
-use crate::container_proxy::outside::tools::begin::client::execute::ExecuteHandle as ToolsBegin;
+use crate::container_proxy::outside::endpoints::tools::begin::client::execute::ExecuteHandle as ToolsBegin;
 
 /// Every container running under this provider, by the
 /// [`Id`](crate::shared::containers::response::Id) its run was

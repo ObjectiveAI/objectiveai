@@ -4,8 +4,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use diverge_sdk::container_proxy::outside::filesystem::write::client::{channel_response, request};
-use diverge_sdk::container_proxy::outside::filesystem::write::server::{channel_request, response};
+use diverge_sdk::container_proxy::outside::endpoints::filesystem::write::client::{channel_response, request};
+use diverge_sdk::container_proxy::outside::endpoints::filesystem::write::server::{channel_request, response};
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::containers::write_path;

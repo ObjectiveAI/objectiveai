@@ -16,7 +16,7 @@ use super::own::Own;
 use super::run::Run;
 use crate::wire::client::handle::Handle;
 use crate::container_proxy::outside::client::Ask;
-use crate::container_proxy::outside::fuse::mount::client::execute::Ask as MountAsk;
+use crate::container_proxy::outside::endpoints::fuse::mount::client::execute::Ask as MountAsk;
 use crate::wire::decode::Decode;
 use crate::wire::encode::Encode;
 use crate::shared::containers::request::Image;

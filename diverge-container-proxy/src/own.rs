@@ -1,7 +1,7 @@
 //! The proxy's own asks: the twelve a container makes of the world
 //! outside, in whichever family's frame the begin scope speaks.
 
-use diverge_sdk::container_proxy::outside::{agents, tools};
+use diverge_sdk::container_proxy::outside::endpoints::{agents, tools};
 use diverge_sdk::shared::containers::{command, postgres, vault};
 use diverge_sdk::shared::mcp;
 

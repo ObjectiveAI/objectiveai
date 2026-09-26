@@ -8,7 +8,7 @@ use futures_util::StreamExt as _;
 use super::super::family::Family;
 use super::super::render;
 use super::super::run::Run;
-use crate::container_proxy::outside::filesystem::write::client::execute as write;
+use crate::container_proxy::outside::endpoints::filesystem::write::client::execute as write;
 use crate::wire::server::answers::Answers;
 use crate::shared::error::Error;
 

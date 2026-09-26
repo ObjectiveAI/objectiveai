@@ -8,7 +8,7 @@ use futures_util::StreamExt as _;
 use super::super::family::Family;
 use super::super::render;
 use super::super::run::Run;
-use crate::container_proxy::outside::filesystem::read::client::execute as read;
+use crate::container_proxy::outside::endpoints::filesystem::read::client::execute as read;
 
 /// Open a `filesystem::read` scope naming the file, and put every
 /// piece on the caller's channel as it comes; the proxy's error last,

@@ -8,7 +8,7 @@ use super::super::encoded::encoded;
 use super::super::family::Runs;
 use super::super::run::Run;
 use super::super::setup::Mount;
-use crate::container_proxy::outside::fuse::mount::client::execute::{Ask, ExecuteHandle};
+use crate::container_proxy::outside::endpoints::fuse::mount::client::execute::{Ask, ExecuteHandle};
 use crate::wire::server::answer::{Answer, answer};
 
 /// Read the mount's asks off its scope for as long as it lives, each

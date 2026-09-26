@@ -32,7 +32,7 @@ pub enum Frame {
     /// A [`filetree`](crate::shared::filetree) stream over the
     /// container's own root — one snapshot, then one frame per change
     /// — which is the stream the proxy's
-    /// [`filesystem::tree`](crate::container_proxy::outside::filesystem::tree)
+    /// [`filesystem::tree`](crate::container_proxy::outside::endpoints::filesystem::tree)
     /// carries, relayed.
     Filetree(filetree::response::Frame),
     /// A failure. Tag `1`.
