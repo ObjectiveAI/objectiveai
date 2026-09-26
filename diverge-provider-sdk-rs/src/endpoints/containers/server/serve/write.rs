@@ -38,7 +38,7 @@ pub(crate) async fn write<F: Family>(run: Arc<Run>, channel: u32, write_id: u32,
 /// What a write that did not land is answered with: the proxy's own
 /// words, the caller's own error, this end's failure to reach the
 /// proxy — or nothing, for a proxy that could not serve it at all.
-fn failed(error: write::ExecuteError) -> Option<Error> {
+pub(super) fn failed(error: write::ExecuteError) -> Option<Error> {
     use write::ExecuteError;
     Some(match error {
         ExecuteError::Refused(error) | ExecuteError::Content(error) => error,

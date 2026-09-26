@@ -42,14 +42,13 @@ pub struct FuseMount {
     /// Where the mount appears inside the container, as path
     /// components from the container's root — the shape every path in
     /// this crate takes, as
-    /// [`container_path`](super::IdentityMount::container_path) does
-    /// for content.
+    /// [`container_path`](super::VolumeMount::container_path) does
+    /// for a volume.
     ///
-    /// No component is empty, `.` or `..`. A path inside a directory
-    /// another mount provides is allowed — a file over a directory a
-    /// volume brought is the ordinary case — but a path equal to
-    /// another mount's, or inside another FUSE directory mount, is
-    /// not, and neither is the root.
+    /// No component is empty, `.` or `..`. The path is not the root,
+    /// is no other mount's, and lies inside no other mount's — a
+    /// volume's or a FUSE one's — and no other mount's lies inside
+    /// it.
     pub container_path: Vec<String>,
     /// The caller's own id for the mount: opaque, minted by the caller
     /// when it named the mount, and echoed back on every ask the

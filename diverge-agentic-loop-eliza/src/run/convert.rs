@@ -2,7 +2,7 @@
 
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, AssistantTextContentChunk, AssistantToolCallChunk, NotificationChunk,
-    ToolResponseChunk, UsageChunk, UserChunk,
+    ToolResponseChunk, UsageChunk,
 };
 
 use super::protocol::Response;
@@ -69,15 +69,6 @@ pub fn text(text: String) -> AgenticLoopChunk {
         parent_tool_call_id: None,
         logprobs: None,
         inner: rmcp::model::TextContent::new(text),
-    })
-}
-
-/// A `user` chunk: a queued prompt, at the position it landed.
-pub fn user(prompt: String) -> AgenticLoopChunk {
-    AgenticLoopChunk::User(UserChunk {
-        r#type: Default::default(),
-        prompt,
-        meta: None,
     })
 }
 

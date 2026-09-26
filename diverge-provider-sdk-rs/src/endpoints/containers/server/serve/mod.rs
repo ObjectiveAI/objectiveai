@@ -7,14 +7,18 @@
 //! being answered against a container that is not up. The loop also
 //! hears the three things that end a scope: the caller's stop, the
 //! container leaving, and the caller going away. A tree, a read and a
-//! write are scopes this end opens on the proxy; a database half and
-//! the family's own exchange are channels on the begin scope.
+//! write are scopes this end opens on the proxy, and a transfer is a
+//! read on this proxy wired into a write on another container's; a
+//! database half, the arguments' schema and the family's own exchange
+//! are channels on the begin scope.
 
 pub(crate) mod agent;
 pub(crate) mod filetree;
 pub(crate) mod postgres;
 pub(crate) mod read;
+pub(crate) mod schema;
 pub(crate) mod tool;
+pub(crate) mod transfer;
 pub(crate) mod write;
 
 mod serve;

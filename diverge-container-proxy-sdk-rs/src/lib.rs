@@ -19,24 +19,32 @@
 //! container's loopback, whose methods in `postgres.rs` are the
 //! address and the URL the program's driver dials.
 //!
-//! The loop is not here. An agent container's program is its own
-//! HTTP server, on the loopback at the port [`agent`] names —
-//! `/register`, `/run`, `/schema`, `/enqueue`, `/dequeue` — and the
-//! proxy dials it, forwarding what the provider's server asks; that
-//! surface is stated there, once, and nothing in this crate stands
-//! between the two.
+//! The program's own server is not here. Every container's program
+//! is its own HTTP server, on the loopback at the port [`port()`]
+//! names, and the proxy dials it, forwarding what the provider's
+//! server asks: `/register` and `/schema` on either kind of
+//! container — [`register`] is the one's body and its answer, the
+//! tools the program depends on — and, for an agent
+//! container, the loop's `/run`, `/enqueue` and `/dequeue` that
+//! [`agent`] states; for a tool container, the MCP server at `/mcp`
+//! that [`tool`] states. Each surface is stated there, once, and
+//! nothing in this crate stands between the two.
 
 pub mod agent;
 mod client;
 mod command;
 mod error;
 mod mcp;
+mod port;
 mod postgres;
+pub mod register;
+pub mod tool;
 mod vault;
 
 pub use client::*;
 pub use error::*;
 pub use mcp::*;
+pub use port::*;
 pub use postgres::*;
 
 /// The port the proxy listens for the program on, inside the

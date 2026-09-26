@@ -19,7 +19,7 @@ finish.
   connection was authorized, as [Authorization](/authorization/)
   provides. A name that is not in the client's listing is answered
   with an error. A client cannot name another client's volume.
-- **The answer.** The answer carries the three fields the listing
+- **The answer.** The answer carries the four fields the listing
   reports for the volume, and two more: the number of bytes in use
   and the hash of the content.
   [Response](/endpoints/volumes-stat/response/) states its form.
@@ -27,6 +27,15 @@ finish.
   those of the volume at the time of the response. No frame of this
   specification reports a change in either; a client that needs the
   current values sends another request.
+- **A mounted volume is not examined.** The server does not examine
+  a volume that is mounted in any running container, or served on any
+  [volumes::serve](/endpoints/volumes-serve/) scope, at the time of the request — a volume may be mounted or
+  served in several at once — or that is under another stat, an edit or a delete. A request naming such a
+  volume is answered with an error, and nothing is determined about
+  the volume. A client that needs the values stops every container
+  that has it, or waits for their end, and sends another request.
 - **The error.** An error states that the volume was not examined,
   and that nothing was determined about it. A volume absent from the
-  client's listing is answered with an error.
+  client's listing is answered with an error. A volume mounted in a
+  running container at the time of the request is answered with an
+  error.

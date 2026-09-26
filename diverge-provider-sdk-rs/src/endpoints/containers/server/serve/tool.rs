@@ -10,7 +10,7 @@ use super::super::run::Run;
 use crate::endpoints::containers::client::{ChannelStreamError, UnaryError};
 use crate::shared::mcp;
 
-/// What a tool container's caller opens, past the shared five.
+/// What a tool container's caller opens, past the shared six.
 #[derive(Debug)]
 pub(crate) enum Exchange {
     /// What tools the server has.

@@ -8,11 +8,11 @@ use crate::continuation::ContinuationItem;
 /// The harness's stdin: one JSON object, the three globals the script
 /// reads.
 ///
-/// `input` is the history in its stored form — chunk objects and bare
-/// prompt strings, the turn's prompt the last item — so the script
-/// sees the conversation exactly as the database keeps it, and a
-/// script that inspects the last item finds the latest prompt or the
-/// latest tool response. `tools` and `resources` are the MCP listings
+/// `input` is the history in its stored form — chunk objects and
+/// prompt arrays of MCP content blocks, the turn's message the last
+/// item — so the script sees the conversation exactly as the database
+/// keeps it, and a script that inspects the last item finds the
+/// latest message or the latest tool response. `tools` and `resources` are the MCP listings
 /// taken just before this run, as rmcp serializes them.
 #[derive(Debug, Clone, Serialize)]
 pub struct Feed<'a> {

@@ -4,6 +4,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::containers::tools::Tool;
 use crate::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use crate::shared::error::Error;
 
@@ -12,16 +13,15 @@ use crate::shared::error::Error;
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Begun`](Self::Begun), `1` for [`Error`](Self::Error), `2` for
-/// [`Chunk`](Self::Chunk) — and the rest is that variant's own JSON;
-/// `Begun` carries nothing after it.
+/// [`Chunk`](Self::Chunk) — and the rest is that variant's own JSON.
 ///
 /// # Begun, then the conversation
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | a begun, then chunks, and stays open | the container holds its agent, and the agent is speaking |
-/// | a begun, then quiet, and stays open | the container holds its agent, and it has nothing to say until the next message |
-/// | an error, then a finish | it has not begun — this connection had already begun, or the agent was refused |
+/// | a begun, then chunks, and stays open | the container holds its arguments and its tools are known, and the agent is speaking |
+/// | a begun, then quiet, and stays open | the container holds its arguments, and the agent has nothing to say until the next message |
+/// | an error, then a finish | it has not begun — this connection had already begun, or the arguments were refused |
 /// | a finish, with no error | the proxy is ending |
 ///
 /// # The conversation is this stream
@@ -38,21 +38,25 @@ use crate::shared::error::Error;
 ///
 /// The asks the container makes, and the family's other exchanges,
 /// are channels, not this stream. It carries no readiness signal
-/// beyond the one word: the proxy is here, the agent is held, and
-/// channels may be opened.
+/// beyond the one word: the proxy is here, the arguments are held,
+/// and channels may be opened.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The connection has begun, and the container holds its agent
-    /// for its life. Tag `0`.
+    /// The connection has begun, the container holds its arguments
+    /// for its life, and these are the tools it declared. Tag `0`.
     ///
-    /// Arrives once, when the agent's server has taken the agent. A
-    /// channel on this scope is opened only after it.
-    Begun,
+    /// Arrives once, when the container's server has taken the
+    /// arguments and answered with its tools — as JSON, a list, empty
+    /// for a program that needs none; see
+    /// [`tools`](crate::shared::containers::tools) for what one is
+    /// and what the provider does with the list. A channel on this
+    /// scope is opened only after it.
+    Begun(Vec<Tool>),
     /// A failure. Tag `1`.
     ///
-    /// A second begin on a connection that had one, or an agent the
-    /// container refused — the agent's server's own words: a value
-    /// the image will not take. It is the one variant that ends the
+    /// A second begin on a connection that had one, or arguments the
+    /// container refused — the container's server's own words: a
+    /// value the image will not take. It is the one variant that ends the
     /// scope rather than adding to it. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why
     /// it says so little.
@@ -60,9 +64,11 @@ pub enum Frame {
     /// One chunk of the agent's conversation. Tag `2`.
     ///
     /// After `Begun`, zero or more, for as long as the connection
-    /// lives, exactly as the agent's server streamed them; never
-    /// before `Begun`, and never after a finish. See
-    /// [`AgenticLoopChunk`] for what one is.
+    /// lives, as the agent's server streamed them with the container's
+    /// image under each one's `_meta` — see
+    /// [`shared::mcp`](crate::shared::mcp) for the key; never before
+    /// `Begun`, and never after a finish. See [`AgenticLoopChunk`] for
+    /// what one is.
     Chunk(AgenticLoopChunk),
 }
 
@@ -76,9 +82,9 @@ const ERROR: u8 = 1;
 /// chunk's JSON without reading it can frame it.
 pub const CHUNK: u8 = 2;
 
-/// A tag, and — for the error and a chunk — that variant's own JSON.
+/// A tag, and that variant's own JSON.
 impl Encode for Frame {
-    /// The ordinary JSON failure. `Begun` cannot fail at all.
+    /// The ordinary JSON failure.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -88,9 +94,9 @@ impl Encode for Frame {
         out: &mut Writer<'_>,
     ) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Begun => {
+            Frame::Begun(tools) => {
                 out.extend_from_slice(&[BEGUN]);
-                Ok(())
+                serde_json::to_writer(out, tools)
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -112,7 +118,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            BEGUN => Ok(Frame::Begun),
+            BEGUN => serde_json::from_slice(rest).map(Frame::Begun).map_err(FrameError::Begun),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -131,6 +137,8 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's three.
     UnknownTag(u8),
+    /// The tools did not parse.
+    Begun(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
     /// The chunk did not parse.
@@ -146,6 +154,9 @@ impl fmt::Display for FrameError {
             FrameError::UnknownTag(tag) => {
                 write!(f, "unknown agents begin response frame tag {tag}")
             }
+            FrameError::Begun(error) => {
+                write!(f, "agents begin tools did not parse: {error}")
+            }
             FrameError::Error(error) => {
                 write!(f, "agents begin error did not parse: {error}")
             }
@@ -159,7 +170,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Error(error) | FrameError::Chunk(error) => Some(error),
+            FrameError::Begun(error) | FrameError::Error(error) | FrameError::Chunk(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

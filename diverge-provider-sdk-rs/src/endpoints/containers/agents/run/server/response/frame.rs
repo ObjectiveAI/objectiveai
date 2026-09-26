@@ -5,7 +5,7 @@ use std::fmt;
 use super::AgenticLoopChunk;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::response::{Id, VolumeMounted};
+use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::error::Error;
 
 /// A run's answer: the container's id, then the agent's conversation
@@ -13,7 +13,7 @@ use crate::shared::error::Error;
 /// a failure.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Id`](Self::Id), `1` for [`VolumeMounted`](Self::VolumeMounted),
+/// [`Id`](Self::Id), `1` for [`VolumeHeld`](Self::VolumeHeld),
 /// `2` for [`Error`](Self::Error), `3` for [`Chunk`](Self::Chunk) —
 /// and the rest is that variant's own JSON.
 ///
@@ -23,19 +23,23 @@ use crate::shared::error::Error;
 /// |-----------|-------|
 /// | an id, then chunks, and stays open | the container is running, and the agent is speaking |
 /// | an id, then quiet, and stays open | the container is running, and the agent has nothing to say until the next message |
-/// | a volume mounted, then a finish | it never started: that volume is in another container of the caller's |
+/// | a volume held, then a finish | it never started: that volume is under a stat, an edit or a delete |
 /// | an error, then a finish | it never came up, or it is gone |
 /// | a finish, with no error | the run is over — a stop, or the container's own end |
 ///
-/// # One container per volume
+/// # Many containers per volume, one editor
 ///
-/// A volume is mounted in at most one container of its caller at a
-/// time. A provider holds every volume a run names from the moment it
-/// accepts the request until the run ends, and a request that names
-/// a held one is answered [`VolumeMounted`](Self::VolumeMounted)
-/// before anything is fetched or deployed — its own variant, because
-/// a caller acts on it differently from a failure: stop the other
-/// container, or name another volume, and ask again.
+/// A volume may be mounted in any number of containers of its caller
+/// at once; what it cannot be is mounted while a stat, an edit or a
+/// delete has it to itself. A provider holds every volume a run
+/// names, shared, from the moment it accepts the request until the
+/// run ends, and a request that names one held exclusively is
+/// answered [`VolumeHeld`](Self::VolumeHeld) before anything is
+/// fetched or deployed — its own variant, because a caller acts on it
+/// differently from a failure: wait for the edit, or name another
+/// volume, and ask again. The hold is the volume's
+/// [`mount`](crate::server::volume::Volume::mount), taken by the run
+/// handler and given back on every ending.
 ///
 /// # The conversation is this stream
 ///
@@ -45,8 +49,8 @@ use crate::shared::error::Error;
 /// running starts one on its message, an enqueue while one runs joins
 /// the queue, and either way what the agent says arrives here, chunk
 /// by chunk, in order, as the proxy sent it. There is no marker
-/// between one turn and the next: a [`UserChunk`](super::UserChunk)
-/// marks each message landing, a
+/// between one turn and the next: a message's user parts — see
+/// [`user_parts`](super::user_parts) — mark it landing, a
 /// [`NotificationChunk`](super::NotificationChunk) with
 /// [`is_fatal`](super::NotificationChunk::is_fatal) set marks a loop
 /// that died, and quiet is an agent with nothing left to say. The
@@ -74,12 +78,12 @@ pub enum Frame {
     ///
     /// Arrives once, whenever the provider has it. See [`Id`].
     Id(Id),
-    /// The run was refused: a volume it names is mounted in another
-    /// container of the caller's. Tag `1`.
+    /// The run was refused: a volume it names is under a stat, an
+    /// edit or a delete. Tag `1`.
     ///
     /// The first and only response of its scope; the finish follows.
     /// Nothing was fetched and nothing was deployed.
-    VolumeMounted(VolumeMounted),
+    VolumeHeld(VolumeHeld),
     /// A failure. Tag `2`.
     ///
     /// The container is not running and will not be — the image
@@ -105,7 +109,7 @@ pub enum Frame {
 /// Tag for [`Frame::Id`].
 const ID: u8 = 0;
 
-/// Tag for [`Frame::VolumeMounted`].
+/// Tag for [`Frame::VolumeHeld`].
 const VOLUME_MOUNTED: u8 = 1;
 
 /// Tag for [`Frame::Error`].
@@ -130,9 +134,9 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ID]);
                 serde_json::to_writer(out, id).map_err(FrameEncodeError::Id)
             }
-            Frame::VolumeMounted(refused) => {
+            Frame::VolumeHeld(refused) => {
                 out.extend_from_slice(&[VOLUME_MOUNTED]);
-                serde_json::to_writer(out, refused).map_err(FrameEncodeError::VolumeMounted)
+                serde_json::to_writer(out, refused).map_err(FrameEncodeError::VolumeHeld)
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -152,7 +156,7 @@ pub enum FrameEncodeError {
     /// The id did not serialize.
     Id(serde_json::Error),
     /// The refusal did not serialize.
-    VolumeMounted(serde_json::Error),
+    VolumeHeld(serde_json::Error),
     /// The error did not serialize.
     Error(serde_json::Error),
     /// The chunk did not serialize.
@@ -165,7 +169,7 @@ impl fmt::Display for FrameEncodeError {
             FrameEncodeError::Id(error) => {
                 write!(f, "container id did not serialize: {error}")
             }
-            FrameEncodeError::VolumeMounted(error) => {
+            FrameEncodeError::VolumeHeld(error) => {
                 write!(f, "volume-mounted refusal did not serialize: {error}")
             }
             FrameEncodeError::Error(error) => {
@@ -182,7 +186,7 @@ impl std::error::Error for FrameEncodeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             FrameEncodeError::Id(error) => Some(error),
-            FrameEncodeError::VolumeMounted(error) => Some(error),
+            FrameEncodeError::VolumeHeld(error) => Some(error),
             FrameEncodeError::Error(error) => Some(error),
             FrameEncodeError::Chunk(error) => Some(error),
         }
@@ -201,8 +205,8 @@ impl Decode<'_> for Frame {
                 .map(Frame::Id)
                 .map_err(FrameError::Id),
             VOLUME_MOUNTED => serde_json::from_slice(rest)
-                .map(Frame::VolumeMounted)
-                .map_err(FrameError::VolumeMounted),
+                .map(Frame::VolumeHeld)
+                .map_err(FrameError::VolumeHeld),
             ERROR => Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameError::Error),
@@ -224,7 +228,7 @@ pub enum FrameError {
     /// The id did not parse.
     Id(serde_json::Error),
     /// The refusal did not parse.
-    VolumeMounted(serde_json::Error),
+    VolumeHeld(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
     /// The chunk did not parse.
@@ -243,7 +247,7 @@ impl fmt::Display for FrameError {
             FrameError::Id(error) => {
                 write!(f, "container id did not parse: {error}")
             }
-            FrameError::VolumeMounted(error) => {
+            FrameError::VolumeHeld(error) => {
                 write!(f, "volume-mounted refusal did not parse: {error}")
             }
             FrameError::Error(error) => {
@@ -260,7 +264,7 @@ impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             FrameError::Id(error) => Some(error),
-            FrameError::VolumeMounted(error) => Some(error),
+            FrameError::VolumeHeld(error) => Some(error),
             FrameError::Error(error) => Some(error),
             FrameError::Chunk(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,

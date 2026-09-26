@@ -24,6 +24,10 @@
 //! [`filetree`](crate::shared::filetree), which is already the
 //! mechanism that says what exists and what changed while the reads
 //! were happening.
+//!
+//! A volume mounted nowhere is read the same way, one file at a
+//! time, by [`volumes::read`](crate::endpoints::volumes::read) — and
+//! at rest, so no tear is possible there.
 
 pub mod request;
 pub mod response;

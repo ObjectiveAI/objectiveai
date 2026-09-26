@@ -14,8 +14,9 @@
 //! went the same way later, into
 //! [`containers::oci`].
 //!
-//! [`filetree`] is a live filesystem view — a watch answers with one,
-//! and so does a container scope, over a different tree.
+//! [`filetree`] is a live filesystem view — a container's filetree
+//! channel answers with one, and so does the proxy's tree channel
+//! that feeds it.
 //! [`containers`] is everything the three container scopes have in
 //! common, which is everything but one exchange each: asking for a
 //! container, working with its files, and the asks it makes back.

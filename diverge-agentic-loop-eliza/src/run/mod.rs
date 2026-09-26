@@ -66,8 +66,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use diverge_container_proxy_sdk::Client;
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use diverge_container_proxy_sdk::agent::run::request::Message;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{AgenticLoopChunk, user_parts};
 use futures_util::Stream;
+use rmcp::model::ContentBlock;
 use sqlx::PgPool;
 
 use crate::agent::{Agent, Plugin};
@@ -87,7 +89,7 @@ pub fn run(
     client: Arc<Client>,
     pool: PgPool,
     agent: Agent,
-    prompt: String,
+    messages: Vec<Message>,
     generation: u64,
     claim: Claim,
 ) -> impl Stream<Item = Result<AgenticLoopChunk, Error>> {
@@ -238,10 +240,12 @@ pub fn run(
         let mut alive = true;
         // Whether the last turn's read-back is still owed.
         let mut owed = false;
-        let mut input = prompt;
+        let content: Vec<ContentBlock> = messages.iter().flat_map(|message| message.content.iter().cloned()).collect();
+        let mut input = crate::content::linked(content);
+        let mut started_on = messages;
 
         'turns: loop {
-            if let Err(error) = entry.send(&Request::Turn { text: input }).await {
+            if let Err(error) = entry.send(&Request::Turn { content: input }).await {
                 yield Ok(notification(
                     serde_json::json!({
                         "kind": "entry",
@@ -251,6 +255,15 @@ pub fn run(
                 ));
                 alive = false;
                 break;
+            }
+            // The messages the run started on, as the stream's first
+            // chunks: their parts, each under its key, before the
+            // harness says a word. The turn is on the wire; a start
+            // that failed was the request's own, above.
+            for message in started_on.drain(..) {
+                for chunk in user_parts(&message.key, message.content) {
+                    yield Ok(chunk);
+                }
             }
             owed = true;
             let mut spoke = false;
@@ -353,13 +366,15 @@ pub fn run(
             if taken.is_empty() {
                 break;
             }
-            let mut prompts = Vec::with_capacity(taken.len());
+            let mut blocks = Vec::new();
             for message in taken {
-                yield Ok(user(message.prompt.clone()));
-                prompts.push(message.prompt.clone());
+                for chunk in user_parts(&message.key, message.content.clone()) {
+                    yield Ok(chunk);
+                }
+                blocks.extend(message.content.clone());
                 message.deliver();
             }
-            input = prompts.join("\n\n");
+            input = crate::content::linked(blocks);
         }
 
         // A turn that ended in failure still owes its read-back, if

@@ -1,0 +1,25 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the tag byte 2 and the ask.'
+order: 1
+draft: false
+---
+
+```text
+[2][request JSON …]
+```
+
+- **`name`.** The repository path of the image, as the request of
+  the run names it.
+- **`digest`.** The manifest digest, `<algorithm>:<hex>`, as the
+  request of the run names it.
+
+The channel request is defined by `diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/containers/agents/run/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/oci/has/request/request.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/oci/has/request/request.rs
+```

@@ -13,8 +13,9 @@ use serde::{Deserialize, Serialize};
 #[serde(deny_unknown_fields)]
 pub struct Store {
     /// An ABSOLUTE path to the directory new volumes are created
-    /// under. A relative path is refused when the configuration is
-    /// loaded.
+    /// under, made when the configuration is loaded if it is not
+    /// there. A relative path is refused when the configuration is
+    /// loaded. On macOS the podman machine is made seeing it.
     pub path: PathBuf,
     /// The total number of bytes the provider may reserve across the
     /// volumes in this store. What `volumes::create_capacity` reports

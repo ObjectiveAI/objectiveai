@@ -22,5 +22,5 @@ verbatim; the client's one answer is relayed back.
   the mount's channel as one channel response and finishes it. The
   server does not read the ask or the answer, and does not send the
   ask twice.
-- **Refusal is the client's.** A client that answers this ask with an error refuses the change, and the proxy reports the operation to the program as failed. The server relays the answer and decides nothing.
+- **Refusal is the client's.** A client that answers this ask with an error refuses the change, and the proxy reports the operation to the program as failed. A client whose storage keeps nothing written into it answers with the ephemeral byte, and the proxy reports the operation to the program as a read-only filesystem. The server relays the answer and decides nothing.
 - **A directory mount only.** The proxy sends this ask only for a mount of `fuse_directory_mounts`.

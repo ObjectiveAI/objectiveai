@@ -4,10 +4,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::{
-    authorize, command, fetch_directory, fetch_file, fuse, oci, postgres,
-    vault, write_bytes,
-};
+use crate::shared::containers::{authorize, command, fuse, oci, postgres, tools, vault, write_bytes};
 use crate::shared::mcp;
 
 /// What a provider asks a caller for while a tool container runs.
@@ -19,10 +16,10 @@ use crate::shared::mcp;
 /// |-----|----------|
 /// | `0` | [`OciManifest`](Self::OciManifest) |
 /// | `1` | [`OciBlob`](Self::OciBlob) |
-/// | `2` | [`Authorize`](Self::Authorize) |
-/// | `3` | [`Write`](Self::Write) |
-/// | `4` | [`FetchFile`](Self::FetchFile) |
-/// | `5` | [`FetchDirectory`](Self::FetchDirectory) |
+/// | `2` | [`OciHas`](Self::OciHas) |
+/// | `3` | [`Authorize`](Self::Authorize) |
+/// | `4` | [`Tools`](Self::Tools) |
+/// | `5` | [`Write`](Self::Write) |
 /// | `6` | [`Postgres`](Self::Postgres) |
 /// | `7` | [`Command`](Self::Command) |
 /// | `8` | [`VaultGet`](Self::VaultGet) |
@@ -42,24 +39,24 @@ use crate::shared::mcp;
 /// | `22` | [`FuseRename`](Self::FuseRename) |
 /// | `23` | [`FuseMkdir`](Self::FuseMkdir) |
 /// | `24` | [`FuseStat`](Self::FuseStat) |
+/// | `25` | [`FuseTruncate`](Self::FuseTruncate) |
+/// | `26` | [`FuseSetattr`](Self::FuseSetattr) |
 ///
-/// The same twenty-five in both families, in the same order. The first
-/// six are the provider's own asks — the manifest and blobs of an
-/// image the caller holds, a connector's authorization, a write's
-/// content, mounted content it does not hold — and the rest are the
-/// CONTAINER's, relayed: its
-/// database connections, its commands, its vault, its tool calls
-/// outward to the caller's MCP servers, and the files the caller
-/// mounted live. A connector's scope has none
-/// of these but [`Write`](Self::Write); the container's asks go to
+/// The same twenty-seven in both families, in the same order. The first
+/// six are the provider's own asks — whether the caller holds an
+/// image, its manifest and blobs, a connector's authorization, the
+/// tools the container declared, a write's content — and the rest
+/// are the CONTAINER's, relayed: its database
+/// connections, its commands, its vault, its tool calls outward to the
+/// caller's MCP servers, and the files the caller mounted live. A
+/// connector's scope has none of these but [`Write`](Self::Write); the container's asks go to
 /// whoever runs it.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// A manifest of an image the caller holds, by digest. Tag `0`.
     ///
-    /// Opened only for an
-    /// [`Image::Client`](crate::shared::containers::request::Image::Client)
-    /// container, and opened by the container RUNTIME's appetite rather
+    /// Opened when the provider takes the image from the caller, and
+    /// opened by the container RUNTIME's appetite rather
     /// than the provider's: the provider's registry serves the pull,
     /// and a manifest its store does not hold becomes one of these.
     /// See [`oci`](crate::shared::containers::oci).
@@ -69,26 +66,30 @@ pub enum Frame<'a> {
     /// The other half of a pull; see
     /// [`oci`](crate::shared::containers::oci).
     OciBlob(oci::blob::request::Request),
-    /// Ask the caller whether a connector may attach. Tag `2`.
+    /// Whether the caller holds an image, by name and digest. Tag `2`.
+    ///
+    /// Opened by a provider that would take the image from the caller,
+    /// before it asks for anything of it; see
+    /// [`oci`](crate::shared::containers::oci).
+    OciHas(oci::has::request::Request),
+    /// Ask the caller whether a connector may attach. Tag `3`.
     ///
     /// Opened when one arrives; see
     /// [`authorize`](crate::shared::containers::authorize).
     Authorize(authorize::request::Authorize),
-    /// Send the content for a write. Tag `3`.
+    /// Deploy the tools the container declared. Tag `4`.
+    ///
+    /// Opened once, after the proxy's `Begun` carried a non-empty
+    /// list and before the id; never on a connect. See
+    /// [`tools`](crate::shared::containers::tools).
+    Tools(tools::request::Request<'a>),
+    /// Send the content for a write. Tag `5`.
     ///
     /// Opened in answer to a write the caller started. A write cannot
     /// carry its own content — only a responder can finish a channel —
     /// so the bytes travel as responses on this one. See
     /// [`write_bytes`](crate::shared::containers::write_bytes).
     Write(write_bytes::request::Request),
-    /// Send a mounted file the provider does not hold. Tag `4`.
-    ///
-    /// See [`fetch_file`](crate::shared::containers::fetch_file).
-    FetchFile(fetch_file::request::Request),
-    /// Send a mounted directory the provider does not hold. Tag `5`.
-    ///
-    /// See [`fetch_directory`](crate::shared::containers::fetch_directory).
-    FetchDirectory(fetch_directory::request::Request),
     /// The provider's half of a database connection the container
     /// opened. Tag `6`.
     ///
@@ -129,15 +130,17 @@ pub enum Frame<'a> {
     McpReadResource(mcp::read_resource::request::Request),
     /// Everything they say on their own account. Tag `17`.
     McpNotifications(mcp::notifications::request::Request),
-    /// Read a file the caller mounted live, by the mount's id and the
-    /// file's path in it. Tag `18`.
+    /// Read a piece of a file the caller mounted live, by the mount's
+    /// id, the file's path in it, an offset and a length. Tag `18`.
     ///
     /// The container's proxy asking on behalf of a FUSE mount: every
-    /// open of the file. See [`fuse`](crate::shared::containers::fuse).
+    /// `read(2)` of the file. See
+    /// [`fuse`](crate::shared::containers::fuse).
     FuseRead(fuse::read::request::Request<'a>),
-    /// Write a file the caller mounted live, whole. Tag `19`.
+    /// Write a piece of a file the caller mounted live, in place at
+    /// an offset. Tag `19`.
     ///
-    /// Every changed close of the file.
+    /// Every `write(2)` of the file.
     FuseWrite(fuse::write::request::Request<'a>),
     /// List a directory of a tree the caller mounted live. Tag `20`.
     ///
@@ -149,13 +152,22 @@ pub enum Frame<'a> {
     FuseRename(fuse::rename::request::Request<'a>),
     /// Make a directory in such a tree. Tag `23`.
     FuseMkdir(fuse::mkdir::request::Request<'a>),
-    /// What an entry the caller mounted live is, and how long. Tag
-    /// `24`.
+    /// What an entry the caller mounted live is: kind, size, mode,
+    /// owner, group and times. Tag `24`.
     ///
     /// Every attribute of a file mount, and every lookup and
     /// attribute of an entry in a directory mount: a `stat` costs
-    /// nine bytes back, not the file.
+    /// fifty-seven bytes back, not the file.
     FuseStat(fuse::stat::request::Request<'a>),
+    /// Set a file the caller mounted live to a length. Tag `25`.
+    ///
+    /// Every `truncate(2)`, `ftruncate(2)` and `O_TRUNC` open.
+    FuseTruncate(fuse::truncate::request::Request<'a>),
+    /// Set some attributes of an entry the caller mounted live. Tag
+    /// `26`.
+    ///
+    /// Every `chmod(2)`, `chown(2)` and `utimensat(2)`.
+    FuseSetattr(fuse::setattr::request::Request<'a>),
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -164,17 +176,17 @@ const OCI_MANIFEST: u8 = 0;
 /// Tag for [`Frame::OciBlob`].
 const OCI_BLOB: u8 = 1;
 
+/// Tag for [`Frame::OciHas`].
+const OCI_HAS: u8 = 2;
+
 /// Tag for [`Frame::Authorize`].
-const AUTHORIZE: u8 = 2;
+const AUTHORIZE: u8 = 3;
+
+/// Tag for [`Frame::Tools`].
+const TOOLS: u8 = 4;
 
 /// Tag for [`Frame::Write`].
-const WRITE: u8 = 3;
-
-/// Tag for [`Frame::FetchFile`].
-const FETCH_FILE: u8 = 4;
-
-/// Tag for [`Frame::FetchDirectory`].
-const FETCH_DIRECTORY: u8 = 5;
+const WRITE: u8 = 5;
 
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 6;
@@ -233,6 +245,12 @@ const FUSE_MKDIR: u8 = 23;
 /// Tag for [`Frame::FuseStat`].
 const FUSE_STAT: u8 = 24;
 
+/// Tag for [`Frame::FuseTruncate`].
+const FUSE_TRUNCATE: u8 = 25;
+
+/// Tag for [`Frame::FuseSetattr`].
+const FUSE_SETATTR: u8 = 26;
+
 impl Encode for Frame<'_> {
     /// The JSON failure from the asks that are JSON, or a vault key
     /// or a fuse id or path too long for its prefix; everything else
@@ -249,24 +267,24 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[OCI_BLOB]);
                 request.encode(out).map_err(FrameEncodeError::Json)
             }
+            Frame::OciHas(request) => {
+                out.extend_from_slice(&[OCI_HAS]);
+                request.encode(out).map_err(FrameEncodeError::Json)
+            }
             Frame::Authorize(authorize) => {
                 out.extend_from_slice(&[AUTHORIZE]);
                 serde_json::to_writer(out, authorize)
                     .map_err(FrameEncodeError::Json)
+            }
+            Frame::Tools(request) => {
+                out.extend_from_slice(&[TOOLS]);
+                request.encode(out).map_err(FrameEncodeError::Json)
             }
             Frame::Write(request) => {
                 out.extend_from_slice(&[WRITE]);
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
-            }
-            Frame::FetchFile(request) => {
-                out.extend_from_slice(&[FETCH_FILE]);
-                request.encode(out).map_err(FrameEncodeError::Json)
-            }
-            Frame::FetchDirectory(request) => {
-                out.extend_from_slice(&[FETCH_DIRECTORY]);
-                request.encode(out).map_err(FrameEncodeError::Json)
             }
             Frame::Postgres(request) => {
                 out.extend_from_slice(&[POSTGRES]);
@@ -344,6 +362,14 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[FUSE_STAT]);
                 request.encode(out).map_err(FrameEncodeError::Fuse)
             }
+            Frame::FuseTruncate(request) => {
+                out.extend_from_slice(&[FUSE_TRUNCATE]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::FuseSetattr(request) => {
+                out.extend_from_slice(&[FUSE_SETATTR]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
         }
     }
 }
@@ -395,18 +421,18 @@ impl<'a> Decode<'a> for Frame<'a> {
             OCI_BLOB => oci::blob::request::Request::decode(rest)
                 .map(Frame::OciBlob)
                 .map_err(FrameError::Oci),
+            OCI_HAS => oci::has::request::Request::decode(rest)
+                .map(Frame::OciHas)
+                .map_err(FrameError::Oci),
             AUTHORIZE => serde_json::from_slice(rest)
                 .map(Frame::Authorize)
                 .map_err(FrameError::Authorize),
+            TOOLS => tools::request::Request::decode(rest)
+                .map(Frame::Tools)
+                .map_err(FrameError::Tools),
             WRITE => write_bytes::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
-            FETCH_FILE => fetch_file::request::Request::decode(rest)
-                .map(Frame::FetchFile)
-                .map_err(FrameError::Fetch),
-            FETCH_DIRECTORY => fetch_directory::request::Request::decode(rest)
-                .map(Frame::FetchDirectory)
-                .map_err(FrameError::Fetch),
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
@@ -470,6 +496,12 @@ impl<'a> Decode<'a> for Frame<'a> {
             FUSE_STAT => fuse::stat::request::Request::decode(rest)
                 .map(Frame::FuseStat)
                 .map_err(FrameError::Fuse),
+            FUSE_TRUNCATE => fuse::truncate::request::Request::decode(rest)
+                .map(Frame::FuseTruncate)
+                .map_err(FrameError::Fuse),
+            FUSE_SETATTR => fuse::setattr::request::Request::decode(rest)
+                .map(Frame::FuseSetattr)
+                .map_err(FrameError::Fuse),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -480,16 +512,16 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's twenty-five.
+    /// A tag that is none of this frame's twenty-seven.
     UnknownTag(u8),
-    /// An image fetch did not parse.
+    /// An image ask did not parse.
     Oci(serde_json::Error),
     /// The authorization request did not parse.
     Authorize(serde_json::Error),
+    /// The tools did not parse.
+    Tools(serde_json::Error),
     /// The write content request did not decode.
     Write(write_bytes::request::RequestError),
-    /// A fetch request did not parse.
-    Fetch(serde_json::Error),
     /// The connection id was not four bytes.
     Postgres(postgres::request::PostgresError),
     /// A vault ask did not decode.
@@ -513,16 +545,16 @@ impl fmt::Display for FrameError {
                 write!(f, "unknown tools run channel request tag {tag}")
             }
             FrameError::Oci(error) => {
-                write!(f, "image fetch did not parse: {error}")
+                write!(f, "image ask did not parse: {error}")
             }
             FrameError::Authorize(error) => {
                 write!(f, "authorization request did not parse: {error}")
             }
+            FrameError::Tools(error) => {
+                write!(f, "tools did not parse: {error}")
+            }
             FrameError::Write(error) => {
                 write!(f, "write content request did not decode: {error}")
-            }
-            FrameError::Fetch(error) => {
-                write!(f, "fetch request did not parse: {error}")
             }
             FrameError::Postgres(error) => write!(f, "{error}"),
             FrameError::Vault(error) => write!(f, "{error}"),
@@ -539,7 +571,7 @@ impl std::error::Error for FrameError {
         match self {
             FrameError::Oci(error)
             | FrameError::Authorize(error)
-            | FrameError::Fetch(error)
+            | FrameError::Tools(error)
             | FrameError::McpParams(error) => Some(error),
             FrameError::Write(error) => Some(error),
             FrameError::Postgres(error) => Some(error),

@@ -10,7 +10,8 @@ use crate::endpoints::volumes::edit::server::response;
 use crate::frame;
 use crate::shared::error::Error;
 
-/// Change how much a volume reserves, and wait for the answer.
+/// Change a volume's size, its persist mode, or both, and wait for
+/// the answer.
 ///
 /// The rest of this crate describes the exchange; this performs it.
 /// Opening a scope, writing the request, waiting for the one frame that
@@ -22,19 +23,19 @@ use crate::shared::error::Error;
 ///
 /// One question, one answer, then the scope is over — so there is a
 /// value to return, and returning it is the whole of what a caller
-/// wanted. [`watch`](crate::endpoints::volumes::watch) is the volume
-/// endpoint that does not collapse, and its `execute` hands back
-/// something to keep reading instead.
+/// wanted. Every volume endpoint collapses this way.
 ///
 /// # An answer and an error are two different things
 ///
-/// There is one answer and it carries nothing: the change is made.
-/// Two refusals are the provider's defined answers rather than
-/// failures, and a caller acts on each:
+/// There is one answer and it carries nothing: the change is made,
+/// the whole of it. Two refusals are the provider's defined answers
+/// rather than failures, and a caller acts on each:
 /// [`ExecuteError::InsufficientCapacity`] is a size to ask smaller,
 /// and [`ExecuteError::ContentTooLarge`] — a volume already holding
-/// more than the new size allows — is a volume to empty first.
-/// Everything else is an [`ExecuteError::Provider`].
+/// more than the new size allows — is a volume to empty first; a
+/// change of both refused for its size changed the mode no more.
+/// Everything else is an [`ExecuteError::Provider`], a volume
+/// mounted somewhere among them.
 ///
 /// # It reads one frame and leaves
 ///

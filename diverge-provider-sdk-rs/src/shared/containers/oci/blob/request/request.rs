@@ -8,11 +8,11 @@ use crate::encode::{Encode, Writer};
 
 /// The digest, and deliberately nothing else.
 ///
-/// No offset and no length: the provider fetches a blob whole, once,
-/// and serves every range out of its own store, because a partial
-/// blob is a blob it cannot verify. No name, because the store is
-/// keyed by digest and a blob under one name is the same blob under
-/// another.
+/// No offset and no length: the provider asks for the blob, and
+/// what it does with the bytes — holds them, streams them through —
+/// is its own, so long as what it serves is the digest's. No name,
+/// because a blob is identified by its digest and a blob under one
+/// name is the same blob under another.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Request {
     /// The blob's digest, `<algorithm>:<hex>`.

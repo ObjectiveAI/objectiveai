@@ -1,7 +1,7 @@
 //! Examining one volume.
 //!
 //! [`list`](super::list) says which volumes exist; this says what is
-//! in one. A caller names a volume and gets the listing's three fields
+//! in one. A caller names a volume and gets the listing's four fields
 //! back with two more on top — how much of it is used, and the hash
 //! of its content. Split by who SENDS, as everywhere else: the ask is
 //! in [`client`], the answer in [`server`].

@@ -4,12 +4,16 @@
 //!
 //! The SDK's [`fuse`](diverge_provider_sdk::shared::containers::fuse)
 //! module states the semantics of both kinds; `file` and
-//! `directory` are the filesystems that keep them, `asks` the
-//! seven exchanges with the caller they are built on — each one
-//! channel request on the scope the mount was made on — and
-//! `handles` the open file handles both keep the same way: a buffer
-//! of the handle's own, read whole on open and stored whole on a
-//! changed close.
+//! `directory` are the filesystems that keep them, `asks` the nine
+//! exchanges with the caller they are built on — each one channel
+//! request on the scope the mount was made on — and `handles` the
+//! open file handles both keep the same way: a path and whether it
+//! was opened for writing, and nothing else. Nothing is buffered
+//! anywhere: every `read(2)` and every `write(2)` the kernel hands a
+//! mount is one ask with that call's own offset and size, carried as
+//! it comes, and every attribute is the caller's current answer. The
+//! mount is opened direct, so the kernel keeps no page cache over
+//! it either.
 //!
 //! FUSE calls a filesystem on the session's own thread, and the
 //! caller is asked on the runtime: every ask is the runtime handle's
@@ -18,6 +22,7 @@
 //! here is built for anything else.
 
 mod asks;
+mod attrs;
 mod directory;
 mod file;
 mod handles;
@@ -50,6 +55,8 @@ pub struct Mounted {
 /// Make every missing parent directory, the mount point itself if
 /// absent — the file, or the directory — and mount over it, writable:
 /// what may change is the caller's to answer, ask by ask, on `scope`.
+/// The modes below are the mount point's own, under the mount; what
+/// a program sees is the caller's stat.
 pub fn mount(scope: Arc<ScopeHandle>, handle: Handle, path: &Path, kind: Kind) -> io::Result<Mounted> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;

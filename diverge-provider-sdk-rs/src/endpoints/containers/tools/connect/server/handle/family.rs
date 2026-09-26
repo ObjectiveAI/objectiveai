@@ -6,7 +6,7 @@ use bytes::Bytes;
 
 use super::super::super::client::channel_request;
 use super::super::super::client::channel_response::write_bytes;
-use super::super::channel_response::{filetree, read, write_path};
+use super::super::channel_response::{filetree, read, transfer, write_path};
 use super::super::{channel_request as ask, response};
 use crate::decode::Decode as _;
 use crate::endpoints::containers::server::family::{Family, Opened};
@@ -34,7 +34,13 @@ impl Family for Connect {
                 write_id: request.write_id,
                 path: request.path,
             },
+            channel_request::Frame::Transfer(request) => Opened::Transfer {
+                path: request.path,
+                id: request.id,
+                destination: request.destination,
+            },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
+            channel_request::Frame::Schema => Opened::Schema,
             channel_request::Frame::McpListTools(request) => Opened::Exchange(tool::Exchange::ListTools(request)),
             channel_request::Frame::McpListResources(request) => {
                 Opened::Exchange(tool::Exchange::ListResources(request))
@@ -87,5 +93,13 @@ impl Family for Connect {
 
     fn write_error(error: &Error) -> Option<Vec<u8>> {
         encoded(&write_path::Frame::Error(error.clone()))
+    }
+
+    fn transferred() -> Option<Vec<u8>> {
+        encoded(&transfer::Frame::Transferred(shared::containers::transfer::response::Frame))
+    }
+
+    fn transfer_error(error: &Error) -> Option<Vec<u8>> {
+        encoded(&transfer::Frame::Error(error.clone()))
     }
 }

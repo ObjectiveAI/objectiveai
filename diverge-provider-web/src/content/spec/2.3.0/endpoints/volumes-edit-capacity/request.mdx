@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 8 followed by the name of the volume as a varint length and UTF-8 bytes, in the postcard wire format.'
+summary: 'The payload is the tag byte 11 followed by the name of the volume as a varint length and UTF-8 bytes, in the postcard wire format.'
 order: 1
 draft: false
 ---
@@ -10,7 +10,7 @@ the postcard wire format, as the postcard reading of
 [Notation](/endpoints/#notation) provides:
 
 ```text
-[8][name_len: varint][name: utf8 …]
+[11][name_len: varint][name: utf8 …]
 ```
 
 - **`name`.** The name of the volume, UTF-8, preceded by its byte
@@ -20,7 +20,7 @@ the postcard wire format, as the postcard reading of
   follows the `name` field. A request whose payload extends past the
   request is not malformed.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `8`, and a payload whose bytes after the tag do not decode
+  is not `11`, and a payload whose bytes after the tag do not decode
   as the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 

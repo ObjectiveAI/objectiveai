@@ -29,7 +29,7 @@ import {
   createUniqueUuid,
 } from "@elizaos/core";
 
-import { createDivergePlugin } from "./diverge.mjs";
+import { createDivergePlugin, renderContent } from "./diverge.mjs";
 
 /** The external ids every Eliza id of the lineage derives from. */
 const ROOM = "diverge";
@@ -338,7 +338,8 @@ function report(event) {
   }
 }
 
-async function turn(text) {
+async function turn(blocks) {
+  const text = await renderContent(runtime, blocks);
   usageSeen = false;
   let streamed = "";
   let spoke = false;
@@ -486,7 +487,7 @@ async function main() {
     }
     switch (request.type) {
       case "turn":
-        await turn(request.text);
+        await turn(request.content);
         break;
       case "read":
         await read(request.kind, request.key);

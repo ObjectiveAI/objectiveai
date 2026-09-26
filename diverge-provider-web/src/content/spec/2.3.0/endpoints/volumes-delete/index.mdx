@@ -1,12 +1,12 @@
 ---
 title: 'volumes::delete'
-summary: 'Tag 10: a client names a volume from its listing; the server sends exactly one response stating that the volume no longer exists, that it is mounted and was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
-order: 10
+summary: 'Tag 13: a client names a volume from its listing; the server sends exactly one response stating that the volume no longer exists, that it is mounted and was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
+order: 13
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`10` followed by the name of a volume. The server sends exactly one
+`13` followed by the name of a volume. The server sends exactly one
 response, which states that the volume is deleted, that the volume is
 mounted and was not deleted, or an error. The response finish follows
 the response, and no frame follows the finish.
@@ -37,16 +37,13 @@ the response, and no frame follows the finish.
   precedes it, no confirmation follows it, and the deletion is not
   reversible.
 - **A volume mounted.** When, at the time of the request, the volume
-  is mounted in a running container, the server does not delete it
-  and sends the byte `1`. The volume, its content, and the client's
-  listing are as they were before the request. The server does not
-  send the byte `0` for a volume that is mounted at the time of the
-  request.
-- **A volume watched.** A
-  [volumes::watch](/endpoints/volumes-watch/) on the volume is not a
-  mount. This revision does not prescribe whether the server deletes
-  a volume under a watch, nor what such a watch observes when it
-  does.
+  is mounted in any running container or served on any
+  [volumes::serve](/endpoints/volumes-serve/) scope — a volume may be mounted or served in several at once — or
+  is under a stat, an edit or another delete,
+  the server does not delete it and sends the byte `1`. The volume,
+  its content, and the client's listing are as they were before the
+  request. The server does not send the byte `0` for a volume that
+  is mounted at the time of the request.
 - **The error.** An error states that the server did not delete the
   volume, for a reason other than a mount. The volume remains in
   existence, its content is as it was, and the client's listing shows

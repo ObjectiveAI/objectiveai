@@ -1,0 +1,57 @@
+---
+title: 'volumes::filetree'
+summary: 'Tag 7: a client names a volume from its listing and a subtree of it; the server sends exactly one response carrying the tree of that subtree as a snapshot, or an error, and the scope finishes; nothing is watched and no change is sent.'
+order: 7
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`7` followed by the name of a volume and the path of a subtree of it.
+The server sends exactly one response, which is either the tree or an
+error. The response finish follows the response, and no frame follows
+the finish.
+
+- **The request.** The request carries the name of one volume and a
+  path, which may be empty.
+  [Request](/endpoints/volumes-filetree/request/) states its form.
+- **The volume named.** The client names a volume by the `name` its
+  [volumes::list](/endpoints/volumes-list/) listing gave it. The
+  server resolves the name against the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. A name that is not in the client's listing is answered
+  with an error. A client cannot name another client's volume.
+- **The path.** The path is a sequence of components from the root of
+  the volume: the same components a volume mount's
+  `volume_relative_path` names. An empty path names the root of the
+  volume. No component is empty, `.` or `..`, or contains `/` or NUL;
+  a request whose path is not of that form is answered with an error.
+  A path at which nothing is, and a path at which what is there is
+  not a directory, are answered with an error.
+- **The tree.** The answer carries the entries of the directory the
+  path names, each with everything beneath it, as the nodes of a
+  snapshot in the form the
+  [filetree](/endpoints/containers-agents-run/client/filetree/response/)
+  channel defines. The tree is the subtree at rest, at the time of
+  the response: no container changes the volume while the server
+  walks it. [Response](/endpoints/volumes-filetree/response/) states
+  its form.
+- **A snapshot, not a watch.** The response is the whole of the
+  exchange. The server sends no change after it, and every
+  `Directory` in the tree has `changes` `0`. A client that needs the
+  tree as it is later sends another request.
+- **A mounted volume is not walked.** The server does not walk a
+  volume that is mounted in any running container, or served on any
+  [volumes::serve](/endpoints/volumes-serve/) scope, at the time of the request — a volume may be mounted or
+  served in several at once — or that is
+  under a stat, a read, a write, a filetree, an edit or a delete. A
+  request naming such a volume is answered with an error, and nothing is determined about the volume. A
+  client that needs the tree stops every container that has it, or
+  waits for their end, and sends another request. The server holds
+  the volume to itself from the moment it accepts the request until
+  the finish, and a run naming the volume is refused for as long as
+  it does.
+- **The error.** An error states that the tree was not sent, and that
+  nothing was determined about the volume. A volume absent from the
+  client's listing, a volume mounted in a running container or
+  served at the time of the request, a path that is not of the stated form, and a
+  path that names no directory are each answered with an error.

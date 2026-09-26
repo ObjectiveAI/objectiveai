@@ -5,18 +5,18 @@
 //! caller's mounts — and the caller then works with what runs inside.
 //! Two families, told apart by what that is:
 //!
-//! - [`agents`]: a conversation. The request that makes the
-//!   container carries the agent — a JSON value the image defines,
-//!   fixed for the container's life — and the agent's chunks ride the
-//!   scope's own main stream after the id; an `enqueue` channel sends
-//!   it a message, starting a loop when none runs and queueing one
-//!   when it does, `dequeue` clears what is waiting, and
-//!   `agent_schema` says what the agent value may be.
+//! - [`agents`]: a conversation. The agent's chunks ride the scope's
+//!   own main stream after the id; an `enqueue` channel sends it a
+//!   message, starting a loop when none runs and queueing one when it
+//!   does, and `dequeue` clears what is waiting.
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
-//! Everything else is identical, and it is most of the wire: each
-//! family has a `run` that owns the container's life, and the tools
+//! Everything else is identical, and it is most of the wire: the
+//! request that makes a container carries its arguments — a JSON
+//! value the image defines, fixed for the container's life — and a
+//! `schema` channel says what they may be; each family has a `run`
+//! that owns the container's life, and the tools
 //! family also has a `connect` that joins one by id and authorization
 //! — an agent container is its runner's alone; every scope reads and
 //! writes files, watches the tree, and relays what the container asks

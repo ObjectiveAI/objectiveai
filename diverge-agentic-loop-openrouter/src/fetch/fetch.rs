@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use crate::agent::Agent;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use eventsource_stream::Event as MessageEvent;
+use rmcp::model::ContentBlock;
 use futures_util::{Stream, StreamExt as _};
 use reqwest_eventsource::{Event, RequestBuilderExt as _};
 
@@ -20,7 +21,7 @@ const ADDRESS: &str = "https://openrouter.ai/api/v1";
 /// Call OpenRouter and stream the answer back as loop chunks.
 ///
 /// The request is built whole from the three arguments — agent
-/// parameters, the opened continuation, this turn's prompt — and the
+/// parameters, the opened continuation, this turn's message — and the
 /// answer arrives as SSE, each event decoded and folded into the
 /// protocol's chunk vocabulary by
 /// [`ChatCompletionChunk::into_chunks`].
@@ -38,7 +39,7 @@ pub async fn fetch(
     api_key: &str,
     agent: Agent,
     continuation: Option<Continuation>,
-    prompt: String,
+    content: Vec<ContentBlock>,
     tools: Option<Vec<crate::request::Tool>>,
 ) -> Result<
     // `use<>`: the stream borrows nothing from the arguments — the
@@ -47,7 +48,7 @@ pub async fn fetch(
     Error,
 > {
     let request =
-        ChatCompletionCreateParams::new(agent, continuation, prompt, tools);
+        ChatCompletionCreateParams::new(agent, continuation, content, tools);
 
     let event_source = reqwest::Client::new()
         .post(format!("{ADDRESS}/chat/completions"))

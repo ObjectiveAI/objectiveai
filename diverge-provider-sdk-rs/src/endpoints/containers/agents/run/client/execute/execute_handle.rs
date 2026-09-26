@@ -6,21 +6,22 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::Stream;
+use rmcp::model::ContentBlock;
 use serde_json::Value;
 
 use super::super::channel_request;
-use super::{Filetree, FiletreeStream, Read, ReadStream, WritePath};
+use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::agents::run::server;
-use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue};
+use crate::endpoints::containers::client::answered::{Dequeue, Enqueue, Schema};
 use crate::endpoints::containers::client::{OpenError, Scoped, UnaryError, WaitError};
-use crate::shared::containers::{dequeue, enqueue, read, write_path};
+use crate::shared::containers::{dequeue, enqueue, read, transfer, write_path};
 
 /// The scope a run opened, held for the container's life.
 ///
 /// Every channel a caller may open into an agent container is a
-/// method here: the tree watched, a file read or written, the agent's
-/// schema, the queue's two verbs, and the stop. What the agent says
+/// method here: the tree watched, a file read or written, the
+/// arguments' schema, the queue's two verbs, and the stop. What the agent says
 /// is not: it is the [`ExecuteStream`](super::ExecuteStream) `execute` handed back
 /// beside this. Each opens its own channel, so several may be in flight
 /// at once. Clones share the scope, and [`wait`](Self::wait) on any
@@ -112,25 +113,37 @@ impl ExecuteHandle {
             .await
     }
 
-    /// What the agent value may be: the image's JSON Schema for it.
-    pub async fn agent_schema(&self) -> Result<Value, UnaryError<AgentSchema>> {
-        let payload = payload(&channel_request::Frame::AgentSchema).map_err(UnaryError::Request)?;
-        self.0.unary::<AgentSchema>(&payload).await
+    /// Copy one file out of this container into the container under
+    /// `id`, at `destination`, without the bytes passing through here;
+    /// resolves when it is at the destination. The caller must be
+    /// running, or connected to, both containers, or the provider
+    /// refuses.
+    pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), UnaryError<Transfer>> {
+        let payload = payload(&channel_request::Frame::Transfer(transfer::request::Request { path, id, destination }))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<Transfer>(&payload).await
+    }
+
+    /// What the arguments may be: the image's JSON Schema for them.
+    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
+        self.0.unary::<Schema>(&payload).await
     }
 
     /// A message for the agent — starting a loop when none runs,
     /// queued when one does — answered with its fate whenever that
     /// is known, which may be long after the ask; nothing times it
     /// out. What the agent says arrives on the scope's main stream.
-    pub async fn enqueue(&self, prompt: String) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { prompt }))
+    pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, content }))
             .map_err(UnaryError::Request)?;
         self.0.unary::<Enqueue>(&payload).await
     }
 
-    /// Clear the running loop's queue: whether it held anything.
-    pub async fn dequeue(&self) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
-        let payload = payload(&channel_request::Frame::Dequeue).map_err(UnaryError::Request)?;
+    /// Withdraw every message waiting under `key`: whether any was.
+    pub async fn dequeue(&self, key: String) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
+        let payload = payload(&channel_request::Frame::Dequeue(dequeue::request::Request { key }))
+            .map_err(UnaryError::Request)?;
         self.0.unary::<Dequeue>(&payload).await
     }
 }

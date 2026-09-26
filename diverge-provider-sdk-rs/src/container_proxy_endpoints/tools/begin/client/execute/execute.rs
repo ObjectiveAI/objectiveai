@@ -1,5 +1,7 @@
 //! Opening the scope, and hearing that it has begun.
 
+use serde_json::Value;
+
 use super::super::request;
 use super::super::super::server::{self, response};
 use super::{ExecuteError, ExecuteHandle, Finish};
@@ -8,21 +10,30 @@ use crate::container_proxy_endpoints::client::{Ask, Asks};
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::frame;
+use crate::shared::containers::request::Image;
+use crate::shared::containers::tools::Tool;
 
-/// Begin the server's work on a tool container: open the scope and
-/// wait for the proxy to say it has begun.
+/// Begin the server's work on a tool container: open the scope
+/// carrying `arguments` and `image`, and wait for the proxy to say it
+/// has begun.
 ///
 /// Reads exactly one frame off the main stream before returning,
 /// because nothing may be opened on the scope before its `Begun`: a
-/// refusal is [`Refused`](ExecuteError::Refused); a finish first is
+/// refusal is [`Refused`](ExecuteError::Refused), the container's
+/// server's own words; a finish first is
 /// [`Unanswered`](ExecuteError::Unanswered). The main stream then
 /// carries nothing more on a tool container, and the [`Finish`] is
-/// how its end is heard.
-pub async fn execute(handle: &Handle) -> Result<(ExecuteHandle, Asks<Ask>, Finish), ExecuteError> {
+/// how its end is heard. What comes back is the handle, the asks the
+/// proxy will open, the finish, and the tools the container declared.
+pub async fn execute(
+    handle: &Handle,
+    arguments: Value,
+    image: Image,
+) -> Result<(ExecuteHandle, Asks<Ask>, Finish, Vec<Tool>), ExecuteError> {
     let mut payload = Vec::new();
-    request::Frame
+    request::Frame { arguments, image }
         .encode(&mut Writer::new(&mut payload))
-        .unwrap_or_else(|error| match error {});
+        .map_err(ExecuteError::Request)?;
     let mut scope = handle.send_request(&payload).await.map_err(ExecuteError::Send)?;
 
     let bytes = scope.response_receiver.recv().await.ok_or(ExecuteError::Closed)?;
@@ -32,15 +43,16 @@ pub async fn execute(handle: &Handle) -> Result<(ExecuteHandle, Asks<Ask>, Finis
         frame::server::ServerFrame::ResponseFinish { .. } => return Err(ExecuteError::Unanswered),
         _ => return Err(ExecuteError::Misrouted),
     };
-    match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
-        response::Frame::Begun => {}
+    let tools = match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
+        response::Frame::Begun(tools) => tools,
         response::Frame::Error(error) => return Err(ExecuteError::Refused(error)),
-    }
+    };
 
     Ok((
         ExecuteHandle::new(handle.clone(), scope.scope),
         Asks::new(scope.request_receiver, decode_ask),
         Finish::new(scope.response_receiver),
+        tools,
     ))
 }
 

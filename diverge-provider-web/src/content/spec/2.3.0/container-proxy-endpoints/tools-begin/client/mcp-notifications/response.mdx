@@ -18,6 +18,12 @@ draft: false
 - **Lost notifications.** A notification the container's MCP server
   sent while the channel could not keep pace is not sent; the
   sequence does not report the loss.
+- **The image.** The server sets `_meta["diverge.network/image"]` in
+  the params of each notification to an object of two fields,
+  `{"name":…,"digest":…}`: the `image` the begin request carried,
+  verbatim. A value the container's server set under that key is
+  replaced. Every other member of the notification is sent as the
+  container's server sent it.
 
 The channel response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/server/channel_response/mcp_notifications/frame.rs`:
 

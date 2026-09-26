@@ -5,20 +5,28 @@ use serde_json::Value;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::containers::request::Image;
 
 /// Begin the server's work on an agent container, and hand it its
-/// agent.
+/// arguments.
 ///
-/// The agent is the
-/// [`agent`](crate::endpoints::containers::agents::run::client::request::Frame::agent)
+/// The arguments are the
+/// [`arguments`](crate::shared::containers::request::Container::arguments)
 /// of the request that made the container, typed to the same depth
 /// for the same reason — a JSON value, because the image defines what
-/// an agent is, and what the value may be is what
-/// [`agent_schema`](crate::shared::containers::agent_schema) answers.
-/// It rides the begin rather than a channel of its own because it is
-/// handed over exactly once, first, and never changes: the container
-/// that has begun is a container that holds its agent, and
+/// it takes, and what the value may be is what
+/// [`schema`](crate::shared::containers::schema) answers. They ride
+/// the begin rather than a channel of their own because they are
+/// handed over exactly once, first, and never change: the container
+/// that has begun is a container that holds its arguments, and
 /// [`Begun`](super::super::super::server::response::Frame::Begun) says both.
+///
+/// The image rides beside them for the proxy's own use: the proxy
+/// cannot see what image it runs in, and it puts the name and the
+/// digest under `_meta` on every MCP exchange it relays — see
+/// [`shared::mcp`](crate::shared::mcp) — so that whoever is on the
+/// other end of a tool call knows which image is calling, and which
+/// image is serving.
 ///
 /// # Once, and first
 ///
@@ -26,10 +34,13 @@ use crate::encode::{Encode, Writer};
 /// and never again on it: a second begin is answered
 /// [`Error`](super::super::super::server::response::Frame::Error) and
 /// finished, and the first goes on.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Frame {
-    /// The agent, as the image defines it.
-    pub agent: Value,
+    /// The arguments, as the image defines them.
+    pub arguments: Value,
+    /// The image the container was made from, name and digest, as the
+    /// run request named it.
+    pub image: Image,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -81,7 +92,7 @@ pub enum FrameError {
     /// assumed which request it held, and was wrong, will — which is
     /// the point of checking a tag rather than skipping it.
     UnexpectedTag(u8),
-    /// The agent did not parse.
+    /// The arguments did not parse.
     Body(serde_json::Error),
 }
 

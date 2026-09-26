@@ -37,6 +37,7 @@
 //! against the dequeue's joined hold, and stdout always drains while
 //! an enqueue blocks on a full stdin pipe.
 
+mod content;
 mod dequeue;
 mod enqueue;
 mod error;
@@ -48,6 +49,7 @@ mod spawn;
 mod stdin;
 mod writer;
 
+pub use content::blocks;
 pub use dequeue::dequeue;
 pub use enqueue::enqueue;
 pub use install::installed;

@@ -1,14 +1,17 @@
 //! Asking for a container.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-use super::{FuseMount, IdentityMount, Image, VolumeMount};
+use super::{FuseMount, Image, VolumeMount};
 
 /// Ask a provider to create a container.
 ///
 /// Everything here is what a caller may CHOOSE, and it is the same for
-/// every kind of container: what differs between an agent and a tool
-/// server is asked once the container runs, on a channel, not here.
+/// every kind of container — the arguments included, which either
+/// kind is handed once: what differs between an agent and a tool
+/// server is what a caller says into it once it runs, on a channel,
+/// not here.
 /// What a caller may not choose is not here at all rather than here
 /// and ignored — the container's name, its published ports, its
 /// entrypoint and its environment are the provider's, because they
@@ -16,13 +19,9 @@ use super::{FuseMount, IdentityMount, Image, VolumeMount};
 /// reaches back. There is no environment: the mounts are the caller's
 /// only provisioning channel, and a field that is accepted and
 /// ignored is a field callers will believe in.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Container {
-    /// The image, and who supplies it.
-    ///
-    /// See [`Image`]. Which variant it is decides how the image is
-    /// named, which is why the source and the name are one field
-    /// rather than two that only make sense together.
+    /// The image: a name and a digest. See [`Image`].
     pub image: Image,
     /// How much memory the container may have, in BYTES.
     ///
@@ -47,8 +46,7 @@ pub struct Container {
     ///
     /// A volume is storage that already existed, with a size of its
     /// own that a [`volume`](crate::endpoints::volumes) stated when it
-    /// was made, and identity-mounted content is content that already
-    /// existed. A number here that silently applied to either would be
+    /// was made. A number here that silently applied to it would be
     /// this request deciding how much of somebody else's storage a
     /// container may fill.
     ///
@@ -58,26 +56,12 @@ pub struct Container {
     /// Volumes the provider offers, made visible inside the container.
     ///
     /// Ordered, and a provider applies them in order. See
-    /// [`VolumeMount`] for how one is named without a host path.
+    /// [`VolumeMount`] for how one is named without a host path. No
+    /// mount's path, in any list, is a prefix of another's: mounting
+    /// INTO a directory the image owns is the point, and mounts
+    /// stacking on each other is not.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub volume_mounts: Vec<VolumeMount>,
-    /// Files the caller holds, by content, mounted writable.
-    ///
-    /// Each names a file by its identity — see [`IdentityMount`].
-    /// The provider MUST mount every one before the container starts,
-    /// fetching what it does not hold from the caller by that
-    /// identity; the content MUST match the identity when the
-    /// container starts, and MUST be writable inside it.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub identity_file_mounts: Vec<IdentityMount>,
-    /// Directories the caller holds, by content, mounted writable.
-    ///
-    /// Each names a directory by its identity — see
-    /// [`IdentityMount`]. No mount's path, in any of the three lists, is
-    /// a prefix of another's: mounting INTO a directory the image owns
-    /// is the point, and mounts stacking on each other is not.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub identity_directory_mounts: Vec<IdentityMount>,
     /// Files the caller serves LIVE, mounted one each over FUSE.
     ///
     /// Each names a file by a path, an id of the caller's, and
@@ -86,8 +70,8 @@ pub struct Container {
     /// every open and every changed close inside the container is one
     /// ask back to the caller, by that id. The file is overwritten in
     /// place only; a program that replaces its file by rename needs a
-    /// directory mount. A path may lie inside a directory another
-    /// mount provides; it may not equal another mount's path.
+    /// directory mount. Its path is no other mount's and lies inside
+    /// none, as every mount's.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories the caller serves LIVE, mounted one each over FUSE.
@@ -100,4 +84,15 @@ pub struct Container {
     /// lie inside it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
+    /// What the image is told once, as the image defines it, for the
+    /// container's life.
+    ///
+    /// A JSON value, because this crate does not know what an image
+    /// takes — an agent's model and tools, a tool server's own knobs
+    /// — and a wire that typed it would have to be revised for every
+    /// image that ever ran. The provider hands it to the container
+    /// and does not read it; what the value MAY be is what
+    /// [`schema`](crate::shared::containers::schema) answers, for
+    /// either kind of container.
+    pub arguments: Value,
 }

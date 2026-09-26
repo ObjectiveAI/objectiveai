@@ -175,7 +175,11 @@ impl AssistantMessage {
                 append(&mut self.refusal, chunk.inner.text);
             }
             AgenticLoopChunk::ToolResponse(_)
-            | AgenticLoopChunk::User(_)
+            | AgenticLoopChunk::UserTextContent(_)
+            | AgenticLoopChunk::UserImageContent(_)
+            | AgenticLoopChunk::UserAudioContent(_)
+            | AgenticLoopChunk::UserResource(_)
+            | AgenticLoopChunk::UserResourceLink(_)
             | AgenticLoopChunk::Usage(_)
             | AgenticLoopChunk::Notification(_) => {
                 unreachable!("only assistant chunks are pushed here")

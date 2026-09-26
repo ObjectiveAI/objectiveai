@@ -2,7 +2,7 @@
 //!
 //! The program an agent container runs for a Claude Code agent: an
 //! HTTP server on the container's loopback, at the port the SDK's
-//! [`diverge_container_proxy_sdk::agent`] module names, that the proxy beside it
+//! [`diverge_container_proxy_sdk::port()`] names, that the proxy beside it
 //! forwards the provider's asks to. `POST /run` runs the one loop the
 //! container serves — a Claude Code subprocess behind [`spawn`] — and
 //! streams its chunks back as server-sent events — one at a time,
@@ -66,9 +66,10 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
 use diverge_container_proxy_sdk::Client;
-use diverge_container_proxy_sdk::agent::dequeue::Outcome;
+use diverge_container_proxy_sdk::agent::dequeue::{self, Outcome};
 use diverge_container_proxy_sdk::agent::enqueue::Fate;
-use diverge_container_proxy_sdk::agent::register;
+use diverge_container_proxy_sdk::register;
+use diverge_container_proxy_sdk::register::response::Response;
 use diverge_container_proxy_sdk::agent::run;
 use diverge_provider_sdk::shared::containers::enqueue;
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
@@ -112,7 +113,7 @@ async fn serve() {
         .route("/dequeue", axum::routing::post(dequeue))
         .with_state(Arc::new(Client::new()));
 
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_container_proxy_sdk::agent::port()))
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_container_proxy_sdk::port()))
         .await
         .expect("the port could not be bound");
     axum::serve(listener, app)
@@ -130,9 +131,11 @@ async fn serve() {
 /// is still running waits for it and is never refused); Claude Code
 /// failing to install (`500`,
 /// and the same on every endpoint, forever — a request during the
-/// install simply waits for the outcome); an empty prompt (`400` — stream-json input
-/// opens the turn with a user message, and an empty one would hang
-/// forever waiting); a database that will not answer, or a session
+/// install simply waits for the outcome); a message with no content, or
+/// content Claude Code cannot take — audio, an image in a format the
+/// API does not read, a binary resource that is not such an image
+/// (`400`, the whole message refused; an empty one would hang the
+/// turn forever waiting); a database that will not answer, or a session
 /// row that will not open (`500`); a subprocess that will not start
 /// (`500`); and the stream's FIRST item, pulled before the response
 /// is decided — an error record there is the request's own failure
@@ -173,14 +176,23 @@ async fn run(
     };
     installed().await?;
 
-    if request.prompt.is_empty() {
+    if request.messages.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({
-                "kind": "prompt",
-                "error": "a turn needs a prompt",
+                "kind": "content",
+                "error": "a run needs a message",
             })),
         ));
+    }
+    // Every message's blocks, converted, as one stdin line: the run's
+    // prompt is one message to Claude Code, whichever the caller sent.
+    let mut blocks = Vec::new();
+    for message in &request.messages {
+        match spawn::blocks(&message.content) {
+            Ok(converted) => blocks.extend(converted),
+            Err(error) => return Err((StatusCode::BAD_REQUEST, Json(error))),
+        }
     }
 
     let pool = match sqlx::postgres::PgPoolOptions::new()
@@ -227,7 +239,7 @@ async fn run(
         },
     };
 
-    let stream = match spawn::spawn(agent, session_id, request.prompt, claim).await {
+    let stream = match spawn::spawn(agent, session_id, request.messages, blocks, claim).await {
         Ok(stream) => stream,
         Err(error) => {
             return Err((
@@ -308,13 +320,13 @@ async fn run(
     }))
 }
 
-/// `POST /register`: the agent, once, for the container's life.
+/// `POST /register`: the `arguments`, the agent, once, for the container's life.
 ///
 /// A value this image will not take is `400`; an agent already
 /// registered is `409`, whatever the second carries — the agent
-/// never changes. `204` is the agent held.
-async fn register(Json(request): Json<register::request::Request>) -> Result<StatusCode, Refusal> {
-    let agent: Agent = match serde_json::from_value(request.agent) {
+/// never changes. `200`, with the tools the agent depends on passed back, is the agent held.
+async fn register(Json(request): Json<register::request::Request>) -> Result<(StatusCode, Json<Response>), Refusal> {
+    let agent: Agent = match serde_json::from_value(request.arguments) {
         Ok(agent) => agent,
         Err(error) => {
             return Err((
@@ -326,8 +338,9 @@ async fn register(Json(request): Json<register::request::Request>) -> Result<Sta
             ));
         }
     };
+    let tools = agent.mcp_tools.clone();
     match registration::register(agent) {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Ok(()) => Ok((StatusCode::OK, Json(Response { tools }))),
         Err(_) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({
@@ -338,7 +351,7 @@ async fn register(Json(request): Json<register::request::Request>) -> Result<Sta
     }
 }
 
-/// `GET /schema`: what the agent value may be — the JSON Schema of
+/// `GET /schema`: what the `arguments` may be — the JSON Schema of
 /// [`Agent`], derived from the type the run reads, so the two cannot
 /// disagree.
 async fn schema() -> Json<schemars::Schema> {
@@ -355,19 +368,23 @@ async fn schema() -> Json<schemars::Schema> {
 /// (missed).
 async fn enqueue(Json(request): Json<enqueue::request::Request>) -> Result<Json<Fate>, Refusal> {
     installed().await?;
-    Ok(Json(spawn::enqueue(request.prompt).await))
+    let blocks = match spawn::blocks(&request.content) {
+        Ok(blocks) => blocks,
+        Err(error) => return Err((StatusCode::BAD_REQUEST, Json(error))),
+    };
+    Ok(Json(spawn::enqueue(request.key, request.content, blocks).await))
 }
 
-/// `POST /dequeue`: clear the running conversation's queue.
+/// `POST /dequeue`: withdraw the messages waiting under a key.
 ///
-/// The answer arrives once Claude Code has replied to every cancel —
-/// however long that takes — and a queue with nothing left to
-/// withdraw, or no run at all, answers `empty`. The body, `{}`,
-/// carries nothing and is not read. The one HTTP failure is the
-/// install's.
-async fn dequeue() -> Result<Json<Outcome>, Refusal> {
+/// The answer arrives once Claude Code has replied to every cancel
+/// of a message under the body's key — however long that takes —
+/// and a queue with nothing left to withdraw under it, or no run at
+/// all, answers `empty`; every other message stays. The one HTTP
+/// failure is the install's.
+async fn dequeue(Json(request): Json<dequeue::request::Request>) -> Result<Json<Outcome>, Refusal> {
     installed().await?;
-    Ok(Json(spawn::dequeue().await))
+    Ok(Json(spawn::dequeue(&request.key).await))
 }
 
 /// The install gate every endpoint stands behind: waits out an

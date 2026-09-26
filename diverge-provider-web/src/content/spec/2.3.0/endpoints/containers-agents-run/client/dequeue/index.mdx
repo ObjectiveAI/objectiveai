@@ -1,15 +1,18 @@
 ---
 title: 'Dequeue'
-summary: 'Tag 7: the client withdraws every message from the agent’s queue; the server opens a dequeue channel on the container’s begin scope and relays exactly one channel response stating whether the queue held anything.'
-order: 7
+summary: 'Tag 8: the client names a key and withdraws every message enqueued under it and not yet taken; the server opens a dequeue channel on the container’s begin scope and relays exactly one channel response stating whether any was.'
+order: 8
 draft: false
 ---
 
 The client opens this channel to withdraw every message waiting in
-the agent's queue. The server opens a dequeue channel on the begin
-scope of the container's proxy and relays its answer.
+the agent's queue under a key: the key an
+[enqueue](/endpoints/containers-agents-run/client/enqueue/) carried. A message under
+another key stays where it is, and a message the agent has taken
+stays taken. The server opens a dequeue channel on the begin scope
+of the container's proxy with the key and relays its answer.
 
-- **The request.** The tag byte `7` and nothing more.
+- **The request.** The tag byte `8` followed by the key as JSON.
   [Request](/endpoints/containers-agents-run/client/dequeue/request/) states its form.
 - **The response.** Exactly one channel response and the channel
   response finish. [Response](/endpoints/containers-agents-run/client/dequeue/response/)

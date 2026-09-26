@@ -19,7 +19,8 @@ use crate::container_proxy_endpoints::client::Ask;
 use crate::container_proxy_endpoints::fuse::mount::client::execute::Ask as MountAsk;
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::shared::containers::response::{Id, VolumeMounted};
+use crate::shared::containers::request::Image;
+use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::error::Error;
 use crate::shared::filetree;
 
@@ -33,7 +34,7 @@ use crate::shared::filetree;
 pub(crate) trait Family: Send + Sync + 'static {
     /// The caller's channel request frame.
     type Request: for<'a> Decode<'a> + Send;
-    /// The family's own exchanges, past the shared five.
+    /// The family's own exchanges, past the shared seven.
     type Exchange: Send + 'static;
 
     /// Which channel the caller opened.
@@ -60,6 +61,10 @@ pub(crate) trait Family: Send + Sync + 'static {
     fn written() -> Option<Vec<u8>>;
     /// A write channel's error.
     fn write_error(error: &Error) -> Option<Vec<u8>>;
+    /// A transfer that landed.
+    fn transferred() -> Option<Vec<u8>>;
+    /// A transfer channel's error.
+    fn transfer_error(error: &Error) -> Option<Vec<u8>>;
 }
 
 /// What the two scopes that deploy supply besides: how their container
@@ -69,10 +74,10 @@ pub(crate) trait Runs: Family {
     type Ask<'a>: Encode + From<Own<'a>>;
 
     /// Begin the container's proxy: the family's begin scope on the
-    /// connection `proxy`, carrying `agent` where the family takes
-    /// one. What comes back is the scope and what rides it; an error
-    /// is the run's, in the proxy's words where it refused.
-    fn begin(proxy: &Handle, agent: Option<Value>) -> impl Future<Output = Result<Begun, Error>> + Send;
+    /// connection `proxy`, carrying the container's `arguments` and
+    /// its `image`. What comes back is the scope and what rides it; an
+    /// error is the run's, in the proxy's words where it refused.
+    fn begin(proxy: &Handle, arguments: Value, image: Image) -> impl Future<Output = Result<Begun, Error>> + Send;
 
     /// The proxy's ask on the begin scope, as this family's frame to
     /// the caller — or [`None`] for the one that is not carried as it
@@ -87,7 +92,7 @@ pub(crate) trait Runs: Family {
     /// The container's id, on channel `0`.
     fn id(id: &Id) -> Option<Vec<u8>>;
     /// The run refused for a held volume, on channel `0`.
-    fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>>;
+    fn volume_held(refused: &VolumeHeld) -> Option<Vec<u8>>;
 }
 
 /// What a caller opened, classified.
@@ -106,9 +111,20 @@ pub(crate) enum Opened<E> {
         /// The destination.
         path: Vec<String>,
     },
+    /// One file, copied into another container.
+    Transfer {
+        /// The file, in this run's container.
+        path: Vec<String>,
+        /// The other container, by its id.
+        id: String,
+        /// The destination, in that container.
+        destination: Vec<String>,
+    },
     /// The caller's half of a database connection, by the id this end
     /// minted.
     Postgres(u32),
+    /// What the arguments may be.
+    Schema,
     /// The family's own.
     Exchange(E),
 }

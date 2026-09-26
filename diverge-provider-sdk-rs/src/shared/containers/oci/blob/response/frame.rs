@@ -10,8 +10,8 @@ use crate::encode::{Encode, Writer};
 /// say beyond the bytes themselves.
 ///
 /// Borrowed from the frame it arrived in: the receiver is about to
-/// write these bytes into its store, and copying them first would
-/// double every chunk's memory for nothing.
+/// hand these bytes on, and copying them first would double every
+/// chunk's memory for nothing.
 ///
 /// # Every frame appends
 ///
@@ -27,7 +27,7 @@ use crate::encode::{Encode, Writer};
 /// A caller that dies mid-blob leaves the provider with bytes and a
 /// finish it cannot tell from completion. No frame says "last one" —
 /// the digest does: the provider hashes what arrived, and a partial
-/// blob fails it, and is never stored.
+/// blob fails it, and is never served as the blob.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Frame<'a> {
     /// The bytes, borrowed from the frame they arrived in.

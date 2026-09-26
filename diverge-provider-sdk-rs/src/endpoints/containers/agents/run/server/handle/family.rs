@@ -1,5 +1,6 @@
 //! This scope's frames, named for the machinery.
 
+use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 
@@ -9,7 +10,7 @@ use bytes::Bytes;
 
 use super::super::super::client::channel_request;
 use super::super::super::client::channel_response::write_bytes;
-use super::super::channel_response::{filetree, read, write_path};
+use super::super::channel_response::{filetree, read, transfer, write_path};
 use super::super::{channel_request as ask, response};
 use crate::client::handle::Handle;
 use crate::container_proxy_endpoints::client::Ask;
@@ -23,8 +24,9 @@ use crate::endpoints::containers::server::serve::agent;
 use crate::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy_endpoints::agents::begin::client::execute as begin;
 use crate::shared;
-use crate::shared::containers::response::{Id, VolumeMounted};
-use crate::shared::containers::{command, fetch_directory, fetch_file, fuse, oci, postgres, vault};
+use crate::shared::containers::request::Image;
+use crate::shared::containers::response::{Id, VolumeHeld};
+use crate::shared::containers::{command, fuse, oci, postgres, tools, vault};
 use crate::shared::mcp;
 use crate::shared::error::Error;
 use crate::shared::filetree as tree;
@@ -45,10 +47,15 @@ impl Family for Agents {
                 write_id: request.write_id,
                 path: request.path,
             },
+            channel_request::Frame::Transfer(request) => Opened::Transfer {
+                path: request.path,
+                id: request.id,
+                destination: request.destination,
+            },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
-            channel_request::Frame::AgentSchema => Opened::Exchange(agent::Exchange::AgentSchema),
-            channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.prompt)),
-            channel_request::Frame::Dequeue => Opened::Exchange(agent::Exchange::Dequeue),
+            channel_request::Frame::Schema => Opened::Schema,
+            channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.key, request.content)),
+            channel_request::Frame::Dequeue(request) => Opened::Exchange(agent::Exchange::Dequeue(request.key)),
         }
     }
 
@@ -95,23 +102,29 @@ impl Family for Agents {
     fn write_error(error: &Error) -> Option<Vec<u8>> {
         encoded(&write_path::Frame::Error(error.clone()))
     }
+
+    fn transferred() -> Option<Vec<u8>> {
+        encoded(&transfer::Frame::Transferred(shared::containers::transfer::response::Frame))
+    }
+
+    fn transfer_error(error: &Error) -> Option<Vec<u8>> {
+        encoded(&transfer::Frame::Error(error.clone()))
+    }
 }
 
 impl Runs for Agents {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, agent: Option<Value>) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value, image: Image) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
         async move {
-            // The agents handle always passes one; an absent agent is
-            // `null`, which the image is free to refuse.
-            let agent = agent.unwrap_or_default();
-            match begin::execute(&proxy, agent).await {
-                Ok((handle, asks, chunks)) => Ok(Begun {
+            match begin::execute(&proxy, arguments, image).await {
+                Ok((handle, asks, chunks, tools)) => Ok(Begun {
                     begin: Begin::Agents(handle),
                     asks,
                     chunks: Some(chunks),
                     finish: None,
+                    tools,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -131,8 +144,8 @@ impl Runs for Agents {
         encoded(&response::Frame::Id(id.clone()))
     }
 
-    fn volume_mounted(refused: &VolumeMounted) -> Option<Vec<u8>> {
-        encoded(&response::Frame::VolumeMounted(refused.clone()))
+    fn volume_held(refused: &VolumeHeld) -> Option<Vec<u8>> {
+        encoded(&response::Frame::VolumeHeld(refused.clone()))
     }
 }
 
@@ -158,13 +171,25 @@ fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
 /// A mount's ask as this family's frame, the caller's id in front.
 fn fuse<'a>(id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {
     match ask {
-        MountAsk::Read { path } => ask::Frame::FuseRead(fuse::Target { id, path }),
-        MountAsk::Write { path, bytes } => ask::Frame::FuseWrite(fuse::write::request::Request { id, path, bytes }),
+        MountAsk::Read { path, offset, length } => ask::Frame::FuseRead(fuse::read::request::Request {
+            id,
+            path,
+            offset: *offset,
+            length: *length,
+        }),
+        MountAsk::Write { path, offset, bytes } => ask::Frame::FuseWrite(fuse::write::request::Request {
+            id,
+            path,
+            offset: *offset,
+            bytes,
+        }),
         MountAsk::List { path } => ask::Frame::FuseList(fuse::Target { id, path }),
         MountAsk::Remove { path } => ask::Frame::FuseRemove(fuse::Target { id, path }),
         MountAsk::Rename { from, to } => ask::Frame::FuseRename(fuse::rename::request::Request { id, from, to }),
         MountAsk::Mkdir { path } => ask::Frame::FuseMkdir(fuse::Target { id, path }),
         MountAsk::Stat { path } => ask::Frame::FuseStat(fuse::Target { id, path }),
+        MountAsk::Truncate { path, size } => ask::Frame::FuseTruncate(fuse::truncate::request::Request { id, path, size: *size }),
+        MountAsk::Setattr { path, attrs } => ask::Frame::FuseSetattr(fuse::setattr::request::Request { id, path, attrs: *attrs }),
     }
 }
 
@@ -177,12 +202,13 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
             Own::OciBlob(digest) => ask::Frame::OciBlob(oci::blob::request::Request {
                 digest: digest.to_string(),
             }),
-            Own::Authorize(authorize) => ask::Frame::Authorize(authorize),
-            Own::FetchFile(identity) => ask::Frame::FetchFile(fetch_file::request::Request {
-                identity: identity.to_string(),
+            Own::OciHas { name, digest } => ask::Frame::OciHas(oci::has::request::Request {
+                name: name.to_string(),
+                digest: digest.to_string(),
             }),
-            Own::FetchDirectory(identity) => ask::Frame::FetchDirectory(fetch_directory::request::Request {
-                identity: identity.to_string(),
+            Own::Authorize(authorize) => ask::Frame::Authorize(authorize),
+            Own::Tools(declared) => ask::Frame::Tools(tools::request::Request {
+                tools: Cow::Borrowed(declared),
             }),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
         }

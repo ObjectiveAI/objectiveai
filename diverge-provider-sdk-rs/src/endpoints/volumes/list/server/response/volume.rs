@@ -2,12 +2,13 @@
 
 use serde::{Deserialize, Serialize};
 
-/// A directory a caller may watch, under the name a provider gave it.
+/// A directory a caller may mount, under the name a provider gave it.
 ///
 /// [`name`](Self::name) is what to call it, [`bytes`](Self::bytes) is
-/// how big it is, and [`created`](Self::created) is how old it is.
-/// That is the whole of what a listing says about one, and the
-/// omissions are the interesting part.
+/// how big it is, [`created`](Self::created) is how old it is, and
+/// [`persist`](Self::persist) is whether it keeps what is written
+/// into it. That is the whole of what a listing says about one, and
+/// the omissions are the interesting part.
 ///
 /// # What is inside it is a stat away
 ///
@@ -22,7 +23,7 @@ use serde::{Deserialize, Serialize};
 /// none, because a caller has nothing to do with one.
 ///
 /// Everything a caller does with a volume goes through its name: a
-/// [`watch`](crate::endpoints::volumes::watch) names it, a
+/// [`stat`](crate::endpoints::volumes::stat) names it, a
 /// [`delete`](crate::endpoints::volumes::delete) names it, and a
 /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
 /// names it, and a provider looks the name up rather than resolving
@@ -31,9 +32,11 @@ use serde::{Deserialize, Serialize};
 /// building strings out of it, a provider then unable to move a volume
 /// without breaking someone.
 ///
-/// The paths inside a watch still mean what they meant. They are
-/// relative to the volume; the volume is simply no longer described in
-/// terms of anywhere else.
+/// The paths a mount's
+/// [`volume_relative_path`](crate::shared::containers::request::VolumeMount::volume_relative_path)
+/// names still mean what they meant. They are relative to the volume;
+/// the volume is simply no longer described in terms of anywhere
+/// else.
 ///
 /// # Why a volume rather than a directory
 ///
@@ -52,7 +55,7 @@ pub struct Volume {
     /// did. Nothing here says which, and nothing should.
     ///
     /// It is also the HANDLE, and the only one. A
-    /// [`watch`](crate::endpoints::volumes::watch) names a volume by
+    /// [`stat`](crate::endpoints::volumes::stat) names a volume by
     /// this and by nothing else, so two volumes in one listing sharing
     /// a name would make one of them unreachable.
     pub name: String,
@@ -87,4 +90,19 @@ pub struct Volume {
     /// offers does, and the alternative is a signed field whose
     /// negative half exists to represent a state that never occurs.
     pub created: u64,
+    /// Whether the volume keeps what containers write into it.
+    ///
+    /// `true`: every change a container makes is in the volume when
+    /// the container ends. `false`: the volume is as it was before
+    /// each run when the container ends, and every container sees
+    /// its content as of that container's start. What a
+    /// [`create`](crate::endpoints::volumes::create::client::request::Frame::persist)
+    /// stated, or the last
+    /// [`edit`](crate::endpoints::volumes::edit::client::request::Change::Persist)
+    /// of it; for a volume the provider offers on its own, the
+    /// provider's word. One answer for every container that mounts
+    /// the volume — a mount does not choose.
+    ///
+    /// One byte in postcard, `0` or `1`, after `created`.
+    pub persist: bool,
 }

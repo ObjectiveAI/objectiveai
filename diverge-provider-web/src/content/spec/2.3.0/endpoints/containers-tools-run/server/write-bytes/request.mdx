@@ -1,12 +1,12 @@
 ---
 title: 'Request'
-summary: 'The payload of the channel request the server sends: the tag byte 3 and the ask.'
+summary: 'The payload of the channel request the server sends: the tag byte 5 and the ask.'
 order: 1
 draft: false
 ---
 
 ```text
-[3][write_id: u32, big-endian]
+[5][write_id: u32, big-endian]
 ```
 
 - **`write_id`.** The write id of the client's write channel request,

@@ -1,5 +1,6 @@
 //! The Codex agent.
 
+use diverge_provider_sdk::shared::containers::tools::Tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +18,7 @@ use super::{Effort, Provider, Summary, Verbosity, WebSearch};
 /// doc; every `Option` absent leaves that key unset, so Codex applies
 /// its own default for the model — except [`web_search`](Self::web_search),
 /// where absent is off, because nothing is on by omission.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Agent {
     /// The model to run: `model` (`--model`), in the endpoint's own
     /// naming.
@@ -47,4 +48,10 @@ pub struct Agent {
     /// [`Provider`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<Provider>,
+    /// The tool containers this agent depends on, each one the caller
+    /// runs and serves to it as an MCP server, in the form the
+    /// provider's wire defines. Passed back whole as the registration's
+    /// answer, which is how the caller learns of them. Absent is none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mcp_tools: Vec<Tool>,
 }

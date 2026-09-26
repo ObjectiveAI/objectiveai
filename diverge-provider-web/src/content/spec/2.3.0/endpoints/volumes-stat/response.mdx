@@ -22,26 +22,34 @@ finish follows the response, and no frame follows the finish.
   `Stat` defined below, encoded as the postcard reading of
   [Notation](/endpoints/#notation) provides: `name` as a varint byte
   length followed by that many bytes of UTF-8, followed by `bytes` as
-  a varint, followed by `created` as a varint, followed by
-  `bytes_used` as a varint, followed by `dirhash` as a varint byte
-  length followed by that many bytes of UTF-8.
-- **`name`, `bytes`, `created`.** The volume as the client's listing
-  reports it, in the form the
+  a varint, followed by `created` as a varint, followed by `persist`
+  as one byte, followed by `bytes_used` as a varint, followed by
+  `dirhash` as a varint byte length followed by that many bytes of
+  UTF-8.
+- **`name`, `bytes`, `created`, `persist`.** The volume as the
+  client's listing reports it, in the form the
   [volumes::list response](/endpoints/volumes-list/response/) defines.
-  The three values equal those the listing reports for the volume at
+  The four values equal those the listing reports for the volume at
   the time of the response.
 - **`bytes_used`.** The number of bytes of the volume in use, at the
   time of the response.
 - **`dirhash`.** The hash of the content of the volume, at the time
-  of the response. It is the SHA-256 of the manifest of the volume,
-  encoded as base64url without padding. The manifest is one line per
-  file of the volume, each line `<hash> <size> <path>`: `<hash>` is
-  the SHA-256 of the bytes of the file, encoded as base64url without
-  padding; `<size>` is the length of the file in bytes, in decimal;
-  `<path>` is the path of the file relative to the root of the
-  volume, its components separated by `/`. The lines are sorted
-  bytewise. A volume with no file has the manifest of zero bytes, and
-  its `dirhash` is `47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU`. Two
+  of the response. It is the string that the Go package
+  [`golang.org/x/mod/sumdb/dirhash`](https://pkg.go.dev/golang.org/x/mod/sumdb/dirhash),
+  whose source is
+  [`hash.go`](https://cs.opensource.google/go/x/mod/+/master:sumdb/dirhash/hash.go),
+  returns from `HashDir(root, "", Hash1)` for the root of the volume,
+  as that package defines it, which is the following. The files are
+  every entry beneath the root that is not a directory as `lstat`
+  reports it, each named by its path relative to the root with its
+  components joined by `/`; a symbolic link is a file, opened through
+  the link. The names are sorted bytewise. A name containing a
+  newline is an error. For each file, in that order, one line is
+  written into one SHA-256: the SHA-256 of the bytes of the file as
+  lowercase hexadecimal, two spaces, the name, and a newline. The
+  `dirhash` is the string `h1:` followed by that SHA-256 encoded as
+  standard base64 with padding. A volume with no file has the
+  `dirhash` `h1:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=`. Two
   volumes with one `dirhash` have one content; two volumes with
   different `dirhash` values have different content.
 - **The error.** A payload whose first byte is `1` carries an error

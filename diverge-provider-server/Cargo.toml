@@ -22,8 +22,64 @@ path = "src/main.rs"
 # version.sh would have to chase. `server` is the half that holds the
 # socket and hands this crate the scopes to serve.
 diverge-provider-sdk = { path = "../diverge-provider-sdk-rs", default-features = false, features = ["server"] }
+# The volume cache: one lock per identity and per name, so callers
+# of different volumes never wait on each other.
+dashmap = "6.2.1"
+# `Stream`, the shape a volume's watch is handed back as; `alloc` for
+# the join utilities the cache fans out with.
+futures-util = { version = "0.3.33", default-features = false, features = ["alloc"] }
+# A volume's dirhash, as the specification defines it: Go's `h1:`
+# directory hash, a SHA-256 over SHA-256s, the last written as
+# standard base64 with padding.
+sha2 = "0.10.9"
+base64 = "0.22.1"
+# Each file's SHA-256 as lowercase hexadecimal, the way Go's `%x`
+# writes it into the directory hash.
+hex = "0.4.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 serde_path_to_error = "0.1.20"
 serde_yaml_ng = "0.10.0"
-tokio = { version = "1.53.1", features = ["process", "io-util", "fs"] }
+# `sync` for the per-volume locks and the once-only loads; `rt` and
+# `rt-multi-thread` for the runtime main builds and the pool
+# `tokio::fs` hands every read to; `net` for the listeners and the
+# dials; `time` for the waits between a redial and the next, and
+# between one look at a starting proxy and the next; `signal` for the
+# Ctrl-C and the SIGTERM that stop the provider.
+tokio = { version = "1.53.1", features = ["process", "io-util", "fs", "sync", "rt", "rt-multi-thread", "net", "time", "signal"] }
+# The image registry a runtime pulls a caller-held image from — the
+# read side of the Distribution API on a loopback port — and the
+# provider's own port, where a caller's WebSocket is accepted and
+# handed to the SDK. HTTP/1 alone, which is what a runtime speaks to a
+# plain registry and what an upgrade rides, `ws` for the upgrade, and
+# none of axum's defaults — no forms, no JSON extractors, no tracing.
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "ws"] }
+# The dial to every peer the configuration names: the SDK names this
+# crate's socket type for an outgoing connection, so the version is
+# the SDK's exactly; `connect` alone, since a peer is `host:port` and
+# the dial is `ws://`, with no TLS to speak.
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect"] }
+# A blob's pieces as the SDK hands them, passed through to the
+# runtime's response untouched.
+bytes = { version = "1.11.1", default-features = false }
+# A created volume is an ext4 filesystem in an image file on the host,
+# which podman loop-mounts; `ext` alone is the formatter, in pure
+# Rust, with none of the CLI, the other filesystems or the codecs.
+# The library's API is not stable before 0.5, so the pin is exact.
+fstool = { version = "=0.4.33", default-features = false, features = ["ext"] }
+# A fixed volume's directory, watched for a caller's filetree: the
+# recommended watcher is inotify on Linux, FSEvents on macOS and
+# ReadDirectoryChangesW on Windows behind one API, which is the whole
+# of the platform difference this crate has to carry.
+notify = "8.2.0"
+# A container's name in podman and a loop mount's directory, each
+# minted fresh per deploy; `v4` alone, since nothing here needs a
+# UUID parsed or timed.
+uuid = { version = "1.26.1", default-features = false, features = ["v4"] }
+
+[target.'cfg(windows)'.dependencies]
+# The image file is sparse, so a volume reserves its size without
+# taking it: on Unix `set_len` alone does that, on NTFS the file must
+# be marked with `FSCTL_SET_SPARSE` first — `Ioctl` for the code,
+# `IO` for `DeviceIoControl`, `Foundation` for the handle.
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_IO", "Win32_System_Ioctl"] }

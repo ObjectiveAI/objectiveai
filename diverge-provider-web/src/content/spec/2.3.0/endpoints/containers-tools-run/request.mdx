@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the limits and the mounts.'
+summary: 'The payload is the tag byte 1 followed by the request as JSON: the image, the limits, the mounts and the arguments.'
 order: 1
 draft: false
 ---
@@ -12,34 +12,23 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 [1][container JSON …]
 ```
 
-- **`image`.** Exactly one of three objects: `{"client":{"name":…,"digest":…}}`,
-  an image the client holds, which the server pulls from its own
-  registry and fetches from the client by digest;
-  `{"server":{"name":…,"digest":…}}`, an image the server obtains
-  from a source of its own; `{"registry":{"reference":…}}`, a
-  reference the server pulls. `name` is a repository path without a
-  host; `digest` is `<algorithm>:<hex>`; `reference` is what the
-  server's runtime accepts.
+- **`image`.** An object of two fields: `{"name":…,"digest":…}`.
+  `name` is a repository path without a host; `digest` is
+  `<algorithm>:<hex>`, the manifest digest, which identifies the
+  image. The request names no source: where the server obtains the
+  image is the server's own.
 - **`memory`, `disk`.** Limits in bytes: the memory the container may
   use, and the bytes the container may write to its own filesystem.
   Neither governs a mount.
 - **`volume_mounts`.** Ordered; the server applies them in order.
-  `host_name` is a `name` in the client's listing; `host_relative_path`
+  `volume_name` is a `name` in the client's listing; `volume_relative_path`
   and `container_path` are components. An empty `container_path`
-  names the root, which the server refuses. `persist` is present and
-  is `true` or `false`: `true`, every change the container makes to
-  the volume is in the volume when the container ends; `false`, the
-  volume is as it was before the run when the container ends. The
-  container sees the volume's content as of its start either way.
-- **`identity_file_mounts`, `identity_directory_mounts`.** Each names
-  content by `identity`, `<size>:<base64url sha256>` with the hash of
-  the bytes for a file and of the manifest for a directory, as the
-  [volumes::stat response](/endpoints/volumes-stat/response/)
-  defines the manifest. Every one is mounted before the container
-  starts. Its content matches the identity, in size and hash, at the
-  start of the container's life, and is writable from inside the
-  container: a mount that refuses a write is a violation. Whether a
-  write outlives the container is not prescribed.
+  names the root, which the server refuses. Whether the changes the
+  container makes to the volume are in the volume when the container
+  ends is the volume's `persist`, as the client's listing reports it:
+  `true`, every change is in the volume; `false`, the volume is as it
+  was before the run. The container sees the volume's content as of
+  its start either way, and a mount states nothing about it.
 - **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path
   and an `id` the client chose. Every one is mounted before the id
   is sent. A directory mount is a tree the client serves: every entry
@@ -50,10 +39,15 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   is allowed is the client's answer to the ask; the server enforces
   nothing.
 - **Paths.** No component of any mount's path is empty, `.` or `..`.
-  No two mounts have one path. No mount lies inside a FUSE directory
-  mount. A FUSE file mount may lie inside a directory another mount
-  provides. No mount's path is the root.
+  No two mounts have one path. No mount lies inside another mount: a
+  volume mount inside a FUSE mount no more than a FUSE mount inside a
+  volume mount. No mount's path is the root.
 - **Ids.** No two FUSE mounts, on either list, have one `id`.
+
+- **`arguments`.** Any JSON value. The server relays it verbatim in
+  the begin request it opens on the proxy and does not read it. What
+  the value may be is what the container's
+  [schema](/endpoints/containers-tools-run/client/schema/) channel answers.
 
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `1`, and a payload whose bytes after the tag do not
@@ -78,11 +72,6 @@ and by `diverge-provider-sdk-rs/src/shared/containers/request/image.rs`:
 and by `diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs`:
 
 ```rust include=diverge-provider-sdk-rs/src/shared/containers/request/volume_mount.rs
-```
-
-and by `diverge-provider-sdk-rs/src/shared/containers/request/identity_mount.rs`:
-
-```rust include=diverge-provider-sdk-rs/src/shared/containers/request/identity_mount.rs
 ```
 
 and by `diverge-provider-sdk-rs/src/shared/containers/request/fuse_mount.rs`:

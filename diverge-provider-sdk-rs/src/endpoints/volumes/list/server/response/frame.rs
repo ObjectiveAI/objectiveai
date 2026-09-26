@@ -7,7 +7,7 @@ use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// Every volume a provider will let this caller watch, or the news
+/// Every volume a provider will let this caller mount, or the news
 /// that it could not say.
 ///
 /// One of these on channel `0`, then the scope finishes. A payload

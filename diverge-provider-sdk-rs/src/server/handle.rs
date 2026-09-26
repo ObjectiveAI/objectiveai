@@ -8,7 +8,6 @@ use futures_util::StreamExt as _;
 
 use super::authorization::{self, Authorization};
 use super::container_deployer::ContainerDeployer;
-use super::content_store::ContentStore;
 use super::directory::Directory;
 use super::image_checker::ImageChecker;
 use super::image_registry::ImageRegistry;
@@ -88,7 +87,7 @@ use crate::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — thirteen endpoints have thirteen error vocabularies, and an
+/// answer — sixteen endpoints have sixteen error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -105,14 +104,13 @@ use crate::shared::error::Error;
 /// every one of those teardowns — and it would end runs a caller had
 /// already paid for, which is the wrong way round: the work was real,
 /// and a caller that leaves does not un-spend it.
-pub async fn handle<D, V, I, U, S, R>(
+pub async fn handle<D, V, I, U, R>(
     mut session: Session,
     authorization: Authorization<U>,
     address: IpAddr,
     deployer: Arc<D>,
     volume_manager: Arc<V>,
     image_checker: Arc<I>,
-    content_store: Arc<S>,
     image_registry: Arc<R>,
     directory: Arc<Directory>,
 ) -> Result<(), HandleError<U::Error>>
@@ -124,8 +122,6 @@ where
     I: ImageChecker + 'static,
     I::Error: Into<Error>,
     U: UnbrokeredAuthorizer,
-    S: ContentStore + 'static,
-    S::Error: Into<Error>,
     R: ImageRegistry + 'static,
     R::Error: Into<Error>,
 {
@@ -209,12 +205,12 @@ where
             ClientRequest::ContainersAgentsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let store = Arc::clone(&content_store);
                 let registry = Arc::clone(&image_registry);
+                let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::agents::run::server::handle::handle(
-                        scope, frame, &identity, &*deployer, &*store, &*registry, &directory,
+                        scope, frame, &identity, &*deployer, &*registry, &*manager, directory,
                     )
                     .await;
                 });
@@ -222,21 +218,22 @@ where
             ClientRequest::ContainersToolsRun(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let deployer = Arc::clone(&deployer);
-                let store = Arc::clone(&content_store);
                 let registry = Arc::clone(&image_registry);
+                let manager = Arc::clone(&volume_manager);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::tools::run::server::handle::handle(
-                        scope, frame, &identity, &*deployer, &*store, &*registry, &directory,
+                        scope, frame, &identity, &*deployer, &*registry, &*manager, directory,
                     )
                     .await;
                 });
             }
             ClientRequest::ContainersToolsConnect(frame) => {
+                let identity = Arc::clone(&client_identity);
                 let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::containers::tools::connect::server::handle::handle(
-                        scope, frame, address, &directory,
+                        scope, frame, &identity, address, directory,
                     )
                     .await;
                 });
@@ -261,11 +258,41 @@ where
                     .await;
                 });
             }
-            ClientRequest::VolumesWatch(frame) => {
+            ClientRequest::VolumesRead(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
                 scopes.spawn(async move {
-                    endpoints::volumes::watch::server::handle::handle(
+                    endpoints::volumes::read::server::handle::handle(
+                        scope, frame, &identity, &*manager,
+                    )
+                    .await;
+                });
+            }
+            ClientRequest::VolumesWrite(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&volume_manager);
+                scopes.spawn(async move {
+                    endpoints::volumes::write::server::handle::handle(
+                        scope, frame, &identity, &*manager,
+                    )
+                    .await;
+                });
+            }
+            ClientRequest::VolumesFiletree(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&volume_manager);
+                scopes.spawn(async move {
+                    endpoints::volumes::filetree::server::handle::handle(
+                        scope, frame, &identity, &*manager,
+                    )
+                    .await;
+                });
+            }
+            ClientRequest::VolumesServe(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&volume_manager);
+                scopes.spawn(async move {
+                    endpoints::volumes::serve::server::handle::handle(
                         scope, frame, &identity, &*manager,
                     )
                     .await;
@@ -314,10 +341,9 @@ where
             ClientRequest::VolumesDelete(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);
-                let directory = Arc::clone(&directory);
                 scopes.spawn(async move {
                     endpoints::volumes::delete::server::handle::handle(
-                        scope, frame, &identity, &*manager, &directory,
+                        scope, frame, &identity, &*manager,
                     )
                     .await;
                 });

@@ -22,15 +22,13 @@ use crate::shared::error::Error;
 ///
 /// One question, one answer, then the scope is over — so there is a
 /// value to return, and returning it is the whole of what a caller
-/// wanted. [`watch`](crate::endpoints::volumes::watch) is the volume
-/// endpoint that does not collapse, and its `execute` hands back
-/// something to keep reading instead.
+/// wanted. Every volume endpoint collapses this way.
 ///
 /// # An answer and an error are two different things
 ///
 /// There is one answer and it carries nothing: the volume is gone.
 /// A volume that is mounted in a running container is
-/// [`ExecuteError::Mounted`] — the provider's defined refusal, not a
+/// [`ExecuteError::Mounted`] — the protocol's defined refusal, not a
 /// failure, and the one a caller acts on by stopping the container
 /// and asking again. Everything else is an
 /// [`ExecuteError::Provider`] — a volume that was never there, or a

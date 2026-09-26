@@ -50,8 +50,10 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use diverge_container_proxy_sdk::Client;
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use diverge_container_proxy_sdk::agent::run::request::Message;
+use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{AgenticLoopChunk, user_parts};
 use futures_util::Stream;
+use rmcp::model::ContentBlock;
 use sqlx::PgPool;
 
 use crate::agent::Agent;
@@ -68,7 +70,7 @@ pub fn run(
     client: Arc<Client>,
     pool: PgPool,
     agent: Agent,
-    prompt: String,
+    messages: Vec<Message>,
     generation: u64,
     claim: Claim,
 ) -> impl Stream<Item = Result<AgenticLoopChunk, Error>> {
@@ -118,10 +120,25 @@ pub fn run(
         // Whether any event has been written: before the first, a
         // failure is the request's own; after, a fatal notification.
         let mut spoke = false;
-        let mut input = prompt;
+        let mut input: Vec<ContentBlock> = messages.iter().flat_map(|message| message.content.iter().cloned()).collect();
+        let mut started_on = messages;
 
         'turns: loop {
-            let mut process = match Process::start(&env, thread.thread_id.as_deref(), &input).await {
+            let (text, images) = crate::content::render(&input);
+            let files = match crate::content::write(&images).await {
+                Ok(files) => files,
+                Err(error) => {
+                    yield Ok(notification(
+                        serde_json::json!({
+                            "kind": "content",
+                            "error": format!("an image could not be written: {error}"),
+                        }),
+                        true,
+                    ));
+                    break 'turns;
+                }
+            };
+            let mut process = match Process::start(&env, thread.thread_id.as_deref(), &text, &files).await {
                 Ok(process) => process,
                 Err(error) => {
                     if spoke {
@@ -138,6 +155,15 @@ pub fn run(
                     return;
                 }
             };
+            // The messages the run started on, as the stream's first
+            // chunks: their parts, each under its key, before the
+            // harness says a word. The turn is on the wire; a start
+            // that failed was the request's own, above.
+            for message in started_on.drain(..) {
+                for chunk in user_parts(&message.key, message.content) {
+                    yield Ok(chunk);
+                }
+            }
 
             let mut turn = Turn::new(thread.usage.clone());
             let mut broke = false;
@@ -233,19 +259,23 @@ pub fn run(
                 break 'turns;
             }
 
+            crate::content::remove(&files).await;
+
             // The turn's end: the queue's look, atomic. Empty closes
             // it and ends the run; pending opens another turn.
             let taken = QUEUE.take_or_close().await;
             if taken.is_empty() {
                 break;
             }
-            let mut prompts = Vec::with_capacity(taken.len());
+            let mut blocks = Vec::new();
             for message in taken {
-                yield Ok(user(message.prompt.clone()));
-                prompts.push(message.prompt.clone());
+                for chunk in user_parts(&message.key, message.content.clone()) {
+                    yield Ok(chunk);
+                }
+                blocks.extend(message.content.clone());
                 message.deliver();
             }
-            input = prompts.join("\n\n");
+            input = blocks;
         }
 
         // The way back up: the rollouts into the rows, whenever a

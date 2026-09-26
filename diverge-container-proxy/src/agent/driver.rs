@@ -6,17 +6,19 @@ use std::sync::Arc;
 
 use diverge_provider_sdk::server::scope_handle::ScopeHandle;
 use diverge_provider_sdk::shared::error::Error;
+use diverge_container_proxy_sdk::agent::run::request::Message;
 use tokio::sync::{mpsc, oneshot};
 
 use super::{Cmd, DequeueReply, Fate, Outcome, Queued, run};
 use crate::proxy::Proxy;
+use crate::stamp::Stamp;
 
 /// A message offered to the loop in flight, and not yet fated.
 struct Inflight {
     message: Queued,
-    /// The server withdrew the queue while this was on the wire: a
-    /// fate the agent's server does not decide is `Dequeued`, and the
-    /// message is not requeued.
+    /// The server withdrew this message's key while this was on the
+    /// wire: a fate the agent's server does not decide is `Dequeued`,
+    /// and the message is not requeued.
     withdrawn: bool,
 }
 
@@ -24,7 +26,7 @@ struct Inflight {
 enum Run {
     /// No loop. The next message starts one.
     Idle,
-    /// `/run` is on the wire, with these messages as its prompt; their
+    /// `/run` is on the wire, with these messages as its content; their
     /// fates follow its answer.
     Starting(Vec<Queued>),
     /// A loop runs, and its chunks are being relayed.
@@ -54,9 +56,9 @@ struct Driver {
 
 /// Start the driver for an agent container that has begun, and hand
 /// back the channel the server's channels speak to it on.
-pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>) -> mpsc::UnboundedSender<Cmd> {
+pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp) -> mpsc::UnboundedSender<Cmd> {
     let (sender, receiver) = mpsc::unbounded_channel();
-    tokio::spawn(drive(proxy, scope, receiver));
+    tokio::spawn(drive(proxy, scope, stamp, receiver));
     sender
 }
 
@@ -71,7 +73,7 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>) -> mpsc::UnboundedSend
 /// drain. The command channel closing is the connection gone — every
 /// channel that held a sender is over — and the driver ends with it;
 /// the calls in flight end with the process.
-async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::UnboundedReceiver<Cmd>) {
+async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, stamp: Stamp, mut commands: mpsc::UnboundedReceiver<Cmd>) {
     let mut driver = Driver {
         queue: VecDeque::new(),
         inflight: None,
@@ -87,13 +89,20 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
             command = commands.recv() => match command {
                 None => break,
                 Some(Cmd::Enqueue(message)) => driver.queue.push_back(message),
-                Some(Cmd::Dequeue(reply)) => {
-                    let drained = driver.queue.len();
-                    for message in driver.queue.drain(..) {
+                Some(Cmd::Dequeue { key, reply }) => {
+                    // One pass, the messages under the key out and
+                    // answered, every other kept in its order.
+                    let (withdrawn, kept): (Vec<Queued>, Vec<Queued>) =
+                        driver.queue.drain(..).partition(|message| message.key == key);
+                    driver.queue.extend(kept);
+                    let drained = withdrawn.len();
+                    for message in withdrawn {
                         let _ = message.fate.send(Fate::Dequeued);
                     }
                     if let Some(inflight) = &mut driver.inflight {
-                        inflight.withdrawn = true;
+                        if inflight.message.key == key {
+                            inflight.withdrawn = true;
+                        }
                     }
                     let _ = reply.send(DequeueReply {
                         drained,
@@ -112,7 +121,7 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
                         for message in batch {
                             let _ = message.fate.send(Fate::Delivered);
                         }
-                        ended = Some(run::relay(response, Arc::clone(&scope)));
+                        ended = Some(run::relay(response, Arc::clone(&scope), stamp.clone()));
                         driver.run = Run::Active;
                     }
                     Ok(Err(error)) => {
@@ -144,6 +153,9 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
                     Outcome::Dequeued => {
                         let _ = message.fate.send(Fate::Dequeued);
                     }
+                    Outcome::Refused(error) => {
+                        let _ = message.fate.send(Fate::Error(error));
+                    }
                     Outcome::Missed | Outcome::Failed => {
                         if withdrawn {
                             let _ = message.fate.send(Fate::Dequeued);
@@ -161,15 +173,14 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
         match driver.run {
             Run::Idle if !driver.queue.is_empty() => {
                 let batch: Vec<Queued> = driver.queue.drain(..).collect();
-                let prompt = joined(&batch);
-                starting = Some(run::start(Arc::clone(&proxy), prompt));
+                starting = Some(run::start(Arc::clone(&proxy), messages(&batch)));
                 driver.run = Run::Starting(batch);
             }
             Run::Active if !driver.halted && driver.inflight.is_none() && !driver.queue.is_empty() => {
                 let Some(message) = driver.queue.pop_front() else {
                     continue;
                 };
-                delivering = Some(super::deliver(Arc::clone(&proxy), message.prompt.clone()));
+                delivering = Some(super::deliver(Arc::clone(&proxy), message.key.clone(), message.content.clone()));
                 driver.inflight = Some(Inflight {
                     message,
                     withdrawn: false,
@@ -180,15 +191,16 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, mut commands: mpsc::U
     }
 }
 
-/// The messages as one prompt: joined with a blank line between, in
-/// the order they were enqueued — the join every harness uses for
-/// the messages a loop finds waiting.
-fn joined(batch: &[Queued]) -> String {
+/// The batch as the loop is asked it: every message, under its key,
+/// in the order they were enqueued.
+fn messages(batch: &[Queued]) -> Vec<Message> {
     batch
         .iter()
-        .map(|message| message.prompt.as_str())
-        .collect::<Vec<_>>()
-        .join("\n\n")
+        .map(|message| Message {
+            key: message.key.clone(),
+            content: message.content.clone(),
+        })
+        .collect()
 }
 
 /// The slot's answer, or forever when there is no slot: a branch

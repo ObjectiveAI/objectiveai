@@ -308,10 +308,10 @@ Rules settled with it:
 ## The server
 
 `main.rs` is the HTTP server around `run::run`, on the loopback at
-the port the SDK's `container_proxy::agent` names (`PORT`, else
+the port the SDK's `container_proxy_sdk::port()` names (`PORT`, else
 8080), forwarded to by the proxy the host injects: `POST /register` (the
 agent, once, for the container's life; a second is `409`), `POST /run`
-(the prompt JSON in — a run before registration is `409
+(the message's content blocks JSON in — text alone, any other block refusing the message `400`; a run before registration is `409
 unregistered`; the run's chunks out as server-sent events,
 the first item pulled before the status is chosen — the run's one
 `Err` is a `500` with its own words, a run with nothing to say is

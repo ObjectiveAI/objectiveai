@@ -21,7 +21,11 @@
 //!
 //! Two features add halves that do: `server` adds [`server`] and
 //! `client` adds [`client`]. Both are off unless asked for, so nothing
-//! above changes for anyone who does not ask.
+//! above changes for anyone who does not ask. A third, `schemars`,
+//! adds nothing but a derive: `JsonSchema` on
+//! [`Image`](shared::containers::request::Image) and
+//! [`Tool`](shared::containers::tools::Tool), for an image whose own
+//! arguments name the tool containers it depends on.
 //!
 //! [`connection`] appears with either, and carries both kinds of socket
 //! under either. Which end dialled is a fact about TCP, not about the
@@ -72,8 +76,8 @@ pub mod server;
 pub mod shared;
 
 /// The most bytes one frame of content carries, anywhere in this
-/// crate — a fetched file's piece, a container file read out or
-/// written in, a transfer's chunk. The SENDER's rule alone: content
+/// crate — a container file read out or written in, a transfer's
+/// chunk, a blob's piece. The SENDER's rule alone: content
 /// larger than this leaves as adjacent frames, and every receiver is
 /// chunk-naive — same content, next frame, append — and never
 /// measures. One number, at the root, so no two paths can disagree.

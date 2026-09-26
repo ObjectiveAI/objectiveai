@@ -1,14 +1,14 @@
 ---
 title: 'MCP list tools'
-summary: 'Tag 1: the client sends the params of the MCP method `tools/list`; the server makes the exchange of the container’s own MCP server and answers with exactly one channel response, the result or the MCP error, and the channel response finish.'
-order: 1
+summary: 'Tag 2: the client sends the params of the MCP method `tools/list`; the server makes the exchange of the container’s own MCP server and answers with exactly one channel response, the result or the MCP error, and the channel response finish.'
+order: 2
 draft: false
 ---
 
 The client opens this channel for the tools the MCP server of the container offers. The server makes the
 exchange of the container's MCP server and answers with its result.
 
-- **The request.** The tag byte `1` followed by the params of the
+- **The request.** The tag byte `2` followed by the params of the
   MCP method `tools/list` as JSON. [Request](/container-proxy-endpoints/tools-begin/client/mcp-list-tools/request/)
   states its form.
 - **The response.** Exactly one channel response, the result or an

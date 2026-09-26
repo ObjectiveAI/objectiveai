@@ -8,11 +8,21 @@ use super::send::{Stop, finish, respond};
 use crate::client::FuseServer;
 use crate::client::handle::Handle;
 use crate::shared::containers::fuse;
+use crate::shared::containers::fuse::ack::Refused;
 
-/// One frame — the bytes, that there are none, or the error — then
+/// One frame — the piece, that there is no file, or the error — then
 /// the finish.
-pub(crate) async fn read<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, path: String, server: Arc<F>) -> Result<(), Stop> {
-    let answer = server.read(&id, &path).await;
+pub(crate) async fn read<F: FuseServer>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    id: String,
+    path: String,
+    offset: u64,
+    length: u32,
+    server: Arc<F>,
+) -> Result<(), Stop> {
+    let answer = server.read(&id, &path, offset, length).await;
     let frame = match &answer {
         Ok(Some(bytes)) => fuse::read::response::Frame::Present(bytes),
         Ok(None) => fuse::read::response::Frame::Missing,
@@ -22,9 +32,28 @@ pub(crate) async fn read<F: FuseServer>(handle: &Handle, scope: u32, channel: u3
     finish(handle, scope, channel).await
 }
 
-/// Ok, or the error, then the finish.
-pub(crate) async fn write<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, path: String, bytes: Bytes, server: Arc<F>) -> Result<(), Stop> {
-    ack(handle, scope, channel, server.write(&id, &path, bytes).await).await
+/// Ok, or why not, then the finish.
+pub(crate) async fn write<F: FuseServer>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    id: String,
+    path: String,
+    offset: u64,
+    bytes: Bytes,
+    server: Arc<F>,
+) -> Result<(), Stop> {
+    ack(handle, scope, channel, server.write(&id, &path, offset, bytes).await).await
+}
+
+/// Ok, or why not, then the finish.
+pub(crate) async fn truncate<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, path: String, size: u64, server: Arc<F>) -> Result<(), Stop> {
+    ack(handle, scope, channel, server.truncate(&id, &path, size).await).await
+}
+
+/// Ok, or why not, then the finish.
+pub(crate) async fn setattr<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, path: String, attrs: fuse::Attrs, server: Arc<F>) -> Result<(), Stop> {
+    ack(handle, scope, channel, server.setattr(&id, &path, attrs).await).await
 }
 
 /// One frame — the entries, that there is no such directory, or the
@@ -48,22 +77,22 @@ pub(crate) async fn list<F: FuseServer>(handle: &Handle, scope: u32, channel: u3
     finish(handle, scope, channel).await
 }
 
-/// Ok, or the error, then the finish.
+/// Ok, or why not, then the finish.
 pub(crate) async fn remove<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, path: String, server: Arc<F>) -> Result<(), Stop> {
     ack(handle, scope, channel, server.remove(&id, &path).await).await
 }
 
-/// Ok, or the error, then the finish.
+/// Ok, or why not, then the finish.
 pub(crate) async fn rename<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, from: String, to: String, server: Arc<F>) -> Result<(), Stop> {
     ack(handle, scope, channel, server.rename(&id, &from, &to).await).await
 }
 
-/// Ok, or the error, then the finish.
+/// Ok, or why not, then the finish.
 pub(crate) async fn mkdir<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, path: String, server: Arc<F>) -> Result<(), Stop> {
     ack(handle, scope, channel, server.mkdir(&id, &path).await).await
 }
 
-/// One frame — the kind and size, that there is nothing there, or the
+/// One frame — the attributes, that there is nothing there, or the
 /// error — then the finish.
 pub(crate) async fn stat<F: FuseServer>(handle: &Handle, scope: u32, channel: u32, id: String, path: String, server: Arc<F>) -> Result<(), Stop> {
     let answer = server.stat(&id, &path).await;
@@ -76,11 +105,13 @@ pub(crate) async fn stat<F: FuseServer>(handle: &Handle, scope: u32, channel: u3
     finish(handle, scope, channel).await
 }
 
-/// The one-frame answer every mutation shares.
-async fn ack(handle: &Handle, scope: u32, channel: u32, result: Result<(), String>) -> Result<(), Stop> {
+/// The one-frame answer every mutation shares: ok, ephemeral, or the
+/// error.
+async fn ack(handle: &Handle, scope: u32, channel: u32, result: Result<(), Refused>) -> Result<(), Stop> {
     let frame = match &result {
         Ok(()) => fuse::ack::Frame::Ok,
-        Err(message) => fuse::ack::Frame::Error(message),
+        Err(Refused::Ephemeral) => fuse::ack::Frame::Ephemeral,
+        Err(Refused::Error(message)) => fuse::ack::Frame::Error(message),
     };
     respond(handle, scope, channel, &frame).await?;
     finish(handle, scope, channel).await

@@ -10,7 +10,7 @@ use super::Answered;
 /// Open a channel with `payload` and take its one answer.
 ///
 /// One frame, then the finish, is the shape of every unary exchange:
-/// a write's confirmation, the agent's schema, a message's fate, a
+/// a write's confirmation, the schema, a message's fate, a
 /// tool's result. This reads the frame and leaves; the finish that
 /// follows is never read, and dropping the channel's receiver is what
 /// tells the router nobody is listening for it. A finish arriving

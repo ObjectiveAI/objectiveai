@@ -7,7 +7,7 @@ use futures_util::future::{self, Either};
 
 use super::super::family::{Family, Opened};
 use super::super::run::Run;
-use super::{filetree, postgres, read, write};
+use super::{filetree, postgres, read, schema, transfer, write};
 use crate::decode::Decode as _;
 use crate::frame::client::ClientFrame;
 
@@ -26,7 +26,7 @@ pub(crate) enum End {
 /// how.
 ///
 /// Each frame off the inbox is one channel the caller opened, and
-/// what it asks decides the task: the shared five here, the family's
+/// what it asks decides the task: the shared six here, the family's
 /// own through [`Family::serve`]. A request that will not decode is
 /// finished with nothing — the wire's could-not-serve — and the loop
 /// goes on. A stop ends the loop at once; channels still being served
@@ -60,9 +60,13 @@ pub(crate) async fn serve<F: Family>(run: &Arc<Run>) -> End {
             Opened::Write { write_id, path } => {
                 run.spawn(write::write::<F>(Arc::clone(&run), channel, write_id, path)).await
             }
+            Opened::Transfer { path, id, destination } => {
+                run.spawn(transfer::transfer::<F>(Arc::clone(&run), channel, path, id, destination)).await
+            }
             Opened::Postgres(connection_id) => {
                 run.spawn(postgres::postgres(Arc::clone(&run), channel, connection_id)).await
             }
+            Opened::Schema => run.spawn(schema::schema(Arc::clone(&run), channel)).await,
             Opened::Exchange(exchange) => run.spawn(F::serve(Arc::clone(&run), channel, exchange)).await,
         }
     }

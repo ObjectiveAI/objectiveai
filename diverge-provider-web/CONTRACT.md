@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the thirteen endpoints and their
+types, the authorization handshake, the sixteen endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,20 +94,20 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the thirteen scope-opening requests
+1.9 **"Endpoint"** means one of the sixteen scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `containers::tools::connect`, `3` `volumes::list`, `4`
-`volumes::stat`, `5` `volumes::watch`, `6` `volumes::create_capacity`,
-`7` `volumes::create`, `8` `volumes::edit_capacity`, `9`
-`volumes::edit`, `10` `volumes::delete`, `11` `images::check`, `12`
-`version`.
+`volumes::stat`, `5` `volumes::read`, `6` `volumes::write`, `7`
+`volumes::filetree`, `8` `volumes::serve`, `9`
+`volumes::create_capacity`, `10` `volumes::create`, `11`
+`volumes::edit_capacity`, `12` `volumes::edit`, `13`
+`volumes::delete`, `14` `images::check`, `15` `version`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
-a container request by one of the three forms the Specification
-defines: an image the Client holds (`client`), an image the Provider
-obtains from a source of its own (`server`), or a reference the
-Provider pulls (`registry`).
+a container request by a repository path and a manifest digest, as
+the Specification defines them. The request names no source; where
+the Provider obtains the image is the Provider's own.
 
 1.11 **"Container"** means one running instance of a Container Image,
 created by the Provider in performance of a `containers::agents::run`
@@ -120,8 +120,8 @@ which the Provider causes a Container to exist and to run: the
 instantiation of the Container Image as an isolated process
 environment on computing infrastructure the Provider controls or
 procures, with (a) the memory limit and the writable-disk limit the
-request states applied as ceilings, (b) every Volume Mount, Identity
-Mount and FUSE Mount of the request made present at its stated path
+request states applied as ceilings, (b) every Volume Mount and FUSE
+Mount of the request made present at its stated path
 as the Specification requires, (c) the Container Proxy placed inside
 the environment and started, and (d) TCP port 14979 of the environment
 made reachable to the Provider's Server. A Deployment is complete when
@@ -154,45 +154,42 @@ program.
 1.15 **"Volume"** means a directory of persistent storage the Provider
 holds under a name for one Identity, as the Specification's volume
 endpoints define: created by `volumes::create`, listed by
-`volumes::list`, and ended only by `volumes::delete`.
+`volumes::list`, and ended only by `volumes::delete`. A Volume has a
+persist mode, `true` or `false`, stated at its creation and changed
+only by `volumes::edit`, which governs whether the changes a
+Container makes to it are in it when the Container ends.
 
-1.16 **"Volume Mount"**, **"Identity Mount"** and **"FUSE Mount"**
-mean, respectively, an entry of `volume_mounts`, of
-`identity_file_mounts` or `identity_directory_mounts`, and of
-`fuse_file_mounts` or `fuse_directory_mounts` of a container request,
-as the Specification defines them.
+1.16 **"Volume Mount"** and **"FUSE Mount"** mean, respectively, an
+entry of `volume_mounts`, and of `fuse_file_mounts` or
+`fuse_directory_mounts` of a container request, as the Specification
+defines them.
 
-1.17 **"Content Identity"** means the string `<size>:<hash>` by which
-an Identity Mount names content, where `<size>` is the length in bytes
-and `<hash>` is the SHA-256 digest, encoded as base64url without
-padding, of the bytes of a file or of the manifest of a directory, the
-manifest being formed as the Specification's `volumes::stat` response
-page defines it.
-
-1.18 **"Client Content"** means every byte a Client, a Container of a
+1.17 **"Client Content"** means every byte a Client, a Container of a
 Client, or a Connector transmits to the Provider under the Protocol,
-including image manifests and blobs, mounted content, the bytes of
-writes and reads, filesystem trees, database traffic, commands and
-their items, vault keys and values, FUSE operations and their
-answers, MCP exchanges, prompts, agent values, and loop chunks.
+including image manifests and blobs, the bytes of writes, reads and
+transfers, filesystem trees, database traffic, commands and
+their items, vault keys and values, FUSE asks and their answers on a
+mount and on a `volumes::serve`, MCP exchanges, prompts, arguments,
+tool declarations, and loop chunks.
 
-1.19 **"Relayed Exchange"** means any exchange the Specification
+1.18 **"Relayed Exchange"** means any exchange the Specification
 requires the Provider to carry between a Container and a Client, or
 between a Client and a Container, without reading it: every channel
 the Proxy opens on a begin Scope and every ask a FUSE Mount makes on
 its Scope, with the Client's answer; the content of a Client's write;
-the bytes of a read; a filetree; a database connection; and the MCP
-exchanges into a tool Container.
+the bytes of a read; the bytes of a transfer, from one Container into
+another; a filetree; a database connection; and the MCP exchanges
+into a tool Container.
 
-1.20 **"Runner"** means the Client on whose `containers::tools::run`
+1.19 **"Runner"** means the Client on whose `containers::tools::run`
 scope a Container is running. **"Connector"** means a Client that
 opens a `containers::tools::connect` scope naming that Container.
 
-1.21 **"Obligation"** means each requirement this Agreement imposes on
+1.20 **"Obligation"** means each requirement this Agreement imposes on
 the Provider, including every requirement incorporated from the
 Specification under Article 2.
 
-1.22 **"Conforming"** describes conduct of the Provider that satisfies
+1.21 **"Conforming"** describes conduct of the Provider that satisfies
 every Obligation applicable to it. **"Non-Conformance"** means any
 failure to satisfy an Obligation.
 
@@ -306,13 +303,12 @@ Non-Conformance if committed by the Provider is a Non-Conformance of
 the Provider.
 
 4.4 **Provider's discretion.** Every matter the Specification leaves to
-the Provider — among them which image references its policy allows,
+the Provider — among them which registries its policy allows,
 which volumes it offers a Client beyond those the Client created,
-whether a taken volume name is refused on creation, what a watch
-observes when its volume is deleted, when a watch ends without an
-error, the content of every error value, the form of a volume name it
-will accept, and the source from which it obtains an image of kind
-`server` — is within the Provider's discretion, and the exercise of
+whether a taken volume name is refused on creation, the content of
+every error value, the form of a volume name it
+will accept, and the source from which it obtains an image — is
+within the Provider's discretion, and the exercise of
 that discretion is not a Non-Conformance.
 
 ## ARTICLE 5. THE OBLIGATIONS
@@ -407,7 +403,7 @@ byte the Specification does not require.
 that follow a request, the Provider shall ignore them and shall not
 treat the request as malformed on their account.
 
-### 5.5 `version` (tag 12)
+### 5.5 `version` (tag 15)
 
 The Provider shall answer every `version` request with exactly one
 Response whose payload is the string `2.3.0` encoded as UTF-8 with no
@@ -415,13 +411,14 @@ tag and no length prefix, followed by the Response Finish. The
 Provider shall not send any other string, shall not send an empty
 string, and shall not send an error on this Endpoint.
 
-### 5.6 `images::check` (tag 11)
+### 5.6 `images::check` (tag 14)
 
 The Provider shall answer every `images::check` request with exactly
 one Response and the Response Finish: the byte `0` followed by exactly
 `{"type":"available"}` when, at the time of the answer, the Provider
-would supply the named image as the `server` variant of a container
-request; the byte `0` followed by exactly `{"type":"unavailable"}` when
+could obtain the named image without the Client's help — from what it
+holds, or from a source of its own — for a container request naming
+it; the byte `0` followed by exactly `{"type":"unavailable"}` when
 it would not; or the byte `1` followed by an error when it did not
 determine the answer. An available answer reserves nothing.
 
@@ -435,17 +432,110 @@ Identity created by `volumes::create` and has not deleted by
 `volumes::delete`; it may contain other Volumes at the Provider's
 discretion; every Volume it contains shall be available to the
 Identity to mount; no two Volumes in one listing shall share a name.
-The Provider shall report for each Volume its `name`, its `bytes`, and
-its `created` as the Specification defines them, and nothing more.
+The Provider shall report for each Volume its `name`, its `bytes`,
+its `created` and its `persist` as the Specification defines them, and
+nothing more.
 
 (b) **Stat.** The Provider shall answer every `volumes::stat` request
 naming a Volume in the Identity's listing with exactly one Response
-carrying the Volume's `name`, `bytes` and `created`, its `bytes_used`,
-and its `dirhash` as the Specification defines each, as of the time of
-the Response; and shall answer a name not in the listing with an
+carrying the Volume's `name`, `bytes`, `created` and `persist`, its
+`bytes_used`, and its `dirhash` as the Specification defines each, as
+of the time of the Response; and shall answer a name not in the
+listing, or a Volume mounted in a running Container or served under a
+`volumes::serve` or under another `volumes::stat`, a `volumes::read`,
+a `volumes::write`, a `volumes::filetree`, a `volumes::edit` or a
+`volumes::delete` at the time of the request, with an error. The
+Provider shall not examine a Volume that is mounted in a running
+Container or served under a `volumes::serve` at the time of the
+request.
+
+(c) **Reading.** The Provider shall answer every `volumes::read`
+request naming a Volume in the Identity's listing and a path of one
+file in it with the bytes of that file as Responses whose first byte
+is `0`, each of at most `CHUNK_SIZE` bytes, in order, and the Response
+Finish, a file of zero bytes being exactly one such Response of zero
+bytes; or with the Responses sent so far, exactly one Response whose
+first byte is `1` followed by an error, and the Response Finish. The
+Provider shall hold the Volume to itself from the moment it accepts
+the request until the Response Finish, shall refuse every run naming
+the Volume for as long as it holds it, and shall answer a request
+naming a Volume mounted in a running Container or served under a
+`volumes::serve` or held by another `volumes::stat`, `volumes::read`,
+`volumes::write`, `volumes::filetree`, `volumes::edit` or
+`volumes::delete` at the time of the request with an error and nothing
+read. The Provider shall answer a path that is not of the form the
+Specification states, and a path that names no regular file, with an
 error.
 
-(c) **Capacity.** The Provider shall answer every
+(d) **Writing.** The Provider shall answer every `volumes::write`
+request naming a Volume in the Identity's listing and a path of one
+file in it by holding the Volume to itself from the moment it accepts
+the request until the Response Finish, creating every missing
+directory above the file, opening exactly one Channel for the content,
+writing the content the Identity sends on it, putting the file in
+place whole, and answering with exactly one Response, the byte `0`
+only after the file is at the path, or the byte `1` followed by an
+error, and the Response Finish. The Provider shall refuse every run
+naming the Volume for as long as it holds it, and shall answer a
+request naming a Volume mounted in a running Container or served under
+a `volumes::serve` or held by another `volumes::stat`,
+`volumes::read`, `volumes::write`, `volumes::filetree`,
+`volumes::edit` or `volumes::delete` at the time of the request with
+the byte `1` followed by an error, opening no Channel. The Provider
+shall leave at the destination either what was there or the whole new
+file, and never a part of the new file, and shall leave the
+destination as it was on any failure, a content Channel that ends in
+an error included. From the moment the Provider sends the byte `0`,
+every `volumes::stat` Response the Provider sends the Identity shall
+report the Volume with the file in place.
+
+(e) **Filetree.** The Provider shall answer every `volumes::filetree`
+request naming a Volume in the Identity's listing and a path of a
+directory in it, the root included, with exactly one Response: the
+byte `0` followed by the entries of that directory, each with
+everything beneath it, as the nodes the Specification's filetree
+defines, every `Directory` with `changes` `0`; or the byte `1`
+followed by an error. The Provider shall hold the Volume to itself
+from the moment it accepts the request until the Response Finish,
+shall refuse every run naming the Volume for as long as it holds it,
+shall send no change after the Response, and shall answer a request
+naming a Volume mounted in a running Container or served under a
+`volumes::serve` or held by another `volumes::stat`, `volumes::read`,
+`volumes::write`, `volumes::filetree`, `volumes::edit` or
+`volumes::delete` at the time of the request, a path that is not of
+the form the Specification states, or a path that names no directory,
+with an error.
+
+(f) **Serving.** The Provider shall answer every `volumes::serve`
+request naming a Volume in the Identity's listing with exactly one
+Response: the byte `0` only after it holds the Volume as a running
+Container that mounts it holds it, or the byte `1` followed by an
+error. The Provider shall hold the Volume so from that moment until
+the Response Finish, shall permit any number of `volumes::serve`
+Scopes and running Containers to hold one Volume at once, shall
+answer a `volumes::stat`, `volumes::read`, `volumes::write`,
+`volumes::filetree`, `volumes::edit` or `volumes::delete` naming the
+Volume with an error for as long as it holds it, and shall answer a
+request naming a Volume under one of those six at the time of the
+request with the byte `1` followed by an error. After the byte `0`
+the Provider shall answer every Channel the Client opens on the Scope
+carrying one of the nine FUSE asks, in the form the Specification
+states for a mount's ask of the same tag, with exactly one Channel
+Response and the Channel Response Finish, the answer being what the
+Specification defines for that ask, determined from the Volume as it
+is at the time of the answer: a read of a piece at an offset, a write
+of a piece in place before the answer `ok`, a stat carrying the kind,
+size, mode, owner, group and times the Volume records. The Provider
+shall buffer no content of the Volume on the Client's behalf. For a
+Volume whose persist mode is `false` the Provider shall answer every
+write, truncate, setattr, removal, rename and mkdir with the byte `2`
+and shall not change the Volume, and shall answer every stat, read
+and listing as for any Volume. On the Client's stop the Provider
+shall answer every ask still open, send the Response Finish, and
+release the Volume; on the close of the Connection it shall release
+the Volume. The Provider shall send nothing on the stop's Channel.
+
+(g) **Capacity.** The Provider shall answer every
 `volumes::create_capacity` request with the largest size in bytes of a
 Volume the Identity could create at the time of the Response, and
 every `volumes::edit_capacity` request naming a Volume in the
@@ -454,9 +544,10 @@ size could be increased at the time of the Response, each as a
 postcard varint after the byte `0`, or an error after the byte `1`.
 Neither answer reserves anything.
 
-(d) **Creation.** The Provider shall answer every `volumes::create`
+(h) **Creation.** The Provider shall answer every `volumes::create`
 request with exactly one Response: the byte `0` only after a Volume
-of the stated name and size exists for the Identity; the byte `1` when
+of the stated name, size and persist mode exists for the Identity; the
+byte `1` when
 the Provider cannot reserve the size stated; or the byte `2` followed
 by an error for any other reason. From the moment the Provider sends
 the byte `0`, every listing the Provider sends the Identity shall
@@ -467,52 +558,46 @@ which the Identity mounts the Volume changes its content. The
 Provider shall refuse, by the byte `2`, a creation whose name is
 already in the Identity's listing.
 
-(e) **Editing.** The Provider shall answer every `volumes::edit`
+(i) **Editing.** The Provider shall answer every `volumes::edit`
 request naming a Volume in the Identity's listing with exactly one
-Response: the byte `0` only after the Volume has the size stated; the
-byte `1` when the Provider cannot reserve the size stated; the byte
-`2` when the content of the Volume exceeds the size stated; or the
-byte `3` followed by an error for any other reason. The size is the
-only property an edit changes. From the moment the Provider sends the
+Response: the byte `0` only after the Volume has what the request's
+change states, its size, its persist mode, or both; the byte `1` when
+the Provider cannot reserve the size stated; the byte `2` when the
+content of the Volume exceeds the size stated; or the byte `3`
+followed by an error for any other reason. A change that states a size
+and a persist mode is one edit: the Provider shall not change the
+persist mode of a Volume whose size it refuses. The Provider shall not
+change the size or the persist mode of a Volume that is mounted in a
+running Container or served under a `volumes::serve` at the time of
+the request, and shall answer a request naming one, or naming a Volume
+under a `volumes::stat`, another `volumes::edit` or a
+`volumes::delete` at the time of the request, with the byte `3`
+followed by an error. The size and the persist mode are the only
+properties an edit changes. From the moment the Provider sends the
 byte `0`, every listing and every stat the Provider sends the Identity
-shall report the new size.
+shall report the new size and the new persist mode, and every
+Container in which the Identity mounts the Volume after that moment
+shall be bound under the new persist mode.
 
-(f) **Deletion.** The Provider shall answer every `volumes::delete`
+(j) **Deletion.** The Provider shall answer every `volumes::delete`
 request naming a Volume in the Identity's listing with exactly one
 Response: the byte `0` only after the Volume no longer exists; the
-byte `1` when the Volume is mounted in a running Container at the
-time of the request; or the byte `2` followed by an error for any
-other reason. The Provider shall not delete a Volume that is mounted
-in a running Container at the time of the request. From the moment
-the Provider sends the byte `0`, every listing the Provider sends the
-Identity shall omit the Volume, and no listing shall contain a Volume
-that has been deleted. An error shall leave the Volume, its content
-and the listing as they were.
+byte `1` when the Volume is mounted in a running Container or served
+under a `volumes::serve`, or under a `volumes::stat`, a
+`volumes::edit` or another `volumes::delete`, at the time of the
+request; or the byte `2` followed by an error for any other reason.
+The Provider shall not delete a Volume that is mounted in a running
+Container at the time of the request. From the moment the Provider
+sends the byte `0`, every listing the Provider sends the Identity
+shall omit the Volume, and no listing shall contain a Volume that has
+been deleted. An error shall leave the Volume, its content and the
+listing as they were.
 
-(g) **Watching.** The Provider shall serve every `volumes::watch`
-request naming a Volume in the Identity's listing by sending, on the
-Scope, a snapshot of the Volume's filesystem tree as its first
-Response, and thereafter one Response per change to that tree, in the
-order the changes occurred, in the filetree form the Specification
-states, until the Scope ends. The Provider shall report a node that
-comes into existence as `Inserted` with the node complete; a node that
-changes in place as `Modified` with the node's complete new value; a
-node that ceases to exist as `Removed`, a directory with everything
-beneath it and no Response for a descendant; and a node that is
-relocated, by any rename or move, as `Removed` at the path it left
-followed by `Inserted` at the path it arrived at with the node
-complete. The Provider shall send a further snapshot whenever it has
-lost track of changes, and shall send an error as its last Response
-when it can no longer keep the watch. The Provider shall end the watch
-by the Response Finish after the Client's stop channel request, after
-the Client's Connection ends, and after an error; the Provider may end
-it at another time by the Response Finish with no error. The Provider
-shall send no frame on the stop channel.
-
-(h) **Identity of the Volume namespace.** The Provider shall resolve
+(k) **Identity of the Volume namespace.** The Provider shall resolve
 every Volume name against the Identity of the Connection on which it
 is named and against no other. A Client shall not be able to name,
-mount, stat, watch, edit or delete a Volume of another Identity.
+mount, stat, read, write, walk, serve, edit or delete a Volume of
+another Identity.
 
 ### 5.8 Container Deployment — `containers::agents::run` (tag 0) and `containers::tools::run` (tag 1)
 
@@ -525,70 +610,59 @@ answer a request whose payload does not decode by a Bare Finish. It
 shall answer by exactly one Response, the error, and the Response
 Finish, a request that names a Volume not in the Identity's listing;
 a mount whose path is the root of the Container; two mounts with one
-path; a mount inside a FUSE directory mount; two FUSE mounts with one
+path; a mount inside another mount; two FUSE mounts with one
 `id`; a mount path with a component that is empty, `.` or `..`; or an
-image source the Provider's policy does not allow. The Provider shall
+image the Provider will not supply. The Provider shall
 hold every Volume a run request names in `volume_mounts` from the
 moment it accepts the request until the run ends, and shall answer a
-request that names a Volume so held by another running Container of
-the same Identity, or that names one Volume twice, by exactly one
+request that names a Volume under a `volumes::stat`, a `volumes::edit`
+or a `volumes::delete` at the time of the request by exactly one
 Response, the byte `1` followed by the name of that Volume as JSON,
 and the Response Finish, fetching nothing and deploying nothing for
-it. A Volume is mounted in at most one Container of its Identity at a
-time, whatever its `persist`.
+it. A Volume may be mounted in any number of Containers of its
+Identity at once, whatever its persist mode, and a request that names
+one Volume more than once mounts it at each path named.
 
-(b) **Hold every Identity Mount's content.** For each Identity Mount,
-the Provider shall, before Deployment, either hold content it has
-verified against the Content Identity, or open a `fetch-file` or
-`fetch-directory` channel on the Scope, receive what the Client sends,
-and verify the received content's size and hash against the Content
-Identity before treating it as held. The Provider shall treat a
-channel the Client finishes with no frame, and content that does not
-match its Content Identity, as the run's error. The Provider may hold
-content received in an earlier run of any Identity.
+(b) **Obtain the image.** The Provider shall obtain the image the
+digest names, from a source of its own choosing; the Specification
+does not prescribe the source. Where the Provider would obtain the
+image from the Client, it may ask the Client, on the `oci-has`
+Channel, whether the Client holds the image, and, on the
+`oci-manifest` and `oci-blob` Channels, for each manifest and blob it
+requires; a Client that finishes an `oci-has` Channel with no frame,
+or with the byte `0`, holds nothing under the digest, and a Client
+that finishes an `oci-manifest` or `oci-blob` Channel with no frame
+does not hold that digest. The Provider shall run only the image the
+digest names: bytes that are not those the digest names, and an image
+the Provider obtains from no source, are the run's error. How the
+Provider holds, verifies or streams what it obtains is not
+prescribed.
 
-(c) **Serve the Client's image.** For an image of kind `client`, the
-Provider shall serve an OCI registry from which its runtime pulls the
-image by repository name and manifest digest; shall ask the Client, on
-an `oci-manifest` or `oci-blob` channel, for each manifest or blob
-the registry does not hold, at most once per digest per run; shall
-compute the digest of every manifest and blob received and store and
-serve only bytes whose digest equals the digest asked for; shall serve
-every byte range from its store and never by a further ask; and shall
-treat a digest the Client does not hold, and bytes that do not match,
-as the run's error. For an image of kind `server`, the Provider shall
-obtain the image from a source of its own. For an image of kind
-`registry`, the Provider shall pull the stated reference.
-
-(d) **Deploy.** The Provider shall perform Container Deployment as
+(c) **Deploy.** The Provider shall perform Container Deployment as
 Section 1.12 defines it, with `memory` and `disk` of the request as
-ceilings; every Volume Mount resolved by `host_name` against the
-Identity, descended by `host_relative_path`, and made present at
+ceilings; every Volume Mount resolved by `volume_name` against the
+Identity, descended by `volume_relative_path`, and made present at
 `container_path`, the Container's changes to it being in the Volume
-when the Container ends if `persist` is `true` and the Volume being as
-it was before the run when the Container ends if `persist` is
-`false`; every Identity Mount made present at its
-`container_path`, with content that matches its Content Identity in
-size and hash at the start of the Container's life and that is
-writable from inside the Container; the Container Proxy placed inside
+when the Container ends if the Volume's persist mode is `true` and the
+Volume being as it was before the run when the Container ends if the
+Volume's persist mode is `false`; the Container Proxy placed inside
 and started; and
 TCP port 14979 reachable to the Provider's Server. The Provider shall
-set no environment variable in the Container from the request, shall
-expose no port of the Container other than port 14979, and shall not
-start the Container before every Identity Mount's content is held. A
-failed Deployment is the run's error.
+set no environment variable in the Container from the request, and
+shall expose no port of the Container other than port 14979. A failed
+Deployment is the run's error.
 
-(e) **Connect to the Proxy.** The Provider shall open exactly one
+(d) **Connect to the Proxy.** The Provider shall open exactly one
 WebSocket connection to TCP port 14979 of the Container and, on it
-before any other Scope, the begin Scope of the Container's family —
-for an agent container, carrying the request's `agent` value verbatim
-— and shall await its answer. A Proxy that does not accept the
+before any other Scope, the begin Scope of the Container's family,
+carrying the request's `arguments` verbatim, and shall await its
+answer. A Proxy that does not accept the
 connection, or that answers the begin Scope with an error, is a
 Container that did not come up: the Provider shall stop the Container
 and treat the failure as the run's error. The Provider shall open no
 second connection to a Container.
 
-(f) **Make every FUSE Mount.** For each entry of `fuse_file_mounts`,
+(e) **Make every FUSE Mount.** For each entry of `fuse_file_mounts`,
 and after the last of them for each entry of `fuse_directory_mounts`,
 in the order of the request, the Provider shall open one mount Scope
 on the Proxy's connection, naming the path and the kind, and shall
@@ -603,18 +677,33 @@ provides; the mount point itself is not removable or renamable. A
 FUSE file mount is overwritable in place and is not removable,
 renamable or replaceable. Whether a change is allowed is the Client's
 answer to the ask that carries it; the Provider shall enforce no
-restriction of its own on a FUSE Mount.
+restriction of its own on a FUSE Mount. Every read and every write a
+program performs on a FUSE Mount shall be relayed as one ask carrying
+that read's offset and length, or that write's offset and bytes, as
+it arrives; the Provider shall buffer no content of a FUSE Mount on
+the Container's behalf, shall report every attribute of an entry as
+the Client's answer states it, and shall report a write, truncate,
+setattr, removal, rename or mkdir the Client answers with the
+ephemeral byte to the program as a read-only filesystem.
 
-(g) **Hold what the Client opened.** The Provider shall serve a
+(f) **Hold what the Client opened.** The Provider shall serve a
 Channel the Client opened before the id was sent only after the id is
 sent, in the order the Channels were opened, and shall neither refuse
 nor read such a Channel before the last FUSE Mount is complete.
 
-(h) **Carry the agent** (tag 0 only). For an agent container, the
-Provider shall carry the request's `agent` value verbatim in the begin
-Scope's request, and in nothing else. A begin the Proxy answers with
-an error is the run's error, and the Provider shall stop the
-Container.
+(g) **Carry the arguments.** The Provider shall carry the request's
+`arguments` verbatim in the begin Scope's request, and in nothing
+else. A begin the Proxy answers with an error is the run's error, and
+the Provider shall stop the Container.
+
+(h) **Deploy the tools.** When the Proxy's answer to the begin Scope
+carries one or more tools, the Provider shall open exactly one `tools`
+Channel on the run Scope carrying them verbatim, before the id and
+beside the FUSE Mounts, and shall read the Client's answer to its
+finish; the Provider shall treat the byte `1`, a Bare Finish, and a
+Client that is gone as the run's error and shall stop the Container.
+The Provider shall open no `tools` Channel when the list is empty, and
+never on a connect Scope.
 
 (i) **Mint and send the id.** The Provider shall choose an id that is
 unique among the Containers it is running and not derivable from the
@@ -639,9 +728,9 @@ Client opens as the Specification states for that Channel.
 (k) **End the run.** When the Provider receives the Client's stop
 channel request, when the Proxy's connection ends, or when the
 Client's Connection ends, the Provider shall end every
-connect Scope on the Container, stop the Container, release the
-registry repository it served for the run, end every Channel task, and
-send the Response Finish with no error. After the id, the Provider
+connect Scope on the Container, stop the Container, end every
+Channel task, and send the Response Finish with no error. After the
+id, the Provider
 shall send no error on the main stream of the Scope.
 
 ### 5.9 The Conduit
@@ -685,11 +774,26 @@ Response, written or an error, after the Proxy has answered the
 Scope. Content that ends in an error or without a finish is a write
 that did not happen, and the Provider shall answer it as such.
 
-(f) For a filetree the Client opens, the Provider shall open a tree
-Scope on the Proxy's connection naming, in the request, the path of
-every Volume Mount, Identity Mount and FUSE Mount of the Container,
-shall relay every frame the Proxy sends, and shall stop the tree
-Scope when the Client's Scope ends.
+(f) For a filetree the Client opens, the Provider shall serve a tree
+that leaves out every FUSE Mount of the Container and contains every
+Volume Mount of the Container, shall report every change under a
+Volume Mount as the Specification's filetree states one, and shall
+stop watching when the Client's Scope ends. How the Provider watches
+a Volume Mount is not prescribed.
+
+(g) For a transfer the Client opens, the Provider shall serve it only
+when the Client is the Runner of, or a Connector attached to, both the
+Container of the Scope and the Container the request names, and shall
+otherwise answer exactly one Channel Response, the error
+`{"kind":"denied"}`, and the Channel Response Finish, without
+distinguishing a Container the Client may not reach from an id under
+which no Container is running. When served, the Provider shall open a
+read Scope on the Proxy of the Container of the Scope for the stated
+path and a write Scope on the Proxy of the named Container for the
+stated destination, relay the bytes of the one into the other, and
+answer the Client's Channel with exactly one Channel Response,
+transferred or an error, after the named Container's Proxy has
+answered. The Provider shall send nothing of the file to the Client.
 
 ### 5.10 `containers::tools::connect` (tag 2)
 
@@ -706,12 +810,13 @@ Finish, or a Runner that is gone by exactly one Response, the error
 `{"kind":"denied"}`, and the Response Finish; (d) on the byte `1`,
 send nothing on the main stream, and serve every Channel the Connector
 opens on the run's own connection to the Container's Proxy — its
-tree, read and write Scopes, and its MCP exchanges as Channels on the
+tree, read, write and transfer Scopes, and its MCP exchanges as Channels on the
 run's begin Scope — as for a run, except that a
 Connector's `postgres` Channel shall be answered by a Bare Finish,
 that the only Channel the Provider opens on a Connector is
 `write-bytes` for the Connector's own writes, and that a filetree the
-Connector opens leaves out every mount of the run; (e) end the Scope
+Connector opens leaves out every FUSE Mount of the run and no other
+mount; (e) end the Scope
 by the Response Finish with no error when the Connector disconnects,
 when the run ends, or when the Connector's Connection ends, stopping
 nothing and releasing nothing. The Provider shall not send anything on
@@ -723,7 +828,9 @@ has answered.
 The Provider shall never: (a) refuse, alter or withhold a FUSE ask on
 its own account, whether a change to a FUSE Mount is allowed being the
 Client's answer to that ask; (b) write to a Volume or a mount on its
-own account; (c) send a second id on a run Scope; (d) send an error on
+own account, a `volumes::write` request of the Identity, and a write
+a `volumes::serve` ask of the Identity directs, being on the
+Identity's account; (c) send a second id on a run Scope; (d) send an error on
 the main stream of a run Scope after the id; (e) retry any ask; (f)
 read, inspect, parse, log the content of, or act upon the content of
 a Relayed Exchange, save to the extent necessary to relay it; (g)
@@ -731,11 +838,8 @@ impose a timeout on any fetch, Deployment, Channel, Scope or
 Connection; (h) send a Response where the Specification states a Bare
 Finish, or a Bare Finish where the Specification states a Response;
 (i) mint a container id or a connection id that is derivable from
-anything a Client chose; (j) serve a Scope under an Identity other
-than that of the Connection on which the Scope was opened; or (k)
-mount an Identity Mount read-only, or otherwise cause a write to it
-from inside the Container to fail. Whether a write to an Identity Mount outlives the
-Container is not prescribed.
+anything a Client chose; or (j) serve a Scope under an Identity other
+than that of the Connection on which the Scope was opened.
 
 ### 5.12 The Container Proxy
 
@@ -744,8 +848,12 @@ that conforms in full to the Specification's Container Proxy and
 Container Proxy Endpoints layers:
 that listens on TCP port 14979 and accepts one WebSocket connection
 there; that speaks the Protocol's own frames on it and sends no auth
-frame; that answers exactly one begin Scope per connection, holding
-the agent it carries for the Container's life; that makes each mount
+frame; that answers exactly one begin Scope per connection, holding the
+arguments it carries for the Container's life and answering with the
+tools the program declared; that sets the request's image under
+`_meta` on every MCP exchange it relays, in either direction, and on
+every chunk of an agent's conversation, as the Specification states,
+and alters nothing else of them; that makes each mount
 Scope's mount before answering it and holds every mount for its life,
 asking for what the mount needs on channels of that Scope; that
 leaves out of every filetree the paths the tree Scope's request names
@@ -764,9 +872,8 @@ than this Article and engaged in performing an Obligation.
 
 6.2 **Retention.** The Provider may retain, after a run ends, only
 (a) image manifests and blobs it has verified against their digests,
-and (b) Identity Mount content it has verified against its Content
-Identity, each for use in a later run as the Specification permits;
-and (c) Volumes, for as long as the Specification requires. The
+for use in a later run as the Specification permits; and (b) Volumes,
+for as long as the Specification requires. The
 Provider shall not retain any other Client Content after the Scope
 that carried it ends, and shall not retain the content of a Relayed
 Exchange at any time except transiently in the course of relaying it.

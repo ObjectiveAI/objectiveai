@@ -10,17 +10,18 @@ use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult,
     PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResult,
 };
+use serde_json::Value;
 
 use super::super::channel_request;
-use super::{Filetree, FiletreeStream, Read, ReadStream, WritePath};
+use super::{Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::containers::client::answered::{
-    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource,
+    McpCallTool, McpListResources, McpListTools, McpNotifications, McpReadResource, Schema,
 };
 use crate::endpoints::containers::client::{ChannelStream, Decoded, OpenError, Scoped, UnaryError, WaitError};
 use crate::endpoints::containers::tools::connect::server;
-use crate::shared::containers::{read, write_path};
+use crate::shared::containers::{read, transfer, write_path};
 use crate::shared::mcp;
 
 /// The servers' notifications, for as long as the channel lives.
@@ -110,6 +111,23 @@ impl ExecuteHandle {
                 content,
             )
             .await
+    }
+
+    /// Copy one file out of this container into the container under
+    /// `id`, at `destination`, without the bytes passing through here;
+    /// resolves when it is at the destination. The caller must be
+    /// running, or connected to, both containers, or the provider
+    /// refuses.
+    pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), UnaryError<Transfer>> {
+        let payload = payload(&channel_request::Frame::Transfer(transfer::request::Request { path, id, destination }))
+            .map_err(UnaryError::Request)?;
+        self.0.unary::<Transfer>(&payload).await
+    }
+
+    /// What the arguments may be: the image's JSON Schema for them.
+    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
+        self.0.unary::<Schema>(&payload).await
     }
 
     /// `tools/list` against the server inside the container.

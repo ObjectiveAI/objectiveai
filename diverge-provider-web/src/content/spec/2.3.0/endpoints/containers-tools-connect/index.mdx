@@ -45,7 +45,7 @@ runner.
    nothing on the main stream.
 4. **The server serves the scope.** The server serves every channel
    the connector opens on the run's own connection to the container's
-   proxy — its tree, read and write scopes, and its MCP exchanges as
+   proxy — its tree, read, write and transfer scopes, and its MCP exchanges as
    channels on the run's begin scope — as its section defines,
    with these differences from a run: a connector's
    [postgres](/endpoints/containers-tools-connect/client/postgres/) channel is answered by a
@@ -53,7 +53,8 @@ runner.
    no channel on the connector except
    [write-bytes](/endpoints/containers-tools-connect/server/write-bytes/), for the content of
    a write the connector itself opened; a filetree the connector
-   opens leaves out every mount of the run, as the runner's does.
+   opens leaves out every FUSE mount of the run and no other mount,
+   as the runner's does.
 5. **The server ends the scope.** When it receives the connector's
    [disconnect](/endpoints/containers-tools-connect/client/disconnect/), when the run of the
    container ends, or when the connector's connection ends, the

@@ -1,7 +1,7 @@
 ---
 title: 'Write bytes'
-summary: 'Tag 3: the server asks the client for the content of a write the client opened, quoting the write id; the client answers with the bytes in zero or more channel responses, an error last, and the channel response finish, which ends the content.'
-order: 3
+summary: 'Tag 5: the server asks the client for the content of a write the client opened, quoting the write id; the client answers with the bytes in zero or more channel responses, an error last, and the channel response finish, which ends the content.'
+order: 5
 draft: false
 ---
 
@@ -9,7 +9,7 @@ The server opens this channel in answer to a [write](/endpoints/containers-tools
 channel the client opened, quoting the client's write id. What
 arrives on it is the content of the file.
 
-- **The request.** The tag byte `3` followed by the write id,
+- **The request.** The tag byte `5` followed by the write id,
   four bytes. [Request](/endpoints/containers-tools-run/server/write-bytes/request/) states
   its form.
 - **The response.** The content in zero or more channel responses,

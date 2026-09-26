@@ -1,4 +1,5 @@
-//! An image's manifest and blobs, from the caller's store.
+//! Whether the caller holds an image, and its manifest and blobs,
+//! from the caller's store.
 
 use std::sync::Arc;
 
@@ -9,6 +10,20 @@ use super::send::{Stop, finish, respond, respond_pieces};
 use crate::client::OciStore;
 use crate::client::handle::Handle;
 use crate::shared::containers::oci;
+
+/// One frame — held or not — then the finish.
+pub(crate) async fn has<O: OciStore>(
+    handle: &Handle,
+    scope: u32,
+    channel: u32,
+    name: String,
+    digest: String,
+    store: Arc<O>,
+) -> Result<(), Stop> {
+    let held = store.holds(&name, &digest).await;
+    respond(handle, scope, channel, &oci::has::response::Frame { held }).await?;
+    finish(handle, scope, channel).await
+}
 
 /// One frame — the manifest's media type and bytes — then the
 /// finish; the empty finish for a digest the store does not hold.
