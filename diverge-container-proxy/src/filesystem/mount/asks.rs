@@ -6,7 +6,7 @@
 //! answer, through [`crate::ask`], made from the FUSE thread over the
 //! runtime handle's `block_on`. Every failure of the transport, and
 //! every error the caller answers, is `EIO` to the program; a
-//! mutation the caller refuses because its storage keeps nothing is
+//! mutation the caller refuses because the volume is read only is
 //! `EROFS`; nothing at the path is `ENOENT`. What the caller refused
 //! is not the program's to know, and nothing here refuses anything on
 //! the caller's behalf.
@@ -55,7 +55,7 @@ impl Asks {
     fn ack(answer: &[u8]) -> Result<(), Errno> {
         match fuse::ack::Frame::decode(answer) {
             Ok(fuse::ack::Frame::Ok) => Ok(()),
-            Ok(fuse::ack::Frame::Ephemeral) => Err(Errno::EROFS),
+            Ok(fuse::ack::Frame::ReadOnly) => Err(Errno::EROFS),
             Ok(fuse::ack::Frame::Error(_)) | Err(_) => Err(Errno::EIO),
         }
     }
