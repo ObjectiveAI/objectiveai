@@ -1,0 +1,12 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+The server sends no channel response and no channel response finish
+on the stop channel. What answers the stop is the scope's response
+finish, which the server sends after the last channel response finish
+of the asks that were open when the stop arrived. No frame follows the
+response finish.

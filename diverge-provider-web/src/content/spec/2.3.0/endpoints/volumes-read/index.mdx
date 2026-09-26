@@ -41,8 +41,9 @@ read scope.
   the request. [Response](/endpoints/volumes-read/response/) states
   the sequence.
 - **A mounted volume is not read.** The server does not read a file out of a
-  volume that is mounted in any running container at the time of the
-  request — a volume may be mounted in several at once — or that is
+  volume that is mounted in any running container, or served on any
+  [volumes::serve](/endpoints/volumes-serve/) scope, at the time of the request — a volume may be mounted or
+  served in several at once — or that is
   under a stat, a read, a write, a filetree, an edit or a delete. A
   request naming such a volume is answered with an error, and nothing is read. A
   client that needs the file stops every container that has it, or
@@ -52,6 +53,7 @@ read scope.
   it does.
 - **The error.** An error states that the file was not read, or not
   all of it. A volume absent from the client's listing, a volume
-  mounted in a running container at the time of the request, a path
+  mounted in a running container or served at the time of the
+  request, a path
   that is not of the stated form, and a path that names no regular
   file are each answered with an error.

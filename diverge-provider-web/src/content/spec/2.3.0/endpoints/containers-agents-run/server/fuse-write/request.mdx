@@ -6,7 +6,7 @@ draft: false
 ---
 
 ```text
-[19][id_len: u16, big-endian][id …][path_len: u16, big-endian][path …][bytes …]
+[19][id_len: u16, big-endian][id …][path_len: u16, big-endian][path …][offset: u64, big-endian][bytes …]
 ```
 
 - **The ask.** The bytes after the tag are the id of the mount, which

@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 8 alone; the server ignores any bytes that follow the tag.'
+summary: 'The payload is the tag byte 9 alone; the server ignores any bytes that follow the tag.'
 order: 1
 draft: false
 ---
@@ -8,7 +8,7 @@ draft: false
 The payload of the request is exactly one byte:
 
 ```text
-[8]
+[9]
 ```
 
 - **No parameter.** The request carries nothing after the tag. The

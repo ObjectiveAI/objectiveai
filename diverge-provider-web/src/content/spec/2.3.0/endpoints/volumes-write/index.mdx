@@ -34,8 +34,10 @@ error, and ends the scope by the response finish.
    either case.
 2. **The server takes the volume.** The server holds the volume to
    itself from this moment until the finish. A volume that is mounted
-   in any running container at the time of the request — a volume may
-   be mounted in several at once — or that is under a stat, a read,
+   in any running container, or served on any
+   [volumes::serve](/endpoints/volumes-serve/) scope, at the time of
+   the request — a volume may be mounted or served in several at once
+   — or that is under a stat, a read,
    another write, a filetree, an edit or a delete, is answered by
    exactly one error response and the finish, and the content is not
    asked for. A run naming the volume is refused for as long as the

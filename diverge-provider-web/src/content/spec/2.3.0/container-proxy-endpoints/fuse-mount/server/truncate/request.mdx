@@ -1,0 +1,27 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 7 and the request of the channel.'
+order: 1
+draft: false
+---
+
+```text
+[7][size: u64, big-endian][path …]
+```
+
+- **The path.** UTF-8, `/`-separated, with no leading `/`; empty is
+  the mount itself. Where the path is the last thing in the payload
+  it runs to the end of the payload; where bytes or a second path
+  follow it, a two-byte length precedes it.
+- **`size`.** The length the file is set to, big-endian, before the path: the file is cut to it, or extended with zero bytes to it, and made if absent.
+- **A file mount.** For a mount of kind `file`, the path is empty.
+
+The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/truncate.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/truncate.rs
+```

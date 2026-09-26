@@ -1,0 +1,16 @@
+---
+title: 'stop'
+summary: 'Tag 9: the client ends the serve; the server answers every ask still open, sends the response finish on the scope, and gives the volume back, and sends nothing on the stop channel itself.'
+order: 9
+draft: false
+---
+
+The client opens this channel to end the serve. The server serves no
+ask opened after the stop, answers every ask still open, sends the
+response finish on the scope, and gives the volume back.
+
+- **The request.** The tag byte `9` and nothing after it.
+  [Request](/endpoints/volumes-serve/client/stop/request/) states its form.
+- **The response.** Nothing. [Response](/endpoints/volumes-serve/client/stop/response/)
+  states what the server sends instead.
+- **Once.** A second stop on one scope changes nothing.
