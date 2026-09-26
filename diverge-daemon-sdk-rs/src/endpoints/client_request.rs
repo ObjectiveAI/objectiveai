@@ -47,15 +47,17 @@ pub enum ClientRequest<'a> {
     VolumesWrite(volumes::write::client::request::Frame),
     /// Tag `9`. See what one holds.
     VolumesFiletree(volumes::filetree::client::request::Frame),
-    /// Tag `10`. Ask how large a volume may be made.
+    /// Tag `10`. Serve one's files live.
+    VolumesServe(volumes::serve::client::request::Frame),
+    /// Tag `11`. Ask how large a volume may be made.
     VolumesCreateCapacity(volumes::create_capacity::client::request::Frame),
-    /// Tag `11`. Make a volume.
+    /// Tag `12`. Make a volume.
     VolumesCreate(volumes::create::client::request::Frame),
-    /// Tag `12`. Ask how far one may grow.
+    /// Tag `13`. Ask how far one may grow.
     VolumesEditCapacity(volumes::edit_capacity::client::request::Frame),
-    /// Tag `13`. Change how much one reserves, or whether it keeps what is written into it.
+    /// Tag `14`. Change how much one reserves, or whether it keeps what is written into it.
     VolumesEdit(volumes::edit::client::request::Frame),
-    /// Tag `14`. Destroy one.
+    /// Tag `15`. Destroy one.
     VolumesDelete(volumes::delete::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -89,6 +91,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesRead(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
             ClientRequest::VolumesWrite(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
             ClientRequest::VolumesFiletree(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
+            ClientRequest::VolumesServe(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
             ClientRequest::VolumesCreateCapacity(frame) => frame.encode(out).map_err(|error| match error {}),
             ClientRequest::VolumesCreate(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
             ClientRequest::VolumesEditCapacity(frame) => frame.encode(out).map_err(ClientRequestEncodeError::Postcard),
@@ -148,19 +151,22 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             9 => volumes::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesFiletree)
                 .ok(),
-            10 => volumes::create_capacity::client::request::Frame::decode(bytes)
+            10 => volumes::serve::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesServe)
+                .ok(),
+            11 => volumes::create_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreateCapacity)
                 .ok(),
-            11 => volumes::create::client::request::Frame::decode(bytes)
+            12 => volumes::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreate)
                 .ok(),
-            12 => volumes::edit_capacity::client::request::Frame::decode(bytes)
+            13 => volumes::edit_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEditCapacity)
                 .ok(),
-            13 => volumes::edit::client::request::Frame::decode(bytes)
+            14 => volumes::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEdit)
                 .ok(),
-            14 => volumes::delete::client::request::Frame::decode(bytes)
+            15 => volumes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDelete)
                 .ok(),
             _ => None,
@@ -182,6 +188,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::VolumesRead(_) => f.write_str("volumes read"),
             ClientRequest::VolumesWrite(_) => f.write_str("volumes write"),
             ClientRequest::VolumesFiletree(_) => f.write_str("volumes filetree"),
+            ClientRequest::VolumesServe(_) => f.write_str("volumes serve"),
             ClientRequest::VolumesCreateCapacity(_) => f.write_str("volumes create capacity"),
             ClientRequest::VolumesCreate(_) => f.write_str("volumes create"),
             ClientRequest::VolumesEditCapacity(_) => f.write_str("volumes edit capacity"),

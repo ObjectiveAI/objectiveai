@@ -1,17 +1,18 @@
-//! The daemon's own volumes: the provider's ten exchanges, on the
+//! The daemon's own volumes: the provider's eleven exchanges, on the
 //! daemon's host.
 //!
 //! A daemon holds storage of its own, as a provider does, and offers
 //! it the same way: named volumes with a size and a persist mode,
-//! listed, examined, read, written, walked, created, resized and
-//! destroyed through the ten exchanges the provider protocol's
+//! listed, examined, read, written, walked, served, created, resized
+//! and destroyed through the eleven exchanges the provider protocol's
 //! [`volumes`](diverge_provider_sdk::endpoints::volumes) defines. Each
 //! is here under the daemon's own tag, and is otherwise the
 //! provider's: the request is the provider's request behind the
 //! daemon's tag, and every answer, every channel and every frame is
 //! the provider's type, re-exported, so that what a listing, a stat,
-//! a piece of a file, a written answer, a tree, a capacity, a
-//! creation, an edit and a deletion mean is stated once, there. Where
+//! a piece of a file, a written answer, a tree, a serving and its
+//! asks, a capacity, a creation, an edit and a deletion mean is
+//! stated once, there. Where
 //! the provider's rule names a provider, the daemon stands; where it
 //! names a container that mounts the volume, an agent's FUSE mount
 //! stands — see
@@ -21,11 +22,13 @@
 //! # The hold is the same
 //!
 //! A volume may be mounted into any number of the caller's agents at
-//! once, and nothing examines, reads, writes, walks, resizes or
-//! deletes it while any agent has it: the exclusive hold every
-//! in-place verb takes, refused while the volume is mounted anywhere
-//! or under another of the six, exactly as the provider's
-//! [`Volume`](diverge_provider_sdk::server::volume::Volume) states.
+//! once, and served on any number of [`serve`] scopes beside them,
+//! and nothing examines, reads, writes, walks, resizes or deletes it
+//! while any agent has it or any serve holds it: the exclusive hold
+//! every in-place verb takes, refused while the volume is mounted or
+//! served anywhere or under another of the six, exactly as the
+//! provider's [`Volume`](diverge_provider_sdk::server::volume::Volume)
+//! states. A serve takes the shared hold an agent's mount takes.
 //!
 //! # Not a provider's volumes
 //!
@@ -42,5 +45,6 @@ pub mod edit_capacity;
 pub mod filetree;
 pub mod list;
 pub mod read;
+pub mod serve;
 pub mod stat;
 pub mod write;

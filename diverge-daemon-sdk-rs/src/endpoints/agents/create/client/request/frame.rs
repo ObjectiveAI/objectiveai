@@ -69,12 +69,12 @@ pub struct Frame {
     ///
     /// Each names a file by a volume of the daemon's and a path in
     /// it, and its path in the container — see [`FuseMount`]. Every
-    /// one is mounted before the agent runs, and every open and every
-    /// changed close inside the container is one ask to the daemon,
-    /// served from the volume's file. The file is overwritten in
-    /// place only; a program that replaces its file by rename needs a
-    /// directory mount. Its container path is no other mount's and
-    /// lies inside none, as every mount's.
+    /// one is mounted before the agent runs, and every read and every
+    /// write of a piece inside the container is one ask to the
+    /// daemon, served from the volume's file in place. The file is
+    /// overwritten in place only; a program that replaces its file by
+    /// rename needs a directory mount. Its container path is no other
+    /// mount's and lies inside none, as every mount's.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of the daemon's own volumes served LIVE, mounted
@@ -83,9 +83,10 @@ pub struct Frame {
     /// Each names a directory by a volume of the daemon's and a path
     /// in it, and its path in the container — see [`FuseMount`]. The
     /// whole tree under the volume path is what the container sees:
-    /// every listing, read, write, creation, removal and rename inside
-    /// the container is one ask to the daemon, served from the
-    /// volume's tree. No other mount may lie inside it.
+    /// every listing, stat, read or write of a piece, truncation,
+    /// change of attributes, creation, removal and rename inside the
+    /// container is one ask to the daemon, served from the volume's
+    /// tree in place. No other mount may lie inside it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
     /// What the image is told once, as the image defines it, for the

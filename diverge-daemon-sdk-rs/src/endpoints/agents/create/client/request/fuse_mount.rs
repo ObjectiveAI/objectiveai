@@ -14,11 +14,25 @@ use serde::{Deserialize, Serialize};
 /// itself, made if absent with every missing parent directory made
 /// too, and the directory around it stays whatever the image or
 /// another mount made it. Nothing copies the contents in or reads
-/// them back: every read, write, listing, removal, rename and new
-/// directory in the container is one ask to the daemon, which serves
-/// it from the volume, live — so what the container sees is the
-/// volume as it is, and what it writes lands in it. It is for the
-/// credential files vendor CLIs rewrite when they refresh a login.
+/// them back, and nothing is buffered on either side: every stat,
+/// every read of a piece, every write of a piece, every truncation,
+/// every change of mode, owner or times, every listing, removal,
+/// rename and new directory in the container is one ask to the
+/// daemon, which serves it from the volume in place, as it comes —
+/// the nine asks the provider's
+/// [`volumes::serve`](crate::endpoints::volumes::serve) answers, put
+/// to the daemon's own volume — so what the container sees is the
+/// volume as it is, with the mode, owner and times the volume
+/// records, and what it writes lands in it as it is written. It is
+/// for the credential files vendor CLIs rewrite when they refresh a
+/// login.
+///
+/// # A volume that keeps nothing
+///
+/// A volume whose persist mode is `false` is served read-only to the
+/// container: every read, listing and stat goes through, and every
+/// write, truncation, change of attributes, removal, rename and new
+/// directory is refused, the program seeing a read-only filesystem.
 ///
 /// # The volume is held for the agent's life
 ///

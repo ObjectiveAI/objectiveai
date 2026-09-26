@@ -1,4 +1,4 @@
-//! What a client's request frame carries for a volume edit capacity.
+//! What a client's request frame carries for a volume serve.
 
 use diverge_provider_sdk::decode::Decode;
 use diverge_provider_sdk::encode::{Encode, Writer};
@@ -6,12 +6,12 @@ use diverge_provider_sdk::encode::{Encode, Writer};
 /// The provider's own request, verbatim, behind the daemon's tag.
 ///
 /// The fields are the provider protocol's and are documented there —
-/// [`diverge_provider_sdk::endpoints::volumes::edit_capacity::client::request::Frame`] — and mean the same here,
+/// [`diverge_provider_sdk::endpoints::volumes::serve::client::request::Frame`] — and mean the same here,
 /// the volume being the daemon's. Postcard after the tag, as the
 /// provider's is: the bytes after the tag byte are the same bytes a
 /// client would send a provider.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Frame(pub diverge_provider_sdk::endpoints::volumes::edit_capacity::client::request::Frame);
+pub struct Frame(pub diverge_provider_sdk::endpoints::volumes::serve::client::request::Frame);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -25,7 +25,7 @@ pub struct Frame(pub diverge_provider_sdk::endpoints::volumes::edit_capacity::cl
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 13;
+const TAG: u8 = 10;
 
 /// Postcard, as the provider's is: the tag, and the inner request's
 /// own bytes.
@@ -53,7 +53,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A volume edit capacity request that could not be read.
+/// A volume serve request that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -71,12 +71,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("volume edit capacity request frame is empty"),
+            FrameError::Empty => f.write_str("volume serve request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected volume edit capacity request tag {TAG}, found {tag}")
+                write!(f, "expected volume serve request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "volume edit capacity request did not parse: {error}")
+                write!(f, "volume serve request did not parse: {error}")
             }
         }
     }
