@@ -7,15 +7,26 @@
 //! time, since the filesystem is `&mut`; a fixed volume answers from
 //! its directory through `tokio::fs`. Nothing is buffered: a read is
 //! one piece at an offset, a write lands one piece in place, and the
-//! filesystem's metadata is flushed after every change. A volume whose
-//! persist mode is `false` answers every mutation `Ephemeral` and
-//! every immutable ask as it would.
+//! filesystem's metadata is flushed after every change.
+//!
+//! The volume's mode is kept here. A persistent volume's image is
+//! opened read-write, this serve being its one user. A read-only
+//! volume's image is opened read-only, and every mutation answers
+//! `ReadOnly` before touching it. An ephemeral volume's image is
+//! opened under an [`Overlay`]: reads come from the image, writes
+//! land in a scratch file of this serve's own that goes with it, and
+//! a write that would take the scratch past the serve's
+//! `overlay_disk` is refused for that ask alone. A mutation that
+//! fails part-way — the cap, or anything else — is followed by the
+//! filesystem being opened again over the same device, so nothing it
+//! had staged in memory outlives the failure.
 
 use std::io::{self, Read as _, Seek as _, SeekFrom, Write as _};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytes::Bytes;
+use diverge_provider_sdk::endpoints::volumes::Mode;
 use diverge_provider_sdk::server::served;
 use diverge_provider_sdk::shared::containers::fuse::ack::Refused;
 use diverge_provider_sdk::shared::containers::fuse::stat::Stat;
@@ -25,55 +36,89 @@ use fstool::fs::ext::Ext;
 use fstool::fs::{EntryKind, FileMeta, Filesystem as _, OpenFlags, SetAttrs};
 use tokio::sync::Mutex;
 
-/// A volume being served: where its content is, and whether it keeps
-/// what is written.
+use super::{Error, Overlay, Scratch};
+
+/// A volume being served: where its content is, and its mode.
 pub enum Served {
     /// A stored volume's image, open for the serve's life.
     Stored {
         /// The device and the filesystem in it, one at a time.
         opened: Arc<Mutex<Opened>>,
-        persist: bool,
+        mode: Mode,
     },
     /// A fixed volume's directory.
-    Fixed { root: PathBuf, persist: bool },
+    Fixed { root: PathBuf, mode: Mode },
 }
 
-/// An image, open: fstool's device and the ext4 filesystem it holds.
+/// An image, open: fstool's device — the image, read-write or
+/// read-only, or the image under an overlay — and the ext4
+/// filesystem it holds.
 pub struct Opened {
-    device: FileBackend,
+    device: Box<dyn BlockDevice>,
     filesystem: Ext,
+}
+
+impl Opened {
+    /// The filesystem opened again over the same device, the journal
+    /// replayed: what a failed change had staged is dropped.
+    fn reopen(&mut self) -> Result<(), fstool::Error> {
+        let mut filesystem = Ext::open(&mut *self.device)?;
+        filesystem.replay_pending_journal(&mut *self.device)?;
+        self.filesystem = filesystem;
+        Ok(())
+    }
 }
 
 impl Served {
     /// A stored volume's image opened for serving, on the blocking
-    /// pool: the journal replayed first, as a walk replays it.
-    pub async fn stored(image: &Path, persist: bool) -> Result<Self, super::Error> {
+    /// pool, as its mode says: read-write, read-only, or under an
+    /// overlay of `overlay_disk` bytes taken from `scratch`'s cap —
+    /// [`Error::OverlayDisk`] when the cap has no room. The journal is
+    /// replayed first, as a walk replays it; on a read-only image a
+    /// replay the device refuses is left, the filesystem being as of
+    /// its last checkpoint.
+    pub async fn stored(image: &Path, mode: Mode, overlay_disk: u64, scratch: &Scratch) -> Result<Self, Error> {
         let image = image.to_path_buf();
+        let overlay = match mode {
+            Mode::Ephemeral => {
+                let lease = scratch.lease(overlay_disk).ok_or(Error::OverlayDisk(overlay_disk))?;
+                Some((scratch.create().await?, lease))
+            }
+            Mode::Persistent | Mode::ReadOnly => None,
+        };
         let opened = tokio::task::spawn_blocking(move || {
-            let mut device = FileBackend::open(&image)?;
-            let mut filesystem = Ext::open(&mut device)?;
-            filesystem.replay_pending_journal(&mut device)?;
-            Ok::<Opened, super::Error>(Opened { device, filesystem })
+            let mut device: Box<dyn BlockDevice> = match (mode, overlay) {
+                (Mode::Ephemeral, Some((file, lease))) => Box::new(Overlay::open(&image, file, overlay_disk, lease)?),
+                (Mode::ReadOnly, _) => Box::new(FileBackend::open_read_only(&image)?),
+                (Mode::Persistent | Mode::Ephemeral, _) => Box::new(FileBackend::open(&image)?),
+            };
+            let mut filesystem = Ext::open(&mut *device)?;
+            match filesystem.replay_pending_journal(&mut *device) {
+                Ok(_) => {}
+                Err(fstool::Error::Io(error)) if mode == Mode::ReadOnly && error.kind() == io::ErrorKind::PermissionDenied => {}
+                Err(error) => return Err(Error::Format(error)),
+            }
+            Ok::<Opened, Error>(Opened { device, filesystem })
         })
         .await
         .map_err(io::Error::other)??;
         Ok(Served::Stored {
             opened: Arc::new(Mutex::new(opened)),
-            persist,
+            mode,
         })
     }
 
     /// A fixed volume's directory, served as it is.
-    pub fn fixed(root: &Path, persist: bool) -> Self {
+    pub fn fixed(root: &Path, mode: Mode) -> Self {
         Served::Fixed {
             root: root.to_path_buf(),
-            persist,
+            mode,
         }
     }
 
-    fn persist(&self) -> bool {
+    fn read_only(&self) -> bool {
         match self {
-            Served::Stored { persist, .. } | Served::Fixed { persist, .. } => *persist,
+            Served::Stored { mode, .. } | Served::Fixed { mode, .. } => *mode == Mode::ReadOnly,
         }
     }
 
@@ -87,7 +132,33 @@ impl Served {
         tokio::task::spawn_blocking(move || {
             let mut guard = opened.blocking_lock();
             let Opened { device, filesystem } = &mut *guard;
-            f(filesystem, device).map_err(|error| error.to_string())
+            f(filesystem, &mut **device).map_err(|error| error.to_string())
+        })
+        .await
+        .map_err(|error| error.to_string())?
+    }
+
+    /// `f` run on the open image as a change: on a failure the
+    /// filesystem is opened again over the device, so what the change
+    /// staged before it failed is dropped rather than flushed later.
+    async fn mutate(
+        opened: &Arc<Mutex<Opened>>,
+        f: impl FnOnce(&mut Ext, &mut dyn BlockDevice) -> Result<(), fstool::Error> + Send + 'static,
+    ) -> Result<(), String> {
+        let opened = Arc::clone(opened);
+        tokio::task::spawn_blocking(move || {
+            let mut guard = opened.blocking_lock();
+            let Opened { device, filesystem } = &mut *guard;
+            match f(filesystem, &mut **device) {
+                Ok(()) => Ok(()),
+                Err(error) => {
+                    let message = match guard.reopen() {
+                        Ok(()) => error.to_string(),
+                        Err(reopen) => format!("{error}; and the filesystem could not be reopened: {reopen}"),
+                    };
+                    Err(message)
+                }
+            }
         })
         .await
         .map_err(|error| error.to_string())?
@@ -171,13 +242,13 @@ impl served::Served for Served {
     }
 
     async fn write(&self, path: &str, offset: u64, bytes: Bytes) -> Result<(), Refused> {
-        if !self.persist() {
-            return Err(Refused::Ephemeral);
+        if self.read_only() {
+            return Err(Refused::ReadOnly);
         }
         match self {
             Served::Stored { opened, .. } => {
                 let path = inside(path);
-                Self::image(opened, move |filesystem, device| {
+                Self::mutate(opened, move |filesystem, device| {
                     let mut handle = filesystem.open_file_rw(
                         device,
                         Path::new(&path),
@@ -205,13 +276,13 @@ impl served::Served for Served {
     }
 
     async fn truncate(&self, path: &str, size: u64) -> Result<(), Refused> {
-        if !self.persist() {
-            return Err(Refused::Ephemeral);
+        if self.read_only() {
+            return Err(Refused::ReadOnly);
         }
         match self {
             Served::Stored { opened, .. } => {
                 let path = inside(path);
-                Self::image(opened, move |filesystem, device| {
+                Self::mutate(opened, move |filesystem, device| {
                     let mut handle = filesystem.open_file_rw(
                         device,
                         Path::new(&path),
@@ -235,13 +306,13 @@ impl served::Served for Served {
     }
 
     async fn setattr(&self, path: &str, attrs: Attrs) -> Result<(), Refused> {
-        if !self.persist() {
-            return Err(Refused::Ephemeral);
+        if self.read_only() {
+            return Err(Refused::ReadOnly);
         }
         match self {
             Served::Stored { opened, .. } => {
                 let path = inside(path);
-                Self::image(opened, move |filesystem, device| {
+                Self::mutate(opened, move |filesystem, device| {
                     let set = SetAttrs {
                         mode: attrs.mode.map(|mode| (mode & 0o7777) as u16),
                         uid: attrs.uid,
@@ -290,13 +361,13 @@ impl served::Served for Served {
     }
 
     async fn remove(&self, path: &str) -> Result<(), Refused> {
-        if !self.persist() {
-            return Err(Refused::Ephemeral);
+        if self.read_only() {
+            return Err(Refused::ReadOnly);
         }
         match self {
             Served::Stored { opened, .. } => {
                 let path = inside(path);
-                Self::image(opened, move |filesystem, device| {
+                Self::mutate(opened, move |filesystem, device| {
                     filesystem.remove(device, Path::new(&path))?;
                     filesystem.flush(device)
                 })
@@ -308,13 +379,13 @@ impl served::Served for Served {
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<(), Refused> {
-        if !self.persist() {
-            return Err(Refused::Ephemeral);
+        if self.read_only() {
+            return Err(Refused::ReadOnly);
         }
         match self {
             Served::Stored { opened, .. } => {
                 let (from, to) = (inside(from), inside(to));
-                Self::image(opened, move |filesystem, device| {
+                Self::mutate(opened, move |filesystem, device| {
                     // A file at the destination is replaced, as a rename
                     // replaces one; the trait's rename, by name, since
                     // `Ext` has an inherent one of another shape.
@@ -333,13 +404,13 @@ impl served::Served for Served {
     }
 
     async fn mkdir(&self, path: &str) -> Result<(), Refused> {
-        if !self.persist() {
-            return Err(Refused::Ephemeral);
+        if self.read_only() {
+            return Err(Refused::ReadOnly);
         }
         match self {
             Served::Stored { opened, .. } => {
                 let path = inside(path);
-                Self::image(opened, move |filesystem, device| {
+                Self::mutate(opened, move |filesystem, device| {
                     filesystem.create_dir(
                         device,
                         Path::new(&path),

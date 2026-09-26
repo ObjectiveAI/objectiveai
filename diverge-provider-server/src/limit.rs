@@ -1,13 +1,17 @@
-//! One cap, and the count against it.
+//! One cap, and the count against it: what the deployer keeps the
+//! running containers under, and the volumes keep the ephemeral
+//! serves under beside them.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// A ceiling in BYTES and how much of it the running containers
-/// hold: `container_overlay_disk` against the sum of their `disk`,
-/// `memory` against the sum of their `memory`. Taken by one
-/// compare-and-swap and never past the cap, given back when a
-/// container ends; no lock, since every deploy takes from it beside
-/// every other.
+/// A ceiling in BYTES and how much of it is held: `memory` against
+/// the running containers' `memory`, and `container_overlay_disk`
+/// against the running containers' `disk` and every ephemeral
+/// serve's `overlay_disk` together, since a serve's scratch lives
+/// beside the containers' overlays. Taken by one compare-and-swap
+/// and never past the cap, given back when a container or a serve
+/// ends; no lock, since every taker takes from it beside every
+/// other.
 #[derive(Debug)]
 pub struct Limit {
     /// The most the count may reach.

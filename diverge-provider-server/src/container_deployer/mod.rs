@@ -80,7 +80,7 @@
 //! # What is here
 //!
 //! [`ContainerDeployer`] is the deployer, [`Container`] a container it
-//! started, [`Error`] what a deploy fails with. [`Limit`] is one cap
+//! started, [`Error`] what a deploy fails with. [`Limit`](crate::Limit) is one cap
 //! with a count against it, [`Images`] the image cache's bookkeeping,
 //! [`Source`] where an image was found, and `deploy`, `mounts`,
 //! `root` on Linux and `machine` and `tunnel` on the hosts with a
@@ -94,7 +94,6 @@ mod container_deployer;
 mod deploy;
 mod error;
 mod images;
-mod limit;
 #[cfg(not(target_os = "linux"))]
 mod machine;
 mod mounts;
@@ -109,7 +108,6 @@ pub use container::*;
 pub use container_deployer::*;
 pub use error::*;
 pub use images::*;
-pub use limit::*;
 pub use shared::*;
 pub use source::*;
 #[cfg(not(target_os = "linux"))]

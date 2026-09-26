@@ -82,4 +82,4 @@ uuid = { version = "1.26.1", default-features = false, features = ["v4"] }
 # taking it: on Unix `set_len` alone does that, on NTFS the file must
 # be marked with `FSCTL_SET_SPARSE` first — `Ioctl` for the code,
 # `IO` for `DeviceIoControl`, `Foundation` for the handle.
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_IO", "Win32_System_Ioctl"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl"] }

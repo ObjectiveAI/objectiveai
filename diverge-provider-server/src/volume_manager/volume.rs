@@ -3,11 +3,12 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use diverge_provider_sdk::CHUNK_SIZE;
+use diverge_provider_sdk::endpoints::volumes::Mode;
 use diverge_provider_sdk::endpoints::volumes::edit::client::request::Change;
 use diverge_provider_sdk::endpoints::volumes::edit::server::response::Edit;
 use diverge_provider_sdk::endpoints::volumes::list::server::response;
@@ -22,7 +23,7 @@ use tokio::fs;
 use tokio::io::AsyncReadExt as _;
 use tokio::sync::{Mutex, mpsc};
 
-use super::{Error, Mode, Reservation, Served, Walked, image, mode, walk};
+use super::{Error, ModeFile, Reservation, Scratch, Served, Walked, image, mode, walk};
 use crate::tools::{mount, resize};
 
 /// The hold's count when the one exclusive holder has it: every
@@ -39,6 +40,9 @@ pub enum Place {
         store: usize,
         image: PathBuf,
         reservation: Arc<Reservation>,
+        /// Where an ephemeral serve of it keeps its scratch, and the
+        /// cap that scratch counts against.
+        scratch: Arc<Scratch>,
     },
     /// A fixed volume of the configuration: the directory, the size
     /// the configuration declares for it, and when the provider
@@ -87,11 +91,11 @@ pub struct Volume {
 struct Inner {
     name: String,
     place: Place,
-    /// Whether the volume keeps what containers write into it: what
-    /// its mode file holds, or the configuration declares for a fixed
-    /// volume. Changed only under the exclusive hold, so no container
-    /// is bound while it moves.
-    persist: AtomicBool,
+    /// The volume's [`Mode`], as one byte: what its mode file holds,
+    /// or the configuration declares for a fixed volume. Changed only
+    /// under the exclusive hold, so no container and no serve is
+    /// bound while it moves.
+    mode: AtomicU8,
     /// The SDK's hold: free, some number of mounters, or [`LOCKED`].
     holders: AtomicU32,
     /// What the last walk found, if one has happened since the
@@ -115,12 +119,12 @@ struct Attached {
 }
 
 impl Volume {
-    pub fn new(name: &str, place: Place, persist: bool) -> Self {
+    pub fn new(name: &str, place: Place, mode: Mode) -> Self {
         Volume {
             inner: Arc::new(Inner {
                 name: name.to_string(),
                 place,
-                persist: AtomicBool::new(persist),
+                mode: AtomicU8::new(byte(mode)),
                 holders: AtomicU32::new(0),
                 walked: Mutex::new(None),
                 attached: Mutex::new(None),
@@ -138,11 +142,12 @@ impl Volume {
         &self.inner.place
     }
 
-    /// Whether the volume keeps what containers write into it, as of
-    /// now: what a mount reads to bind the volume plainly or under an
-    /// overlay.
-    pub fn persist(&self) -> bool {
-        self.inner.persist.load(Ordering::Acquire)
+    /// The volume's mode as of now: what a mount reads to bind the
+    /// volume plainly, under an overlay, or read-only, and what a
+    /// serve reads to change it in place, on a scratch layer, or not
+    /// at all.
+    pub fn mode(&self) -> Mode {
+        of_byte(self.inner.mode.load(Ordering::Acquire))
     }
 
     /// The volume as a listing reports it, read from the filesystem
@@ -153,8 +158,7 @@ impl Volume {
     /// where the filesystem records no birth. A fixed volume's size
     /// is what the configuration declares and its creation time the
     /// directory's birth time, or when this provider started where
-    /// the filesystem records none. Either's persist mode is what
-    /// this holds.
+    /// the filesystem records none. Either's mode is what this holds.
     pub async fn listing(&self) -> io::Result<response::Volume> {
         match &self.inner.place {
             Place::Stored { image, .. } => {
@@ -163,7 +167,7 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: meta.len(),
                     created: meta.created().or_else(|_| meta.modified()).map(seconds).unwrap_or(0),
-                    persist: self.persist(),
+                    mode: self.mode(),
                 })
             }
             Place::Fixed { root, bytes, started } => {
@@ -172,7 +176,7 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: *bytes,
                     created: meta.created().map(seconds).unwrap_or(*started),
-                    persist: self.persist(),
+                    mode: self.mode(),
                 })
             }
         }
@@ -222,7 +226,10 @@ impl Volume {
             }
             None => {
                 let dir = tool_path(&mounts_dir.join(uuid::Uuid::new_v4().to_string()));
-                mount::mount(image, &dir).await?;
+                // Only a persistent volume's image is written by the
+                // kernel: an ephemeral one is the lower of podman's
+                // overlay, a read-only one is bound read-only.
+                mount::mount(image, &dir, self.mode() != Mode::Persistent).await?;
                 *attached = Some(Attached {
                     dir: dir.clone(),
                     count: 1,
@@ -417,6 +424,25 @@ fn tool_path(path: &Path) -> String {
     crate::tools::podman::path(path)
 }
 
+/// A mode as the byte the volume keeps it in.
+fn byte(mode: Mode) -> u8 {
+    match mode {
+        Mode::Persistent => 0,
+        Mode::Ephemeral => 1,
+        Mode::ReadOnly => 2,
+    }
+}
+
+/// The byte back as a mode; a byte this did not write is persistent,
+/// the mode that refuses the most company.
+fn of_byte(byte: u8) -> Mode {
+    match byte {
+        1 => Mode::Ephemeral,
+        2 => Mode::ReadOnly,
+        _ => Mode::Persistent,
+    }
+}
+
 /// A moment as seconds since the Unix epoch; a moment before it is
 /// `0`.
 fn seconds(time: SystemTime) -> u64 {
@@ -426,14 +452,19 @@ fn seconds(time: SystemTime) -> u64 {
 impl volume::Volume for Volume {
     type Error = Error;
 
-    /// One more mounter, unless the volume is locked. One
-    /// compare-and-swap, so a lock and a mount at once cannot both
-    /// succeed.
+    /// One more mounter, unless the volume is locked — or, for a
+    /// persistent volume, held by anyone at all: a persistent volume
+    /// has one user at a time, one container or one serve, which is
+    /// what keeps its image under one writer. One compare-and-swap,
+    /// so a lock and a mount at once cannot both succeed.
     async fn mount(&self) -> bool {
+        let one_user = self.mode() == Mode::Persistent;
         self.inner
             .holders
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |holders| match holders {
                 LOCKED => None,
+                0 => Some(1),
+                _ if one_user => None,
                 count => Some(count + 1),
             })
             .is_ok()
@@ -567,15 +598,23 @@ impl volume::Volume for Volume {
     type Served = Served;
 
     /// The volume served: a stored volume's image opened once, the
-    /// journal replayed, for the serve's life; a fixed volume's
-    /// directory as it is. Whatever a walk found is forgotten first:
-    /// the content may change from now on. The persist mode goes with
-    /// it, so a volume that keeps nothing refuses every change.
-    async fn serve(&self) -> Result<Self::Served, Error> {
+    /// journal replayed, for the serve's life — read-write for a
+    /// persistent volume, which this serve alone holds; read-only for
+    /// a read-only one; under a scratch layer of `overlay_disk` bytes
+    /// for an ephemeral one, taken from the container overlay cap —
+    /// or a fixed volume's directory as it is. Whatever a walk found
+    /// is forgotten first: the content may change from now on. A
+    /// fixed volume in ephemeral mode is not served by this provider,
+    /// which has no scratch layer over a directory:
+    /// [`Error::EphemeralFixed`].
+    async fn serve(&self, overlay_disk: u64) -> Result<Self::Served, Error> {
         *self.inner.walked.lock().await = None;
         match &self.inner.place {
-            Place::Stored { image, .. } => Served::stored(image, self.persist()).await,
-            Place::Fixed { root, .. } => Ok(Served::fixed(root, self.persist())),
+            Place::Stored { image, scratch, .. } => Served::stored(image, self.mode(), overlay_disk, scratch).await,
+            Place::Fixed { root, .. } => match self.mode() {
+                Mode::Ephemeral => Err(Error::EphemeralFixed(self.inner.name.clone())),
+                mode => Ok(Served::fixed(root, mode)),
+            },
         }
     }
 
@@ -637,14 +676,14 @@ impl volume::Volume for Volume {
         }
         match change {
             Change::Bytes(bytes) => self.resize(bytes).await,
-            Change::Persist(persist) => {
-                self.set_persist(persist).await?;
+            Change::Mode(mode) => {
+                self.set_mode(mode).await?;
                 Ok(Edit::Edited)
             }
-            Change::Both { bytes, persist } => {
+            Change::Both { bytes, mode } => {
                 let edit = self.resize(bytes).await?;
                 if edit == Edit::Edited {
-                    self.set_persist(persist).await?;
+                    self.set_mode(mode).await?;
                 }
                 Ok(edit)
             }
@@ -655,13 +694,13 @@ impl volume::Volume for Volume {
 impl Volume {
     /// The mode file rewritten and then what this holds, in that
     /// order: a failure to write leaves both as they were.
-    async fn set_persist(&self, persist: bool) -> Result<(), Error> {
+    async fn set_mode(&self, mode: Mode) -> Result<(), Error> {
         let Place::Stored { image, .. } = &self.inner.place else {
             return Err(Error::Fixed(self.inner.name.clone()));
         };
         let path = mode_file(image);
-        mode::write_mode(&path, Mode { persist }).await?;
-        self.inner.persist.store(persist, Ordering::Release);
+        mode::write_mode(&path, ModeFile { mode }).await?;
+        self.inner.mode.store(byte(mode), Ordering::Release);
         Ok(())
     }
 
@@ -681,7 +720,7 @@ impl Volume {
     /// error, with the volume as it was. A resize changes no file's
     /// content, so what a walk found stands.
     async fn resize(&self, bytes: u64) -> Result<Edit, Error> {
-        let Place::Stored { store, image, reservation } = &self.inner.place else {
+        let Place::Stored { store, image, reservation, .. } = &self.inner.place else {
             return Err(Error::Fixed(self.inner.name.clone()));
         };
         // 4 MiB: less than that cannot hold ext4's journal beside

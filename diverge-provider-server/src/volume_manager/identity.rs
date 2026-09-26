@@ -7,7 +7,7 @@ use futures_util::future;
 use tokio::fs::DirEntry;
 use tokio::sync::{Mutex, OnceCell};
 
-use super::{Place, Reservation, Volume, mode, name};
+use super::{Place, Reservation, Scratch, Volume, mode, name};
 use crate::config::volumes::Store;
 
 /// The volumes one identity created, held by name.
@@ -51,14 +51,14 @@ impl Identity {
     /// the identity's directory in it, that does not exist holds no
     /// volumes. Each volume is handed the reservation, so it can ask
     /// its store for room when it grows.
-    pub(super) async fn load(&self, reservation: &Arc<Reservation>) {
+    pub(super) async fn load(&self, reservation: &Arc<Reservation>, scratch: &Arc<Scratch>) {
         self.loaded
             .get_or_init(|| async {
                 future::join_all(
                     reservation
                         .stores()
                         .enumerate()
-                        .map(|(index, store)| self.load_store(index, store, reservation)),
+                        .map(|(index, store)| self.load_store(index, store, reservation, scratch)),
                 )
                 .await;
             })
@@ -68,7 +68,7 @@ impl Identity {
     /// One store: its entries under this identity are read, and every
     /// one is examined at once. A directory that cannot be read holds
     /// no volumes.
-    async fn load_store(&self, index: usize, store: &Store, reservation: &Arc<Reservation>) {
+    async fn load_store(&self, index: usize, store: &Store, reservation: &Arc<Reservation>, scratch: &Arc<Scratch>) {
         let Ok(mut entries) = tokio::fs::read_dir(store.path.join(&self.client_identity)).await else {
             return;
         };
@@ -76,7 +76,7 @@ impl Identity {
         while let Ok(Some(entry)) = entries.next_entry().await {
             found.push(entry);
         }
-        future::join_all(found.into_iter().map(|entry| self.load_entry(index, entry, reservation))).await;
+        future::join_all(found.into_iter().map(|entry| self.load_entry(index, entry, reservation, scratch))).await;
     }
 
     /// One entry of a store: a stored volume when it is a regular
@@ -84,7 +84,7 @@ impl Identity {
     /// it; nothing otherwise — an image without a mode file is not a
     /// volume, and a mode file is a dotfile, which no name passes.
     /// The file's type and the mode file are read at once.
-    async fn load_entry(&self, index: usize, entry: DirEntry, reservation: &Arc<Reservation>) {
+    async fn load_entry(&self, index: usize, entry: DirEntry, reservation: &Arc<Reservation>, scratch: &Arc<Scratch>) {
         let Ok(name) = entry.file_name().into_string() else {
             return;
         };
@@ -108,8 +108,9 @@ impl Identity {
                     store: index,
                     image: path,
                     reservation: Arc::clone(reservation),
+                    scratch: Arc::clone(scratch),
                 },
-                mode.persist,
+                mode.mode,
             ),
         );
     }

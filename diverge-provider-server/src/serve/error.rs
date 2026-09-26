@@ -25,6 +25,9 @@ pub enum Error {
     Bind(io::Error),
     /// The listener stopped on its own.
     Serve(io::Error),
+    /// The scratch directory for ephemeral serves could not be made
+    /// or swept.
+    Scratch(io::Error),
 }
 
 impl fmt::Display for Error {
@@ -36,6 +39,7 @@ impl fmt::Display for Error {
             Error::Deployer(error) => write!(f, "the deployer could not be made: {error}"),
             Error::Bind(error) => write!(f, "the port could not be bound: {error}"),
             Error::Serve(error) => write!(f, "the listener stopped: {error}"),
+            Error::Scratch(error) => write!(f, "the scratch directory could not be made ready: {error}"),
         }
     }
 }
@@ -55,6 +59,7 @@ impl std::error::Error for Error {
             Error::Deployer(error) => Some(error),
             Error::Bind(error) => Some(error),
             Error::Serve(error) => Some(error),
+            Error::Scratch(error) => Some(error),
         }
     }
 }

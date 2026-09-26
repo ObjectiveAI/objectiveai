@@ -19,7 +19,8 @@ use crate::image_checker::ImageChecker;
 use crate::image_registry::ImageRegistry;
 use crate::tools::podman;
 use crate::unbrokered_authorizer::UnbrokeredAuthorizer;
-use crate::volume_manager::VolumeManager;
+use crate::volume_manager::{Scratch, VolumeManager};
+use crate::Limit;
 
 /// The provider's pieces, built once and shared by every connection:
 /// the SDK takes each behind an `Arc`, and the directory of running
@@ -47,7 +48,9 @@ pub struct Provider {
 impl Provider {
     /// Everything made, in the order its parts depend on each other:
     /// podman told where its data is; the registry started, since the
-    /// deployer is told its address; the volumes; the deployer, which
+    /// deployer is told its address; the container overlay cap and
+    /// the scratch directory under podman's storage, swept; the
+    /// volumes; the deployer, which
     /// brings the machine up, sweeps an earlier life away, writes the
     /// auth file and opens the tunnel; the image checker, given that
     /// auth file; and the directory.
@@ -56,10 +59,13 @@ impl Provider {
         let hooks_dir = dir.join("hooks");
         let registry = Arc::new(ImageRegistry::start().await.map_err(Error::Registry)?);
         let shares = config.volumes.as_ref().map(Volumes::paths).unwrap_or_default();
-        let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone()));
+        let disk = Arc::new(Limit::new(config.containers.podman.container_overlay_disk));
+        let scratch = Scratch::new(config.containers.podman.storage_path.join("ephemeral"), Arc::clone(&disk));
+        scratch.sweep().await.map_err(Error::Scratch)?;
+        let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone(), scratch));
         let images = config.containers.server_images.clone();
         let registries = config.containers.podman.registries.clone();
-        let deployer = ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares)
+        let deployer = ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk)
             .await
             .map_err(Error::Deployer)?;
         let checker = Arc::new(ImageChecker::new(&images, &registries, deployer.auth_file().to_path_buf()));

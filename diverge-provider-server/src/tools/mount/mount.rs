@@ -5,14 +5,16 @@ use std::path::Path;
 use crate::tools::{Error, Finished};
 
 /// Make the directory `dir` and mount the filesystem in the image at
-/// `image` on it, through a loop device the kernel picks. `dir` is a
+/// `image` on it, through a loop device the kernel picks, read-only
+/// when `read_only`. `dir` is a
 /// path as the tool sees it — the host's on Linux, the machine's
 /// elsewhere — and is what podman is handed as the bind's source.
-pub async fn mount(image: &Path, dir: &str) -> Result<(), Error> {
+pub async fn mount(image: &Path, dir: &str, read_only: bool) -> Result<(), Error> {
     tool("mkdir", &["-p".to_string(), dir.to_string()])
         .await?
         .require("mkdir", |status| status.success())?;
-    tool("mount", &["-o".to_string(), "loop".to_string(), path(image), dir.to_string()])
+    let options = if read_only { "loop,ro" } else { "loop" };
+    tool("mount", &["-o".to_string(), options.to_string(), path(image), dir.to_string()])
         .await?
         .require("mount", |status| status.success())
 }

@@ -15,7 +15,8 @@ use serde_json::json;
 
 use super::deploy::deploy;
 use super::mounts::tool_path;
-use super::{Container, Error, Images, Limit, Shared, name_ok};
+use super::{Container, Error, Images, Shared, name_ok};
+use crate::Limit;
 use crate::config::containers::{Containers, Podman};
 use crate::tools::{mount, podman};
 use crate::volume_manager::VolumeManager;
@@ -53,9 +54,10 @@ pub struct ContainerDeployer {
 impl ContainerDeployer {
     /// A deployer over the `containers` section, with `dir` the
     /// provider's directory, `volumes` its volumes, `registry` where
-    /// its image registry listens, and `shares` the directories the
+    /// its image registry listens, `shares` the directories the
     /// volumes live in, which a podman machine must see beside `dir`
-    /// and the executable's directory. Made ready here: on Linux the
+    /// and the executable's directory, and `disk` the
+    /// `container_overlay_disk` cap, which the volumes hold too. Made ready here: on Linux the
     /// provider found to be root, and on the hosts with a machine the
     /// machine brought to what the configuration says, first, since
     /// everything after asks podman; the proxy
@@ -71,6 +73,7 @@ impl ContainerDeployer {
         volumes: Arc<VolumeManager>,
         registry: SocketAddr,
         shares: Vec<PathBuf>,
+        disk: Arc<Limit>,
     ) -> Result<Self, Error> {
         let proxy = proxy_beside_executable()?;
         #[cfg(target_os = "linux")]
@@ -109,7 +112,7 @@ impl ContainerDeployer {
                 .map(|image| (image.name.clone(), image.digest.clone()))
                 .collect(),
             shared: Arc::new(Shared {
-                disk: Limit::new(containers.podman.container_overlay_disk),
+                disk,
                 memory: Limit::new(containers.podman.memory),
                 images: Images::new(containers.podman.image_cache_disk, protected),
             }),
