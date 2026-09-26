@@ -42,6 +42,17 @@ pub struct VolumeMount {
     /// Empty mounts the volume itself, which is the common case;
     /// anything else mounts a subdirectory of it.
     pub volume_relative_path: Vec<String>,
+    /// The persist mode the volume is meant to be in: `true`, it
+    /// keeps what is written into it; `false`, it keeps nothing, and
+    /// what a container writes is gone with the container. The mode
+    /// is the volume's own, on its provider — its listing reports it,
+    /// [`volumes::create`](diverge_provider_sdk::endpoints::volumes::create)
+    /// states it and
+    /// [`volumes::edit`](diverge_provider_sdk::endpoints::volumes::edit)
+    /// changes it — and this states which mode this mount means the
+    /// volume to have. What the daemon does with a volume whose mode
+    /// differs at the create, this revision does not state.
+    pub persist: bool,
     /// Where it appears inside the container, as path components from
     /// the container's root.
     ///
