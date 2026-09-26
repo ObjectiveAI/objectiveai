@@ -17,9 +17,6 @@ export function Rail(props: { focused: string | null }) {
       <div className="rail-section">
         <div className="rail-head">
           <span>{t.rail.agents}</span>
-          <button className="rail-add" title={t.rail.newAgent} onClick={() => open({ kind: "new_agent" })}>
-            <Icon name="plus" />
-          </button>
         </div>
         {agents.length === 0 ? <p className="rail-empty muted">{t.rail.empty}</p> : null}
         <ul className="rail-list">
@@ -56,7 +53,7 @@ export function Rail(props: { focused: string | null }) {
       {info?.stand_in ? (
         <div className="stand-in" title={`${t.standIn.pin} ${info.contract_pin}`}>
           <span className="stand-in-badge">{t.standIn.badge}</span>
-          <span className="stand-in-note">{t.standIn.note}</span>
+          <span className="stand-in-note">{info.stand_in_host === "browser-preview" ? t.standIn.preview : t.standIn.note}</span>
           <span className="stand-in-pin mono">{t.standIn.pin} {info.contract_pin.slice(0, 9)}</span>
         </div>
       ) : null}

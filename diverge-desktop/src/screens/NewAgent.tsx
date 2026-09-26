@@ -124,7 +124,6 @@ export function NewAgent(props: { tabKey: string }) {
               <button key={c.key} className={`kind${kind === c.key ? " on" : ""}`} onClick={() => pick(c.key)}>
                 <span className="kind-title">{t.create.kinds[c.key]?.title ?? c.key}</span>
                 <span className="kind-blurb">{t.create.kinds[c.key]?.blurb}</span>
-                <span className="kind-image mono">{c.image_name}</span>
               </button>
             ))}
           </div>

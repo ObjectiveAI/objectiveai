@@ -9,6 +9,7 @@
 mod actions;
 mod catalog;
 mod daemon;
+mod preview;
 mod tabs;
 mod view;
 

@@ -66,8 +66,11 @@ function discriminator(list: Schema[], root: Schema): string | null {
   return null;
 }
 
+const ACRONYMS = new Set(["api", "mcp", "url", "id", "ai", "gpu", "cpu", "tts", "llm", "oauth", "cn", "xai"]);
+
 function human(name: string): string {
-  const s = name.replace(/_/g, " ");
+  const words = name.replace(/_/g, " ").split(" ").map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w));
+  const s = words.join(" ");
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
@@ -84,7 +87,7 @@ function typeOf(s: Schema): string | undefined {
 }
 
 function variantLabel(v: Schema, root: Schema, disc: string | null, i: number): string {
-  if (disc) return String(constOf(resolve(v.properties[disc], root)));
+  if (disc) return human(String(constOf(resolve(v.properties[disc], root))));
   const ty = typeOf(v);
   if (ty === "object" && Array.isArray(v.required) && v.required.length) return human(v.required[0]);
   if (ty === "array") return "Several";
@@ -244,7 +247,7 @@ function SchemaField(props: FieldProps) {
 
   const ch = choices(s, root);
   if (ch) {
-    const options = ch.map((c) => ({ value: String(c), label: String(c) }));
+    const options = ch.map((c) => ({ value: String(c), label: typeof c === "string" ? human(c) : String(c) }));
     return (
       <Label name={name} schema={s} required={props.required}>
         {options.length <= 5 ? (
@@ -330,7 +333,7 @@ function Optional(props: FieldProps) {
         <select value={set ? String(props.value) : ""} onChange={(e) => props.onChange(e.target.value === "" ? undefined : ch.find((c) => String(c) === e.target.value))}>
           <option value="">{t.create.default}</option>
           {ch.map((c) => (
-            <option key={String(c)} value={String(c)}>{String(c)}</option>
+            <option key={String(c)} value={String(c)}>{typeof c === "string" ? human(c) : String(c)}</option>
           ))}
         </select>
       </Label>

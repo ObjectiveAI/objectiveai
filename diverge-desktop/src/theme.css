@@ -16,11 +16,11 @@
   --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
 
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-md: 13px;
-  --text-lg: 15px;
-  --text-xl: 19px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 21px;
   --leading: 1.6;
 
   --space-1: 4px;
@@ -56,8 +56,9 @@
   --line: var(--rule);
   --line-strong: color-mix(in srgb, var(--rule) 80%, var(--ink));
   --text: var(--ink);
-  --text-2: color-mix(in srgb, var(--ink) 76%, var(--ground));
-  --text-3: color-mix(in srgb, var(--ink) 52%, var(--ground));
+  /* AAA (7:1) on both ground and raised: 84% ≈ 12:1, 70% ≈ 7.6:1 on raised. */
+  --text-2: color-mix(in srgb, var(--ink) 84%, var(--ground));
+  --text-3: color-mix(in srgb, var(--ink) 70%, var(--ground));
   --accent: var(--pink);
   --accent-soft: color-mix(in srgb, var(--pink) 14%, var(--ground));
   --on-accent: var(--plum);
@@ -93,5 +94,3 @@ input, textarea, [contenteditable], .selectable { user-select: text; cursor: aut
 code, pre, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 :focus-visible { outline: none; box-shadow: var(--focus); }
 h1, h2, h3, p { margin: 0; }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }

@@ -20,6 +20,7 @@ export const t = {
     badge: "Stand-in daemon",
     note: "Runs are scripted and nothing leaves this Mac. Ronald's daemon replaces this in one piece.",
     pin: "Built against",
+    preview: "Browser preview: a snapshot of the stand-in, for looking at screens. Nothing here runs.",
   },
   status: {
     working: "Working",
