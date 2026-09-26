@@ -1,6 +1,7 @@
 //! One volume of the agent's provider made visible inside its
 //! container.
 
+use diverge_provider_sdk::endpoints::volumes::Mode;
 use serde::{Deserialize, Serialize};
 
 /// A volume of the provider the agent is pinned to, mounted into the
@@ -25,13 +26,17 @@ use serde::{Deserialize, Serialize};
 /// that means "up" — the offset is components, and `..` is a name,
 /// not an instruction.
 ///
-/// # Whether the changes stay is the volume's
+/// # What becomes of the changes is the volume's
 ///
 /// Not here. Whether what the container writes into the volume is in
-/// the volume when the container ends is the volume's own persist
-/// mode, stated when the volume was made and changed only by an edit
-/// of it — the same for every container that mounts it, and not a
-/// mount's to say.
+/// the volume when the container ends, discarded with the container,
+/// or refused inside it is the volume's own [`Mode`], stated when the
+/// volume was made and changed only by an edit of it — the same for
+/// every container that mounts it, and not a mount's to say; a mount
+/// only states which mode it means the volume to have. So is how
+/// many may hold it: any number of containers and serves for an
+/// ephemeral or a read-only volume, one at a time for a persistent
+/// one.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct VolumeMount {
     /// Which volume, by the name the provider's listing gives it.
@@ -42,17 +47,19 @@ pub struct VolumeMount {
     /// Empty mounts the volume itself, which is the common case;
     /// anything else mounts a subdirectory of it.
     pub volume_relative_path: Vec<String>,
-    /// The persist mode the volume is meant to be in: `true`, it
-    /// keeps what is written into it; `false`, it keeps nothing, and
-    /// what a container writes is gone with the container. The mode
-    /// is the volume's own, on its provider — its listing reports it,
+    /// The mode the volume is meant to be in: `persistent`, it keeps
+    /// what is written into it; `ephemeral`, every change is discarded
+    /// afterwards, with the container or with the serve; `read_only`,
+    /// nothing changes it. The mode is the volume's own, on its
+    /// provider — its listing reports it,
     /// [`volumes::create`](diverge_provider_sdk::endpoints::volumes::create)
     /// states it and
     /// [`volumes::edit`](diverge_provider_sdk::endpoints::volumes::edit)
-    /// changes it — and this states which mode this mount means the
-    /// volume to have. What the daemon does with a volume whose mode
-    /// differs at the create, this revision does not state.
-    pub persist: bool,
+    /// changes it; see [`Mode`] — and this states which mode this
+    /// mount means the volume to have. What the daemon does with a
+    /// volume whose mode differs at the create, this revision does
+    /// not state.
+    pub mode: Mode,
     /// Where it appears inside the container, as path components from
     /// the container's root.
     ///
