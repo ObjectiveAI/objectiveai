@@ -1,38 +1,39 @@
-//! A file mount: a single regular file that can be read and
-//! overwritten in place, but never deleted, moved or replaced by a
-//! rename, its bytes the caller's.
+//! A file mount: a single regular file that can be read and written
+//! in place, but never deleted, moved or replaced by a rename, its
+//! bytes the caller's.
 //!
 //! One inode, the root, a regular file: `getattr` asks the caller
-//! what it holds and answers the length, `open` reads the bytes into a
-//! [`handle`](super::handles) of its own, `read` and `write` work the
-//! buffer, and `flush`, `fsync` and `release` of a changed buffer
-//! store it whole — each ask carrying the mount's id and an empty
-//! path. A caller that will not take a write answers the error, and
-//! the program sees the store fail. Nothing else
-//! ever arrives, because the root is a file: a rename or unlink of
-//! the mount point, or a rename onto it, is the kernel's to refuse in
-//! the directory around it.
+//! what it holds; `open` asks nothing and hands back a
+//! [`handle`](super::handles) that remembers only that it is open;
+//! every `read` and `write` is its own ask with the kernel's offset
+//! and size, carried as it comes; a truncation and a change of mode,
+//! owner or times are asks of their own; `flush`, `fsync` and
+//! `release` ask nothing, there being nothing held back. Each ask
+//! carries an empty path — the mount is the file. A caller that will
+//! not take a change answers the refusal, and the program sees the
+//! call fail. Nothing else ever arrives, because the root is a file:
+//! a rename or unlink of the mount point, or a rename onto it, is the
+//! kernel's to refuse in the directory around it.
 
 use std::ffi::OsStr;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
+use diverge_provider_sdk::shared::containers::fuse;
 use fuser::{
-    BsdFileFlags, Errno, FileAttr, FileHandle, FileType, Filesystem, FopenFlags, INodeNo,
-    LockOwner, OpenAccMode, OpenFlags, ReplyAttr, ReplyData, ReplyEmpty, ReplyEntry,
-    ReplyOpen, ReplyWrite, TimeOrNow, WriteFlags,
+    BsdFileFlags, Errno, FileAttr, FileHandle, Filesystem, INodeNo, KernelConfig, LockOwner,
+    OpenAccMode, OpenFlags, ReplyAttr, ReplyData, ReplyEmpty, ReplyEntry, ReplyOpen, ReplyWrite,
+    TimeOrNow, WriteFlags,
 };
 
-use super::asks::{Asks, Stat};
+use super::asks::Asks;
+use super::attrs::{self, ATTR_TTL, OPEN};
 use super::handles::Handles;
-
-/// How long the kernel may believe an attribute: not at all — the
-/// caller is the truth, and the file is small.
-const ATTR_TTL: Duration = Duration::ZERO;
 
 /// The one file.
 pub struct MountedFile {
     asks: Asks,
-    /// Every time the file has: the proxy's start.
+    /// When the mount was made: the times of a file the caller holds
+    /// nothing for yet.
     born: SystemTime,
     handles: Handles,
 }
@@ -46,61 +47,36 @@ impl MountedFile {
         }
     }
 
-    /// The file's bytes, from the caller: empty when it holds nothing
-    /// under the id yet.
-    fn bytes(&self) -> Result<Vec<u8>, Errno> {
-        Ok(self.asks.read("")?.unwrap_or_default())
-    }
-
-    /// The file's attributes at a size.
-    fn attr(&self, size: u64) -> FileAttr {
-        FileAttr {
-            ino: INodeNo::ROOT,
-            size,
-            blocks: size.div_ceil(512),
-            atime: self.born,
-            mtime: self.born,
-            ctime: self.born,
-            crtime: self.born,
-            kind: FileType::RegularFile,
-            perm: super::FILE_MODE as u16,
-            nlink: 1,
-            uid: 0,
-            gid: 0,
-            rdev: 0,
-            blksize: 4096,
-            flags: 0,
-        }
-    }
-
-    /// The size a `getattr` would answer: the handle's buffer, or the
-    /// caller's stat — nothing held yet is an empty file, and a
-    /// directory is the caller's mistake, not this mount's.
-    fn size(&self, fh: Option<FileHandle>) -> Result<u64, Errno> {
-        match fh {
-            Some(fh) => self.handles.size(fh),
-            None => match self.asks.stat("")? {
-                Some(Stat::File(size)) => Ok(size),
-                Some(Stat::Directory) => Err(Errno::EIO),
-                None => Ok(0),
-            },
+    /// The file's attributes, as the caller says now: nothing held
+    /// yet is an empty file, and a directory is the caller's mistake,
+    /// not this mount's.
+    fn attr(&self) -> Result<FileAttr, Errno> {
+        match self.asks.stat("")? {
+            Some(stat) if stat.kind == fuse::Kind::File => Ok(attrs::attr(INodeNo::ROOT, &stat)),
+            Some(_) => Err(Errno::EIO),
+            None => Ok(attrs::absent(INodeNo::ROOT, fuse::Kind::File, super::FILE_MODE, self.born)),
         }
     }
 }
 
 impl Filesystem for MountedFile {
+    fn init(&mut self, _req: &fuser::Request, config: &mut KernelConfig) -> std::io::Result<()> {
+        attrs::init(config);
+        Ok(())
+    }
+
     fn lookup(&self, _req: &fuser::Request, _parent: INodeNo, _name: &OsStr, reply: ReplyEntry) {
         // The root is a file: there is nothing under it.
         reply.error(Errno::ENOTDIR);
     }
 
-    fn getattr(&self, _req: &fuser::Request, ino: INodeNo, fh: Option<FileHandle>, reply: ReplyAttr) {
+    fn getattr(&self, _req: &fuser::Request, ino: INodeNo, _fh: Option<FileHandle>, reply: ReplyAttr) {
         if ino != INodeNo::ROOT {
             reply.error(Errno::ENOENT);
             return;
         }
-        match self.size(fh) {
-            Ok(size) => reply.attr(&ATTR_TTL, &self.attr(size)),
+        match self.attr() {
+            Ok(attr) => reply.attr(&ATTR_TTL, &attr),
             Err(errno) => reply.error(errno),
         }
     }
@@ -109,14 +85,14 @@ impl Filesystem for MountedFile {
         &self,
         _req: &fuser::Request,
         ino: INodeNo,
-        _mode: Option<u32>,
-        _uid: Option<u32>,
-        _gid: Option<u32>,
+        mode: Option<u32>,
+        uid: Option<u32>,
+        gid: Option<u32>,
         size: Option<u64>,
-        _atime: Option<TimeOrNow>,
-        _mtime: Option<TimeOrNow>,
+        atime: Option<TimeOrNow>,
+        mtime: Option<TimeOrNow>,
         _ctime: Option<SystemTime>,
-        fh: Option<FileHandle>,
+        _fh: Option<FileHandle>,
         _crtime: Option<SystemTime>,
         _chgtime: Option<SystemTime>,
         _bkuptime: Option<SystemTime>,
@@ -127,31 +103,18 @@ impl Filesystem for MountedFile {
             reply.error(Errno::ENOENT);
             return;
         }
-        let Some(size) = size else {
-            // Times, mode, owner: accepted, and the file stays as it
-            // is.
-            match self.size(fh) {
-                Ok(size) => reply.attr(&ATTR_TTL, &self.attr(size)),
-                Err(errno) => reply.error(errno),
+        let result = (|| {
+            if let Some(size) = size {
+                self.asks.truncate("", size)?;
             }
-            return;
-        };
-        let length = size as usize;
-        let result = match fh {
-            // A handle's own truncation: its buffer, and it is dirty
-            // until flushed.
-            Some(fh) => self.handles.resize(fh, length),
-            // `truncate(2)` with no handle: the file itself, resized
-            // and stored at once; every open write handle follows.
-            None => self.bytes().and_then(|mut bytes| {
-                bytes.resize(length, 0);
-                self.asks.write("", &bytes)?;
-                self.handles.resize_writable("", length);
-                Ok(())
-            }),
-        };
+            let attrs = attrs::attrs(mode, uid, gid, atime, mtime);
+            if !attrs.is_empty() {
+                self.asks.setattr("", attrs)?;
+            }
+            self.attr()
+        })();
         match result {
-            Ok(()) => reply.attr(&ATTR_TTL, &self.attr(size)),
+            Ok(attr) => reply.attr(&ATTR_TTL, &attr),
             Err(errno) => reply.error(errno),
         }
     }
@@ -161,24 +124,15 @@ impl Filesystem for MountedFile {
             reply.error(Errno::ENOENT);
             return;
         }
-        let writable = matches!(
-            flags.acc_mode(),
-            OpenAccMode::O_WRONLY | OpenAccMode::O_RDWR
-        );
-        let truncate = flags.0 & libc::O_TRUNC != 0;
-        let buffer = if truncate {
-            Vec::new()
-        } else {
-            match self.bytes() {
-                Ok(bytes) => bytes,
-                Err(errno) => {
-                    reply.error(errno);
-                    return;
-                }
+        let writable = matches!(flags.acc_mode(), OpenAccMode::O_WRONLY | OpenAccMode::O_RDWR);
+        if flags.0 & libc::O_TRUNC != 0 {
+            if let Err(errno) = self.asks.truncate("", 0) {
+                reply.error(errno);
+                return;
             }
-        };
-        let fh = self.handles.open(String::new(), buffer, writable, truncate);
-        reply.opened(fh, FopenFlags::empty());
+        }
+        let fh = self.handles.open(String::new(), writable);
+        reply.opened(fh, OPEN);
     }
 
     fn read(
@@ -192,8 +146,11 @@ impl Filesystem for MountedFile {
         _lock_owner: Option<LockOwner>,
         reply: ReplyData,
     ) {
-        match self.handles.read(fh, offset, size) {
-            Ok(bytes) => reply.data(&bytes),
+        let result = self.handles.get(fh).and_then(|(path, _)| self.asks.read(&path, offset, size));
+        match result {
+            // Nothing held yet reads as an empty file.
+            Ok(Some(bytes)) => reply.data(&bytes),
+            Ok(None) => reply.data(&[]),
             Err(errno) => reply.error(errno),
         }
     }
@@ -210,24 +167,25 @@ impl Filesystem for MountedFile {
         _lock_owner: Option<LockOwner>,
         reply: ReplyWrite,
     ) {
-        match self.handles.write(fh, offset, data) {
-            Ok(written) => reply.written(written),
+        let result = self.handles.get(fh).and_then(|(path, writable)| {
+            if !writable {
+                return Err(Errno::EBADF);
+            }
+            self.asks.write(&path, offset, data)
+        });
+        match result {
+            Ok(()) => reply.written(data.len() as u32),
             Err(errno) => reply.error(errno),
         }
     }
 
-    fn flush(&self, _req: &fuser::Request, _ino: INodeNo, fh: FileHandle, _lock_owner: LockOwner, reply: ReplyEmpty) {
-        match self.handles.flush(fh, |path, bytes| self.asks.write(path, bytes)) {
-            Ok(()) => reply.ok(),
-            Err(errno) => reply.error(errno),
-        }
+    fn flush(&self, _req: &fuser::Request, _ino: INodeNo, _fh: FileHandle, _lock_owner: LockOwner, reply: ReplyEmpty) {
+        // Every write landed as it came.
+        reply.ok();
     }
 
-    fn fsync(&self, _req: &fuser::Request, _ino: INodeNo, fh: FileHandle, _datasync: bool, reply: ReplyEmpty) {
-        match self.handles.flush(fh, |path, bytes| self.asks.write(path, bytes)) {
-            Ok(()) => reply.ok(),
-            Err(errno) => reply.error(errno),
-        }
+    fn fsync(&self, _req: &fuser::Request, _ino: INodeNo, _fh: FileHandle, _datasync: bool, reply: ReplyEmpty) {
+        reply.ok();
     }
 
     fn release(
@@ -240,10 +198,6 @@ impl Filesystem for MountedFile {
         _flush: bool,
         reply: ReplyEmpty,
     ) {
-        // A changed handle is stored on its way out — the kernel's
-        // `flush` normally came first and left it clean. A release's
-        // error reaches nobody, so the reply is always ok.
-        let _ = self.handles.flush(fh, |path, bytes| self.asks.write(path, bytes));
         self.handles.release(fh);
         reply.ok();
     }
