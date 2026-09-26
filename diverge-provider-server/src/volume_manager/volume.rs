@@ -22,7 +22,7 @@ use tokio::fs;
 use tokio::io::AsyncReadExt as _;
 use tokio::sync::{Mutex, mpsc};
 
-use super::{Error, Mode, Reservation, Walked, image, mode, walk};
+use super::{Error, Mode, Reservation, Served, Walked, image, mode, walk};
 use crate::tools::{mount, resize};
 
 /// The hold's count when the one exclusive holder has it: every
@@ -560,6 +560,22 @@ impl volume::Volume for Volume {
                 written
             }
             Place::Fixed { root, .. } => write_host(root, path, content).await,
+        }
+    }
+
+    /// The volume answering the FUSE asks: see [`Served`].
+    type Served = Served;
+
+    /// The volume served: a stored volume's image opened once, the
+    /// journal replayed, for the serve's life; a fixed volume's
+    /// directory as it is. Whatever a walk found is forgotten first:
+    /// the content may change from now on. The persist mode goes with
+    /// it, so a volume that keeps nothing refuses every change.
+    async fn serve(&self) -> Result<Self::Served, Error> {
+        *self.inner.walked.lock().await = None;
+        match &self.inner.place {
+            Place::Stored { image, .. } => Served::stored(image, self.persist()).await,
+            Place::Fixed { root, .. } => Ok(Served::fixed(root, self.persist())),
         }
     }
 
