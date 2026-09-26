@@ -126,7 +126,7 @@ of payload.
   meta names the file relative to the workspace root:
 
   ````text
-  ```rust include=diverge-sdk-rs/src/container_proxy/outside/client_request.rs
+  ```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/client_request.rs
   ```
   ````
 
