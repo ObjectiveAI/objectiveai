@@ -116,7 +116,7 @@ pub struct FuseMount {
     /// mount means the volume to have. What the daemon does with a
     /// volume whose mode differs at the create, this revision does
     /// not state.
-    pub mode: Mode,
+    pub volume_mode: Mode,
     /// Where the mount appears inside the container, as path
     /// components from the container's root, as
     /// [`container_path`](super::VolumeMount::container_path) is for
