@@ -16,22 +16,22 @@ draft: false
 - **`attrs`.** Twenty-nine bytes before the path: `[set: u8][mode: u32][uid: u32][gid: u32][atime: 12 bytes][mtime: 12 bytes]`, every integer big-endian, a time `[secs: u64][nanos: u32]`. The bits of `set` say which fields are set: `1` the mode, `2` the owner, `4` the group, `8` the access time, `16` the modification time. A field whose bit is clear is zero and is not set. The mode is the permission bits.
 - **A file mount.** For a mount of kind `file`, the path is empty.
 
-The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs`:
+The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs
+```rust include=diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/frame.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/setattr.rs`:
+and by `diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/setattr.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/setattr.rs
+```rust include=diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/setattr.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/containers/fuse/setattr/attrs.rs`:
+and by `diverge-sdk-rs/src/shared/containers/fuse/setattr/attrs.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/fuse/setattr/attrs.rs
+```rust include=diverge-sdk-rs/src/shared/containers/fuse/setattr/attrs.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/containers/fuse/time.rs`:
+and by `diverge-sdk-rs/src/shared/containers/fuse/time.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/fuse/time.rs
+```rust include=diverge-sdk-rs/src/shared/containers/fuse/time.rs
 ```

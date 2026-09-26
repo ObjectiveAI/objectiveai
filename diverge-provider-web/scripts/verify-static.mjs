@@ -122,7 +122,7 @@ for (const page of html) {
 
 // 5. rmcp links match the SDK's pinned rmcp version.
 const cargo = readFileSync(
-  new URL("../../diverge-provider-sdk-rs/Cargo.toml", import.meta.url),
+  new URL("../../diverge-sdk-rs/Cargo.toml", import.meta.url),
   "utf-8",
 );
 const rmcp = cargo.match(/^rmcp\s*=\s*\{\s*version\s*=\s*"([^"]+)"/m)?.[1];

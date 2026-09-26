@@ -20,7 +20,7 @@ draft: false
 - **The piece.** After the byte `0`, the bytes of the piece,
   verbatim, running to the end of the payload. Each piece is at most
   `CHUNK_SIZE` bytes, `2 * 1024 * 1024`, the constant
-  `diverge-provider-sdk-rs/src/lib.rs` defines; the pieces concatenated are the file, and a
+  `diverge-sdk-rs/src/lib.rs` defines; the pieces concatenated are the file, and a
   receiver measures none.
 - **The error.** A payload whose first byte is `1` carries an error
   after that byte, running to the end of the payload. The error is
@@ -32,12 +32,12 @@ draft: false
   is neither `0` nor `1`, and a payload whose bytes after `1` are not
   one JSON value are malformed.
 
-The response is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/read/server/response/frame.rs`:
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/read/server/response/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/read/server/response/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/read/server/response/frame.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/shared/containers/read/response/frame.rs`:
+and by `diverge-sdk-rs/src/shared/containers/read/response/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/containers/read/response/frame.rs
+```rust include=diverge-sdk-rs/src/shared/containers/read/response/frame.rs
 ```

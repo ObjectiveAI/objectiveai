@@ -16,12 +16,12 @@ draft: false
 - **`size`.** The length the file is set to, big-endian, before the path: the file is cut to it, or extended with zero bytes to it, and made if absent.
 - **A file mount.** For a mount of kind `file`, the path is empty.
 
-The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs`:
+The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs
+```rust include=diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/frame.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/truncate.rs`:
+and by `diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/truncate.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/truncate.rs
+```rust include=diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/truncate.rs
 ```
