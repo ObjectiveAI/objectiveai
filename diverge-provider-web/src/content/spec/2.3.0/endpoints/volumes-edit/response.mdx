@@ -18,30 +18,29 @@ finish follows the response, and no frame follows the finish.
 - **The sequence.** Exactly one response precedes the response
   finish, and nothing follows the finish. A response finish that no
   response precedes states that the request was not served, as
-  [Endpoints](/endpoints/) provides; the size and the persist mode of
-  the volume are then not stated, and the client learns them from a
+  [Endpoints](/endpoints/) provides; the size and the mode of the
+  volume are then not stated, and the client learns them from a
   [volumes::list](/endpoints/volumes-list/) or a
   [volumes::stat](/endpoints/volumes-stat/) request.
 - **Edited.** A payload whose first byte is `0` states that the
-  volume has what the change stated: the size, the persist mode, or
-  both. The server sends it after the volume has them, and a
+  volume has what the change stated: the size, the mode, or both. The server sends it after the volume has them, and a
   `volumes::list` or a `volumes::stat` request the client makes after
-  receiving it reports the size as `bytes` and the mode as `persist`.
+  receiving it reports the size as `bytes` and the mode as `mode`.
   The server sends nothing after the byte `0`, and a client ignores
   every byte that follows it.
 - **Insufficient capacity.** A payload whose first byte is `1` states
   that the server cannot reserve the size stated and did not change
   the size. The volume has the size it had before the request, and,
-  for a change that stated a persist mode too, the persist mode it
-  had before the request. The server sends nothing after the byte
+  for a change that stated a mode too, the mode it had before the
+  request. The server sends nothing after the byte
   `1`, and a client ignores every byte that follows it. The server
   does not send the byte `1` for a change that states no size.
 - **Content too large.** A payload whose first byte is `2` states
   that the content of the volume exceeds the size stated, so the
   volume cannot be shrunk to it, and that the size was not changed.
   The volume has the size it had before the request, and, for a
-  change that stated a persist mode too, the persist mode it had
-  before the request; its content is as it was. The server sends
+  change that stated a mode too, the mode it had before the
+  request; its content is as it was. The server sends
   nothing after the byte `2`, and a client ignores every byte that
   follows it. The server does not send the byte `2` for a change
   that states no size.
@@ -50,8 +49,8 @@ finish follows the response, and no frame follows the finish.
   exactly one JSON value, in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content. The error
-  states that the volume has the size and the persist mode it had
-  before the request, and that the reason is neither capacity nor
+  states that the volume has the size and the mode it had before
+  the request, and that the reason is neither capacity nor
   content.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is none of `0`, `1`, `2` and `3`, and a payload whose bytes after

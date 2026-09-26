@@ -22,11 +22,11 @@ finish follows the response, and no frame follows the finish.
   `Stat` defined below, encoded as the postcard reading of
   [Notation](/endpoints/#notation) provides: `name` as a varint byte
   length followed by that many bytes of UTF-8, followed by `bytes` as
-  a varint, followed by `created` as a varint, followed by `persist`
+  a varint, followed by `created` as a varint, followed by `mode`
   as one byte, followed by `bytes_used` as a varint, followed by
   `dirhash` as a varint byte length followed by that many bytes of
   UTF-8.
-- **`name`, `bytes`, `created`, `persist`.** The volume as the
+- **`name`, `bytes`, `created`, `mode`.** The volume as the
   client's listing reports it, in the form the
   [volumes::list response](/endpoints/volumes-list/response/) defines.
   The four values equal those the listing reports for the volume at

@@ -8,16 +8,15 @@ draft: false
 ```text
 [0]             ok
 [1][message …]  an error, UTF-8
-[2]             ephemeral: the storage keeps nothing written into it
+[2]             read only: the volume behind the mount is read only
 ```
 
-- **The sequence.** Exactly one channel response, ok, ephemeral, or an error, followed
+- **The sequence.** Exactly one channel response, ok, read only, or an error, followed
   by the channel response finish.
 - **The message.** The bytes after the error byte are UTF-8, not JSON.
-- **Ephemeral.** The byte `2` states that the storage behind the
-  mount keeps nothing written into it. The change is refused, and the
-  server reports the operation to the program as a read-only
-  filesystem.
+- **Read only.** The byte `2` states that the volume behind the
+  mount is read only. The change is refused, and the server reports
+  the operation to the program as a read-only filesystem.
 - **A finish with nothing.** A channel response finish that no
   channel response precedes states that the client did not serve the
   ask. The server does not ask again.

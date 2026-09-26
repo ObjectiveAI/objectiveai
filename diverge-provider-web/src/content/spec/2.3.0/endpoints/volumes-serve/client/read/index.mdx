@@ -25,4 +25,4 @@ it as a client answers that ask, from the volume.
 - **The volume answers.** The server answers from the volume as it is
   at the time of the answer, and changes the volume as the ask asks
   before it answers `ok`. Nothing is buffered on the client's behalf.
-- **Never refused for the persist mode.** A volume whose `persist` is `false` answers this ask as any volume does.
+- **Every mode.** A volume answers this ask whatever its `mode`; an `ephemeral` volume answers from its layer where the layer holds the entry, and from the volume where it does not.
