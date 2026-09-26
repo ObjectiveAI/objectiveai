@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use rmcp::model::ContentBlock;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -42,8 +43,10 @@ pub enum Request {
         /// The proxy's MCP server, for the diverge plugin.
         mcp_url: String,
     },
-    /// One turn: the input text.
-    Turn { text: String },
+    /// One turn: the message's MCP content blocks, as rmcp
+    /// serializes them, for the entry to render — text as it is, an
+    /// image described, audio transcribed, a resource by its type.
+    Turn { content: Vec<ContentBlock> },
     /// A rotating secret's read-back, answered by a `value` line.
     Read { kind: ReadKind, key: String },
     /// The end: stop the runtime, close the database, exit.

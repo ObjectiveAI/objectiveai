@@ -9,12 +9,12 @@
 
 mod authorize;
 mod command;
-mod fetch;
 mod fuse;
 mod mcp;
 mod oci;
 mod postgres;
 mod send;
+mod tools;
 mod vault;
 mod write;
 
@@ -27,23 +27,23 @@ pub(crate) use write::write as write_content;
 use super::{Ask, Encoders, Writes};
 use crate::client::handle::Handle;
 use crate::client::{
-    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, IdentityStore, McpServer, OciStore,
-    PostgresDialer, Vault,
+    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, ToolDeployer,
+    Vault,
 };
 
 /// Answer `ask` on `channel` of `scope`.
-pub(crate) async fn answer<O, A, I, P, C, V, M, F>(
+pub(crate) async fn answer<O, A, T, P, C, V, M, F>(
     handle: Handle,
     scope: u32,
     channel: u32,
     ask: Ask,
     writes: Arc<Writes>,
-    answerers: Answerers<O, A, I, P, C, V, M, F>,
+    answerers: Answerers<O, A, T, P, C, V, M, F>,
     encoders: Encoders,
 ) where
     O: OciStore + 'static,
     A: ConnectionAuthorizer + 'static,
-    I: IdentityStore + 'static,
+    T: ToolDeployer + 'static,
     P: PostgresDialer + 'static,
     C: CommandRunner + 'static,
     V: Vault + 'static,
@@ -53,16 +53,12 @@ pub(crate) async fn answer<O, A, I, P, C, V, M, F>(
     let _ = match ask {
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
+        Ask::OciHas(name, digest) => oci::has(&handle, scope, channel, name, digest, answerers.oci).await,
         Ask::Authorize(request) => {
             authorize::authorize(&handle, scope, channel, request, answerers.authorizer).await
         }
+        Ask::Tools(declared) => tools::tools(&handle, scope, channel, declared, answerers.tools).await,
         Ask::Write(write_id) => write::write(&handle, scope, channel, write_id, writes, encoders).await,
-        Ask::FetchFile(identity) => {
-            fetch::file(&handle, scope, channel, identity, answerers.identities).await
-        }
-        Ask::FetchDirectory(identity) => {
-            fetch::directory(&handle, scope, channel, identity, answerers.identities).await
-        }
         Ask::Postgres(connection_id) => {
             postgres::postgres(&handle, scope, channel, connection_id, answerers.postgres, encoders).await
         }
@@ -81,9 +77,11 @@ pub(crate) async fn answer<O, A, I, P, C, V, M, F>(
             mcp::read_resource(&handle, scope, channel, params, answerers.mcp).await
         }
         Ask::McpNotifications => mcp::notifications(&handle, scope, channel, answerers.mcp).await,
-        Ask::FuseRead(id, path) => fuse::read(&handle, scope, channel, id, path, answerers.fuse).await,
-        Ask::FuseWrite(id, path, bytes) => {
-            fuse::write(&handle, scope, channel, id, path, bytes, answerers.fuse).await
+        Ask::FuseRead(id, path, offset, length) => {
+            fuse::read(&handle, scope, channel, id, path, offset, length, answerers.fuse).await
+        }
+        Ask::FuseWrite(id, path, offset, bytes) => {
+            fuse::write(&handle, scope, channel, id, path, offset, bytes, answerers.fuse).await
         }
         Ask::FuseList(id, path) => fuse::list(&handle, scope, channel, id, path, answerers.fuse).await,
         Ask::FuseRemove(id, path) => fuse::remove(&handle, scope, channel, id, path, answerers.fuse).await,
@@ -92,5 +90,11 @@ pub(crate) async fn answer<O, A, I, P, C, V, M, F>(
         }
         Ask::FuseMkdir(id, path) => fuse::mkdir(&handle, scope, channel, id, path, answerers.fuse).await,
         Ask::FuseStat(id, path) => fuse::stat(&handle, scope, channel, id, path, answerers.fuse).await,
+        Ask::FuseTruncate(id, path, size) => {
+            fuse::truncate(&handle, scope, channel, id, path, size, answerers.fuse).await
+        }
+        Ask::FuseSetattr(id, path, attrs) => {
+            fuse::setattr(&handle, scope, channel, id, path, attrs, answerers.fuse).await
+        }
     };
 }

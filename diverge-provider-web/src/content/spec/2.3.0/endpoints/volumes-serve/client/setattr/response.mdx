@@ -1,0 +1,27 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0]             ok
+[1][message …]  an error, UTF-8
+[2]             ephemeral: the volume keeps nothing written into it
+```
+
+- **The sequence.** Exactly one channel response, ok, ephemeral, or an error, followed
+  by the channel response finish.
+- **The message.** The bytes after the error byte are UTF-8, not JSON.
+- **Ephemeral.** The byte `2` states that the volume's `persist` is
+  `false`: it keeps nothing written into it, the change is refused,
+  and the volume is as it was.
+- **A finish with nothing.** A channel response finish that no
+  channel response precedes states that the server could not serve
+  the ask. The client decides whether to ask again.
+
+The channel response is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/serve/server/channel_response/setattr/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/serve/server/channel_response/setattr/frame.rs
+```

@@ -210,9 +210,9 @@ impl ScopeHandle {
     /// Nothing is taken off the queue by a poll that does not complete,
     /// so this can lose a `select` and be called again without dropping
     /// a channel request. Which is what a stream-shaped scope needs — a
-    /// [`watch`](crate::endpoints::volumes::watch) races this against
-    /// the tree it is reporting, and one of the two loses every time
-    /// round.
+    /// [`containers`](crate::endpoints::containers) run serving a
+    /// filetree channel races this against the tree it is relaying,
+    /// and one of the two loses every time round.
     pub async fn recv_channel_request(&self) -> Option<Bytes> {
         self.channel_request_receiver.lock().await.recv().await
     }

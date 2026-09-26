@@ -5,8 +5,8 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::containers::enqueue;
-use crate::shared::containers::{postgres, read, write_path};
+use crate::shared::containers::{dequeue, enqueue};
+use crate::shared::containers::{postgres, read, transfer, write_path};
 
 /// What a caller asks a provider for while an agent container runs.
 ///
@@ -19,12 +19,13 @@ use crate::shared::containers::{postgres, read, write_path};
 /// | `1` | [`Filetree`](Self::Filetree) |
 /// | `2` | [`Read`](Self::Read) |
 /// | `3` | [`Write`](Self::Write) |
-/// | `4` | [`Postgres`](Self::Postgres) |
-/// | `5` | [`AgentSchema`](Self::AgentSchema) |
-/// | `6` | [`Enqueue`](Self::Enqueue) |
-/// | `7` | [`Dequeue`](Self::Dequeue) |
+/// | `4` | [`Transfer`](Self::Transfer) |
+/// | `5` | [`Postgres`](Self::Postgres) |
+/// | `6` | [`Schema`](Self::Schema) |
+/// | `7` | [`Enqueue`](Self::Enqueue) |
+/// | `8` | [`Dequeue`](Self::Dequeue) |
 ///
-/// The first five are the same in every container scope, in the same
+/// The first seven are the same in every container scope, in the same
 /// order, so a reader of one is a reader of all; what follows is this
 /// family's own exchange. All of them but the first reach INTO the
 /// container, which is the thing a caller cannot dial: it runs on the
@@ -80,20 +81,29 @@ pub enum Frame {
     /// [`write_bytes`](crate::shared::containers::write_bytes) for
     /// what comes back.
     Write(write_path::request::Request),
-    /// The caller's half of a database connection. Tag `4`.
+    /// One file, copied into another container. Tag `4`.
+    ///
+    /// The other container by its id, and the caller must be running
+    /// or connected to it. The provider reads the file out of this
+    /// container and writes it into that one on its own connections
+    /// to the two proxies, and nothing of the file comes back here —
+    /// one answer does. See
+    /// [`transfer`](crate::shared::containers::transfer) for the rule.
+    Transfer(transfer::request::Request),
+    /// The caller's half of a database connection. Tag `5`.
     ///
     /// Opened once the caller has taken the provider's half, quoting
     /// the same connection; what comes back is everything the
     /// container wrote. See
     /// [`postgres`](crate::shared::containers::postgres) for the pair.
     Postgres(postgres::request::Postgres),
-    /// What the agent may be. Tag `5`.
+    /// What the arguments may be. Tag `6`.
     ///
     /// Carries nothing — the variant is bare — and the provider answers
-    /// with the JSON Schema of the agent value. See
-    /// [`agent_schema`](crate::shared::containers::agent_schema).
-    AgentSchema,
-    /// A message for the agent. Tag `6`.
+    /// with the JSON Schema of the container's arguments. See
+    /// [`schema`](crate::shared::containers::schema).
+    Schema,
+    /// A message for the agent. Tag `7`.
     ///
     /// The one way into it: a message with no loop running starts
     /// one, on that message, and a message while one runs joins its
@@ -103,14 +113,14 @@ pub enum Frame {
     /// the finish. What the agent says in reply is the scope's main
     /// stream. See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),
-    /// Withdraw every message still waiting in the queue. Tag `7`.
+    /// Withdraw every message still waiting under a key. Tag `8`.
     ///
-    /// Carries nothing — the variant is bare. Answered once — by a
+    /// Carries the key, as the enqueues gave it. Answered once — by a
     /// [`dequeue::response::Frame`](crate::shared::containers::dequeue::response::Frame)
-    /// saying whether the queue held anything — and then the finish.
+    /// saying whether anything waited under it — and then the finish.
     /// Each message it withdraws is ALSO answered, on its own enqueue
     /// channel. See [`dequeue`](crate::shared::containers::dequeue).
-    Dequeue,
+    Dequeue(dequeue::request::Request),
 }
 
 /// Tag for [`Frame::Stop`].
@@ -125,17 +135,20 @@ const READ: u8 = 2;
 /// Tag for [`Frame::Write`].
 const WRITE: u8 = 3;
 
-/// Tag for [`Frame::Postgres`].
-const POSTGRES: u8 = 4;
+/// Tag for [`Frame::Transfer`].
+const TRANSFER: u8 = 4;
 
-/// Tag for [`Frame::AgentSchema`].
-const AGENT_SCHEMA: u8 = 5;
+/// Tag for [`Frame::Postgres`].
+const POSTGRES: u8 = 5;
+
+/// Tag for [`Frame::Schema`].
+const SCHEMA: u8 = 6;
 
 /// Tag for [`Frame::Enqueue`].
-const ENQUEUE: u8 = 6;
+const ENQUEUE: u8 = 7;
 
 /// Tag for [`Frame::Dequeue`].
-const DEQUEUE: u8 = 7;
+const DEQUEUE: u8 = 8;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever half has one.
@@ -159,21 +172,25 @@ impl Encode for Frame {
                 out.extend_from_slice(&[WRITE]);
                 request.encode(out)
             }
+            Frame::Transfer(request) => {
+                out.extend_from_slice(&[TRANSFER]);
+                request.encode(out)
+            }
             Frame::Postgres(request) => {
                 out.extend_from_slice(&[POSTGRES]);
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::AgentSchema => {
-                out.extend_from_slice(&[AGENT_SCHEMA]);
+            Frame::Schema => {
+                out.extend_from_slice(&[SCHEMA]);
                 Ok(())
             }
             Frame::Enqueue(request) => {
                 out.extend_from_slice(&[ENQUEUE]);
                 request.encode(out)
             }
-            Frame::Dequeue => {
+            Frame::Dequeue(request) => {
                 out.extend_from_slice(&[DEQUEUE]);
-                Ok(())
+                request.encode(out)
             }
         }
     }
@@ -194,14 +211,19 @@ impl Decode<'_> for Frame {
             WRITE => write_path::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
+            TRANSFER => transfer::request::Request::decode(rest)
+                .map(Frame::Transfer)
+                .map_err(FrameError::Transfer),
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            AGENT_SCHEMA => Ok(Frame::AgentSchema),
+            SCHEMA => Ok(Frame::Schema),
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),
-            DEQUEUE => Ok(Frame::Dequeue),
+            DEQUEUE => dequeue::request::Request::decode(rest)
+                .map(Frame::Dequeue)
+                .map_err(FrameError::Dequeue),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -218,10 +240,14 @@ pub enum FrameError {
     Read(serde_json::Error),
     /// The write request did not parse.
     Write(serde_json::Error),
+    /// The transfer request did not parse.
+    Transfer(serde_json::Error),
     /// The connection id was not four bytes.
     Postgres(postgres::request::PostgresError),
     /// The enqueued message did not parse as JSON.
     Enqueue(serde_json::Error),
+    /// The dequeue's key did not parse as JSON.
+    Dequeue(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -239,9 +265,15 @@ impl fmt::Display for FrameError {
             FrameError::Write(error) => {
                 write!(f, "write request did not parse: {error}")
             }
+            FrameError::Transfer(error) => {
+                write!(f, "transfer request did not parse: {error}")
+            }
             FrameError::Postgres(error) => write!(f, "{error}"),
             FrameError::Enqueue(error) => {
                 write!(f, "enqueue request did not parse: {error}")
+            }
+            FrameError::Dequeue(error) => {
+                write!(f, "dequeue request did not parse: {error}")
             }
         }
     }
@@ -252,7 +284,9 @@ impl Error for FrameError {
         match self {
             FrameError::Read(error)
             | FrameError::Write(error)
-            | FrameError::Enqueue(error) => Some(error),
+            | FrameError::Transfer(error)
+            | FrameError::Enqueue(error)
+            | FrameError::Dequeue(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }

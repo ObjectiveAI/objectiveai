@@ -6,7 +6,7 @@ draft: false
 ---
 
 The client opens this channel to send a message to the agent. A
-message sent while no loop runs starts one, as its prompt; a message
+message sent while no loop runs starts one, as its input; a message
 sent while one runs is placed in its queue, and the agent takes it at
 a seam of its own choosing. Nothing interrupts a loop. What the agent
 says in reply is the main stream of the scope, as
@@ -21,7 +21,8 @@ says in reply is the main stream of the scope, as
 - **Order.** Messages are taken in the order the client sent them.
 - **A loop ending.** A loop that ends with a message still waiting
   does not lose it: the server starts the next loop on every message
-  still waiting, joined into one prompt with a blank line between
-  them, in the order sent.
+  still waiting, their content concatenated into one, in the order
+  sent. A container that refuses that content refuses every message
+  of it.
 - **No timeout.** The server holds the channel open until the fate is
   known.

@@ -1,0 +1,25 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][kind: u8][size: u64][mode: u32][uid: u32][gid: u32][atime: 12 bytes][mtime: 12 bytes][ctime: 12 bytes]
+                the entry, 57 bytes: kind 0 a file, 1 a directory; every integer big-endian; a time is [secs: u64][nanos: u32]
+[1]             nothing at the path
+[2][message …]  an error, UTF-8
+```
+
+- **The sequence.** Exactly one channel response, the kind, the size, the mode, the owner, the group and the three times, the absence of the entry, or an error, followed
+  by the channel response finish.
+- **The message.** The bytes after the error byte are UTF-8, not JSON.
+- **A finish with nothing.** A channel response finish that no
+  channel response precedes states that the server could not serve
+  the ask. The client decides whether to ask again.
+
+The channel response is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/serve/server/channel_response/stat/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/serve/server/channel_response/stat/frame.rs
+```

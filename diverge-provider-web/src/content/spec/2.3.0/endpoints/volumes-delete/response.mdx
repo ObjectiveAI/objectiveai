@@ -30,8 +30,9 @@ finish follows the response, and no frame follows the finish.
   after the byte `0`, and a client ignores every byte that follows
   it.
 - **Mounted.** A payload whose first byte is `1` states that the
-  volume is mounted in a running container at the time of the request
-  and was not deleted. The volume, its content, and the client's
+  volume is mounted in a running container, or is under a stat, an
+  edit or another delete, at the time of the request, and was not
+  deleted. The volume, its content, and the client's
   listing are as they were before the request. The server sends
   nothing after the byte `1`, and a client ignores every byte that
   follows it.

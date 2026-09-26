@@ -24,9 +24,12 @@ queue taken at the turn's end, the rollouts harvested.
 ## The run: one `codex exec` per turn
 
 `codex exec --json --dangerously-bypass-approvals-and-sandbox
---skip-git-repo-check [resume <thread_id>] -`, the prompt on stdin
-(argv caps one argument at 128 KiB on Linux, and joined queue prompts
-can exceed it), `CODEX_HOME=/root/.codex` and the login's variable in
+--skip-git-repo-check [resume <thread_id>] [-i <file>…] -`, the
+message's text on stdin (argv caps one argument at 128 KiB on Linux,
+and joined queue messages can exceed it) and its images as files under
+the temporary directory, one `-i` each, removed when the turn ends;
+audio and a binary resource that is not an image refuse the message
+(`400`), `CODEX_HOME=/root/.codex` and the login's variable in
 the environment, cwd the harness's (the caller's mounts are wherever
 the caller put them), stderr passed through, `kill_on_drop`. The
 bypass flag is the source's own for "environments that are externally
@@ -35,8 +38,8 @@ so that decision has one spelling. The first turn of a fresh lineage
 runs without `resume`; every turn after resumes the thread
 `thread.started` named. A turn ends when stdout closes; the queue is
 then taken (empty closes it and ends the run; pending is delivered as
-`user` chunks and joined with a blank line into the next turn's
-prompt), and the next process spawned. Before the first event of the
+`user` chunks and their blocks concatenated into the next turn's
+message), and the next process spawned. Before the first event of the
 first process a failure is the request's own (`500`); after, a fatal
 notification, and the run still harvests.
 
@@ -170,7 +173,7 @@ up until a request comes. The harness is the entrypoint.
 
 ## The agent renders to config.toml and argv
 
-The agent value (`src/agent/`) is what the harness writes into
+The agent value (`src/agent/`, the request's `arguments`) is what the harness writes into
 `$CODEX_HOME/config.toml` and passes on `codex exec`'s argv, and
 nothing else:
 

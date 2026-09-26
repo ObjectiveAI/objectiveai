@@ -8,8 +8,8 @@ use std::sync::Arc;
 ///
 /// A run executor takes one of these and answers every server-opened
 /// channel through it: the image's pieces from [`oci`](Self::oci), a
-/// connector's admission from [`authorizer`](Self::authorizer),
-/// mounted content from [`identities`](Self::identities), the
+/// connector's admission from [`authorizer`](Self::authorizer), the
+/// tools the container declared from [`tools`](Self::tools), the
 /// container's database connections through [`postgres`](Self::postgres),
 /// its commands through [`commands`](Self::commands), its secrets
 /// through [`vault`](Self::vault), its tool calls through
@@ -25,16 +25,16 @@ use std::sync::Arc;
 /// that serves nothing of a kind implements that trait as the empty
 /// answer: `None`, a denial, an empty stream, an error.
 #[derive(Debug)]
-pub struct Answerers<O, A, I, P, C, V, M, F> {
-    /// The manifests and blobs of images the caller holds
+pub struct Answerers<O, A, T, P, C, V, M, F> {
+    /// Whether the caller holds an image, and its manifests and blobs
     /// ([`OciStore`](super::OciStore)).
     pub oci: Arc<O>,
     /// Whether a connector may attach
     /// ([`ConnectionAuthorizer`](super::ConnectionAuthorizer)).
     pub authorizer: Arc<A>,
-    /// Mounted content, by identity
-    /// ([`IdentityStore`](super::IdentityStore)).
-    pub identities: Arc<I>,
+    /// The tool containers the container declared, run
+    /// ([`ToolDeployer`](super::ToolDeployer)).
+    pub tools: Arc<T>,
     /// The database the container dials
     /// ([`PostgresDialer`](super::PostgresDialer)).
     pub postgres: Arc<P>,
@@ -51,12 +51,12 @@ pub struct Answerers<O, A, I, P, C, V, M, F> {
     pub fuse: Arc<F>,
 }
 
-impl<O, A, I, P, C, V, M, F> Clone for Answerers<O, A, I, P, C, V, M, F> {
+impl<O, A, T, P, C, V, M, F> Clone for Answerers<O, A, T, P, C, V, M, F> {
     fn clone(&self) -> Self {
         Answerers {
             oci: Arc::clone(&self.oci),
             authorizer: Arc::clone(&self.authorizer),
-            identities: Arc::clone(&self.identities),
+            tools: Arc::clone(&self.tools),
             postgres: Arc::clone(&self.postgres),
             commands: Arc::clone(&self.commands),
             vault: Arc::clone(&self.vault),

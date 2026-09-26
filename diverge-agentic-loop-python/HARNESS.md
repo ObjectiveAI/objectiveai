@@ -91,9 +91,12 @@ return wins when it is anything but `None`.
 ## What the script is fed
 
 `input` is the history in its STORED form — the same untagged array
-the continuation row holds: chunk objects and bare prompt strings,
-this turn's prompt (or the delivered messages) the last items, so a
-script that looks at `input[-1]` knows which turn it is on. `tools`
+the continuation row holds: chunk objects, and each user message as
+an array of MCP content blocks (text, image, audio, embedded
+resource, resource link), this turn's message (or the delivered
+messages) the last items, so a script that looks at `input[-1]` knows
+which turn it is on. Nothing is converted for the script: what it
+makes of an image is its own. `tools`
 and `resources` are rmcp's `Tool`s and `Resource`s, RE-LISTED before
 every invocation of the script — the first, and each one after a
 turn's tool responses or a prompt taken at the turn's end. Nothing

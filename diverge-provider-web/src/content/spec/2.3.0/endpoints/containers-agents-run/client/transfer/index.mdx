@@ -1,0 +1,39 @@
+---
+title: 'Transfer'
+summary: 'Tag 4: the client names one file of the container, another container by its id, and a destination path; the server reads the file out of this container and writes it into the other on its own connections to their proxies, and answers exactly once, transferred or an error; the client must be running or connected to both containers.'
+order: 4
+draft: false
+---
+
+The client opens this channel to copy one file out of the container
+into another container the server is running. The channel carries the
+file, the other container, and the destination; the bytes travel
+between the two containers on the server's own connections to their
+proxies, and none of them reach the client.
+
+- **The request.** The tag byte `4` followed by the path, the id of
+  the other container, and the destination path as JSON.
+  [Request](/endpoints/containers-agents-run/client/transfer/request/) states its form.
+- **The transferrer.** The client is running, or is connected as a
+  connector to, both the container of the scope and the container the
+  request names. The container of the scope is met by the scope
+  itself. For the container named, the server determines whether the
+  identity of the connection is the identity that runs it or an
+  identity connected to it at the time of the request. A request
+  naming a container the client is neither running nor connected to,
+  and a request naming an id under which the server is running no
+  container, are each answered with exactly one channel response, the
+  error `{"kind":"denied"}`, and the channel response finish; the
+  two are not distinguished.
+- **The copy.** The server opens a read scope on the proxy of the
+  container of the scope, naming the path, and a write scope on the
+  proxy of the container named, naming the destination, and streams
+  what the one sends into the other. The server does not read the
+  bytes and does not send them to the client.
+- **The response.** Exactly one channel response, transferred or an
+  error, and the channel response finish.
+  [Response](/endpoints/containers-agents-run/client/transfer/response/) states the
+  sequence.
+- **A read that stops.** A read that ends in an error, or without a
+  finish, is a write that did not happen: the server answers with an
+  error, and the destination is as it was.

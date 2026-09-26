@@ -12,10 +12,12 @@ use crate::encode::{Encode, Writer};
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Frame<'a> {
-    /// Kind `0`. The file's bytes, verbatim. Empty is a file.
+    /// Kind `0`. The piece's bytes, verbatim: at most the length
+    /// asked, fewer at the end of the file, and none at or past it.
     Present(&'a [u8]),
-    /// Kind `1`. The caller holds nothing under the id yet: the file
-    /// reads as empty, and the first write makes it.
+    /// Kind `1`. The caller holds nothing at the path: on a file
+    /// mount, nothing under the id yet, and the file reads as empty
+    /// until the first write makes it.
     Missing,
     /// Kind `2`. The read was refused or failed, and this says why,
     /// for a reader rather than a program: what a caller can refuse

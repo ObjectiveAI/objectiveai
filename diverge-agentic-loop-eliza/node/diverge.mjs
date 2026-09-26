@@ -321,12 +321,9 @@ function readResourceAction(client, emit) {
   };
 }
 
-/** Every block, rendered for the model, one after another. */
+/** Every block, rendered for the model, beside each other, joined in order. */
 async function render(runtime, blocks) {
-  const parts = [];
-  for (const block of blocks) {
-    parts.push(await renderBlock(runtime, block));
-  }
+  const parts = await Promise.all(blocks.map((block) => renderBlock(runtime, block)));
   return parts.join("\n");
 }
 
@@ -363,6 +360,43 @@ async function renderResource(runtime, resource) {
     return `${head} no contents`;
   }
   return `${head}\n${await renderBlob(runtime, uri, mime, resource.blob)}`;
+}
+
+/**
+ * A message's MCP content blocks, rendered to the one text a turn
+ * is: each block as a tool result's would be — text as it is, an
+ * image described, audio transcribed, a resource by its type, a
+ * link as its name and URI — every block beside every other, joined
+ * by blank lines in the message's order. The Rust side has refused a
+ * block this cannot read; an unknown one renders as its JSON, said
+ * in place.
+ */
+export async function renderContent(runtime, blocks) {
+  const parts = await Promise.all(blocks.map((block) => renderMessageBlock(runtime, block)));
+  return parts.join("\n\n");
+}
+
+/** One block of a message, as its text. */
+async function renderMessageBlock(runtime, block) {
+  switch (block.type) {
+    case "text":
+      return block.text;
+    case "image":
+      return describeImage(runtime, block.mimeType, block.data, "image");
+    case "audio":
+      return transcribe(runtime, block.mimeType, block.data, "audio");
+    case "resource": {
+      const resource = block.resource;
+      if (typeof resource.text === "string") {
+        return resource.text;
+      }
+      return renderBlob(runtime, resource.uri, resource.mimeType || "", resource.blob);
+    }
+    case "resource_link":
+      return `${block.name} <${block.uri}>`;
+    default:
+      return JSON.stringify(block);
+  }
 }
 
 /** A blob, by its type — core's ingress rules for an attachment. */

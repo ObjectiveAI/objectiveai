@@ -5,7 +5,7 @@ use std::convert::Infallible;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Ask a provider which directories it will let a caller watch.
+/// Ask a provider which directories it will let a caller mount.
 ///
 /// A unit struct, because the question has no parameters. There is
 /// nothing to narrow: a caller cannot ask about a directory it has not

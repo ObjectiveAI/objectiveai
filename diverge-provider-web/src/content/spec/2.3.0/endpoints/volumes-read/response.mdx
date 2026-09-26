@@ -1,0 +1,43 @@
+---
+title: 'Response'
+summary: 'The server sends the bytes of the file as responses whose first byte is 0, each at most CHUNK_SIZE bytes, and the finish; a file of zero bytes is one empty response; a response whose first byte is 1 carries an error and is the last.'
+order: 2
+draft: false
+---
+
+```text
+[0][bytes …]         a piece of the file
+[1][error JSON …]    the file was not read, or not all of it
+```
+
+- **The sequence.** Zero or more responses whose first byte is `0`,
+  each a piece of the file in order, followed by the response finish;
+  or the responses sent so far, exactly one response whose first byte
+  is `1`, and the response finish. A file of zero bytes is exactly
+  one response whose first byte is `0` and nothing after it. A
+  response finish that no response precedes states that the request
+  was not served, as [Endpoints](/endpoints/) provides.
+- **The piece.** After the byte `0`, the bytes of the piece,
+  verbatim, running to the end of the payload. Each piece is at most
+  `CHUNK_SIZE` bytes, `2 * 1024 * 1024`, the constant
+  `diverge-provider-sdk-rs/src/lib.rs` defines; the pieces concatenated are the file, and a
+  receiver measures none.
+- **The error.** A payload whose first byte is `1` carries an error
+  after that byte, running to the end of the payload. The error is
+  exactly one JSON value, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  This revision prescribes nothing about its content. The error is
+  the last response of the scope.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is neither `0` nor `1`, and a payload whose bytes after `1` are not
+  one JSON value are malformed.
+
+The response is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/read/server/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/read/server/response/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/shared/containers/read/response/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/shared/containers/read/response/frame.rs
+```

@@ -20,9 +20,9 @@
 //! describing it — and a provider opens channels back into it for
 //! the things it cannot reach itself, which the caller answers
 //! through the traits below. Every endpoint has its executor: the
-//! five `volumes`, `images::check` and `version` collapse into a call
-//! or a stream; the three `containers` scopes hand back a handle that
-//! holds the container's life. The client half is complete.
+//! ten of the `volumes`, `images::check` and `version` collapse into a
+//! call; the three `containers` scopes hand back a handle that holds
+//! the container's life. The client half is complete.
 //!
 //! # What is here
 //!
@@ -33,7 +33,9 @@
 //! going out, or the provider's being judged by the
 //! [`unbrokered_authorizer`] a caller supplies — and the
 //! [`Connection`](crate::connection::Connection) comes back out ready
-//! to be split. See [`authorization`] for which side does which.
+//! to be split, as an [`authorized`] that names the provider beside
+//! it. See [`authorization`] for which side does which, and where the
+//! name comes from.
 //!
 //! [`router`] is the read loop: frames off the socket, forwarded to
 //! whoever is waiting. [`handle`] is the write half and what a caller
@@ -79,9 +81,9 @@
 //!
 //! | trait | answers |
 //! |-------|---------|
-//! | [`OciStore`] | the manifest and blobs of an image the caller holds |
+//! | [`OciStore`] | whether the caller holds an image, and its manifest and blobs |
 //! | [`ConnectionAuthorizer`] | whether a connector may attach |
-//! | [`IdentityStore`] | mounted content the provider does not hold |
+//! | [`ToolDeployer`] | the tool containers the container declared, run |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`CommandRunner`] | the commands the container asks run |
 //! | [`Vault`] | the container's secrets, with locks |
@@ -112,6 +114,8 @@ pub mod authorization;
 #[cfg(feature = "client")]
 pub mod authorize;
 #[cfg(feature = "client")]
+pub mod authorized;
+#[cfg(feature = "client")]
 pub mod unbrokered_authorizer;
 
 #[cfg(feature = "client")]
@@ -123,13 +127,13 @@ mod connection_authorizer;
 #[cfg(feature = "client")]
 mod fuse_server;
 #[cfg(feature = "client")]
-mod identity_store;
-#[cfg(feature = "client")]
 mod mcp_server;
 #[cfg(feature = "client")]
 mod oci_store;
 #[cfg(feature = "client")]
 mod postgres_dialer;
+#[cfg(feature = "client")]
+mod tool_deployer;
 #[cfg(feature = "client")]
 mod vault;
 
@@ -142,12 +146,12 @@ pub use connection_authorizer::*;
 #[cfg(feature = "client")]
 pub use fuse_server::*;
 #[cfg(feature = "client")]
-pub use identity_store::*;
-#[cfg(feature = "client")]
 pub use mcp_server::*;
 #[cfg(feature = "client")]
 pub use oci_store::*;
 #[cfg(feature = "client")]
 pub use postgres_dialer::*;
+#[cfg(feature = "client")]
+pub use tool_deployer::*;
 #[cfg(feature = "client")]
 pub use vault::*;

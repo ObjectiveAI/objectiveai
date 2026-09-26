@@ -1,12 +1,12 @@
 ---
 title: 'volumes::edit_capacity'
-summary: 'Tag 8: a client names a volume from its listing; the server sends exactly one response carrying the number of bytes by which the size of that volume could be increased at that time, or an error, and the scope finishes; the answer reserves nothing.'
-order: 8
+summary: 'Tag 11: a client names a volume from its listing; the server sends exactly one response carrying the number of bytes by which the size of that volume could be increased at that time, or an error, and the scope finishes; the answer reserves nothing.'
+order: 11
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`8` followed by the name of a volume. The server sends exactly one
+`11` followed by the name of a volume. The server sends exactly one
 response, which carries either a number of bytes or an error. The
 response finish follows the response, and no frame follows the
 finish.

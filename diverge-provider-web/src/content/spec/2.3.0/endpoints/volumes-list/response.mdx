@@ -24,8 +24,8 @@ finish follows the response, and no frame follows the finish.
   varint count, followed by that many volumes; each volume is its
   `name` as a varint byte length followed by that many bytes of
   UTF-8, followed by `bytes` as a varint, followed by `created` as a
-  varint. A count of `0` is the empty listing, and the payload is
-  then exactly the one byte `0`.
+  varint, followed by `persist` as one byte. A count of `0` is the
+  empty listing, and the payload is then exactly the one byte `0`.
 - **`name`.** The name of the volume, UTF-8. The name is the only
   handle of a volume: every request of this specification that names
   a volume names it by this string. No two volumes in one listing
@@ -38,6 +38,19 @@ finish follows the response, and no frame follows the finish.
 - **`created`.** The time at which the volume came into being, in
   seconds since `1970-01-01T00:00:00Z`, unsigned. What "came into
   being" marks is the server's to determine.
+- **`persist`.** Whether the volume keeps what containers write into
+  it, as one byte: `1` is `true` and `0` is `false`, the postcard
+  encoding of a boolean. For a volume the client created, `persist`
+  is the mode the client last stated for it, in its
+  [volumes::create](/endpoints/volumes-create/) request or in a later
+  [volumes::edit](/endpoints/volumes-edit/) request; for another
+  volume, the mode is the server's to determine. When it is `true`,
+  every change a container makes to the volume is in the volume when
+  the container ends. When it is `false`, the volume is as it was
+  before each run when the container ends, and every container sees
+  the content of the volume as of that container's start. Every
+  container the client mounts the volume in is bound under this mode.
+  A byte other than `0` and `1` does not decode.
 - **Order.** The order of the volumes in the listing is not
   prescribed. A client reads nothing into the position of a volume.
 - **The error.** A payload whose first byte is `1` carries an error

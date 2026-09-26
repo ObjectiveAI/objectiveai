@@ -7,11 +7,12 @@ use crate::encode::{Encode, Writer};
 
 /// Ask a provider for a volume of its own.
 ///
-/// Two fields, and neither says where it goes. A caller names the
-/// volume and says how big it is; everything about how a provider
-/// satisfies that — a subvolume, a quota, a file with a filesystem in
-/// it, a directory on a disk with room to spare — is the provider's,
-/// and none of it is expressible here.
+/// Three fields, and none says where it goes. A caller names the
+/// volume, says how big it is, and says whether it keeps what is
+/// written into it; everything about how a provider satisfies that —
+/// a subvolume, a quota, a file with a filesystem in it, a directory
+/// on a disk with room to spare, an overlay — is the provider's, and
+/// none of it is expressible here.
 ///
 /// # The name is the caller's, unlike a listed one
 ///
@@ -23,7 +24,7 @@ use crate::encode::{Encode, Writer};
 /// Which is a real difference and the only one. Afterwards the volume
 /// is a volume: it appears in a
 /// [`list`](crate::endpoints::volumes::list), it can be
-/// [`watch`](crate::endpoints::volumes::watch)ed, and a
+/// [`stat`](crate::endpoints::volumes::stat)ed, and a
 /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
 /// names it exactly as it names any other. Nothing downstream knows or
 /// cares which way it came about.
@@ -44,7 +45,7 @@ pub struct Frame {
     /// What to call it.
     ///
     /// The handle, from the moment it exists — a
-    /// [`watch`](crate::endpoints::volumes::watch) and a
+    /// [`stat`](crate::endpoints::volumes::stat) and a
     /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
     /// name it by this and by nothing else.
     ///
@@ -67,6 +68,22 @@ pub struct Frame {
     /// Bytes rather than megabytes because a unit that has to be
     /// spelled out in prose is a unit half of everyone gets wrong.
     pub bytes: u64,
+    /// Whether the volume keeps what containers write into it.
+    ///
+    /// The mode it starts in, and what a listing reports back as
+    /// [`Volume::persist`](crate::endpoints::volumes::list::server::response::Volume::persist)
+    /// until an [`edit`](crate::endpoints::volumes::edit) changes it.
+    /// `true`: every change a container makes is in the volume when
+    /// the container ends. `false`: the volume is as it was before
+    /// each run when the container ends, and every container sees
+    /// its content as of that container's start. How a provider
+    /// makes `false` hold — an overlay, a copy — is its own.
+    ///
+    /// A fact of the volume and not of a mount: every container that
+    /// mounts the volume gets the same answer, and a
+    /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
+    /// does not say otherwise.
+    pub persist: bool,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -81,7 +98,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 7;
+const TAG: u8 = 10;
 
 /// Postcard, matching the rest of [`volumes`](crate::endpoints::volumes).
 impl Encode for Frame {

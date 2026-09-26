@@ -1,0 +1,79 @@
+---
+title: 'volumes::write'
+summary: 'Tag 6: a client names a volume from its listing and one file in it; the server asks for the content on a channel of its own, puts the file in place whole, and answers Written or an error, and the finish, while the volume is mounted nowhere.'
+order: 6
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`6` followed by the name of a volume and the path of one file in it.
+The server opens one channel on the scope, the content, and the
+client answers on it with the bytes of the file; the server puts the
+file in place and answers with exactly one response, `Written` or an
+error, and ends the scope by the response finish.
+
+- **The request.** The request carries the name of one volume and the
+  path of one file. [Request](/endpoints/volumes-write/request/)
+  states its form.
+- **The response.** [Response](/endpoints/volumes-write/response/)
+  states the one response.
+- **The channels.** The server opens the channel that
+  [Server Channels](/endpoints/volumes-write/server/) defines. The
+  client opens no channel on a write scope.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Endpoints](/endpoints/) provides. A name that is not in the
+   client's listing, resolved as [Authorization](/authorization/)
+   provides, is answered by exactly one error response and the finish.
+   A path that has no component, or that has a component that is
+   empty, `.`, `..`, or contains `/` or NUL, is answered by exactly
+   one error response and the finish. The content is not asked for in
+   either case.
+2. **The server takes the volume.** The server holds the volume to
+   itself from this moment until the finish. A volume that is mounted
+   in any running container, or served on any
+   [volumes::serve](/endpoints/volumes-serve/) scope, at the time of
+   the request — a volume may be mounted or served in several at once
+   — or that is under a stat, a read,
+   another write, a filetree, an edit or a delete, is answered by
+   exactly one error response and the finish, and the content is not
+   asked for. A run naming the volume is refused for as long as the
+   server holds it.
+3. **The server makes the parents.** Every directory on the path
+   above the file that does not exist is created. A path component
+   above the file at which what exists is not a directory is answered
+   by exactly one error response and the finish, and the content is
+   not asked for. A path at which what exists is not a regular file
+   is answered the same way.
+4. **The server opens the content channel.** Exactly one, before
+   anything is written.
+5. **The server writes the content.** Every body the client sends on
+   the channel is appended, in order, to a file that is not the
+   destination. An error on the channel, and a write that fails,
+   discard what was written and are answered by exactly one error
+   response and the finish. The destination is untouched.
+6. **The server puts the file in place.** After the channel finishes,
+   the file becomes the destination, replacing whatever was there. A
+   replacement that fails discards what was written and is answered
+   by exactly one error response and the finish, and the destination
+   is untouched.
+7. **The server answers `Written` and finishes the scope.** From that
+   moment, every [volumes::stat](/endpoints/volumes-stat/) response
+   of the client reports the bytes in use and the hash of the volume
+   as they are with the file in place.
+
+## The rules that hold throughout
+
+- **Whole or not at all.** The destination is either what it was or
+  the whole new file. No partial file is left at the destination,
+  and no container sees the volume between the two.
+- **The path.** The path is a sequence of components from the root of
+  the volume: the same components a volume mount's
+  `volume_relative_path` names.
+- **The content is the file.** The file at the destination holds the
+  bodies the client sent, concatenated, and nothing else. The server
+  does not read the content, and this revision prescribes nothing
+  about it.

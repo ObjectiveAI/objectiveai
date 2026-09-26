@@ -1,6 +1,6 @@
 ---
 title: 'Server Channels'
-summary: 'The channels the server opens on a mount scope, by tag: the seven asks a mount makes of the client, each answered by exactly one channel response.'
+summary: 'The channels the server opens on a mount scope, by tag: the nine asks a mount makes of the client, each answered by exactly one channel response.'
 order: 4
 draft: false
 ---
@@ -19,6 +19,8 @@ answer, its section states.
 | `4` | [rename](/container-proxy-endpoints/fuse-mount/server/rename/) |
 | `5` | [mkdir](/container-proxy-endpoints/fuse-mount/server/mkdir/) |
 | `6` | [stat](/container-proxy-endpoints/fuse-mount/server/stat/) |
+| `7` | [truncate](/container-proxy-endpoints/fuse-mount/server/truncate/) |
+| `8` | [setattr](/container-proxy-endpoints/fuse-mount/server/setattr/) |
 
 The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs`:
 

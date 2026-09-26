@@ -7,7 +7,7 @@ use crate::endpoints::volumes::list::server::response::Volume;
 /// What a listing says about a volume, and the two things it does not.
 ///
 /// [`volume`](Self::volume) is the listing's own record of it, the same
-/// three fields a [`list`](crate::endpoints::volumes::list) reports;
+/// four fields a [`list`](crate::endpoints::volumes::list) reports;
 /// [`bytes_used`](Self::bytes_used) and [`dirhash`](Self::dirhash) are
 /// what a listing leaves out, because each costs a walk of the volume
 /// and a stat pays for one volume's walk on purpose.
@@ -17,12 +17,14 @@ use crate::endpoints::volumes::list::server::response::Volume;
 /// The listing's [`Volume`] sits inside this as a field rather than
 /// having its fields copied in, so there is one definition of what a
 /// listing says. Postcard writes a nested struct as its fields in
-/// place, so the wire reads `name`, `bytes`, `created`, then the two
-/// fields of its own — a listing's record with two fields appended.
+/// place, so the wire reads `name`, `bytes`, `created`, `persist`,
+/// then the two fields of its own — a listing's record with two
+/// fields appended.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Stat {
-    /// The volume as a listing reports it: its name, its size, and
-    /// when it came into being.
+    /// The volume as a listing reports it: its name, its size, when
+    /// it came into being, and whether it keeps what is written into
+    /// it.
     pub volume: Volume,
     /// How much of it is in use, in BYTES.
     ///
@@ -33,18 +35,23 @@ pub struct Stat {
     pub bytes_used: u64,
     /// The hash of the volume's content, at the time of the stat.
     ///
-    /// The base64url SHA-256, unpadded, of the volume's manifest: one
-    /// `<hash> <size> <path>` line per file, `<hash>` the base64url
-    /// SHA-256 of the file's bytes, `<size>` its length in bytes,
-    /// `<path>` relative to the volume's root and `/`-separated, the
-    /// lines sorted bytewise. It is the hash half of the directory
-    /// identity an
-    /// [`IdentityMount`](crate::shared::containers::request::IdentityMount)
-    /// carries, without the size — the listing already reports size.
+    /// The string that Go's
+    /// [`golang.org/x/mod/sumdb/dirhash`](https://pkg.go.dev/golang.org/x/mod/sumdb/dirhash)
+    /// returns from `HashDir(root, "", Hash1)` for the volume's root,
+    /// as that package defines it, which is this. The files are every
+    /// entry beneath the root that is not a directory as `lstat`
+    /// reports it, each named by its path relative to the root with
+    /// its components joined by `/`; a symbolic link is a file, opened
+    /// through the link. The names are sorted bytewise. A name
+    /// containing a newline is an error. For each file, in that order,
+    /// one line is written into one SHA-256: the SHA-256 of the file's
+    /// bytes as lowercase hexadecimal, two spaces, the name, and a
+    /// newline. The hash is the string `h1:` followed by that SHA-256
+    /// encoded as standard base64 with padding.
     ///
-    /// A volume with no file has the hash of the empty manifest,
-    /// `47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU`, which is what a
-    /// [`create`](crate::endpoints::volumes::create) just made.
+    /// A volume with no file has the hash
+    /// `h1:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=`, which is what
+    /// a [`create`](crate::endpoints::volumes::create) just made.
     ///
     /// # Why a hash rather than a version
     ///

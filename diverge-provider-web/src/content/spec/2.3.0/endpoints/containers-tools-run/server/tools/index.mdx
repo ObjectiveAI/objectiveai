@@ -1,0 +1,31 @@
+---
+title: 'Tools'
+summary: 'Tag 4: the server asks the client to deploy the tool containers the container declared at registration, carrying them verbatim; the client answers with exactly one channel response, deployed or an error, and the channel response finish; anything but a deploy is the run’s error.'
+order: 4
+draft: false
+---
+
+The server opens this channel when the `Begun` the proxy answered its
+begin with carries one or more tools: the tool containers the
+container's program declared when it was registered, each one the
+client runs and serves to the container under the tool's name. The
+client's answer decides whether the run goes on.
+
+- **When.** After the begin has been answered and before the id is
+  sent, beside the FUSE mounts. Exactly once per run, and never on a
+  connect scope. The server opens no tools channel when the list is
+  empty.
+- **The request.** The tag byte `4` followed by the tools as JSON.
+  [Request](/endpoints/containers-tools-run/server/tools/request/) states its form.
+- **The response.** Exactly one channel response, deployed or an
+  error, and the channel response finish.
+  [Response](/endpoints/containers-tools-run/server/tools/response/) states the sequence.
+- **Verbatim.** The server relays the list as the proxy sent it and
+  does not read it.
+- **What the client does.** The client runs each tool as a
+  [containers::tools::run](/endpoints/containers-tools-run/) from
+  the tool's `image`, `memory`, `disk` and `arguments`, with whatever
+  mounts the client chooses, and serves it to the container under
+  the tool's `name` among the MCP servers the client answers the
+  container's tool calls with. Whether a tool's own tools are
+  deployed in turn is the client's.

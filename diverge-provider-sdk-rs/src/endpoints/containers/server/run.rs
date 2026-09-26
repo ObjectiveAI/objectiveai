@@ -9,8 +9,10 @@ use tokio::task::JoinSet;
 
 use super::begin::Begin;
 use super::pairs::Pairs;
+use super::watched::Watched;
 use crate::client::handle::Handle;
 use crate::container_proxy_endpoints::filesystem::tree::client::execute as tree;
+use crate::server::directory::Directory;
 use crate::server::scope_handle::ScopeHandle;
 
 /// One container being served: the scope it was asked for on, the
@@ -24,14 +26,25 @@ use crate::server::scope_handle::ScopeHandle;
 pub(crate) struct Run {
     /// The scope, on which every channel is opened or answered.
     pub scope: Arc<ScopeHandle>,
+    /// Whose scope this is: the identity of the caller that opened it,
+    /// which a transfer's rule is checked against.
+    pub identity: Arc<str>,
+    /// Every container the provider is running, for a transfer to
+    /// find the other one and to ask who may reach it.
+    pub directory: Arc<Directory>,
     /// The one connection to the container's proxy, on which tree,
-    /// read and write scopes are opened.
+    /// read and write scopes are opened — and a transfer's read, its
+    /// write going to another container's.
     pub proxy: Handle,
     /// The begin scope on it: where the proxy's asks arrive and where
     /// the family's own exchanges go.
     pub begin: Begin,
-    /// Every mount's path, which a filetree leaves out.
+    /// Every path the proxy's tree leaves out: every FUSE mount's,
+    /// and every mount's of a volume the provider watches itself.
     pub ignore: Vec<Vec<String>>,
+    /// Every mount the provider watches itself, for a filetree to
+    /// open beside the proxy's tree and merge in.
+    pub watched: Arc<[Watched]>,
     /// Database connections whose caller half has not opened.
     pub pairs: Pairs,
     /// The container is gone: the proxy's asks ended, or the run a
@@ -46,12 +59,23 @@ pub(crate) struct Run {
 }
 
 impl Run {
-    pub(crate) fn new(scope: Arc<ScopeHandle>, proxy: Handle, begin: Begin, ignore: Vec<Vec<String>>) -> Self {
+    pub(crate) fn new(
+        scope: Arc<ScopeHandle>,
+        identity: Arc<str>,
+        directory: Arc<Directory>,
+        proxy: Handle,
+        begin: Begin,
+        ignore: Vec<Vec<String>>,
+        watched: Arc<[Watched]>,
+    ) -> Self {
         Run {
             scope,
+            identity,
+            directory,
             proxy,
             begin,
             ignore,
+            watched,
             pairs: Pairs::new(),
             over: Notify::new(),
             trees: Mutex::new(HashMap::new()),

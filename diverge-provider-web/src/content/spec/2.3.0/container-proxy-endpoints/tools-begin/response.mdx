@@ -1,22 +1,28 @@
 ---
 title: 'Response'
-summary: 'The server sends Begun once and nothing more until the finish, which it sends only when it ends; or an error and the finish.'
+summary: 'The server sends Begun once, carrying the tools the container declared, or an error and the finish; after Begun it sends nothing more until the finish, which it sends only when it ends.'
 order: 2
 draft: false
 ---
 
 ```text
-[0]                  begun
-[1][error JSON …]    not begun: the connection had begun
+[0][tools JSON …]    begun: the container holds its arguments, and these are its tools
+[1][error JSON …]    not begun: the connection had begun, or the arguments were refused
 ```
 
 - **The sequence.** Exactly one response whose first byte is `0`,
   followed by the response finish when the server ends; or exactly one
   response whose first byte is `1`, followed by the response finish.
   No other response is sent on the scope.
+- **The tools.** The bytes after the byte `0` are a JSON array of
+  the tools the container's program answered its registration with,
+  each as the [tools](/endpoints/containers-tools-run/server/tools/)
+  channel of the run defines one, in the order the program declared
+  them; empty when the program declared none. The server sends the
+  array exactly as the program produced it.
 - **The error.** After the byte `1`, exactly one JSON value in the
   form defined on the [volumes::list response](/endpoints/volumes-list/response/)
-  page.
+  page. Refused arguments carry the container's own words.
 - **A finish with nothing.** A response finish that no response
   precedes states that the server could not read the request.
 

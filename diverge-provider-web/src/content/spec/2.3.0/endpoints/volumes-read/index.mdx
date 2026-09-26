@@ -1,0 +1,59 @@
+---
+title: 'volumes::read'
+summary: 'Tag 5: a client names a volume from its listing and one file in it; the server sends the bytes of the file as responses of at most CHUNK_SIZE bytes each and the finish, or an error last, while the volume is mounted nowhere.'
+order: 5
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`5` followed by the name of a volume and the path of one file in it.
+The server sends the bytes of the file as zero or more responses and
+the response finish, or the responses sent so far, exactly one error
+response and the response finish. Neither party opens a channel on a
+read scope.
+
+- **The request.** The request carries the name of one volume and the
+  path of one file. [Request](/endpoints/volumes-read/request/) states
+  its form.
+- **The volume named.** The client names a volume by the `name` its
+  [volumes::list](/endpoints/volumes-list/) listing gave it. The
+  server resolves the name against the identity under which the
+  connection was authorized, as [Authorization](/authorization/)
+  provides. A name that is not in the client's listing is answered
+  with an error. A client cannot name another client's volume.
+- **The path.** The path is a sequence of components from the root of
+  the volume: the same components a volume mount's
+  `volume_relative_path` names. The path names a file: it has at
+  least one component, and no component is empty, `.` or `..`, or
+  contains `/` or NUL. A request whose path is not of that form is
+  answered with an error, and nothing is read.
+- **The file.** The server opens the file the path names, a symbolic
+  link followed. A path at which nothing is, and a path at which what
+  is there is not a regular file once opened, are answered with an
+  error.
+- **The bytes.** The server sends the bytes of the file as responses,
+  each at most `CHUNK_SIZE` bytes, in order, until the file is read.
+  A file of zero bytes is sent as exactly one response of zero bytes.
+  A read that fails is answered by exactly one error response after
+  the responses already sent. The bytes are the file at rest: no
+  container writes to the volume while the read runs, and the
+  responses concatenated are the whole file as it was at the time of
+  the request. [Response](/endpoints/volumes-read/response/) states
+  the sequence.
+- **A mounted volume is not read.** The server does not read a file out of a
+  volume that is mounted in any running container, or served on any
+  [volumes::serve](/endpoints/volumes-serve/) scope, at the time of the request — a volume may be mounted or
+  served in several at once — or that is
+  under a stat, a read, a write, a filetree, an edit or a delete. A
+  request naming such a volume is answered with an error, and nothing is read. A
+  client that needs the file stops every container that has it, or
+  waits for their end, and sends another request. The server holds
+  the volume to itself from the moment it accepts the request until
+  the finish, and a run naming the volume is refused for as long as
+  it does.
+- **The error.** An error states that the file was not read, or not
+  all of it. A volume absent from the client's listing, a volume
+  mounted in a running container or served at the time of the
+  request, a path
+  that is not of the stated form, and a path that names no regular
+  file are each answered with an error.

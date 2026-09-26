@@ -1,13 +1,12 @@
 ---
 title: 'Filetree'
-summary: 'Tag 1: the client asks for the filesystem of the container, watched; the server opens a tree scope on the proxy with every mount left out and relays a snapshot and one channel response per change until the scope ends.'
+summary: 'Tag 1: the client asks for the filesystem of the container, watched; the server sends a snapshot of a tree that leaves out every FUSE mount and contains every volume mount, and one channel response per change, until the scope ends.'
 order: 1
 draft: false
 ---
 
 The client opens this channel to watch the filesystem of the
-container. The server opens a tree scope on the container's proxy
-and relays what the proxy sends.
+container.
 
 - **The request.** The payload is the tag byte `1` and nothing more.
   [Request](/endpoints/containers-agents-run/client/filetree/request/) states its form.
@@ -15,11 +14,15 @@ and relays what the proxy sends.
   the channel response finish when the scope ends.
   [Response](/endpoints/containers-agents-run/client/filetree/response/) states the
   sequence.
-- **What the tree leaves out.** The server names, in the request it
-  sends to the proxy, the path of every mount of the container:
-  every volume mount, every identity mount, and every FUSE mount. The
-  tree the client receives contains none of them and reports no
-  change under them.
+- **What the tree leaves out.** Every FUSE mount of the container,
+  and no other mount. The tree the client receives contains no FUSE
+  mount and reports no change under one.
+- **What the tree contains.** Every volume mount of the container is
+  in the tree, and a change under one is reported as any other change
+  is. A volume is observed live by this channel of a container it is
+  mounted in, and, while it is mounted nowhere, once, by a
+  [volumes::filetree](/endpoints/volumes-filetree/) of its own. How
+  the server watches a volume mount is not prescribed.
 - **Not before the mounts.** The server does not open a tree scope
   before the last FUSE mount of the container is complete. A
   filetree channel opened earlier waits.

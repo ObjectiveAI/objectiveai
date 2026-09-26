@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 9 followed by the name of the volume as a varint length and UTF-8 bytes and its size in bytes as a varint, in the postcard wire format.'
+summary: 'The payload is the tag byte 12 followed by the name of the volume as a varint length and UTF-8 bytes and the change as a varint discriminant, 0 for a size, 1 for a persist mode, 2 for both, followed by the fields of that kind, in the postcard wire format.'
 order: 1
 draft: false
 ---
@@ -10,19 +10,30 @@ the postcard wire format, as the postcard reading of
 [Notation](/endpoints/#notation) provides:
 
 ```text
-[9][name_len: varint][name: utf8 …][bytes: varint]
+[12][name_len: varint][name: utf8 …][0][bytes: varint]
+[12][name_len: varint][name: utf8 …][1][persist: 0 | 1]
+[12][name_len: varint][name: utf8 …][2][bytes: varint][persist: 0 | 1]
 ```
 
 - **`name`.** The name of the volume, UTF-8, preceded by its byte
   length as a varint. It is the `name` of a volume in the client's
   [volumes::list](/endpoints/volumes-list/) listing.
+- **`change`.** The change, as a postcard enum: a varint
+  discriminant, which is `0`, `1` or `2`, followed by the fields of
+  that kind. `0` is a size and is followed by `bytes`. `1` is a
+  persist mode and is followed by `persist`. `2` is both and is
+  followed by `bytes` and by `persist`, in that order. A discriminant
+  other than `0`, `1` and `2` does not decode.
 - **`bytes`.** The size the volume has after the edit, in bytes, as a
   varint. It is absolute, not a difference from the current size.
+- **`persist`.** The persist mode the volume has after the edit, as
+  one byte: `1` is `true` and `0` is `false`, the postcard encoding
+  of a boolean. A byte other than `0` and `1` does not decode.
 - **Bytes after the request.** A server ignores every byte that
-  follows the `bytes` field. A request whose payload extends past the
-  request is not malformed.
+  follows the last field of the change. A request whose payload
+  extends past the request is not malformed.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `9`, and a payload whose bytes after the tag do not decode
+  is not `12`, and a payload whose bytes after the tag do not decode
   as the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 

@@ -1,6 +1,7 @@
 //! Tool messages.
 
 use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use rmcp::model::ContentBlock;
 use serde::Serialize;
 
 use super::super::{RichContent, RichContentPart};
@@ -46,7 +47,9 @@ impl ToolMessage {
     /// sees them: one section spliced AHEAD of the tool's own
     /// content — the position the old proxy's queue notifications
     /// used — the texts joined by a blank line, the whole wrapped in
-    /// a `system-reminder` pair. Tokenless, unlike the old form:
+    /// a `system-reminder` pair, and every block that is not text
+    /// converted as a user message's would be and placed behind the
+    /// section. Tokenless, unlike the old form:
     /// delivery is confirmed by the container's own fates now, and
     /// nothing downstream scans for a token anymore.
     ///
@@ -54,17 +57,29 @@ impl ToolMessage {
     /// delivered prompts as bare `Prompt` items, and this section is
     /// what the request builder makes of them each time, not a thing
     /// the history remembers.
-    pub fn fold_steer(&mut self, texts: &[String]) {
+    pub fn fold_steer(&mut self, blocks: &[ContentBlock]) {
+        let mut texts = Vec::new();
+        let mut rest = Vec::new();
+        for block in blocks {
+            match block {
+                ContentBlock::Text(text) => texts.push(text.text.as_str()),
+                block => rest.push(RichContentPart::from(block.clone())),
+            }
+        }
         let section = format!(
             "<system-reminder>\nThe user sent a new message while you were working:\n{}\n</system-reminder>\n\n",
             texts.join("\n\n"),
         );
+        let mut steered = vec![RichContentPart::Text { text: section }];
+        steered.extend(rest);
         match &mut self.content {
             RichContent::Parts(parts) => {
-                parts.insert(0, RichContentPart::Text { text: section });
+                steered.append(parts);
+                *parts = steered;
             }
             RichContent::Text(text) => {
-                *text = format!("{section}{text}");
+                steered.push(RichContentPart::Text { text: std::mem::take(text) });
+                self.content = RichContent::Parts(steered);
             }
         }
     }

@@ -33,10 +33,13 @@ use crate::shared::error::Error;
 ///    the authorization it offered, asserted. One frame answers.
 ///    `Denied`, a finish with nothing, or a runner that is gone: the
 ///    scope's one `Error`, then the finish. `Authorized`: the main
-///    stream stays quiet, which is the connector attached.
+///    stream stays quiet, which is the connector attached — and
+///    entered in the directory as such, until it leaves, which is
+///    what lets it transfer into this container from another.
 /// 3. The proxy dialled at the run's address, and everything the
 ///    connector opens served — the tree, reads, writes whose content
-///    this end asks the connector for, the five MCP exchanges — until
+///    this end asks the connector for, transfers, the five MCP
+///    exchanges — until
 ///    the connector disconnects, the run ends (the runner's stop, or
 ///    the container's own end, heard through the directory), or the
 ///    connector goes away. A connector's `Postgres` has no pair and
@@ -48,9 +51,10 @@ use crate::shared::error::Error;
 ///
 /// [`server::handle`](crate::server::handle::handle) reads every
 /// request once to dispatch it, and hands the result here.
-pub async fn handle(scope: ScopeHandle, request: request::Frame, address: IpAddr, directory: &Directory) {
+pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity: &str, address: IpAddr, directory: Arc<Directory>) {
     let scope = Arc::new(scope);
-    let Some(attached) = directory.lookup(&request.0.id) else {
+    let id = request.0.id;
+    let Some(attached) = directory.lookup(&id) else {
         send(&scope, Connect::error(&missing())).await;
         scope.send_response_finish().await;
         return;
@@ -73,11 +77,21 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, address: IpAddr
         scope.send_response_finish().await;
         return;
     };
+    let identity: Arc<str> = Arc::from(client_identity);
+    if !directory.attach(&id, &identity) {
+        // Gone between the lookup and now.
+        send(&scope, Connect::error(&missing())).await;
+        scope.send_response_finish().await;
+        return;
+    }
     let run = Arc::new(Run::new(
         Arc::clone(&scope),
+        Arc::clone(&identity),
+        Arc::clone(&directory),
         attached.proxy,
         Begin::Tools(begin),
         attached.ignore,
+        attached.watched,
     ));
     let mut ended = attached.ended;
     let over = Arc::clone(&run);
@@ -94,6 +108,7 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, address: IpAddr
     .await;
 
     let _end = serve::serve::<Connect>(&run).await;
+    directory.detach(&id, &identity);
     run.shutdown().await;
     scope.send_response_finish().await;
 }

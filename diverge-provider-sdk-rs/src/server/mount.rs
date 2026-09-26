@@ -5,12 +5,12 @@
 /// The same three fields, in the same order, behind a fourth that came
 /// from somewhere else:
 /// [`client_identity`](Self::client_identity) is whose volume
-/// [`host_name`](Self::host_name) names, and a provider attached it on
+/// [`volume_name`](Self::volume_name) names, and a provider attached it on
 /// arrival rather than reading it off the wire.
 ///
 /// # Why the wire type is not enough
 ///
-/// Because [`host_name`](Self::host_name) is a
+/// Because [`volume_name`](Self::volume_name) is a
 /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name),
 /// and a name is unique within the caller it was listed to — not
 /// globally. Two callers each holding a volume they called `work` is
@@ -59,7 +59,7 @@
 /// [`request::VolumeMount`]: crate::shared::containers::request::VolumeMount
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Mount {
-    /// Whose volume [`host_name`](Self::host_name) is.
+    /// Whose volume [`volume_name`](Self::volume_name) is.
     ///
     /// The caller a provider resolves the name against. See the type's
     /// own documentation for why it is here and not on the wire.
@@ -71,7 +71,7 @@ pub struct Mount {
     /// and mean nothing outside the provider that published them —
     /// nor, now that it is stated, outside the caller they were
     /// published to.
-    pub host_name: String,
+    pub volume_name: String,
     /// How far into that volume to start, as path components
     /// relative to it.
     ///
@@ -81,20 +81,11 @@ pub struct Mount {
     /// A caller cannot escape upward with this, because the offset is
     /// components and `..` is a name rather than an instruction. The
     /// provider descends; it does not resolve.
-    pub host_relative_path: Vec<String>,
+    pub volume_relative_path: Vec<String>,
     /// Where it appears inside the container, as path components from
     /// the container's root.
     ///
     /// Empty means the root itself, which a provider will almost
     /// certainly refuse — the image's own filesystem is there.
     pub container_path: Vec<String>,
-    /// Whether the container's changes to the volume outlive it, as
-    /// the caller asked.
-    ///
-    /// `true`: bind the volume, and what the container writes is in
-    /// it when the container ends. `false`: the container sees the
-    /// volume as of its start and its changes are gone when it ends
-    /// — an overlay over the volume, a copy, whatever the runtime
-    /// offers; the volume itself is not written.
-    pub persist: bool,
 }

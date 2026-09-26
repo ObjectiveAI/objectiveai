@@ -1,5 +1,6 @@
 //! The Hermes agent.
 
+use diverge_provider_sdk::shared::containers::tools::Tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -40,8 +41,15 @@ pub struct Agent {
     /// `Option<bool>` where a tool takes nothing, that tool's own
     /// argument structure where it does — absent is off either way,
     /// and the whole structure absent is everything off. (The
-    /// caller's MCP tools ride beside these regardless; they are not
-    /// in this vocabulary.) See [`Toolsets`].
+    /// caller's MCP tools ride beside these regardless, and the tool
+    /// containers the agent asks for are
+    /// [`mcp_tools`](Self::mcp_tools).) See [`Toolsets`].
     #[serde(default)]
     pub toolsets: Toolsets,
+    /// The tool containers this agent depends on, each one the caller
+    /// runs and serves to it as an MCP server, in the form the
+    /// provider's wire defines. Passed back whole as the registration's
+    /// answer, which is how the caller learns of them. Absent is none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mcp_tools: Vec<Tool>,
 }

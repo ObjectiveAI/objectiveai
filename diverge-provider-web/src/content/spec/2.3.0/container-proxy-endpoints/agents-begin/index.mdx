@@ -1,13 +1,14 @@
 ---
 title: 'agents::begin'
-summary: 'Tag 0: the client begins its work on an agent container, once, first, and hands over the agent; the server answers Begun and, for the life of the connection, every chunk the agent says on the scope; every channel of the container’s life rides this scope.'
+summary: 'Tag 0: the client begins its work on an agent container, once, first, and hands over the arguments; the server answers Begun, carrying the tools the container declared, once the container holds them and, for the life of the connection, every chunk the agent says on the scope; every channel of the container’s life rides this scope.'
 order: 0
 draft: false
 ---
 
 The client opens the scope with a request whose payload is the tag
-byte `0` followed by the agent as JSON. The server answers with exactly
-one `Begun` response once the container holds its agent, and after it
+byte `0` followed by the arguments as JSON. The server answers with
+exactly one `Begun` response, carrying the tools the container
+declared, once the container holds its arguments, and after it
 sends every chunk of the agent's conversation as a response, for as
 long as the connection lives; the server ends the scope by the
 response finish only when the server ends. This section states what
@@ -30,12 +31,14 @@ the server does. It states nothing about the client beyond the order
    as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A begin on a
    connection that has begun is answered by exactly one response, the
    error, and the finish; the first begin continues.
-2. **The server hands the agent to the container.** The agent value is
-   held for the life of the container. A container that refuses the
-   value is answered by exactly one response, the error in the
+2. **The server hands the arguments to the container.** The arguments
+   are held for the life of the container. A container that refuses
+   them is answered by exactly one response, the error in the
    container's own words, and the finish; the connection has not
    begun.
-3. **The server answers `Begun`.** Exactly once, and before any chunk.
+3. **The server answers `Begun`.** Exactly once, and before any chunk,
+   carrying the tools the container's program answered its
+   registration with.
 4. **The server relays the conversation.** Each chunk the agent
    produces is one response, in the order produced. A message the
    server sends on an [enqueue](/container-proxy-endpoints/agents-begin/client/enqueue/) channel is the

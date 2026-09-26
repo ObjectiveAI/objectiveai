@@ -15,7 +15,7 @@ use serde::Serialize;
 use tokio::io::AsyncWriteExt;
 use tokio::process;
 
-/// A user message for the running session: an enqueued prompt, or
+/// A user message for the running session: an enqueued message, or
 /// the run's first one — stream-json input mode's way of delivering
 /// the print prompt is the same line an enqueue writes.
 ///
@@ -39,10 +39,40 @@ pub struct UserMessage {
 pub struct UserMessageBody {
     /// Always `user`.
     pub role: UserRole,
-    /// The message's text. A string, deliberately: the enqueue
-    /// vocabulary is text, and the rich-content prompt arrives with
-    /// the conversion work or not at all.
-    pub content: String,
+    /// The message's blocks, in the Anthropic API's own shape — what
+    /// [`content::blocks`](super::content::blocks) made of the
+    /// message's MCP content.
+    pub content: Vec<Block>,
+}
+
+/// One block of a user message, in the Anthropic API's shape: the
+/// two kinds this container's conversion produces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Block {
+    /// Text.
+    Text {
+        /// The text itself.
+        text: String,
+    },
+    /// An image, by its bytes.
+    Image {
+        /// Where the bytes are.
+        source: ImageSource,
+    },
+}
+
+/// An image's bytes, inline.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ImageSource {
+    /// Base64, with its format.
+    Base64 {
+        /// `image/jpeg`, `image/png`, `image/gif` or `image/webp`.
+        media_type: String,
+        /// The bytes, base64.
+        data: String,
+    },
 }
 
 /// The `user` type literal.
@@ -109,13 +139,13 @@ pub enum CancelAsyncMessageSubtype {
     CancelAsyncMessage,
 }
 
-/// One enqueued (or initial) prompt, as its NDJSON line.
-pub fn user_message_line(prompt: String, uuid: String) -> String {
+/// One enqueued (or initial) message, as its NDJSON line.
+pub fn user_message_line(blocks: Vec<Block>, uuid: String) -> String {
     let mut line = serde_json::to_string(&UserMessage {
         r#type: Default::default(),
         message: UserMessageBody {
             role: Default::default(),
-            content: prompt,
+            content: blocks,
         },
         uuid,
     })

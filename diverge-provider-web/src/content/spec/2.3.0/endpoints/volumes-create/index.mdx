@@ -1,19 +1,32 @@
 ---
 title: 'volumes::create'
-summary: 'Tag 7: a client names a volume and its size in bytes; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
-order: 7
+summary: 'Tag 10: a client names a volume, its size in bytes and its persist mode; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
+order: 10
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`7` followed by the name and the size of the volume. The server sends
+`10` followed by the name, the size and the persist mode of the
+volume. The server sends
 exactly one response, which states that the volume exists, that the
 server has insufficient capacity for it, or an error. The response
 finish follows the response, and no frame follows the finish.
 
-- **The request.** The request carries a name the client chooses and
-  a size in bytes. [Request](/endpoints/volumes-create/request/)
-  states its form.
+- **The request.** The request carries a name the client chooses, a
+  size in bytes, and whether the volume keeps what containers write
+  into it. [Request](/endpoints/volumes-create/request/) states its
+  form.
+- **The persist mode.** The request states `persist`, `true` or
+  `false`, and the volume has that mode from the moment it exists,
+  until a [volumes::edit](/endpoints/volumes-edit/) request changes
+  it. Every [volumes::list](/endpoints/volumes-list/) listing of the
+  client reports it as `persist`. When it is `true`, every change a
+  container makes to the volume is in the volume when the container
+  ends. When it is `false`, the volume is as it was before each run
+  when the container ends, and every container sees the content of
+  the volume as of that container's start. The mode is the volume's
+  and is the same for every container that mounts it; a mount states
+  nothing about it.
 - **The volume.** When the server sends the byte `0`, the volume
   exists. From that moment, every
   [volumes::list](/endpoints/volumes-list/) request by the client
@@ -30,8 +43,8 @@ finish follows the response, and no frame follows the finish.
   does not otherwise alter its content, and no party other than such
   a container does. Its `dirhash`, as
   [volumes::stat](/endpoints/volumes-stat/) reports it, is
-  `47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU`, the hash of the
-  empty manifest, until a container changes its content.
+  `h1:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=`, the hash of a
+  directory with no file, until a container changes its content.
 - **The client.** The client is the identity under which the
   connection was authorized, as [Authorization](/authorization/)
   provides. The volume is created for that identity, and that

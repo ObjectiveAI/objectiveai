@@ -20,13 +20,15 @@ finish follows the response, and no frame follows the finish.
 - **The answer.** A payload whose first byte is `0` carries the
   answer as JSON after that byte. The answer is exactly one of two
   objects: `{"type":"available"}` or `{"type":"unavailable"}`. The
-  available answer states that the server would supply the image as
-  the `server` variant of a container request naming the requested
-  name and digest, at the time of the answer. It reserves nothing,
-  and a later container request naming the image may fail. The
-  unavailable answer states that the server would not supply the
-  image. It states no reason: an image the server does not hold and
-  an image the server holds and will not serve to this client
+  available answer states that the server could obtain the image
+  without the client's help — from what it holds, or from a source
+  of its own — for a container request naming the requested name and
+  digest, at the time of the answer. It reserves nothing, and a later
+  container request naming the image may fail. The unavailable
+  answer states that the server could not; a container request
+  naming the image may still succeed where the client holds the
+  image. It states no reason: an image the server cannot obtain and
+  an image the server could obtain and will not serve to this client
   receive the same answer.
 - **The error.** A payload whose first byte is `1` carries an error
   as JSON after that byte. The error states that the server did not

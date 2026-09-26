@@ -2,16 +2,22 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Run one loop on this prompt.
+use super::Message;
+
+/// Run one loop on these messages.
 ///
-/// The agent is not here: it was registered once, and it never
-/// changes. The prompt is each loop's, because a container runs
-/// loops one after another — each resuming the conversation the last
-/// one left — and every one is asked something. When several
-/// messages waited for the loop, the prompt is all of them, joined
-/// with a blank line between, in the order they were enqueued.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+/// The arguments are not here: they were registered once, and they
+/// never change. The messages are each loop's, because a container
+/// runs loops one after another — each resuming the conversation the
+/// last one left — and every one is asked something: one or more
+/// messages, in the order they were enqueued, each under the key its
+/// enqueue carried. The program yields each message's user parts, in
+/// order, as the stream's first chunks, before anything else it says.
+/// A program that cannot take a block answers a `4xx` — every
+/// message refused, in its own words — and the proxy answers every
+/// message the loop was to take with them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
-    /// What the loop is asked.
-    pub prompt: String,
+    /// What the loop is asked, in enqueue order.
+    pub messages: Vec<Message>,
 }

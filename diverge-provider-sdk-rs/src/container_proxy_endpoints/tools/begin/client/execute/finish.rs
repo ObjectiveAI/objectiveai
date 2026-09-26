@@ -49,7 +49,7 @@ impl Future for Finish {
             frame::server::ServerFrame::Response { payload, .. } => match response::Frame::decode(payload) {
                 Ok(response::Frame::Error(error)) => Err(FinishError::Refused(error)),
                 // `Begun` comes once, and it came before this existed.
-                Ok(response::Frame::Begun) => Err(FinishError::Misrouted),
+                Ok(response::Frame::Begun(_)) => Err(FinishError::Misrouted),
                 Err(error) => Err(FinishError::Response(error)),
             },
             _ => Err(FinishError::Misrouted),

@@ -1,18 +1,19 @@
 //! The begin scope, held for the connection's life.
 
+use rmcp::model::ContentBlock;
 use serde_json::Value;
 
 use super::super::channel_request;
 use crate::client::handle::{Handle, SendError};
 use crate::encode::{Encode, Writer};
-use crate::endpoints::containers::client::answered::{AgentSchema, Dequeue, Enqueue, Postgres};
+use crate::endpoints::containers::client::answered::{Dequeue, Enqueue, Postgres, Schema};
 use crate::endpoints::containers::client::{ChannelStream, OpenError, UnaryError, unary};
 use crate::shared::containers::{dequeue, enqueue, postgres};
 
 /// The begin scope an agent container's server holds.
 ///
 /// Every channel the server may open on it is a method here — the
-/// agent's schema, the queue's two verbs, the server's half of a
+/// arguments' schema, the queue's two verbs, the server's half of a
 /// database connection — and so is answering a channel the proxy
 /// opened, by the proxy's own channel number. Clones share the scope.
 ///
@@ -43,24 +44,25 @@ impl ExecuteHandle {
         self.scope
     }
 
-    /// What the agent value may be: the image's JSON Schema for it.
-    pub async fn agent_schema(&self) -> Result<Value, UnaryError<AgentSchema>> {
-        let payload = payload(&channel_request::Frame::AgentSchema).map_err(UnaryError::Request)?;
-        unary::<AgentSchema>(&self.handle, self.scope, &payload).await
+    /// What the arguments may be: the image's JSON Schema for them.
+    pub async fn schema(&self) -> Result<Value, UnaryError<Schema>> {
+        let payload = payload(&channel_request::Frame::Schema).map_err(UnaryError::Request)?;
+        unary::<Schema>(&self.handle, self.scope, &payload).await
     }
 
     /// A message for the agent — starting a loop when none runs,
     /// queued when one does — answered with its fate whenever that
     /// is known; nothing times it out.
-    pub async fn enqueue(&self, prompt: String) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { prompt }))
+    pub async fn enqueue(&self, key: String, content: Vec<ContentBlock>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { key, content }))
             .map_err(UnaryError::Request)?;
         unary::<Enqueue>(&self.handle, self.scope, &payload).await
     }
 
-    /// Clear the agent's queue: whether it held anything.
-    pub async fn dequeue(&self) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
-        let payload = payload(&channel_request::Frame::Dequeue).map_err(UnaryError::Request)?;
+    /// Withdraw every message waiting under `key`: whether any was.
+    pub async fn dequeue(&self, key: String) -> Result<dequeue::response::Frame, UnaryError<Dequeue>> {
+        let payload = payload(&channel_request::Frame::Dequeue(dequeue::request::Request { key }))
+            .map_err(UnaryError::Request)?;
         unary::<Dequeue>(&self.handle, self.scope, &payload).await
     }
 

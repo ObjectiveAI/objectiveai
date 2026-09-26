@@ -1,0 +1,41 @@
+---
+title: 'Client Channels'
+summary: 'The channels the client opens on a serve scope, by tag: the nine asks a FUSE mount makes, each answered by exactly one channel response from the volume, and the stop that ends the scope.'
+order: 3
+draft: false
+---
+
+The client opens each of these channels on the scope, as
+[Channels](/frames/channels/) provides, after the server's `Serving`.
+The payload of the channel request begins with one tag byte
+designating the channel; the remainder is the channel's request, which
+names no volume: the scope is the volume. Tags `0` through `8` are the
+asks of a FUSE mount's scope on the container proxy, byte for byte —
+the same tags, the same forms — and tag `9` is the stop. The server
+answers each ask on its channel with exactly one channel response and
+the channel response finish, and answers a channel request that does
+not decode by a channel response finish that no channel response
+precedes.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [read](/endpoints/volumes-serve/client/read/) |
+| `1` | [write](/endpoints/volumes-serve/client/write/) |
+| `2` | [list](/endpoints/volumes-serve/client/list/) |
+| `3` | [remove](/endpoints/volumes-serve/client/remove/) |
+| `4` | [rename](/endpoints/volumes-serve/client/rename/) |
+| `5` | [mkdir](/endpoints/volumes-serve/client/mkdir/) |
+| `6` | [stat](/endpoints/volumes-serve/client/stat/) |
+| `7` | [truncate](/endpoints/volumes-serve/client/truncate/) |
+| `8` | [setattr](/endpoints/volumes-serve/client/setattr/) |
+| `9` | [stop](/endpoints/volumes-serve/client/stop/) |
+
+The channel request is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/serve/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/serve/client/channel_request/frame.rs
+```
+
+and by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs
+```

@@ -6,13 +6,14 @@ draft: false
 ---
 
 ```text
-[0][path …]
+[0][path_len: u16, big-endian][path …][offset: u64, big-endian][length: u32, big-endian]
 ```
 
 - **The path.** UTF-8, `/`-separated, with no leading `/`; empty is
   the mount itself. Where the path is the last thing in the payload
   it runs to the end of the payload; where bytes or a second path
   follow it, a two-byte length precedes it.
+- **`offset` and `length`.** The piece asked for: at most `length` bytes of the file, from `offset` bytes into it. Both are big-endian, after the path, which a two-byte length precedes.
 - **A file mount.** For a mount of kind `file`, the path is empty.
 
 The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs`:
@@ -20,7 +21,7 @@ The channel request is defined by `diverge-provider-sdk-rs/src/container_proxy_e
 ```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/frame.rs
 ```
 
-and by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/path.rs`:
+and by `diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/read.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/path.rs
+```rust include=diverge-provider-sdk-rs/src/container_proxy_endpoints/fuse/mount/server/channel_request/read.rs
 ```

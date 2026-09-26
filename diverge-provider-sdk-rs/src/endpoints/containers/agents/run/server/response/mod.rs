@@ -5,8 +5,9 @@
 //! inside a [`Chunk`](Frame::Chunk). The conversation is a **stream**
 //! of [`AgenticLoopChunk`]s. Each chunk is one event — content,
 //! reasoning, a tool call, a refusal, a tool result, usage, a
-//! notification, or a message of the caller's landing — rather than a
-//! partially-filled record of everything that could have happened.
+//! notification, or one block of a message of the caller's landing —
+//! rather than a partially-filled record of everything that could
+//! have happened.
 //!
 //! Content, tool calls and tool results are MCP's own types, flattened
 //! — one content vocabulary across the whole conversation, so what a
@@ -31,7 +32,12 @@ mod notification_chunk;
 mod push;
 mod tool_response_chunk;
 mod usage_chunk;
-mod user_chunk;
+mod user_audio_content_chunk;
+mod user_image_content_chunk;
+mod user_parts;
+mod user_resource_chunk;
+mod user_resource_link_chunk;
+mod user_text_content_chunk;
 
 pub use assistant_audio_content_chunk::*;
 pub use assistant_image_content_chunk::*;
@@ -46,4 +52,9 @@ pub use notification_chunk::*;
 pub use push::*;
 pub use tool_response_chunk::*;
 pub use usage_chunk::*;
-pub use user_chunk::*;
+pub use user_audio_content_chunk::*;
+pub use user_image_content_chunk::*;
+pub use user_parts::*;
+pub use user_resource_chunk::*;
+pub use user_resource_link_chunk::*;
+pub use user_text_content_chunk::*;

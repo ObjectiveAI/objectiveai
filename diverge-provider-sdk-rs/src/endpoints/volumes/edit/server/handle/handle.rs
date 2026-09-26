@@ -1,31 +1,43 @@
 //! Answering an edit, from a scope and a manager.
 
-
 use super::super::response;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::volumes::edit::client::request;
+use crate::endpoints::volumes::refusal;
 use crate::server::scope_handle::ScopeHandle;
+use crate::server::volume::Volume as _;
 use crate::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
-/// Resize the volume and end the scope.
+/// Change the volume and end the scope.
 ///
-/// The same three arguments a
-/// [`create`](crate::endpoints::volumes::create) carries and a
-/// different meaning: there the name is being made, here it is being
-/// found.
+/// A name and a change: there a [`create`](crate::endpoints::volumes::create)
+/// makes the name, here it is found.
 ///
-/// # The manager says why not
+/// # Under the exclusive hold
+///
+/// The volume is [`got`](VolumeManager::get) and then
+/// [`locked`](crate::server::volume::Volume::lock) for the length of
+/// the change, so no container has it while its size or its mode
+/// changes — which is what makes the mode changeable at all, since
+/// a container is bound under one mode for its life. A volume held
+/// at all — mounted in a running container, or under another
+/// request — is the edit refused with [`refusal::mounted`] and the
+/// volume as it was: the hold never waits, and the endpoint has no
+/// frame for it but the error. The hold is given back whatever the
+/// change answered.
+///
+/// # The volume says why not
 ///
 /// Two refusals have their own frames:
 /// [`InsufficientCapacity`](response::Frame::InsufficientCapacity)
 /// when the provider cannot reserve the size, and
 /// [`ContentTooLarge`](response::Frame::ContentTooLarge) when the
 /// volume holds more than the size and so cannot be shrunk to it. The
-/// manager is what knows either, so it answers the matching
-/// [`Edit`](response::Edit) and this turns that into the frame. Any
-/// other refusal is an [`Error`](response::Frame::Error), and this does
-/// not decide when one is owed.
+/// volume is what knows either, so it answers the matching
+/// [`Edit`](response::Edit) and this turns that into the frame. A
+/// name the caller has no volume by is [`refusal::unknown`]; any
+/// other refusal is the provider's error, flattened.
 ///
 /// # The request arrives decoded
 ///
@@ -42,16 +54,13 @@ pub async fn handle<M>(
     M: VolumeManager,
     M::Error: Into<Error>,
 {
-    let frame = match manager
-        .edit(client_identity, &request.name, request.bytes)
-        .await
-    {
+    let frame = match edit(manager, client_identity, &request.name, request.change).await {
         Ok(response::Edit::Edited) => response::Frame::Edited,
         Ok(response::Edit::InsufficientCapacity) => {
             response::Frame::InsufficientCapacity
         }
         Ok(response::Edit::ContentTooLarge) => response::Frame::ContentTooLarge,
-        Err(error) => response::Frame::Error(error.into()),
+        Err(error) => response::Frame::Error(error),
     };
 
     let mut buffer = Vec::new();
@@ -59,4 +68,29 @@ pub async fn handle<M>(
         scope.send_response(&buffer).await;
     }
     scope.send_response_finish().await;
+}
+
+/// The volume found, locked, changed, and unlocked; or the one error
+/// the endpoint answers with, whichever step it came from.
+async fn edit<M>(
+    manager: &M,
+    client_identity: &str,
+    name: &str,
+    change: request::Change,
+) -> Result<response::Edit, Error>
+where
+    M: VolumeManager,
+    M::Error: Into<Error>,
+{
+    let volume = manager
+        .get(client_identity, name)
+        .await
+        .map_err(Into::into)?
+        .ok_or_else(|| refusal::unknown(name))?;
+    if !volume.lock().await {
+        return Err(refusal::mounted(name));
+    }
+    let edit = volume.edit(change).await;
+    volume.unlock().await;
+    edit.map_err(Into::into)
 }

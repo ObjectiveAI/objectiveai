@@ -9,7 +9,16 @@ draft: false
 [2][request JSON …]
 ```
 
-- **`prompt`.** The message, a string.
+- **`key`.** A string the client chooses: what a
+  [dequeue](/container-proxy-endpoints/agents-begin/client/dequeue/) names to withdraw the message, and every
+  other message still waiting under the same key. Two messages may
+  share one. The server relays it verbatim and does not read it.
+- **`content`.** An array of MCP content blocks, in order, each as
+  the `ContentBlock` of the crate's MCP dependency states one: text,
+  an image, audio, an embedded resource, or a resource link. What the
+  container makes of a block is its own, and a container that cannot
+  take one refuses the whole message, and the fate is the error, in
+  the container's words. A message with no block is refused too.
 - **Malformed.** A channel request whose payload does not decode as
   stated is answered by a channel response finish that no channel
   response precedes, and the server does nothing else for it.

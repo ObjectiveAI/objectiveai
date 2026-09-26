@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 
 /// A volume that exists already, under a name the provider chose.
 ///
-/// What a listing reports beside the name is read, not configured:
-/// `bytes` from the filesystem the directory is on, and `created`
-/// from the directory's birth time, or from the provider's own start
-/// where the filesystem records none.
+/// Of what a listing reports beside the name, `bytes` and `persist`
+/// are declared here and `created` is read: the directory's birth
+/// time, or the provider's own start where the filesystem records
+/// none.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Fixed {
@@ -17,9 +17,24 @@ pub struct Fixed {
     /// and never given to a created volume of any identity: the name
     /// rule of `volumes::create` is enforced against it.
     pub name: String,
-    /// An ABSOLUTE path to the directory that is the volume. A
-    /// relative path is refused when the configuration is loaded.
+    /// An ABSOLUTE path to the directory that is the volume, which
+    /// exists already: a relative path, and a path that is not an
+    /// existing directory, are refused when the configuration is
+    /// loaded. On macOS the podman machine is made seeing it.
     pub path: PathBuf,
+    /// How big the volume is, in BYTES, as a listing reports it.
+    /// Declared, not measured, and nothing enforces it: a fixed
+    /// volume is a directory the provider already had, and the
+    /// number is the provider's word. A fixed volume is never
+    /// resized, so `volumes::edit_capacity` answers `0` for it.
+    pub bytes: u64,
+    /// Whether the volume keeps what containers write into it, as a
+    /// listing reports it: `true`, a container's changes are in the
+    /// directory when the container ends; `false`, every container
+    /// writes into an overlay podman discards, and the directory is
+    /// never written. Declared, like the size, and never edited: a
+    /// fixed volume refuses every edit.
+    pub persist: bool,
     /// The hook, by name, that says which identities the volume is
     /// listed to: the folder `hooks/<name>/` of the provider's
     /// directory, run as [`hook`](crate::hook) provides. It reads a

@@ -1,12 +1,12 @@
 ---
 title: 'FUSE write'
-summary: 'Tag 19: the server relays an ask of the container’s proxy that stores a file of a mount, whole the client serves live, by the mount’s id and the entry’s path; the client answers with exactly one channel response, which the server relays to the proxy.'
+summary: 'Tag 19: the server relays an ask of the container’s proxy that writes a piece of a file of a mount in place the client serves live, by the mount’s id and the entry’s path; the client answers with exactly one channel response, which the server relays to the proxy.'
 order: 19
 draft: false
 ---
 
 The server opens this channel when a FUSE mount's scope on the
-container's proxy carries the ask that stores a file of a mount, whole the client serves live.
+container's proxy carries the ask that writes a piece of a file of a mount in place the client serves live.
 The ask is relayed with the mount's `id` put in front of it — the
 mount's scope is the mount, and its asks carry no id — and otherwise
 verbatim; the client's one answer is relayed back.
@@ -22,5 +22,5 @@ verbatim; the client's one answer is relayed back.
   the mount's channel as one channel response and finishes it. The
   server does not read the ask or the answer, and does not send the
   ask twice.
-- **Refusal is the client's.** A client that answers this ask with an error refuses the change, and the proxy reports the operation to the program as failed. The server relays the answer and decides nothing.
+- **Refusal is the client's.** A client that answers this ask with an error refuses the change, and the proxy reports the operation to the program as failed. A client whose storage keeps nothing written into it answers with the ephemeral byte, and the proxy reports the operation to the program as a read-only filesystem. The server relays the answer and decides nothing.
 - **A file mount.** For a mount of `fuse_file_mounts`, the path of the ask is empty.

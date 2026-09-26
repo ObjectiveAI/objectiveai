@@ -14,6 +14,13 @@ draft: false
   error, followed by the channel response finish. A channel response
   finish that no channel response precedes states that the server did
   not serve the exchange.
+- **The image.** The server sets `_meta["diverge.network/image"]` on
+  the result to an object of two fields,
+  `{"name":…,"digest":…}`: the `image` the begin request carried,
+  verbatim. A value the container's server set under that key is
+  replaced. Every other member of `_meta`, and every other member of
+  the result, is sent as the container's server sent it. The error
+  is sent as the container's server sent it.
 
 The channel response is defined by `diverge-provider-sdk-rs/src/container_proxy_endpoints/tools/begin/server/channel_response/mcp_read_resource/frame.rs`:
 

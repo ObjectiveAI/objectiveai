@@ -227,12 +227,14 @@ the provider's server and the server is the proxy, throughout. Every type shown 
 the crate's file under `container_proxy_endpoints`, included, beside
 the shared frame it aliases. What an ask means is stated once, on the
 Layer 6 channel that relays it; this layer states only how it is
-carried.
+carried, and the one thing the proxy adds to what it carries: the
+container's image under `_meta` on every MCP exchange, in either
+direction, and on every chunk of an agent's conversation.
 
 ### Layer 6 — Endpoints (`/endpoints/`)
 
-What a scope is for. It states the tag byte, the tag table (thirteen
-endpoints: the three container scopes, the eight volume endpoints,
+What a scope is for. It states the tag byte, the tag table (sixteen
+endpoints: the three container scopes, the eleven volume endpoints,
 the image check, the version), that an unreadable request is answered
 by a bare finish, that growth is new tag values, and the Notation.
 Each endpoint has its own section with, in this order, the request
@@ -246,7 +248,7 @@ payload of the channel request, and a response page stating the
 sequence of channel responses, what ends it, and what a finish with
 nothing before it means. The channels a party opens are grouped under a `client/` or a
 `server/` section titled `Client Channels` or `Server Channels`, each
-with the tag table; `volumes::watch`'s `client/stop` section is the
+with the tag table; `containers::tools::connect`'s `client/disconnect` section is the
 convention. The container scopes further state what
 their id is, what ends the scope, and how a connect scope relates to
 the run scope it joins.
@@ -256,11 +258,13 @@ the run scope it joins.
 Payload forms that more than one endpoint carries, defined once and
 linked from every channel that carries them: the container request
 and its mounts; the error value; the OCI manifest and blob answers;
-the authorize question and its answer; write content; the fetches by
-identity; the Postgres pair; commands; the vault's five operations
+the authorize question and its answer; the tools declaration and its
+answer; write content; the Postgres
+pair; commands; the vault's five operations
 and its lock rule; the five MCP exchanges; the seven FUSE operations
 with the file-and-directory rule; the filetree, read, and write
-forms; the agent's loop, schema, enqueue, and dequeue forms. Each
+forms; the schema form; the agent's loop, enqueue, and dequeue
+forms. Each
 form's page states its layout or declaration and the rules that are
 the form's own — the vault's lock semantics, FUSE's no-retry rule and
 the empty path — and nothing about which endpoint carries it; the
@@ -268,11 +272,13 @@ endpoint pages say that.
 
 ### Layer 8 — Container contracts (`/containers/`)
 
-What an image must provide beside the proxy: the agent container's
-HTTP server on `PORT` and its five paths with their bodies and
-statuses; the tool container's MCP server on `PORT` at `/mcp`; that
-registration is once and before any loop; what a fate and an outcome
-are. These are requirements on image authors, stated as such, and
+What an image must provide beside the proxy: every container's HTTP
+server on `PORT`, with `/register` — answered with the tools the
+program depends on — and `/schema` and their bodies and statuses the
+same on either kind; the agent container's three paths
+of the loop beside them; the tool container's MCP server at `/mcp`
+beside them; that registration is once and before any loop or
+exchange; what a fate and an outcome are. These are requirements on image authors, stated as such, and
 the one place the proxy's other side is described.
 
 ## The versions

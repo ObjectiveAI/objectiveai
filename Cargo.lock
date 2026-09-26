@@ -1857,6 +1857,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-daemon-sdk"
+version = "2.3.0"
+dependencies = [
+ "chrono",
+ "diverge-provider-sdk",
+ "rmcp 3.1.2",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "diverge-provider-sdk"
 version = "2.3.0"
 dependencies = [
@@ -1867,6 +1878,7 @@ dependencies = [
  "postcard",
  "rmcp 3.1.2",
  "rust_decimal",
+ "schemars 1.2.2",
  "serde",
  "serde_json",
  "tokio",
@@ -1878,12 +1890,24 @@ dependencies = [
 name = "diverge-provider-server"
 version = "2.3.0"
 dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "dashmap",
  "diverge-provider-sdk",
+ "fstool",
+ "futures-util",
+ "hex",
+ "notify",
  "serde",
  "serde_json",
  "serde_path_to_error",
  "serde_yaml_ng",
+ "sha2",
  "tokio",
+ "tokio-tungstenite 0.29.0",
+ "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2371,6 +2395,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76ee7a02da4d231650c7cea31349b889be2f45ddb3ef3032d2ec8185f6313fd2"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "fstool"
+version = "0.4.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f42978faafcee1cdfc04c2d36fb81b81ba7d6b3392dba6dc2a30d4ea368b8359"
+dependencies = [
+ "uuid",
 ]
 
 [[package]]
@@ -8877,9 +8910,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.24.0"
+version = "1.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf3923a6f5c4c6382e0b653c4117f48d631ea17f38ed86e2a828e6f7412f5239"
+checksum = "2ef6dac1e96601b4fb3acccccff2139741fcb757cb9a36089bf5be91cfb285ce"
 dependencies = [
  "getrandom 0.4.2",
  "js-sys",

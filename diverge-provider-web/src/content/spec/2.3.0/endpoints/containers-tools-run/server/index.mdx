@@ -11,10 +11,10 @@ The server opens each of these channels on the scope, as [Channels](/frames/chan
 |-----|---------|
 | `0` | [oci-manifest](/endpoints/containers-tools-run/server/oci-manifest/) |
 | `1` | [oci-blob](/endpoints/containers-tools-run/server/oci-blob/) |
-| `2` | [authorize](/endpoints/containers-tools-run/server/authorize/) |
-| `3` | [write-bytes](/endpoints/containers-tools-run/server/write-bytes/) |
-| `4` | [fetch-file](/endpoints/containers-tools-run/server/fetch-file/) |
-| `5` | [fetch-directory](/endpoints/containers-tools-run/server/fetch-directory/) |
+| `2` | [oci-has](/endpoints/containers-tools-run/server/oci-has/) |
+| `3` | [authorize](/endpoints/containers-tools-run/server/authorize/) |
+| `4` | [tools](/endpoints/containers-tools-run/server/tools/) |
+| `5` | [write-bytes](/endpoints/containers-tools-run/server/write-bytes/) |
 | `6` | [postgres](/endpoints/containers-tools-run/server/postgres/) |
 | `7` | [command](/endpoints/containers-tools-run/server/command/) |
 | `8` | [vault-get](/endpoints/containers-tools-run/server/vault-get/) |
@@ -34,6 +34,8 @@ The server opens each of these channels on the scope, as [Channels](/frames/chan
 | `22` | [fuse-rename](/endpoints/containers-tools-run/server/fuse-rename/) |
 | `23` | [fuse-mkdir](/endpoints/containers-tools-run/server/fuse-mkdir/) |
 | `24` | [fuse-stat](/endpoints/containers-tools-run/server/fuse-stat/) |
+| `25` | [fuse-truncate](/endpoints/containers-tools-run/server/fuse-truncate/) |
+| `26` | [fuse-setattr](/endpoints/containers-tools-run/server/fuse-setattr/) |
 
 The channel request is defined by `diverge-provider-sdk-rs/src/endpoints/containers/tools/run/server/channel_request/frame.rs`:
 

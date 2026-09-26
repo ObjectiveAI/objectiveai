@@ -122,7 +122,7 @@
 //! endpoint's handler with the decoded request. One call per
 //! connection is a provider's whole loop.
 //!
-//! The five [`volumes`](crate::endpoints::volumes),
+//! Ten of the [`volumes`](crate::endpoints::volumes),
 //! [`images::check`](crate::endpoints::images::check) and
 //! [`version`](crate::endpoints::version) answer and finish, which is
 //! the whole of what those endpoints do. The three
@@ -155,8 +155,8 @@
 //!
 //! # And what a provider supplies
 //!
-//! Six traits and one type, which are what this half asks FOR rather
-//! than provides. They mirror the ones [`client`](crate::client)
+//! Six traits and one type, which are what this half asks FOR
+//! rather than provides. They mirror the ones [`client`](crate::client)
 //! supplies: something a provider implements, so that the parts this
 //! crate cannot know are somebody else's.
 //!
@@ -180,19 +180,28 @@
 //! in a deployment is the name together with whoever it authenticated,
 //! which is a fact only this half of the connection has.
 //!
-//! [`volume_manager`] is the second, and it is the other five
-//! endpoints: the directories a provider offers, listed, created,
-//! resized, deleted and watched. One trait for all of them, because
-//! they are five verbs over one namespace rather than five subjects.
+//! [`volume_manager`] is the second, and with [`volume`] it is the
+//! eleven [`volumes`](crate::endpoints::volumes) endpoints: the
+//! directories a provider offers. The manager is the namespace —
+//! listed, looked up by name, created, deleted, and asked how much
+//! room there is — and the [`volume`] it hands back for a name is
+//! the one directory, examined and resized. Two traits rather than
+//! one because the verbs on a volume that exists act on it in place,
+//! and every one of them takes the volume's lock first: the lock a
+//! provider keeps on each volume is how this
+//! half keeps a mounted volume from being examined, resized, deleted
+//! or mounted twice, and the run handlers take it too, for the life
+//! of the container.
 //!
-//! It takes a client identity on every method, which is the same fact
-//! a [`mount`] carries — a volume's name is unique within the caller it
-//! was listed to, so a name alone asks a question with more than one
-//! answer.
+//! The manager takes a client identity on every method, which is the
+//! same fact a [`mount`] carries — a volume's name is unique within
+//! the caller it was listed to, so a name alone asks a question with
+//! more than one answer.
 //!
-//! The two traits do not know about each other. A mount reaches a
-//! deployer as a name and an identity, and finding the directory is
-//! the deployer's, the way publishing a port already is.
+//! The manager and the deployer do not know about each other. A
+//! mount reaches a deployer as a name and an identity, and finding
+//! the directory is the deployer's, the way publishing a port already
+//! is.
 //!
 //! [`image_checker`] is the third, and it is the smallest: would you
 //! supply this image, to this caller. It is not a
@@ -206,16 +215,14 @@
 //! itself rather than by any endpoint's handler, because a credential
 //! belongs to the connection and not to any scope on it.
 //!
-//! [`content_store`] is the fifth: where the content a caller mounts
-//! by identity is kept, verified. A run handler asks it what it holds,
-//! fetches from the caller only the rest, and names every identity to
-//! the deployer, which binds from the store.
-//!
-//! [`image_registry`] is the sixth: the OCI registry a provider runs
-//! on its loopback for images the CALLER holds, fed by digest through
-//! an [`image_source`] — the run scope's channels to the caller, which
-//! is the one thing only this crate can be. The registry's HTTP is the
-//! provider's, for the reason above: this crate serves none.
+//! [`image_registry`] is the fifth: the OCI registry a provider runs
+//! on its loopback for an image it takes from the CALLER, fed by
+//! digest through an [`image_source`] — the run scope's channels to
+//! the caller, which is the one thing only this crate can be. The
+//! registry's HTTP is the provider's, for the reason above: this
+//! crate serves none. [`caller`] is what a run hands the deployer
+//! beside the image's name and digest: whether the caller holds it,
+//! asked on the scope, and where the registry serves it.
 //!
 //! [`directory`] is the type: every container the provider is running,
 //! by id, shared across connections — because a connector names a
@@ -223,12 +230,14 @@
 //! to find its run scope to be authorized on, and its address to dial.
 //!
 //! Nothing implements any of them, and all are consumed:
-//! [`volume_manager`] by the five
+//! [`volume_manager`] and [`volume`] by the eleven
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](crate::endpoints::images::check)'s, and
-//! [`container_deployer`], [`content_store`] and [`image_registry`] by
-//! the two run handlers of [`containers`](crate::endpoints::containers)
+//! [`container_deployer`], [`image_registry`] and
+//! — for the volumes a request mounts, locked for the run — the
+//! [`volume_manager`] again by the two run handlers of
+//! [`containers`](crate::endpoints::containers)
 //! — the scopes that put a container somewhere. A connect handler
 //! consumes none of those, because it deploys nothing — the container
 //! it serves already exists, and is stopped by whoever ran it — and
@@ -257,13 +266,14 @@
 pub(crate) mod answer;
 pub(crate) mod answers;
 pub mod authorization;
+pub mod caller;
 pub mod channel;
 pub mod container;
 pub mod container_deployer;
-pub mod content_store;
 pub mod deployment;
 pub mod directory;
 pub mod handle;
+pub mod holders;
 pub mod image_checker;
 pub mod image_registry;
 pub mod image_source;
@@ -274,4 +284,6 @@ pub mod received;
 pub mod scope_handle;
 pub mod session;
 pub mod unbrokered_authorizer;
+pub mod served;
+pub mod volume;
 pub mod volume_manager;

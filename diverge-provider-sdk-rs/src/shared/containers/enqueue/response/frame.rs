@@ -22,9 +22,9 @@ use crate::shared;
 /// anything out — and every enqueued message gets exactly one of
 /// these eventually: taken by a run, the one in flight or the one
 /// that starts when it ends with messages still waiting; withdrawn
-/// by a dequeue; or the error, when no run could start on it. A run
-/// ending does not lose a message: what it left waiting starts the
-/// next.
+/// by a dequeue; or the error, when the agent refused it or no run
+/// could start on it. A run ending does not lose a message: what it
+/// left waiting starts the next.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The agent took the message into the conversation. Tag `0`.
@@ -34,16 +34,19 @@ pub enum Frame {
     /// visible in the scope's main stream; this says only that it
     /// did.
     Delivered,
-    /// The caller withdrew the message before the agent took it.
-    /// Tag `1`.
+    /// The caller withdrew the message before the agent took it, by
+    /// a dequeue of its key. Tag `1`.
     Dequeued,
-    /// No run could start on the message. Tag `2`.
+    /// The agent refused the message, or no run could start on it.
+    /// Tag `2`.
     ///
-    /// The one way a message is lost: it was to start a run, and the
-    /// agent's server refused or could not be reached — its own
-    /// words, in the protocol's one error shape. A message queued
-    /// behind a running loop never gets this; a delivery that loop
-    /// refuses waits for the loop to end and starts the next.
+    /// The one way a message is lost, in the agent's server's own
+    /// words, in the protocol's one error shape: it would not take
+    /// the message's content — at the start of a run, or at the
+    /// delivery of a queued message into the loop in flight — or it
+    /// could not be reached when the message was to start a run. A
+    /// loop that merely ends with the message waiting does not give
+    /// this; the message starts the next.
     Error(shared::error::Error),
 }
 

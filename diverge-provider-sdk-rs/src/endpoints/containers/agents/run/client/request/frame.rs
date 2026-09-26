@@ -1,40 +1,21 @@
 //! What a client's request frame carries for an agent container run.
 
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::containers::request::Container;
 
-/// Ask a provider to create an agent container, and say what agent
-/// it is.
+/// Ask a provider to create an agent container.
 ///
-/// A [`Container`] — the image, the limits, the mounts — and the
-/// agent. The agent is on the request rather than on the channel
-/// that speaks to it because it is FIXED: a container is one agent
-/// for its whole life, registered with it once, and every message it
-/// takes is taken by that agent. What the agent is told rides the
-/// [`Enqueue`](super::super::channel_request::Frame::Enqueue)
-/// channel, and what it says rides the scope's own main stream.
-///
-/// The agent is a JSON value, because this crate does not know what
-/// an agent is — a model, a set of tools, a personality, a harness's
-/// own knobs — and a wire that typed it would have to be revised for
-/// every agent that ever ran. What the value MAY be is what
-/// [`agent_schema`](crate::shared::containers::agent_schema) answers.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Frame {
-    /// The container: image, limits, mounts. Flattened, so the wire
-    /// is one object rather than a container inside a request.
-    #[serde(flatten)]
-    pub container: Container,
-    /// The agent, as the image defines it, for the container's life.
-    /// Each image owns its agent type beside the loop that reads it,
-    /// and states it through
-    /// [`agent_schema`](crate::shared::containers::agent_schema).
-    pub agent: Value,
-}
+/// A [`Container`] and nothing else: the image, the limits, the
+/// mounts, the arguments. What makes it an agent container rather
+/// than the other kind is not in the request — it is the image, and
+/// it is what the caller does on the channels once it runs: a message
+/// for the agent, and its conversation on the scope's own main stream.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Frame(
+    /// What to run.
+    pub Container,
+);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -55,16 +36,16 @@ const TAG: u8 = 0;
 /// uses. One of these is sent per container rather than per
 /// filesystem event, so there is no throughput to optimize for — and
 /// it names an image the same way a check does, which is reason
-/// enough for the two to look alike on the wire. The agent being a
-/// [`Value`] settles it besides: a value cannot come back out of
-/// postcard at all.
+/// enough for the two to look alike on the wire. The arguments being
+/// a [`Value`](serde_json::Value) settles it besides: a value cannot
+/// come back out of postcard at all.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        serde_json::to_writer(out, self)
+        serde_json::to_writer(out, &self.0)
     }
 }
 
@@ -77,7 +58,7 @@ impl Decode<'_> for Frame {
         if *tag != TAG {
             return Err(FrameError::UnexpectedTag(*tag));
         }
-        serde_json::from_slice(rest).map_err(FrameError::Body)
+        serde_json::from_slice(rest).map(Frame).map_err(FrameError::Body)
     }
 }
 

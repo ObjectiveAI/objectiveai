@@ -27,7 +27,8 @@ pub enum ExecuteError {
     Misrouted,
     /// The proxy's answer did not decode.
     Response(super::super::super::server::response::FrameError),
-    /// The proxy would not begin: the connection had begun already, or the agent's server refused the agent. Its own words.
+    /// The proxy would not begin: the connection had begun already,
+    /// or the container's server refused the arguments. Its own words.
     Refused(crate::shared::error::Error),
 }
 

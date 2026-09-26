@@ -8,8 +8,8 @@ use super::execute_handle::ExecuteHandle;
 use super::ExecuteStream;
 use crate::client::handle::{Handle, SendError};
 use crate::client::{
-    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, IdentityStore, McpServer, OciStore,
-    PostgresDialer, Vault,
+    Answerers, CommandRunner, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, ToolDeployer,
+    Vault,
 };
 use crate::decode::Decode as _;
 use crate::encode::{Encode, Writer};
@@ -19,7 +19,7 @@ use crate::frame;
 use crate::shared::containers::postgres;
 use crate::shared::containers::response::Id;
 use crate::shared::containers::write_bytes;
-use crate::shared::containers::response::VolumeMounted;
+use crate::shared::containers::response::VolumeHeld;
 use crate::shared::error::Error;
 
 /// Run an agent container, and hold it.
@@ -51,15 +51,15 @@ use crate::shared::error::Error;
 /// the serving task goes on answering the provider's asks until the
 /// scope's request stream ends, which the router closes with the
 /// scope.
-pub async fn execute<O, A, I, P, C, V, M, F>(
+pub async fn execute<O, A, T, P, C, V, M, F>(
     handle: &Handle,
     request: &request::Frame,
-    answerers: Answerers<O, A, I, P, C, V, M, F>,
+    answerers: Answerers<O, A, T, P, C, V, M, F>,
 ) -> Result<(Id, ExecuteHandle, ExecuteStream), ExecuteError>
 where
     O: OciStore + 'static,
     A: ConnectionAuthorizer + 'static,
-    I: IdentityStore + 'static,
+    T: ToolDeployer + 'static,
     P: PostgresDialer + 'static,
     C: CommandRunner + 'static,
     V: Vault + 'static,
@@ -98,8 +98,8 @@ where
     };
     let id = match frame {
         server::response::Frame::Id(id) => id,
-        server::response::Frame::VolumeMounted(refused) => {
-            return Err(ExecuteError::VolumeMounted(refused));
+        server::response::Frame::VolumeHeld(refused) => {
+            return Err(ExecuteError::VolumeHeld(refused));
         }
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
         // The agent speaks only after the id; a chunk first is a
@@ -159,8 +159,8 @@ fn write_error(error: &Error) -> Option<Vec<u8>> {
 /// Seven of these are this end's view of something going wrong. The
 /// last two are the provider saying so itself, and they are the only
 /// ones that mean the exchange worked: a volume the request named is
-/// mounted in another container of this caller's, or the provider
-/// could not run the container.
+/// under a stat, an edit or a delete, or the provider could not run
+/// the container.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request never went out.
@@ -178,11 +178,11 @@ pub enum ExecuteError {
     Misrouted,
     /// The response frame did not parse.
     Response(server::response::FrameError),
-    /// The provider refused the run: the named volume is mounted in
-    /// another container of this caller's. Nothing was fetched and
-    /// nothing was deployed; stop that container, or name another
-    /// volume, and ask again.
-    VolumeMounted(VolumeMounted),
+    /// The provider refused the run: the named volume is under a
+    /// stat, an edit or a delete. Nothing was fetched and nothing was
+    /// deployed; wait for that to end, or name another volume, and
+    /// ask again.
+    VolumeHeld(VolumeHeld),
     /// The provider could not run the container, and said so.
     Provider(Error),
 }
@@ -199,9 +199,9 @@ impl fmt::Display for ExecuteError {
                 f.write_str("a frame arrived that does not belong on the main stream")
             }
             ExecuteError::Response(error) => write!(f, "agents run answer did not parse: {error}"),
-            ExecuteError::VolumeMounted(refused) => write!(
+            ExecuteError::VolumeHeld(refused) => write!(
                 f,
-                "the volume `{}` is mounted in another container of this caller's",
+                "the volume `{}` is under a stat, an edit or a delete",
                 refused.name
             ),
             ExecuteError::Provider(_) => f.write_str("the provider could not run the container"),
@@ -222,7 +222,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Closed
             | ExecuteError::Unanswered
             | ExecuteError::Misrouted
-            | ExecuteError::VolumeMounted(_)
+            | ExecuteError::VolumeHeld(_)
             | ExecuteError::Provider(_) => None,
         }
     }

@@ -1,4 +1,4 @@
-//! The answer to a dequeue: whether the queue held anything.
+//! The answer to a dequeue: whether anything waited under the key.
 
 use std::error;
 use std::fmt;
@@ -7,23 +7,24 @@ use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared;
 
-/// One frame, then the finish: what the clearing found.
+/// One frame, then the finish: what the withdrawal found.
 ///
 /// A payload leads with one byte saying which; only
 /// [`Error`](Self::Error) carries anything after it. The messages
 /// themselves are not restated here — each withdrawn message's own
 /// enqueue channel says
 /// [`Dequeued`](crate::shared::containers::enqueue::response::Frame::Dequeued),
-/// and this answer is only the clearing's summary.
+/// and this answer is only the withdrawal's summary.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The queue held messages, and they are withdrawn. Tag `0`.
+    /// One or more messages waited under the key, and they are
+    /// withdrawn. Tag `0`.
     Dequeued,
-    /// The queue held nothing. Tag `1`.
+    /// Nothing waited under the key. Tag `1`.
     ///
-    /// Not a failure: everything previously enqueued had already
-    /// been taken or withdrawn, and there was nothing left for the
-    /// clearing to do.
+    /// Not a failure: everything enqueued under the key had already
+    /// been taken or withdrawn, or nothing ever was, and there was
+    /// nothing for the withdrawal to do.
     Empty,
     /// The queue's state could not be determined. Tag `2`.
     ///

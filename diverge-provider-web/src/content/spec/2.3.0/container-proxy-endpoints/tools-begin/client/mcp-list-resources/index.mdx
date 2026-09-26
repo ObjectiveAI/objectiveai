@@ -1,14 +1,14 @@
 ---
 title: 'MCP list resources'
-summary: 'Tag 2: the client sends the params of the MCP method `resources/list`; the server makes the exchange of the container’s own MCP server and answers with exactly one channel response, the result or the MCP error, and the channel response finish.'
-order: 2
+summary: 'Tag 3: the client sends the params of the MCP method `resources/list`; the server makes the exchange of the container’s own MCP server and answers with exactly one channel response, the result or the MCP error, and the channel response finish.'
+order: 3
 draft: false
 ---
 
 The client opens this channel for the resources the MCP server of the container offers. The server makes the
 exchange of the container's MCP server and answers with its result.
 
-- **The request.** The tag byte `2` followed by the params of the
+- **The request.** The tag byte `3` followed by the params of the
   MCP method `resources/list` as JSON. [Request](/container-proxy-endpoints/tools-begin/client/mcp-list-resources/request/)
   states its form.
 - **The response.** Exactly one channel response, the result or an

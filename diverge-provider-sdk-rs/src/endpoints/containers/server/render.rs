@@ -14,19 +14,45 @@ pub(crate) fn proxy(error: impl fmt::Display) -> Error {
         "error": error.to_string(),
     }))
 }
-/// Content the caller mounts by identity, and does not hold.
-pub(crate) fn missing_content(identity: &str) -> Error {
-    Error(serde_json::json!({
-        "kind": "content",
-        "identity": identity,
-    }))
-}
-
 /// A FUSE mount the proxy did not make, or whose fate was not heard.
 pub(crate) fn mount_failed(id: &str, error: impl fmt::Display) -> Error {
     Error(serde_json::json!({
         "kind": "mount",
         "id": id,
+        "error": error.to_string(),
+    }))
+}
+
+/// A mount path the request is refused for, and why.
+pub(crate) fn path_refused(why: &str) -> Error {
+    Error(serde_json::json!({
+        "kind": "path",
+        "error": why,
+    }))
+}
+
+/// A FUSE id two mounts of the request share.
+pub(crate) fn id_refused(id: &str) -> Error {
+    Error(serde_json::json!({
+        "kind": "id",
+        "error": format!("two FUSE mounts with the id `{id}`"),
+    }))
+}
+
+/// The caller did not answer the ask to deploy the container's
+/// tools: a finish with nothing before it, or a caller gone.
+pub(crate) fn tools_unserved() -> Error {
+    Error(serde_json::json!({
+        "kind": "tools",
+        "error": "the caller did not deploy the tools",
+    }))
+}
+
+/// The tools ask could not be written, or its answer could not be
+/// read.
+pub(crate) fn tools_failed(error: impl fmt::Display) -> Error {
+    Error(serde_json::json!({
+        "kind": "tools",
         "error": error.to_string(),
     }))
 }
