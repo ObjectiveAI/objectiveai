@@ -1,0 +1,28 @@
+---
+title: 'FUSE remove'
+summary: 'Tag 3: the client removes a file or an empty directory of the volume, by the path of the entry within the volume, in the form the FUSE mount ask of the same tag has on the container proxy; the server answers with exactly one channel response, ok, ephemeral, or an error, from the volume.'
+order: 3
+draft: false
+---
+
+The client opens this channel to perform on the served volume what a
+program in a container performs on a FUSE mount. The ask names the
+entry by its path within the volume, and names no volume: the scope
+is the volume. It is, byte for byte, the ask of tag `3` a FUSE
+mount's scope carries on the container proxy, and the server answers
+it as a client answers that ask, from the volume.
+
+- **The request.** The tag byte `3` followed by the ask.
+  [Request](/endpoints/volumes-serve/client/remove/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/endpoints/volumes-serve/client/remove/response/) states the
+  sequence.
+- **The meaning.** What the ask means, and what its answer means,
+  [FUSE remove](/container-proxy-endpoints/fuse-mount/server/remove/) states for the mount, and
+  [FUSE remove](/endpoints/containers-agents-run/server/fuse-remove/) states
+  for the relay; the same holds here, the volume standing where the
+  client's storage stands there.
+- **The volume answers.** The server answers from the volume as it is
+  at the time of the answer, and changes the volume as the ask asks
+  before it answers `ok`. Nothing is buffered on the client's behalf.
+- **Ephemeral.** A volume whose `persist` is `false` answers this ask with the ephemeral byte, and is not changed.

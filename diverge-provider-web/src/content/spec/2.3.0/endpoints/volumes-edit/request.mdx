@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 11 followed by the name of the volume as a varint length and UTF-8 bytes and the change as a varint discriminant, 0 for a size, 1 for a persist mode, 2 for both, followed by the fields of that kind, in the postcard wire format.'
+summary: 'The payload is the tag byte 12 followed by the name of the volume as a varint length and UTF-8 bytes and the change as a varint discriminant, 0 for a size, 1 for a persist mode, 2 for both, followed by the fields of that kind, in the postcard wire format.'
 order: 1
 draft: false
 ---
@@ -10,9 +10,9 @@ the postcard wire format, as the postcard reading of
 [Notation](/endpoints/#notation) provides:
 
 ```text
-[11][name_len: varint][name: utf8 …][0][bytes: varint]
-[11][name_len: varint][name: utf8 …][1][persist: 0 | 1]
-[11][name_len: varint][name: utf8 …][2][bytes: varint][persist: 0 | 1]
+[12][name_len: varint][name: utf8 …][0][bytes: varint]
+[12][name_len: varint][name: utf8 …][1][persist: 0 | 1]
+[12][name_len: varint][name: utf8 …][2][bytes: varint][persist: 0 | 1]
 ```
 
 - **`name`.** The name of the volume, UTF-8, preceded by its byte
@@ -33,7 +33,7 @@ the postcard wire format, as the postcard reading of
   follows the last field of the change. A request whose payload
   extends past the request is not malformed.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `11`, and a payload whose bytes after the tag do not decode
+  is not `12`, and a payload whose bytes after the tag do not decode
   as the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 

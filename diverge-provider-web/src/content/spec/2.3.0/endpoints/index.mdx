@@ -1,6 +1,6 @@
 ---
 title: 'Endpoints'
-summary: 'A request’s payload begins with one tag byte designating the endpoint; fifteen endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
+summary: 'A request’s payload begins with one tag byte designating the endpoint; sixteen endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
 order: 6
 draft: false
 ---
@@ -20,13 +20,14 @@ endpoint's request content, in the form the endpoint defines.
 | `5` | [volumes::read](/endpoints/volumes-read/) |
 | `6` | [volumes::write](/endpoints/volumes-write/) |
 | `7` | [volumes::filetree](/endpoints/volumes-filetree/) |
-| `8` | [volumes::create_capacity](/endpoints/volumes-create-capacity/) |
-| `9` | [volumes::create](/endpoints/volumes-create/) |
-| `10` | [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) |
-| `11` | [volumes::edit](/endpoints/volumes-edit/) |
-| `12` | [volumes::delete](/endpoints/volumes-delete/) |
-| `13` | [images::check](/endpoints/images-check/) |
-| `14` | [version](/endpoints/version/) |
+| `8` | [volumes::serve](/endpoints/volumes-serve/) |
+| `9` | [volumes::create_capacity](/endpoints/volumes-create-capacity/) |
+| `10` | [volumes::create](/endpoints/volumes-create/) |
+| `11` | [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) |
+| `12` | [volumes::edit](/endpoints/volumes-edit/) |
+| `13` | [volumes::delete](/endpoints/volumes-delete/) |
+| `14` | [images::check](/endpoints/images-check/) |
+| `15` | [version](/endpoints/version/) |
 
 The tag values are normative as tabulated. Each endpoint has its own
 section. Every section of this layer states requirements of the

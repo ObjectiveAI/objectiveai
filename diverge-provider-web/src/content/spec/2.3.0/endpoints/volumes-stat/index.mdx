@@ -28,9 +28,9 @@ finish.
   specification reports a change in either; a client that needs the
   current values sends another request.
 - **A mounted volume is not examined.** The server does not examine
-  a volume that is mounted in any running container at the time of
-  the request — a volume may be mounted in several at once — or that
-  is under another stat, an edit or a delete. A request naming such a
+  a volume that is mounted in any running container, or served on any
+  [volumes::serve](/endpoints/volumes-serve/) scope, at the time of the request — a volume may be mounted or
+  served in several at once — or that is under another stat, an edit or a delete. A request naming such a
   volume is answered with an error, and nothing is determined about
   the volume. A client that needs the values stops every container
   that has it, or waits for their end, and sends another request.

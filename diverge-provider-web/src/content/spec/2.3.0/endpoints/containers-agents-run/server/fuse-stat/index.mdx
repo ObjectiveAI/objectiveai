@@ -1,12 +1,12 @@
 ---
 title: 'FUSE stat'
-summary: 'Tag 24: the server relays an ask of the container’s proxy that asks what an entry of a mount is the client serves live, by the mount’s id and the entry’s path; the client answers with exactly one channel response, which the server relays to the proxy.'
+summary: 'Tag 24: the server relays an ask of the container’s proxy that asks what an entry of a mount is, how long, whose, with what mode, and when the client serves live, by the mount’s id and the entry’s path; the client answers with exactly one channel response, which the server relays to the proxy.'
 order: 24
 draft: false
 ---
 
 The server opens this channel when a FUSE mount's scope on the
-container's proxy carries the ask that asks what an entry of a mount is the client serves live.
+container's proxy carries the ask that asks what an entry of a mount is, how long, whose, with what mode, and when the client serves live.
 The ask is relayed with the mount's `id` put in front of it — the
 mount's scope is the mount, and its asks carry no id — and otherwise
 verbatim; the client's one answer is relayed back.

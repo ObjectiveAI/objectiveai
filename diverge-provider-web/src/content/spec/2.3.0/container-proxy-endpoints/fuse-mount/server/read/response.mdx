@@ -6,7 +6,7 @@ draft: false
 ---
 
 ```text
-[0][bytes …]    the file; empty is a file
+[0][bytes …]    the piece: at most length bytes, fewer at the end of the file, none at or past it
 [1]             nothing at the path
 [2][message …]  an error, UTF-8
 ```
@@ -14,6 +14,7 @@ draft: false
 - **The sequence.** Exactly one channel response, the bytes, the absence of the file, or an error, followed
   by the channel response finish.
 - **The message.** The bytes after the error byte are UTF-8, not JSON.
+
 - **A finish with nothing.** A channel response finish that no
   channel response precedes states that the client did not serve the
   ask. The server does not ask again.

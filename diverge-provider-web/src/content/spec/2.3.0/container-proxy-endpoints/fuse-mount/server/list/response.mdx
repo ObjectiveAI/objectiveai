@@ -14,6 +14,7 @@ draft: false
 - **The sequence.** Exactly one channel response, the entries, the absence of the directory, or an error, followed
   by the channel response finish.
 - **The message.** The bytes after the error byte are UTF-8, not JSON.
+
 - **A finish with nothing.** A channel response finish that no
   channel response precedes states that the client did not serve the
   ask. The server does not ask again.

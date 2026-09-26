@@ -233,8 +233,8 @@ direction, and on every chunk of an agent's conversation.
 
 ### Layer 6 — Endpoints (`/endpoints/`)
 
-What a scope is for. It states the tag byte, the tag table (fifteen
-endpoints: the three container scopes, the ten volume endpoints,
+What a scope is for. It states the tag byte, the tag table (sixteen
+endpoints: the three container scopes, the eleven volume endpoints,
 the image check, the version), that an unreadable request is answered
 by a bare finish, that growth is new tag values, and the Notation.
 Each endpoint has its own section with, in this order, the request

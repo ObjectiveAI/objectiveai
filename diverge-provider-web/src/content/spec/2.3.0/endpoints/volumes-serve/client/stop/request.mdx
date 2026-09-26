@@ -1,0 +1,20 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 9 and the request of the channel.'
+order: 1
+draft: false
+---
+
+```text
+[9]
+```
+
+- **The form.** The payload is exactly the one byte `9`.
+- **Bytes after the tag.** A payload with a byte after the tag is
+  malformed, and is answered by a channel response finish that no
+  channel response precedes; the scope continues.
+
+The channel request is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/serve/client/channel_request/frame.rs`:
+
+```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/serve/client/channel_request/frame.rs
+```
