@@ -1,6 +1,6 @@
 ---
 title: 'FUSE rename'
-summary: 'Tag 4: the client renames an entry within the volume, by the path of the entry within the volume, in the form the FUSE mount ask of the same tag has on the container proxy; the server answers with exactly one channel response, ok, ephemeral, or an error, from the volume.'
+summary: 'Tag 4: the client renames an entry within the volume, by the path of the entry within the volume, in the form the FUSE mount ask of the same tag has on the container proxy; the server answers with exactly one channel response, ok, read only, or an error, from the volume.'
 order: 4
 draft: false
 ---
@@ -25,4 +25,4 @@ it as a client answers that ask, from the volume.
 - **The volume answers.** The server answers from the volume as it is
   at the time of the answer, and changes the volume as the ask asks
   before it answers `ok`. Nothing is buffered on the client's behalf.
-- **Ephemeral.** A volume whose `persist` is `false` answers this ask with the ephemeral byte, and is not changed.
+- **The mode.** A `persistent` volume takes the change in place. An `ephemeral` volume takes it into the layer of this serve, and answers with an error a change that would take the layer past `overlay_disk`, the volume and the layer as they were. A `read_only` volume answers this ask with the read-only byte, and is not changed.

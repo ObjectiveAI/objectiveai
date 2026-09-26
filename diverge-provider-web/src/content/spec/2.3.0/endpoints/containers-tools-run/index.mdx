@@ -123,8 +123,13 @@ about the client, which may open any channel at any time.
 
 ## The rules that hold throughout
 
-- **Many containers per volume.** A volume may be mounted in any
-  number of containers of its client at once, whatever its `persist`.
+- **Who may mount a volume.** A volume whose `mode` is `ephemeral`
+  or `read_only` may be mounted in any number of containers of its
+  client at once. A volume whose `mode` is `persistent` has one user
+  at a time: it is mounted in one running container, which may name
+  it at several paths, or served on one
+  [volumes::serve](/endpoints/volumes-serve/) scope, and a request
+  naming it while either holds it is refused with `VolumeHeld`.
   The server holds every volume a request names, shared, from the
   moment it accepts the request until the run ends: a stat, an edit
   or a delete of a volume so held is refused for as long as any run

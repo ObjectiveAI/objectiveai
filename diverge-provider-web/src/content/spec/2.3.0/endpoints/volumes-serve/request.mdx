@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 8 followed by the name of the volume as a varint length and UTF-8 bytes, in the postcard wire format.'
+summary: 'The payload is the tag byte 8 followed by the name of the volume as a varint length and UTF-8 bytes and overlay_disk as a varint, in the postcard wire format.'
 order: 1
 draft: false
 ---
@@ -10,15 +10,21 @@ the postcard wire format, as the postcard reading of
 [Notation](/endpoints/#notation) provides:
 
 ```text
-[8][name_len: varint][name: utf8 …]
+[8][name_len: varint][name: utf8 …][overlay_disk: varint]
 ```
 
 - **`name`.** The name of the volume, UTF-8, preceded by its byte
   length as a varint. It is the `name` of a volume in the client's
   [volumes::list](/endpoints/volumes-list/) listing.
+- **`overlay_disk`.** The most bytes the serve's layer may hold, as a
+  varint, for a volume whose `mode` is `ephemeral`: the server sets
+  that many bytes aside for the serve's life, refuses the serve with
+  an error when it cannot, and answers with an error a mutation that
+  would take the layer past it. For a volume in any other mode the
+  value has no effect.
 - **Bytes after the request.** A server ignores every byte that
-  follows the name. A request whose payload extends past the request
-  is not malformed.
+  follows `overlay_disk`. A request whose payload extends past the
+  request is not malformed.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `8`, and a payload whose bytes after the tag do not decode
   as the request are malformed. [Endpoints](/endpoints/) states how a

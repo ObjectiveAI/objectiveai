@@ -1,23 +1,25 @@
 ---
 title: 'volumes::serve'
-summary: 'Tag 8: a client names a volume from its listing; the server holds the volume mounted, answers Serving once, and for as long as the scope lives answers on channels the client opens the nine asks a FUSE mount makes, from the volume, a piece at a time; the client stops the scope.'
+summary: 'Tag 8: a client names a volume from its listing and a cap for an ephemeral layer; the server holds the volume as a mount holds it, answers Serving once, and for as long as the scope lives answers on channels the client opens the nine asks a FUSE mount makes, from the volume as its mode allows, a piece at a time; the client stops the scope.'
 order: 8
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`8` followed by the name of a volume. The server sends exactly one
-response, which is either `Serving` or an error. After `Serving` the
-scope stays open: the client opens on it, as channels, the nine asks a
-FUSE mount makes of a client — a stat, a read of a piece, a write of a
-piece, a truncate, a setattr, a listing, a removal, a rename and a
-mkdir — and the server answers each from the volume. The client's stop
-ends the scope: the response finish follows the last answer, and no
-frame follows the finish. After an error the response finish follows
-the error, and no channel is served.
+`8` followed by the name of a volume and `overlay_disk`. The server
+sends exactly one response, which is either `Serving` or an error.
+After `Serving` the scope stays open: the client opens on it, as
+channels, the nine asks a FUSE mount makes of a client — a stat, a
+read of a piece, a write of a piece, a truncate, a setattr, a listing,
+a removal, a rename and a mkdir — and the server answers each from
+the volume, as the volume's mode allows. The client's stop ends the
+scope: the response finish follows the last answer, and no frame
+follows the finish. After an error the response finish follows the
+error, and no channel is served.
 
-- **The request.** The request carries the name of one volume.
-  [Request](/endpoints/volumes-serve/request/) states its form.
+- **The request.** The request carries the name of one volume and
+  `overlay_disk`, the cap of the layer an ephemeral volume is served
+  on. [Request](/endpoints/volumes-serve/request/) states its form.
 - **The volume named.** The client names a volume by the `name` its
   [volumes::list](/endpoints/volumes-list/) listing gave it. The
   server resolves the name against the identity under which the
@@ -31,13 +33,21 @@ the error, and no channel is served.
   stop. The server opens no channel on a serve scope.
 - **A served volume is a mounted volume.** The server holds the volume
   as a running container that mounts it holds it, from the moment it
-  sends `Serving` until the response finish. Any number of serves and
-  any number of running containers may hold one volume at once. While
-  any of them holds it, a `volumes::stat`, `volumes::read`,
-  `volumes::write`, `volumes::filetree`, `volumes::edit` or
-  `volumes::delete` naming the volume is answered with an error. A
-  volume that is under one of those six at the time of the request is
-  not served: the request is answered with an error.
+  sends `Serving` until the response finish. While it holds it, a
+  `volumes::stat`, `volumes::read`, `volumes::write`,
+  `volumes::filetree`, `volumes::edit` or `volumes::delete` naming
+  the volume is answered with an error. A volume that is under one of
+  those six at the time of the request is not served: the request is
+  answered with an error.
+- **Who may hold a served volume.** The volume's `mode`, as the
+  listing reports it, says. An `ephemeral` or a `read_only` volume
+  may be held by any number of serves and any number of running
+  containers at once. A `persistent` volume has exactly one user at a
+  time: a serve of it is refused with an error while any running
+  container mounts it or another serve holds it, and a run naming it
+  is refused while a serve holds it, as
+  [containers::agents::run](/endpoints/containers-agents-run/)
+  states.
 - **The asks are the mount's.** Each ask is, byte for byte, the ask a
   FUSE mount's scope carries on the container proxy, with no id: the
   scope is the volume, as the mount scope is the mount. Each answer is
@@ -48,16 +58,24 @@ the error, and no channel is served.
   a write lands one piece in place, and a stat is the entry's kind,
   size, mode, owner, group and times as the volume records them at the
   time of the answer. The server buffers no content of the volume on
-  the client's behalf: what a write asks for is in the volume when
-  the answer is `ok`.
+  the client's behalf: what a write asks for is in the volume, or in
+  the serve's layer, when the answer is `ok`.
 - **Asks in flight at once.** A client may have any number of asks open
   at once. The server answers each on its own channel, in whatever
   order it answers them.
-- **A volume that keeps nothing.** A volume whose `persist` is `false`
-  is served. The server answers every stat, read and listing of it as
-  it answers those of any volume, and answers every write, truncate,
-  setattr, removal, rename and mkdir of it with the ephemeral byte:
-  the change is refused, and the volume is as it was.
+- **The three modes.** A `persistent` volume is changed in place:
+  every mutation the server answers `ok` is in the volume. An
+  `ephemeral` volume is served on a layer of the serve's own: the
+  serve starts from the volume as it is, every mutation the server
+  answers `ok` is in the layer and is seen by every later ask of the
+  same serve, nothing of the layer is in the volume, and the layer is
+  discarded at the finish; the layer holds at most `overlay_disk`
+  bytes, a mutation that would need room past that is answered with
+  an error and the volume and the layer are as they were, and the
+  serve continues. A `read_only` volume answers every stat, read and
+  listing as any volume does, and answers every write, truncate,
+  setattr, removal, rename and mkdir with the read-only byte: the
+  change is refused, and the volume is as it was.
 - **The stop.** The client ends the scope by opening the stop channel.
   The server answers every ask still open, sends the response finish,
   and gives the volume back. The server sends nothing on the stop's
@@ -67,5 +85,8 @@ the error, and no channel is served.
   that nothing was determined about the volume. A volume absent from
   the client's listing, a volume under a `volumes::stat`,
   `volumes::read`, `volumes::write`, `volumes::filetree`,
-  `volumes::edit` or `volumes::delete` at the time of the request, and
-  a volume the server could not open are each answered with an error.
+  `volumes::edit` or `volumes::delete` at the time of the request, a
+  `persistent` volume mounted in a running container or held by
+  another serve at the time of the request, an `ephemeral` volume
+  whose `overlay_disk` the server cannot set aside, and a volume the
+  server could not open are each answered with an error.

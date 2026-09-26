@@ -155,9 +155,12 @@ program.
 holds under a name for one Identity, as the Specification's volume
 endpoints define: created by `volumes::create`, listed by
 `volumes::list`, and ended only by `volumes::delete`. A Volume has a
-persist mode, `true` or `false`, stated at its creation and changed
-only by `volumes::edit`, which governs whether the changes a
-Container makes to it are in it when the Container ends.
+mode, `persistent`, `ephemeral` or `read_only`, stated at its
+creation and changed only by `volumes::edit`, which governs what
+becomes of a change a Container or a serve makes to it — kept,
+discarded afterwards, or refused — and who may hold it at once: a
+`persistent` Volume one running Container or one serve at a time, an
+`ephemeral` or a `read_only` Volume any number of each.
 
 1.16 **"Volume Mount"** and **"FUSE Mount"** mean, respectively, an
 entry of `volume_mounts`, and of `fuse_file_mounts` or
@@ -433,12 +436,12 @@ Identity created by `volumes::create` and has not deleted by
 discretion; every Volume it contains shall be available to the
 Identity to mount; no two Volumes in one listing shall share a name.
 The Provider shall report for each Volume its `name`, its `bytes`,
-its `created` and its `persist` as the Specification defines them, and
+its `created` and its `mode` as the Specification defines them, and
 nothing more.
 
 (b) **Stat.** The Provider shall answer every `volumes::stat` request
 naming a Volume in the Identity's listing with exactly one Response
-carrying the Volume's `name`, `bytes`, `created` and `persist`, its
+carrying the Volume's `name`, `bytes`, `created` and `mode`, its
 `bytes_used`, and its `dirhash` as the Specification defines each, as
 of the time of the Response; and shall answer a name not in the
 listing, or a Volume mounted in a running Container or served under a
@@ -511,11 +514,14 @@ request naming a Volume in the Identity's listing with exactly one
 Response: the byte `0` only after it holds the Volume as a running
 Container that mounts it holds it, or the byte `1` followed by an
 error. The Provider shall hold the Volume so from that moment until
-the Response Finish, shall permit any number of `volumes::serve`
-Scopes and running Containers to hold one Volume at once, shall
-answer a `volumes::stat`, `volumes::read`, `volumes::write`,
+the Response Finish; shall permit any number of `volumes::serve`
+Scopes and running Containers to hold one `ephemeral` or `read_only`
+Volume at once; shall refuse, by the byte `1` followed by an error, a
+serve of a `persistent` Volume that any running Container mounts or
+another serve holds at the time of the request; shall answer a
+`volumes::stat`, `volumes::read`, `volumes::write`,
 `volumes::filetree`, `volumes::edit` or `volumes::delete` naming the
-Volume with an error for as long as it holds it, and shall answer a
+Volume with an error for as long as it holds it; and shall answer a
 request naming a Volume under one of those six at the time of the
 request with the byte `1` followed by an error. After the byte `0`
 the Provider shall answer every Channel the Client opens on the Scope
@@ -527,10 +533,21 @@ is at the time of the answer: a read of a piece at an offset, a write
 of a piece in place before the answer `ok`, a stat carrying the kind,
 size, mode, owner, group and times the Volume records. The Provider
 shall buffer no content of the Volume on the Client's behalf. For a
-Volume whose persist mode is `false` the Provider shall answer every
-write, truncate, setattr, removal, rename and mkdir with the byte `2`
-and shall not change the Volume, and shall answer every stat, read
-and listing as for any Volume. On the Client's stop the Provider
+`persistent` Volume the Provider shall make every change it answers
+`ok` in the Volume. For an `ephemeral` Volume the Provider shall set
+aside the request's `overlay_disk` bytes for the serve's life,
+refusing the serve by the byte `1` followed by an error when it
+cannot; shall make every change it answers `ok` in a layer of that
+serve alone, which every later ask of the same serve sees and no
+other serve, Container or request sees; shall keep the layer within
+`overlay_disk` bytes, answering a change that would need more with an
+error and leaving the Volume and the layer as they were while the
+serve continues; and shall discard the layer at the Response Finish,
+leaving the Volume as it was before the serve. For a `read_only`
+Volume the Provider shall answer every write, truncate, setattr,
+removal, rename and mkdir with the byte `2` and shall not change the
+Volume, and shall answer every stat, read and listing as for any
+Volume. On the Client's stop the Provider
 shall answer every ask still open, send the Response Finish, and
 release the Volume; on the close of the Connection it shall release
 the Volume. The Provider shall send nothing on the stop's Channel.
@@ -546,7 +563,7 @@ Neither answer reserves anything.
 
 (h) **Creation.** The Provider shall answer every `volumes::create`
 request with exactly one Response: the byte `0` only after a Volume
-of the stated name, size and persist mode exists for the Identity; the
+of the stated name, size and mode exists for the Identity; the
 byte `1` when
 the Provider cannot reserve the size stated; or the byte `2` followed
 by an error for any other reason. From the moment the Provider sends
@@ -561,23 +578,23 @@ already in the Identity's listing.
 (i) **Editing.** The Provider shall answer every `volumes::edit`
 request naming a Volume in the Identity's listing with exactly one
 Response: the byte `0` only after the Volume has what the request's
-change states, its size, its persist mode, or both; the byte `1` when
+change states, its size, its mode, or both; the byte `1` when
 the Provider cannot reserve the size stated; the byte `2` when the
 content of the Volume exceeds the size stated; or the byte `3`
 followed by an error for any other reason. A change that states a size
-and a persist mode is one edit: the Provider shall not change the
-persist mode of a Volume whose size it refuses. The Provider shall not
-change the size or the persist mode of a Volume that is mounted in a
+and a mode is one edit: the Provider shall not change the mode of a
+Volume whose size it refuses. The Provider shall not change the size
+or the mode of a Volume that is mounted in a
 running Container or served under a `volumes::serve` at the time of
 the request, and shall answer a request naming one, or naming a Volume
 under a `volumes::stat`, another `volumes::edit` or a
 `volumes::delete` at the time of the request, with the byte `3`
-followed by an error. The size and the persist mode are the only
-properties an edit changes. From the moment the Provider sends the
-byte `0`, every listing and every stat the Provider sends the Identity
-shall report the new size and the new persist mode, and every
-Container in which the Identity mounts the Volume after that moment
-shall be bound under the new persist mode.
+followed by an error. The size and the mode are the only properties
+an edit changes. From the moment the Provider sends the byte `0`,
+every listing and every stat the Provider sends the Identity shall
+report the new size and the new mode, and every Container in which
+the Identity mounts the Volume after that moment, and every serve of
+it after that moment, shall be bound under the new mode.
 
 (j) **Deletion.** The Provider shall answer every `volumes::delete`
 request naming a Volume in the Identity's listing with exactly one
@@ -619,9 +636,14 @@ request that names a Volume under a `volumes::stat`, a `volumes::edit`
 or a `volumes::delete` at the time of the request by exactly one
 Response, the byte `1` followed by the name of that Volume as JSON,
 and the Response Finish, fetching nothing and deploying nothing for
-it. A Volume may be mounted in any number of Containers of its
-Identity at once, whatever its persist mode, and a request that names
-one Volume more than once mounts it at each path named.
+it. An `ephemeral` or a `read_only` Volume may be mounted in any
+number of Containers of its Identity at once. A `persistent` Volume
+has one user at a time: the Provider shall answer a request naming a
+`persistent` Volume that a running Container mounts or a
+`volumes::serve` holds at the time of the request as it answers one
+naming a Volume under a `volumes::stat`, by the byte `1` followed by
+the name. A request that names one Volume more than once mounts it at
+each path named and is one user of it.
 
 (b) **Obtain the image.** The Provider shall obtain the image the
 digest names, from a source of its own choosing; the Specification
@@ -643,9 +665,11 @@ Section 1.12 defines it, with `memory` and `disk` of the request as
 ceilings; every Volume Mount resolved by `volume_name` against the
 Identity, descended by `volume_relative_path`, and made present at
 `container_path`, the Container's changes to it being in the Volume
-when the Container ends if the Volume's persist mode is `true` and the
+when the Container ends if the Volume's mode is `persistent`, the
 Volume being as it was before the run when the Container ends if the
-Volume's persist mode is `false`; the Container Proxy placed inside
+Volume's mode is `ephemeral`, and every change refused inside the
+Container if the Volume's mode is `read_only`; the Container Proxy
+placed inside
 and started; and
 TCP port 14979 reachable to the Provider's Server. The Provider shall
 set no environment variable in the Container from the request, and
@@ -684,7 +708,7 @@ it arrives; the Provider shall buffer no content of a FUSE Mount on
 the Container's behalf, shall report every attribute of an entry as
 the Client's answer states it, and shall report a write, truncate,
 setattr, removal, rename or mkdir the Client answers with the
-ephemeral byte to the program as a read-only filesystem.
+read-only byte to the program as a read-only filesystem.
 
 (f) **Hold what the Client opened.** The Provider shall serve a
 Channel the Client opened before the id was sent only after the id is
