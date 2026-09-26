@@ -3,6 +3,7 @@
 use bytes::Bytes;
 
 use super::super::super::server::channel_request::Frame;
+use crate::shared::containers::fuse::Attrs;
 
 /// What a mount asks the server for, owned, so it outlives the
 /// message it arrived in and is answered whenever the caller answers.
@@ -10,16 +11,22 @@ use super::super::super::server::channel_request::Frame;
 /// server puts the caller's id back when it relays.
 #[derive(Debug, Clone)]
 pub enum Ask {
-    /// Read a file of the mount, whole.
+    /// Read a piece of a file of the mount.
     Read {
         /// The file's path inside the mount; empty for a file mount.
         path: String,
+        /// Where the piece starts.
+        offset: u64,
+        /// How many bytes at most.
+        length: u32,
     },
-    /// Write a file of the mount, whole.
+    /// Write a piece of a file of the mount, in place.
     Write {
         /// The file's path inside the mount; empty for a file mount.
         path: String,
-        /// The file, whole, verbatim.
+        /// Where the piece lands.
+        offset: u64,
+        /// The piece, verbatim.
         bytes: Bytes,
     },
     /// List a directory of the mount.
@@ -44,11 +51,27 @@ pub enum Ask {
         /// The directory's path inside the mount.
         path: String,
     },
-    /// What an entry of the mount is, and how long.
+    /// What an entry of the mount is: kind, size, mode, owner, group
+    /// and times.
     Stat {
         /// The entry's path inside the mount; empty for the mount
         /// itself.
         path: String,
+    },
+    /// Set a file of the mount to a length.
+    Truncate {
+        /// The file's path inside the mount; empty for a file mount.
+        path: String,
+        /// The length after.
+        size: u64,
+    },
+    /// Set some of an entry's attributes.
+    Setattr {
+        /// The entry's path inside the mount; empty for the mount
+        /// itself.
+        path: String,
+        /// Which, and to what.
+        attrs: Attrs,
     },
 }
 
@@ -57,9 +80,12 @@ impl From<Frame<'_>> for Ask {
         match frame {
             Frame::Read(ask) => Ask::Read {
                 path: ask.path.to_owned(),
+                offset: ask.offset,
+                length: ask.length,
             },
             Frame::Write(ask) => Ask::Write {
                 path: ask.path.to_owned(),
+                offset: ask.offset,
                 bytes: Bytes::copy_from_slice(ask.bytes),
             },
             Frame::List(ask) => Ask::List {
@@ -77,6 +103,14 @@ impl From<Frame<'_>> for Ask {
             },
             Frame::Stat(ask) => Ask::Stat {
                 path: ask.path.to_owned(),
+            },
+            Frame::Truncate(ask) => Ask::Truncate {
+                path: ask.path.to_owned(),
+                size: ask.size,
+            },
+            Frame::Setattr(ask) => Ask::Setattr {
+                path: ask.path.to_owned(),
+                attrs: ask.attrs,
             },
         }
     }

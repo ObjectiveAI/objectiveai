@@ -9,7 +9,7 @@
 //! CONTAINER, relayed: [`postgres`] is what
 //! its database said, [`command`] the items its command produced, the
 //! five `vault_*` what its vault answered, the five `mcp_*` what the
-//! caller's MCP servers answered its tool calls with, and the seven
+//! caller's MCP servers answered its tool calls with, and the nine
 //! `fuse_*` what the files and directories it mounted live hold, what
 //! an entry of them is, and whether a change to one took.
 
@@ -20,7 +20,9 @@ pub mod fuse_mkdir;
 pub mod fuse_read;
 pub mod fuse_remove;
 pub mod fuse_rename;
+pub mod fuse_setattr;
 pub mod fuse_stat;
+pub mod fuse_truncate;
 pub mod fuse_write;
 pub mod mcp_call_tool;
 pub mod mcp_list_resources;

@@ -1,5 +1,5 @@
-//! The ask: the mount, and the file's path in it — a
-//! [`Target`](super::super::Target), empty for a file mount.
+//! The ask: the mount, the file's path in it, and which piece.
 
-/// Read this file, whole.
-pub type Request<'a> = super::super::Target<'a>;
+mod request;
+
+pub use request::*;

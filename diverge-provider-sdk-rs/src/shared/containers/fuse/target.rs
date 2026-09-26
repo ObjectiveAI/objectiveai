@@ -12,7 +12,7 @@ use crate::encode::{Encode, Writer};
 /// ```
 ///
 /// The path runs to the end of the payload, so it needs no prefix and
-/// takes any length. This is the whole ask for [`read`](super::read),
+/// takes any length. This is the whole ask for [`stat`](super::stat),
 /// [`list`](super::list), [`remove`](super::remove) and
 /// [`mkdir`](super::mkdir), each of which is answered by its own
 /// frame.

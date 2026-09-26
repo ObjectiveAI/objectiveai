@@ -13,7 +13,8 @@ use crate::encode::{Encode, Writer};
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Frame<'a> {
-    /// Kind `0`. What the entry is and how long: a [`Stat`].
+    /// Kind `0`. What the entry is, how long, whose, and when: a
+    /// [`Stat`].
     Present(Stat),
     /// Kind `1`. There is nothing at the path. On a file mount, the
     /// caller holds nothing under the id yet, and the file reads as

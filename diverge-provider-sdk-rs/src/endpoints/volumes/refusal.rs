@@ -23,10 +23,11 @@ pub fn unknown(name: &str) -> Error {
 
 /// The error for a volume whose exclusive hold,
 /// [`lock`](crate::server::volume::Volume::lock), could not be taken:
-/// mounted in a running container, or under a stat, a read, a write,
-/// a filetree, an edit or a delete in flight. What a stat, a read, a
-/// write, a filetree and an edit answer, since none has a frame of
-/// its own for it. The endpoints with a frame of their own for it
+/// mounted in a running container or served, or under a stat, a
+/// read, a write, a filetree, an edit or a delete in flight. What a
+/// stat, a read, a write, a filetree and an edit answer, since none
+/// has a frame of its own for it — and what a serve answers for a
+/// volume held exclusively, its hold being the shared one. The endpoints with a frame of their own for it
 /// — a delete's
 /// [`Mounted`](crate::endpoints::volumes::delete::server::response::Frame::Mounted),
 /// a run's

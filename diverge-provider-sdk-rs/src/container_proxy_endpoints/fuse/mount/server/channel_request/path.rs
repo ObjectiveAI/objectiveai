@@ -14,10 +14,9 @@ use crate::encode::{Encode, Writer};
 ///
 /// The path runs to the end of the payload, so it needs no prefix and
 /// takes any length. This is the whole ask for
-/// [`Read`](super::Frame::Read), [`List`](super::Frame::List),
-/// [`Remove`](super::Frame::Remove), [`Mkdir`](super::Frame::Mkdir) and
-/// [`Stat`](super::Frame::Stat), each of which is answered by its own
-/// frame. The mount itself is the scope the ask rides.
+/// [`List`](super::Frame::List), [`Remove`](super::Frame::Remove),
+/// [`Mkdir`](super::Frame::Mkdir) and [`Stat`](super::Frame::Stat),
+/// each of which is answered by its own frame. The mount itself is the scope the ask rides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Path<'a> {
     /// The entry's path inside the mount, `/`-separated, no leading
