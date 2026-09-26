@@ -4,7 +4,8 @@
 //! [`list`] says which volumes exist; [`stat`] names one and says how
 //! much of it is used and what is in it; [`read`] takes one file out
 //! of one, [`write`](mod@write) puts one in, and [`filetree`] says what one
-//! holds, once; [`create_capacity`] says how
+//! holds, once; [`serve`] holds one mounted and answers a FUSE
+//! mount's asks from it; [`create_capacity`] says how
 //! large a volume may be made and [`create`] makes one; [`edit_capacity`] says
 //! how far one may grow and [`edit`] changes how much it reserves,
 //! whether it keeps what is written into it, or both; and [`delete`]
@@ -19,7 +20,7 @@
 //! at once, and nothing examines, reads, writes, walks, resizes or
 //! deletes a volume while any container has it. On the server half
 //! that is one hold per volume with two modes — shared, taken by a
-//! run for its life, and exclusive, taken by a [`stat`], a [`read`],
+//! run for its life and by a [`serve`] for its scope's, and exclusive, taken by a [`stat`], a [`read`],
 //! a [`write`](mod@write), a [`filetree`], an [`edit`] or a [`delete`]
 //! for its
 //! duration — taken by the handlers, never by the provider;
@@ -72,6 +73,7 @@ pub mod edit_capacity;
 pub mod filetree;
 pub mod list;
 pub mod read;
+pub mod serve;
 pub mod stat;
 pub mod write;
 

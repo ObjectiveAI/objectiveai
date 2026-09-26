@@ -6,6 +6,7 @@ use bytes::Bytes;
 use futures_util::Stream;
 
 use super::holders::Holders;
+use super::served::Served;
 use crate::endpoints::volumes::edit::client::request::Change;
 use crate::endpoints::volumes::edit::server::response::Edit;
 use crate::endpoints::volumes::stat::server::response::Stat;
@@ -39,6 +40,9 @@ use crate::shared::filetree::response::{Frame, Node};
 ///   request naming one volume twice takes it twice. A volume held
 ///   exclusively when a run asks is the run refused,
 ///   [`VolumeHeld`](crate::shared::containers::response::VolumeHeld).
+///   A [`serve`](crate::endpoints::volumes::serve) takes the same
+///   shared hold for its scope's life: a served volume is a mounted
+///   one, answering the mount's asks itself.
 /// - A [`stat`](crate::endpoints::volumes::stat) takes the EXCLUSIVE
 ///   hold, [`lock`](Self::lock), for the length of the examination,
 ///   a [`read`](crate::endpoints::volumes::read) for the length of
@@ -236,6 +240,26 @@ pub trait Volume: Send + Sync {
     /// provider's error. Served for every volume the provider offers,
     /// a stored image and a fixed directory alike.
     fn filetree(&self, path: &[String]) -> impl Future<Output = Result<Vec<Node>, Self::Error>> + Send;
+
+    /// The volume answering the FUSE asks, as [`serve`](Self::serve)
+    /// hands it back: see [`Served`].
+    type Served: Served + 'static;
+
+    /// The volume, served: a value that answers the nine asks of
+    /// [`fuse`](crate::shared::containers::fuse) from the volume's own
+    /// content, in place, for as long as the caller's scope lives.
+    ///
+    /// Called under the SHARED hold — the handler took it, as a run
+    /// does — and the hold outlives what this returns: the handler
+    /// gives it back when the scope ends, after the last ask. A
+    /// stored volume opens its image once here and answers every ask
+    /// on it; a fixed volume answers from its directory. The persist
+    /// rule is the provider's to keep in what it returns: a volume
+    /// whose mode is `false` answers every mutation
+    /// [`Ephemeral`](crate::shared::containers::fuse::ack::Refused::Ephemeral).
+    /// What a [`stat`](Self::stat) reported before is stale after a
+    /// serve, and a provider that caches a walk forgets it.
+    fn serve(&self) -> impl Future<Output = Result<Self::Served, Self::Error>> + Send;
 
     /// Change how big the volume may be, in BYTES, whether it keeps
     /// what containers write into it, or both.

@@ -77,9 +77,11 @@ pub(crate) async fn answer<O, A, T, P, C, V, M, F>(
             mcp::read_resource(&handle, scope, channel, params, answerers.mcp).await
         }
         Ask::McpNotifications => mcp::notifications(&handle, scope, channel, answerers.mcp).await,
-        Ask::FuseRead(id, path) => fuse::read(&handle, scope, channel, id, path, answerers.fuse).await,
-        Ask::FuseWrite(id, path, bytes) => {
-            fuse::write(&handle, scope, channel, id, path, bytes, answerers.fuse).await
+        Ask::FuseRead(id, path, offset, length) => {
+            fuse::read(&handle, scope, channel, id, path, offset, length, answerers.fuse).await
+        }
+        Ask::FuseWrite(id, path, offset, bytes) => {
+            fuse::write(&handle, scope, channel, id, path, offset, bytes, answerers.fuse).await
         }
         Ask::FuseList(id, path) => fuse::list(&handle, scope, channel, id, path, answerers.fuse).await,
         Ask::FuseRemove(id, path) => fuse::remove(&handle, scope, channel, id, path, answerers.fuse).await,
@@ -88,5 +90,11 @@ pub(crate) async fn answer<O, A, T, P, C, V, M, F>(
         }
         Ask::FuseMkdir(id, path) => fuse::mkdir(&handle, scope, channel, id, path, answerers.fuse).await,
         Ask::FuseStat(id, path) => fuse::stat(&handle, scope, channel, id, path, answerers.fuse).await,
+        Ask::FuseTruncate(id, path, size) => {
+            fuse::truncate(&handle, scope, channel, id, path, size, answerers.fuse).await
+        }
+        Ask::FuseSetattr(id, path, attrs) => {
+            fuse::setattr(&handle, scope, channel, id, path, attrs, answerers.fuse).await
+        }
     };
 }

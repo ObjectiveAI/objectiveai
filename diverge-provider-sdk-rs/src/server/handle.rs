@@ -87,7 +87,7 @@ use crate::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — fifteen endpoints have fifteen error vocabularies, and an
+/// answer — sixteen endpoints have sixteen error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -283,6 +283,16 @@ where
                 let manager = Arc::clone(&volume_manager);
                 scopes.spawn(async move {
                     endpoints::volumes::filetree::server::handle::handle(
+                        scope, frame, &identity, &*manager,
+                    )
+                    .await;
+                });
+            }
+            ClientRequest::VolumesServe(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let manager = Arc::clone(&volume_manager);
+                scopes.spawn(async move {
+                    endpoints::volumes::serve::server::handle::handle(
                         scope, frame, &identity, &*manager,
                     )
                     .await;

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use super::{Path, Rename, Write};
+use super::{Path, Read, Rename, Setattr, Truncate, Write};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
@@ -15,17 +15,19 @@ use crate::encode::{Encode, Writer};
 ///
 /// | tag | asks for | payload |
 /// |-----|----------|---------|
-/// | `0` | [`Read`](Self::Read) | `[path…]` |
-/// | `1` | [`Write`](Self::Write) | `[path_len: u16 BE][path…][bytes…]` |
+/// | `0` | [`Read`](Self::Read) | `[path_len: u16 BE][path…][offset: u64 BE][length: u32 BE]` |
+/// | `1` | [`Write`](Self::Write) | `[path_len: u16 BE][path…][offset: u64 BE][bytes…]` |
 /// | `2` | [`List`](Self::List) | `[path…]` |
 /// | `3` | [`Remove`](Self::Remove) | `[path…]` |
 /// | `4` | [`Rename`](Self::Rename) | `[from_len: u16 BE][from…][to…]` |
 /// | `5` | [`Mkdir`](Self::Mkdir) | `[path…]` |
 /// | `6` | [`Stat`](Self::Stat) | `[path…]` |
+/// | `7` | [`Truncate`](Self::Truncate) | `[size: u64 BE][path…]` |
+/// | `8` | [`Setattr`](Self::Setattr) | `[attrs: 29 bytes][path…]` |
 ///
 /// Where a path is the last thing in a payload it runs to the end;
-/// where bytes or a second path follow it, it carries a length
-/// prefix. The seven are the seven of
+/// where bytes, fixed fields or a second path follow it, it carries
+/// a length prefix. The nine are the nine of
 /// [`shared::containers::fuse`](crate::shared::containers::fuse), and
 /// each is answered with that module's own frame, one message and
 /// the finish; what each MEANS — a file mount's empty path, the root
@@ -33,14 +35,14 @@ use crate::encode::{Encode, Writer};
 /// stated there once.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
-    /// Read a file of the mount, whole. Tag `0`.
+    /// Read a piece of a file of the mount. Tag `0`.
     ///
-    /// Every open of the file. See
+    /// Every `read(2)` of the file, with its offset and size. See
     /// [`read`](crate::shared::containers::fuse::read).
-    Read(Path<'a>),
-    /// Write a file of the mount, whole. Tag `1`.
+    Read(Read<'a>),
+    /// Write a piece of a file of the mount, in place. Tag `1`.
     ///
-    /// Every changed close of the file. See
+    /// Every `write(2)` of the file, with its offset. See
     /// [`write`](crate::shared::containers::fuse::write).
     Write(Write<'a>),
     /// List a directory of the mount. Tag `2`.
@@ -60,13 +62,24 @@ pub enum Frame<'a> {
     ///
     /// See [`mkdir`](crate::shared::containers::fuse::mkdir).
     Mkdir(Path<'a>),
-    /// What an entry of the mount is, and how long. Tag `6`.
+    /// What an entry of the mount is: kind, size, mode, owner, group
+    /// and times. Tag `6`.
     ///
     /// Every attribute of a file mount, and every lookup and
     /// attribute of an entry in a directory mount: a `stat` costs
-    /// nine bytes back, not the file. See
+    /// fifty-seven bytes back, not the file. See
     /// [`stat`](crate::shared::containers::fuse::stat).
     Stat(Path<'a>),
+    /// Set a file of the mount to a length. Tag `7`.
+    ///
+    /// Every `truncate(2)`, `ftruncate(2)` and `O_TRUNC` open. See
+    /// [`truncate`](crate::shared::containers::fuse::truncate).
+    Truncate(Truncate<'a>),
+    /// Set some of an entry's attributes. Tag `8`.
+    ///
+    /// Every `chmod(2)`, `chown(2)` and `utimensat(2)`. See
+    /// [`setattr`](crate::shared::containers::fuse::setattr).
+    Setattr(Setattr<'a>),
 }
 
 /// Tag for [`Frame::Read`].
@@ -90,18 +103,22 @@ const MKDIR: u8 = 5;
 /// Tag for [`Frame::Stat`].
 const STAT: u8 = 6;
 
+/// Tag for [`Frame::Truncate`].
+const TRUNCATE: u8 = 7;
+
+/// Tag for [`Frame::Setattr`].
+const SETATTR: u8 = 8;
+
 impl Encode for Frame<'_> {
-    /// One way to fail: a path too long for its prefix, on the two
+    /// One way to fail: a path too long for its prefix, on the three
     /// asks where a path has one. Everything else is bytes copied.
     type Error = FrameEncodeError;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), FrameEncodeError> {
         match self {
-            Frame::Read(path) => {
+            Frame::Read(read) => {
                 out.extend_from_slice(&[READ]);
-                // Its error is `Infallible`, and an empty match on one
-                // is how you say so: there is no value to handle.
-                path.encode(out).map_err(|error| match error {})
+                read.encode(out)
             }
             Frame::Write(write) => {
                 out.extend_from_slice(&[WRITE]);
@@ -125,7 +142,17 @@ impl Encode for Frame<'_> {
             }
             Frame::Stat(path) => {
                 out.extend_from_slice(&[STAT]);
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
                 path.encode(out).map_err(|error| match error {})
+            }
+            Frame::Truncate(truncate) => {
+                out.extend_from_slice(&[TRUNCATE]);
+                truncate.encode(out).map_err(|error| match error {})
+            }
+            Frame::Setattr(setattr) => {
+                out.extend_from_slice(&[SETATTR]);
+                setattr.encode(out).map_err(|error| match error {})
             }
         }
     }
@@ -160,13 +187,15 @@ impl<'a> Decode<'a> for Frame<'a> {
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            READ => Path::decode(rest).map(Frame::Read),
+            READ => Read::decode(rest).map(Frame::Read),
             WRITE => Write::decode(rest).map(Frame::Write),
             LIST => Path::decode(rest).map(Frame::List),
             REMOVE => Path::decode(rest).map(Frame::Remove),
             RENAME => Rename::decode(rest).map(Frame::Rename),
             MKDIR => Path::decode(rest).map(Frame::Mkdir),
             STAT => Path::decode(rest).map(Frame::Stat),
+            TRUNCATE => Truncate::decode(rest).map(Frame::Truncate),
+            SETATTR => Setattr::decode(rest).map(Frame::Setattr),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -177,10 +206,11 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's seven.
+    /// A tag that is none of this frame's nine.
     UnknownTag(u8),
     /// Fewer bytes than the ask's fixed part promises — a length
-    /// prefix, or the path a prefix said was there.
+    /// prefix, the path a prefix said was there, an offset, a length,
+    /// a size, or the attributes.
     Truncated,
     /// A path that is not UTF-8.
     PathUtf8,

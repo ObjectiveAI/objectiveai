@@ -8,7 +8,7 @@
 //! |----------|--------|
 //! | [`containers`] | run an agent or a tool server in a container; join a tool server |
 //! | [`images`] | ask whether an image can be supplied |
-//! | [`volumes`] | list what a provider offers; examine one; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
+//! | [`volumes`] | list what a provider offers; examine one; read, write or walk one; serve one's files live; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
 //! | [`version`] | ask what a provider is |
 //!
 //! # The tags
@@ -28,20 +28,22 @@
 //! | `5` | [`volumes::read`] |
 //! | `6` | [`volumes::write`] |
 //! | `7` | [`volumes::filetree`] |
-//! | `8` | [`volumes::create_capacity`] |
-//! | `9` | [`volumes::create`] |
-//! | `10` | [`volumes::edit_capacity`] |
-//! | `11` | [`volumes::edit`] |
-//! | `12` | [`volumes::delete`] |
-//! | `13` | [`images::check`] |
-//! | `14` | [`version`] |
+//! | `8` | [`volumes::serve`] |
+//! | `9` | [`volumes::create_capacity`] |
+//! | `10` | [`volumes::create`] |
+//! | `11` | [`volumes::edit_capacity`] |
+//! | `12` | [`volumes::edit`] |
+//! | `13` | [`volumes::delete`] |
+//! | `14` | [`images::check`] |
+//! | `15` | [`version`] |
 //!
-//! Fifteen, grouped by endpoint and ordered within it. The three
+//! Sixteen, grouped by endpoint and ordered within it. The three
 //! container scopes lead: the agents' run, then the tools' run and the
-//! connect that joins one. The ten volume scopes follow in the order
-//! a caller uses them: find one, examine it, read a file out of it,
-//! write one in, see its tree, ask how large one may be made, make
-//! one, ask how far one may grow, resize it, destroy it.
+//! connect that joins one. The eleven volume scopes follow in the
+//! order a caller uses them: find one, examine it, read a file out of
+//! it, write one in, see its tree, serve its files live, ask how large
+//! one may be made, make one, ask how far one may grow, resize it,
+//! destroy it.
 //! Then the two that ask rather than do:
 //! [`images::check`], and [`version`].
 //!
@@ -49,7 +51,7 @@
 //! proof of — it is the one a client asks FIRST and it holds the
 //! highest tag, because tags are handed out in the order scopes were
 //! defined and nothing reads them in order. The grouping is for
-//! whoever reads the table, and a new scope takes `12` wherever it
+//! whoever reads the table, and a new scope takes the next free value wherever it
 //! belongs conceptually.
 //!
 //! This table is the whole allocation. Each request states its own

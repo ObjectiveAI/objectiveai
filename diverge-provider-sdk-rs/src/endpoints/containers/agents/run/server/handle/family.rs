@@ -171,13 +171,25 @@ fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
 /// A mount's ask as this family's frame, the caller's id in front.
 fn fuse<'a>(id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {
     match ask {
-        MountAsk::Read { path } => ask::Frame::FuseRead(fuse::Target { id, path }),
-        MountAsk::Write { path, bytes } => ask::Frame::FuseWrite(fuse::write::request::Request { id, path, bytes }),
+        MountAsk::Read { path, offset, length } => ask::Frame::FuseRead(fuse::read::request::Request {
+            id,
+            path,
+            offset: *offset,
+            length: *length,
+        }),
+        MountAsk::Write { path, offset, bytes } => ask::Frame::FuseWrite(fuse::write::request::Request {
+            id,
+            path,
+            offset: *offset,
+            bytes,
+        }),
         MountAsk::List { path } => ask::Frame::FuseList(fuse::Target { id, path }),
         MountAsk::Remove { path } => ask::Frame::FuseRemove(fuse::Target { id, path }),
         MountAsk::Rename { from, to } => ask::Frame::FuseRename(fuse::rename::request::Request { id, from, to }),
         MountAsk::Mkdir { path } => ask::Frame::FuseMkdir(fuse::Target { id, path }),
         MountAsk::Stat { path } => ask::Frame::FuseStat(fuse::Target { id, path }),
+        MountAsk::Truncate { path, size } => ask::Frame::FuseTruncate(fuse::truncate::request::Request { id, path, size: *size }),
+        MountAsk::Setattr { path, attrs } => ask::Frame::FuseSetattr(fuse::setattr::request::Request { id, path, attrs: *attrs }),
     }
 }
 

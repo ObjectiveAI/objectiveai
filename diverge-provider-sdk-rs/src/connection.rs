@@ -20,7 +20,7 @@ use futures_util::{Sink, Stream};
 /// and sometimes goes out to a caller it cannot otherwise reach; a
 /// caller usually goes out and can perfectly well be connected to.
 /// Neither arrangement changes a single frame — the same scopes, the
-/// same channels, the same fifteen requests going the same direction.
+/// same channels, the same sixteen requests going the same direction.
 ///
 /// The one place it shows is [`auth`](crate::frame::auth): the end
 /// whose socket is [`Outgoing`](Self::Outgoing) sends the credential,

@@ -37,6 +37,9 @@ pub async fn execute(handle: &Handle, path: Vec<String>, kind: Kind) -> Result<(
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Ok => {}
         response::Frame::Error(message) => return Err(ExecuteError::Refused(message.to_owned())),
+        // A mount is not a mutation of anything a volume keeps; a proxy
+        // that says so has misspoken, and the mount is not made.
+        response::Frame::Ephemeral => return Err(ExecuteError::Refused("ephemeral".to_owned())),
     }
 
     Ok((

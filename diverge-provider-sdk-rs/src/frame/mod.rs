@@ -145,7 +145,7 @@
 //! send it.
 //!
 //! Neither is discriminated here. A scope request's tag chooses among
-//! the fifteen in [`ClientRequest`](crate::endpoints::ClientRequest), and a
+//! the sixteen in [`ClientRequest`](crate::endpoints::ClientRequest), and a
 //! channel request's means something only inside the scope it arrived
 //! in — but both are read by whoever is going to act on them, and this
 //! layer hands over bytes either way.

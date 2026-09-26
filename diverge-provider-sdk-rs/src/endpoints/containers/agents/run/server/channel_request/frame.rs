@@ -39,8 +39,10 @@ use crate::shared::mcp;
 /// | `22` | [`FuseRename`](Self::FuseRename) |
 /// | `23` | [`FuseMkdir`](Self::FuseMkdir) |
 /// | `24` | [`FuseStat`](Self::FuseStat) |
+/// | `25` | [`FuseTruncate`](Self::FuseTruncate) |
+/// | `26` | [`FuseSetattr`](Self::FuseSetattr) |
 ///
-/// The same twenty-five in both families, in the same order. The first
+/// The same twenty-seven in both families, in the same order. The first
 /// six are the provider's own asks — whether the caller holds an
 /// image, its manifest and blobs, a connector's authorization, the
 /// tools the container declared, a write's content — and the rest
@@ -128,15 +130,17 @@ pub enum Frame<'a> {
     McpReadResource(mcp::read_resource::request::Request),
     /// Everything they say on their own account. Tag `17`.
     McpNotifications(mcp::notifications::request::Request),
-    /// Read a file the caller mounted live, by the mount's id and the
-    /// file's path in it. Tag `18`.
+    /// Read a piece of a file the caller mounted live, by the mount's
+    /// id, the file's path in it, an offset and a length. Tag `18`.
     ///
     /// The container's proxy asking on behalf of a FUSE mount: every
-    /// open of the file. See [`fuse`](crate::shared::containers::fuse).
+    /// `read(2)` of the file. See
+    /// [`fuse`](crate::shared::containers::fuse).
     FuseRead(fuse::read::request::Request<'a>),
-    /// Write a file the caller mounted live, whole. Tag `19`.
+    /// Write a piece of a file the caller mounted live, in place at
+    /// an offset. Tag `19`.
     ///
-    /// Every changed close of the file.
+    /// Every `write(2)` of the file.
     FuseWrite(fuse::write::request::Request<'a>),
     /// List a directory of a tree the caller mounted live. Tag `20`.
     ///
@@ -148,13 +152,22 @@ pub enum Frame<'a> {
     FuseRename(fuse::rename::request::Request<'a>),
     /// Make a directory in such a tree. Tag `23`.
     FuseMkdir(fuse::mkdir::request::Request<'a>),
-    /// What an entry the caller mounted live is, and how long. Tag
-    /// `24`.
+    /// What an entry the caller mounted live is: kind, size, mode,
+    /// owner, group and times. Tag `24`.
     ///
     /// Every attribute of a file mount, and every lookup and
     /// attribute of an entry in a directory mount: a `stat` costs
-    /// nine bytes back, not the file.
+    /// fifty-seven bytes back, not the file.
     FuseStat(fuse::stat::request::Request<'a>),
+    /// Set a file the caller mounted live to a length. Tag `25`.
+    ///
+    /// Every `truncate(2)`, `ftruncate(2)` and `O_TRUNC` open.
+    FuseTruncate(fuse::truncate::request::Request<'a>),
+    /// Set some attributes of an entry the caller mounted live. Tag
+    /// `26`.
+    ///
+    /// Every `chmod(2)`, `chown(2)` and `utimensat(2)`.
+    FuseSetattr(fuse::setattr::request::Request<'a>),
 }
 
 /// Tag for [`Frame::OciManifest`].
@@ -231,6 +244,12 @@ const FUSE_MKDIR: u8 = 23;
 
 /// Tag for [`Frame::FuseStat`].
 const FUSE_STAT: u8 = 24;
+
+/// Tag for [`Frame::FuseTruncate`].
+const FUSE_TRUNCATE: u8 = 25;
+
+/// Tag for [`Frame::FuseSetattr`].
+const FUSE_SETATTR: u8 = 26;
 
 impl Encode for Frame<'_> {
     /// The JSON failure from the asks that are JSON, or a vault key
@@ -341,6 +360,14 @@ impl Encode for Frame<'_> {
             }
             Frame::FuseStat(request) => {
                 out.extend_from_slice(&[FUSE_STAT]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::FuseTruncate(request) => {
+                out.extend_from_slice(&[FUSE_TRUNCATE]);
+                request.encode(out).map_err(FrameEncodeError::Fuse)
+            }
+            Frame::FuseSetattr(request) => {
+                out.extend_from_slice(&[FUSE_SETATTR]);
                 request.encode(out).map_err(FrameEncodeError::Fuse)
             }
         }
@@ -469,6 +496,12 @@ impl<'a> Decode<'a> for Frame<'a> {
             FUSE_STAT => fuse::stat::request::Request::decode(rest)
                 .map(Frame::FuseStat)
                 .map_err(FrameError::Fuse),
+            FUSE_TRUNCATE => fuse::truncate::request::Request::decode(rest)
+                .map(Frame::FuseTruncate)
+                .map_err(FrameError::Fuse),
+            FUSE_SETATTR => fuse::setattr::request::Request::decode(rest)
+                .map(Frame::FuseSetattr)
+                .map_err(FrameError::Fuse),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -479,7 +512,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's twenty-five.
+    /// A tag that is none of this frame's twenty-seven.
     UnknownTag(u8),
     /// An image ask did not parse.
     Oci(serde_json::Error),

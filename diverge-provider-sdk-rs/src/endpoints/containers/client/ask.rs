@@ -5,13 +5,14 @@ use rmcp::model::{CallToolRequestParams, PaginatedRequestParams, ReadResourceReq
 
 use crate::endpoints::containers::{agents, tools};
 use crate::shared::containers::authorize;
+use crate::shared::containers::fuse::Attrs;
 use crate::shared::containers::tools::Tool;
 
 /// A server-opened channel request on a run scope, with nothing
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// twenty-five asks in the same order with the same payloads, and
+/// twenty-seven asks in the same order with the same payloads, and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -56,10 +57,12 @@ pub enum Ask {
     McpReadResource(ReadResourceRequestParams),
     /// The servers' notifications, for as long as the channel lives.
     McpNotifications,
-    /// A mounted file read: the mount's id, the path.
-    FuseRead(String, String),
-    /// A mounted file written whole: the id, the path, the bytes.
-    FuseWrite(String, String, Bytes),
+    /// A piece of a mounted file read: the mount's id, the path, the
+    /// offset, the length.
+    FuseRead(String, String, u64, u32),
+    /// A piece of a mounted file written in place: the id, the path,
+    /// the offset, the bytes.
+    FuseWrite(String, String, u64, Bytes),
     /// A mounted directory listed: the id, the path.
     FuseList(String, String),
     /// A mounted entry removed: the id, the path.
@@ -70,6 +73,10 @@ pub enum Ask {
     FuseMkdir(String, String),
     /// A mounted entry described: the id, the path.
     FuseStat(String, String),
+    /// A mounted file cut or extended: the id, the path, the size.
+    FuseTruncate(String, String, u64),
+    /// A mounted entry's attributes set: the id, the path, which.
+    FuseSetattr(String, String, Attrs),
 }
 
 impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
@@ -96,10 +103,16 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             Frame::McpCallTool(request) => Ask::McpCallTool(request.0),
             Frame::McpReadResource(request) => Ask::McpReadResource(request.0),
             Frame::McpNotifications(_) => Ask::McpNotifications,
-            Frame::FuseRead(target) => Ask::FuseRead(target.id.to_string(), target.path.to_string()),
+            Frame::FuseRead(request) => Ask::FuseRead(
+                request.id.to_string(),
+                request.path.to_string(),
+                request.offset,
+                request.length,
+            ),
             Frame::FuseWrite(request) => Ask::FuseWrite(
                 request.id.to_string(),
                 request.path.to_string(),
+                request.offset,
                 Bytes::copy_from_slice(request.bytes),
             ),
             Frame::FuseList(target) => Ask::FuseList(target.id.to_string(), target.path.to_string()),
@@ -113,6 +126,12 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             ),
             Frame::FuseMkdir(target) => Ask::FuseMkdir(target.id.to_string(), target.path.to_string()),
             Frame::FuseStat(target) => Ask::FuseStat(target.id.to_string(), target.path.to_string()),
+            Frame::FuseTruncate(request) => {
+                Ask::FuseTruncate(request.id.to_string(), request.path.to_string(), request.size)
+            }
+            Frame::FuseSetattr(request) => {
+                Ask::FuseSetattr(request.id.to_string(), request.path.to_string(), request.attrs)
+            }
         }
     }
 }
@@ -141,10 +160,16 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::McpCallTool(request) => Ask::McpCallTool(request.0),
             Frame::McpReadResource(request) => Ask::McpReadResource(request.0),
             Frame::McpNotifications(_) => Ask::McpNotifications,
-            Frame::FuseRead(target) => Ask::FuseRead(target.id.to_string(), target.path.to_string()),
+            Frame::FuseRead(request) => Ask::FuseRead(
+                request.id.to_string(),
+                request.path.to_string(),
+                request.offset,
+                request.length,
+            ),
             Frame::FuseWrite(request) => Ask::FuseWrite(
                 request.id.to_string(),
                 request.path.to_string(),
+                request.offset,
                 Bytes::copy_from_slice(request.bytes),
             ),
             Frame::FuseList(target) => Ask::FuseList(target.id.to_string(), target.path.to_string()),
@@ -158,6 +183,12 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             ),
             Frame::FuseMkdir(target) => Ask::FuseMkdir(target.id.to_string(), target.path.to_string()),
             Frame::FuseStat(target) => Ask::FuseStat(target.id.to_string(), target.path.to_string()),
+            Frame::FuseTruncate(request) => {
+                Ask::FuseTruncate(request.id.to_string(), request.path.to_string(), request.size)
+            }
+            Frame::FuseSetattr(request) => {
+                Ask::FuseSetattr(request.id.to_string(), request.path.to_string(), request.attrs)
+            }
         }
     }
 }
