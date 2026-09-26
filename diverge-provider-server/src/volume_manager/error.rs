@@ -65,6 +65,12 @@ pub enum Error {
     /// A write's content ended in the caller's own error before it was
     /// whole; the write was abandoned. The error is the caller's.
     Content(error::Error),
+    /// The serve's `overlay_disk` would take the containers' and
+    /// serves' disk past `container_overlay_disk`.
+    OverlayDisk(u64),
+    /// An ephemeral fixed volume asked to be served, which this
+    /// provider does not do.
+    EphemeralFixed(String),
 }
 
 impl fmt::Display for Error {
@@ -86,6 +92,8 @@ impl fmt::Display for Error {
             Error::NotAFile(path) => write!(f, "`{}` is not a file", path.join("/")),
             Error::NotADirectory(path) => write!(f, "`{}` is not a directory", path.join("/")),
             Error::Content(_) => f.write_str("the content ended in an error, and the write was abandoned"),
+            Error::OverlayDisk(bytes) => write!(f, "an overlay of {bytes} bytes would pass the container overlay disk"),
+            Error::EphemeralFixed(name) => write!(f, "`{name}` is a fixed volume in ephemeral mode, which this provider does not serve"),
         }
     }
 }
@@ -108,7 +116,9 @@ impl std::error::Error for Error {
             | Error::Fixed(_)
             | Error::TooSmall(_)
             | Error::TooLarge(_)
-            | Error::Unwatched(_) => None,
+            | Error::Unwatched(_)
+            | Error::OverlayDisk(_)
+            | Error::EphemeralFixed(_) => None,
         }
     }
 }
@@ -167,6 +177,8 @@ impl From<Error> for error::Error {
             Error::Missing(_) => "missing",
             Error::NotAFile(_) => "not_a_file",
             Error::NotADirectory(_) => "not_a_directory",
+            Error::OverlayDisk(_) => "overlay_disk",
+            Error::EphemeralFixed(_) => "ephemeral_fixed",
             // The caller's own error, as it was: it said what it
             // said, and a wrapper would say less.
             Error::Content(error) => return error.clone(),

@@ -12,7 +12,9 @@ use diverge_provider_sdk::server::volume_manager;
 use futures_util::future;
 use tokio::fs;
 
-use super::{Error, Identity, Mode, Place, Reservation, Volume, image, mode, name};
+use diverge_provider_sdk::endpoints::volumes::Mode;
+
+use super::{Error, Identity, ModeFile, Place, Reservation, Scratch, Volume, image, mode, name};
 use crate::config::volumes::{Fixed, HookInput, HookOutput, Volumes};
 use crate::hook;
 
@@ -32,6 +34,9 @@ pub struct VolumeManager {
     /// The stores, and the room left in each: shared with every
     /// stored volume, which asks it to grow.
     reservation: Arc<Reservation>,
+    /// Where an ephemeral serve keeps its scratch, and the cap it
+    /// counts against: shared with every stored volume.
+    scratch: Arc<Scratch>,
     /// The volumes that exist already. Empty is a provider that
     /// holds none.
     fixed: Vec<Fixed>,
@@ -49,10 +54,11 @@ pub struct VolumeManager {
 impl VolumeManager {
     /// A manager over the `volumes` section, absent or present, with
     /// the provider's `hooks/` directory.
-    pub fn new(volumes: Option<Volumes>, hooks_dir: PathBuf) -> Self {
+    pub fn new(volumes: Option<Volumes>, hooks_dir: PathBuf, scratch: Scratch) -> Self {
         let volumes = volumes.unwrap_or_default();
         VolumeManager {
             reservation: Arc::new(Reservation::new(volumes.stores.unwrap_or_default())),
+            scratch: Arc::new(scratch),
             fixed: volumes.fixed.unwrap_or_default(),
             hooks_dir,
             started: SystemTime::now()
@@ -74,7 +80,7 @@ impl VolumeManager {
                 .entry(client_identity.to_string())
                 .or_insert_with(|| Arc::new(Identity::new(client_identity))),
         );
-        identity.load(&self.reservation).await;
+        identity.load(&self.reservation, &self.scratch).await;
         identity
     }
 
@@ -111,7 +117,7 @@ impl VolumeManager {
                 bytes: fixed.bytes,
                 started: self.started,
             },
-            fixed.persist,
+            fixed.mode,
         )
     }
 
@@ -196,7 +202,7 @@ impl volume_manager::VolumeManager for VolumeManager {
     /// first store that has them, by one atomic update and no I/O;
     /// the image is made, sized and formatted; and the volume is
     /// entered. A failure after the bytes were taken gives them back.
-    async fn create(&self, client_identity: &str, name: &str, bytes: u64, persist: bool) -> Result<Creation, Error> {
+    async fn create(&self, client_identity: &str, name: &str, bytes: u64, mode: Mode) -> Result<Creation, Error> {
         if !name::ok(name) || self.fixed_named(name).is_some() {
             return Err(Error::Name(name.to_string()));
         }
@@ -218,7 +224,7 @@ impl volume_manager::VolumeManager for VolumeManager {
         let mode_path = mode::mode_path(&store.path, client_identity, name);
         let made = async {
             fs::create_dir_all(store.path.join(client_identity)).await?;
-            mode::write_mode(&mode_path, Mode { persist }).await?;
+            mode::write_mode(&mode_path, ModeFile { mode }).await?;
             make_image(&path, bytes).await
         }
         .await;
@@ -233,8 +239,9 @@ impl volume_manager::VolumeManager for VolumeManager {
                 store: index,
                 image: path,
                 reservation: Arc::clone(&self.reservation),
+                scratch: Arc::clone(&self.scratch),
             },
-            persist,
+            mode,
         ));
         Ok(Creation::Created)
     }
@@ -263,7 +270,7 @@ impl volume_manager::VolumeManager for VolumeManager {
         let Some(volume) = identity.remove(name) else {
             return Err(Error::Unknown(name.to_string()));
         };
-        if let Place::Stored { store, image, reservation } = volume.place() {
+        if let Place::Stored { store, image, reservation, .. } = volume.place() {
             let length = image_length(image).await;
             // The image first, then its mode file: a crash between
             // the two leaves a mode file alone, which is nothing, and

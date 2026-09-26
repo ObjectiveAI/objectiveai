@@ -10,7 +10,7 @@
 //! size — reserved, not taken, since the image is sparse — and its
 //! birth time is when the volume came into being. One thing is kept
 //! beside it, the dotfile `<store>/<identity>/.<name>` holding the
-//! volume's persist mode as JSON — see [`Mode`] — and an image
+//! volume's mode as JSON — see [`ModeFile`] — and an image
 //! without its mode file is not a volume, as a mode file without its
 //! image is not: the two are made together, image last, and removed
 //! together, image first. What a listing reports beyond the mode is
@@ -24,9 +24,20 @@
 //! volume held to itself; and a volume is served — its image opened
 //! once and the FUSE asks answered from it in place, one at a time —
 //! with the volume held shared, as a container holds it. An image is
-//! never mounted for anything but a container. A container mounts the volume's image
-//! plainly when its mode is persist, and under podman's overlay
-//! option, its writes discarded with the container, when it is not.
+//! never mounted for anything but a container. A container mounts
+//! the volume's image plainly when its mode is persistent; under
+//! podman's overlay option, its writes discarded with the container,
+//! when it is ephemeral; and read-only when it is read-only. A
+//! persistent volume has one user at a time — one container or one
+//! serve — so its image is under one writer, the kernel's or
+//! fstool's; an ephemeral or a read-only volume's image is loop-mounted
+//! read-only, so any number of containers and serves may hold it.
+//! An ephemeral serve runs on an [`Overlay`]: the image read, a
+//! scratch file under `<containers.podman.storage_path>/ephemeral/`
+//! written, the scratch capped by the serve's `overlay_disk` and
+//! counted against `container_overlay_disk` beside the containers —
+//! see [`Scratch`]. A fixed volume in ephemeral mode is not served,
+//! this provider having no scratch layer over a directory.
 //!
 //! A fixed volume is a directory the configuration names, offered as
 //! it is: its size is declared in the configuration, its creation
@@ -71,7 +82,9 @@ mod identity;
 mod image;
 mod mode;
 mod name;
+mod overlay;
 mod reservation;
+mod scratch;
 mod served;
 mod sparse;
 mod volume;
@@ -83,7 +96,9 @@ pub use identity::*;
 pub use image::*;
 pub use mode::*;
 pub use name::*;
+pub use overlay::*;
 pub use reservation::*;
+pub use scratch::*;
 pub use served::*;
 pub use sparse::*;
 pub use volume::*;

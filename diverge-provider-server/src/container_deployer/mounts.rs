@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use diverge_provider_sdk::server::mount::Mount;
+use diverge_provider_sdk::endpoints::volumes::Mode;
 use diverge_provider_sdk::server::volume_manager::VolumeManager as _;
 use futures_util::future;
 
@@ -15,9 +16,9 @@ use crate::volume_manager::Volume;
 /// container is gone.
 #[derive(Debug, Clone)]
 pub struct Bound {
-    /// `<host>:<container>` with `:O` after it for a volume whose
-    /// mode is not persist: podman's overlay, the container's writes
-    /// discarded with it.
+    /// `<host>:<container>`, with `:O` after it for an ephemeral
+    /// volume — podman's overlay, the container's writes discarded
+    /// with it — and `:ro` for a read-only one.
     pub argument: String,
     /// The volume, attached once for this mount.
     pub volume: Volume,
@@ -95,8 +96,9 @@ fn component_ok(component: &str) -> bool {
 /// One mount resolved: the volume looked up for its identity and
 /// attached — its image loop-mounted if this is the first container
 /// to have it — the relative path descended on the directory it
-/// answers, and the argument built, under podman's overlay when the
-/// volume's mode is not persist.
+/// answers, and the argument built: plain for a persistent volume,
+/// under podman's overlay for an ephemeral one, read-only for a
+/// read-only one.
 async fn one(deployer: &ContainerDeployer, mount: &Mount) -> Result<Bound, Error> {
     let volume = deployer
         .volumes
@@ -106,8 +108,10 @@ async fn one(deployer: &ContainerDeployer, mount: &Mount) -> Result<Bound, Error
     let dir = volume.attach(&deployer.mounts_dir).await.map_err(Error::Mount)?;
     let host = descend(&dir, &mount.volume_relative_path);
     let mut argument = format!("{host}:/{}", mount.container_path.join("/"));
-    if !volume.persist() {
-        argument.push_str(":O");
+    match volume.mode() {
+        Mode::Persistent => {}
+        Mode::Ephemeral => argument.push_str(":O"),
+        Mode::ReadOnly => argument.push_str(":ro"),
     }
     Ok(Bound { argument, volume })
 }
