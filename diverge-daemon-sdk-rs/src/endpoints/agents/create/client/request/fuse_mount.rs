@@ -1,6 +1,7 @@
 //! One file, or one directory, of a provider's volume served live
 //! into the agent's container, across the daemon.
 
+use diverge_provider_sdk::endpoints::volumes::Mode;
 use serde::{Deserialize, Serialize};
 
 use crate::endpoints::agents::logs::server::response::Identity;
@@ -44,23 +45,29 @@ use crate::endpoints::agents::logs::server::response::Identity;
 /// they refresh a login, kept in a volume of a provider that runs
 /// beside the daemon.
 ///
-/// # A volume that keeps nothing
+/// # The volume's mode
 ///
-/// A volume whose persist mode is `false` is served read-only to the
-/// container: every read, listing and stat goes through, and every
-/// write, truncation, change of attributes, removal, rename and new
-/// directory is refused by the volume's provider, the program seeing
-/// a read-only filesystem.
+/// A persistent volume changes in place. An ephemeral volume is
+/// served on a layer of the serve's own: the container starts from
+/// the volume as it is, its changes land in the layer, and the layer
+/// goes when the agent does. A read-only volume is served read-only
+/// to the container: every read, listing and stat goes through, and
+/// every write, truncation, change of attributes, removal, rename and
+/// new directory is refused by the volume's provider, the program
+/// seeing a read-only filesystem.
 ///
 /// # The volume is held for the agent's life
 ///
 /// As its provider holds a volume a container mounts: from the create
 /// until the agent is deleted, the volume is served, and its provider
 /// refuses to examine, read, write, walk, resize or delete it
-/// meanwhile. Any number of the caller's agents may mount one volume
-/// at once, beside any container of that provider that mounts it. A
-/// serve the provider refuses at the create — no such volume, or one
-/// held to itself — is the create's error.
+/// meanwhile. Any number of the caller's agents may mount one
+/// ephemeral or read-only volume at once, beside any container of
+/// that provider that mounts it; a persistent volume has one user at
+/// a time, and the daemon's serve for this agent is that user. A
+/// serve the provider refuses at the create — no such volume, one
+/// held to itself, a persistent one held by anyone — is the create's
+/// error.
 ///
 /// A FILE mount is one regular file that can be read and overwritten
 /// in place — opened, truncated, written, closed — but never deleted
@@ -97,17 +104,19 @@ pub struct FuseMount {
     /// which what is there is not of the kind its list says, is the
     /// create's error. No component is empty, `.` or `..`.
     pub volume_relative_path: Vec<String>,
-    /// The persist mode the volume is meant to be in: `true`, it
-    /// keeps what is written into it; `false`, it keeps nothing, and
-    /// what a container writes is gone with the container. The mode
-    /// is the volume's own, on its provider — its listing reports it,
+    /// The mode the volume is meant to be in: `persistent`, it keeps
+    /// what is written into it; `ephemeral`, every change is discarded
+    /// afterwards, with the container or with the serve; `read_only`,
+    /// nothing changes it. The mode is the volume's own, on its
+    /// provider — its listing reports it,
     /// [`volumes::create`](diverge_provider_sdk::endpoints::volumes::create)
     /// states it and
     /// [`volumes::edit`](diverge_provider_sdk::endpoints::volumes::edit)
-    /// changes it — and this states which mode this mount means the
-    /// volume to have. What the daemon does with a volume whose mode
-    /// differs at the create, this revision does not state.
-    pub persist: bool,
+    /// changes it; see [`Mode`] — and this states which mode this
+    /// mount means the volume to have. What the daemon does with a
+    /// volume whose mode differs at the create, this revision does
+    /// not state.
+    pub mode: Mode,
     /// Where the mount appears inside the container, as path
     /// components from the container's root, as
     /// [`container_path`](super::VolumeMount::container_path) is for
