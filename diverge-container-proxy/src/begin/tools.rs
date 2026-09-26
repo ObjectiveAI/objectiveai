@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use diverge_sdk::container_proxy::outside::tools::begin::client::{channel_request, request};
-use diverge_sdk::container_proxy::outside::tools::begin::server::response;
+use diverge_sdk::container_proxy::outside::endpoints::tools::begin::client::{channel_request, request};
+use diverge_sdk::container_proxy::outside::endpoints::tools::begin::server::response;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;

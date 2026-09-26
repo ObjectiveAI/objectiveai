@@ -7,7 +7,7 @@ use futures_util::StreamExt as _;
 
 use super::super::encoded::encoded;
 use super::super::run::{Run, send};
-use crate::container_proxy::outside::agents::begin::client::execute::Chunks;
+use crate::container_proxy::outside::endpoints::agents::begin::client::execute::Chunks;
 use crate::provider::endpoints::containers::agents::run::server::response;
 
 /// Every chunk the proxy sends, as the run scope's own

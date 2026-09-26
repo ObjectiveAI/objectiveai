@@ -11,4 +11,4 @@
 mod frame;
 
 pub use frame::*;
-pub use crate::container_proxy::outside::fuse::mount::server::channel_request::{Path, Read, Rename, Setattr, Truncate, Write};
+pub use crate::container_proxy::outside::endpoints::fuse::mount::server::channel_request::{Path, Read, Rename, Setattr, Truncate, Write};

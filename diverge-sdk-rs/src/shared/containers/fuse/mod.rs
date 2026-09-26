@@ -35,7 +35,7 @@
 //! length prefix. Binary throughout: ids and paths are UTF-8 strings,
 //! bytes travel verbatim. The same shapes ride both wires this crate
 //! defines: the provider's channel toward the caller, and the
-//! [`proxy`](crate::container_proxy::outside::fuse) inside the
+//! [`proxy`](crate::container_proxy::outside::endpoints::fuse) inside the
 //! container — and, the id left off, a caller's channels on a
 //! [`volumes::serve`](crate::provider::endpoints::volumes::serve) scope, where
 //! a provider answers them from a volume of its own.

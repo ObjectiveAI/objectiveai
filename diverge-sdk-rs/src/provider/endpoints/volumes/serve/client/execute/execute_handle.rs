@@ -6,7 +6,7 @@ use super::super::channel_request;
 use super::AskError;
 use crate::wire::client::handle::Handle;
 use crate::wire::client::scope::Scope;
-use crate::container_proxy::outside::fuse::mount::server::channel_request as mount;
+use crate::container_proxy::outside::endpoints::fuse::mount::server::channel_request as mount;
 use crate::wire::encode::{Encode, Writer};
 use crate::wire::frame;
 

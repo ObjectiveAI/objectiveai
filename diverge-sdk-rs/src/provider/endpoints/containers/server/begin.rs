@@ -3,9 +3,9 @@
 use serde_json::Value;
 
 use crate::wire::client::handle::SendError;
-use crate::container_proxy::outside::agents::begin::client::execute::{Chunks, ExecuteHandle as AgentsBegin};
+use crate::container_proxy::outside::endpoints::agents::begin::client::execute::{Chunks, ExecuteHandle as AgentsBegin};
 use crate::container_proxy::outside::client::{Ask, Asks};
-use crate::container_proxy::outside::tools::begin::client::execute::{ExecuteHandle as ToolsBegin, Finish};
+use crate::container_proxy::outside::endpoints::tools::begin::client::execute::{ExecuteHandle as ToolsBegin, Finish};
 use crate::provider::endpoints::containers::client::answered::{Postgres, Schema};
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError};
 use crate::shared::containers::tools::Tool;

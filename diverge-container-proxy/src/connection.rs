@@ -7,7 +7,7 @@ use axum::extract::ws::{WebSocket, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use diverge_sdk::wire::connection::Connection;
-use diverge_sdk::container_proxy::outside::ClientRequest;
+use diverge_sdk::container_proxy::outside::endpoints::ClientRequest;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::server::received::Received;
 use diverge_sdk::wire::server::session::Session;

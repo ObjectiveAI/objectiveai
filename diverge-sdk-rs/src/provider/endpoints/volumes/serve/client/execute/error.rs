@@ -4,7 +4,7 @@ use std::fmt;
 
 use super::super::super::server::response;
 use crate::wire::client::handle::SendError;
-use crate::container_proxy::outside::fuse::mount::server::channel_request::FrameEncodeError;
+use crate::container_proxy::outside::endpoints::fuse::mount::server::channel_request::FrameEncodeError;
 use crate::wire::frame;
 use crate::shared::error::Error;
 

@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use diverge_sdk::container_proxy::outside::fuse::mount::client::request;
-use diverge_sdk::container_proxy::outside::fuse::mount::server::response;
+use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::client::request;
+use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::server::response;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::containers::fuse;
 

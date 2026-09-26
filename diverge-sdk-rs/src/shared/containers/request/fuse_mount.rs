@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// The provider MUST mount every one before it answers the run's id
 /// — one `fuse::mount` scope on the proxy for each, see
-/// [`fuse::mount`](crate::container_proxy::outside::fuse::mount), each
+/// [`fuse::mount`](crate::container_proxy::outside::endpoints::fuse::mount), each
 /// complete before the next and before any filetree
 /// is opened — as a filesystem the caller serves: the mount point is the file or the
 /// directory itself, made if absent with every missing parent

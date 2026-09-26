@@ -11,7 +11,7 @@ use super::begin::Begin;
 use super::pairs::Pairs;
 use super::watched::Watched;
 use crate::wire::client::handle::Handle;
-use crate::container_proxy::outside::filesystem::tree::client::execute as tree;
+use crate::container_proxy::outside::endpoints::filesystem::tree::client::execute as tree;
 use crate::provider::server::directory::Directory;
 use crate::wire::server::scope_handle::ScopeHandle;
 

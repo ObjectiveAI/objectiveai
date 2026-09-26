@@ -2,7 +2,7 @@
 
 use bytes::Bytes;
 
-use super::super::{agents, tools};
+use super::super::endpoints::{agents, tools};
 use crate::shared::mcp;
 
 /// What the proxy asks the server for on a begin scope, in the one

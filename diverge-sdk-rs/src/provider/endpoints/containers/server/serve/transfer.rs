@@ -9,8 +9,8 @@ use super::super::family::Family;
 use super::super::render;
 use super::super::run::Run;
 use super::write;
-use crate::container_proxy::outside::filesystem::read::client::execute as read;
-use crate::container_proxy::outside::filesystem::write::client::execute as write_scope;
+use crate::container_proxy::outside::endpoints::filesystem::read::client::execute as read;
+use crate::container_proxy::outside::endpoints::filesystem::write::client::execute as write_scope;
 use crate::shared::error::Error;
 
 /// Copy the file at `path` in this run's container into the container

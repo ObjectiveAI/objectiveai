@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::task::JoinSet;
 
 use super::super::response;
-use crate::container_proxy::outside::fuse::mount::client::execute::Ask;
+use crate::container_proxy::outside::endpoints::fuse::mount::client::execute::Ask;
 use crate::wire::decode::Decode as _;
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::volumes::refusal;

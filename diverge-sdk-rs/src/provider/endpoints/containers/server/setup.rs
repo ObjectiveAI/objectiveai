@@ -15,7 +15,7 @@ use super::render;
 use super::watched::{Watched, Watching};
 use crate::wire::client::handle::Handle;
 use crate::container_proxy::outside::client::Asks;
-use crate::container_proxy::outside::fuse::mount::client::execute::{self as mount, Ask as MountAsk};
+use crate::container_proxy::outside::endpoints::fuse::mount::client::execute::{self as mount, Ask as MountAsk};
 use crate::wire::decode::Decode as _;
 use crate::wire::server::answer::{Answer, answer};
 use crate::provider::server::caller::Caller;

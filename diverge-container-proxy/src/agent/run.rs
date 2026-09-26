@@ -4,7 +4,7 @@ use std::pin::pin;
 use std::sync::Arc;
 
 use diverge_sdk::container_proxy::inside::agent::run::request::{Message, Request};
-use diverge_sdk::container_proxy::outside::agents::begin::server::response::CHUNK;
+use diverge_sdk::container_proxy::outside::endpoints::agents::begin::server::response::CHUNK;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
 use eventsource_stream::Eventsource as _;
