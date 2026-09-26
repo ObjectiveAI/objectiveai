@@ -16,12 +16,12 @@ draft: false
 - **`offset` and `length`.** The piece asked for: at most `length` bytes of the file, from `offset` bytes into it. Both are big-endian, after the path, which a two-byte length precedes.
 - **A file mount.** For a mount of kind `file`, the path is empty.
 
-The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/frame.rs`:
+The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/fuse/mount/server/channel_request/frame.rs`:
 
-```rust include=diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/frame.rs
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/fuse/mount/server/channel_request/frame.rs
 ```
 
-and by `diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/read.rs`:
+and by `diverge-sdk-rs/src/container_proxy/outside/endpoints/fuse/mount/server/channel_request/read.rs`:
 
-```rust include=diverge-sdk-rs/src/container_proxy/outside/fuse/mount/server/channel_request/read.rs
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/fuse/mount/server/channel_request/read.rs
 ```
