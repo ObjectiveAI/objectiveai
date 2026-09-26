@@ -25,7 +25,7 @@ pub struct Frame(pub diverge_provider_sdk::endpoints::volumes::edit::client::req
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 13;
+const TAG: u8 = 14;
 
 /// Postcard, as the provider's is: the tag, and the inner request's
 /// own bytes.
