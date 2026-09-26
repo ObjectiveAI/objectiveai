@@ -4,19 +4,20 @@
 //! The root is a directory that cannot be deleted or moved — it is
 //! the mount point. Every entry under it is the caller's: `lookup`
 //! and `getattr` are a stat of the entry, `readdir` a listing of the
-//! directory; a
-//! file's `open` reads its bytes into a [`handle`](super::handles) of
-//! its own and its changed close stores them whole, exactly as on a
-//! file mount; `create` makes an empty file with the caller at once —
-//! so `O_EXCL`, and a `stat` before the first close, see it — and
-//! opens it; `mkdir`, `unlink`, `rmdir` and `rename` are the caller's
-//! own asks. A rename onto an existing file replaces it whole, which
-//! is how a program that saves by temporary-and-rename overwrites.
-//! `RENAME_NOREPLACE` is honoured by a look first; `RENAME_EXCHANGE`
-//! is `ENOTSUP`. Symbolic links, hard links and device nodes are
-//! `EPERM`. Times, mode and owner are accepted and change nothing.
-//! Attributes are never cached, so every `stat` is the caller's
-//! current answer — nine bytes, never the file.
+//! directory; a file's `open` asks nothing and hands back a
+//! [`handle`](super::handles) that remembers its path; every `read`
+//! and `write` is its own ask with the kernel's offset and size,
+//! carried as it comes; `create` makes an empty file with the caller
+//! at once — so `O_EXCL`, and a `stat` before the first close, see
+//! it — and opens it; a truncation and a change of mode, owner or
+//! times are asks of their own; `mkdir`, `unlink`, `rmdir` and
+//! `rename` are the caller's own asks. A rename onto an existing file
+//! replaces it whole, which is how a program that saves by
+//! temporary-and-rename overwrites. `RENAME_NOREPLACE` is honoured by
+//! a look first; `RENAME_EXCHANGE` is `ENOTSUP`. Symbolic links, hard
+//! links and device nodes are `EPERM`. Attributes are never cached,
+//! so every `stat` is the caller's current answer — fifty-seven
+//! bytes, never the file.
 //!
 //! Inodes are numbers this filesystem hands out for paths as the
 //! kernel looks them up, kept while the kernel holds a lookup count
@@ -27,21 +28,19 @@
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::sync::{Mutex, MutexGuard};
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
+use diverge_provider_sdk::shared::containers::fuse;
 use fuser::{
-    BsdFileFlags, Errno, FileAttr, FileHandle, FileType, Filesystem, FopenFlags, Generation,
-    INodeNo, LockOwner, OpenAccMode, OpenFlags, RenameFlags, ReplyAttr, ReplyCreate,
+    BsdFileFlags, Errno, FileAttr, FileHandle, FileType, Filesystem, Generation, INodeNo,
+    KernelConfig, LockOwner, OpenAccMode, OpenFlags, RenameFlags, ReplyAttr, ReplyCreate,
     ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyOpen, ReplyWrite, TimeOrNow,
     WriteFlags,
 };
 
-use super::asks::{Asks, Stat};
+use super::asks::Asks;
+use super::attrs::{self, ATTR_TTL, OPEN};
 use super::handles::Handles;
-
-/// How long the kernel may believe an attribute: not at all — the
-/// caller is the truth.
-const ATTR_TTL: Duration = Duration::ZERO;
 
 /// Every inode's generation: this filesystem never reuses a number
 /// for a different entry within one mount, so one generation serves.
@@ -50,7 +49,8 @@ const GENERATION: Generation = Generation(0);
 /// The tree.
 pub struct MountedDirectory {
     asks: Asks,
-    /// Every time an entry has: the proxy's start.
+    /// When the mount was made: the times of a root the caller holds
+    /// nothing for yet.
     born: SystemTime,
     handles: Handles,
     inodes: Mutex<Inodes>,
@@ -204,60 +204,35 @@ impl MountedDirectory {
         self.inodes().number(path, lookup)
     }
 
-    /// What is at the path, as the caller says now: the root is a
-    /// directory; anything else is the caller's one stat.
-    fn stat(&self, path: &str) -> Result<Stat, Errno> {
-        if path.is_empty() {
-            return Ok(Stat::Directory);
-        }
-        self.asks.stat(path)?.ok_or(Errno::ENOENT)
-    }
-
-    /// An entry's attributes.
-    fn attr(&self, ino: u64, stat: &Stat) -> FileAttr {
-        let (kind, size, perm, nlink) = match stat {
-            Stat::File(size) => (FileType::RegularFile, *size, super::FILE_MODE, 1),
-            Stat::Directory => (FileType::Directory, 0, super::DIRECTORY_MODE, 2),
-        };
-        FileAttr {
-            ino: INodeNo(ino),
-            size,
-            blocks: size.div_ceil(512),
-            atime: self.born,
-            mtime: self.born,
-            ctime: self.born,
-            crtime: self.born,
-            kind,
-            perm: perm as u16,
-            nlink,
-            uid: 0,
-            gid: 0,
-            rdev: 0,
-            blksize: 4096,
-            flags: 0,
+    /// An entry's attributes, as the caller says now: the root the
+    /// caller holds nothing for yet is the directory the mount point
+    /// is; anything else absent is `ENOENT`.
+    fn attr(&self, ino: u64, path: &str) -> Result<FileAttr, Errno> {
+        match self.asks.stat(path)? {
+            Some(stat) => Ok(attrs::attr(INodeNo(ino), &stat)),
+            None if path.is_empty() => Ok(attrs::absent(INodeNo(ino), fuse::Kind::Directory, super::DIRECTORY_MODE, self.born)),
+            None => Err(Errno::ENOENT),
         }
     }
 
-    /// The attributes a `getattr` answers: a handle's buffer length,
-    /// or the caller's current answer.
-    fn getattr(&self, ino: INodeNo, fh: Option<FileHandle>) -> Result<FileAttr, Errno> {
-        if let Some(fh) = fh {
-            let size = self.handles.size(fh)?;
-            return Ok(self.attr(ino.0, &Stat::File(size)));
-        }
-        let path = self.path(ino)?;
-        let stat = self.stat(&path)?;
-        Ok(self.attr(ino.0, &stat))
+    /// Whether the caller holds an entry at the path.
+    fn exists(&self, path: &str) -> Result<bool, Errno> {
+        Ok(path.is_empty() || self.asks.stat(path)?.is_some())
     }
 }
 
 impl Filesystem for MountedDirectory {
+    fn init(&mut self, _req: &fuser::Request, config: &mut KernelConfig) -> std::io::Result<()> {
+        attrs::init(config);
+        Ok(())
+    }
+
     fn lookup(&self, _req: &fuser::Request, parent: INodeNo, name: &OsStr, reply: ReplyEntry) {
         let result = self.path(parent).and_then(|parent| {
             let path = child(&parent, name)?;
-            let stat = self.stat(&path)?;
+            let stat = self.asks.stat(&path)?.ok_or(Errno::ENOENT)?;
             let ino = self.number(&path, true);
-            Ok(self.attr(ino, &stat))
+            Ok(attrs::attr(INodeNo(ino), &stat))
         });
         match result {
             Ok(attr) => reply.entry(&ATTR_TTL, &attr, GENERATION),
@@ -269,8 +244,8 @@ impl Filesystem for MountedDirectory {
         self.inodes().forget(ino.0, nlookup);
     }
 
-    fn getattr(&self, _req: &fuser::Request, ino: INodeNo, fh: Option<FileHandle>, reply: ReplyAttr) {
-        match self.getattr(ino, fh) {
+    fn getattr(&self, _req: &fuser::Request, ino: INodeNo, _fh: Option<FileHandle>, reply: ReplyAttr) {
+        match self.path(ino).and_then(|path| self.attr(ino.0, &path)) {
             Ok(attr) => reply.attr(&ATTR_TTL, &attr),
             Err(errno) => reply.error(errno),
         }
@@ -280,68 +255,50 @@ impl Filesystem for MountedDirectory {
         &self,
         _req: &fuser::Request,
         ino: INodeNo,
-        _mode: Option<u32>,
-        _uid: Option<u32>,
-        _gid: Option<u32>,
+        mode: Option<u32>,
+        uid: Option<u32>,
+        gid: Option<u32>,
         size: Option<u64>,
-        _atime: Option<TimeOrNow>,
-        _mtime: Option<TimeOrNow>,
+        atime: Option<TimeOrNow>,
+        mtime: Option<TimeOrNow>,
         _ctime: Option<SystemTime>,
-        fh: Option<FileHandle>,
+        _fh: Option<FileHandle>,
         _crtime: Option<SystemTime>,
         _chgtime: Option<SystemTime>,
         _bkuptime: Option<SystemTime>,
         _flags: Option<BsdFileFlags>,
         reply: ReplyAttr,
     ) {
-        let Some(size) = size else {
-            // Times, mode, owner: accepted, and the entry stays as it
-            // is.
-            match self.getattr(ino, fh) {
-                Ok(attr) => reply.attr(&ATTR_TTL, &attr),
-                Err(errno) => reply.error(errno),
+        let result = self.path(ino).and_then(|path| {
+            if let Some(size) = size {
+                self.asks.truncate(&path, size)?;
             }
-            return;
-        };
-        let length = size as usize;
-        let result = match fh {
-            // A handle's own truncation: its buffer, dirty until
-            // flushed.
-            Some(fh) => self.handles.resize(fh, length),
-            // `truncate(2)` with no handle: the file itself, resized
-            // and stored at once; every open write handle follows.
-            None => self.path(ino).and_then(|path| {
-                let mut bytes = self.asks.read(&path)?.ok_or(Errno::ENOENT)?;
-                bytes.resize(length, 0);
-                self.asks.write(&path, &bytes)?;
-                self.handles.resize_writable(&path, length);
-                Ok(())
-            }),
-        };
+            let attrs = attrs::attrs(mode, uid, gid, atime, mtime);
+            if !attrs.is_empty() {
+                self.asks.setattr(&path, attrs)?;
+            }
+            self.attr(ino.0, &path)
+        });
         match result {
-            Ok(()) => reply.attr(&ATTR_TTL, &self.attr(ino.0, &Stat::File(size))),
+            Ok(attr) => reply.attr(&ATTR_TTL, &attr),
             Err(errno) => reply.error(errno),
         }
     }
 
     fn open(&self, _req: &fuser::Request, ino: INodeNo, flags: OpenFlags, reply: ReplyOpen) {
-        let writable = matches!(
-            flags.acc_mode(),
-            OpenAccMode::O_WRONLY | OpenAccMode::O_RDWR
-        );
+        let writable = matches!(flags.acc_mode(), OpenAccMode::O_WRONLY | OpenAccMode::O_RDWR);
         let truncate = flags.0 & libc::O_TRUNC != 0;
         let result = self.path(ino).and_then(|path| {
-            let buffer = if truncate {
-                // A truncating open of a directory is the kernel's to
-                // refuse; a plain one reaches here as ENOENT below.
-                Vec::new()
-            } else {
-                self.asks.read(&path)?.ok_or(Errno::ENOENT)?
-            };
-            Ok(self.handles.open(path, buffer, writable, truncate))
+            if !self.exists(&path)? {
+                return Err(Errno::ENOENT);
+            }
+            if truncate {
+                self.asks.truncate(&path, 0)?;
+            }
+            Ok(self.handles.open(path, writable))
         });
         match result {
-            Ok(fh) => reply.opened(fh, FopenFlags::empty()),
+            Ok(fh) => reply.opened(fh, OPEN),
             Err(errno) => reply.error(errno),
         }
     }
@@ -357,8 +314,10 @@ impl Filesystem for MountedDirectory {
         _lock_owner: Option<LockOwner>,
         reply: ReplyData,
     ) {
-        match self.handles.read(fh, offset, size) {
-            Ok(bytes) => reply.data(&bytes),
+        let result = self.handles.get(fh).and_then(|(path, _)| self.asks.read(&path, offset, size));
+        match result {
+            Ok(Some(bytes)) => reply.data(&bytes),
+            Ok(None) => reply.error(Errno::ENOENT),
             Err(errno) => reply.error(errno),
         }
     }
@@ -375,24 +334,25 @@ impl Filesystem for MountedDirectory {
         _lock_owner: Option<LockOwner>,
         reply: ReplyWrite,
     ) {
-        match self.handles.write(fh, offset, data) {
-            Ok(written) => reply.written(written),
+        let result = self.handles.get(fh).and_then(|(path, writable)| {
+            if !writable {
+                return Err(Errno::EBADF);
+            }
+            self.asks.write(&path, offset, data)
+        });
+        match result {
+            Ok(()) => reply.written(data.len() as u32),
             Err(errno) => reply.error(errno),
         }
     }
 
-    fn flush(&self, _req: &fuser::Request, _ino: INodeNo, fh: FileHandle, _lock_owner: LockOwner, reply: ReplyEmpty) {
-        match self.handles.flush(fh, |path, bytes| self.asks.write(path, bytes)) {
-            Ok(()) => reply.ok(),
-            Err(errno) => reply.error(errno),
-        }
+    fn flush(&self, _req: &fuser::Request, _ino: INodeNo, _fh: FileHandle, _lock_owner: LockOwner, reply: ReplyEmpty) {
+        // Every write landed as it came.
+        reply.ok();
     }
 
-    fn fsync(&self, _req: &fuser::Request, _ino: INodeNo, fh: FileHandle, _datasync: bool, reply: ReplyEmpty) {
-        match self.handles.flush(fh, |path, bytes| self.asks.write(path, bytes)) {
-            Ok(()) => reply.ok(),
-            Err(errno) => reply.error(errno),
-        }
+    fn fsync(&self, _req: &fuser::Request, _ino: INodeNo, _fh: FileHandle, _datasync: bool, reply: ReplyEmpty) {
+        reply.ok();
     }
 
     fn release(
@@ -405,9 +365,6 @@ impl Filesystem for MountedDirectory {
         _flush: bool,
         reply: ReplyEmpty,
     ) {
-        // A changed handle is stored on its way out; a release's error
-        // reaches nobody, so the reply is always ok.
-        let _ = self.handles.flush(fh, |path, bytes| self.asks.write(path, bytes));
         self.handles.release(fh);
         reply.ok();
     }
@@ -460,7 +417,7 @@ impl Filesystem for MountedDirectory {
         _req: &fuser::Request,
         parent: INodeNo,
         name: &OsStr,
-        _mode: u32,
+        mode: u32,
         _umask: u32,
         flags: i32,
         reply: ReplyCreate,
@@ -468,29 +425,32 @@ impl Filesystem for MountedDirectory {
         let writable = matches!(flags & libc::O_ACCMODE, libc::O_WRONLY | libc::O_RDWR);
         let result = self.path(parent).and_then(|parent| {
             let path = child(&parent, name)?;
-            if flags & libc::O_EXCL != 0 && self.stat(&path).is_ok() {
+            if flags & libc::O_EXCL != 0 && self.asks.stat(&path)?.is_some() {
                 return Err(Errno::EEXIST);
             }
             // Made with the caller at once, empty, so the entry exists
             // before its first close: an `O_EXCL` by another opener,
-            // or a `stat`, sees it.
-            self.asks.write(&path, &[])?;
+            // or a `stat`, sees it. Then given the mode asked.
+            self.asks.write(&path, 0, &[])?;
+            self.asks.setattr(&path, attrs::attrs(Some(mode), None, None, None, None))?;
             let ino = self.number(&path, true);
-            let fh = self.handles.open(path, Vec::new(), writable, false);
-            Ok((self.attr(ino, &Stat::File(0)), fh))
+            let attr = self.attr(ino, &path)?;
+            let fh = self.handles.open(path, writable);
+            Ok((attr, fh))
         });
         match result {
-            Ok((attr, fh)) => reply.created(&ATTR_TTL, &attr, GENERATION, fh, FopenFlags::empty()),
+            Ok((attr, fh)) => reply.created(&ATTR_TTL, &attr, GENERATION, fh, OPEN),
             Err(errno) => reply.error(errno),
         }
     }
 
-    fn mkdir(&self, _req: &fuser::Request, parent: INodeNo, name: &OsStr, _mode: u32, _umask: u32, reply: ReplyEntry) {
+    fn mkdir(&self, _req: &fuser::Request, parent: INodeNo, name: &OsStr, mode: u32, _umask: u32, reply: ReplyEntry) {
         let result = self.path(parent).and_then(|parent| {
             let path = child(&parent, name)?;
             self.asks.mkdir(&path)?;
+            self.asks.setattr(&path, attrs::attrs(Some(mode), None, None, None, None))?;
             let ino = self.number(&path, true);
-            Ok(self.attr(ino, &Stat::Directory))
+            self.attr(ino, &path)
         });
         match result {
             Ok(attr) => reply.entry(&ATTR_TTL, &attr, GENERATION),
@@ -529,7 +489,7 @@ impl Filesystem for MountedDirectory {
         let result = (|| {
             let from = child(&self.path(parent)?, name)?;
             let to = child(&self.path(newparent)?, newname)?;
-            if flags.contains(RenameFlags::RENAME_NOREPLACE) && self.stat(&to).is_ok() {
+            if flags.contains(RenameFlags::RENAME_NOREPLACE) && self.asks.stat(&to)?.is_some() {
                 return Err(Errno::EEXIST);
             }
             self.asks.rename(&from, &to)?;
