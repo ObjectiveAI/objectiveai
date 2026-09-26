@@ -105,12 +105,12 @@ pub(crate) async fn stat<F: FuseServer>(handle: &Handle, scope: u32, channel: u3
     finish(handle, scope, channel).await
 }
 
-/// The one-frame answer every mutation shares: ok, ephemeral, or the
+/// The one-frame answer every mutation shares: ok, read only, or the
 /// error.
 async fn ack(handle: &Handle, scope: u32, channel: u32, result: Result<(), Refused>) -> Result<(), Stop> {
     let frame = match &result {
         Ok(()) => fuse::ack::Frame::Ok,
-        Err(Refused::Ephemeral) => fuse::ack::Frame::Ephemeral,
+        Err(Refused::ReadOnly) => fuse::ack::Frame::ReadOnly,
         Err(Refused::Error(message)) => fuse::ack::Frame::Error(message),
     };
     respond(handle, scope, channel, &frame).await?;

@@ -1,18 +1,19 @@
-//! What an edit changes: the size, the persist mode, or both.
+//! What an edit changes: the size, the mode, or both.
 
 use serde::{Deserialize, Serialize};
+
+use crate::endpoints::volumes::Mode;
 
 /// The three kinds of edit.
 ///
 /// A volume has two things a caller may change after it exists — how
-/// many bytes it reserves, and whether it keeps what containers write
-/// into it — and an edit changes one or the other or both at once.
-/// An enum rather than two optional fields, because an edit that
-/// changed nothing is not an edit and the wire should have no way to
-/// spell one. On the wire it is postcard's enum: a varint
-/// discriminant — `0` for [`Bytes`](Self::Bytes), `1` for
-/// [`Persist`](Self::Persist), `2` for [`Both`](Self::Both) — and the
-/// variant's fields after it.
+/// many bytes it reserves, and its [`Mode`] — and an edit changes one
+/// or the other or both at once. An enum rather than two optional
+/// fields, because an edit that changed nothing is not an edit and
+/// the wire should have no way to spell one. On the wire it is
+/// postcard's enum: a varint discriminant — `0` for
+/// [`Bytes`](Self::Bytes), `1` for [`Mode`](Self::Mode), `2` for
+/// [`Both`](Self::Both) — and the variant's fields after it.
 ///
 /// # Both, or neither
 ///
@@ -26,29 +27,27 @@ pub enum Change {
     /// How many bytes the volume reserves from now on. Discriminant
     /// `0`.
     ///
-    /// An absolute size, not a delta. A caller states what it wants
-    /// the volume to be rather than how far to move it, so two edits
-    /// that cross leave the volume at one of the two stated sizes
-    /// rather than at their sum. This is what a listing then reports
-    /// as [`Volume::bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes).
+    /// What a listing then reports as
+    /// [`Volume::bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes).
+    /// Larger reserves more; smaller gives room back, and is refused
+    /// when the volume holds more than that.
     Bytes(u64),
-    /// Whether the volume keeps what containers write into it from
-    /// now on. Discriminant `1`.
+    /// The mode the volume is in from now on. Discriminant `1`.
     ///
     /// What a listing then reports as
-    /// [`Volume::persist`](crate::endpoints::volumes::list::server::response::Volume::persist),
-    /// and what every container that mounts the volume after gets:
-    /// see the [`create`](crate::endpoints::volumes::create::client::request::Frame::persist)
-    /// for what each value means. The content is untouched either
-    /// way: a volume made `false` holds what it held, and a volume
-    /// made `true` holds what it held, which is what it had before
-    /// any run under `false`.
-    Persist(bool),
+    /// [`Volume::mode`](crate::endpoints::volumes::list::server::response::Volume::mode),
+    /// and what every container that mounts the volume after, and
+    /// every serve of it after, is bound under: see [`Mode`] for what
+    /// each value means. The content is untouched either way: a
+    /// volume made ephemeral holds what it held, and a volume made
+    /// persistent holds what it held, which is what it had before any
+    /// run or serve under `ephemeral`.
+    Mode(Mode),
     /// Both at once, or neither. Discriminant `2`.
     Both {
         /// As [`Bytes`](Self::Bytes).
         bytes: u64,
-        /// As [`Persist`](Self::Persist).
-        persist: bool,
+        /// As [`Mode`](Self::Mode).
+        mode: Mode,
     },
 }

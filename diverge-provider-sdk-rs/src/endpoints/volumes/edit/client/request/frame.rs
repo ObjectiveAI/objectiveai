@@ -6,7 +6,7 @@ use super::Change;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Change a volume's size, its persist mode, or both.
+/// Change a volume's size, its mode, or both.
 ///
 /// The two things about a volume that can be edited, and an edit is
 /// one [`Change`]: the size, the mode, or both at once. Its
@@ -25,8 +25,7 @@ pub struct Frame {
     /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
     /// and mean nothing outside the provider that published them.
     pub name: String,
-    /// What to change: the size, the persist mode, or both. See
-    /// [`Change`].
+    /// What to change: the size, the mode, or both. See [`Change`].
     pub change: Change,
 }
 

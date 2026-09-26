@@ -10,7 +10,7 @@ use crate::encode::{Encode, Writer};
 ///
 /// # A name, and the same access model as everything else
 ///
-/// The one field is a
+/// The name is a
 /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
 /// from a listing. A caller cannot examine a volume it was not
 /// offered, cannot reach one by naming components, and cannot probe
@@ -30,6 +30,17 @@ pub struct Frame {
     /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
     /// and mean nothing outside the provider that published them.
     pub name: String,
+    /// The most bytes this serve's own layer may hold, for an
+    /// ephemeral volume.
+    ///
+    /// A serve of an [`Ephemeral`](crate::endpoints::volumes::Mode::Ephemeral)
+    /// volume takes every mutation into a layer of its own, discarded
+    /// at the finish, and this is that layer's cap: a mutation that
+    /// would need room past it is answered with an error and the
+    /// serve continues. A provider that cannot set the cap aside when
+    /// the serve opens refuses the serve. For a volume in any other
+    /// mode the value has no effect.
+    pub overlay_disk: u64,
 }
 
 /// This frame's tag among the scope-opening requests.

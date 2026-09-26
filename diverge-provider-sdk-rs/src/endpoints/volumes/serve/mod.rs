@@ -27,12 +27,22 @@
 //! or a delete of it is refused meanwhile. A volume held exclusively
 //! when the serve asks is the serve refused.
 //!
-//! # A volume that keeps nothing
+//! # The three modes
 //!
-//! A volume whose persist mode is `false` is served, and answers
-//! every mutating ask [`Ephemeral`](crate::shared::containers::fuse::ack::Frame::Ephemeral):
-//! the caller relays a read-only filesystem, and every immutable ask
-//! goes through.
+//! A volume's [`Mode`](super::Mode) says what becomes of a mutation
+//! and who may serve it. A persistent volume is changed in place, and
+//! has one user at a time: a serve of it is refused while a running
+//! container mounts it or another serve holds it. An ephemeral volume
+//! is served on a layer of the serve's own — every serve starts from
+//! the volume as it is, its mutations land in the layer and are
+//! discarded at the finish, and the request's
+//! [`overlay_disk`](client::request::Frame::overlay_disk) caps the
+//! layer: a mutation past the cap answers an error and the serve
+//! continues. A read-only volume answers every mutating ask
+//! [`ReadOnly`](crate::shared::containers::fuse::ack::Frame::ReadOnly),
+//! which the caller relays as a read-only filesystem, and every
+//! immutable ask goes through. Ephemeral and read-only volumes may be
+//! served on any number of scopes, beside any number of containers.
 
 pub mod client;
 pub mod server;

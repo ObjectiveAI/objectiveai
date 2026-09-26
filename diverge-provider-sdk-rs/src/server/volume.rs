@@ -28,21 +28,30 @@ use crate::shared::filetree::response::{Frame, Node};
 ///
 /// # Two holds: many mounters, or one editor
 ///
-/// A volume may be mounted in any number of containers of its caller
-/// at once, and nothing examines, reads, writes, walks, resizes or
-/// deletes a volume while any container has it. Both rules are one
-/// hold with two modes, taken by whoever is using the volume:
+/// Who may hold a volume at once is its
+/// [`Mode`](crate::endpoints::volumes::Mode): an ephemeral or a
+/// read-only volume may be mounted in any number of containers of its
+/// caller and served on any number of scopes at once; a persistent
+/// volume has one user at a time. Whatever the mode, nothing
+/// examines, reads, writes, walks, resizes or deletes a volume while
+/// anything holds it. Both rules are one hold with two kinds, taken
+/// by whoever is using the volume:
 ///
-/// - A run takes the SHARED hold, [`mount`](Self::mount), on every
-///   volume its request names before it fetches or deploys anything,
-///   and keeps every one until the run ends — a stop, the container's
-///   own end, the caller going away. Every ending gives them back. A
-///   request naming one volume twice takes it twice. A volume held
-///   exclusively when a run asks is the run refused,
-///   [`VolumeHeld`](crate::shared::containers::response::VolumeHeld).
-///   A [`serve`](crate::endpoints::volumes::serve) takes the same
+/// - A run takes the SHARED hold, [`mount`](Self::mount), once on
+///   every distinct volume its request names, before it fetches or
+///   deploys anything, and keeps every one until the run ends — a
+///   stop, the container's own end, the caller going away. Every
+///   ending gives them back. A request naming one volume at several
+///   paths takes it once. A volume held exclusively when a run asks
+///   is the run refused,
+///   [`VolumeHeld`](crate::shared::containers::response::VolumeHeld);
+///   so is a persistent volume already held shared by anyone. A
+///   [`serve`](crate::endpoints::volumes::serve) takes the same
 ///   shared hold for its scope's life: a served volume is a mounted
-///   one, answering the mount's asks itself.
+///   one, answering the mount's asks itself, and refused where a run
+///   is. The provider's [`mount`](Self::mount) knows the mode: for a
+///   persistent volume it answers `true` only when nobody holds the
+///   volume.
 /// - A [`stat`](crate::endpoints::volumes::stat) takes the EXCLUSIVE
 ///   hold, [`lock`](Self::lock), for the length of the examination,
 ///   a [`read`](crate::endpoints::volumes::read) for the length of
@@ -96,7 +105,9 @@ pub trait Volume: Send + Sync {
 
     /// Take a shared hold: `true` is taken, one more mounter, and the
     /// caller keeps it until its [`unmount`](Self::unmount); `false`
-    /// is a volume held exclusively, and nothing changed.
+    /// is a volume held exclusively — or a persistent volume held at
+    /// all, since a persistent volume has one user — and nothing
+    /// changed.
     ///
     /// # It never waits
     ///
@@ -253,16 +264,22 @@ pub trait Volume: Send + Sync {
     /// does — and the hold outlives what this returns: the handler
     /// gives it back when the scope ends, after the last ask. A
     /// stored volume opens its image once here and answers every ask
-    /// on it; a fixed volume answers from its directory. The persist
-    /// rule is the provider's to keep in what it returns: a volume
-    /// whose mode is `false` answers every mutation
-    /// [`Ephemeral`](crate::shared::containers::fuse::ack::Refused::Ephemeral).
+    /// on it; a fixed volume answers from its directory. The
+    /// [`Mode`](crate::endpoints::volumes::Mode) is the provider's to
+    /// keep in what it returns: a persistent volume changes in place;
+    /// an ephemeral one takes every change into a layer of this
+    /// serve's own, discarded with what this returns, of at most
+    /// `overlay_disk` bytes — a provider that cannot set that much
+    /// aside answers an error here, and a change past it is refused
+    /// with an error while the serve continues; a read-only one
+    /// answers every mutation
+    /// [`ReadOnly`](crate::shared::containers::fuse::ack::Refused::ReadOnly).
     /// What a [`stat`](Self::stat) reported before is stale after a
     /// serve, and a provider that caches a walk forgets it.
-    fn serve(&self) -> impl Future<Output = Result<Self::Served, Self::Error>> + Send;
+    fn serve(&self, overlay_disk: u64) -> impl Future<Output = Result<Self::Served, Self::Error>> + Send;
 
-    /// Change how big the volume may be, in BYTES, whether it keeps
-    /// what containers write into it, or both.
+    /// Change how big the volume may be, in BYTES, its
+    /// [`Mode`](crate::endpoints::volumes::Mode), or both.
     ///
     /// The two things that can change, and nothing else. Called under
     /// the exclusive hold, so no container has the volume while its

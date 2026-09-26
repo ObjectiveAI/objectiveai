@@ -10,7 +10,7 @@ use crate::endpoints::volumes::edit::server::response;
 use crate::frame;
 use crate::shared::error::Error;
 
-/// Change a volume's size, its persist mode, or both, and wait for
+/// Change a volume's size, its mode, or both, and wait for
 /// the answer.
 ///
 /// The rest of this crate describes the exchange; this performs it.
