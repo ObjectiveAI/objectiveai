@@ -55,7 +55,7 @@ include by reference. A copy of the Specification as of the Effective
 Date is attached as Exhibit A and is incorporated into this Agreement
 in full.
 
-1.2 **"Reference Crate"** means the Rust crate `diverge-provider-sdk`
+1.2 **"Reference Crate"** means the Rust crate `diverge-sdk`
 at version 2.3.0, whose source files the Specification includes. The
 Reference Crate is incorporated only to the extent the Specification
 includes a file of it; the Reference Crate does not otherwise bind the

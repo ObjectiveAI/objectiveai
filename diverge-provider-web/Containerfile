@@ -1,8 +1,8 @@
 # The specification site: built once, served static.
 #
 # Build from the WORKSPACE ROOT — the site's build reads the crate it
-# documents: the revision from diverge-provider-sdk-rs/Cargo.toml, and
-# every `include=` fence from diverge-provider-sdk-rs/src:
+# documents: the revision from diverge-sdk-rs/Cargo.toml, and
+# every `include=` fence from diverge-sdk-rs/src:
 #
 #     podman build -f diverge-provider-web/Containerfile \
 #         -t localhost/diverge-provider-web:2.3.0 .
@@ -32,8 +32,8 @@ COPY tests/objectiveai-sdk-js-tests/package.json tests/objectiveai-sdk-js-tests/
 RUN pnpm install --frozen-lockfile --filter diverge-provider-web
 
 # What the site reads of the crate, and nothing else of it.
-COPY diverge-provider-sdk-rs/Cargo.toml diverge-provider-sdk-rs/Cargo.toml
-COPY diverge-provider-sdk-rs/src diverge-provider-sdk-rs/src
+COPY diverge-sdk-rs/Cargo.toml diverge-sdk-rs/Cargo.toml
+COPY diverge-sdk-rs/src diverge-sdk-rs/src
 
 COPY diverge-provider-web diverge-provider-web
 # `pnpm --filter` runs the script with the package as its working

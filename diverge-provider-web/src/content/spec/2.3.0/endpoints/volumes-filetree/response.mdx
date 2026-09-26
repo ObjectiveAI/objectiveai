@@ -44,12 +44,12 @@ finish follows the response, and no frame follows the finish.
   decode as the tree, and a payload whose bytes after `1` are not one
   JSON value are malformed.
 
-The response is defined by `diverge-provider-sdk-rs/src/endpoints/volumes/filetree/server/response/frame.rs`:
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/filetree/server/response/frame.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/endpoints/volumes/filetree/server/response/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/filetree/server/response/frame.rs
 ```
 
-and the node by `diverge-provider-sdk-rs/src/shared/filetree/response/node.rs`:
+and the node by `diverge-sdk-rs/src/shared/filetree/response/node.rs`:
 
-```rust include=diverge-provider-sdk-rs/src/shared/filetree/response/node.rs
+```rust include=diverge-sdk-rs/src/shared/filetree/response/node.rs
 ```
