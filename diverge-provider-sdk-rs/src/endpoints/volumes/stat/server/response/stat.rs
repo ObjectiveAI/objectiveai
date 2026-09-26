@@ -17,14 +17,13 @@ use crate::endpoints::volumes::list::server::response::Volume;
 /// The listing's [`Volume`] sits inside this as a field rather than
 /// having its fields copied in, so there is one definition of what a
 /// listing says. Postcard writes a nested struct as its fields in
-/// place, so the wire reads `name`, `bytes`, `created`, `persist`,
+/// place, so the wire reads `name`, `bytes`, `created`, `mode`,
 /// then the two fields of its own — a listing's record with two
 /// fields appended.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Stat {
     /// The volume as a listing reports it: its name, its size, when
-    /// it came into being, and whether it keeps what is written into
-    /// it.
+    /// it came into being, and its mode.
     pub volume: Volume,
     /// How much of it is in use, in BYTES.
     ///

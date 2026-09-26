@@ -22,7 +22,7 @@
 //! |-----|---------|---------------|
 //! | [`stat`] | `[id_len: u16 BE][id…][path…]` | one [`stat::response::Frame`]: `0` a [`Stat`](stat::Stat), fifty-seven bytes, `1` missing, `2` error |
 //! | [`read`] | `[id_len: u16 BE][id…][path_len: u16 BE][path…][offset: u64 BE][length: u32 BE]` | one [`read::response::Frame`]: `0` the piece, `1` missing, `2` error |
-//! | [`mod@write`] | `[id_len: u16 BE][id…][path_len: u16 BE][path…][offset: u64 BE][bytes…]` | one [`Ack`](ack::Frame): `0` ok, `1` error, `2` ephemeral |
+//! | [`mod@write`] | `[id_len: u16 BE][id…][path_len: u16 BE][path…][offset: u64 BE][bytes…]` | one [`Ack`](ack::Frame): `0` ok, `1` error, `2` read only |
 //! | [`truncate`] | `[id_len: u16 BE][id…][size: u64 BE][path…]` | one [`Ack`](ack::Frame) |
 //! | [`setattr`] | `[id_len: u16 BE][id…][attrs: 29 bytes][path…]` | one [`Ack`](ack::Frame) |
 //! | [`list`] | `[id_len: u16 BE][id…][path…]` | one [`list::response::Frame`]: `0` the entries, each `[kind: u8][name_len: u16 BE][name…]`, `1` missing, `2` error |
@@ -70,13 +70,17 @@
 //! volume mount on the provider the container runs on is for the
 //! data it churns.
 //!
-//! # A volume that keeps nothing
+//! # A read-only volume
 //!
-//! A mount served from a volume whose persist mode is `false` has
-//! nowhere for a change to go. Every mutating ask on it — a write, a
-//! truncate, a setattr, a remove, a rename, a mkdir — is answered
-//! [`Ephemeral`](ack::Frame::Ephemeral), which the program sees as a
-//! read-only filesystem, and every immutable ask goes through.
+//! A mount served from a volume whose mode is
+//! [`ReadOnly`](crate::endpoints::volumes::Mode::ReadOnly) takes no
+//! change. Every mutating ask on it — a write, a truncate, a setattr,
+//! a remove, a rename, a mkdir — is answered
+//! [`ReadOnly`](ack::Frame::ReadOnly), which the program sees as a
+//! read-only filesystem, and every immutable ask goes through. An
+//! ephemeral volume takes every change and discards it afterwards,
+//! and a persistent one keeps it; neither refuses a change for its
+//! mode.
 //!
 //! # A file mount is one file; a directory mount is a tree
 //!

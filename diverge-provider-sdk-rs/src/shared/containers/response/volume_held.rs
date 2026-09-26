@@ -1,13 +1,17 @@
-//! A run refused because a volume it names is held to itself by a
-//! stat, an edit or a delete.
+//! A run refused because a volume it names is held: to itself by a
+//! stat, an edit or a delete, or, a persistent one, by anyone.
 
 use serde::{Deserialize, Serialize};
 
-/// The volume a run request named that is under a stat, an edit or
-/// a delete of the same caller at the time, and so refused the run.
+/// The volume a run request named that is held at the time — under
+/// a stat, an edit or a delete of the same caller, or, a persistent
+/// volume, mounted in a running container or served — and so refused
+/// the run.
 ///
-/// A volume may be mounted in any number of containers of its caller
-/// at once, whatever its `persist`; what it cannot be is
+/// An ephemeral or a read-only volume may be mounted in any number of
+/// containers of its caller at once; a persistent one has one user at
+/// a time, one running container or one serve, as its
+/// [`Mode`](crate::endpoints::volumes::Mode) states. No volume is
 /// mounted while something examines, resizes or removes it. A
 /// provider holds every volume a run names, shared, from the moment
 /// it accepts the request until the run ends, and a request naming

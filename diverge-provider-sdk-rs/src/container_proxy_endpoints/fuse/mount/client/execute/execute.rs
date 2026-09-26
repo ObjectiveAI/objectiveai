@@ -39,7 +39,7 @@ pub async fn execute(handle: &Handle, path: Vec<String>, kind: Kind) -> Result<(
         response::Frame::Error(message) => return Err(ExecuteError::Refused(message.to_owned())),
         // A mount is not a mutation of anything a volume keeps; a proxy
         // that says so has misspoken, and the mount is not made.
-        response::Frame::Ephemeral => return Err(ExecuteError::Refused("ephemeral".to_owned())),
+        response::Frame::ReadOnly => return Err(ExecuteError::Refused("read-only".to_owned())),
     }
 
     Ok((

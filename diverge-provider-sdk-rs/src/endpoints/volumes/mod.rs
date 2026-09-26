@@ -8,7 +8,7 @@
 //! mount's asks from it; [`create_capacity`] says how
 //! large a volume may be made and [`create`] makes one; [`edit_capacity`] says
 //! how far one may grow and [`edit`] changes how much it reserves,
-//! whether it keeps what is written into it, or both; and [`delete`]
+//! its [`Mode`], or both; and [`delete`]
 //! destroys it. Every one of them but [`create`] and
 //! [`create_capacity`] names a volume rather than describing one: a caller
 //! can only ask for what it was offered, and [`create`] is the move
@@ -16,11 +16,15 @@
 //!
 //! # Many mounters, or one editor
 //!
-//! A volume may be mounted in any number of containers of its caller
-//! at once, and nothing examines, reads, writes, walks, resizes or
-//! deletes a volume while any container has it. On the server half
-//! that is one hold per volume with two modes — shared, taken by a
-//! run for its life and by a [`serve`] for its scope's, and exclusive, taken by a [`stat`], a [`read`],
+//! Who may hold a volume at once is its [`Mode`]: an ephemeral or a
+//! read-only volume may be mounted in any number of containers of its
+//! caller and served on any number of [`serve`] scopes at once; a
+//! persistent volume has one user at a time, one running container
+//! or one serve. Whatever the mode, nothing examines, reads, writes,
+//! walks, resizes or deletes a volume while anything holds it. On the
+//! server half that is one hold per volume with two kinds — shared,
+//! taken by a run for its life and by a [`serve`] for its scope's,
+//! and exclusive, taken by a [`stat`], a [`read`],
 //! a [`write`](mod@write), a [`filetree`], an [`edit`] or a [`delete`]
 //! for its
 //! duration — taken by the handlers, never by the provider;
@@ -64,6 +68,10 @@
 //! survives the scope that created it, every connection the caller
 //! holds, and every container that ever mounted it. Only [`delete`]
 //! ends one.
+
+mod mode;
+
+pub use mode::*;
 
 pub mod create;
 pub mod create_capacity;

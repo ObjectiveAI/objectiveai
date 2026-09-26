@@ -1,9 +1,9 @@
-//! Changing a volume's reserved size, its persist mode, or both.
+//! Changing a volume's reserved size, its mode, or both.
 //!
 //! A caller names one and states the change. Split by who SENDS, as
 //! everywhere else: the ask is in [`client`], the answer in [`server`].
 //!
-//! The size and the persist mode are the two things about a volume
+//! The size and the mode are the two things about a volume
 //! that can be changed, and an edit changes one or both. Its name is
 //! the handle and everything else is a consequence — what a
 //! [`list`](super::list) reports beside them either follows from the

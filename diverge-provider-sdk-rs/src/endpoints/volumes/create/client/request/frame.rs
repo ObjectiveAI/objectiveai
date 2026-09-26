@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::endpoints::volumes::Mode;
+
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
@@ -68,22 +70,19 @@ pub struct Frame {
     /// Bytes rather than megabytes because a unit that has to be
     /// spelled out in prose is a unit half of everyone gets wrong.
     pub bytes: u64,
-    /// Whether the volume keeps what containers write into it.
+    /// The mode the volume starts in: persistent, ephemeral, or read
+    /// only. See [`Mode`].
     ///
-    /// The mode it starts in, and what a listing reports back as
-    /// [`Volume::persist`](crate::endpoints::volumes::list::server::response::Volume::persist)
+    /// What a listing reports back as
+    /// [`Volume::mode`](crate::endpoints::volumes::list::server::response::Volume::mode)
     /// until an [`edit`](crate::endpoints::volumes::edit) changes it.
-    /// `true`: every change a container makes is in the volume when
-    /// the container ends. `false`: the volume is as it was before
-    /// each run when the container ends, and every container sees
-    /// its content as of that container's start. How a provider
-    /// makes `false` hold — an overlay, a copy — is its own.
-    ///
-    /// A fact of the volume and not of a mount: every container that
-    /// mounts the volume gets the same answer, and a
+    /// How a provider makes `ephemeral` hold — an overlay, a copy — is
+    /// its own. A fact of the volume and not of a mount: every
+    /// container that mounts the volume and every serve of it is
+    /// bound under it, and a
     /// [`VolumeMount`](crate::shared::containers::request::VolumeMount)
     /// does not say otherwise.
-    pub persist: bool,
+    pub mode: Mode,
 }
 
 /// This frame's tag among the scope-opening requests.

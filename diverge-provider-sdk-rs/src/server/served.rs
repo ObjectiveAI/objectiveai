@@ -24,15 +24,19 @@ use crate::shared::containers::fuse::{Attrs, Listed};
 /// nothing examines, resizes or removes the volume meanwhile and any
 /// number of serves and runs may hold it at once.
 ///
-/// # A volume that keeps nothing
+/// # The mode is the provider's to keep
 ///
-/// A volume whose persist mode is `false` has nowhere for a change to
-/// go, so every mutating method — [`write`](Self::write),
-/// [`truncate`](Self::truncate), [`setattr`](Self::setattr),
-/// [`remove`](Self::remove), [`rename`](Self::rename),
-/// [`mkdir`](Self::mkdir) — answers [`Refused::Ephemeral`], and every
-/// immutable one goes through. The provider knows the mode; the
-/// handler does not ask.
+/// The handler does not know the volume's
+/// [`Mode`](crate::endpoints::volumes::Mode); what this returns does.
+/// A persistent volume changes in place. An ephemeral one takes
+/// every mutation into a layer of this serve's own, discarded when
+/// this is dropped, and refuses with [`Refused::Error`] a mutation
+/// that would take the layer past the `overlay_disk` the serve was
+/// given. A read-only one answers every mutating method —
+/// [`write`](Self::write), [`truncate`](Self::truncate),
+/// [`setattr`](Self::setattr), [`remove`](Self::remove),
+/// [`rename`](Self::rename), [`mkdir`](Self::mkdir) — with
+/// [`Refused::ReadOnly`], and every immutable one goes through.
 pub trait Served: Send + Sync {
     /// What the entry is, how long, whose, with what mode, and when;
     /// or `None` for nothing at the path.

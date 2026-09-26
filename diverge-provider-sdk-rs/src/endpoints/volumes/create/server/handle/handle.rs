@@ -47,7 +47,7 @@ pub async fn handle<M>(
     M::Error: Into<Error>,
 {
     let frame = match manager
-        .create(client_identity, &request.name, request.bytes, request.persist)
+        .create(client_identity, &request.name, request.bytes, request.mode)
         .await
     {
         Ok(response::Creation::Created) => response::Frame::Created,

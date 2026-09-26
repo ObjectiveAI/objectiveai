@@ -58,7 +58,7 @@ where
     if !volume.mount().await {
         return refuse(scope, refusal::mounted(&request.name)).await;
     }
-    let served = match volume.serve().await {
+    let served = match volume.serve(request.overlay_disk).await {
         Ok(served) => Arc::new(served),
         Err(error) => {
             volume.unmount().await;
@@ -160,7 +160,7 @@ async fn one<V: Served>(scope: Arc<ScopeHandle>, served: Arc<V>, channel: u32, a
 fn ack(buffer: &mut Vec<u8>, result: Result<(), Refused>) -> bool {
     let frame = match &result {
         Ok(()) => fuse::ack::Frame::Ok,
-        Err(Refused::Ephemeral) => fuse::ack::Frame::Ephemeral,
+        Err(Refused::ReadOnly) => fuse::ack::Frame::ReadOnly,
         Err(Refused::Error(message)) => fuse::ack::Frame::Error(message),
     };
     frame.encode(&mut Writer::new(buffer)).is_ok()

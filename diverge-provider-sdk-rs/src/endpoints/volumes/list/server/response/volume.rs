@@ -2,12 +2,14 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::endpoints::volumes::Mode;
+
 /// A directory a caller may mount, under the name a provider gave it.
 ///
 /// [`name`](Self::name) is what to call it, [`bytes`](Self::bytes) is
 /// how big it is, [`created`](Self::created) is how old it is, and
-/// [`persist`](Self::persist) is whether it keeps what is written
-/// into it. That is the whole of what a listing says about one, and
+/// [`mode`](Self::mode) is what becomes of a change to it. That is
+/// the whole of what a listing says about one, and
 /// the omissions are the interesting part.
 ///
 /// # What is inside it is a stat away
@@ -90,19 +92,17 @@ pub struct Volume {
     /// offers does, and the alternative is a signed field whose
     /// negative half exists to represent a state that never occurs.
     pub created: u64,
-    /// Whether the volume keeps what containers write into it.
+    /// The mode the volume is in: persistent, ephemeral, or read
+    /// only. See [`Mode`].
     ///
-    /// `true`: every change a container makes is in the volume when
-    /// the container ends. `false`: the volume is as it was before
-    /// each run when the container ends, and every container sees
-    /// its content as of that container's start. What a
-    /// [`create`](crate::endpoints::volumes::create::client::request::Frame::persist)
+    /// What a
+    /// [`create`](crate::endpoints::volumes::create::client::request::Frame::mode)
     /// stated, or the last
-    /// [`edit`](crate::endpoints::volumes::edit::client::request::Change::Persist)
+    /// [`edit`](crate::endpoints::volumes::edit::client::request::Change::Mode)
     /// of it; for a volume the provider offers on its own, the
     /// provider's word. One answer for every container that mounts
-    /// the volume — a mount does not choose.
+    /// the volume and every serve of it — neither chooses.
     ///
-    /// One byte in postcard, `0` or `1`, after `created`.
-    pub persist: bool,
+    /// One byte in postcard, `0`, `1` or `2`, after `created`.
+    pub mode: Mode,
 }

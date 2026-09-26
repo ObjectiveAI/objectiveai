@@ -24,15 +24,20 @@ use serde::{Deserialize, Serialize};
 /// there is no component it can write that means "up" — the offset is
 /// components, and `..` is a name, not an instruction.
 ///
-/// # Whether the changes stay is the volume's
+/// # What becomes of the changes is the volume's
 ///
 /// Not here. Whether what a container writes into the volume is in
-/// the volume when the container ends is the volume's `persist`, as
-/// its [listing](crate::endpoints::volumes::list::server::response::Volume::persist)
+/// the volume when the container ends, discarded with the container,
+/// or refused inside it is the volume's
+/// [`Mode`](crate::endpoints::volumes::Mode), as its
+/// [listing](crate::endpoints::volumes::list::server::response::Volume::mode)
 /// reports it and as a [`create`](crate::endpoints::volumes::create)
 /// stated or an [`edit`](crate::endpoints::volumes::edit) changed it
 /// — a fact of the volume, the same for every container that mounts
-/// it, and not a mount's to say.
+/// it, and not a mount's to say. So is how many may mount it: any
+/// number of the caller's containers for an ephemeral or a read-only
+/// volume, one running container at a time for a persistent one,
+/// which a single run may still name at several paths.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct VolumeMount {
     /// Which offered volume, by the name a listing gave it.

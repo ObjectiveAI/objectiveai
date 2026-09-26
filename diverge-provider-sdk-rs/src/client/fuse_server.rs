@@ -30,8 +30,8 @@ use crate::shared::containers::fuse::stat::Stat;
 /// and from `stat` is a file the caller holds nothing for yet (it
 /// reads as empty, and the first write makes it), or an entry that is
 /// not there; from [`list`](Self::list) it is no such directory. A
-/// mutation answers [`Refused`]: [`Ephemeral`](Refused::Ephemeral)
-/// when the storage keeps nothing written into it, so the program
+/// mutation answers [`Refused`]: [`ReadOnly`](Refused::ReadOnly)
+/// when the volume behind the mount is read only, so the program
 /// sees a read-only filesystem, or the error in words. A caller that
 /// wants a mount unchangeable answers every mutation for its id with
 /// the error: nothing else refuses one on its behalf.
