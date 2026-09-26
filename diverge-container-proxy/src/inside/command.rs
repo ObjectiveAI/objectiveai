@@ -23,7 +23,7 @@ use axum::body::{Body, Bytes};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use diverge_provider_sdk::shared::containers::command;
+use diverge_sdk::shared::containers::command;
 use futures_util::StreamExt as _;
 use futures_util::stream;
 

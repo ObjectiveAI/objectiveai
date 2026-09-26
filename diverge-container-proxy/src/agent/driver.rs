@@ -4,9 +4,9 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::error::Error;
-use diverge_container_proxy_sdk::agent::run::request::Message;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::error::Error;
+use diverge_sdk::container_proxy::inside::agent::run::request::Message;
 use tokio::sync::{mpsc, oneshot};
 
 use super::{Cmd, DequeueReply, Fate, Outcome, Queued, run};

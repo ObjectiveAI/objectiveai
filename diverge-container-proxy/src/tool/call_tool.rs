@@ -1,7 +1,7 @@
 //! One of the container's server's tools, run.
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::mcp::call_tool::{request, response};
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::mcp::call_tool::{request, response};
 
 use super::{Tool, outcome};
 use crate::encode::encoded;

@@ -1,6 +1,6 @@
 //! One answer on a channel the server opened, then the finish.
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 /// The one channel response, when there is one, and the finish
 /// either way: a finish with nothing before it is the wire's word for

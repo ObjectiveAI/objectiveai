@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use diverge_provider_sdk::endpoints::volumes::Mode;
+use diverge_sdk::provider::endpoints::volumes::Mode;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 

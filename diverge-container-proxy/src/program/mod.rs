@@ -2,7 +2,7 @@
 //! for the two calls both kinds answer.
 //!
 //! Every container's entrypoint is an HTTP server on the loopback, at
-//! the port [`diverge_container_proxy_sdk::port()`] names — an
+//! the port [`diverge_sdk::container_proxy::inside::port()`] names — an
 //! agent's loop, or a tool's MCP server — and beside either the two
 //! calls this module makes: `/register` once, when the server begins,
 //! with the arguments the container was made with; `/schema` when the

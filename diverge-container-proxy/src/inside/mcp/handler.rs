@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use diverge_provider_sdk::decode::Decode;
-use diverge_provider_sdk::shared::mcp;
+use diverge_sdk::wire::decode::Decode;
+use diverge_sdk::shared::mcp;
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, Implementation,
     ListResourcesResult, ListToolsResult, PaginatedRequestParams,

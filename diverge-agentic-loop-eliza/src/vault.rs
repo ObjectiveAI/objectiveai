@@ -23,7 +23,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use diverge_container_proxy_sdk::Client;
+use diverge_sdk::container_proxy::inside::Client;
 use tokio::task::JoinHandle;
 
 use crate::agent::Agent;
@@ -281,12 +281,12 @@ pub enum Error {
     /// The key could not be locked.
     Lock {
         key: String,
-        error: diverge_container_proxy_sdk::Error,
+        error: diverge_sdk::container_proxy::inside::Error,
     },
     /// The key could not be read.
     Get {
         key: String,
-        error: diverge_container_proxy_sdk::Error,
+        error: diverge_sdk::container_proxy::inside::Error,
     },
     /// The vault holds nothing under the key.
     Missing(String),
@@ -296,12 +296,12 @@ pub enum Error {
     /// The value could not be set.
     Set {
         key: String,
-        error: diverge_container_proxy_sdk::Error,
+        error: diverge_sdk::container_proxy::inside::Error,
     },
     /// The key could not be unlocked.
     Unlock {
         key: String,
-        error: diverge_container_proxy_sdk::Error,
+        error: diverge_sdk::container_proxy::inside::Error,
     },
 }
 

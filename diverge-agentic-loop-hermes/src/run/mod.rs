@@ -56,9 +56,9 @@ pub use gateway::*;
 
 use std::sync::Arc;
 
-use diverge_container_proxy_sdk::Client;
-use diverge_container_proxy_sdk::agent::run::request::Message;
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
+use diverge_sdk::container_proxy::inside::Client;
+use diverge_sdk::container_proxy::inside::agent::run::request::Message;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, user_parts,
 };
 use futures_util::{Stream, StreamExt as _};

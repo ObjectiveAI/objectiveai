@@ -22,10 +22,9 @@ bytes = { version = "1.11.1", default-features = false }
 # version.sh would have to chase. `server`: the frame-level session
 # that reads the one connection and the scope handles that answer it,
 # and the container proxy protocol's own frames.
-diverge-provider-sdk = { path = "../diverge-provider-sdk-rs", features = ["server"] }
+diverge-sdk = { path = "../diverge-sdk-rs" }
 # The inside of the container, stated once: the loopback ports the
 # program dials, and the agent server's own contract.
-diverge-container-proxy-sdk = { path = "../diverge-container-proxy-sdk-rs" }
 # `Stream` on a body, the fan-out's `join_all`, and the binds joined.
 futures-util = { version = "0.3.33", default-features = false }
 # The filesystem watch behind a tree: inotify, on the images this

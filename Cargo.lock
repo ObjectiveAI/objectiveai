@@ -1698,8 +1698,7 @@ dependencies = [
  "async-stream",
  "axum",
  "dashmap",
- "diverge-container-proxy-sdk",
- "diverge-provider-sdk",
+ "diverge-sdk",
  "futures-util",
  "indexmap 2.14.0",
  "rmcp 3.1.2",
@@ -1717,8 +1716,7 @@ version = "2.3.0"
 dependencies = [
  "async-stream",
  "axum",
- "diverge-container-proxy-sdk",
- "diverge-provider-sdk",
+ "diverge-sdk",
  "futures-util",
  "rmcp 3.1.2",
  "schemars 1.2.2",
@@ -1736,8 +1734,7 @@ version = "2.3.0"
 dependencies = [
  "async-stream",
  "axum",
- "diverge-container-proxy-sdk",
- "diverge-provider-sdk",
+ "diverge-sdk",
  "futures-util",
  "rmcp 3.1.2",
  "schemars 1.2.2",
@@ -1754,8 +1751,7 @@ version = "2.3.0"
 dependencies = [
  "async-stream",
  "axum",
- "diverge-container-proxy-sdk",
- "diverge-provider-sdk",
+ "diverge-sdk",
  "eventsource-stream",
  "futures-util",
  "libc",
@@ -1775,8 +1771,7 @@ version = "2.3.0"
 dependencies = [
  "async-stream",
  "axum",
- "diverge-container-proxy-sdk",
- "diverge-provider-sdk",
+ "diverge-sdk",
  "eventsource-stream",
  "futures-util",
  "indexmap 2.14.0",
@@ -1800,8 +1795,7 @@ version = "2.3.0"
 dependencies = [
  "async-stream",
  "axum",
- "diverge-container-proxy-sdk",
- "diverge-provider-sdk",
+ "diverge-sdk",
  "futures-util",
  "indexmap 2.14.0",
  "rmcp 3.1.2",
@@ -1828,8 +1822,7 @@ version = "2.3.0"
 dependencies = [
  "axum",
  "bytes",
- "diverge-container-proxy-sdk",
- "diverge-provider-sdk",
+ "diverge-sdk",
  "eventsource-stream",
  "fuser",
  "futures-util",
@@ -1842,51 +1835,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diverge-container-proxy-sdk"
-version = "2.3.0"
-dependencies = [
- "async-stream",
- "bytes",
- "diverge-provider-sdk",
- "futures-util",
- "reqwest 0.12.28",
- "rmcp 3.1.2",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "diverge-daemon-sdk"
-version = "2.3.0"
-dependencies = [
- "chrono",
- "diverge-provider-sdk",
- "rmcp 3.1.2",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "diverge-provider-sdk"
-version = "2.3.0"
-dependencies = [
- "axum",
- "bytes",
- "futures-util",
- "indexmap 2.14.0",
- "postcard",
- "rmcp 3.1.2",
- "rust_decimal",
- "schemars 1.2.2",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.29.0",
- "uuid",
-]
-
-[[package]]
 name = "diverge-provider-server"
 version = "2.3.0"
 dependencies = [
@@ -1894,7 +1842,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "dashmap",
- "diverge-provider-sdk",
+ "diverge-sdk",
  "fstool",
  "futures-util",
  "hex",
@@ -1908,6 +1856,28 @@ dependencies = [
  "tokio-tungstenite 0.29.0",
  "uuid",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "diverge-sdk"
+version = "2.3.0"
+dependencies = [
+ "async-stream",
+ "axum",
+ "bytes",
+ "chrono",
+ "futures-util",
+ "indexmap 2.14.0",
+ "postcard",
+ "reqwest 0.12.28",
+ "rmcp 3.1.2",
+ "rust_decimal",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite 0.29.0",
+ "uuid",
 ]
 
 [[package]]

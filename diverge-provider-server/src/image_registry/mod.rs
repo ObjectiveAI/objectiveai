@@ -5,7 +5,7 @@
 //!
 //! An OCI registry, the read side of the Distribution API, on its own
 //! ephemeral loopback port, serving one repository per run from the
-//! [`ImageSource`](diverge_provider_sdk::server::image_source::ImageSource)
+//! [`ImageSource`](diverge_sdk::provider::server::image_source::ImageSource)
 //! the SDK hands it — the run scope's channels to the caller. What
 //! podman asks it for, it asks the caller for, and hands on. A
 //! manifest is fetched whole, since a manifest is small, verified,

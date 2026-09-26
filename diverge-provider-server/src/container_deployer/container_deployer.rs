@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use diverge_provider_sdk::server::caller::Caller;
-use diverge_provider_sdk::server::container_deployer;
-use diverge_provider_sdk::server::deployment::Deployment;
+use diverge_sdk::provider::server::caller::Caller;
+use diverge_sdk::provider::server::container_deployer;
+use diverge_sdk::provider::server::deployment::Deployment;
 use futures_util::future;
 use serde_json::json;
 

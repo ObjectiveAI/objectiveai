@@ -1,6 +1,6 @@
 //! What a Python continuation holds, and where it lives.
 
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use rmcp::model::ContentBlock;
 use sqlx::PgPool;
 

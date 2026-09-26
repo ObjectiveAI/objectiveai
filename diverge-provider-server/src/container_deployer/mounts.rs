@@ -3,9 +3,9 @@
 
 use std::path::Path;
 
-use diverge_provider_sdk::server::mount::Mount;
-use diverge_provider_sdk::endpoints::volumes::Mode;
-use diverge_provider_sdk::server::volume_manager::VolumeManager as _;
+use diverge_sdk::provider::server::mount::Mount;
+use diverge_sdk::provider::endpoints::volumes::Mode;
+use diverge_sdk::provider::server::volume_manager::VolumeManager as _;
 use futures_util::future;
 
 use super::{ContainerDeployer, Error};

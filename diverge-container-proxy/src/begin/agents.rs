@@ -3,12 +3,12 @@
 
 use std::sync::Arc;
 
-use diverge_provider_sdk::container_proxy_endpoints::agents::begin::client::{channel_request, request};
-use diverge_provider_sdk::container_proxy_endpoints::agents::begin::server::response;
-use diverge_provider_sdk::decode::Decode as _;
-use diverge_provider_sdk::frame::client::ClientFrame;
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::container_proxy::outside::agents::begin::client::{channel_request, request};
+use diverge_sdk::container_proxy::outside::agents::begin::server::response;
+use diverge_sdk::wire::decode::Decode as _;
+use diverge_sdk::wire::frame::client::ClientFrame;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::error::Error;
 
 use super::Family;
 use crate::encode::encoded;

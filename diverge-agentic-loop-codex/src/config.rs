@@ -81,7 +81,7 @@ pub fn render(agent: &Agent) -> Result<String, toml::ser::Error> {
     mcp_servers.insert(
         DIVERGE,
         McpServer {
-            url: diverge_container_proxy_sdk::mcp_url(),
+            url: diverge_sdk::container_proxy::inside::mcp_url(),
         },
     );
     toml::to_string(&Config {

@@ -2,7 +2,7 @@
 //!
 //! This crate is the **normative artifact** of the broker
 //! specification, the same way
-//! [`diverge-provider-sdk`](https://docs.rs/diverge-provider-sdk) is of
+//! [`diverge-sdk`](https://docs.rs/diverge-sdk) is of
 //! the provider's. The types defined here are not a description of the
 //! protocol written alongside an implementation — they are the
 //! protocol. Prose documents the requirements a broker must satisfy;
@@ -47,4 +47,4 @@
 //! Bootstrapped and empty. The types land as the broker API is
 //! defined.
 //!
-//! [`provider`]: https://docs.rs/diverge-provider-sdk
+//! [`provider`]: https://docs.rs/diverge-sdk

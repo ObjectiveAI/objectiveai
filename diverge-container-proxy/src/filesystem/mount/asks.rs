@@ -14,10 +14,10 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use diverge_provider_sdk::container_proxy_endpoints::fuse::mount::server::channel_request::{Frame, Path, Read, Rename, Setattr, Truncate, Write};
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::containers::fuse;
-use diverge_provider_sdk::shared::containers::fuse::stat::Stat;
+use diverge_sdk::container_proxy::outside::fuse::mount::server::channel_request::{Frame, Path, Read, Rename, Setattr, Truncate, Write};
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers::fuse;
+use diverge_sdk::shared::containers::fuse::stat::Stat;
 use fuser::Errno;
 use tokio::runtime::Handle;
 

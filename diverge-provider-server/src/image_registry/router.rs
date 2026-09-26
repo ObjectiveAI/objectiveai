@@ -9,7 +9,7 @@ use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use dashmap::DashMap;
-use diverge_provider_sdk::server::image_source::Manifest;
+use diverge_sdk::provider::server::image_source::Manifest;
 use serde_json::json;
 
 use super::{Ask, Digest, Kind, Repository, verified};

@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use serde::{Deserialize, Serialize};
 
 use super::super::{RichContent, RichContentPart};

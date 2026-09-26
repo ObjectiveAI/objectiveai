@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use diverge_container_proxy_sdk::Client;
+use diverge_sdk::container_proxy::inside::Client;
 
 /// Codex's home, fixed for the container's life: its default for the
 /// root user, set explicitly on the process so the geometry never
@@ -77,7 +77,7 @@ pub enum Error {
     /// The key could not be read.
     Get {
         key: &'static str,
-        error: diverge_container_proxy_sdk::Error,
+        error: diverge_sdk::container_proxy::inside::Error,
     },
     /// The key holds something that is not text.
     NotText(&'static str),

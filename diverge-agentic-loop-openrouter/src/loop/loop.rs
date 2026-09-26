@@ -1,10 +1,10 @@
 //! The loop itself: connect, learn the tools, run the turns.
 
-use diverge_container_proxy_sdk::Client;
+use diverge_sdk::container_proxy::inside::Client;
 use crate::agent::Agent;
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
-use diverge_container_proxy_sdk::agent::run::request::Message;
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response;
+use diverge_sdk::container_proxy::inside::agent::run::request::Message;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, ToolResponseChunk, user_parts,
 };
 use rmcp::model::ContentBlock;

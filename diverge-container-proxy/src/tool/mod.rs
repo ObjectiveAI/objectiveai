@@ -2,7 +2,7 @@
 //!
 //! A tool container's entrypoint is an MCP server on the loopback —
 //! Streamable HTTP at `/mcp`, on the port
-//! [`port()`](diverge_container_proxy_sdk::port) reads, beside the
+//! [`port()`](diverge_sdk::container_proxy::inside::port) reads, beside the
 //! `/register` and `/schema` that [`program`](crate::program) makes —
 //! and each channel the server opens on a tool container's begin
 //! scope is one exchange with it, answered in the wire's own frame.

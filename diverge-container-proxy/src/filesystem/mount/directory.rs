@@ -30,7 +30,7 @@ use std::ffi::OsStr;
 use std::sync::{Mutex, MutexGuard};
 use std::time::SystemTime;
 
-use diverge_provider_sdk::shared::containers::fuse;
+use diverge_sdk::shared::containers::fuse;
 use fuser::{
     BsdFileFlags, Errno, FileAttr, FileHandle, FileType, Filesystem, Generation, INodeNo,
     KernelConfig, LockOwner, OpenAccMode, OpenFlags, RenameFlags, ReplyAttr, ReplyCreate,

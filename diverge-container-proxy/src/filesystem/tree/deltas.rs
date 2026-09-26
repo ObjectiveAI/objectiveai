@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Component, Path};
 use std::sync::Mutex;
 
-use diverge_provider_sdk::shared::filetree::response::Frame;
+use diverge_sdk::shared::filetree::response::Frame;
 use notify::EventKind;
 use notify::event::{ModifyKind, RenameMode};
 

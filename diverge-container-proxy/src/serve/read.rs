@@ -1,11 +1,11 @@
 //! A read scope: one file out of the container.
 
-use diverge_provider_sdk::CHUNK_SIZE;
-use diverge_provider_sdk::container_proxy_endpoints::filesystem::read::client::request;
-use diverge_provider_sdk::container_proxy_endpoints::filesystem::read::server::response;
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::containers;
-use diverge_provider_sdk::shared::error::Error;
+use diverge_sdk::CHUNK_SIZE;
+use diverge_sdk::container_proxy::outside::filesystem::read::client::request;
+use diverge_sdk::container_proxy::outside::filesystem::read::server::response;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers;
+use diverge_sdk::shared::error::Error;
 use tokio::io::AsyncReadExt as _;
 
 use crate::encode::encoded;

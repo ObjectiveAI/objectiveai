@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use tokio::sync::{Mutex, OnceCell, mpsc, watch};
 
 use crate::agent::Cmd;

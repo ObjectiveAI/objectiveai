@@ -3,10 +3,10 @@
 
 use std::sync::Arc;
 
-use diverge_provider_sdk::container_proxy_endpoints::fuse::mount::client::request;
-use diverge_provider_sdk::container_proxy_endpoints::fuse::mount::server::response;
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
-use diverge_provider_sdk::shared::containers::fuse;
+use diverge_sdk::container_proxy::outside::fuse::mount::client::request;
+use diverge_sdk::container_proxy::outside::fuse::mount::server::response;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers::fuse;
 
 use crate::encode::encoded;
 use crate::filesystem::mount::{self, Kind};

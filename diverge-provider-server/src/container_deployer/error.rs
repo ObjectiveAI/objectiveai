@@ -5,7 +5,7 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
-use diverge_provider_sdk::shared::error;
+use diverge_sdk::shared::error;
 use serde_json::json;
 
 use crate::tools;

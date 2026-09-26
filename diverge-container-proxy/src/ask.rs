@@ -1,8 +1,8 @@
 //! One ask, one answer: the relay every one-message exchange rides.
 
 use bytes::Bytes;
-use diverge_provider_sdk::server::channel::Channel;
-use diverge_provider_sdk::server::scope_handle::ScopeHandle;
+use diverge_sdk::wire::server::channel::Channel;
+use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::answer::{self, Answer};
 use crate::own::Own;

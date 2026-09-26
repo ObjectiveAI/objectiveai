@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// APPLICATION: the harness sets `HERMES_SPOTIFY_CLIENT_ID` to
 /// [`client_id`](Self::client_id) in the gateway's process
 /// environment; the login document lives in the vault under
-/// [`SPOTIFY_OAUTH`](diverge_provider_sdk::shared::containers::vault::keys::SPOTIFY_OAUTH), which the harness locks
+/// [`SPOTIFY_OAUTH`](diverge_sdk::shared::containers::vault::keys::SPOTIFY_OAUTH), which the harness locks
 /// for the run, reads, and writes as the `providers.spotify` entry
 /// of `$HERMES_HOME/auth.json` (Hermes keeps this entry inert for
 /// provider selection by its own design); at the run's end the

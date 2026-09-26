@@ -1,7 +1,7 @@
 //! The container's image, put under `_meta` on every MCP exchange
 //! the proxy relays, and on every chunk of an agent's conversation.
 
-use diverge_provider_sdk::shared::containers::request::Image;
+use diverge_sdk::shared::containers::request::Image;
 use rmcp::model::{
     GetMeta as _, MetaObject, RequestMetaObject, RequestParamsMeta, Resource, ServerNotification, Tool,
 };

@@ -1,0 +1,64 @@
+[package]
+name = "diverge-sdk"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Diverge SDK: the wire, the provider protocol, the daemon protocol, and the container proxy inside and out — the normative artifact of the provider specification"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+documentation = "https://docs.rs/diverge-sdk"
+readme = "README.md"
+keywords = ["llm", "ai", "swarm", "provider"]
+publish = true
+
+# No features. Every half of every protocol is here for every
+# dependent, so nothing a reader names is behind a flag and no two
+# builds of this crate disagree about what exists.
+
+[dependencies]
+# The incoming socket: axum's WebSocket, `ws` alone — enough to name
+# the type a provider hands over after its own upgrade, not to serve.
+axum = { version = "0.8.9", default-features = false, features = ["ws"] }
+# The body of a frame, and what a vault value comes back as: the
+# answer's bytes, not copied.
+bytes = { version = "1.11.1", default-features = false }
+# The time a daemon log item was kept: RFC 3339 on the wire, and the
+# type sqlx reads a Postgres `timestamptz` into.
+chrono = { version = "0.4.39", default-features = false, features = ["std", "serde"] }
+# `Stream`, and the sinks and streams a split socket is.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# A command's items and other bodies still being written, as a stream.
+async-stream = { version = "0.3.6" }
+# Keyed maps that keep their order on the wire.
+indexmap = { version = "2.14.0", features = ["serde"] }
+# The binary encoding of every frame that is not JSON.
+postcard = { version = "1.1.3", features = ["use-std"], default-features = false }
+# MCP: the types every MCP channel relays, and the client half the
+# in-container program calls the proxy's MCP server with, over
+# Streamable HTTP. Nothing here serves MCP.
+rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
+# The line rmcp's reqwest transport rides, and what the in-container
+# client dials the proxy with: rustls, no default TLS — the feature
+# set that builds on the musl images. `stream`: a command's items
+# arrive as a body still being written.
+reqwest = { version = "0.12", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"] }
+rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
+# `JsonSchema` on the two types an image puts in its own arguments —
+# a tool container and its image — so an image's `GET /schema` can
+# state them.
+schemars = { version = "1.2.2" }
+serde = { version = "1.0.229", features = ["derive"] }
+# `preserve_order`: what is relayed keeps the order it arrived in.
+# `raw_value`: MCP bodies pass through byte-identical.
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# `net` and `rt` for the sockets and the tasks of both halves; `sync`
+# for every queue between them, and the in-container client's
+# once-made session.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt", "sync"] }
+# The outgoing socket: `stream` names it, `connect` is the one place
+# this crate dials — the provider's server into the proxy inside a
+# container, see `provider::server::proxy`.
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["stream", "connect"] }
+# Container ids, minted by the provider's server.
+uuid = { version = "1.18.1", default-features = false, features = ["v4"] }

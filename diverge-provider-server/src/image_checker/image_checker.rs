@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use diverge_provider_sdk::endpoints::images::check::server::response::{Available, Response, Unavailable};
-use diverge_provider_sdk::server::image_checker;
+use diverge_sdk::provider::endpoints::images::check::server::response::{Available, Response, Unavailable};
+use diverge_sdk::provider::server::image_checker;
 use futures_util::future;
 
 use super::Error;

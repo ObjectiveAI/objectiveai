@@ -42,7 +42,7 @@ pub mod tool_progress;
 pub mod tool_use_summary;
 pub mod user;
 
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response;
 use serde::Deserialize;
 
 /// One line of stdout, whichever record it is — the source's

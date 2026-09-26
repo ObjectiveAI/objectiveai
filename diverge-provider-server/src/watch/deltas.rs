@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::Path;
 
-use diverge_provider_sdk::shared::filetree::response::Frame;
+use diverge_sdk::shared::filetree::response::Frame;
 use notify::EventKind;
 use notify::event::{ModifyKind, RenameMode};
 use tokio::sync::Mutex;

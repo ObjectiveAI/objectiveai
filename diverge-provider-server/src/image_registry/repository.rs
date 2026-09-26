@@ -1,7 +1,7 @@
 //! One run's source, and what it has answered.
 
 use dashmap::DashMap;
-use diverge_provider_sdk::server::image_source::{BlobStream, ImageSource, Manifest};
+use diverge_sdk::provider::server::image_source::{BlobStream, ImageSource, Manifest};
 use serde_json::Value;
 
 use super::Digest;

@@ -2,7 +2,7 @@
 //!
 //! The program an agent container runs for a Python agent: an HTTP
 //! server on the container's loopback, at the port the SDK's
-//! [`diverge_container_proxy_sdk::port()`] names, that the proxy beside it
+//! [`diverge_sdk::container_proxy::inside::port()`] names, that the proxy beside it
 //! forwards the provider's asks to. `POST /run` runs a loop — one at
 //! a time, the lock held for exactly the stream's life, so a run
 //! after the first resumes the conversation and a run beside it is
@@ -58,14 +58,14 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
-use diverge_container_proxy_sdk::Client;
-use diverge_container_proxy_sdk::agent::dequeue::{self, Outcome};
-use diverge_container_proxy_sdk::agent::enqueue::Fate;
-use diverge_container_proxy_sdk::register;
-use diverge_container_proxy_sdk::register::response::Response;
-use diverge_container_proxy_sdk::agent::run as run_endpoint;
-use diverge_provider_sdk::shared::containers::enqueue;
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response::{
+use diverge_sdk::container_proxy::inside::Client;
+use diverge_sdk::container_proxy::inside::agent::dequeue::{self, Outcome};
+use diverge_sdk::container_proxy::inside::agent::enqueue::Fate;
+use diverge_sdk::container_proxy::inside::register;
+use diverge_sdk::container_proxy::inside::register::response::Response;
+use diverge_sdk::container_proxy::inside::agent::run as run_endpoint;
+use diverge_sdk::shared::containers::enqueue;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response::{
     AgenticLoopChunk, NotificationChunk,
 };
 use futures_util::{Stream, StreamExt as _};
@@ -101,7 +101,7 @@ async fn serve() {
         .route("/dequeue", axum::routing::post(dequeue))
         .with_state(Arc::new(Client::new()));
 
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_container_proxy_sdk::port()))
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_sdk::container_proxy::inside::port()))
         .await
         .expect("the port could not be bound");
     axum::serve(listener, app)

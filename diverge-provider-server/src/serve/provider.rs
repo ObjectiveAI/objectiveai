@@ -4,11 +4,11 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use diverge_provider_sdk::connection::Connection;
-use diverge_provider_sdk::server::authorization::Authorization;
-use diverge_provider_sdk::server::directory::Directory;
-use diverge_provider_sdk::server::handle::handle;
-use diverge_provider_sdk::server::session::Session;
+use diverge_sdk::wire::connection::Connection;
+use diverge_sdk::wire::server::authorization::Authorization;
+use diverge_sdk::provider::server::directory::Directory;
+use diverge_sdk::provider::server::handle::handle;
+use diverge_sdk::wire::server::session::Session;
 
 use super::Error;
 use crate::config::Config;

@@ -1,6 +1,6 @@
 //! Image types for completion responses.
 
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response;
 use serde::Deserialize;
 
 /// An image in a agent completion response.

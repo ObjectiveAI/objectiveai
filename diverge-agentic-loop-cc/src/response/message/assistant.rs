@@ -1,6 +1,6 @@
 //! The API's assistant message, whole.
 
-use diverge_provider_sdk::endpoints::containers::agents::run::server::response;
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response;
 use serde::Deserialize;
 
 use super::{ContentBlock, Usage};

@@ -16,9 +16,9 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
-use diverge_provider_sdk::CHUNK_SIZE;
-use diverge_provider_sdk::shared::error;
-use diverge_provider_sdk::shared::filetree::response::Node;
+use diverge_sdk::CHUNK_SIZE;
+use diverge_sdk::shared::error;
+use diverge_sdk::shared::filetree::response::Node;
 use fstool::block::{BlockDevice, FileBackend};
 use fstool::fs::ext::{Ext, FormatOpts, FsKind};
 use fstool::fs::{EntryKind, FileMeta, Filesystem as _, OpenFlags};

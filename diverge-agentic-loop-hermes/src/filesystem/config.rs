@@ -82,7 +82,7 @@ pub fn render(plan: &Plan) -> Value {
         "mcp_servers".to_string(),
         json!({
             MCP_PROXY_NAME: {
-                "url": diverge_container_proxy_sdk::mcp_url(),
+                "url": diverge_sdk::container_proxy::inside::mcp_url(),
                 "trust": "full",
                 "elicitation": { "enabled": false },
                 "sampling": { "enabled": false },
