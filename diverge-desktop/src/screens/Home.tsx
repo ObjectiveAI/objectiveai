@@ -18,10 +18,14 @@ const VIEWS: Record<string, (m: HomeMove) => boolean> = {
 };
 
 export function Home() {
-  const { agents, open, cards, knocks, answerKnock, homeId } = useShared();
+  const { agents, open, cards, knocks, answerKnock, homeId, spaces } = useShared();
   const [feed, setFeed] = useState<HomeMove[]>([]);
   const [view, setView] = useState("all");
   const [draft, setDraft] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [askTo, setAskTo] = useState<Set<string>>(new Set());
+  const [sent, setSent] = useState<string | null>(null);
+  const askable = spaces.filter((x) => ["home", "board", "idea"].includes(x.kind) && x.online);
 
   const load = useCallback(async () => setFeed(await api.homeFeed()), []);
   useEffect(() => {
@@ -35,6 +39,24 @@ export function Home() {
     if (!text || !homeId) return;
     await api.spaceCall(homeId, verb, verb === "show" ? { title: text } : { what: text });
     setDraft("");
+    load();
+  };
+
+  const startAsk = () => {
+    setAsking(true);
+    setSent(null);
+    setAskTo(new Set(homeId ? [homeId] : []));
+  };
+
+  const sendAsk = async () => {
+    const text = draft.trim();
+    if (!text || askTo.size === 0) return;
+    const out = await api.asksSend(text, null, null, [...askTo]);
+    const ok = out.filter((o) => o.outcome.outcome === "ok").length;
+    setSent(`${t.home.askSent} ${ok} ${ok === 1 ? t.home.room : t.home.rooms}.`);
+    setDraft("");
+    setAsking(false);
+    setView("asks");
     load();
   };
 
@@ -55,15 +77,35 @@ export function Home() {
             <textarea rows={2} value={draft} placeholder={t.home.composePlaceholder} onChange={(e) => setDraft(e.target.value)} />
             <div className="home-compose-actions">
               <Button small kind="primary" onClick={() => post("show")} disabled={!draft.trim()}>{t.home.show}</Button>
-              <Button small kind="plain" onClick={() => post("ask")} disabled={!draft.trim()}>{t.home.ask}</Button>
+              <Button small kind="plain" onClick={startAsk} disabled={!draft.trim()}>{t.home.ask}</Button>
             </div>
+            {asking ? (
+              <div className="ask-to">
+                <span className="muted small">{t.home.askWhere}</span>
+                {askable.map((x) => (
+                  <label key={x.id} className="switch">
+                    <input type="checkbox" checked={askTo.has(x.id)} onChange={(e) => setAskTo((cur) => { const next = new Set(cur); if (e.target.checked) next.add(x.id); else next.delete(x.id); return next; })} />
+                    <span>{x.title}</span>
+                  </label>
+                ))}
+                <Button small kind="primary" onClick={sendAsk} disabled={askTo.size === 0 || !draft.trim()}>{t.home.askSend} {askTo.size} {askTo.size === 1 ? t.home.room : t.home.rooms}</Button>
+                <Button small kind="quiet" onClick={() => setAsking(false)}>{t.spaces.cancel}</Button>
+              </div>
+            ) : null}
+            {sent ? <p className="ok small">{sent}</p> : null}
           </div>
         ) : null}
         <div className="home-feed">
-          {shown.length === 0 ? <p className="muted">{t.home.empty}</p> : null}
-          {shown.map((m) => (
-            <FeedCard key={`${m.space.id}/${m.entry.id}`} item={m} onOpen={() => open({ kind: "space", id: m.space.id })} />
-          ))}
+          {view === "asks" ? (
+            <AskThreads feed={feed} askable={askable} onOpen={(id) => open({ kind: "space", id })} />
+          ) : (
+            <>
+              {shown.length === 0 ? <p className="muted">{t.home.empty}</p> : null}
+              {shown.map((m) => (
+                <FeedCard key={`${m.space.id}/${m.entry.id}`} item={m} onOpen={() => open({ kind: "space", id: m.space.id })} />
+              ))}
+            </>
+          )}
         </div>
       </section>
 
@@ -134,5 +176,82 @@ function FeedCard({ item, onOpen }: { item: HomeMove; onOpen: () => void }) {
       {m.kind === "ask" && (f.needs || f.ceiling) ? <div className="muted small">{[f.needs ? `${t.spaces.fields.needs}: ${f.needs}` : null, f.ceiling ? `${t.spaces.fields.ceiling}: ${f.ceiling}` : null].filter(Boolean).join(" · ")}</div> : null}
       {m.kind === "run" && f.measured ? <div className="muted small">{t.spaces.fields.measured}: {String(f.measured)}</div> : null}
     </article>
+  );
+}
+
+type Place = { space: HomeMove["space"]; ask: HomeMove["entry"]; offers: HomeMove[]; replies: HomeMove[] };
+type Thread = { key: string; what: string; mine: boolean; at: string; by: string; places: Place[] };
+
+/** Your asks, each followed as one thread across every room it went to; and asks you could help with. */
+function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onOpen: (id: string) => void }) {
+  const threads = useMemo(() => {
+    const byKey = new Map<string, Thread>();
+    for (const m of props.feed.filter((x) => x.entry.kind === "ask")) {
+      const f = m.entry.fields as Record<string, unknown>;
+      const key = typeof f.thread === "string" ? f.thread : `${m.space.id}/${m.entry.id}`;
+      const children = props.feed.filter((x) => x.space.id === m.space.id && x.entry.parent === m.entry.id);
+      const place: Place = { space: m.space, ask: m.entry, offers: children.filter((x) => x.entry.kind === "offer"), replies: children.filter((x) => x.entry.kind === "reply") };
+      const th = byKey.get(key) ?? { key, what: m.entry.title, mine: m.entry.by === m.space.you_key, at: m.entry.at, by: m.entry.author, places: [] };
+      th.places.push(place);
+      if (m.entry.at > th.at) th.at = m.entry.at;
+      byKey.set(key, th);
+    }
+    return [...byKey.values()].sort((a, b) => b.at.localeCompare(a.at));
+  }, [props.feed]);
+  const mine = threads.filter((x) => x.mine);
+  const theirs = threads.filter((x) => !x.mine);
+  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  return (
+    <>
+      <h2 className="list-head">{t.home.yourAsks}</h2>
+      {mine.length === 0 ? <p className="muted small">{t.home.noAsks}</p> : null}
+      {mine.map((th) => {
+        const answered = th.places.some((p) => p.offers.length || p.replies.length);
+        const elsewhere = props.askable.filter((r) => !th.places.some((p) => p.space.id === r.id));
+        return (
+          <article key={th.key} className="feed-card ask-thread">
+            <header className="move-head">
+              <span className="move-kind">{t.spaces.moveKinds.ask}</span>
+              <span className="muted small">{time(th.at)}</span>
+              <Chip tone={answered ? "ok" : "plain"}>{answered ? t.home.answered : t.home.noAnswerYet}</Chip>
+            </header>
+            <h3 className="move-title">{th.what}</h3>
+            <ul className="ask-places">
+              {th.places.map((p) => (
+                <li key={p.space.id}>
+                  <span>
+                    <button className="space-chip" onClick={() => props.onOpen(p.space.id)}>{p.space.title}</button>{" "}
+                    <span className="muted small">
+                      {[p.offers.length ? count(p.offers.length, t.home.offer, t.home.offersWord) : null, p.replies.length ? count(p.replies.length, t.home.reply, t.home.replies) : null].filter(Boolean).join(" · ") || t.home.nothingYet}
+                    </span>
+                  </span>
+                  {p.offers.map((o) => (
+                    <div key={o.entry.id} className="ask-offer small">
+                      <strong>{o.entry.author}</strong>{o.entry.agent_of ? ` (${t.spaces.runBy} ${o.entry.agent_of})` : ""}: {o.entry.body}
+                    </div>
+                  ))}
+                </li>
+              ))}
+            </ul>
+            {!answered && elsewhere.length ? <p className="muted small">{t.home.alsoAsk} {elsewhere.map((r) => r.title).join(", ")}.</p> : null}
+          </article>
+        );
+      })}
+      <h2 className="list-head">{t.home.theirAsks}</h2>
+      {theirs.length === 0 ? <p className="muted small">{t.home.noTheirAsks}</p> : null}
+      {theirs.map((th) => (
+        <article key={th.key} className="feed-card">
+          <header className="move-head">
+            <span className="move-kind">{t.spaces.moveKinds.ask}</span>
+            <span className="move-who">{th.by}</span>
+            <span className="muted small">{time(th.at)}</span>
+          </header>
+          <h3 className="move-title">{th.what}</h3>
+          <div className="row-actions">
+            {th.places.map((p) => <button key={p.space.id} className="space-chip" onClick={() => props.onOpen(p.space.id)}>{p.space.title}</button>)}
+          </div>
+        </article>
+      ))}
+    </>
   );
 }

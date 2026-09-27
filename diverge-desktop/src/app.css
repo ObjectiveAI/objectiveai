@@ -440,3 +440,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .table-file .editor { flex: 1; min-height: 260px; }
 .table-copy { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .space-feed > .segmented { margin-bottom: var(--space-3); }
+.ask-to { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding-top: var(--space-2); }
+.ask-places { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.ask-places li { display: flex; flex-direction: column; gap: 2px; }
+.ask-offer { padding-left: var(--space-3); border-left: 2px solid var(--accent); }

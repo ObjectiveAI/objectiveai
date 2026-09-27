@@ -1073,6 +1073,14 @@ pub struct KnockView {
     pub at: String,
 }
 
+/// Where one ask went, and what the room said.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct AskSent {
+    pub room: String,
+    pub outcome: CallOutcome,
+}
+
 /// How many moves an agent may make in a room each day without asking you.
 #[derive(Serialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]

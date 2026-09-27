@@ -167,6 +167,7 @@ impl Door {
             Tool::new("space_feed", "What has happened in a Space: its moves, newest last.", schema(json!({ "space": { "type": "string" } }), &["space"])),
             Tool::new("space_tools", "A Space's own verbs, with their arguments.", schema(json!({ "space": { "type": "string" } }), &["space"])),
             Tool::new("space_call", "Do something in a Space: one of its verbs, with arguments. You act as yourself, sealed as your person's agent; your person is asked first unless they allowed it.", schema(json!({ "space": { "type": "string" }, "tool": { "type": "string" }, "arguments": { "type": "object" } }), &["space", "tool"])),
+            Tool::new("asks_open", "Open asks in the Spaces you're in: what people and agents need, where, and who may serve it. Offer with space_call's `offer`.", schema(json!({}), &[])),
             Tool::new("table_list", "The files on a Space's table: everyone in the room sees the same ones.", schema(json!({ "space": { "type": "string" } }), &["space"])),
             Tool::new("table_read", "Read one file off a Space's table.", schema(json!({ "space": { "type": "string" }, "path": { "type": "string" } }), &["space", "path"])),
             Tool::new("table_write", "Put a text file on a Space's table. Everyone in the room can see and change it.", schema(json!({ "space": { "type": "string" }, "path": { "type": "string" }, "text": { "type": "string" } }), &["space", "path", "text"])),
@@ -260,6 +261,24 @@ impl Door {
                 self.identity.seal(&Actor::Agent(agent.to_owned()), &id.id, &mut inner).map_err(|e| ErrorData::internal_error(e, None))?;
                 let result = self.spaces.call(&id, inner).await?;
                 result.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n")
+            }
+            "asks_open" => {
+                let mut open = Vec::new();
+                for e in self.spaces.list().await {
+                    let (key, _) = self.identity.agent_in(agent, Some(&e.id.id));
+                    let Ok(r) = self.spaces.read(&e.id, diverge_desktop_room::room::FEED).await else { continue };
+                    let Some(text) = r.contents.iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }) else { continue };
+                    let Ok(moves) = serde_json::from_str::<Vec<Value>>(&text) else { continue };
+                    let person = self.identity.in_room(&e.id.id).map(|p| p.key).unwrap_or_else(|| self.identity.usual().key);
+                    for m in moves.iter().filter(|m| m["kind"] == "ask" && m["state"] == "open") {
+                        // Not your own person's asks, and not rooms you aren't in as this agent.
+                        if m["by"] == person.as_str() || m["by"] == key.as_str() {
+                            continue;
+                        }
+                        open.push(json!({ "space": e.id.id, "space_title": e.title, "ask_id": m["id"], "what": m["title"], "by": m["author"], "needs": m["fields"]["needs"], "ceiling": m["fields"]["ceiling"], "who_may_serve": m["fields"]["who_may_serve"], "offers": m["fields"]["offers"] }));
+                    }
+                }
+                serde_json::to_string(&open).unwrap_or_default()
             }
             "table_list" => {
                 let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };

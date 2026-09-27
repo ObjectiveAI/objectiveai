@@ -328,7 +328,7 @@ impl StubSpaces {
             let mut inner = this.lock();
             let ada = this.stand_in_key("ada");
             if inner.rooms.get(&id).is_some_and(|h| h.room.member(&ada).is_some_and(|m| !m.removed)) {
-                let _ = this.act(&mut inner, "ada", &id, "reply", json!({ "move_id": ask, "body": "I can look at that tomorrow. Say a bit more about what done looks like?" }), Utc::now());
+                let _ = this.act(&mut inner, "ada", &id, "offer", json!({ "ask_id": ask, "body": "I can look at that tomorrow. Say a bit more about what done looks like?" }), Utc::now());
             }
         });
     }

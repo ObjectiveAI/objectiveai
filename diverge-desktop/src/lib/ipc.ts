@@ -40,6 +40,7 @@ import type { TabsSnapshot } from "../bindings/TabsSnapshot";
 import type { VolumeChange } from "../bindings/VolumeChange";
 import type { VolumeMode } from "../bindings/VolumeMode";
 import type { DoorView } from "../bindings/DoorView";
+import type { AskSent } from "../bindings/AskSent";
 import type { AppearAs } from "../bindings/AppearAs";
 import type { PersonaView } from "../bindings/PersonaView";
 import type { AllowanceView } from "../bindings/AllowanceView";
@@ -99,6 +100,7 @@ export const api = {
   spaceHost: (input: HostSpaceInput) => invoke<HostOutcome>("spaces_host", { input }),
   spaceDoor: (invite: string) => invoke<DoorView>("spaces_door", { invite }),
   spaceJoin: (invite: string, appearAs: AppearAs, note: string, listed: boolean) => invoke<JoinOutcome>("spaces_join", { invite, appearAs, note, listed }),
+  asksSend: (what: string, needs: string | null, ceiling: string | null, rooms: string[]) => invoke<AskSent[]>("asks_send", { what, needs, ceiling, rooms }),
   tableTree: (id: string) => invoke<VolumeTree>("table_tree", { id }),
   tableRead: (id: string, path: string) => invoke<FileRead>("table_read", { id, path }),
   tableWrite: (id: string, path: string, text: string) => invoke<FileWritten>("table_write", { id, path, text }),

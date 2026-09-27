@@ -139,6 +139,7 @@ fn main() {
             actions::knocks_watch,
             actions::knocks_answer,
             actions::spaces_door,
+            actions::asks_send,
             actions::table_tree,
             actions::table_read,
             actions::table_write,

@@ -120,6 +120,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("spaces_invite", "The invite to hand a friend"),
     ("knocks_watch", "Hear who is at the door of Spaces you host"),
     ("knocks_answer", "Let someone in, or not"),
+    ("asks_send", "Send one ask to several rooms at once, followed as one thread"),
     ("table_tree", "What's on a room's table"),
     ("table_read", "Open a file on a room's table"),
     ("table_write", "Put a file on a room's table"),
@@ -658,6 +659,28 @@ pub async fn knocks_answer(state: State<'_, AppState>, knock_id: u64, yes: bool)
         call_as_you(&state, &knock.space, "admit", serde_json::json!({ "key": knocking.key, "name": knocking.name, "listed": knocking.listed })).await?;
     }
     Ok(())
+}
+
+/// One ask, sent to several rooms at once: the same thread in each, so
+/// Home follows it everywhere. There is no router; when there is, it's one
+/// more place an ask can go.
+#[tauri::command]
+pub async fn asks_send(state: State<'_, AppState>, what: String, needs: Option<String>, ceiling: Option<String>, rooms: Vec<String>) -> Result<Vec<AskSent>, String> {
+    if what.trim().is_empty() {
+        return Err("an ask needs words".into());
+    }
+    let thread = diverge_desktop_room::seal::digest(format!("{what}{}", chrono::Utc::now()).as_bytes())[..12].to_owned();
+    let mut out = Vec::new();
+    for room in rooms {
+        let args = serde_json::json!({ "what": what.trim(), "needs": needs, "ceiling": ceiling, "who_may_serve": "anyone", "thread": thread });
+        let outcome = match call_as_you(&state, &space_id(&room), "ask", args).await {
+            Ok(r) if r.is_error != Some(true) => CallOutcome::Ok { text: text_of(&r) },
+            Ok(r) => CallOutcome::Error { message: text_of(&r) },
+            Err(message) => CallOutcome::Error { message },
+        };
+        out.push(AskSent { room, outcome });
+    }
+    Ok(out)
 }
 
 // --- the table: a room's shared files ----------------------------------

@@ -143,6 +143,12 @@ pub fn run(kind: Kind, input: &str, read: &dyn Fn(&str) -> String) -> Vec<Step> 
         s.say(None, "Done. It's on the board under your name, claimed by me. Next I'll read the resizer script and draft the container.");
         return s.usage();
     }
+    if lower.contains("asks") || lower.contains("help someone") || lower.contains("could help") {
+        s.think(None, "My person wants me to look for asks I could serve. I'll read what's open across our rooms, and offer only where I'm useful.");
+        s.door("asks_open", json!({}));
+        s.say(None, "I read the open asks across your rooms. Nothing there is something I can serve yet. When there is, I'll offer, and you'll be asked before anything is sent.");
+        return s.usage();
+    }
     if lower.contains("spotify") || lower.contains("playlist") {
         s.think(None, "This needs the Spotify API. I don't hold keys; I ask for one by what it's for.");
         s.door("ask_person", json!({ "question": "I need the Spotify key to read your playlists.", "kind": "credential" }));

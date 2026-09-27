@@ -302,6 +302,24 @@ export function installPreview() {
           later(() => bump(args.id));
           return { outcome: "ok", text: line };
         }
+        case "asks_send": {
+          const thread = `t${Date.now()}`;
+          const out = [];
+          for (const id of args.rooms as string[]) {
+            const r = spaceOf(id);
+            if (!r) { out.push({ room: id, outcome: { outcome: "error", message: "no such Space" } }); continue; }
+            const moveId = `ask-${++moveN}`;
+            r.moves.push({ id: moveId, kind: "ask", author: r.view.summary.you_are, by: r.view.summary.you_key, agent_of: null, at: new Date().toISOString(), title: args.what, body: "", state: "open", parent: null, fields: { thread, needs: args.needs, ceiling: args.ceiling }, charter: "", hash: "" });
+            out.push({ room: id, outcome: { outcome: "ok", text: `Asked (${moveId})` } });
+            if (r.view.members.some((m) => m.name === "ada")) {
+              setTimeout(() => {
+                r.moves.push({ id: `offer-${++moveN}`, kind: "offer", author: "ada", by: "ada", agent_of: null, at: new Date().toISOString(), title: args.what, body: "I can look at that tomorrow. Say a bit more about what done looks like?", state: "offered", parent: moveId, fields: {}, charter: "", hash: "" });
+                bump(id);
+              }, 4000);
+            }
+          }
+          return out;
+        }
         case "spaces_watch": {
           const id = `space-${++scope}`;
           spaceWatches.set(id, { id: args.id, ch: args.onEvent as Chan });
