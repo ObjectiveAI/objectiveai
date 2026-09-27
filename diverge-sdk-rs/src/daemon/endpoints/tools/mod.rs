@@ -21,7 +21,8 @@
 //! it, and stops it when no attached agent is active. A tool attached
 //! nowhere runs nowhere. A create runs nothing.
 //!
-//! [`create`] makes a tool under a name; [`attach`] and [`detach`]
+//! [`create`] makes a tool under a name; [`edit`] changes what one
+//! mounts; [`attach`] and [`detach`]
 //! put it on an agent and take it off, the attach allowed while the
 //! agent is active and the detach only while it is not; [`delete`]
 //! removes a tool that is attached nowhere; [`list`] names every one
@@ -31,4 +32,5 @@ pub mod attach;
 pub mod create;
 pub mod delete;
 pub mod detach;
+pub mod edit;
 pub mod list;

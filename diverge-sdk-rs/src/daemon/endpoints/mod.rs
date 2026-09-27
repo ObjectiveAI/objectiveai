@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them all; change what one mounts |
-//! | [`tools`] | create a tool under a name; attach one to an agent; detach one; delete one; list them all |
+//! | [`tools`] | create a tool under a name; change what one mounts; attach one to an agent; detach one; delete one; list them all |
 //!
 //! # The tags
 //!
@@ -25,12 +25,13 @@
 //! | `4` | [`agents::list`] |
 //! | `5` | [`agents::edit`] |
 //! | `6` | [`tools::create`] |
-//! | `7` | [`tools::attach`] |
-//! | `8` | [`tools::detach`] |
-//! | `9` | [`tools::delete`] |
-//! | `10` | [`tools::list`] |
+//! | `7` | [`tools::edit`] |
+//! | `8` | [`tools::attach`] |
+//! | `9` | [`tools::detach`] |
+//! | `10` | [`tools::delete`] |
+//! | `11` | [`tools::list`] |
 //!
-//! Eleven, so far. Tags are handed out in the order scopes are defined
+//! Twelve, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,
