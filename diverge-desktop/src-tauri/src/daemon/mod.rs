@@ -20,7 +20,7 @@ use chrono::{DateTime, Utc};
 use futures::Stream;
 use tokio_util::sync::CancellationToken;
 
-use diverge_sdk::daemon::endpoints::agents;
+use diverge_sdk::daemon::endpoints::{agents, tools};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 
 pub mod jq;
@@ -90,6 +90,29 @@ pub trait Daemon: Send + Sync + 'static {
         &self,
         request: agents::edit::client::request::Frame,
     ) -> agents::edit::server::response::Frame;
+
+    /// Tag 6. Make a tool under a name: a tool container the daemon runs for
+    /// the agents it's attached to, while one of them is active.
+    async fn tools_create(&self, request: tools::create::client::request::Frame) -> tools::create::server::response::Frame;
+
+    /// Tag 7. Change what a tool you created mounts, while it isn't running.
+    async fn tools_edit(&self, request: tools::edit::client::request::Frame) -> tools::edit::server::response::Frame;
+
+    /// Tag 8. Hold somebody else's running tool container under a name:
+    /// the daemon joins it with the provider protocol's `tools::connect`.
+    async fn tools_connect(&self, request: tools::connect::client::request::Frame) -> tools::connect::server::response::Frame;
+
+    /// Tag 9. Put a tool among the MCP servers an agent's calls reach.
+    async fn tools_attach(&self, request: tools::attach::client::request::Frame) -> tools::attach::server::response::Frame;
+
+    /// Tag 10. Take it back, while the agent isn't active.
+    async fn tools_detach(&self, request: tools::detach::client::request::Frame) -> tools::detach::server::response::Frame;
+
+    /// Tag 11. Remove a tool attached nowhere.
+    async fn tools_delete(&self, request: tools::delete::client::request::Frame) -> tools::delete::server::response::Frame;
+
+    /// Tag 12. Every tool of the caller's, with the agents each is attached to.
+    fn tools_list(&self, request: tools::list::client::request::Frame) -> Frames<tools::list::server::response::Frame>;
 
     // --- ours until the wire has them ---------------------------------
 

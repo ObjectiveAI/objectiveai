@@ -102,7 +102,7 @@ export function installPreview() {
         case "agents_create": {
           const input = args.input;
           if (agents.some((a) => a.name === input.name)) return { outcome: "in_use" };
-          agents.push({ name: input.name, image_name: `diverge-agentic-loop-${input.image_kind}`, digest: "unbuilt", created: new Date().toISOString(), active: false, last_active: null, provider: null, logs_index: 0 });
+          agents.push({ name: input.name, image_name: `diverge-agentic-loop-${input.image_kind}`, digest: "unbuilt", created: new Date().toISOString(), active: false, last_active: null, provider: null, logs_index: 0, tools: [] });
           logs[input.name] = [];
           const view = (m: { provider?: unknown; volume_name: string; volume_relative_path: string; volume_mode: string; container_path: string }) => ({ ...m, provider: m.provider ?? null });
           mounts[input.name] = { pinned: input.provider, volume_mounts: input.volume_mounts.map(view), fuse_file_mounts: input.fuse_file_mounts.map(view), fuse_directory_mounts: input.fuse_directory_mounts.map(view) } as MountsView;

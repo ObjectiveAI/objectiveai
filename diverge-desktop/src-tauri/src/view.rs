@@ -85,6 +85,8 @@ pub struct AgentView {
     pub provider: Option<ProviderView>,
     #[ts(type = "number")]
     pub logs_index: u64,
+    /// The daemon's tools attached to it.
+    pub tools: Vec<String>,
 }
 
 /// What this app last stated an agent mounts, in the daemon's own shapes.
@@ -126,6 +128,7 @@ impl AgentMounts {
             volume_name: m.volume_name.clone(),
             volume_relative_path: slashed(&m.volume_relative_path),
             volume_mode: m.volume_mode.into(),
+            overlay_disk: None,
             container_path: slashed(&m.container_path),
         };
         let live = |m: &agents::create::client::request::FuseMount| MountView {
@@ -133,6 +136,7 @@ impl AgentMounts {
             volume_name: m.volume_name.clone(),
             volume_relative_path: slashed(&m.volume_relative_path),
             volume_mode: m.volume_mode.into(),
+            overlay_disk: m.overlay_disk,
             container_path: slashed(&m.container_path),
         };
         MountsView {
@@ -164,6 +168,8 @@ pub struct MountView {
     pub volume_name: String,
     pub volume_relative_path: String,
     pub volume_mode: VolumeMode,
+    #[ts(type = "number | null")]
+    pub overlay_disk: Option<u64>,
     pub container_path: String,
 }
 
@@ -225,6 +231,7 @@ pub fn listed(frames: Vec<agents::list::server::response::Frame>) -> AgentsListe
                 last_active: agent.last_active.map(|t| t.to_rfc3339()),
                 provider: agent.provider.as_ref().map(|p| (&p.identity).into()),
                 logs_index: agent.logs_index,
+                tools: agent.tools,
             }),
             Frame::Error(error) => out.errors.push(error_text(&error)),
         }
@@ -268,6 +275,9 @@ pub struct FuseMountInput {
     pub volume_name: String,
     pub volume_relative_path: String,
     pub volume_mode: VolumeMode,
+    /// For a volume that starts fresh each run: how many bytes its changes may take.
+    #[ts(type = "number | null")]
+    pub overlay_disk: Option<u64>,
     pub container_path: String,
 }
 
@@ -278,6 +288,7 @@ impl FuseMountInput {
             volume_name: self.volume_name,
             volume_relative_path: components(&self.volume_relative_path),
             volume_mode: self.volume_mode.into(),
+            overlay_disk: self.overlay_disk,
             container_path: components(&self.container_path),
         }
     }

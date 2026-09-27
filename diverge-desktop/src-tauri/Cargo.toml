@@ -2,7 +2,7 @@
 name = "diverge-desktop"
 version = "0.1.0"
 edition = "2024"
-description = "The Diverge desktop app, draft two"
+description = "The Diverge desktop app, draft three"
 publish = false
 
 [dependencies]

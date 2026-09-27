@@ -37,7 +37,9 @@ export function inputsOf(draft: MountsDraft, machines: MachineView[], pinned: Pr
       .filter((r) => r.volume && byKey.has(r.machine))
       .map((r) => {
         const m = byKey.get(r.machine)!;
-        return { provider: m.identity, volume_name: r.volume, volume_relative_path: slash(r.inVolume), volume_mode: mode(m, r.volume), container_path: slash(r.to) };
+        const volumeMode = mode(m, r.volume);
+        // A volume that starts fresh each run is served on a layer of its own; the wire wants its size.
+        return { provider: m.identity, volume_name: r.volume, volume_relative_path: slash(r.inVolume), volume_mode: volumeMode, overlay_disk: volumeMode === "ephemeral" ? 1024 ** 3 : null, container_path: slash(r.to) };
       });
   return { volume_mounts, fuse_directory_mounts: live(draft.folders), fuse_file_mounts: live(draft.files) };
 }

@@ -6,4 +6,4 @@ import type { VolumeMode } from "./VolumeMode";
  * One volume mounted in an agent: its pinned machine's (no `provider`),
  * or any machine's, served live across the daemon.
  */
-export type MountView = { provider: ProviderView | null, volume_name: string, volume_relative_path: string, volume_mode: VolumeMode, container_path: string, };
+export type MountView = { provider: ProviderView | null, volume_name: string, volume_relative_path: string, volume_mode: VolumeMode, overlay_disk: number | null, container_path: string, };

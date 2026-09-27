@@ -6,4 +6,8 @@ import type { VolumeMode } from "./VolumeMode";
  * A live share: any machine's volume (and a folder or a file in it),
  * served across the daemon, as the agent sees it.
  */
-export type FuseMountInput = { provider: ProviderView, volume_name: string, volume_relative_path: string, volume_mode: VolumeMode, container_path: string, };
+export type FuseMountInput = { provider: ProviderView, volume_name: string, volume_relative_path: string, volume_mode: VolumeMode, 
+/**
+ * For a volume that starts fresh each run: how many bytes its changes may take.
+ */
+overlay_disk: number | null, container_path: string, };

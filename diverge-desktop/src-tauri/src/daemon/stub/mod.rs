@@ -34,7 +34,7 @@ use diverge_sdk::daemon::endpoints::agents::logs::client::request::{Frame as Log
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{
     Active, ActiveType, Error as ErrorItem, ErrorType, Identity, Inactive, InactiveType, Item, ItemWrapper, Provider,
 };
-use diverge_sdk::daemon::endpoints::agents;
+use diverge_sdk::daemon::endpoints::{agents, tools};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use diverge_sdk::provider::endpoints::volumes;
 use diverge_sdk::provider::endpoints::volumes::Mode;
@@ -161,6 +161,9 @@ fn check_mounts(inner: &Inner, agent: &str, pin: Option<&Identity>, volume_mount
         None => {}
     }
     for m in fuse {
+        if (m.volume_mode == Mode::Ephemeral) != m.overlay_disk.is_some() {
+            return Err(format!("a live mount of {} states how much its changes may take exactly when the volume starts fresh each run", m.volume_name));
+        }
         let there = store(&m.provider).ok_or_else(|| format!("the daemon knows no machine {}", show(&m.provider)))?;
         let mode = there.mode(&m.volume_name).ok_or_else(|| format!("{} has no volume named \"{}\"", show(&m.provider), m.volume_name))?;
         if mode == Mode::Persistent {
@@ -184,7 +187,19 @@ fn check_mounts(inner: &Inner, agent: &str, pin: Option<&Identity>, volume_mount
     Ok(())
 }
 
+/// A tool the stand-in daemon holds: one it runs, or one it joined.
+struct ToolState {
+    origin: tools::list::server::response::Origin,
+    /// What a created tool mounts; none for a connected one.
+    create: Option<tools::create::client::request::Frame>,
+    created: DateTime<Utc>,
+    /// The agents it's attached to, in the order they were attached.
+    agents: Vec<String>,
+    last_active: Option<DateTime<Utc>>,
+}
+
 struct Inner {
+    tools: IndexMap<String, ToolState>,
     agents: IndexMap<String, AgentState>,
     providers: Vec<ProviderState>,
     next_id: u64,
@@ -207,7 +222,7 @@ impl StubDaemon {
     /// Must be called inside a tokio runtime; that runtime is the one it keeps.
     pub fn new(host_root: PathBuf) -> Self {
         let daemon = StubDaemon {
-            inner: Arc::new(Mutex::new(Inner { agents: IndexMap::new(), providers: Vec::new(), next_id: 1 })),
+            inner: Arc::new(Mutex::new(Inner { tools: IndexMap::new(), agents: IndexMap::new(), providers: Vec::new(), next_id: 1 })),
             host_root,
             rt: tokio::runtime::Handle::current(),
             door: Arc::new(OnceLock::new()),
@@ -531,7 +546,7 @@ mod tests {
     }
 
     fn live(on: Identity, volume: &str, to: &str) -> FuseMount {
-        FuseMount { provider: on, volume_name: volume.into(), volume_relative_path: vec![], volume_mode: Mode::Persistent, container_path: vec![to.into()] }
+        FuseMount { provider: on, volume_name: volume.into(), volume_relative_path: vec![], volume_mode: Mode::Persistent, overlay_disk: None, container_path: vec![to.into()] }
     }
 
     fn edit(name: &str, volume_mounts: Vec<VolumeMount>, dirs: Vec<FuseMount>) -> agents::edit::client::request::Frame {
@@ -598,6 +613,46 @@ mod tests {
         // Stated anew: an empty edit lets media go.
         assert!(matches!(daemon.agents_edit(edit("research-notes", vec![], vec![])).await, Edit::Edited));
         assert_eq!(daemon.held(&studio(), "media"), None);
+    }
+
+    /// Tools follow Ronald's rules: attach while an agent works, detach only
+    /// once it stops, delete only when attached nowhere, edit only your own.
+    #[tokio::test]
+    async fn tools_are_created_connected_attached_and_let_go() {
+        use futures::StreamExt;
+        use tools::list::server::response::{Frame as Listed, Origin};
+        let root = std::env::temp_dir().join(format!("diverge-desktop-test-tools-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let daemon = StubDaemon::new(root);
+        let image = Image { name: "diverge-desktop-room".into(), digest: UNBUILT_DIGEST.into() };
+        let create = |name: &str| tools::create::client::request::Frame { image: image.clone(), memory: 1 << 30, disk: 1 << 30, provider: None, fuse_file_mounts: vec![], fuse_directory_mounts: vec![], arguments: json!({}), name: name.into() };
+        assert!(matches!(daemon.tools_create(create("labels")).await, tools::create::server::response::Frame::Created));
+        assert!(matches!(daemon.tools_create(create("labels")).await, tools::create::server::response::Frame::InUse));
+        let connect = tools::connect::client::request::Frame { provider: studio(), id: "room-7".into(), authorization: "a knock".into(), name: "ada's room".into() };
+        assert!(matches!(daemon.tools_connect(connect).await, tools::connect::server::response::Frame::Connected));
+        let edit = tools::edit::client::request::Frame { name: "ada's room".into(), volume_mounts: vec![], fuse_file_mounts: vec![], fuse_directory_mounts: vec![] };
+        assert!(matches!(daemon.tools_edit(edit).await, tools::edit::server::response::Frame::NotOwned), "not yours to change");
+        let attach = |tool: &str, agent: &str| tools::attach::client::request::Frame { tool: tool.into(), agent: agent.into() };
+        let detach = |tool: &str, agent: &str| tools::detach::client::request::Frame { tool: tool.into(), agent: agent.into() };
+        assert!(matches!(daemon.tools_attach(attach("labels", "site-fixes")).await, tools::attach::server::response::Frame::Attached), "attach while it works");
+        assert!(matches!(daemon.tools_detach(detach("labels", "site-fixes")).await, tools::detach::server::response::Frame::Active), "detach only once it stops");
+        assert!(matches!(daemon.tools_delete(tools::delete::client::request::Frame { name: "labels".into() }).await, tools::delete::server::response::Frame::Attached));
+        assert!(matches!(daemon.tools_attach(attach("labels", "nobody")).await, tools::attach::server::response::Frame::NoAgent));
+        let listed: Vec<Listed> = daemon.tools_list(tools::list::client::request::Frame {}).collect().await;
+        let labels = listed.iter().find_map(|f| match f { Listed::Tool(t) if t.name == "labels" => Some(t.clone()), _ => None }).unwrap();
+        assert!(labels.active && labels.agents == vec!["site-fixes".to_owned()]);
+        assert!(listed.iter().any(|f| matches!(f, Listed::Tool(t) if matches!(t.origin, Origin::Connected { .. }))));
+        let agents: Vec<agents::list::server::response::Frame> = daemon.agents_list(agents::list::client::request::Frame {}).collect().await;
+        assert!(agents.iter().any(|f| matches!(f, agents::list::server::response::Frame::Agent(a) if a.name == "site-fixes" && a.tools == vec!["labels".to_owned()])));
+        // An ephemeral volume served live must say how much its changes may take.
+        let scratch = FuseMount { provider: here(), volume_name: "scratch".into(), volume_relative_path: vec![], volume_mode: Mode::Ephemeral, overlay_disk: None, container_path: vec!["tmp".into()] };
+        assert!(matches!(daemon.agents_edit(edit_frame("research-notes", scratch.clone())).await, agents::edit::server::response::Frame::Error(_)));
+        let sized = FuseMount { overlay_disk: Some(1 << 30), ..scratch };
+        assert!(matches!(daemon.agents_edit(edit_frame("research-notes", sized)).await, agents::edit::server::response::Frame::Edited));
+    }
+
+    fn edit_frame(name: &str, dir: FuseMount) -> agents::edit::client::request::Frame {
+        agents::edit::client::request::Frame { name: name.into(), volume_mounts: vec![], fuse_file_mounts: vec![], fuse_directory_mounts: vec![dir] }
     }
 
     /// An agent reaches through the door: it asks its person, waits, and
@@ -735,6 +790,9 @@ impl Daemon for StubDaemon {
             Some(_) => {
                 if let Some(agent) = inner.agents.shift_remove(&request.name) {
                     agent.gone.cancel();
+                }
+                for t in inner.tools.values_mut() {
+                    t.agents.retain(|a| a != &request.name);
                 }
                 Frame::Deleted
             }
@@ -889,6 +947,7 @@ impl Daemon for StubDaemon {
                     Item::Chunk(_) | Item::Error(_) => None,
                 });
                 Frame::Agent(Agent {
+                    tools: inner.tools.iter().filter(|(_, t)| t.agents.contains(name)).map(|(n, _)| n.clone()).collect(),
                     name: name.clone(),
                     image: agent.create.image.clone(),
                     created: agent.created,
@@ -924,6 +983,131 @@ impl Daemon for StubDaemon {
         agent.create.fuse_file_mounts = request.fuse_file_mounts;
         agent.create.fuse_directory_mounts = request.fuse_directory_mounts;
         Frame::Edited
+    }
+
+    async fn tools_create(&self, request: tools::create::client::request::Frame) -> tools::create::server::response::Frame {
+        use tools::create::server::response::Frame;
+        let mut inner = self.lock();
+        if request.name.trim().is_empty() {
+            return Frame::Error(wire_error("a tool needs a name"));
+        }
+        if inner.tools.contains_key(&request.name) {
+            return Frame::InUse;
+        }
+        let checked = {
+            let fuse: Vec<&FuseMount> = request.fuse_file_mounts.iter().chain(&request.fuse_directory_mounts).collect();
+            let volume_mounts = request.provider.as_ref().map_or(&[][..], |p| p.volume_mounts.as_slice());
+            check_mounts(&inner, &request.name, request.provider.as_ref().map(|p| &p.identity), volume_mounts, &fuse)
+        };
+        if let Err(reason) = checked {
+            return Frame::Error(wire_error(reason));
+        }
+        let origin = tools::list::server::response::Origin::Created { image: request.image.clone(), provider: request.provider.as_ref().map(|p| Provider { identity: p.identity.clone() }), id: None };
+        inner.tools.insert(request.name.clone(), ToolState { origin, create: Some(request), created: Utc::now(), agents: Vec::new(), last_active: None });
+        Frame::Created
+    }
+
+    async fn tools_edit(&self, request: tools::edit::client::request::Frame) -> tools::edit::server::response::Frame {
+        use tools::edit::server::response::Frame;
+        let mut inner = self.lock();
+        let (pin, active) = match inner.tools.get(&request.name) {
+            None => return Frame::NotFound,
+            Some(t) if t.create.is_none() => return Frame::NotOwned,
+            Some(t) => (
+                t.create.as_ref().and_then(|c| c.provider.as_ref().map(|p| p.identity.clone())),
+                t.agents.iter().any(|a| inner.agents.get(a).is_some_and(|x| x.active.is_some() || x.running)),
+            ),
+        };
+        if active {
+            return Frame::Active;
+        }
+        let checked = {
+            let fuse: Vec<&FuseMount> = request.fuse_file_mounts.iter().chain(&request.fuse_directory_mounts).collect();
+            check_mounts(&inner, &request.name, pin.as_ref(), &request.volume_mounts, &fuse)
+        };
+        if let Err(reason) = checked {
+            return Frame::Error(wire_error(reason));
+        }
+        let Some(create) = inner.tools.get_mut(&request.name).and_then(|t| t.create.as_mut()) else { return Frame::NotFound };
+        if let Some(p) = create.provider.as_mut() {
+            p.volume_mounts = request.volume_mounts;
+        }
+        create.fuse_file_mounts = request.fuse_file_mounts;
+        create.fuse_directory_mounts = request.fuse_directory_mounts;
+        Frame::Edited
+    }
+
+    async fn tools_connect(&self, request: tools::connect::client::request::Frame) -> tools::connect::server::response::Frame {
+        use tools::connect::server::response::Frame;
+        let mut inner = self.lock();
+        if inner.tools.contains_key(&request.name) {
+            return Frame::InUse;
+        }
+        if !inner.providers.iter().any(|p| p.identity == request.provider) {
+            return Frame::Error(wire_error("the daemon knows no provider by that identity"));
+        }
+        let origin = tools::list::server::response::Origin::Connected { provider: request.provider, id: request.id };
+        inner.tools.insert(request.name, ToolState { origin, create: None, created: Utc::now(), agents: Vec::new(), last_active: None });
+        Frame::Connected
+    }
+
+    async fn tools_attach(&self, request: tools::attach::client::request::Frame) -> tools::attach::server::response::Frame {
+        use tools::attach::server::response::Frame;
+        let mut inner = self.lock();
+        if !inner.agents.contains_key(&request.agent) {
+            return Frame::NoAgent;
+        }
+        let Some(t) = inner.tools.get_mut(&request.tool) else { return Frame::NoTool };
+        if !t.agents.contains(&request.agent) {
+            t.agents.push(request.agent);
+        }
+        Frame::Attached
+    }
+
+    async fn tools_detach(&self, request: tools::detach::client::request::Frame) -> tools::detach::server::response::Frame {
+        use tools::detach::server::response::Frame;
+        let mut inner = self.lock();
+        let active = match inner.agents.get(&request.agent) {
+            None => return Frame::NoAgent,
+            Some(a) => a.active.is_some() || a.running,
+        };
+        if !inner.tools.contains_key(&request.tool) {
+            return Frame::NoTool;
+        }
+        if active {
+            return Frame::Active;
+        }
+        if let Some(t) = inner.tools.get_mut(&request.tool) {
+            t.agents.retain(|a| a != &request.agent);
+        }
+        Frame::Detached
+    }
+
+    async fn tools_delete(&self, request: tools::delete::client::request::Frame) -> tools::delete::server::response::Frame {
+        use tools::delete::server::response::Frame;
+        let mut inner = self.lock();
+        match inner.tools.get(&request.name) {
+            None => Frame::NotFound,
+            Some(t) if !t.agents.is_empty() => Frame::Attached,
+            Some(_) => {
+                inner.tools.shift_remove(&request.name);
+                Frame::Deleted
+            }
+        }
+    }
+
+    fn tools_list(&self, _request: tools::list::client::request::Frame) -> Frames<tools::list::server::response::Frame> {
+        use tools::list::server::response::{Frame, Tool};
+        let inner = self.lock();
+        let frames: Vec<Frame> = inner
+            .tools
+            .iter()
+            .map(|(name, t)| {
+                let active = t.agents.iter().any(|a| inner.agents.get(a).is_some_and(|x| x.active.is_some() || x.running));
+                Frame::Tool(Tool { name: name.clone(), origin: t.origin.clone(), created: t.created, active, last_active: t.last_active, agents: t.agents.clone() })
+            })
+            .collect();
+        Box::pin(stream::iter(frames))
     }
 
     async fn providers_list(&self) -> Vec<ProviderEntry> {

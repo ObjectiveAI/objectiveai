@@ -2,7 +2,7 @@
 //!
 //! Ronald's protocol has no person: identities are opaque per provider,
 //! a room's program can't tell its members apart, and the broker that would
-//! "turn a peer into somebody" is gone for now. So the app keeps keys:
+//! name a person is gone for now. So the app keeps keys:
 //!
 //! - **Personas.** Your usual one, under your usual name, and any fresh ones
 //!   you make at a door. A fresh persona is a different key, which nothing

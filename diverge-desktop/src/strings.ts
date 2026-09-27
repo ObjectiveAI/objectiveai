@@ -4,7 +4,7 @@
 export const t = {
   app: {
     name: "Diverge",
-    draft: "draft two",
+    draft: "draft three",
   },
   home: {
     askWhere: "Ask in:",
