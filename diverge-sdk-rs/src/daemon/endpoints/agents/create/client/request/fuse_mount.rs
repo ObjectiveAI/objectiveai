@@ -49,8 +49,9 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 ///
 /// A persistent volume changes in place. An ephemeral volume is
 /// served on a layer of the serve's own: the container starts from
-/// the volume as it is, its changes land in the layer, and the layer
-/// goes when the agent does. A read-only volume is served read-only
+/// the volume as it is, its changes land in the layer, the layer holds
+/// at most the mount's [`overlay_disk`](Self::overlay_disk) bytes, and
+/// the layer goes when the agent does. A read-only volume is served read-only
 /// to the container: every read, listing and stat goes through, and
 /// every write, truncation, change of attributes, removal, rename and
 /// new directory is refused by the volume's provider, the program
@@ -117,6 +118,19 @@ pub struct FuseMount {
     /// volume whose mode differs at the create, this revision does
     /// not state.
     pub volume_mode: Mode,
+    /// The most bytes the serve's own layer may hold, for an
+    /// ephemeral volume: present exactly when
+    /// [`volume_mode`](Self::volume_mode) is `ephemeral`, absent
+    /// otherwise, and a mount that has it or lacks it the other way
+    /// round is the create's error. The daemon carries it into the
+    /// `overlay_disk` of the
+    /// [`volumes::serve`](crate::provider::endpoints::volumes::serve)
+    /// it opens for the mount, so it is that request's rule: the
+    /// provider sets the bytes aside for the agent's life and refuses
+    /// the serve when it cannot, and a change inside the container
+    /// that would take the layer past them fails.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub overlay_disk: Option<u64>,
     /// Where the mount appears inside the container, as path
     /// components from the container's root, as
     /// [`container_path`](super::VolumeMount::container_path) is for
