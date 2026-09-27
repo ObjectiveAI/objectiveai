@@ -126,7 +126,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("knocks_answer", "Let someone in, or not"),
     ("asks_send", "Send one ask to several rooms at once, followed as one thread"),
     ("spaces_doorways", "The rooms a room vouches for"),
-    ("vouch_for", "Vouch for someone: your seal on their key, to hand them"),
+    ("vouch_for", "Vouch for someone into a room you're in: your word, for that room, for a week, to hand them"),
     ("spaces_admitted", "Everyone a room you host let in, listed or not"),
     ("spaces_restart", "Run a room you host again from its record"),
     ("spaces_continue", "Continue a room whose host is gone, from your copy of its record"),
@@ -584,13 +584,19 @@ pub async fn spaces_doorways(state: State<'_, AppState>, id: String) -> Result<V
     Ok(read_json(&state, &space_id(&id), diverge_desktop_room::room::DOORWAYS).await.unwrap_or_default())
 }
 
-/// A vouch: your seal on someone's key, as text to hand them. They present
-/// it when they knock; the host sees who vouched and whether it holds.
+/// A vouch: your word for someone's key, into one room you're in, for a
+/// week, as text to hand them. They present it when they knock there; the
+/// host sees who vouched, that they're a member, and that it holds. You
+/// vouch as the name you go by in that room.
 #[tauri::command]
-pub fn vouch_for(state: State<'_, AppState>, key: String, name: String) -> Result<String, String> {
+pub async fn vouch_for(state: State<'_, AppState>, key: String, name: String, room: String) -> Result<String, String> {
     use base64::Engine;
-    let you = state.identity.usual();
-    let statement = state.identity.state(&you.key, "vouch", serde_json::json!({ "for": key, "for_name": name, "by_name": you.name }))?;
+    if !state.spaces.list().await.iter().any(|e| e.id.id == room) {
+        return Err("you can vouch someone into a room you're in".into());
+    }
+    let you = state.identity.in_room(&room).unwrap_or_else(|| state.identity.usual());
+    let until = (chrono::Utc::now() + spaces::VOUCH_GOOD_FOR).to_rfc3339();
+    let statement = state.identity.state(&you.key, "vouch", serde_json::json!({ "for": key, "for_name": name, "by_name": you.name, "room": room, "until": until }))?;
     Ok(format!("diverge-vouch:{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(serde_json::to_vec(&statement).unwrap_or_default())))
 }
 
@@ -760,7 +766,24 @@ pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: 
         AppearAs::Usual => state.identity.usual(),
         AppearAs::Fresh { name } => state.identity.fresh(&name)?,
     };
-    let knocking = spaces::Knocking { secret: invite.secret.clone(), key: persona.key.clone(), name: persona.name.clone(), note, listed, vouch };
+    let now = chrono::Utc::now();
+    if let Some(v) = &vouch {
+        if !spaces::vouch_holds(v, &persona.key, &invite.id, now) {
+            return Err("that vouch isn't for you at this room, or it has run out".into());
+        }
+    }
+    let knocking = spaces::Knocking {
+        room: invite.id.clone(),
+        invite: invite.secret.as_deref().map(|s| spaces::Knocking::invite_mark(&invite.id, s)),
+        key: persona.key.clone(),
+        name: persona.name.clone(),
+        note,
+        listed,
+        vouch,
+        at: now,
+        sig: String::new(),
+    };
+    let knocking = spaces::Knocking { sig: state.identity.state(&persona.key, "knock", knocking.body())?.sig, ..knocking };
     Ok(match state.spaces.join(&invite, &knocking).await {
         spaces::Joined::Joined(id) => {
             state.identity.set_room(&id.id, &persona.id);
@@ -793,10 +816,19 @@ pub async fn spaces_invite(state: State<'_, AppState>, id: String) -> Result<Opt
 async fn knock_view(state: &AppState, k: &spaces::Knock) -> KnockView {
     let entries = state.spaces.list().await;
     let title = entries.iter().find(|e| e.id == k.space).map(|e| e.title.clone()).unwrap_or_else(|| k.space.id.clone());
-    let knocking = spaces::Knocking::from_authorization(&k.authorize.authorization);
+    let secret = state.spaces.invite(&k.space).await.and_then(|i| i.secret);
     let members: Vec<MemberView> = read_json(state, &k.space, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
+    knock_view_of(k, title, secret.as_deref(), &members, chrono::Utc::now())
+}
+
+/// A knock, checked against the room's current invite and its members.
+pub fn knock_view_of(k: &spaces::Knock, title: String, secret: Option<&str>, members: &[MemberView], now: chrono::DateTime<chrono::Utc>) -> KnockView {
+    let knocking = spaces::Knocking::from_authorization(&k.authorize.authorization);
+    // Nothing a knock says counts until it checks: signed by its key, for this room, lately.
+    let checked = knocking.as_ref().is_some_and(|w| w.check(&k.space.id, now).is_ok());
+    let invited = checked && knocking.as_ref().and_then(|w| w.invite.as_deref()).is_some_and(|mark| secret.is_some_and(|s| mark == spaces::Knocking::invite_mark(&k.space.id, s)));
     let vouch = knocking.as_ref().and_then(|w| w.vouch.as_ref().map(|v| {
-        let holds = v.kind == "vouch" && v.holds() && v.field("for") == Some(w.key.as_str());
+        let holds = checked && spaces::vouch_holds(v, &w.key, &k.space.id, now);
         let by = members.iter().find(|m| m.key == v.key).map(|m| m.name.clone()).or_else(|| v.field("by_name").map(str::to_owned)).unwrap_or_else(|| "someone".into());
         VouchView { by, member_here: members.iter().any(|m| m.key == v.key), holds }
     }));
@@ -808,7 +840,8 @@ async fn knock_view(state: &AppState, k: &spaces::Knock) -> KnockView {
         name: knocking.as_ref().map(|w| w.name.clone()).unwrap_or_else(|| k.authorize.address.to_string()),
         note: knocking.as_ref().map(|w| w.note.clone()).unwrap_or_default(),
         listed: knocking.as_ref().map(|w| w.listed).unwrap_or(true),
-        invited: knocking.as_ref().and_then(|w| w.secret.as_ref()).is_some(),
+        invited,
+        checked,
         vouch,
         at: k.at.to_rfc3339(),
     }
@@ -832,15 +865,36 @@ pub fn knocks_watch(app: AppHandle, state: State<'_, AppState>, on_event: Channe
     scope
 }
 
-/// The host's answer; on yes, the host's `admit`, sealed as who they are there.
+/// The host's answer. On yes: the knock is checked again, the host's `admit`
+/// (sealed as who they are there) goes first, and the door opens only once
+/// the room has let them in. If anything fails, the answer is no.
 #[tauri::command]
 pub async fn knocks_answer(state: State<'_, AppState>, knock_id: u64, yes: bool) -> Result<(), String> {
-    let knock = state.spaces.answer(knock_id, if yes { spaces::Answer::Authorized } else { spaces::Answer::Denied }).await?;
-    if yes {
-        let knocking = spaces::Knocking::from_authorization(&knock.authorize.authorization).ok_or("that knock carried no key to let in")?;
-        call_as_you(&state, &knock.space, "admit", serde_json::json!({ "key": knocking.key, "name": knocking.name, "listed": knocking.listed })).await?;
+    if !yes {
+        state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
+        return Ok(());
     }
-    Ok(())
+    let knock = state.spaces.pending(knock_id).await.ok_or("nobody is at that door any more")?;
+    let knocking = spaces::Knocking::from_authorization(&knock.authorize.authorization).filter(|w| w.check(&knock.space.id, chrono::Utc::now()).is_ok());
+    let Some(knocking) = knocking else {
+        state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
+        return Err("that knock doesn't check, so it wasn't let in".into());
+    };
+    let admitted = call_as_you(&state, &knock.space, "admit", serde_json::json!({ "key": knocking.key, "name": knocking.name, "listed": knocking.listed })).await;
+    match admitted {
+        Ok(r) if r.is_error != Some(true) => {
+            state.spaces.answer(knock_id, spaces::Answer::Authorized).await?;
+            Ok(())
+        }
+        Ok(r) => {
+            state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
+            Err(text_of(&r))
+        }
+        Err(e) => {
+            state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
+            Err(e)
+        }
+    }
 }
 
 /// One ask, sent to several rooms at once: the same thread in each, so

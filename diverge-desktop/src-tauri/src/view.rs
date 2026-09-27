@@ -1078,8 +1078,11 @@ pub struct KnockView {
     pub name: String,
     pub note: String,
     pub listed: bool,
-    /// Whether they came with the invite's secret, or knocked on an open door.
+    /// Whether they came with this room's current invite, or knocked on an open door.
     pub invited: bool,
+    /// Whether the knock checks: signed by the key it names, for this room, lately.
+    /// Nothing else it says counts unless it does.
+    pub checked: bool,
     /// A member who vouches for them, if any.
     pub vouch: Option<VouchView>,
     pub at: String,

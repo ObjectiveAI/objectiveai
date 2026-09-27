@@ -18,6 +18,7 @@ export function KnockCard(props: { knock: KnockView; onAnswer: (yes: boolean) =>
           {k.invited ? t.spaces.invitedKnock : t.spaces.openKnock} · {t.spaces.seenFrom} <span className="mono">{k.address}</span> · {ago(k.at)}
           {k.listed ? "" : ` · ${t.spaces.unlisted}`}
         </div>
+        {k.checked ? null : <div className="warn small">{t.spaces.knockUnchecked}</div>}
         {vouch ? (
           <div className={vouch.holds && vouch.member_here ? "ok small" : "warn small"}>
             {vouch.holds ? `${t.spaces.vouchedBy} ${vouch.by}${vouch.member_here ? "" : `, ${t.spaces.vouchNotHere}`}` : t.spaces.vouchBroken}
@@ -25,7 +26,7 @@ export function KnockCard(props: { knock: KnockView; onAnswer: (yes: boolean) =>
         ) : null}
       </div>
       <div className="row-actions">
-        <Button small kind="primary" onClick={() => props.onAnswer(true)}>{t.spaces.letIn}</Button>
+        <Button small kind="primary" disabled={!k.checked} onClick={() => props.onAnswer(true)}>{t.spaces.letIn}</Button>
         <Button small kind="quiet" onClick={() => props.onAnswer(false)}>{t.spaces.notNow}</Button>
       </div>
     </div>

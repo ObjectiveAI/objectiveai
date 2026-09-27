@@ -14,9 +14,14 @@ address: string,
  */
 name: string, note: string, listed: boolean, 
 /**
- * Whether they came with the invite's secret, or knocked on an open door.
+ * Whether they came with this room's current invite, or knocked on an open door.
  */
 invited: boolean, 
+/**
+ * Whether the knock checks: signed by the key it names, for this room, lately.
+ * Nothing else it says counts unless it does.
+ */
+checked: boolean, 
 /**
  * A member who vouches for them, if any.
  */

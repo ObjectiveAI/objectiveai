@@ -382,8 +382,20 @@ impl StubSpaces {
         let _ = self.act(inner, "ren", &profile, "leave_note", json!({ "body": "Loved the kids' map idea in ada's zine room." }), ago(7, 30));
 
         // ren at the workshop's door, with an invite and a note.
-        let vouch = Statement::make(&inner.people["ada"].keypair, "vouch", json!({ "for": ren, "for_name": "ren", "by_name": "ada" }));
-        let knocking = Knocking { secret: Some("saturday-2026".into()), key: ren.clone(), name: "ren".into(), note: "ada said to come by. I fix lamps and radios.".into(), listed: true, vouch: Some(vouch) };
+        let until = (now + super::VOUCH_GOOD_FOR).to_rfc3339();
+        let vouch = Statement::make(&inner.people["ada"].keypair, "vouch", json!({ "for": ren, "for_name": "ren", "by_name": "ada", "room": board, "until": until }));
+        let knocking = Knocking {
+            room: board.clone(),
+            invite: Some(Knocking::invite_mark(&board, "saturday-2026")),
+            key: ren.clone(),
+            name: "ren".into(),
+            note: "ada said to come by. I fix lamps and radios.".into(),
+            listed: true,
+            vouch: Some(vouch),
+            at: ago(0, 2),
+            sig: String::new(),
+        }
+        .signed(&inner.people["ren"].keypair);
         inner.pending.push(Knock {
             knock_id: 1,
             space: Id { id: board.clone() },
@@ -547,6 +559,10 @@ impl Spaces for StubSpaces {
         Box::pin(stream::unfold(rx, |mut rx| async move { rx.recv().await.map(|k| (k, rx)) }))
     }
 
+    async fn pending(&self, knock_id: u64) -> Option<Knock> {
+        self.lock().pending.iter().find(|k| k.knock_id == knock_id).cloned()
+    }
+
     async fn answer(&self, knock_id: u64, _answer: Answer) -> Result<Knock, String> {
         let mut inner = self.lock();
         let at = inner.pending.iter().position(|k| k.knock_id == knock_id).ok_or("nobody is at that door any more")?;
@@ -563,7 +579,9 @@ impl Spaces for StubSpaces {
             if h.provider != invite.host {
                 return Joined::Missing;
             }
-            if knocking.secret.as_deref() != Some(h.secret.as_str()) && !h.room.args.open_door {
+            // The stand-in's hosts check a knock as the app does: signed by its key, for this room, and invited or at an open door.
+            let invited = knocking.invite.as_deref() == Some(Knocking::invite_mark(&invite.id, &h.secret).as_str());
+            if knocking.check(&invite.id, Utc::now()).is_err() || !(invited || h.room.args.open_door) {
                 return Joined::Denied;
             }
         }
@@ -797,9 +815,24 @@ mod tests {
         assert_eq!(invite.title, "Ren's music room");
         assert!(invite.verbs.iter().any(|v| v.name == "show"));
         let usual = me.usual();
-        let wrong = Knocking { secret: Some("guess".into()), key: usual.key.clone(), name: usual.name.clone(), note: String::new(), listed: true, vouch: None };
-        assert!(matches!(spaces.join(&invite, &wrong).await, Joined::Denied));
-        let knocking = Knocking { secret: invite.secret.clone(), ..wrong };
+        let knock = |invite_mark: Option<String>| Knocking {
+            room: invite.id.clone(),
+            invite: invite_mark,
+            key: usual.key.clone(),
+            name: usual.name.clone(),
+            note: String::new(),
+            listed: true,
+            vouch: None,
+            at: Utc::now(),
+            sig: String::new(),
+        };
+        let sign = |k: Knocking| Knocking { sig: me.state(&usual.key, "knock", k.body()).unwrap().sig, ..k };
+        let right = Knocking::invite_mark(&invite.id, invite.secret.as_deref().unwrap());
+        assert!(matches!(spaces.join(&invite, &sign(knock(Some("guess".into())))).await, Joined::Denied), "a wrong invite");
+        assert!(matches!(spaces.join(&invite, &knock(Some(right.clone()))).await, Joined::Denied), "unsigned");
+        let stolen = Knocking { key: spaces.stand_in_key("ada"), ..sign(knock(Some(right.clone()))) };
+        assert!(matches!(spaces.join(&invite, &stolen).await, Joined::Denied), "signed by someone else");
+        let knocking = sign(knock(Some(right)));
         let Joined::Joined(id) = spaces.join(&invite, &knocking).await else { panic!("let in") };
         me.set_room(&id.id, "usual");
         spaces.call(&id, sealed(&me, Actor::Persona("usual".into()), &id.id, "show", json!({ "title": "hello" }))).await.unwrap();
@@ -825,6 +858,24 @@ mod tests {
         let zine = Id { id: spaces.id_of("idea-ada") };
         assert!(spaces.transfer(&board, &["notes".into(), "saturday.md".into()], &zine).await.is_err(), "ada's room runs on her machine");
         assert!(spaces.table_tree(&Id { id: spaces.id_of("music-ren") }).await.is_err(), "not in ren's room");
+    }
+
+    #[tokio::test]
+    async fn a_knock_and_its_vouch_hold_for_one_room_for_a_while() {
+        let (spaces, _) = stub();
+        let knock = spaces.knocks(CancellationToken::new()).next().await.unwrap();
+        let w = Knocking::from_authorization(&knock.authorize.authorization).unwrap();
+        let (board, home, now) = (board(), spaces.id_of("home-me"), Utc::now());
+        assert!(w.check(&board, now).is_ok());
+        assert!(w.check(&home, now).is_err(), "carried to another room");
+        assert!(w.check(&board, now + TimeDelta::days(2)).is_err(), "too old");
+        let changed = Knocking { name: "ada".into(), ..w.clone() };
+        assert!(changed.check(&board, now).is_err(), "changed after it was signed");
+        let v = w.vouch.clone().unwrap();
+        assert!(crate::spaces::vouch_holds(&v, &w.key, &board, now));
+        assert!(!crate::spaces::vouch_holds(&v, &w.key, &home, now), "the vouch names the workshop");
+        assert!(!crate::spaces::vouch_holds(&v, &spaces.stand_in_key("ada"), &board, now), "and ren");
+        assert!(!crate::spaces::vouch_holds(&v, &w.key, &board, now + TimeDelta::days(8)), "and runs out");
     }
 
     #[tokio::test]

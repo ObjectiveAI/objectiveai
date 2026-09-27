@@ -34,7 +34,8 @@ export function Space(props: { id: string; tabKey: string }) {
   const [fromCopy, setFromCopy] = useState(false);
   const [doorways, setDoorways] = useState<DoorwayView[]>([]);
   const [admitted, setAdmitted] = useState<AdmittedView[]>([]);
-  const [vouchText, setVouchText] = useState<{ name: string; text: string } | null>(null);
+  const [vouchText, setVouchText] = useState<{ name: string; room: string; text: string } | null>(null);
+  const [vouching, setVouching] = useState<{ key: string; name: string; room: string } | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const [moderation, setModeration] = useState<string | null>(null);
 
@@ -105,7 +106,19 @@ export function Space(props: { id: string; tabKey: string }) {
     } else setProblem(out.message);
   };
 
-  const vouch = async (key: string, name: string) => setVouchText({ name, text: await api.vouchFor(key, name) });
+  /** Rooms you could vouch someone into: the ones you're in, besides this one and direct rooms. */
+  const vouchRooms = spaces.filter((r) => r.id !== props.id && r.kind !== "dm");
+  const vouch = async () => {
+    if (!vouching) return;
+    try {
+      const text = await api.vouchFor(vouching.key, vouching.name, vouching.room);
+      const room = spaces.find((r) => r.id === vouching.room)?.title ?? "";
+      setVouchText({ name: vouching.name, room, text });
+      setVouching(null);
+    } catch (e) {
+      setProblem(errorText(e));
+    }
+  };
 
   const remove = async (key: string) => {
     const out = await api.spaceCall(props.id, "remove", { key });
@@ -193,7 +206,7 @@ export function Space(props: { id: string; tabKey: string }) {
       ) : null}
       {vouchText ? (
         <div className="banner banner-quiet">
-          <strong>{t.spaces.vouchTitle} {vouchText.name}</strong>
+          <strong>{t.spaces.vouchTitle} {vouchText.name} → {vouchText.room}</strong>
           <span className="muted small">{t.spaces.vouchNote}</span>
           <code className="selectable invite-text">{vouchText.text}</code>
           <Button small kind="quiet" onClick={() => navigator.clipboard?.writeText(vouchText.text)}>{t.spaces.copy}</Button>
@@ -266,7 +279,21 @@ export function Space(props: { id: string; tabKey: string }) {
                   <span>{m.key === s.you_key ? t.spaces.you : m.name}</span>
                   {m.is_agent ? <Chip>{m.agent_of === s.you_are ? t.spaces.yourAgent : `${t.spaces.runBy} ${m.agent_of ?? "?"}`}</Chip> : null}
                   <span className="muted small">{m.last_acted ? `${t.spaces.lastActed} ${ago(m.last_acted)}` : ago(m.joined)}</span>
-                  {m.key && m.key !== s.you_key && !m.is_agent ? <button className="link small" onClick={() => vouch(m.key, m.name)}>{t.spaces.vouch}</button> : null}
+                  {m.key && m.key !== s.you_key && !m.is_agent && vouchRooms.length > 0 ? (
+                    <button className="link small" onClick={() => setVouching({ key: m.key, name: m.name, room: vouchRooms[0].id })}>{t.spaces.vouch}</button>
+                  ) : null}
+                  {vouching?.key === m.key ? (
+                    <div className="vouch-pick">
+                      <label className="muted small">
+                        {t.spaces.vouchInto}{" "}
+                        <select value={vouching.room} onChange={(e) => setVouching({ ...vouching, room: e.target.value })}>
+                          {vouchRooms.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
+                        </select>
+                      </label>
+                      <Button small kind="primary" onClick={vouch}>{t.spaces.vouchMake}</Button>
+                      <button className="link small" onClick={() => setVouching(null)}>{t.common.cancel}</button>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

@@ -152,7 +152,7 @@
     },
     {
       "name": "vouch_for",
-      "does": "Vouch for someone: your seal on their key, to hand them"
+      "does": "Vouch for someone into a room you're in: your word, for that room, for a week, to hand them"
     },
     {
       "name": "spaces_admitted",
@@ -3732,9 +3732,9 @@
       "name": "site-fixes",
       "image_name": "diverge-agentic-loop-cc",
       "digest": "unbuilt",
-      "created": "2026-09-27T21:39:18.572619+00:00",
+      "created": "2026-09-27T21:43:54.974656+00:00",
       "active": true,
-      "last_active": "2026-09-27T22:18:58.572619+00:00",
+      "last_active": "2026-09-27T22:23:34.974656+00:00",
       "provider": {
         "kind": "outgoing",
         "address": "127.0.0.1:4640"
@@ -3746,9 +3746,9 @@
       "name": "research-notes",
       "image_name": "diverge-agentic-loop-hermes",
       "digest": "unbuilt",
-      "created": "2026-09-25T22:19:18.572619+00:00",
+      "created": "2026-09-25T22:23:54.974656+00:00",
       "active": false,
-      "last_active": "2026-09-27T02:19:24.324619+00:00",
+      "last_active": "2026-09-27T02:24:00.726656+00:00",
       "provider": {
         "kind": "outgoing",
         "address": "127.0.0.1:4640"
@@ -3760,9 +3760,9 @@
       "name": "broken-loop",
       "image_name": "diverge-agentic-loop-openrouter",
       "digest": "unbuilt",
-      "created": "2026-09-27T16:19:18.572619+00:00",
+      "created": "2026-09-27T16:23:54.974656+00:00",
       "active": false,
-      "last_active": "2026-09-27T17:19:22.572619+00:00",
+      "last_active": "2026-09-27T17:23:58.974656+00:00",
       "provider": {
         "kind": "incoming_unbrokered",
         "identity": "studio-pc"
@@ -3775,7 +3775,7 @@
     "broken-loop": [
       {
         "logs_index": 1,
-        "created": "2026-09-27T17:19:18.572619+00:00",
+        "created": "2026-09-27T17:23:54.974656+00:00",
         "item": {
           "kind": "user_text",
           "key": "m2",
@@ -3784,7 +3784,7 @@
       },
       {
         "logs_index": 2,
-        "created": "2026-09-27T17:19:18.572619+00:00",
+        "created": "2026-09-27T17:23:54.974656+00:00",
         "item": {
           "kind": "active",
           "provider": {
@@ -3795,7 +3795,7 @@
       },
       {
         "logs_index": 3,
-        "created": "2026-09-27T17:19:20.572619+00:00",
+        "created": "2026-09-27T17:23:56.974656+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3804,7 +3804,7 @@
       },
       {
         "logs_index": 4,
-        "created": "2026-09-27T17:19:22.572619+00:00",
+        "created": "2026-09-27T17:23:58.974656+00:00",
         "item": {
           "kind": "error",
           "message": "the upstream refused the request: no API key for it in the vault"
@@ -3812,7 +3812,7 @@
       },
       {
         "logs_index": 5,
-        "created": "2026-09-27T17:19:22.572619+00:00",
+        "created": "2026-09-27T17:23:58.974656+00:00",
         "item": {
           "kind": "inactive",
           "provider": {
@@ -3825,7 +3825,7 @@
     "research-notes": [
       {
         "logs_index": 1,
-        "created": "2026-09-27T02:19:18.572619+00:00",
+        "created": "2026-09-27T02:23:54.974656+00:00",
         "item": {
           "kind": "user_text",
           "key": "m1",
@@ -3834,7 +3834,7 @@
       },
       {
         "logs_index": 2,
-        "created": "2026-09-27T02:19:18.572619+00:00",
+        "created": "2026-09-27T02:23:54.974656+00:00",
         "item": {
           "kind": "active",
           "provider": {
@@ -3845,7 +3845,7 @@
       },
       {
         "logs_index": 3,
-        "created": "2026-09-27T02:19:18.712619+00:00",
+        "created": "2026-09-27T02:23:55.114656+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3854,7 +3854,7 @@
       },
       {
         "logs_index": 4,
-        "created": "2026-09-27T02:19:18.754619+00:00",
+        "created": "2026-09-27T02:23:55.156656+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3863,7 +3863,7 @@
       },
       {
         "logs_index": 5,
-        "created": "2026-09-27T02:19:18.803619+00:00",
+        "created": "2026-09-27T02:23:55.205656+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3872,7 +3872,7 @@
       },
       {
         "logs_index": 6,
-        "created": "2026-09-27T02:19:18.859619+00:00",
+        "created": "2026-09-27T02:23:55.261656+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3881,7 +3881,7 @@
       },
       {
         "logs_index": 7,
-        "created": "2026-09-27T02:19:18.922619+00:00",
+        "created": "2026-09-27T02:23:55.324656+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3890,7 +3890,7 @@
       },
       {
         "logs_index": 8,
-        "created": "2026-09-27T02:19:18.992619+00:00",
+        "created": "2026-09-27T02:23:55.394656+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3899,7 +3899,7 @@
       },
       {
         "logs_index": 9,
-        "created": "2026-09-27T02:19:19.029619+00:00",
+        "created": "2026-09-27T02:23:55.431656+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3908,7 +3908,7 @@
       },
       {
         "logs_index": 10,
-        "created": "2026-09-27T02:19:19.529619+00:00",
+        "created": "2026-09-27T02:23:55.931656+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -3919,7 +3919,7 @@
       },
       {
         "logs_index": 11,
-        "created": "2026-09-27T02:19:20.229619+00:00",
+        "created": "2026-09-27T02:23:56.631656+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -3930,7 +3930,7 @@
       },
       {
         "logs_index": 12,
-        "created": "2026-09-27T02:19:20.729619+00:00",
+        "created": "2026-09-27T02:23:57.131656+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -3941,7 +3941,7 @@
       },
       {
         "logs_index": 13,
-        "created": "2026-09-27T02:19:21.929619+00:00",
+        "created": "2026-09-27T02:23:58.331656+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -3952,7 +3952,7 @@
       },
       {
         "logs_index": 14,
-        "created": "2026-09-27T02:19:22.149619+00:00",
+        "created": "2026-09-27T02:23:58.551656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -3961,7 +3961,7 @@
       },
       {
         "logs_index": 15,
-        "created": "2026-09-27T02:19:22.211619+00:00",
+        "created": "2026-09-27T02:23:58.613656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -3970,7 +3970,7 @@
       },
       {
         "logs_index": 16,
-        "created": "2026-09-27T02:19:22.280619+00:00",
+        "created": "2026-09-27T02:23:58.682656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -3979,7 +3979,7 @@
       },
       {
         "logs_index": 17,
-        "created": "2026-09-27T02:19:22.356619+00:00",
+        "created": "2026-09-27T02:23:58.758656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -3988,7 +3988,7 @@
       },
       {
         "logs_index": 18,
-        "created": "2026-09-27T02:19:22.439619+00:00",
+        "created": "2026-09-27T02:23:58.841656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -3997,7 +3997,7 @@
       },
       {
         "logs_index": 19,
-        "created": "2026-09-27T02:19:22.529619+00:00",
+        "created": "2026-09-27T02:23:58.931656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4006,7 +4006,7 @@
       },
       {
         "logs_index": 20,
-        "created": "2026-09-27T02:19:22.586619+00:00",
+        "created": "2026-09-27T02:23:58.988656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4015,7 +4015,7 @@
       },
       {
         "logs_index": 21,
-        "created": "2026-09-27T02:19:22.650619+00:00",
+        "created": "2026-09-27T02:23:59.052656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4024,7 +4024,7 @@
       },
       {
         "logs_index": 22,
-        "created": "2026-09-27T02:19:22.721619+00:00",
+        "created": "2026-09-27T02:23:59.123656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4033,7 +4033,7 @@
       },
       {
         "logs_index": 23,
-        "created": "2026-09-27T02:19:22.799619+00:00",
+        "created": "2026-09-27T02:23:59.201656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4042,7 +4042,7 @@
       },
       {
         "logs_index": 24,
-        "created": "2026-09-27T02:19:22.884619+00:00",
+        "created": "2026-09-27T02:23:59.286656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4051,7 +4051,7 @@
       },
       {
         "logs_index": 25,
-        "created": "2026-09-27T02:19:22.976619+00:00",
+        "created": "2026-09-27T02:23:59.378656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4060,7 +4060,7 @@
       },
       {
         "logs_index": 26,
-        "created": "2026-09-27T02:19:23.035619+00:00",
+        "created": "2026-09-27T02:23:59.437656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4069,7 +4069,7 @@
       },
       {
         "logs_index": 27,
-        "created": "2026-09-27T02:19:23.101619+00:00",
+        "created": "2026-09-27T02:23:59.503656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4078,7 +4078,7 @@
       },
       {
         "logs_index": 28,
-        "created": "2026-09-27T02:19:23.174619+00:00",
+        "created": "2026-09-27T02:23:59.576656+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4087,7 +4087,7 @@
       },
       {
         "logs_index": 29,
-        "created": "2026-09-27T02:19:23.324619+00:00",
+        "created": "2026-09-27T02:23:59.726656+00:00",
         "item": {
           "kind": "usage",
           "prompt_tokens": 470,
@@ -4097,7 +4097,7 @@
       },
       {
         "logs_index": 30,
-        "created": "2026-09-27T02:19:24.324619+00:00",
+        "created": "2026-09-27T02:24:00.726656+00:00",
         "item": {
           "kind": "inactive",
           "provider": {
@@ -4110,7 +4110,7 @@
     "site-fixes": [
       {
         "logs_index": 1,
-        "created": "2026-09-27T22:18:58.572619+00:00",
+        "created": "2026-09-27T22:23:34.974656+00:00",
         "item": {
           "kind": "user_text",
           "key": "m3",
@@ -4119,7 +4119,7 @@
       },
       {
         "logs_index": 2,
-        "created": "2026-09-27T22:18:58.572619+00:00",
+        "created": "2026-09-27T22:23:34.974656+00:00",
         "item": {
           "kind": "active",
           "provider": {
@@ -4130,7 +4130,7 @@
       },
       {
         "logs_index": 3,
-        "created": "2026-09-27T22:19:18.653135+00:00",
+        "created": "2026-09-27T22:23:55.068694+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4139,7 +4139,7 @@
       },
       {
         "logs_index": 4,
-        "created": "2026-09-27T22:19:18.653156+00:00",
+        "created": "2026-09-27T22:23:55.068717+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4148,7 +4148,7 @@
       },
       {
         "logs_index": 5,
-        "created": "2026-09-27T22:19:18.653186+00:00",
+        "created": "2026-09-27T22:23:55.068750+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4157,7 +4157,7 @@
       },
       {
         "logs_index": 6,
-        "created": "2026-09-27T22:19:18.653246+00:00",
+        "created": "2026-09-27T22:23:55.068788+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4166,7 +4166,7 @@
       },
       {
         "logs_index": 7,
-        "created": "2026-09-27T22:19:18.653329+00:00",
+        "created": "2026-09-27T22:23:55.068822+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4177,7 +4177,7 @@
       },
       {
         "logs_index": 8,
-        "created": "2026-09-27T22:19:18.653401+00:00",
+        "created": "2026-09-27T22:23:55.068851+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4188,7 +4188,7 @@
       },
       {
         "logs_index": 9,
-        "created": "2026-09-27T22:19:18.653439+00:00",
+        "created": "2026-09-27T22:23:55.068883+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4197,7 +4197,7 @@
       },
       {
         "logs_index": 10,
-        "created": "2026-09-27T22:19:18.653473+00:00",
+        "created": "2026-09-27T22:23:55.068913+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4206,7 +4206,7 @@
       },
       {
         "logs_index": 11,
-        "created": "2026-09-27T22:19:18.653486+00:00",
+        "created": "2026-09-27T22:23:55.068925+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4215,7 +4215,7 @@
       },
       {
         "logs_index": 12,
-        "created": "2026-09-27T22:19:18.653515+00:00",
+        "created": "2026-09-27T22:23:55.068953+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4224,7 +4224,7 @@
       },
       {
         "logs_index": 13,
-        "created": "2026-09-27T22:19:18.653559+00:00",
+        "created": "2026-09-27T22:23:55.068997+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4233,7 +4233,7 @@
       },
       {
         "logs_index": 14,
-        "created": "2026-09-27T22:19:18.653588+00:00",
+        "created": "2026-09-27T22:23:55.069025+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4244,7 +4244,7 @@
       },
       {
         "logs_index": 15,
-        "created": "2026-09-27T22:19:18.653633+00:00",
+        "created": "2026-09-27T22:23:55.069077+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4255,7 +4255,7 @@
       },
       {
         "logs_index": 16,
-        "created": "2026-09-27T22:19:18.653663+00:00",
+        "created": "2026-09-27T22:23:55.069135+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4264,7 +4264,7 @@
       },
       {
         "logs_index": 17,
-        "created": "2026-09-27T22:19:18.653692+00:00",
+        "created": "2026-09-27T22:23:55.069185+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4273,7 +4273,7 @@
       },
       {
         "logs_index": 18,
-        "created": "2026-09-27T22:19:18.653720+00:00",
+        "created": "2026-09-27T22:23:55.069229+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4282,7 +4282,7 @@
       },
       {
         "logs_index": 19,
-        "created": "2026-09-27T22:19:18.653748+00:00",
+        "created": "2026-09-27T22:23:55.069310+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4291,7 +4291,7 @@
       },
       {
         "logs_index": 20,
-        "created": "2026-09-27T22:19:18.653792+00:00",
+        "created": "2026-09-27T22:23:55.069353+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4300,7 +4300,7 @@
       },
       {
         "logs_index": 21,
-        "created": "2026-09-27T22:19:18.653820+00:00",
+        "created": "2026-09-27T22:23:55.069421+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4311,7 +4311,7 @@
       },
       {
         "logs_index": 22,
-        "created": "2026-09-27T22:19:18.653864+00:00",
+        "created": "2026-09-27T22:23:55.069528+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4322,7 +4322,7 @@
       },
       {
         "logs_index": 23,
-        "created": "2026-09-27T22:19:18.653894+00:00",
+        "created": "2026-09-27T22:23:55.069580+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4331,7 +4331,7 @@
       },
       {
         "logs_index": 24,
-        "created": "2026-09-27T22:19:18.653905+00:00",
+        "created": "2026-09-27T22:23:55.069587+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4340,7 +4340,7 @@
       },
       {
         "logs_index": 25,
-        "created": "2026-09-27T22:19:18.653933+00:00",
+        "created": "2026-09-27T22:23:55.069613+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4349,7 +4349,7 @@
       },
       {
         "logs_index": 26,
-        "created": "2026-09-27T22:19:18.653961+00:00",
+        "created": "2026-09-27T22:23:55.069643+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4358,7 +4358,7 @@
       },
       {
         "logs_index": 27,
-        "created": "2026-09-27T22:19:18.654004+00:00",
+        "created": "2026-09-27T22:23:55.069694+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4367,7 +4367,7 @@
       },
       {
         "logs_index": 28,
-        "created": "2026-09-27T22:19:18.654032+00:00",
+        "created": "2026-09-27T22:23:55.069727+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4378,7 +4378,7 @@
       },
       {
         "logs_index": 29,
-        "created": "2026-09-27T22:19:18.654076+00:00",
+        "created": "2026-09-27T22:23:55.069777+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4389,7 +4389,7 @@
       },
       {
         "logs_index": 30,
-        "created": "2026-09-27T22:19:18.654105+00:00",
+        "created": "2026-09-27T22:23:55.069805+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4398,7 +4398,7 @@
       },
       {
         "logs_index": 31,
-        "created": "2026-09-27T22:19:18.654133+00:00",
+        "created": "2026-09-27T22:23:55.069855+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4407,7 +4407,7 @@
       },
       {
         "logs_index": 32,
-        "created": "2026-09-27T22:19:18.654161+00:00",
+        "created": "2026-09-27T22:23:55.069885+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4416,7 +4416,7 @@
       },
       {
         "logs_index": 33,
-        "created": "2026-09-27T22:19:18.654188+00:00",
+        "created": "2026-09-27T22:23:55.069912+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4425,7 +4425,7 @@
       },
       {
         "logs_index": 34,
-        "created": "2026-09-27T22:19:18.654250+00:00",
+        "created": "2026-09-27T22:23:55.069965+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4434,7 +4434,7 @@
       },
       {
         "logs_index": 35,
-        "created": "2026-09-27T22:19:18.654281+00:00",
+        "created": "2026-09-27T22:23:55.069994+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4445,7 +4445,7 @@
       },
       {
         "logs_index": 36,
-        "created": "2026-09-27T22:19:18.654311+00:00",
+        "created": "2026-09-27T22:23:55.070025+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4456,7 +4456,7 @@
       },
       {
         "logs_index": 37,
-        "created": "2026-09-27T22:19:18.654341+00:00",
+        "created": "2026-09-27T22:23:55.070057+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4465,7 +4465,7 @@
       },
       {
         "logs_index": 38,
-        "created": "2026-09-27T22:19:18.654354+00:00",
+        "created": "2026-09-27T22:23:55.070069+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4474,7 +4474,7 @@
       },
       {
         "logs_index": 39,
-        "created": "2026-09-27T22:19:18.654382+00:00",
+        "created": "2026-09-27T22:23:55.070097+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4483,7 +4483,7 @@
       },
       {
         "logs_index": 40,
-        "created": "2026-09-27T22:19:18.654411+00:00",
+        "created": "2026-09-27T22:23:55.070125+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4502,24 +4502,24 @@
         {
           "name": "datasets",
           "bytes": 34359738368,
-          "created": "2026-09-27T22:19:18+00:00",
+          "created": "2026-09-27T22:23:54+00:00",
           "mode": "read_only"
         },
         {
           "name": "scratch",
           "bytes": 1073741824,
-          "created": "2026-09-27T22:19:18+00:00",
+          "created": "2026-09-27T22:23:54+00:00",
           "mode": "ephemeral"
         },
         {
           "name": "workspace",
           "bytes": 8589934592,
-          "created": "2026-09-27T22:19:18+00:00",
+          "created": "2026-09-27T22:23:54+00:00",
           "mode": "persistent"
         }
       ],
       "volumes_problem": null,
-      "added": "2026-09-18T22:19:18.572619+00:00",
+      "added": "2026-09-18T22:23:54.974656+00:00",
       "name": null
     },
     {
@@ -4531,12 +4531,12 @@
         {
           "name": "media",
           "bytes": 17179869184,
-          "created": "2026-09-27T22:19:18+00:00",
+          "created": "2026-09-27T22:23:54+00:00",
           "mode": "persistent"
         }
       ],
       "volumes_problem": null,
-      "added": "2026-09-24T22:19:18.572619+00:00",
+      "added": "2026-09-24T22:23:54.974656+00:00",
       "name": null
     }
   ],
@@ -4565,23 +4565,23 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:19:18.579274Z",
-            "last_acted": "2026-09-27T19:09:18.579274Z"
+            "joined": "2026-09-07T02:23:54.980695Z",
+            "last_acted": "2026-09-27T19:13:54.980695Z"
           },
           {
             "name": "ada",
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-19T14:19:18.579274Z",
-            "last_acted": "2026-09-27T19:59:18.579274Z"
+            "joined": "2026-09-19T14:23:54.980695Z",
+            "last_acted": "2026-09-27T20:03:54.980695Z"
           },
           {
             "name": "research-notes",
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a",
             "is_agent": true,
             "agent_of": "maya",
-            "joined": "2026-09-25T22:19:18.579274Z",
+            "joined": "2026-09-25T22:23:54.980695Z",
             "last_acted": null
           },
           {
@@ -4589,8 +4589,8 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7",
             "is_agent": true,
             "agent_of": "maya",
-            "joined": "2026-09-26T06:19:18.579274Z",
-            "last_acted": "2026-09-27T21:59:18.579274Z"
+            "joined": "2026-09-26T06:23:54.980695Z",
+            "last_acted": "2026-09-27T22:03:54.980695Z"
           }
         ],
         "tools": [
@@ -4824,7 +4824,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-19T14:19:18.579274Z",
+          "at": "2026-09-19T14:23:54.980695Z",
           "title": "ada",
           "body": "",
           "state": "said",
@@ -4833,7 +4833,7 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "d2fd7f7e370fea7599977dc53baf1100fc307c828b599584d672b1a82fe84ec6"
+          "hash": "9b01e0d56ef27ccbd23891bd5a3cc030e3d9a562d43aaa095d5f3815034c71f3"
         },
         {
           "id": "admitted-2",
@@ -4841,7 +4841,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-25T22:19:18.579274Z",
+          "at": "2026-09-25T22:23:54.980695Z",
           "title": "research-notes",
           "body": "",
           "state": "said",
@@ -4850,7 +4850,7 @@
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "007b4112a1d511c0a99321fc6cc203d53fe5f45a680c793ec108a7e1f385af7c"
+          "hash": "000e9f863ebb8ee372b9ac90f72e64a2825d877587dc6242d3588c58e216ca12"
         },
         {
           "id": "admitted-3",
@@ -4858,7 +4858,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T06:19:18.579274Z",
+          "at": "2026-09-26T06:23:54.980695Z",
           "title": "site-fixes",
           "body": "",
           "state": "said",
@@ -4867,7 +4867,7 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "cd0018c4630d028f4d8542add2d7558881f7039d8d97a82f24ac984e0ee0541d"
+          "hash": "8c8e20c04327eaeea96208eaf54e93925c5f4a792d3c3ec75f618623b09affff"
         },
         {
           "id": "show-4",
@@ -4875,14 +4875,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T20:19:18.579274Z",
+          "at": "2026-09-26T20:23:54.980695Z",
           "title": "Draft one of the desktop app runs",
           "body": "Agents, storage, machines and saved Views, on a stand-in for the daemon. Screenshots tomorrow.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "3d9f4b216fb23770",
-          "hash": "246d7c27d5e04f58c98301850570473fb8b6df6bdf10a3e0fdec43086f6878d9"
+          "hash": "c09929927be1d619b6727fdec0754d64b2f0519b62f207a05fede0ad3acc2e77"
         },
         {
           "id": "ask-5",
@@ -4890,7 +4890,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T19:09:18.579274Z",
+          "at": "2026-09-27T19:13:54.980695Z",
           "title": "Who has a GPU free on weekends?",
           "body": "",
           "state": "open",
@@ -4901,7 +4901,7 @@
             "who_may_serve": "anyone"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "af8a4071143a4ec9f9f24f409996d5399853a112e534dd6cc734c6f7629a7ff7"
+          "hash": "c6aab31188cf7d609e7b0b3698818b623056e3836fddb822026b12ff3952fa9a"
         },
         {
           "id": "reply-6",
@@ -4909,14 +4909,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-27T19:59:18.579274Z",
+          "at": "2026-09-27T20:03:54.980695Z",
           "title": "",
           "body": "Mine's free Saturday, the studio PC. Say when and I'll issue you a key.",
           "state": "said",
           "parent": "ask-5",
           "fields": {},
           "charter": "3d9f4b216fb23770",
-          "hash": "97a52f0f982028ee1b40a872df2cd63b204e30ca4daae9ba908bc568ed46ac9b"
+          "hash": "5657138f24a69e010306e17d793dedd9992c2e5a47dd449906fb4d220acf83f7"
         },
         {
           "id": "run-7",
@@ -4924,7 +4924,7 @@
           "author": "site-fixes",
           "by": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7",
           "agent_of": "maya",
-          "at": "2026-09-27T21:59:18.579274Z",
+          "at": "2026-09-27T22:03:54.980695Z",
           "title": "Went through the site",
           "body": "12 passes. One broken link: “Archive” points at /old-page, which doesn't exist. Nothing changed.",
           "state": "done",
@@ -4933,7 +4933,7 @@
             "measured": "1,556 tokens"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "3132324642c1f060695c0c26a1fdeaf6f8273220770b3a6dcae32efe098047c9"
+          "hash": "281cb1d62c99f309b2831a067899aca13e8ff5da4209be7672ef66920b378e3c"
         }
       ],
       "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImhvbWUtbWUuYTI4Y2Y1ZjI4MGU4Iiwic2VjcmV0IjoiaG9tZS1mcmllbmRzIiwidGl0bGUiOiJZb3VyIGhvbWUiLCJraW5kIjoiaG9tZSIsImhvc3RfbmFtZSI6Im1heWEiLCJjaGFydGVyIjoiIyBZb3VyIGhvbWVcblxuV2hhdCB5b3UncmUgYnVpbGRpbmcsIHNob3duIHdoZW4geW91IGNob29zZSB0by4gRnJpZW5kcyBtYXkgYXNrIGFuZCBhbnN3ZXIuIFlvdXIgYWdlbnRzIHBvc3Qgd2hhdCB0aGV5IGZpbmlzaGVkLiIsInZlcmJzIjpbeyJuYW1lIjoic2hvdyIsImRvZXMiOiJTaG93IHNvbWV0aGluZyB5b3UgbWFkZSBvciBkaWQuIFdoYXQgeW91IHNob3cgc3RheXMgYXMgc2hvd247IGEgbmV3IHZlcnNpb24gaXMgYSBuZXcgc2hvdy4ifSx7Im5hbWUiOiJhc2siLCJkb2VzIjoiQXNrIGZvciBzb21ldGhpbmcuIEFueW9uZSBoZXJlLCBhIHBlcnNvbiBvciBhbiBhZ2VudCwgbWF5IG9mZmVyIHRvIHNlcnZlIGl0LiJ9LHsibmFtZSI6Im9mZmVyIiwiZG9lcyI6Ik9mZmVyIHRvIHNlcnZlIGFuIGFzay4ifSx7Im5hbWUiOiJyZXBseSIsImRvZXMiOiJSZXBseSB0byBhIG1vdmUuIn0seyJuYW1lIjoicmVwb3J0IiwiZG9lcyI6IlJlcG9ydCB3aGF0IHlvdSBmaW5pc2hlZDogZm9yIGFuIGFnZW50LCB3aGVuIGEgcnVuIGVuZHMuIn1dfQ"
@@ -4962,23 +4962,23 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:19:18.579274Z",
-            "last_acted": "2026-09-27T00:19:18.579274Z"
+            "joined": "2026-09-07T02:23:54.980695Z",
+            "last_acted": "2026-09-27T00:23:54.980695Z"
           },
           {
             "name": "ada",
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-25T00:19:18.579274Z",
-            "last_acted": "2026-09-26T23:19:18.579274Z"
+            "joined": "2026-09-25T00:23:54.980695Z",
+            "last_acted": "2026-09-26T23:23:54.980695Z"
           },
           {
             "name": "research-notes",
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a",
             "is_agent": true,
             "agent_of": "maya",
-            "joined": "2026-09-25T22:19:18.579274Z",
+            "joined": "2026-09-25T22:23:54.980695Z",
             "last_acted": null
           },
           {
@@ -4986,7 +4986,7 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7",
             "is_agent": true,
             "agent_of": "maya",
-            "joined": "2026-09-26T06:19:18.579274Z",
+            "joined": "2026-09-26T06:23:54.980695Z",
             "last_acted": null
           }
         ],
@@ -5344,7 +5344,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-25T00:19:18.579274Z",
+          "at": "2026-09-25T00:23:54.980695Z",
           "title": "ada",
           "body": "",
           "state": "said",
@@ -5353,7 +5353,7 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "726f695751ce60b0",
-          "hash": "30f7dc7613749e1f25453bc19e2bfc9fb75736746825f0826c0f8b5c0c9b556b"
+          "hash": "cae03b956e19becddc0de4bb01cf7eb797c45187b72461d8492cb24f8e0bba9c"
         },
         {
           "id": "admitted-2",
@@ -5361,7 +5361,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-25T22:19:18.579274Z",
+          "at": "2026-09-25T22:23:54.980695Z",
           "title": "research-notes",
           "body": "",
           "state": "said",
@@ -5370,7 +5370,7 @@
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a"
           },
           "charter": "726f695751ce60b0",
-          "hash": "987ad02eb5fb611ec304605d319d0b5aa1dba1f0d71780e38495c0fc6909e40c"
+          "hash": "edb1e154953e1026d1c042873d5513de3e2910a9a9206ba867ec1549644f1832"
         },
         {
           "id": "admitted-3",
@@ -5378,7 +5378,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T06:19:18.579274Z",
+          "at": "2026-09-26T06:23:54.980695Z",
           "title": "site-fixes",
           "body": "",
           "state": "said",
@@ -5387,7 +5387,7 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7"
           },
           "charter": "726f695751ce60b0",
-          "hash": "add80f1c81fa92925ead8dc022efc03451cc0f61debaa6ec8ea80b6e57399a45"
+          "hash": "690aff236837e54e5c5386db10b651cb8330a6e05f38114c7ddf5f17cab804b7"
         },
         {
           "id": "task-4",
@@ -5395,7 +5395,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T21:19:18.579274Z",
+          "at": "2026-09-26T21:23:54.980695Z",
           "title": "Package the photo resizer as a tool",
           "body": "A container that runs the resizer script as a tool with one `resize` verb. Done = an agent can call it on a folder and get the smaller copies back.",
           "state": "open",
@@ -5404,7 +5404,7 @@
             "pledge": "a loaf of the good bread"
           },
           "charter": "726f695751ce60b0",
-          "hash": "97807daf485d0e00fe2d245d9ed1cb2af6e6ede1d9c00ed28b3756e126f20a0e"
+          "hash": "3f57ae60534e9b408d440d3bcae51eec6a7cba1c1a2ef937b7307dacb090c789"
         },
         {
           "id": "task-5",
@@ -5412,7 +5412,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T21:49:18.579274Z",
+          "at": "2026-09-26T21:53:54.980695Z",
           "title": "Write a README for the label printer script",
           "body": "What it does, how to run it, one example. Done = someone new can print a label from it.",
           "state": "claimed",
@@ -5422,7 +5422,7 @@
             "claimed_by_key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "726f695751ce60b0",
-          "hash": "fabd77e77369a59374b500b3d6d829b1b8c501371335ee4c6c89dee280807b40"
+          "hash": "ba017751f33b5c24b85d3eebbdc6680c421722c1489f07d12add1e23449df3f3"
         },
         {
           "id": "claim-6",
@@ -5430,14 +5430,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T22:19:18.579274Z",
+          "at": "2026-09-26T22:23:54.980695Z",
           "title": "Write a README for the label printer script",
           "body": "",
           "state": "claimed",
           "parent": "task-5",
           "fields": {},
           "charter": "726f695751ce60b0",
-          "hash": "86c1f79ea01e7eabe48cd1fead310681daff34666890ace1bbd46e17e7b8d166"
+          "hash": "d941bb2ddadd5ecf97f4465a7e36d6e6e415af93d4c8518fc475a39e60d6a89a"
         },
         {
           "id": "offering-7",
@@ -5445,7 +5445,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T23:19:18.579274Z",
+          "at": "2026-09-26T23:23:54.980695Z",
           "title": "Weekend GPU time on the studio PC",
           "body": "One card, 24 GB, Saturday and Sunday. Measured in seconds; friends free.",
           "state": "offered",
@@ -5455,7 +5455,7 @@
             "terms": "measured, not priced"
           },
           "charter": "726f695751ce60b0",
-          "hash": "a9b6a43dc8659e87b8fbd5406a6388b7912b4234eb03de81010e0228b739dd9b"
+          "hash": "42036e70a10bbe0bc2acec87070e487168897a72bbee1e042535a00a00a336fb"
         },
         {
           "id": "show-8",
@@ -5463,14 +5463,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T00:19:18.579274Z",
+          "at": "2026-09-27T00:23:54.980695Z",
           "title": "The desktop app, draft one",
           "body": "It runs: agents, storage, machines, saved views.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "726f695751ce60b0",
-          "hash": "1c2ec65dc0fb458af54a6d4eeff496e8668f6a5a8a1cecd4a855544d3b4877f0"
+          "hash": "eb24bb6f017f45c543866750e7761476fb4c202fadf82927e5577264c227b279"
         }
       ],
       "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImJvYXJkLXNhdHVyZGF5LmEyOGNmNWYyODBlOCIsInNlY3JldCI6InNhdHVyZGF5LTIwMjYiLCJ0aXRsZSI6IlNhdHVyZGF5IFdvcmtzaG9wIiwia2luZCI6ImJvYXJkIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiIjIFNhdHVyZGF5IFdvcmtzaG9wXG5cbiMjIFJ1bGVzXG5TaG93IHdoYXQgeW91J3JlIG1ha2luZywgZmluaXNoZWQgb3Igbm90LiBBc2sgZm9yIGhlbHAgcGxhaW5seS4gQmUga2luZCBhYm91dCBvdGhlciBwZW9wbGUncyB3b3JrLlxuXG4jIyBXaG8gZG9lcyB3aGF0XG5UaGUgKipob3N0Kioga2VlcHMgdGhlIHJ1bGVzIGFuZCBhY2NlcHRzIGRlbGl2ZXJpZXMuICoqTWVtYmVycyoqIHBvc3QsIGNsYWltIGFuZCBvZmZlci4gKipHdWVzdHMqKiByZWFkLlxuXG4jIyBUYXNrc1xuQSB0YXNrIGhhcyBhIHRpdGxlIGFuZCBhIHNwZWMsIGZpeGVkIHdoZW4gaXQncyBwb3N0ZWQuIENsYWltIGl0IGFzIHBvc3RlZDsgdGhlIHNwZWMgaXMgd2hhdCBnZXRzIGNoZWNrZWQuIEEgcGxlZGdlIGlzIHdvcmRzOiBib3RoIHNpZGVzIHNheSB3aGVuIGl0J3Mgc2V0dGxlZC5cblxuIyMgUmVjZWlwdHNcbkFjY2VwdGluZyBhIGRlbGl2ZXJ5IGlzc3VlcyBhIHJlY2VpcHQgdG8gd2hvZXZlciBkaWQgdGhlIHdvcmssIHNlYWxlZCBieSB0aGlzIHJvb20uIEl0IGlzIGEgcmVjb3JkLCBuZXZlciBhIHJhdGluZyBvZiBhIHBlcnNvbi4iLCJ2ZXJicyI6W3sibmFtZSI6InNob3ciLCJkb2VzIjoiU2hvdyBzb21ldGhpbmcgeW91IG1hZGUgb3IgZGlkLiBXaGF0IHlvdSBzaG93IHN0YXlzIGFzIHNob3duOyBhIG5ldyB2ZXJzaW9uIGlzIGEgbmV3IHNob3cuIn0seyJuYW1lIjoiYXNrIiwiZG9lcyI6IkFzayBmb3Igc29tZXRoaW5nLiBBbnlvbmUgaGVyZSwgYSBwZXJzb24gb3IgYW4gYWdlbnQsIG1heSBvZmZlciB0byBzZXJ2ZSBpdC4ifSx7Im5hbWUiOiJvZmZlciIsImRvZXMiOiJPZmZlciB0byBzZXJ2ZSBhbiBhc2suIn0seyJuYW1lIjoicmVwbHkiLCJkb2VzIjoiUmVwbHkgdG8gYSBtb3ZlLiJ9LHsibmFtZSI6InBvc3RfdGFzayIsImRvZXMiOiJQb3N0IGEgdGFzazogaXRzIHNwZWMgaXMgZml4ZWQgYXQgcG9zdGluZywgYW5kIHdob2V2ZXIgY2xhaW1zIGl0IGlzIGp1ZGdlZCBvbiB0aGUgc3BlYy4ifSx7Im5hbWUiOiJjbGFpbSIsImRvZXMiOiJDbGFpbSBhbiBvcGVuIHRhc2suIFlvdSB0YWtlIGl0IGFzIHBvc3RlZC4ifSx7Im5hbWUiOiJkZWxpdmVyIiwiZG9lcyI6IkRlbGl2ZXIgb24gYSB0YXNrIHlvdSBjbGFpbWVkLiJ9LHsibmFtZSI6ImFjY2VwdCIsImRvZXMiOiJBY2NlcHQgYSBkZWxpdmVyeTogdGhlIHRhc2sgaXMgZG9uZSBhbmQgdGhlIHJvb20gaXNzdWVzIGEgcmVjZWlwdC4ifSx7Im5hbWUiOiJzZXR0bGUiLCJkb2VzIjoiU2F5IHdoZXRoZXIgYSB0YXNrJ3MgcGxlZGdlIGlzIHNldHRsZWQuIFdob2V2ZXIgcG9zdGVkIGl0IGFuZCB3aG9ldmVyIGRpZCBpdCBlYWNoIHNheTsgaWYgdGhleSBkaXNhZ3JlZSwgYm90aCBzdGFuZC4ifSx7Im5hbWUiOiJwb3N0X29mZmVyaW5nIiwiZG9lcyI6Ik9mZmVyIHNvbWV0aGluZyB5b3Ugc2VsbCBvciBsZW5kOiBhIGZpeGVkIHRoaW5nLCBvciBhIG1ldGVyZWQgY2FwYWJpbGl0eS4ifV19"
@@ -5499,24 +5499,24 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:19:18.579274Z",
-            "last_acted": "2026-09-26T07:19:18.579274Z"
+            "joined": "2026-09-07T02:23:54.980695Z",
+            "last_acted": "2026-09-26T07:23:54.980695Z"
           },
           {
             "name": "scout",
             "key": "f6413c87a5d109ac89f962c1b80521b2f402e844071397fa9858081d471bff11",
             "is_agent": true,
             "agent_of": "ada",
-            "joined": "2026-09-24T09:19:18.579274Z",
-            "last_acted": "2026-09-25T16:19:18.579274Z"
+            "joined": "2026-09-24T09:23:54.980695Z",
+            "last_acted": "2026-09-25T16:23:54.980695Z"
           },
           {
             "name": "maya",
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-24T14:19:18.579274Z",
-            "last_acted": "2026-09-25T10:19:18.579274Z"
+            "joined": "2026-09-24T14:23:54.980695Z",
+            "last_acted": "2026-09-25T10:23:54.980695Z"
           }
         ],
         "tools": [
@@ -5792,7 +5792,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-24T09:19:18.579274Z",
+          "at": "2026-09-24T09:23:54.980695Z",
           "title": "scout",
           "body": "",
           "state": "said",
@@ -5801,7 +5801,7 @@
             "key": "f6413c87a5d109ac89f962c1b80521b2f402e844071397fa9858081d471bff11"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "12dca6a673be09eff5e0ff1f1309411abe76bd4b4e5437399e14e08b2e9a2dfe"
+          "hash": "270e781248e325765b718bf00de935467787db0354204bedf044e817ba1dd0ab"
         },
         {
           "id": "admitted-2",
@@ -5809,7 +5809,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-24T14:19:18.579274Z",
+          "at": "2026-09-24T14:23:54.980695Z",
           "title": "maya",
           "body": "",
           "state": "said",
@@ -5818,7 +5818,7 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "3ca684d498bf21c80cf0ae42388edbf2d7786a9de77fa3e09fa2e3e4c7896478"
+          "hash": "41aea34b7ee8431943413b457e02140c7479eae211fa757d2396f026553b20ef"
         },
         {
           "id": "direction-3",
@@ -5826,7 +5826,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-25T00:19:18.579274Z",
+          "at": "2026-09-25T00:23:54.980695Z",
           "title": "Recipes from every street",
           "body": "One page per street, cooked by whoever lives there.",
           "state": "open",
@@ -5835,7 +5835,7 @@
             "note": 1
           },
           "charter": "65418844c1d45a5a",
-          "hash": "ddf5dffd5028fb627fabc9fc02b28821b1bc9ea541e02d8e63823389f53a5016"
+          "hash": "58b0b23d02d0a81f1b2d68e0cd78ea23f4f97889cb7e50beb397d57634295258"
         },
         {
           "id": "direction-4",
@@ -5843,7 +5843,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-25T10:19:18.579274Z",
+          "at": "2026-09-25T10:23:54.980695Z",
           "title": "A map drawn by kids",
           "body": "Hand-drawn, scanned, the centre spread.",
           "state": "open",
@@ -5852,7 +5852,7 @@
             "prefer": 1
           },
           "charter": "65418844c1d45a5a",
-          "hash": "d1750ae586b8f3dbab78313e5cc49ef21dd0eb781ee3fe3d5a2c1cb118db19d8"
+          "hash": "0afe05e985bec21f82456d6919f9c2453fadc2ce111c9f2125cc335500bdab3b"
         },
         {
           "id": "steer-5",
@@ -5860,7 +5860,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-25T15:19:18.579274Z",
+          "at": "2026-09-25T15:23:54.980695Z",
           "title": "A map drawn by kids",
           "body": "This is the one. Recipes can be issue two.",
           "state": "said",
@@ -5869,7 +5869,7 @@
             "move": "prefer"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "3e4ec8522a006e3b3bfc4c9d41815b7c3113ab8a02d880ec5c61651746506b16"
+          "hash": "69dd144510fb3cd6f8d6e684f8fb4dae6d051b0d59b270cbd36082b1c3e2bfd7"
         },
         {
           "id": "steer-6",
@@ -5877,7 +5877,7 @@
           "author": "scout",
           "by": "f6413c87a5d109ac89f962c1b80521b2f402e844071397fa9858081d471bff11",
           "agent_of": "ada",
-          "at": "2026-09-25T16:19:18.579274Z",
+          "at": "2026-09-25T16:23:54.980695Z",
           "title": "Recipes from every street",
           "body": "Recipe zines are common; a map drawn by kids is rarer.",
           "state": "said",
@@ -5886,7 +5886,7 @@
             "move": "note"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "dd02b9e71291af733a4910c61b89b55d269ed268701d1ec9d75993f8a3d56b9e"
+          "hash": "ae87d7014149618030f9edcc00cee8a4974d3c0b74f3c17f66040d7a1d6b600b"
         },
         {
           "id": "synthesis-7",
@@ -5894,14 +5894,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T06:19:18.579274Z",
+          "at": "2026-09-26T06:23:54.980695Z",
           "title": "Where it stands",
           "body": "Issue one is the kids' map; recipes wait for issue two.",
           "state": "open",
           "parent": null,
           "fields": {},
           "charter": "65418844c1d45a5a",
-          "hash": "1c547d7b16165dda2fcbeff30c00408b0ab0af831dc4688d028c1a44b8b641ff"
+          "hash": "9c70302808ef4433ab44fce5364ddb0d2b4b1d3d48aefababf8a39d172dd4e3b"
         },
         {
           "id": "doorway-8",
@@ -5909,14 +5909,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T07:19:18.579274Z",
+          "at": "2026-09-26T07:23:54.980695Z",
           "title": "Saturday Workshop",
           "body": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImJvYXJkLXNhdHVyZGF5LmEyOGNmNWYyODBlOCIsInNlY3JldCI6InNhdHVyZGF5LTIwMjYiLCJ0aXRsZSI6IlNhdHVyZGF5IFdvcmtzaG9wIiwia2luZCI6ImJvYXJkIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiIjIFNhdHVyZGF5IFdvcmtzaG9wXG5cbiMjIFJ1bGVzXG5TaG93IHdoYXQgeW91J3JlIG1ha2luZywgZmluaXNoZWQgb3Igbm90LiBBc2sgZm9yIGhlbHAgcGxhaW5seS4gQmUga2luZCBhYm91dCBvdGhlciBwZW9wbGUncyB3b3JrLlxuXG4jIyBXaG8gZG9lcyB3aGF0XG5UaGUgKipob3N0Kioga2VlcHMgdGhlIHJ1bGVzIGFuZCBhY2NlcHRzIGRlbGl2ZXJpZXMuICoqTWVtYmVycyoqIHBvc3QsIGNsYWltIGFuZCBvZmZlci4gKipHdWVzdHMqKiByZWFkLlxuXG4jIyBUYXNrc1xuQSB0YXNrIGhhcyBhIHRpdGxlIGFuZCBhIHNwZWMsIGZpeGVkIHdoZW4gaXQncyBwb3N0ZWQuIENsYWltIGl0IGFzIHBvc3RlZDsgdGhlIHNwZWMgaXMgd2hhdCBnZXRzIGNoZWNrZWQuIEEgcGxlZGdlIGlzIHdvcmRzOiBib3RoIHNpZGVzIHNheSB3aGVuIGl0J3Mgc2V0dGxlZC5cblxuIyMgUmVjZWlwdHNcbkFjY2VwdGluZyBhIGRlbGl2ZXJ5IGlzc3VlcyBhIHJlY2VpcHQgdG8gd2hvZXZlciBkaWQgdGhlIHdvcmssIHNlYWxlZCBieSB0aGlzIHJvb20uIEl0IGlzIGEgcmVjb3JkLCBuZXZlciBhIHJhdGluZyBvZiBhIHBlcnNvbi4iLCJ2ZXJicyI6W3sibmFtZSI6InNob3ciLCJkb2VzIjoiU2hvdyBzb21ldGhpbmcgeW91IG1hZGUgb3IgZGlkLiBXaGF0IHlvdSBzaG93IHN0YXlzIGFzIHNob3duOyBhIG5ldyB2ZXJzaW9uIGlzIGEgbmV3IHNob3cuIn0seyJuYW1lIjoiYXNrIiwiZG9lcyI6IkFzayBmb3Igc29tZXRoaW5nLiBBbnlvbmUgaGVyZSwgYSBwZXJzb24gb3IgYW4gYWdlbnQsIG1heSBvZmZlciB0byBzZXJ2ZSBpdC4ifSx7Im5hbWUiOiJvZmZlciIsImRvZXMiOiJPZmZlciB0byBzZXJ2ZSBhbiBhc2suIn0seyJuYW1lIjoicmVwbHkiLCJkb2VzIjoiUmVwbHkgdG8gYSBtb3ZlLiJ9LHsibmFtZSI6InBvc3RfdGFzayIsImRvZXMiOiJQb3N0IGEgdGFzazogaXRzIHNwZWMgaXMgZml4ZWQgYXQgcG9zdGluZywgYW5kIHdob2V2ZXIgY2xhaW1zIGl0IGlzIGp1ZGdlZCBvbiB0aGUgc3BlYy4ifSx7Im5hbWUiOiJjbGFpbSIsImRvZXMiOiJDbGFpbSBhbiBvcGVuIHRhc2suIFlvdSB0YWtlIGl0IGFzIHBvc3RlZC4ifSx7Im5hbWUiOiJkZWxpdmVyIiwiZG9lcyI6IkRlbGl2ZXIgb24gYSB0YXNrIHlvdSBjbGFpbWVkLiJ9LHsibmFtZSI6ImFjY2VwdCIsImRvZXMiOiJBY2NlcHQgYSBkZWxpdmVyeTogdGhlIHRhc2sgaXMgZG9uZSBhbmQgdGhlIHJvb20gaXNzdWVzIGEgcmVjZWlwdC4ifSx7Im5hbWUiOiJzZXR0bGUiLCJkb2VzIjoiU2F5IHdoZXRoZXIgYSB0YXNrJ3MgcGxlZGdlIGlzIHNldHRsZWQuIFdob2V2ZXIgcG9zdGVkIGl0IGFuZCB3aG9ldmVyIGRpZCBpdCBlYWNoIHNheTsgaWYgdGhleSBkaXNhZ3JlZSwgYm90aCBzdGFuZC4ifSx7Im5hbWUiOiJwb3N0X29mZmVyaW5nIiwiZG9lcyI6Ik9mZmVyIHNvbWV0aGluZyB5b3Ugc2VsbCBvciBsZW5kOiBhIGZpeGVkIHRoaW5nLCBvciBhIG1ldGVyZWQgY2FwYWJpbGl0eS4ifV19",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "65418844c1d45a5a",
-          "hash": "f85d1cf745bde5da994d38d046af0bbb26458edea46bf6684b7922f121a853ff"
+          "hash": "998f2eb5b00cfa58383f7ddd098ff8dbeaf4f73f94d026efb6d064f09fc4b31d"
         }
       ],
       "invite": null
@@ -5949,7 +5949,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-11T06:19:18.579274Z",
+          "at": "2026-09-11T06:23:54.980695Z",
           "title": "maya",
           "body": "",
           "state": "said",
@@ -5958,7 +5958,7 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
           },
           "charter": "2bbccba23c8533ad",
-          "hash": "7d2af2cbb692eecaaf61af22a659d623d7ab2a65804d4f3130907da22be2c9c2"
+          "hash": "0839b9268d81728879b50f8580433e2795339e077100d705e8fddd7bb293d0ce"
         },
         {
           "id": "task-2",
@@ -5966,7 +5966,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-11T16:19:18.579274Z",
+          "at": "2026-09-11T16:23:54.980695Z",
           "title": "Fix the café's toaster",
           "body": "Both slots heat. Done = two slices, evenly brown.",
           "state": "done",
@@ -5977,7 +5977,7 @@
             "claimed_by_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
           },
           "charter": "2bbccba23c8533ad",
-          "hash": "803dc5ca64735d709a36e71b6feaa8dd958ff25e2a5f6ad5a5a572954f8694fc"
+          "hash": "48b69ad0d2089ccd4f9083c2c811f22e85efb72e2f59c8d58077aa4015ba73a9"
         },
         {
           "id": "claim-3",
@@ -5985,14 +5985,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-12T02:19:18.579274Z",
+          "at": "2026-09-12T02:23:54.980695Z",
           "title": "Fix the café's toaster",
           "body": "",
           "state": "claimed",
           "parent": "task-2",
           "fields": {},
           "charter": "2bbccba23c8533ad",
-          "hash": "7c924e3150363ea33b65fb2a96f4dcda8cd9f09b93c75f6464a6a7585bfbb35e"
+          "hash": "11684aabf2a6f57120d24feb8145bbc7c9d25834ce839b86740e1481f3eeb2eb"
         },
         {
           "id": "delivery-4",
@@ -6000,14 +6000,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-12T12:19:18.579274Z",
+          "at": "2026-09-12T12:23:54.980695Z",
           "title": "Fix the café's toaster",
           "body": "New element in the left slot. Both slots heat now.",
           "state": "delivered",
           "parent": "task-2",
           "fields": {},
           "charter": "2bbccba23c8533ad",
-          "hash": "4ca378af9d1366fb28bad63b285065f5d2fa8ed2eff9fb9482e6df7ad47c3fae"
+          "hash": "32255174b5eee66ed06ca6dc11e372d2ad1ef41badfa166c75801276d4f2c3e3"
         },
         {
           "id": "receipt-5",
@@ -6015,7 +6015,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-12T13:19:18.579274Z",
+          "at": "2026-09-12T13:23:54.980695Z",
           "title": "Fix the café's toaster",
           "body": "Completed: Fix the café's toaster",
           "state": "issued",
@@ -6033,14 +6033,14 @@
                 "to": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
                 "to_name": "maya",
                 "to_person": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-                "issued": "2026-09-12T13:19:18.579274Z"
+                "issued": "2026-09-12T13:23:54.980695Z"
               },
               "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
-              "sig": "79df003fb3c3cda2cddabb79b6def7d050424a9964b12f84dd4aeef827b731eada6a186431d8d71b6fd6300780c27f2bbb362d4cb0c92fbd87fcb999f4d39a0e"
+              "sig": "993c346a865826d5ad43e2f67c0a161a1e2ee8d82d46198ae3645b512b3cc080b7db241e058973527d1fbde680052ecff0f55fd30ffceb6a0b9bf5d4d419380a"
             }
           },
           "charter": "2bbccba23c8533ad",
-          "hash": "81c1a75464dee0af1a2a44e41b8ca73df51f611c29f389219c65d001f7e5b292"
+          "hash": "9a5f3d8105408828d67d305f23fc41892180cd48ecdf862566236d4338de7260"
         },
         {
           "id": "show-6",
@@ -6048,14 +6048,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-13T18:19:18.579274Z",
+          "at": "2026-09-13T18:23:54.980695Z",
           "title": "Last Tuesday of the season",
           "body": "Thanks all. I'm moving the café to my new machine soon.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "2bbccba23c8533ad",
-          "hash": "d2a71c9626e304699ea1755481b4d976b5569a5ad0edb38fa0fc29abc222b4b2"
+          "hash": "4e896477db20887f5a6f67b10016b110d7d4b72312a16d8a07037c856213d1a8"
         }
       ],
       "invite": null,
@@ -6085,16 +6085,16 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:19:18.579274Z",
-            "last_acted": "2026-09-27T17:29:18.579274Z"
+            "joined": "2026-09-07T02:23:54.980695Z",
+            "last_acted": "2026-09-27T17:33:54.980695Z"
           },
           {
             "name": "ada",
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-19T14:19:18.579274Z",
-            "last_acted": "2026-09-27T17:39:18.579274Z"
+            "joined": "2026-09-19T14:23:54.980695Z",
+            "last_acted": "2026-09-27T17:43:54.980695Z"
           }
         ],
         "tools": [
@@ -6218,7 +6218,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-19T14:19:18.579274Z",
+          "at": "2026-09-19T14:23:54.980695Z",
           "title": "ada",
           "body": "",
           "state": "said",
@@ -6227,7 +6227,7 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "9ebb6d210ca6fed038d7c1ab1aa8e5f38c4875d767e90514af57caa6a85d55d4"
+          "hash": "97cb3406e1adc81d4d7363c9fcfdb74e7e24de2febad34b167c48bbf7a98fc63"
         },
         {
           "id": "say-2",
@@ -6235,14 +6235,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-27T17:19:18.579274Z",
+          "at": "2026-09-27T17:23:54.980695Z",
           "title": "",
           "body": "did the draft run?",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "f2b96949c16c2576b0be8d950330d1849b1d0b54b2233551a7ac3288f912f3f0"
+          "hash": "9a5975c6879251de19e09737e78654a5352e2abf72ed6b47feb2d7805bb0a2dc"
         },
         {
           "id": "say-3",
@@ -6250,14 +6250,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T17:29:18.579274Z",
+          "at": "2026-09-27T17:33:54.980695Z",
           "title": "",
           "body": "yes, screenshots tomorrow",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "031666142c0fd118805a5dfda5a58387b419ca5304685f49ade81b7528a1b20f"
+          "hash": "81e296da29da8c3a9f946c2706815874dc3c2141ff74574d5a963c97128fb265"
         },
         {
           "id": "say-4",
@@ -6265,14 +6265,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-27T17:39:18.579274Z",
+          "at": "2026-09-27T17:43:54.980695Z",
           "title": "",
           "body": "ren makes music, you'd like the room. here's the way in:\n\ndiverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiJyZW4tbGFwdG9wLmxvY2FsOjQ2NDAifSwiaWQiOiJtdXNpYy1yZW4uMWFlZDQ0NTkxOTA1Iiwic2VjcmV0IjoicmVuLW9wZW4iLCJ0aXRsZSI6IlJlbidzIG11c2ljIHJvb20iLCJraW5kIjoiaG9tZSIsImhvc3RfbmFtZSI6InJlbiIsImNoYXJ0ZXIiOiJUcmFja3MgSSBtYWtlLiBObyBBSS4gU2F5IHdoYXQgeW91IGhlYXIuIiwidmVyYnMiOlt7Im5hbWUiOiJzaG93IiwiZG9lcyI6IlNob3cgc29tZXRoaW5nIHlvdSBtYWRlIG9yIGRpZC4gV2hhdCB5b3Ugc2hvdyBzdGF5cyBhcyBzaG93bjsgYSBuZXcgdmVyc2lvbiBpcyBhIG5ldyBzaG93LiJ9LHsibmFtZSI6ImFzayIsImRvZXMiOiJBc2sgZm9yIHNvbWV0aGluZy4gQW55b25lIGhlcmUsIGEgcGVyc29uIG9yIGFuIGFnZW50LCBtYXkgb2ZmZXIgdG8gc2VydmUgaXQuIn0seyJuYW1lIjoib2ZmZXIiLCJkb2VzIjoiT2ZmZXIgdG8gc2VydmUgYW4gYXNrLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifSx7Im5hbWUiOiJyZXBvcnQiLCJkb2VzIjoiUmVwb3J0IHdoYXQgeW91IGZpbmlzaGVkOiBmb3IgYW4gYWdlbnQsIHdoZW4gYSBydW4gZW5kcy4ifV19",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "6a4a02085f89950021b34fee2b2fdfbab601b38952182e356fa51cc7f084e488"
+          "hash": "d8c221dc630fe9471bced669f8bfd3224a9155afffc235f8fc32e6006fa3c97e"
         }
       ],
       "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImRtLWFkYS5hMjhjZjVmMjgwZTgiLCJzZWNyZXQiOiJkbSIsInRpdGxlIjoiYWRhIiwia2luZCI6ImRtIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiJUd28gcGVvcGxlLiBOb3RoaW5nIGxlYXZlcyB0aGlzIHJvb20uIiwidmVyYnMiOlt7Im5hbWUiOiJzYXkiLCJkb2VzIjoiU2F5IHNvbWV0aGluZy4ifSx7Im5hbWUiOiJyZXBseSIsImRvZXMiOiJSZXBseSB0byBhIG1vdmUuIn1dfQ"
@@ -6301,16 +6301,16 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:19:18.579274Z",
-            "last_acted": "2026-09-27T14:19:18.579274Z"
+            "joined": "2026-09-07T02:23:54.980695Z",
+            "last_acted": "2026-09-27T14:23:54.980695Z"
           },
           {
             "name": "ren",
             "key": "13e2d46941a6ff6308a13b9be24539ac5da7fcc361d9486b24bd7913db6f46a1",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-27T14:19:18.579274Z",
-            "last_acted": "2026-09-27T14:49:18.579274Z"
+            "joined": "2026-09-27T14:23:54.980695Z",
+            "last_acted": "2026-09-27T14:53:54.980695Z"
           }
         ],
         "tools": [
@@ -6603,14 +6603,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T20:19:18.579274Z",
+          "at": "2026-09-26T20:23:54.980695Z",
           "title": "The desktop app, draft one",
           "body": "Agents, storage, machines and saved Views, on a stand-in for the daemon.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "a856e5ef5c6f2920",
-          "hash": "96e47ec7b5c03bfb02bb96f4f377e0fe1e91294cd33e13c31c0aa9cc8beafd6b"
+          "hash": "14f0ac3b9385f29117099ed884cc21dbd7b8281dd0dc40e033f5c745214a8d90"
         },
         {
           "id": "offering-2",
@@ -6618,7 +6618,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T02:19:18.579274Z",
+          "at": "2026-09-27T02:23:54.980695Z",
           "title": "A site check-up",
           "body": "site-fixes goes through a small site and lists what's broken. Nothing is changed without asking.",
           "state": "offered",
@@ -6628,7 +6628,7 @@
             "terms": "you get a list, in a day"
           },
           "charter": "a856e5ef5c6f2920",
-          "hash": "d67559c7cdce009eaf1bcf6c1bae6c90561ea4a574256b8f513ca6ba2e9b7202"
+          "hash": "542bdf6868724af103055ff98cb1996198bb26f80b55e2d32f0a7efbc71ea888"
         },
         {
           "id": "admitted-3",
@@ -6636,7 +6636,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T14:19:18.579274Z",
+          "at": "2026-09-27T14:23:54.980695Z",
           "title": "ren",
           "body": "",
           "state": "said",
@@ -6645,7 +6645,7 @@
             "key": "13e2d46941a6ff6308a13b9be24539ac5da7fcc361d9486b24bd7913db6f46a1"
           },
           "charter": "a856e5ef5c6f2920",
-          "hash": "420da193dc137d2d0c23e885bf76d0b6b5c4307fa009709a1ad8cfdbe0ca6ce6"
+          "hash": "9373b93b9966d1824c05c0f48b5a18bd0f4dfce37c9b9503ae3274d3c03ced4f"
         },
         {
           "id": "note-4",
@@ -6653,14 +6653,14 @@
           "author": "ren",
           "by": "13e2d46941a6ff6308a13b9be24539ac5da7fcc361d9486b24bd7913db6f46a1",
           "agent_of": null,
-          "at": "2026-09-27T14:49:18.579274Z",
+          "at": "2026-09-27T14:53:54.980695Z",
           "title": "",
           "body": "Loved the kids' map idea in ada's zine room.",
           "state": "left",
           "parent": null,
           "fields": {},
           "charter": "a856e5ef5c6f2920",
-          "hash": "8f3a2a61049ae45001b78438526c4e9727800305e9f8429fc365a48615df6e53"
+          "hash": "1f43d9670d441e741de8ec79535b630437da6bdb133999abf54d5d157380d8c1"
         }
       ],
       "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6InByb2ZpbGUtbWUuYTI4Y2Y1ZjI4MGU4Iiwic2VjcmV0IjoicHJvZmlsZS1vcGVuIiwidGl0bGUiOiJtYXlhIiwia2luZCI6InByb2ZpbGUiLCJob3N0X25hbWUiOiJtYXlhIiwiY2hhcnRlciI6IiMgTXkgcHJvZmlsZVxuXG5XaGF0IEkndmUgbWFkZSBhbmQgd2hhdCBJIG9mZmVyLiBMZWF2ZSBhIG5vdGUsIG9yIGFzayBvbmUgb2YgbXkgYWdlbnRzIGZvciBzb21ldGhpbmc6IEkgZGVjaWRlLCBhbmQgaXQgcnVucyBvbiBteSBtYWNoaW5lLiIsInZlcmJzIjpbeyJuYW1lIjoibGVhdmVfbm90ZSIsImRvZXMiOiJMZWF2ZSBhIG5vdGUgZm9yIHdob2V2ZXIgdGhpcyBwcm9maWxlIGJlbG9uZ3MgdG8uIn0seyJuYW1lIjoiaGlyZSIsImRvZXMiOiJBc2sgb25lIG9mIHRoaXMgcGVyc29uJ3MgYWdlbnRzIHRvIGRvIHNvbWV0aGluZyBmb3IgeW91LiBUaGV5IGRlY2lkZTsgdGhlaXIgYWdlbnQgZG9lcyB0aGUgd29yayBvbiB0aGVpciBtYWNoaW5lLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifV19"
@@ -6853,7 +6853,7 @@
         "Yes",
         "No"
       ],
-      "at": "2026-09-27T22:19:18.659241+00:00"
+      "at": "2026-09-27T22:23:55.074128+00:00"
     }
   ],
   "knocks": [
@@ -6866,8 +6866,13 @@
       "note": "ada said to come by. I fix lamps and radios.",
       "listed": true,
       "invited": true,
-      "vouch": null,
-      "at": "2026-09-27T22:17:18.579274+00:00"
+      "checked": true,
+      "vouch": {
+        "by": "ada",
+        "member_here": true,
+        "holds": true
+      },
+      "at": "2026-09-27T22:21:54.980695+00:00"
     }
   ],
   "tables": {
@@ -6881,7 +6886,7 @@
               "kind": "file",
               "name": "print-label.py",
               "size": 45,
-              "modified_at": 1790547558
+              "modified_at": 1790547835
             }
           ]
         },
@@ -6893,13 +6898,13 @@
               "kind": "file",
               "name": "README.md",
               "size": 99,
-              "modified_at": 1790547558
+              "modified_at": 1790547835
             },
             {
               "kind": "file",
               "name": "resize.sh",
               "size": 96,
-              "modified_at": 1790547558
+              "modified_at": 1790547835
             }
           ]
         }
@@ -6924,7 +6929,7 @@
           "kind": "file",
           "name": "map-sketch.txt",
           "size": 82,
-          "modified_at": 1790547558
+          "modified_at": 1790547835
         }
       ],
       "files": {
@@ -6962,7 +6967,7 @@
           "kind": "file",
           "name": "README.md",
           "size": 52,
-          "modified_at": 1790547558
+          "modified_at": 1790547834
         }
       ]
     },
@@ -6972,7 +6977,7 @@
           "kind": "file",
           "name": "README.md",
           "size": 30,
-          "modified_at": 1790547558
+          "modified_at": 1790547834
         }
       ],
       "scratch": []
@@ -6985,7 +6990,7 @@
         "volume": {
           "name": "media",
           "bytes": 17179869184,
-          "created": "2026-09-27T22:19:18+00:00",
+          "created": "2026-09-27T22:23:54+00:00",
           "mode": "persistent"
         },
         "bytes_used": 52
@@ -6997,7 +7002,7 @@
         "volume": {
           "name": "datasets",
           "bytes": 34359738368,
-          "created": "2026-09-27T22:19:18+00:00",
+          "created": "2026-09-27T22:23:54+00:00",
           "mode": "read_only"
         },
         "bytes_used": 30
@@ -7007,7 +7012,7 @@
         "volume": {
           "name": "scratch",
           "bytes": 1073741824,
-          "created": "2026-09-27T22:19:18+00:00",
+          "created": "2026-09-27T22:23:54+00:00",
           "mode": "ephemeral"
         },
         "bytes_used": 0

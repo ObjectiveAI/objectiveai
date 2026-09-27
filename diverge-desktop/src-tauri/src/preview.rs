@@ -21,7 +21,7 @@ mod tests {
     use crate::daemon::stub::StubDaemon;
     use crate::machines::{Machines, ReadFrame};
     use crate::spaces::stub::StubSpaces;
-    use crate::spaces::{Knocking, Spaces};
+    use crate::spaces::Spaces;
     use diverge_desktop_room::room as program;
     use crate::view::*;
 
@@ -171,20 +171,16 @@ mod tests {
         let mut knocks = Vec::new();
         while let Ok(Some(k)) = tokio::time::timeout(Duration::from_millis(50), knock_stream.next()).await {
             let title = spaces.list().await.into_iter().find(|e| e.id == k.space).map(|e| e.title).unwrap_or_default();
-            let w = Knocking::from_authorization(&k.authorize.authorization).unwrap();
-            knocks.push(KnockView {
-                knock_id: k.knock_id,
-                space: k.space.id.clone(),
-                space_title: title,
-                address: k.authorize.address.to_string(),
-                name: w.name.clone(),
-                note: w.note.clone(),
-                listed: w.listed,
-                invited: w.secret.is_some(),
-                vouch: None,
-                at: k.at.to_rfc3339(),
-            });
-            let _ = w;
+            let secret = spaces.invite(&k.space).await.and_then(|i| i.secret);
+            let members: Vec<MemberView> = spaces
+                .read(&k.space, program::MEMBERS)
+                .await
+                .ok()
+                .and_then(|r| r.contents.into_iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str(&text).ok(), _ => None }))
+                .unwrap_or_default();
+            let view = crate::actions::knock_view_of(&k, title, secret.as_deref(), &members, chrono::Utc::now());
+            assert!(view.checked && view.invited, "the seeded knock checks");
+            knocks.push(view);
         }
         cancel.cancel();
         let entries = spaces.list().await;

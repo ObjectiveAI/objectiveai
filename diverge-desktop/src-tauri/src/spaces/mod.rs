@@ -23,14 +23,15 @@
 pub mod stub;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
 pub use diverge_sdk::shared::containers::authorize::{request::Authorize, response::Frame as Answer};
 pub use diverge_sdk::shared::containers::request::Container;
 pub use diverge_sdk::shared::containers::response::Id;
-use diverge_desktop_room::{Key, Statement};
+use diverge_desktop_room::seal::{digest, statement_holds};
+use diverge_desktop_room::{Key, Keypair, Statement};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::shared::error::Error as WireError;
 use diverge_sdk::shared::filetree::response::Node;
@@ -65,14 +66,18 @@ pub struct Knock {
     pub at: DateTime<Utc>,
 }
 
-/// What a joiner writes in the connect's authorization. Opaque to the
-/// wire; ours to define: the invite's secret (none for an open knock), the
-/// key they'll seal with, the name they'll go by there, a note, whether to
-/// be listed, and a member's vouch if they have one.
+/// What a joiner writes in the connect's authorization. Opaque to the wire,
+/// ours to define, and signed by the key it names, so the host can check
+/// that whoever knocked holds that key: the room it's for, a mark of the
+/// invite it came with (none for an open knock), the name they'll go by,
+/// a note, whether to be listed, a member's vouch if they have one, and when.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Knocking {
+    /// The room knocked at. A knock is good there only.
+    pub room: String,
+    /// The invite it came with, as a mark the host who made the invite can check.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub secret: Option<String>,
+    pub invite: Option<String>,
     pub key: Key,
     pub name: String,
     #[serde(default)]
@@ -81,13 +86,59 @@ pub struct Knocking {
     pub listed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vouch: Option<Statement>,
+    pub at: DateTime<Utc>,
+    /// `key`'s signature over everything above.
+    #[serde(default)]
+    pub sig: String,
 }
 
 fn listed_by_default() -> bool {
     true
 }
 
+/// How long a knock is good for.
+const KNOCK_GOOD_FOR: TimeDelta = TimeDelta::hours(24);
+
+/// How long a vouch is good for, from when it's made.
+pub const VOUCH_GOOD_FOR: TimeDelta = TimeDelta::days(7);
+
 impl Knocking {
+    /// What a knock carries for an invite: never the secret itself, which only
+    /// the room's host and the invited hold.
+    pub fn invite_mark(room: &str, secret: &str) -> String {
+        digest(format!("diverge-desktop invite\n{room}\n{secret}").as_bytes())[..32].to_owned()
+    }
+
+    /// Everything the knocker signs.
+    pub fn body(&self) -> serde_json::Value {
+        let mut v = serde_json::to_value(self).unwrap_or_default();
+        if let Some(o) = v.as_object_mut() {
+            o.remove("sig");
+        }
+        v
+    }
+
+    /// Signed with a key held directly: the stand-in's people and tests. The
+    /// app signs through its keys instead ([`Knocking::body`], then `sig`).
+    pub fn signed(mut self, keypair: &Keypair) -> Self {
+        self.sig = Statement::make(keypair, "knock", self.body()).sig;
+        self
+    }
+
+    /// Whether this is a knock at `room`, signed by the key it names, made lately.
+    pub fn check(&self, room: &str, now: DateTime<Utc>) -> Result<(), &'static str> {
+        if self.room != room {
+            return Err("made for another room");
+        }
+        if !statement_holds(&self.key, "knock", &self.body(), &self.sig) {
+            return Err("not signed by the key it names");
+        }
+        if self.at > now + TimeDelta::minutes(5) || now - self.at > KNOCK_GOOD_FOR {
+            return Err("too old to trust");
+        }
+        Ok(())
+    }
+
     pub fn to_authorization(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
     }
@@ -95,6 +146,16 @@ impl Knocking {
     pub fn from_authorization(authorization: &str) -> Option<Knocking> {
         serde_json::from_str(authorization).ok()
     }
+}
+
+/// A vouch: a member's word for someone's key, into one room, until a time.
+/// It holds only for that key, that room, and until then.
+pub fn vouch_holds(vouch: &Statement, for_key: &str, room: &str, now: DateTime<Utc>) -> bool {
+    vouch.kind == "vouch"
+        && vouch.holds()
+        && vouch.field("for") == Some(for_key)
+        && vouch.field("room") == Some(room)
+        && vouch.field("until").and_then(|u| DateTime::parse_from_rfc3339(u).ok()).is_some_and(|u| u.with_timezone(&Utc) > now)
 }
 
 /// One verb, as an invite describes it before you're in.
@@ -171,6 +232,8 @@ pub trait Spaces: Send + Sync + 'static {
     /// The host's answer on the `authorize` channel. Letting someone in is
     /// then the host's `admit`, sealed like any call.
     async fn answer(&self, knock_id: u64, answer: Answer) -> Result<Knock, String>;
+    /// A knock still waiting at the door, without answering it.
+    async fn pending(&self, knock_id: u64) -> Option<Knock>;
 
     /// `containers::tools::connect` to a room someone else hosts, presenting
     /// a [`Knocking`]. Resolves when the host answers.

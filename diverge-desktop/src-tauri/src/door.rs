@@ -225,10 +225,6 @@ impl Door {
 
     /// Put a card in front of the person and wait for the answer: for the
     /// app's own questions too, like a hire through the profile.
-    pub async fn ask_person(&self, agent: &str, question: String, kind: CardKind, options: Vec<String>) -> String {
-        self.ask(agent, question, kind, options).await
-    }
-
     /// A card about one of your agents that someone else is asking, through
     /// a room of yours: a visitor's hire. Nothing runs until you answer.
     pub async fn ask_for(&self, agent: &str, from: &str, question: String, kind: CardKind, options: Vec<String>) -> String {
