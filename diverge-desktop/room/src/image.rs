@@ -4,7 +4,7 @@
 //!
 //! | the proxy calls | the program answers |
 //! |-----------------|---------------------|
-//! | `POST /register` | the room's `Args` (and, for a successor, the record it continues), once; `409` after |
+//! | `POST /register` | the room's signed `Args`, its key, and any record (a restart's moves, a successor's `before`), once; `409` after |
 //! | `GET /schema` | the JSON Schema of those arguments |
 //! | `/mcp` | MCP over Streamable HTTP: the room's verbs, resources and notifications |
 //!
@@ -31,7 +31,7 @@ use serde_json::{Value, json};
 use diverge_sdk::container_proxy::inside::register;
 
 use crate::room::{ABOUT, CHARTER, CHARTERS, DOORWAYS, FEED, MEMBERS, RECORD};
-use crate::{Args, Host, Move, Room, Statement};
+use crate::{Args, Host, Keypair, Move, Record, Room, Statement};
 
 /// One running room program: the room once registered, and its host's side.
 pub struct Program {
@@ -103,12 +103,24 @@ async fn register_room(State(program): State<Shared>, Json(request): Json<regist
     if guard.is_some() {
         return (StatusCode::CONFLICT, Json(json!({ "kind": "registered" })));
     }
-    let history: Vec<Move> = request.arguments.get("history").cloned().and_then(|h| serde_json::from_value(h).ok()).unwrap_or_default();
-    let args: Args = match serde_json::from_value(request.arguments) {
-        Ok(args) => args,
-        Err(e) => return (StatusCode::UNPROCESSABLE_ENTITY, Json(json!({ "message": format!("these are not a room's settings: {e}") }))),
-    };
-    let made = if args.continues.is_some() { Room::from_record(args, history, &[], program.host.as_ref()) } else { Ok(Room::new(args)) };
+    let made = (|| {
+        let mut arguments = request.arguments;
+        let obj = arguments.as_object_mut().ok_or("a room's settings are an object")?;
+        // The room's key is the program's alone: it never appears in anything the room serves.
+        let secret = obj.remove("room_secret").and_then(|v| v.as_str().map(str::to_owned)).ok_or("a room needs its key")?;
+        let room_key = Keypair::from_secret_hex(&secret)?;
+        // Anything sent must be well formed; a damaged record is refused, never taken as empty.
+        let before: Option<Record> = match obj.remove("before") {
+            None | Some(Value::Null) => None,
+            Some(v) => Some(serde_json::from_value(v).map_err(|e| format!("the record it continues is damaged: {e}"))?),
+        };
+        let moves: Vec<Move> = match obj.remove("moves") {
+            None | Some(Value::Null) => Vec::new(),
+            Some(v) => serde_json::from_value(v).map_err(|e| format!("its record is damaged: {e}"))?,
+        };
+        let args: Args = serde_json::from_value(arguments).map_err(|e| format!("these are not a room's settings: {e}"))?;
+        Room::from_record(Record { args, before: before.map(Box::new), moves }, Some(room_key))
+    })();
     match made {
         Ok(room) => {
             *guard = Some(room);
@@ -134,9 +146,14 @@ pub fn args_schema() -> Value {
             "charter": { "type": "string", "description": "The room's rules, in Markdown." },
             "open_door": { "type": "boolean", "description": "Whether someone may knock without an invite." },
             "continues": { "type": "object", "description": "The room this one continues: its id, title, and the hash of its last move." },
-            "history": { "type": "array", "description": "The record of the room this one continues." }
+            "room_key": { "type": "string", "description": "The public key the room countersigns its moves with." },
+            "at": { "type": "string", "format": "date-time", "description": "When the host made the room." },
+            "sig": { "type": "string", "description": "The host's signature over the settings." },
+            "room_secret": { "type": "string", "description": "The room's own key, for the program alone." },
+            "before": { "type": "object", "description": "The whole record of the room this one continues." },
+            "moves": { "type": "array", "description": "The room's own moves so far, when it restarts." }
         },
-        "required": ["id", "title", "kind", "host_key", "host_name", "charter"]
+        "required": ["id", "title", "kind", "host_key", "host_name", "charter", "room_key", "at", "sig", "room_secret"]
     })
 }
 
@@ -203,7 +220,7 @@ pub fn router(program: Shared) -> Router {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Keypair, seal_call};
+    use crate::{Kind, room_id, seal_call};
     use rmcp::ServiceExt;
     use rmcp::model::ResourceContents;
     use rmcp::transport::StreamableHttpClientTransport;
@@ -226,7 +243,29 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         tokio::spawn(async move { axum::serve(listener, router(program)).await.unwrap() });
         let http = reqwest::Client::new();
-        let args = json!({ "id": "room-1", "title": "A workshop", "kind": "board", "host_key": host.key(), "host_name": "maya", "charter": "# Rules" });
+        let room_key = Keypair::from_seed("room one");
+        let settings = Args {
+            id: room_id("one", &host.key()),
+            title: "A workshop".into(),
+            kind: Kind::Board,
+            host_key: host.key(),
+            host_name: "maya".into(),
+            charter: "# Rules".into(),
+            open_door: false,
+            continues: None,
+            room_key: room_key.key(),
+            at: chrono::Utc::now(),
+            sig: String::new(),
+        }
+        .signed(&host);
+        let id = settings.id.clone();
+        let mut args = serde_json::to_value(&settings).unwrap();
+        let mut damaged = args.clone();
+        damaged["room_secret"] = json!(room_key.secret_hex());
+        damaged["moves"] = json!("not a record");
+        args["room_secret"] = json!(room_key.secret_hex());
+        let refused = http.post(format!("http://{addr}/register")).json(&json!({ "arguments": damaged })).send().await.unwrap();
+        assert_eq!(refused.status(), StatusCode::UNPROCESSABLE_ENTITY, "a damaged record is refused, not taken as empty");
 
         let first = http.post(format!("http://{addr}/register")).json(&json!({ "arguments": args })).send().await.unwrap();
         assert!(first.status().is_success());
@@ -241,7 +280,7 @@ mod tests {
         let tools = client.list_all_tools().await.unwrap();
         assert!(tools.iter().any(|t| t.name == "post_task"));
         let mut params = CallToolRequestParams::new("post_task").with_arguments(json!({ "title": "Fix the lamp", "spec": "It turns on." }).as_object().cloned().unwrap());
-        seal_call(&host, "room-1", &mut params, 1);
+        seal_call(&host, &id, &mut params, 1);
         let result = client.call_tool(params).await.unwrap();
         assert_ne!(result.is_error, Some(true));
         let unsealed = CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
@@ -249,6 +288,9 @@ mod tests {
         let feed = client.read_resource(ReadResourceRequestParams::new(FEED)).await.unwrap();
         let ResourceContents::TextResourceContents { text, .. } = &feed.contents[0] else { panic!() };
         assert!(text.contains("Fix the lamp"));
+        let record = client.read_resource(ReadResourceRequestParams::new(RECORD)).await.unwrap();
+        let ResourceContents::TextResourceContents { text, .. } = &record.contents[0] else { panic!() };
+        assert!(!text.contains(&room_key.secret_hex()), "the room's key never leaves the program");
         let _ = client.cancel().await;
     }
 }

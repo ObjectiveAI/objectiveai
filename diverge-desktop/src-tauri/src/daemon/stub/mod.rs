@@ -692,7 +692,7 @@ mod tests {
                 break;
             }
         }
-        let feed = spaces.read(&crate::spaces::Id { id: crate::spaces::stub::BOARD.into() }, diverge_desktop_room::room::FEED).await.unwrap();
+        let feed = spaces.read(&crate::spaces::Id { id: crate::spaces::stub::board() }, diverge_desktop_room::room::FEED).await.unwrap();
         let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &feed.contents[0] else { panic!() };
         let moves: Vec<Value> = serde_json::from_str(text).unwrap();
         let open = crate::spaces::stub::open_task();

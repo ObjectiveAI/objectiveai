@@ -56,6 +56,47 @@ impl Keypair {
     fn sign(&self, bytes: &[u8]) -> String {
         hex::encode(self.0.sign(bytes).to_bytes())
     }
+
+    /// A room's countersign on one of its moves.
+    pub fn countersign(&self, hash: &str) -> String {
+        self.sign(&countersign_bytes(hash))
+    }
+}
+
+fn countersign_bytes(hash: &str) -> Vec<u8> {
+    canonical(&json!({ "countersign": hash })).into_bytes()
+}
+
+/// Whether a room's key countersigned a move's hash.
+pub fn countersigned(room_key: &str, hash: &str, sig: &str) -> bool {
+    verify(room_key, &countersign_bytes(hash), sig)
+}
+
+/// The part of a room's id that names its host: the start of their key's digest.
+fn host_mark(host_key: &str) -> String {
+    digest(host_key.as_bytes())[..12].to_owned()
+}
+
+/// A room's id: a label its host chose, then the host's mark. No other host
+/// can make a room with the same id, and every seal names the id, so a seal
+/// made for one room is refused in every other.
+pub fn room_id(label: &str, host_key: &str) -> String {
+    format!("{label}.{}", host_mark(host_key))
+}
+
+/// Whether an id is one its host could have made: a plain label, then their mark.
+pub fn id_holds(id: &str, host_key: &str) -> bool {
+    match id.rsplit_once('.') {
+        Some((label, mark)) => !label.is_empty() && label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') && mark == host_mark(host_key),
+        None => false,
+    }
+}
+
+/// A label nobody else will pick: for a new room's id.
+pub fn fresh_label() -> String {
+    let mut bytes = [0u8; 8];
+    getrandom::getrandom(&mut bytes).expect("the system has randomness");
+    hex::encode(bytes)
 }
 
 fn verify(key: &str, bytes: &[u8], sig: &str) -> bool {
@@ -151,6 +192,12 @@ fn statement_bytes(kind: &str, body: &Value) -> Vec<u8> {
     canonical(&json!({ "statement": kind, "body": body })).into_bytes()
 }
 
+/// Whether `sig` is `key`'s statement of `kind` over `body`: for signatures
+/// kept apart from their body, such as a room's settings.
+pub fn statement_holds(key: &str, kind: &str, body: &Value, sig: &str) -> bool {
+    verify(key, &statement_bytes(kind, body), sig)
+}
+
 impl Statement {
     pub fn make(keypair: &Keypair, kind: &str, body: Value) -> Self {
         let sig = keypair.sign(&statement_bytes(kind, &body));
@@ -188,6 +235,22 @@ mod tests {
         let mut renamed = params.clone();
         renamed.name = "ask".into();
         assert!(check_call("room-1", &renamed).is_err(), "not another verb");
+    }
+
+    #[test]
+    fn a_room_id_belongs_to_one_host() {
+        let (maya, ren) = (Keypair::from_seed("maya"), Keypair::from_seed("ren"));
+        let id = room_id("workshop", &maya.key());
+        assert!(id_holds(&id, &maya.key()));
+        assert!(!id_holds(&id, &ren.key()), "ren can't host maya's id");
+        assert!(!id_holds("workshop", &maya.key()), "a bare label names no host");
+        assert!(!id_holds(&room_id("../x", &maya.key()), &maya.key()), "a label is plain");
+        let hash = digest(b"a move");
+        assert!(countersigned(&maya.key(), &hash, &maya.countersign(&hash)));
+        assert!(!countersigned(&ren.key(), &hash, &maya.countersign(&hash)));
+        let body = json!({ "title": "x" });
+        assert!(statement_holds(&maya.key(), "room", &body, &Statement::make(&maya, "room", body.clone()).sig));
+        assert!(!statement_holds(&maya.key(), "vouch", &body, &Statement::make(&maya, "room", body.clone()).sig), "kinds don't cross");
     }
 
     #[test]

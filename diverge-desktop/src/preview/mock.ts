@@ -67,6 +67,8 @@ export function installPreview() {
   let knockCh: Chan | null = null;
   let moveN = 1000;
   const spaceOf = (id: string) => spaceRecs.find((r) => r.view.summary.id === id);
+  // Your own home and profile, by kind: a room's id is its host's, not a fixed name.
+  const yours = (kind: string) => spaceRecs.find((r) => r.view.summary.mine && r.view.summary.kind === kind)?.view.summary.id ?? null;
   const bump = (id: string) => {
     for (const w of spaceWatches.values()) if (w.id === id) w.ch.onmessage({ event: "updated", uri: "space://feed" });
   };
@@ -226,8 +228,9 @@ export function installPreview() {
               .filter(({ st }) => st && mineKeys.has(st.body.to_person))
               .map(({ m, st }) => ({ title: m.title, for_title: m.body.replace(/^Completed: /, ""), space: r.view.summary, to: st!.body.to_name, at: m.at, issued_by: st!.body.host, holds: true })),
           );
-          const profile = spaceOf("profile-me");
-          return { receipts, shows: profile ? profile.moves.filter((m) => m.kind === "show") : [], agents, machines, volumes: machines.flatMap((m) => m.volumes), home: "home-me", profile: "profile-me", personas };
+          const profileId = yours("profile");
+          const profile = profileId ? spaceOf(profileId) : undefined;
+          return { receipts, shows: profile ? profile.moves.filter((m) => m.kind === "show") : [], agents, machines, volumes: machines.flatMap((m) => m.volumes), home: yours("home"), profile: profileId, personas };
         }
         case "people_list": {
           const people = new Map<string, { name: string; key: string; is_agent: boolean; agent_of: string | null; spaces: string[] }>();
@@ -252,7 +255,7 @@ export function installPreview() {
           allowances[`${args.id}/${args.agent}`] = args.perDay;
           return { per_day: args.perDay, used_today: 0 };
         case "spaces_home":
-          return "home-me";
+          return yours("home");
         case "home_feed":
           return spaceRecs.flatMap((r) => r.moves.map((entry) => ({ space: r.view.summary, entry }))).sort((a, b) => b.entry.at.localeCompare(a.entry.at));
         case "spaces_list":

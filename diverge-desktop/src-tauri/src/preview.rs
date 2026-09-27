@@ -117,7 +117,7 @@ mod tests {
             let door = door.clone();
             tokio::spawn(async move {
                 let params = rmcp::model::CallToolRequestParams::new("space_call").with_arguments(
-                    json!({ "space": crate::spaces::stub::BOARD, "tool": "claim", "arguments": { "task_id": crate::spaces::stub::open_task() } }).as_object().cloned().unwrap(),
+                    json!({ "space": crate::spaces::stub::board(), "tool": "claim", "arguments": { "task_id": crate::spaces::stub::open_task() } }).as_object().cloned().unwrap(),
                 );
                 let _ = door.call("site-fixes", params).await;
             });
@@ -137,14 +137,11 @@ mod tests {
         for e in spaces.list().await {
             if !e.online {
                 // Unreachable: the preview shows your copy, as the app does.
-                let copy = copies.get(&e.id.id).cloned().unwrap_or_default();
-                let args: diverge_desktop_room::Args = serde_json::from_value(copy["args"].clone()).unwrap();
-                let moves: Vec<diverge_desktop_room::Move> = serde_json::from_value(copy["moves"].clone()).unwrap_or_default();
-                let moves: Vec<MoveView> = moves
-                    .into_iter()
-                    .map(|m| MoveView { id: m.id, kind: m.kind, author: m.author, by: m.by, agent_of: m.agent_of, at: m.at.to_rfc3339(), title: m.title, body: m.body, state: String::new(), parent: m.parent, fields: serde_json::Value::Object(m.fields), charter: m.charter, hash: m.hash })
-                    .collect();
-                let view = SpaceView { summary: summary(&e, &identity), charter: args.charter, members: Vec::new(), tools: Vec::new() };
+                let copy: diverge_desktop_room::Record = serde_json::from_value(copies.get(&e.id.id).cloned().unwrap_or_default()).unwrap();
+                let room = diverge_desktop_room::Room::check(&copy).unwrap();
+                let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &room.read(program::FEED).unwrap().contents[0] else { panic!() };
+                let moves: Vec<MoveView> = serde_json::from_str(text).unwrap();
+                let view = SpaceView { summary: summary(&e, &identity), charter: room.charter().to_owned(), members: Vec::new(), tools: Vec::new() };
                 space_views.push(json!({ "view": view, "moves": moves, "invite": null, "from_copy": true }));
                 continue;
             }

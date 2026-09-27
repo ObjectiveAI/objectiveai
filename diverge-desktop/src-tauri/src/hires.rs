@@ -96,7 +96,8 @@ mod tests {
         let door = Arc::new(Door::new(spaces.clone(), identity.clone(), None));
         daemon.set_door(door.clone());
         let mut calls = spaces.host_calls(CancellationToken::new());
-        stub.act_now("ren", "profile-me", "hire", json!({ "agent": "research-notes", "what": "Check the links on my music page", "pledge": "a coffee" })).unwrap();
+        let profile = Id { id: stub.id_of("profile-me") };
+        stub.act_now("ren", &profile.id, "hire", json!({ "agent": "research-notes", "what": "Check the links on my music page", "pledge": "a coffee" })).unwrap();
         let call = calls.next().await.unwrap();
         let hire = {
             let HostCall::Hire { hire_id, .. } = &call;
@@ -113,9 +114,9 @@ mod tests {
         door.answer(card.id, TAKE.into()).unwrap();
         running.await.unwrap();
         let path = vec!["for-ren".to_owned(), format!("{hire}.md")];
-        let body = String::from_utf8(spaces.table_read(&Id { id: "profile-me".into() }, &path).await.unwrap()).unwrap();
+        let body = String::from_utf8(spaces.table_read(&profile, &path).await.unwrap()).unwrap();
         assert!(body.contains("one broken"), "the agent's answer is on the table: {body}");
-        let feed = spaces.read(&Id { id: "profile-me".into() }, diverge_desktop_room::room::FEED).await.unwrap();
+        let feed = spaces.read(&profile, diverge_desktop_room::room::FEED).await.unwrap();
         let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &feed.contents[0] else { panic!() };
         let moves: Vec<Value> = serde_json::from_str(text).unwrap();
         assert_eq!(moves.iter().find(|m| m["id"] == hire.as_str()).unwrap()["state"], "delivered");
