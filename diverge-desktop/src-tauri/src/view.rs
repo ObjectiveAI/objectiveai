@@ -1,0 +1,1205 @@
+//! What the screen is handed: this app's own types, not the daemon's.
+//!
+//! Every type here writes its own TypeScript (`cargo test` exports them to
+//! `src/bindings/`). Every conversion from a daemon type is an exhaustive
+//! `match` with no catch-all, so a variant Ronald adds fails this build
+//! instead of drifting past the screen.
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use ts_rs::TS;
+
+use diverge_sdk::daemon::endpoints::agents;
+use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Identity, Item, ItemWrapper};
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use diverge_sdk::shared::error::Error as WireError;
+use diverge_sdk::shared::filetree::response::Node;
+use diverge_sdk::provider::endpoints::volumes;
+use diverge_sdk::provider::endpoints::volumes::Mode;
+
+const OUT: &str = "../../src/bindings/";
+
+// --- shared ------------------------------------------------------------
+
+/// A provider, only as the daemon names it.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum ProviderView {
+    Outgoing { address: String },
+    IncomingUnbrokered { identity: String },
+}
+
+impl From<&Identity> for ProviderView {
+    fn from(identity: &Identity) -> Self {
+        match identity {
+            Identity::Outgoing { address } => ProviderView::Outgoing { address: address.clone() },
+            Identity::IncomingUnbrokered { identity } => ProviderView::IncomingUnbrokered { identity: identity.clone() },
+        }
+    }
+}
+
+impl From<&ProviderView> for Identity {
+    fn from(view: &ProviderView) -> Self {
+        match view {
+            ProviderView::Outgoing { address } => Identity::Outgoing { address: address.clone() },
+            ProviderView::IncomingUnbrokered { identity } => Identity::IncomingUnbrokered { identity: identity.clone() },
+        }
+    }
+}
+
+/// What went wrong, in words. The daemon's error is any JSON; its
+/// `message` if it has one, the whole thing otherwise.
+pub fn error_text(error: &WireError) -> String {
+    match &error.0 {
+        Value::String(s) => s.clone(),
+        Value::Object(o) => o.get("message").and_then(Value::as_str).map(str::to_owned).unwrap_or_else(|| error.0.to_string()),
+        other => other.to_string(),
+    }
+}
+
+// --- the catalog ---------------------------------------------------------
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ImageKindView {
+    pub key: String,
+    pub image_name: String,
+    pub digest: String,
+    /// JSON Schema of the image's settings, from Ronald's source.
+    #[ts(type = "Record<string, unknown>")]
+    pub schema: Value,
+}
+
+// --- agents ------------------------------------------------------------
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct AgentView {
+    pub name: String,
+    pub image_name: String,
+    pub digest: String,
+    pub created: String,
+    pub active: bool,
+    pub last_active: Option<String>,
+    pub provider: Option<ProviderView>,
+    #[ts(type = "number")]
+    pub logs_index: u64,
+}
+
+/// What this app last stated an agent mounts, in the daemon's own shapes.
+/// Ours: the daemon's listing does not repeat a create's mounts ("the
+/// create's, and is not repeated here"), and an edit states them all anew,
+/// so the app keeps what it said. An agent made elsewhere has no record,
+/// and the app does not offer to change its mounts.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct AgentMounts {
+    pub pinned: Option<Identity>,
+    pub volume_mounts: Vec<agents::create::client::request::VolumeMount>,
+    pub fuse_file_mounts: Vec<agents::create::client::request::FuseMount>,
+    pub fuse_directory_mounts: Vec<agents::create::client::request::FuseMount>,
+}
+
+impl AgentMounts {
+    pub fn of_create(request: &agents::create::client::request::Frame) -> Self {
+        AgentMounts {
+            pinned: request.provider.as_ref().map(|p| p.identity.clone()),
+            volume_mounts: request.provider.as_ref().map(|p| p.volume_mounts.clone()).unwrap_or_default(),
+            fuse_file_mounts: request.fuse_file_mounts.clone(),
+            fuse_directory_mounts: request.fuse_directory_mounts.clone(),
+        }
+    }
+
+    /// The same machine; the three lists as the edit stated them.
+    pub fn edited(&self, request: &agents::edit::client::request::Frame) -> Self {
+        AgentMounts {
+            pinned: self.pinned.clone(),
+            volume_mounts: request.volume_mounts.clone(),
+            fuse_file_mounts: request.fuse_file_mounts.clone(),
+            fuse_directory_mounts: request.fuse_directory_mounts.clone(),
+        }
+    }
+
+    pub fn view(&self) -> MountsView {
+        let own = |m: &agents::create::client::request::VolumeMount| MountView {
+            provider: None,
+            volume_name: m.volume_name.clone(),
+            volume_relative_path: slashed(&m.volume_relative_path),
+            volume_mode: m.volume_mode.into(),
+            container_path: slashed(&m.container_path),
+        };
+        let live = |m: &agents::create::client::request::FuseMount| MountView {
+            provider: Some((&m.provider).into()),
+            volume_name: m.volume_name.clone(),
+            volume_relative_path: slashed(&m.volume_relative_path),
+            volume_mode: m.volume_mode.into(),
+            container_path: slashed(&m.container_path),
+        };
+        MountsView {
+            pinned: self.pinned.as_ref().map(Into::into),
+            volume_mounts: self.volume_mounts.iter().map(own).collect(),
+            fuse_file_mounts: self.fuse_file_mounts.iter().map(live).collect(),
+            fuse_directory_mounts: self.fuse_directory_mounts.iter().map(live).collect(),
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct MountsView {
+    /// The machine it is pinned to, for life; none, it runs wherever the
+    /// daemon chooses and mounts no machine's volumes directly.
+    pub pinned: Option<ProviderView>,
+    pub volume_mounts: Vec<MountView>,
+    pub fuse_file_mounts: Vec<MountView>,
+    pub fuse_directory_mounts: Vec<MountView>,
+}
+
+/// One volume mounted in an agent: its pinned machine's (no `provider`),
+/// or any machine's, served live across the daemon.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct MountView {
+    pub provider: Option<ProviderView>,
+    pub volume_name: String,
+    pub volume_relative_path: String,
+    pub volume_mode: VolumeMode,
+    pub container_path: String,
+}
+
+/// What becomes of a change to a volume: Ronald's three modes.
+#[derive(Serialize, Deserialize, TS, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum VolumeMode {
+    /// Every change is kept. One user at a time.
+    Persistent,
+    /// Every run starts from the volume as it is; its changes are dropped.
+    Ephemeral,
+    /// Agents read it; nothing they do changes it.
+    ReadOnly,
+}
+
+impl From<Mode> for VolumeMode {
+    fn from(mode: Mode) -> Self {
+        match mode {
+            Mode::Persistent => VolumeMode::Persistent,
+            Mode::Ephemeral => VolumeMode::Ephemeral,
+            Mode::ReadOnly => VolumeMode::ReadOnly,
+        }
+    }
+}
+
+impl From<VolumeMode> for Mode {
+    fn from(mode: VolumeMode) -> Self {
+        match mode {
+            VolumeMode::Persistent => Mode::Persistent,
+            VolumeMode::Ephemeral => Mode::Ephemeral,
+            VolumeMode::ReadOnly => Mode::ReadOnly,
+        }
+    }
+}
+
+fn slashed(parts: &[String]) -> String {
+    parts.join("/")
+}
+
+#[derive(Serialize, TS, Clone, Debug, Default)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct AgentsListed {
+    pub agents: Vec<AgentView>,
+    pub errors: Vec<String>,
+}
+
+pub fn listed(frames: Vec<agents::list::server::response::Frame>) -> AgentsListed {
+    use agents::list::server::response::Frame;
+    let mut out = AgentsListed::default();
+    for frame in frames {
+        match frame {
+            Frame::Agent(agent) => out.agents.push(AgentView {
+                name: agent.name,
+                image_name: agent.image.name,
+                digest: agent.image.digest,
+                created: agent.created.to_rfc3339(),
+                active: agent.active,
+                last_active: agent.last_active.map(|t| t.to_rfc3339()),
+                provider: agent.provider.as_ref().map(|p| (&p.identity).into()),
+                logs_index: agent.logs_index,
+            }),
+            Frame::Error(error) => out.errors.push(error_text(&error)),
+        }
+    }
+    out
+}
+
+/// What the screen sends to make an agent.
+#[derive(Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct CreateAgentInput {
+    pub name: String,
+    pub image_kind: String,
+    #[ts(type = "number")]
+    pub memory: u64,
+    #[ts(type = "number")]
+    pub disk: u64,
+    pub provider: Option<ProviderView>,
+    pub volume_mounts: Vec<VolumeMountInput>,
+    pub fuse_file_mounts: Vec<FuseMountInput>,
+    pub fuse_directory_mounts: Vec<FuseMountInput>,
+    #[ts(type = "unknown")]
+    pub arguments: Value,
+}
+
+#[derive(Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct VolumeMountInput {
+    pub volume_name: String,
+    pub volume_relative_path: String,
+    pub volume_mode: VolumeMode,
+    pub container_path: String,
+}
+
+/// A live share: any machine's volume (and a folder or a file in it),
+/// served across the daemon, as the agent sees it.
+#[derive(Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct FuseMountInput {
+    pub provider: ProviderView,
+    pub volume_name: String,
+    pub volume_relative_path: String,
+    pub volume_mode: VolumeMode,
+    pub container_path: String,
+}
+
+impl FuseMountInput {
+    fn into_wire(self) -> agents::create::client::request::FuseMount {
+        agents::create::client::request::FuseMount {
+            provider: (&self.provider).into(),
+            volume_name: self.volume_name,
+            volume_relative_path: components(&self.volume_relative_path),
+            volume_mode: self.volume_mode.into(),
+            container_path: components(&self.container_path),
+        }
+    }
+}
+
+impl VolumeMountInput {
+    fn into_wire(self) -> agents::create::client::request::VolumeMount {
+        agents::create::client::request::VolumeMount {
+            volume_name: self.volume_name,
+            volume_relative_path: components(&self.volume_relative_path),
+            volume_mode: self.volume_mode.into(),
+            container_path: components(&self.container_path),
+        }
+    }
+}
+
+fn components(path: &str) -> Vec<String> {
+    path.split('/').filter(|p| !p.is_empty()).map(str::to_owned).collect()
+}
+
+impl CreateAgentInput {
+    /// Into the daemon's own create. Every field named, so a field Ronald
+    /// adds fails this build.
+    pub fn into_request(self) -> Result<agents::create::client::request::Frame, String> {
+        use agents::create::client::request::{Frame, Image, Provider};
+        let kind = crate::catalog::ALL
+            .into_iter()
+            .find(|k| k.key() == self.image_kind)
+            .ok_or_else(|| format!("no image called {}", self.image_kind))?;
+        let fuse = |mounts: Vec<FuseMountInput>| mounts.into_iter().map(FuseMountInput::into_wire).collect::<Vec<_>>();
+        Ok(Frame {
+            image: Image { name: kind.image_name(), digest: crate::catalog::UNBUILT_DIGEST.into() },
+            memory: self.memory,
+            disk: self.disk,
+            provider: self.provider.as_ref().map(|p| Provider {
+                identity: p.into(),
+                volume_mounts: self.volume_mounts.into_iter().map(VolumeMountInput::into_wire).collect(),
+            }),
+            fuse_file_mounts: fuse(self.fuse_file_mounts),
+            fuse_directory_mounts: fuse(self.fuse_directory_mounts),
+            arguments: self.arguments,
+            name: self.name,
+        })
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum CreateOutcome {
+    Created,
+    InUse,
+    Error { message: String },
+}
+
+/// What the screen sends to change an agent's mounts: all three lists,
+/// stated anew.
+#[derive(Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct EditMountsInput {
+    pub name: String,
+    pub volume_mounts: Vec<VolumeMountInput>,
+    pub fuse_file_mounts: Vec<FuseMountInput>,
+    pub fuse_directory_mounts: Vec<FuseMountInput>,
+}
+
+impl EditMountsInput {
+    pub fn into_request(self) -> agents::edit::client::request::Frame {
+        agents::edit::client::request::Frame {
+            name: self.name,
+            volume_mounts: self.volume_mounts.into_iter().map(VolumeMountInput::into_wire).collect(),
+            fuse_file_mounts: self.fuse_file_mounts.into_iter().map(FuseMountInput::into_wire).collect(),
+            fuse_directory_mounts: self.fuse_directory_mounts.into_iter().map(FuseMountInput::into_wire).collect(),
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum EditOutcome {
+    Edited,
+    NotFound,
+    /// It is working; ask again once it stops.
+    Active,
+    Error { message: String },
+}
+
+impl From<agents::edit::server::response::Frame> for EditOutcome {
+    fn from(frame: agents::edit::server::response::Frame) -> Self {
+        use agents::edit::server::response::Frame;
+        match frame {
+            Frame::Edited => EditOutcome::Edited,
+            Frame::NotFound => EditOutcome::NotFound,
+            Frame::Active => EditOutcome::Active,
+            Frame::Error(error) => EditOutcome::Error { message: error_text(&error) },
+        }
+    }
+}
+
+impl From<agents::create::server::response::Frame> for CreateOutcome {
+    fn from(frame: agents::create::server::response::Frame) -> Self {
+        use agents::create::server::response::Frame;
+        match frame {
+            Frame::Created => CreateOutcome::Created,
+            Frame::InUse => CreateOutcome::InUse,
+            Frame::Error(error) => CreateOutcome::Error { message: error_text(&error) },
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum DeleteOutcome {
+    Deleted,
+    NotFound,
+    Active,
+    Error { message: String },
+}
+
+impl From<agents::delete::server::response::Frame> for DeleteOutcome {
+    fn from(frame: agents::delete::server::response::Frame) -> Self {
+        use agents::delete::server::response::Frame;
+        match frame {
+            Frame::Deleted => DeleteOutcome::Deleted,
+            Frame::NotFound => DeleteOutcome::NotFound,
+            Frame::Active => DeleteOutcome::Active,
+            Frame::Error(error) => DeleteOutcome::Error { message: error_text(&error) },
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum MessageOutcome {
+    Delivered,
+    Cancelled,
+    Error { message: String },
+}
+
+impl From<agents::message::server::response::Frame> for MessageOutcome {
+    fn from(frame: agents::message::server::response::Frame) -> Self {
+        use agents::message::server::response::Frame;
+        match frame {
+            Frame::Delivered => MessageOutcome::Delivered,
+            Frame::Cancelled => MessageOutcome::Cancelled,
+            Frame::Error(error) => MessageOutcome::Error { message: error_text(&error) },
+        }
+    }
+}
+
+// --- the log -------------------------------------------------------------
+
+/// One kept item, flattened for the screen.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct LogEntry {
+    #[ts(type = "number")]
+    pub logs_index: u64,
+    pub created: String,
+    pub item: LogItem,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum LogItem {
+    UserText { key: String, text: String },
+    UserImage { key: String, mime_type: String },
+    UserAudio { key: String, mime_type: String },
+    UserResource { key: String, uri: String },
+    UserResourceLink { key: String, uri: String, name: String },
+    Reasoning { parent: Option<String>, text: String },
+    Text { parent: Option<String>, text: String },
+    Image { parent: Option<String>, mime_type: String, data: String },
+    Audio { parent: Option<String>, mime_type: String },
+    ToolCall { parent: Option<String>, id: String, name: String, arguments: Option<String> },
+    ToolResponse { parent: Option<String>, id: String, is_error: bool, text: String },
+    Refusal { parent: Option<String>, text: String },
+    Usage {
+        #[ts(type = "number")]
+        prompt_tokens: u64,
+        #[ts(type = "number")]
+        completion_tokens: u64,
+        #[ts(type = "number")]
+        total_tokens: u64,
+    },
+    Notification {
+        fatal: bool,
+        #[ts(type = "unknown")]
+        message: Value,
+    },
+    Error { message: String },
+    Active { provider: ProviderView },
+    Inactive { provider: ProviderView },
+}
+
+fn field(value: &Value, name: &str) -> String {
+    value.get(name).and_then(Value::as_str).unwrap_or_default().to_owned()
+}
+
+fn json<T: Serialize>(inner: &T) -> Value {
+    serde_json::to_value(inner).unwrap_or(Value::Null)
+}
+
+/// The text parts of a tool's answer, joined.
+fn content_text(result: &Value) -> String {
+    result
+        .get("content")
+        .and_then(Value::as_array)
+        .map(|parts| {
+            parts
+                .iter()
+                .map(|part| match part.get("type").and_then(Value::as_str) {
+                    Some("text") => field(part, "text"),
+                    Some(other) => format!("[{other}]"),
+                    None => String::new(),
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .unwrap_or_default()
+}
+
+impl From<&ItemWrapper> for LogEntry {
+    fn from(wrapper: &ItemWrapper) -> Self {
+        let item = match &wrapper.item {
+            Item::Chunk(chunk) => match chunk {
+                AgenticLoopChunk::AssistantReasoning(c) => LogItem::Reasoning { parent: c.parent_tool_call_id.clone(), text: field(&json(&c.inner), "text") },
+                AgenticLoopChunk::AssistantTextContent(c) => LogItem::Text { parent: c.parent_tool_call_id.clone(), text: field(&json(&c.inner), "text") },
+                AgenticLoopChunk::AssistantImageContent(c) => {
+                    let v = json(&c.inner);
+                    LogItem::Image { parent: c.parent_tool_call_id.clone(), mime_type: field(&v, "mimeType"), data: field(&v, "data") }
+                }
+                AgenticLoopChunk::AssistantAudioContent(c) => LogItem::Audio { parent: c.parent_tool_call_id.clone(), mime_type: field(&json(&c.inner), "mimeType") },
+                AgenticLoopChunk::AssistantToolCall(c) => LogItem::ToolCall { parent: c.parent_tool_call_id.clone(), id: c.id.clone(), name: c.name.clone(), arguments: c.arguments.clone() },
+                AgenticLoopChunk::AssistantRefusal(c) => LogItem::Refusal { parent: c.parent_tool_call_id.clone(), text: field(&json(&c.inner), "text") },
+                AgenticLoopChunk::ToolResponse(c) => {
+                    let v = json(&c.inner);
+                    LogItem::ToolResponse {
+                        parent: c.parent_tool_call_id.clone(),
+                        id: c.id.clone(),
+                        is_error: v.get("isError").and_then(Value::as_bool).unwrap_or(false),
+                        text: content_text(&v),
+                    }
+                }
+                AgenticLoopChunk::UserTextContent(c) => LogItem::UserText { key: c.key.clone(), text: field(&json(&c.inner), "text") },
+                AgenticLoopChunk::UserImageContent(c) => LogItem::UserImage { key: c.key.clone(), mime_type: field(&json(&c.inner), "mimeType") },
+                AgenticLoopChunk::UserAudioContent(c) => LogItem::UserAudio { key: c.key.clone(), mime_type: field(&json(&c.inner), "mimeType") },
+                AgenticLoopChunk::UserResource(c) => {
+                    let v = json(&c.inner);
+                    let uri = v.get("resource").map(|r| field(r, "uri")).unwrap_or_default();
+                    LogItem::UserResource { key: c.key.clone(), uri }
+                }
+                AgenticLoopChunk::UserResourceLink(c) => {
+                    let v = json(&c.inner);
+                    LogItem::UserResourceLink { key: c.key.clone(), uri: field(&v, "uri"), name: field(&v, "name") }
+                }
+                AgenticLoopChunk::Usage(c) => LogItem::Usage { prompt_tokens: c.prompt_tokens, completion_tokens: c.completion_tokens, total_tokens: c.total_tokens },
+                AgenticLoopChunk::Notification(c) => LogItem::Notification { fatal: c.is_fatal, message: c.message.clone() },
+            },
+            Item::Error(error) => LogItem::Error { message: error_text(&error.error) },
+            Item::Active(active) => LogItem::Active { provider: (&active.provider.identity).into() },
+            Item::Inactive(inactive) => LogItem::Inactive { provider: (&inactive.provider.identity).into() },
+        };
+        LogEntry { logs_index: wrapper.logs_index, created: wrapper.created.to_rfc3339(), item }
+    }
+}
+
+/// One value a logs scope sent: an item as it is, or — when a `jq`
+/// program reshaped it — whatever the program yielded.
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "event", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum LogEvent {
+    Entry { entry: LogEntry },
+    Value {
+        #[ts(type = "unknown")]
+        value: Value,
+    },
+    Error { message: String },
+    End,
+}
+
+impl From<agents::logs::server::response::Frame> for LogEvent {
+    fn from(frame: agents::logs::server::response::Frame) -> Self {
+        use agents::logs::server::response::Frame;
+        match frame {
+            Frame::Value(value) => match serde_json::from_value::<ItemWrapper>(value.clone()) {
+                Ok(wrapper) => LogEvent::Entry { entry: (&wrapper).into() },
+                Err(_) => LogEvent::Value { value },
+            },
+            Frame::Error(error) => LogEvent::Error { message: error_text(&error) },
+        }
+    }
+}
+
+/// What the screen asks the log for. Mirrors the daemon's logs request.
+#[derive(Deserialize, Serialize, TS, Clone, Debug, Default)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct LogsQuery {
+    pub name: String,
+    #[ts(type = "number | null")]
+    pub logs_index_from: Option<u64>,
+    #[ts(type = "number | null")]
+    pub logs_index_to: Option<u64>,
+    pub created_from: Option<String>,
+    pub created_to: Option<String>,
+    /// One kind of item, by its wire name (e.g. "tool_response").
+    pub item_type: Option<String>,
+    pub jq: Option<String>,
+    #[ts(type = "number | null")]
+    pub count: Option<u64>,
+    pub watch: bool,
+}
+
+impl LogsQuery {
+    pub fn into_request(self) -> Result<agents::logs::client::request::Frame, String> {
+        let time = |s: Option<String>| -> Result<_, String> {
+            s.filter(|s| !s.trim().is_empty())
+                .map(|s| chrono::DateTime::parse_from_rfc3339(&s).map(|t| t.to_utc()).map_err(|e| format!("\"{s}\" is not a time: {e}")))
+                .transpose()
+        };
+        let item_type = self
+            .item_type
+            .filter(|t| !t.is_empty())
+            .map(|t| serde_json::from_value(Value::String(t.clone())).map_err(|_| format!("no kind of item called \"{t}\"")))
+            .transpose()?;
+        Ok(agents::logs::client::request::Frame {
+            name: self.name,
+            logs_index_from: self.logs_index_from,
+            logs_index_to: self.logs_index_to,
+            created_from: time(self.created_from)?,
+            created_to: time(self.created_to)?,
+            r#type: item_type,
+            jq: self.jq.filter(|j| !j.trim().is_empty()),
+            count: self.count,
+            watch: Some(self.watch),
+        })
+    }
+}
+
+// --- storage (the daemon's volumes) --------------------------------------
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum FileNode {
+    File {
+        name: String,
+        #[ts(type = "number | null")]
+        size: Option<u64>,
+        #[ts(type = "number | null")]
+        modified_at: Option<u64>,
+    },
+    Directory {
+        name: String,
+        children: Vec<FileNode>,
+    },
+    Symlink {
+        name: String,
+        target: Vec<String>,
+    },
+}
+
+impl From<&Node> for FileNode {
+    fn from(node: &Node) -> Self {
+        match node {
+            Node::File { name, size, created_at: _, modified_at } => FileNode::File { name: name.clone(), size: *size, modified_at: *modified_at },
+            Node::Directory { name, created_at: _, modified_at: _, changes: _, children } => {
+                FileNode::Directory { name: name.clone(), children: children.iter().map(Into::into).collect() }
+            }
+            Node::Symlink { name, path, created_at: _, modified_at: _ } => FileNode::Symlink { name: name.clone(), target: path.clone() },
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct VolumeView {
+    pub name: String,
+    /// What it reserves, in bytes.
+    #[ts(type = "number")]
+    pub bytes: u64,
+    pub created: String,
+    /// What becomes of what an agent writes into it.
+    pub mode: VolumeMode,
+}
+
+impl From<&diverge_sdk::provider::endpoints::volumes::list::server::response::Volume> for VolumeView {
+    fn from(v: &diverge_sdk::provider::endpoints::volumes::list::server::response::Volume) -> Self {
+        let created = chrono::DateTime::from_timestamp(v.created as i64, 0).map(|t| t.to_rfc3339()).unwrap_or_default();
+        VolumeView { name: v.name.clone(), bytes: v.bytes, created, mode: v.mode.into() }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum VolumesListed {
+    Volumes { volumes: Vec<VolumeView> },
+    Error { message: String },
+}
+
+impl From<volumes::list::server::response::Frame> for VolumesListed {
+    fn from(frame: volumes::list::server::response::Frame) -> Self {
+        use volumes::list::server::response::Frame;
+        match frame {
+            Frame::Volumes(list) => VolumesListed::Volumes { volumes: list.iter().map(Into::into).collect() },
+            Frame::Error(error) => VolumesListed::Error { message: error_text(&error) },
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum VolumeStat {
+    Stat {
+        volume: VolumeView,
+        #[ts(type = "number")]
+        bytes_used: u64,
+    },
+    Error { message: String },
+}
+
+impl From<volumes::stat::server::response::Frame> for VolumeStat {
+    fn from(frame: volumes::stat::server::response::Frame) -> Self {
+        use volumes::stat::server::response::Frame;
+        match frame {
+            Frame::Stat(stat) => VolumeStat::Stat { volume: (&stat.volume).into(), bytes_used: stat.bytes_used },
+            Frame::Error(error) => VolumeStat::Error { message: error_text(&error) },
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum VolumeTree {
+    Tree { nodes: Vec<FileNode> },
+    Error { message: String },
+}
+
+impl From<volumes::filetree::server::response::Frame> for VolumeTree {
+    fn from(frame: volumes::filetree::server::response::Frame) -> Self {
+        use volumes::filetree::server::response::Frame;
+        match frame {
+            Frame::Tree(nodes) => VolumeTree::Tree { nodes: nodes.iter().map(Into::into).collect() },
+            Frame::Error(error) => VolumeTree::Error { message: error_text(&error) },
+        }
+    }
+}
+
+/// How much room there is: to make a volume, or for one to grow into.
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum Capacity {
+    Capacity {
+        #[ts(type = "number")]
+        bytes: u64,
+    },
+    Error { message: String },
+}
+
+impl From<volumes::create_capacity::server::response::Frame> for Capacity {
+    fn from(frame: volumes::create_capacity::server::response::Frame) -> Self {
+        use volumes::create_capacity::server::response::Frame;
+        match frame {
+            Frame::Capacity(bytes) => Capacity::Capacity { bytes },
+            Frame::Error(error) => Capacity::Error { message: error_text(&error) },
+        }
+    }
+}
+
+impl From<volumes::edit_capacity::server::response::Frame> for Capacity {
+    fn from(frame: volumes::edit_capacity::server::response::Frame) -> Self {
+        use volumes::edit_capacity::server::response::Frame;
+        match frame {
+            Frame::Capacity(bytes) => Capacity::Capacity { bytes },
+            Frame::Error(error) => Capacity::Error { message: error_text(&error) },
+        }
+    }
+}
+
+/// Every volume change's answer, in the screen's words.
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum VolumeChange {
+    Done,
+    NotEnoughRoom,
+    MoreContentThanThat,
+    InUse,
+    Error { message: String },
+}
+
+impl From<volumes::create::server::response::Frame> for VolumeChange {
+    fn from(frame: volumes::create::server::response::Frame) -> Self {
+        use volumes::create::server::response::Frame;
+        match frame {
+            Frame::Created => VolumeChange::Done,
+            Frame::InsufficientCapacity => VolumeChange::NotEnoughRoom,
+            Frame::Error(error) => VolumeChange::Error { message: error_text(&error) },
+        }
+    }
+}
+
+impl From<volumes::edit::server::response::Frame> for VolumeChange {
+    fn from(frame: volumes::edit::server::response::Frame) -> Self {
+        use volumes::edit::server::response::Frame;
+        match frame {
+            Frame::Edited => VolumeChange::Done,
+            Frame::InsufficientCapacity => VolumeChange::NotEnoughRoom,
+            Frame::ContentTooLarge => VolumeChange::MoreContentThanThat,
+            Frame::Error(error) => VolumeChange::Error { message: error_text(&error) },
+        }
+    }
+}
+
+impl From<volumes::delete::server::response::Frame> for VolumeChange {
+    fn from(frame: volumes::delete::server::response::Frame) -> Self {
+        use volumes::delete::server::response::Frame;
+        match frame {
+            Frame::Deleted => VolumeChange::Done,
+            Frame::Mounted => VolumeChange::InUse,
+            Frame::Error(error) => VolumeChange::Error { message: error_text(&error) },
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum FileRead {
+    Text {
+        text: String,
+        #[ts(type = "number")]
+        bytes: u64,
+    },
+    Binary {
+        #[ts(type = "number")]
+        bytes: u64,
+    },
+    Error { message: String },
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum FileWritten {
+    Written,
+    Error { message: String },
+}
+
+impl From<volumes::write::server::response::Frame> for FileWritten {
+    fn from(frame: volumes::write::server::response::Frame) -> Self {
+        use volumes::write::server::response::Frame;
+        match frame {
+            Frame::Written(_) => FileWritten::Written,
+            Frame::Error(error) => FileWritten::Error { message: error_text(&error) },
+        }
+    }
+}
+
+// --- Spaces (the social layer, on the provider protocol's tool rooms) ------
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct SpaceSummary {
+    pub id: String,
+    pub title: String,
+    pub kind: String,
+    pub host: ProviderView,
+    pub mine: bool,
+    pub online: bool,
+    pub joined_as: String,
+}
+
+impl From<&crate::spaces::SpaceEntry> for SpaceSummary {
+    fn from(e: &crate::spaces::SpaceEntry) -> Self {
+        SpaceSummary { id: e.id.id.clone(), title: e.title.clone(), kind: e.kind.clone(), host: (&e.host).into(), mine: e.mine, online: e.online, joined_as: e.joined_as.clone() }
+    }
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct MemberView {
+    pub name: String,
+    pub is_agent: bool,
+    pub joined: String,
+}
+
+/// A room's verb: an MCP tool, rendered as a button with a generated form.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ToolView {
+    pub name: String,
+    pub title: String,
+    pub description: String,
+    #[ts(type = "Record<string, unknown>")]
+    pub schema: Value,
+}
+
+impl From<&rmcp::model::Tool> for ToolView {
+    fn from(t: &rmcp::model::Tool) -> Self {
+        ToolView {
+            name: t.name.to_string(),
+            title: t.title.clone().unwrap_or_else(|| t.name.replace('_', " ")),
+            description: t.description.as_deref().unwrap_or_default().to_owned(),
+            schema: Value::Object((*t.input_schema).clone()),
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct SpaceView {
+    pub summary: SpaceSummary,
+    pub charter: String,
+    pub members: Vec<MemberView>,
+    pub tools: Vec<ToolView>,
+}
+
+/// One object in a room's feed.
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct MoveView {
+    pub id: String,
+    pub kind: String,
+    pub author: String,
+    pub at: String,
+    pub title: String,
+    pub body: String,
+    pub state: String,
+    pub parent: Option<String>,
+    #[ts(type = "Record<string, unknown>")]
+    pub fields: Value,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum FeedRead {
+    Feed { moves: Vec<MoveView> },
+    Error { message: String },
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum CallOutcome {
+    Ok { text: String },
+    Error { message: String },
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum JoinOutcome {
+    Joined { id: String },
+    Denied,
+    Missing,
+    Error { message: String },
+}
+
+impl From<crate::spaces::Joined> for JoinOutcome {
+    fn from(j: crate::spaces::Joined) -> Self {
+        use crate::spaces::Joined;
+        match j {
+            Joined::Joined(id) => JoinOutcome::Joined { id: id.id },
+            Joined::Denied => JoinOutcome::Denied,
+            Joined::Missing => JoinOutcome::Missing,
+            Joined::Error(error) => JoinOutcome::Error { message: error_text(&error) },
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum HostOutcome {
+    Hosted { id: String },
+    Error { message: String },
+}
+
+#[derive(Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct HostSpaceInput {
+    pub title: String,
+    pub kind: String,
+    pub charter: String,
+    pub invite: String,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct InviteView {
+    pub text: String,
+}
+
+/// Someone at the door of a room you host.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct KnockView {
+    #[ts(type = "number")]
+    pub knock_id: u64,
+    pub space: String,
+    pub space_title: String,
+    /// Attested: the provider observed it.
+    pub address: String,
+    /// Asserted: relayed as sent, never read by the provider.
+    pub authorization: String,
+    pub at: String,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "event", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum SpaceEvent {
+    Updated { uri: String },
+    End,
+}
+
+impl From<rmcp::model::ServerNotification> for SpaceEvent {
+    fn from(n: rmcp::model::ServerNotification) -> Self {
+        use rmcp::model::ServerNotification;
+        match n {
+            ServerNotification::ResourceUpdatedNotification(n) => SpaceEvent::Updated { uri: n.params.uri },
+            ServerNotification::ResourceListChangedNotification(_) | ServerNotification::ToolListChangedNotification(_) => SpaceEvent::Updated { uri: "*".into() },
+            // rmcp's enum, not Ronald's: it grows with the MCP spec, and
+            // anything else is not something the screen re-reads for.
+            _ => SpaceEvent::Updated { uri: "".into() },
+        }
+    }
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "event", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum KnockEvent {
+    Knock { knock: KnockView },
+    End,
+}
+
+// --- home: every Space's moves, together ------------------------------------
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct HomeMove {
+    pub space: SpaceSummary,
+    pub entry: MoveView,
+}
+
+/// A receipt for a task done, attributed to the Space that issued it.
+/// Never merged, ranked or converted.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ReceiptView {
+    pub title: String,
+    pub for_title: String,
+    pub space: SpaceSummary,
+    pub to: String,
+    pub at: String,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ProfileView {
+    pub receipts: Vec<ReceiptView>,
+    pub shows: Vec<MoveView>,
+    pub agents: Vec<AgentView>,
+    pub machines: Vec<MachineView>,
+    pub volumes: Vec<VolumeView>,
+    pub home: Option<String>,
+}
+
+/// Someone you share a Space with.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct PersonView {
+    pub name: String,
+    pub is_agent: bool,
+    /// The Spaces you are both in, by id.
+    pub spaces: Vec<String>,
+}
+
+// --- cards: an agent asks its person -------------------------------------
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum CardKind {
+    Question,
+    Choice,
+    Credential,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct CardView {
+    #[ts(type = "number")]
+    pub id: u64,
+    pub agent: String,
+    pub kind: CardKind,
+    pub question: String,
+    pub options: Vec<String>,
+    pub at: String,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "event", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum CardEvent {
+    Card { card: CardView },
+    Answered {
+        #[ts(type = "number")]
+        id: u64,
+    },
+    End,
+}
+
+// --- machines (ours until the wire has them) -----------------------------
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct MachineView {
+    pub identity: ProviderView,
+    /// Its own volumes, from its own listing.
+    pub volumes: Vec<VolumeView>,
+    /// Why its volumes could not be listed, if they could not.
+    pub volumes_problem: Option<String>,
+    pub added: String,
+    /// What you call it. Yours, kept by the app; the daemon's name stays underneath.
+    pub name: Option<String>,
+}
+
+/// The key a machine's own name is kept under.
+pub fn identity_key(p: &ProviderView) -> String {
+    match p {
+        ProviderView::Outgoing { address } => format!("outgoing:{address}"),
+        ProviderView::IncomingUnbrokered { identity } => format!("incoming:{identity}"),
+    }
+}
+
+#[derive(Deserialize, TS, Clone, Debug)]
+#[serde(tag = "way", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum NewMachineInput {
+    Dial { address: String, key: String },
+    Accept { identity: String, key: String },
+}
+
+// --- saved Views ---------------------------------------------------------
+
+#[derive(Deserialize, Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct SavedView {
+    pub id: String,
+    pub title: String,
+    pub query: LogsQuery,
+    pub saved: String,
+}
+
+// --- tabs (Rust-owned) ---------------------------------------------------
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum TabKind {
+    Agent { name: String },
+    NewAgent,
+    Storage,
+    Machines,
+    Views,
+    Spaces,
+    Space { id: String },
+    Home,
+    Inbox,
+    Profile,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct TabView {
+    pub key: String,
+    pub tab: TabKind,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct TabsSnapshot {
+    #[ts(type = "number")]
+    pub generation: u64,
+    pub tabs: Vec<TabView>,
+    pub focused: Option<String>,
+}
+
+// --- the app itself --------------------------------------------------------
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct AppInfo {
+    /// True while the daemon is the stand-in.
+    pub stand_in: bool,
+    /// The commit of Ronald's branch the seam was built against.
+    pub contract_pin: String,
+    /// Where the stand-in keeps its host's files.
+    pub stand_in_host: Option<String>,
+}
+
+/// One entry in the action registry: everything a person can do here,
+/// by name — the list an agent's door will expose.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ActionInfo {
+    pub name: String,
+    pub does: String,
+}
+
+#[allow(dead_code)]
+const _: &str = OUT;

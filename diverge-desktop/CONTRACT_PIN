@@ -1,0 +1,3 @@
+0b61674c23bc6a658ad4f3dae7f6afa628344556
+# The origin/p2p-provider-binary commit this app's seams were built against (2026-09-26 20:17, the diverge-sdk merge).
+# Every session: git fetch origin && git diff $(head -1 CONTRACT_PIN)..origin/p2p-provider-binary -- diverge-sdk-rs/src/daemon diverge-sdk-rs/src/provider/endpoints/volumes diverge-sdk-rs/src/shared

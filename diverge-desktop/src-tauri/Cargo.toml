@@ -1,0 +1,41 @@
+[package]
+name = "diverge-desktop"
+version = "0.1.0"
+edition = "2024"
+description = "The Diverge desktop app, draft two"
+publish = false
+
+[dependencies]
+# The seams. One crate for the wire, the daemon's endpoints and the
+# provider's: the daemon's own types for agents, the provider's own for
+# a machine's volumes and its tool rooms, and the caller half of each so
+# a `WireDaemon` and a `WireMachines` have nothing to add but themselves.
+# No features: every half compiles for every dependent.
+diverge-sdk = { path = "../../diverge-sdk-rs" }
+rmcp = { version = "3.1.2", default-features = false }
+
+tauri = { version = "2.10.3", features = [] }
+tokio = { version = "1.50.0", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+futures = "0.3.32"
+async-trait = "0.1.89"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+chrono = { version = "0.4.39", default-features = false, features = ["std", "serde", "clock"] }
+schemars = { version = "1.2.1", features = ["indexmap2"] }
+indexmap = { version = "2.14.0", features = ["serde"] }
+dirs = "6.0.0"
+# The stand-in daemon runs a logs request's `jq` the way the daemon
+# does (objectiveai-daemon/src/filesystem/jq.rs, same versions).
+jaq-core = "2.2.1"
+jaq-std = "2.1.2"
+jaq-json = { version = "1.1.3", features = ["serde_json"] }
+# Our view types write their own TypeScript: `cargo test` exports them.
+ts-rs = { version = "11", features = ["serde-json-impl"] }
+
+[build-dependencies]
+tauri-build = { version = "2.5.6", features = [] }
+
+[dev-dependencies]
+# Virtual time, so the preview snapshot can catch a run part-way through.
+tokio = { version = "1.50.0", features = ["full", "test-util"] }
