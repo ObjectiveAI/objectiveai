@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FileNode } from "../bindings/FileNode";
 import type { SpaceSummary } from "../bindings/SpaceSummary";
-import { bytes as fmtBytes } from "../lib/format";
+import { bytes as fmtBytes, spaceTitle } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
 import { Button, Empty, Icon } from "./ui";
@@ -18,6 +18,8 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
   const [newPath, setNewPath] = useState("");
   const [moveTo, setMoveTo] = useState("");
   const [moved, setMoved] = useState<string | null>(null);
+  const [exists, setExists] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState(false);
 
   const refresh = useCallback(async () => {
     const out = await api.tableTree(id);
@@ -50,8 +52,19 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
     }
   };
 
+  /** Whether a path is already on the table. */
+  const has = (path: string): boolean => {
+    const walk = (list: FileNode[], prefix: string): boolean => list.some((n) => `${prefix}${n.name}` === path || (n.kind === "directory" && walk(n.children ?? [], `${prefix}${n.name}/`)));
+    return walk(nodes ?? [], "");
+  };
+
   const create = async () => {
     const path = newPath.trim().replace(/^\/+/, "");
+    // Never wipe what's there: offer to open it instead.
+    if (has(path)) {
+      setExists(path);
+      return;
+    }
     const out = await api.tableWrite(id, path, "");
     if (out.outcome === "written") {
       setNewPath("");
@@ -60,8 +73,17 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
     } else setProblem(out.message);
   };
 
-  const copy = async () => {
+  const copy = async (replace = false) => {
     if (!file || !moveTo) return;
+    // Ask before replacing a file of the same name on the other table.
+    if (!replace) {
+      const there = await api.tableRead(moveTo, file.path);
+      if (there.outcome !== "error") {
+        setReplacing(true);
+        return;
+      }
+    }
+    setReplacing(false);
     const out = await api.tableTransfer(id, file.path, moveTo);
     setMoved(out.outcome === "written" ? t.spaces.copied2 : out.message);
   };
@@ -115,6 +137,12 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
         <div className="new-file">
           <input className="mono" value={newPath} placeholder={t.spaces.newFilePlaceholder} onChange={(e) => setNewPath(e.target.value)} spellCheck={false} />
           <Button small kind="quiet" onClick={create} disabled={!newPath.trim()}>{t.spaces.create}</Button>
+          {exists ? (
+            <span className="warn small">
+              {exists} {t.spaces.alreadyThere}{" "}
+              <button className="link small" onClick={() => { open(exists); setExists(null); setNewPath(""); }}>{t.spaces.openIt}</button>
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="table-file">
@@ -139,9 +167,16 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
               <footer className="table-copy">
                 <select value={moveTo} onChange={(e) => setMoveTo(e.target.value)} aria-label={t.spaces.copyTo}>
                   <option value="">{t.spaces.copyTo}…</option>
-                  {others.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
+                  {others.map((r) => <option key={r.id} value={r.id}>{spaceTitle(r)}</option>)}
                 </select>
-                <Button small kind="quiet" onClick={copy} disabled={!moveTo}>{t.spaces.copyTo.split(" ")[0]}</Button>
+                <Button small kind="quiet" onClick={() => copy()} disabled={!moveTo}>{t.spaces.copyTo.split(" ")[0]}</Button>
+                {replacing ? (
+                  <span className="warn small">
+                    {t.spaces.replaceThere}{" "}
+                    <Button small kind="danger" onClick={() => copy(true)}>{t.spaces.replaceIt}</Button>
+                    <Button small kind="quiet" onClick={() => setReplacing(false)}>{t.spaces.keepTheirs}</Button>
+                  </span>
+                ) : null}
                 {moved ? <span className={moved === t.spaces.copied2 ? "ok small" : "warn small"}>{moved}</span> : null}
               </footer>
             ) : null}

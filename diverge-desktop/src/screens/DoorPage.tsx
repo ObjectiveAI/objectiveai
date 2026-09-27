@@ -54,7 +54,7 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
         </div>
         {door.already_in ? <div className="banner banner-quiet">{t.door.alreadyIn}</div> : null}
 
-        <Section title={t.door.rules}>
+        <Section title={t.door.rules} note={`${t.door.rulesSetBy} ${door.host_name}. ${t.door.rulesKeep}`}>
           {door.charter.trim() ? <Markdown text={door.charter} /> : <p className="muted small">{t.door.noCharter}</p>}
         </Section>
         <Section title={t.door.verbsTitle} note={t.door.verbsNote}>

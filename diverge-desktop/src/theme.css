@@ -1,14 +1,31 @@
-/* Tokens — from the protocol site (diverge-provider-web/src/layouts/
-   Layout.astro on main, Maya's palette of 2026-09-14). Its own rules:
-   ink #fbeacd, links #ffb2ff, and gold #eba52a for ONE thing only —
-   where you are. The mark's plum #280022 stays the mark's; the ground is
-   that plum taken to near black, #11000e. Surfaces are tints of it,
-   never neutral greys: #22091d raised, #351d30 a rule. A note is #431723
-   with a pink edge. System fonts, 4px corners, dark, no glows.
+/* The theme: every colour the app uses, in one place. Nothing else in the
+   app names a colour; it names one of these roles. Copy this file, change
+   the values, and the whole app follows.
+
+   Where the colours come from: the protocol site (diverge-provider-web/src/
+   layouts/Layout.astro on main, Maya's palette of 2026-09-14). Its own rules:
+   ink #fbeacd, links #ffb2ff, and gold #eba52a for ONE thing only — where
+   you are. The mark's plum #280022 stays the mark's; the ground is that plum
+   taken to near black, #11000e. Surfaces are tints of it, never neutral
+   greys: #22091d raised, #351d30 a rule. A note is #431723 with a pink edge.
+   System fonts, 4px corners, dark, no glows.
+
+   The roles:
+     --bg, --rail          the ground everything sits on
+     --surface, -2, -3     raised things: cards, buttons, a hovered row
+     --line, --line-strong edges; a strong edge marks something you can press
+     --text, -2, -3        words, from most to least said
+     --accent, --on-accent the one action that goes ahead; words on it
+     --here                where you are, and nothing else
+     --warn, --warn-soft   something to know before you act
+     --ok, --bad (+ -soft) how something went; --bad-hover is a danger button under the mouse
+
+   The one rule every theme keeps: each pair of words-on-background the app
+   uses reads at 7:1 or better (WCAG AAA). src/theme.test.ts checks every pair,
+   so a theme that breaks it fails the build.
 
    Status colours (ok / bad) are NOT from the site — it never needed them.
-   They are the only invented values here, and Maya's to replace. Users
-   will set themes later, so nothing in the app names a colour directly. */
+   They are the only invented values here, and Maya's to replace. */
 
 :root {
   color-scheme: dark;
@@ -72,6 +89,7 @@
   --ok-soft: color-mix(in srgb, #9dd9ae 12%, var(--ground));
   --bad: #ff9a8f;
   --bad-soft: color-mix(in srgb, #ff9a8f 14%, var(--ground));
+  --bad-hover: color-mix(in srgb, #ff9a8f 88%, var(--ink));
 
   --focus: 0 0 0 2px color-mix(in srgb, var(--pink) 55%, transparent);
   --shadow: none;

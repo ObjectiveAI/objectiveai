@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ImageKindView } from "../bindings/ImageKindView";
 import type { MachineView } from "../bindings/MachineView";
-import { LiveMounts, MountRows, emptyDraft, inputsOf, newRow, type MountsDraft } from "../components/Mounts";
+import { LiveMounts, MountRows, emptyDraft, inputsOf, newRow, type MountsDraft, scratchMissing } from "../components/Mounts";
 import { SchemaForm, initial, missing, type Schema } from "../components/SchemaForm";
 import { Button, Field, Section, Segmented } from "../components/ui";
 import { useShared } from "../lib/context";
@@ -161,7 +161,7 @@ export function NewAgent(props: { tabKey: string }) {
 
         <div className="page-foot">
           {problem ? <span className="bad">{problem}</span> : null}
-          <Button kind="primary" onClick={create} disabled={!ready || busy}>{busy ? t.create.creating : t.create.create}</Button>
+          <Button kind="primary" onClick={create} disabled={!ready || busy || scratchMissing(mounts, machines) > 0}>{busy ? t.create.creating : t.create.create}</Button>
         </div>
       </div>
     </div>

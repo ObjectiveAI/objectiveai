@@ -11,16 +11,19 @@ import { SchemaForm, initial, missing, type Schema } from "../components/SchemaF
 import { Table } from "../components/Table";
 import { Button, Chip, Dot, Empty, Segmented } from "../components/ui";
 import { useShared } from "../lib/context";
-import { ago, providerName, time } from "../lib/format";
+import { ago, providerName, time, spaceTitle } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
 
 type Active = { tool: ToolView; values: Record<string, unknown> };
 
+/** The host's own tools: never raw forms. Letting in is at the door; the rest have their own places below. */
+const HOST_TOOLS = new Set(["admit", "remove", "set_charter", "vouch_room"]);
+
 /** Moves the room makes about itself: shown as quiet lines, not cards. */
 const SYSTEM = new Set(["admitted", "removed", "charter", "doorway"]);
 /** Fields the screen shows in its own way, or not at all. */
-const HIDDEN = new Set(["claimed_by_key", "statement", "thread", "poster_says", "doer_says", "key", "fingerprint", "from", "files", "agent", "take", "agree", "move", "offers", "to"]);
+const HIDDEN = new Set(["claimed_by_key", "statement", "thread", "poster_says", "doer_says", "key", "key_mark", "fingerprint", "from", "files", "agent", "take", "agree", "move", "offers", "to", "offer", "offered_by", "taken_offer", "also"]);
 
 export function Space(props: { id: string; tabKey: string }) {
   const { refreshSpaces, spaces, open } = useShared();
@@ -48,6 +51,9 @@ export function Space(props: { id: string; tabKey: string }) {
     else setProblem(out.message);
   };
   const [removing, setRemoving] = useState<string | null>(null);
+  const [sayIt, setSayIt] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [recommending, setRecommending] = useState<string | null>(null);
   const [moderation, setModeration] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -132,10 +138,33 @@ export function Space(props: { id: string; tabKey: string }) {
   };
 
   const remove = async (key: string) => {
-    const out = await api.spaceCall(props.id, "remove", { key });
+    const out = await api.spaceCall(props.id, "remove", { key, quiet: !sayIt });
     setRemoving(null);
-    setModeration(out.outcome === "ok" ? t.spaces.removedNote : out.message);
+    setSayIt(false);
+    setModeration(out.outcome === "ok" ? t.spaces.removedNote : wordsFor(out.message));
     load();
+  };
+
+  const saveRules = async () => {
+    if (editing === null) return;
+    const out = await api.spaceCall(props.id, "set_charter", { text: editing });
+    if (out.outcome === "ok") {
+      setEditing(null);
+      load();
+    } else setProblem(wordsFor(out.message));
+  };
+
+  /** Recommend one of the rooms you host: its invite goes on this room's list of rooms it vouches for. */
+  const recommend = async () => {
+    if (!recommending) return;
+    const inv = await api.spaceInvite(recommending);
+    const room = spaces.find((r) => r.id === recommending);
+    if (!inv || !room) return;
+    const out = await api.spaceCall(props.id, "vouch_room", { title: spaceTitle(room), invite: inv.text });
+    if (out.outcome === "ok") {
+      setRecommending(null);
+      setDoorways(await api.spacesDoorways(props.id));
+    } else setProblem(wordsFor(out.message));
   };
 
   const restart = async () => {
@@ -161,16 +190,18 @@ export function Space(props: { id: string; tabKey: string }) {
 
   if (!space) return problem ? <div className="banner banner-bad">{problem}</div> : <Empty title={t.spaces.title} />;
   const s = space.summary;
-  const verbs = space.tools.filter((x) => !x.host_only || s.mine);
+  const verbs = s.online ? space.tools.filter((x) => (!x.host_only || s.mine) && !HOST_TOOLS.has(x.name)) : [];
+  const recommendable = spaces.filter((r) => r.mine && r.id !== props.id && r.kind !== "dm");
+  const lastSeen = moves.reduce<string | null>((a, m) => (!a || m.at > a ? m.at : a), null);
   const incomplete = active ? missing(active.tool.schema as Schema, active.values) : [];
-  const myAgents = space.members.filter((m) => m.is_agent && m.agent_of === s.you_are);
+  const myAgents = space.members.filter((m) => m.is_agent && m.agent_of_key === s.you_key);
   const who = (m: { by: string; author: string }) => (m.by === s.you_key ? t.spaces.you : m.author);
 
   return (
     <div className="space">
       <header className="space-head">
         <div className="space-title">
-          <h1>{s.title}</h1>
+          <h1>{spaceTitle(s)}</h1>
           <Chip>{t.spaces.kinds[s.kind] ?? s.kind}</Chip>
           <span className="muted small">{s.mine ? t.spaces.youHostIt : `${t.spaces.hostedBy} ${s.host_name} · ${providerName(s.host)}`}</span>
           <Chip tone={s.online ? "ok" : "warn"}><Dot state={s.online ? "working" : "never"} /> {s.online ? t.spaces.online : t.spaces.offline}</Chip>
@@ -199,7 +230,9 @@ export function Space(props: { id: string; tabKey: string }) {
       {problem ? <div className="banner banner-bad">{problem}</div> : null}
       {!s.online ? (
         <div className="banner banner-warn">
-          <span>{t.spaces.quiet} {fromCopy ? t.spaces.fromCopy : ""} </span>
+          <span>
+            {t.spaces.quiet} {fromCopy && lastSeen ? `${t.spaces.copyAsOf} ${time(lastSeen)}.` : ""} {fromCopy ? t.spaces.fromCopy : ""}
+          </span>
           {fromCopy && !s.mine ? (
             <>
               <span className="muted small">{t.spaces.continueNote}</span>
@@ -256,13 +289,13 @@ export function Space(props: { id: string; tabKey: string }) {
             <p className="muted small">{t.spaces.verbsNote}</p>
             <div className="verb-buttons">
               {verbs.map((x) => (
-                <Button key={x.name} small kind={active?.tool.name === x.name ? "primary" : "plain"} onClick={() => begin(x)} title={x.description}>{x.title}</Button>
+                <Button key={x.name} small kind={active?.tool.name === x.name ? "primary" : "plain"} onClick={() => begin(x)} title={x.description}>{t.spaces.verbNames[x.name] ?? x.title}</Button>
               ))}
             </div>
             {active ? (
               <div className="verb-form">
                 <div className="verb-form-head">
-                  <strong>{active.tool.title}</strong>
+                  <strong>{t.spaces.verbNames[active.tool.name] ?? active.tool.title}</strong>
                   <span className="muted small">{active.tool.description}</span>
                 </div>
                 <SchemaForm key={active.tool.name} schema={active.tool.schema as Schema} value={active.values} onChange={(v) => setActive({ ...active, values: v as Record<string, unknown> })} />
@@ -275,6 +308,38 @@ export function Space(props: { id: string; tabKey: string }) {
             ) : null}
             {said ? <p className={said.startsWith(t.spaces.did) ? "ok small" : "warn small"}>{said}</p> : null}
           </section>
+          {s.mine && s.online ? (
+            <section>
+              <h2 className="list-head">{t.spaces.yourRoom}</h2>
+              <div className="row-actions">
+                <Button small kind="plain" onClick={() => setEditing(editing === null ? space.charter : null)}>{t.spaces.editRules}</Button>
+                {recommendable.length ? <Button small kind="plain" onClick={() => setRecommending(recommending ? null : recommendable[0].id)}>{t.spaces.recommendRoom}</Button> : null}
+              </div>
+              {editing !== null ? (
+                <div className="verb-form">
+                  <p className="muted small">{t.spaces.rulesNote}</p>
+                  <textarea className="rules-edit" rows={10} value={editing} onChange={(e) => setEditing(e.target.value)} />
+                  <RulesChange before={space.charter} after={editing} />
+                  <div className="row-actions">
+                    <Button kind="primary" onClick={saveRules} disabled={editing.trim() === space.charter.trim() || !editing.trim()}>{t.spaces.saveRules}</Button>
+                    <Button kind="quiet" onClick={() => setEditing(null)}>{t.common.cancel}</Button>
+                  </div>
+                </div>
+              ) : null}
+              {recommending ? (
+                <div className="verb-form">
+                  <p className="muted small">{t.spaces.recommendNote}</p>
+                  <select value={recommending} onChange={(e) => setRecommending(e.target.value)}>
+                    {recommendable.map((r) => <option key={r.id} value={r.id}>{spaceTitle(r)}</option>)}
+                  </select>
+                  <div className="row-actions">
+                    <Button kind="primary" onClick={recommend}>{t.spaces.recommendIt}</Button>
+                    <Button kind="quiet" onClick={() => setRecommending(null)}>{t.common.cancel}</Button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
           {myAgents.length ? (
             <section>
               <h2 className="list-head">{t.spaces.yourAgents}</h2>
@@ -283,12 +348,12 @@ export function Space(props: { id: string; tabKey: string }) {
             </section>
           ) : null}
           <section>
-            <h2 className="list-head">{space.members.length} {t.spaces.members}</h2>
+            <h2 className="list-head">{space.members.length} {s.online ? t.spaces.members : t.spaces.membersWhenSeen}</h2>
             <ul className="member-list">
               {space.members.map((m) => (
                 <li key={m.key || m.name} className="member">
                   <span>{m.key === s.you_key ? t.spaces.you : m.name}</span>
-                  {m.is_agent ? <Chip>{m.agent_of === s.you_are ? t.spaces.yourAgent : `${t.spaces.runBy} ${m.agent_of ?? "?"}`}</Chip> : null}
+                  {m.is_agent ? <Chip>{m.agent_of_key === s.you_key ? t.spaces.yourAgent : `${t.spaces.runBy} ${m.agent_of ?? "?"}`}</Chip> : null}
                   <span className="muted small">{m.last_acted ? `${t.spaces.lastActed} ${ago(m.last_acted)}` : ago(m.joined)}</span>
                   {m.key && m.key !== s.you_key && !m.is_agent && vouchRooms.length > 0 ? (
                     <button className="link small" onClick={() => setVouching({ key: m.key, name: m.name, room: vouchRooms[0].id })}>{t.spaces.vouch}</button>
@@ -298,7 +363,7 @@ export function Space(props: { id: string; tabKey: string }) {
                       <label className="muted small">
                         {t.spaces.vouchInto}{" "}
                         <select value={vouching.room} onChange={(e) => setVouching({ ...vouching, room: e.target.value })}>
-                          {vouchRooms.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
+                          {vouchRooms.map((r) => <option key={r.id} value={r.id}>{spaceTitle(r)}</option>)}
                         </select>
                       </label>
                       <Button small kind="primary" onClick={vouch}>{t.spaces.vouchMake}</Button>
@@ -333,12 +398,16 @@ export function Space(props: { id: string; tabKey: string }) {
                     <span>{a.name}</span>
                     {a.listed ? null : <Chip>{t.spaces.notListed}</Chip>}
                     {removing === a.key ? (
-                      <>
-                        <Button small kind="danger" onClick={() => remove(a.key)}>{t.spaces.removeConfirm}</Button>
+                      <div className="remove-confirm">
+                        <label className="switch small">
+                          <input type="checkbox" checked={sayIt} onChange={(e) => setSayIt(e.target.checked)} />
+                          <span>{t.spaces.sayItInRoom}</span>
+                        </label>
+                        <Button small kind="danger" onClick={() => remove(a.key)}>{t.spaces.removeConfirm} {a.name}</Button>
                         <Button small kind="quiet" onClick={() => setRemoving(null)}>{t.spaces.keep}</Button>
-                      </>
+                      </div>
                     ) : (
-                      <button className="link small" onClick={() => setRemoving(a.key)}>{t.spaces.remove}</button>
+                      <button className="link small" onClick={() => setRemoving(a.key)}>{t.spaces.remove} {a.name}</button>
                     )}
                   </li>
                 ))}
@@ -360,6 +429,7 @@ export function Space(props: { id: string; tabKey: string }) {
           ) : null}
           <details className="charter">
             <summary className="list-head">{t.spaces.charter}</summary>
+            <p className="muted small">{s.mine ? t.spaces.rulesYours : `${t.spaces.rulesSetBy} ${s.host_name}. ${t.spaces.rulesKeep}`}</p>
             <Markdown text={space.charter} />
           </details>
         </aside>
@@ -405,7 +475,7 @@ function SystemLine(props: { move: MoveView; you: string }) {
   const m = props.move;
   const who = m.by === props.you ? t.spaces.you : m.author;
   const text =
-    m.kind === "admitted" ? `${who} ${t.spaces.admitted} ${m.title}` : m.kind === "removed" ? `${m.title} ${t.spaces.removedLine}` : m.kind === "charter" ? t.spaces.rulesChanged : `${who} ${t.spaces.vouchesFor}: ${m.title}`;
+    m.kind === "admitted" ? ((m.fields as Record<string, unknown>).key === props.you ? `${who} ${t.spaces.letYouIn}` : `${who} ${t.spaces.admitted} ${m.title}`) : m.kind === "removed" ? `${m.title} ${t.spaces.removedLine}` : m.kind === "charter" ? t.spaces.rulesChanged : `${who} ${t.spaces.vouchesFor}: ${m.title}`;
   return (
     <div className="system-line muted small">
       {text} · {time(m.at)}
@@ -504,4 +574,25 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
       ) : null}
     </article>
   );
+}
+
+/** What a change to the rules does: lines added and taken away, before anyone else sees it. */
+function RulesChange(props: { before: string; after: string }) {
+  const was = props.before.split("\n");
+  const now = props.after.split("\n");
+  const gone = was.filter((l) => l.trim() && !now.includes(l));
+  const added = now.filter((l) => l.trim() && !was.includes(l));
+  if (!gone.length && !added.length) return <p className="muted small">{t.spaces.rulesSame}</p>;
+  return (
+    <div className="rules-change small">
+      {gone.map((l, i) => <div key={`g${i}`} className="rules-gone">− {l}</div>)}
+      {added.map((l, i) => <div key={`a${i}`} className="rules-added">+ {l}</div>)}
+    </div>
+  );
+}
+
+/** A room's refusal, in the screen's words where we know it. */
+function wordsFor(message: string): string {
+  for (const [pattern, words] of t.spaces.refusals) if (message.includes(pattern)) return words;
+  return message;
 }

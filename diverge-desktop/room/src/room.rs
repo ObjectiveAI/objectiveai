@@ -540,7 +540,12 @@ impl Room {
             }),
             &["key", "name"],
         )));
-        tools.push(host_only(verb("remove", "Remove someone: the room refuses their calls from now on.", json!({ "key": { "type": "string" }, "reason": { "type": "string" } }), &["key"])));
+        tools.push(host_only(verb(
+            "remove",
+            "Remove someone: the room refuses their calls from now on.",
+            json!({ "key": { "type": "string" }, "reason": { "type": "string" }, "quiet": { "type": "boolean", "description": "Leave it off the room's feed. The record keeps it." } }),
+            &["key"],
+        )));
         tools.push(host_only(verb("set_charter", "Change the room's rules. Moves keep the version they were made under.", json!({ "text": { "type": "string" } }), &["text"])));
         if kind != Kind::Dm {
             tools.push(host_only(verb("vouch_room", "List a room this one vouches for, with an invite to it.", json!({ "title": { "type": "string" }, "invite": { "type": "string" } }), &["title", "invite"])));
@@ -570,8 +575,10 @@ impl Room {
     pub fn read(&self, uri: &str) -> Result<ReadResourceResult, ErrorData> {
         let (text, mime) = match uri {
             FEED => {
-                // Someone who asked not to be listed isn't announced; the record still holds it.
-                let shown = |m: &&Move| !(m.kind == "admitted" && m.args.get("listed").and_then(Value::as_bool) == Some(false));
+                // Someone who asked not to be listed isn't announced, nor a removal the host kept quiet; the record holds both.
+                let shown = |m: &&Move| {
+                    !(m.kind == "admitted" && m.args.get("listed").and_then(Value::as_bool) == Some(false)) && !(m.kind == "removed" && m.args.get("quiet").and_then(Value::as_bool) == Some(true))
+                };
                 // The room it continues, as that room had it: a task finished there reads finished here.
                 let history: Vec<Value> = match &self.old {
                     Some(old) => old.moves.iter().filter(shown).map(|m| old.served(m, Some(&old.args.title))).collect(),
@@ -588,7 +595,7 @@ impl Room {
                     .filter(|m| m.listed && !m.removed && m.agent_of.as_ref().is_none_or(|p| self.members.get(p).is_some_and(|o| o.listed)))
                     .map(|m| {
                         let last = self.moves.iter().rev().find(|x| x.by == m.key).map(|x| x.at);
-                        json!({ "name": m.name, "key": m.key, "is_agent": m.is_agent, "agent_of": m.agent_of_name, "joined": m.joined, "last_acted": last })
+                        json!({ "name": m.name, "key": m.key, "is_agent": m.is_agent, "agent_of": m.agent_of_name, "agent_of_key": m.agent_of, "joined": m.joined, "last_acted": last })
                     })
                     .collect();
                 (serde_json::to_string(&listed).unwrap_or_default(), "application/json")

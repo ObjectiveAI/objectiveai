@@ -1,5 +1,5 @@
 import { useShared } from "../lib/context";
-import { kindTitle, providerName } from "../lib/format";
+import { kindTitle, providerName, spaceTitle } from "../lib/format";
 import { t } from "../strings";
 import wordmark from "../assets/wordmark.svg";
 import { Dot, Icon } from "./ui";
@@ -60,13 +60,13 @@ export function Rail(props: { focused: string | null }) {
             <li key={s.id}>
               <button className={`rail-item${item(`space:${s.id}`)}`} onClick={() => open({ kind: "space", id: s.id })} title={s.mine ? t.spaces.youHostIt : `${t.spaces.hostedBy} ${providerName(s.host)}`}>
                 <Dot state={s.online ? "idle" : "never"} />
-                <span className="rail-item-name">{s.title}</span>
+                <span className="rail-item-name">{spaceTitle(s)}</span>
                 <span className="rail-item-kind">{t.spaces.kinds[s.kind] ?? s.kind}</span>
               </button>
             </li>
           ))}
         </ul>
-        <button className={`rail-new${item("spaces")}`} onClick={() => open({ kind: "spaces" })}>
+        <button className={`rail-item rail-all${item("spaces")}`} onClick={() => open({ kind: "spaces" })}>
           <Icon name="view" /> {t.rail.allSpaces}
           {knocks.length ? <span className="rail-count" title={t.spaces.door}>{knocks.length} {t.rail.atTheDoor}</span> : null}
         </button>

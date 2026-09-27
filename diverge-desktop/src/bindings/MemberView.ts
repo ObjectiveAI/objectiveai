@@ -3,4 +3,8 @@
 /**
  * Someone on a room's list: only those who chose to be.
  */
-export type MemberView = { name: string, key: string, is_agent: boolean, agent_of: string | null, joined: string, last_acted: string | null, };
+export type MemberView = { name: string, key: string, is_agent: boolean, agent_of: string | null, 
+/**
+ * For an agent: its person's key. Agents are told apart by key, never by name.
+ */
+agent_of_key: string | null, joined: string, last_acted: string | null, };

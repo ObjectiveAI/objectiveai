@@ -2,7 +2,7 @@ import { useState } from "react";
 import { KnockCard } from "../components/Knock";
 import { Button, Chip, Dot, Field, Section, Segmented } from "../components/ui";
 import { useShared } from "../lib/context";
-import { providerName } from "../lib/format";
+import { providerName, spaceTitle } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
 
@@ -30,7 +30,7 @@ export function Spaces() {
     <li key={s.id}>
       <button className="space-row" onClick={() => open({ kind: "space", id: s.id })}>
         <Dot state={s.online ? "idle" : "never"} />
-        <span className="space-row-title">{s.title}</span>
+        <span className="space-row-title">{spaceTitle(s)}</span>
         <Chip>{t.spaces.kinds[s.kind] ?? s.kind}</Chip>
         <span className="muted small">{s.mine ? t.spaces.youHostIt : `${t.spaces.hostedBy} ${s.host_name} · ${providerName(s.host)}`}{s.online ? "" : ` · ${t.spaces.offline}`}{s.fresh ? ` · ${t.spaces.youAreHere} ${s.you_are}` : ""}</span>
       </button>

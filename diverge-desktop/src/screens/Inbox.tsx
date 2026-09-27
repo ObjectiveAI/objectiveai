@@ -5,7 +5,7 @@ import type { PersonView } from "../bindings/PersonView";
 import { Markdown } from "../components/Markdown";
 import { Button, Chip, Dot, Empty } from "../components/ui";
 import { useShared } from "../lib/context";
-import { ago, kindTitle, time } from "../lib/format";
+import { ago, kindTitle, time, dmWith } from "../lib/format";
 import { api } from "../lib/ipc";
 import { Conversation } from "./Conversation";
 import { KnockCard } from "../components/Knock";
@@ -36,13 +36,13 @@ export function Inbox() {
   const threads: Thread[] = useMemo(() => {
     const list: Thread[] = [
       ...agents.map((a) => ({ key: `agent:${a.name}`, kind: "agent" as const, name: a.name, id: a.name, at: a.last_active, sub: kindTitle(a.image_name) })),
-      ...spaces.filter((s) => s.kind === "dm").map((s) => ({ key: `dm:${s.id}`, kind: "dm" as const, name: s.title, id: s.id, at: dmLast[s.id]?.at ?? null, sub: dmLast[s.id]?.body ?? "" })),
+      ...spaces.filter((s) => s.kind === "dm").map((s) => ({ key: `dm:${s.id}`, kind: "dm" as const, name: dmWith(s), id: s.id, at: dmLast[s.id]?.at ?? null, sub: dmLast[s.id]?.body ?? "" })),
     ];
     return list.sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""));
   }, [agents, spaces, dmLast]);
 
   const startDm = async (p: PersonView) => {
-    const existing = spaces.find((s) => s.kind === "dm" && s.title === p.name);
+    const existing = spaces.find((s) => s.kind === "dm" && dmWith(s) === p.name);
     if (existing) {
       setSelected(`dm:${existing.id}`);
       setPicking(false);

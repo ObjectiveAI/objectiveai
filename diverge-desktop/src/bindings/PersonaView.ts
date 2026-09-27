@@ -3,4 +3,8 @@
 /**
  * One of your personas, and the rooms you're it in.
  */
-export type PersonaView = { id: string, name: string, usual: boolean, rooms: Array<string>, };
+export type PersonaView = { id: string, name: string, usual: boolean, 
+/**
+ * The rooms you're this name in, by id: the screen names them.
+ */
+rooms: Array<string>, };

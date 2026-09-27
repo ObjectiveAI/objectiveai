@@ -4,7 +4,7 @@ import type { ProfileView } from "../bindings/ProfileView";
 import { Markdown } from "../components/Markdown";
 import { Button, Chip, Empty, Section } from "../components/ui";
 import { useShared } from "../lib/context";
-import { ago, bytes, kindTitle, providerName, providerWay, time } from "../lib/format";
+import { ago, bytes, kindTitle, providerName, providerWay, time, spaceTitle } from "../lib/format";
 import { api } from "../lib/ipc";
 import { t } from "../strings";
 
@@ -128,6 +128,7 @@ export function Profile() {
 }
 
 function PersonaRow(props: { id: string; name: string; usual: boolean; rooms: string[]; onChanged: () => void }) {
+  const { spaces } = useShared();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(props.name);
   return (
@@ -144,7 +145,7 @@ function PersonaRow(props: { id: string; name: string; usual: boolean; rooms: st
           <button className="link small" onClick={() => setEditing(true)}>{t.profile.rename}</button>
         </>
       )}
-      <span className="muted small">{props.rooms.length ? `${t.profile.inRooms} ${props.rooms.join(", ")}` : t.profile.noRooms}</span>
+      <span className="muted small">{props.rooms.length ? `${t.profile.inRooms} ${props.rooms.map((id) => { const r = spaces.find((x) => x.id === id); return r ? spaceTitle(r) : id; }).join(", ")}` : t.profile.noRooms}</span>
     </li>
   );
 }

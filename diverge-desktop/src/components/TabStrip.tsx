@@ -1,3 +1,4 @@
+import { spaceTitle as nameOf } from "../lib/format";
 import type { TabKind } from "../bindings/TabKind";
 import type { TabsSnapshot } from "../bindings/TabsSnapshot";
 import { useShared } from "../lib/context";
@@ -49,7 +50,7 @@ function spaceTitle(id: string): string {
 
 export function TabStrip(props: { snapshot: TabsSnapshot; onFocus: (key: string) => void; onClose: (key: string) => void }) {
   const { agents, spaces } = useShared();
-  spaceTitles = Object.fromEntries(spaces.map((s) => [s.id, s.title]));
+  spaceTitles = Object.fromEntries(spaces.map((s) => [s.id, nameOf(s)]));
   return (
     <div className="strip" role="tablist">
       {props.snapshot.tabs.map(({ key, tab }) => {

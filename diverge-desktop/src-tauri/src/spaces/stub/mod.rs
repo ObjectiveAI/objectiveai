@@ -67,6 +67,31 @@ struct Hosted {
     stand_in_host: Option<String>,
 }
 
+/// What the stand-in keeps between launches: each room's whole record and
+/// its key, and who is at the door. At launch the rooms are rebuilt by
+/// replaying their records, as a real host restarts a room.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Saved {
+    rooms: Vec<SavedRoom>,
+    labels: HashMap<String, String>,
+    pending: Vec<Knock>,
+    next_knock: u64,
+    open_task: Option<String>,
+    board: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SavedRoom {
+    record: Record,
+    room_secret: String,
+    provider: Identity,
+    online: bool,
+    secret: String,
+    mine: bool,
+    joined: bool,
+    stand_in_host: Option<String>,
+}
+
 struct Inner {
     rooms: IndexMap<String, Hosted>,
     pending: Vec<Knock>,
@@ -168,8 +193,82 @@ impl StubSpaces {
             calls_live,
             tables,
         };
-        s.seed();
+        // What happened in the rooms last time, if anything did; the stand-in's own past otherwise.
+        if !s.restore() {
+            s.seed();
+            s.persist();
+        }
         s
+    }
+
+    fn saved_file(&self) -> PathBuf {
+        self.tables.join(".stand-in-rooms.json")
+    }
+
+    /// Keep every room as it stands now: after anything changes.
+    fn persist(&self) {
+        let inner = self.lock();
+        let saved = Saved {
+            rooms: inner
+                .rooms
+                .values()
+                .map(|h| SavedRoom {
+                    record: h.room.record(),
+                    room_secret: h.room_key.secret_hex(),
+                    provider: h.provider.clone(),
+                    online: h.online,
+                    secret: h.secret.clone(),
+                    mine: h.mine,
+                    joined: h.joined,
+                    stand_in_host: h.stand_in_host.clone(),
+                })
+                .collect(),
+            labels: inner.labels.clone(),
+            pending: inner.pending.clone(),
+            next_knock: inner.next_knock,
+            open_task: OPEN_TASK.get().cloned(),
+            board: BOARD_ID.get().cloned(),
+        };
+        drop(inner);
+        let file = self.saved_file();
+        let tmp = file.with_extension("json.tmp");
+        let _ = std::fs::create_dir_all(&self.tables);
+        if let Ok(json) = serde_json::to_vec(&saved) {
+            if std::fs::write(&tmp, json).is_ok() {
+                let _ = std::fs::rename(&tmp, &file);
+            }
+        }
+    }
+
+    /// Rebuild the rooms from what was kept, every record replayed. Anything
+    /// that doesn't check means starting again from the stand-in's past.
+    fn restore(&self) -> bool {
+        let Some(saved) = std::fs::read_to_string(self.saved_file()).ok().and_then(|s| serde_json::from_str::<Saved>(&s).ok()) else { return false };
+        let mut rooms = IndexMap::new();
+        for r in saved.rooms {
+            let Ok(key) = Keypair::from_secret_hex(&r.room_secret) else { return false };
+            let Ok(room) = Room::from_record(r.record, Some(key.clone())) else { return false };
+            let id = room.id().to_owned();
+            rooms.insert(id, Hosted { room, room_key: key, provider: r.provider, online: r.online, secret: r.secret, mine: r.mine, joined: r.joined, stand_in_host: r.stand_in_host });
+        }
+        let mut inner = self.lock();
+        // The invented people carry on counting from where their seals got to.
+        for person in inner.people.values_mut() {
+            let key = person.keypair.key();
+            person.counter = rooms.values().flat_map(|h| h.room.moves().iter()).filter(|m| m.by == key).map(|m| m.seal.counter).max().unwrap_or(0);
+        }
+        inner.rooms = rooms;
+        inner.labels = saved.labels;
+        inner.pending = saved.pending;
+        inner.next_knock = saved.next_knock;
+        drop(inner);
+        if let Some(t) = saved.open_task {
+            let _ = OPEN_TASK.set(t);
+        }
+        if let Some(b) = saved.board {
+            let _ = BOARD_ID.set(b);
+        }
+        true
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
@@ -204,8 +303,12 @@ impl StubSpaces {
 
     /// Someone invented, acting now: for the stand-in's own scenes and tests.
     pub fn act_now(&self, who: &str, room: &str, verb: &str, args: Value) -> Result<String, String> {
-        let mut inner = self.lock();
-        self.act(&mut inner, who, room, verb, args, Utc::now())
+        let out = {
+            let mut inner = self.lock();
+            self.act(&mut inner, who, room, verb, args, Utc::now())
+        };
+        self.persist();
+        out
     }
 
     /// You (or one of your agents) acting in a room, in the stand-in's history.
@@ -427,6 +530,8 @@ impl StubSpaces {
             if inner.rooms.get(&id).is_some_and(|h| h.room.member(&ada).is_some_and(|m| !m.removed)) {
                 let _ = this.act(&mut inner, "ada", &id, "offer", json!({ "ask_id": ask, "body": "I can look at that tomorrow. Say a bit more about what done looks like?" }), Utc::now());
             }
+            drop(inner);
+            this.persist();
         });
     }
 
@@ -468,6 +573,8 @@ impl StubSpaces {
                 if let Some(h) = inner.rooms.get_mut(id) {
                     h.joined = true;
                 }
+                drop(inner);
+                self.persist();
                 Joined::Joined(Id { id: id.into() })
             }
             Err(e) => Joined::Error(wire_error(e)),
@@ -537,6 +644,8 @@ impl Spaces for StubSpaces {
         let secret = diverge_desktop_room::fresh_label();
         inner.rooms.insert(id.clone(), Hosted { room, room_key, provider: mine(), online: true, secret, mine: true, joined: true, stand_in_host: None });
         let _ = std::fs::create_dir_all(self.table_dir(&id));
+        drop(inner);
+        self.persist();
         Ok(Id { id })
     }
 
@@ -569,9 +678,13 @@ impl Spaces for StubSpaces {
     }
 
     async fn answer(&self, knock_id: u64, _answer: Answer) -> Result<Knock, String> {
-        let mut inner = self.lock();
-        let at = inner.pending.iter().position(|k| k.knock_id == knock_id).ok_or("nobody is at that door any more")?;
-        Ok(inner.pending.remove(at))
+        let knock = {
+            let mut inner = self.lock();
+            let at = inner.pending.iter().position(|k| k.knock_id == knock_id).ok_or("nobody is at that door any more")?;
+            inner.pending.remove(at)
+        };
+        self.persist();
+        Ok(knock)
     }
 
     async fn join(&self, invite: &Invite, knocking: &Knocking) -> Joined {
@@ -601,6 +714,8 @@ impl Spaces for StubSpaces {
         } else {
             h.joined = false;
         }
+        drop(inner);
+        self.persist();
         Ok(())
     }
 
@@ -636,6 +751,7 @@ impl Spaces for StubSpaces {
             let last = inner.rooms.get(&id.id).and_then(|h| h.room.moves().last().map(|m| m.id.clone()));
             (result, last)
         };
+        self.persist();
         if verb == "ask" && caller.as_deref() != Some(self.stand_in_key("ada").as_str()) {
             if let Some(ask) = last {
                 self.ada_replies(id.id.clone(), ask);
@@ -733,6 +849,8 @@ impl Spaces for StubSpaces {
         if let Some(h) = inner.rooms.get_mut(&id.id) {
             h.room = room;
         }
+        drop(inner);
+        self.persist();
         Ok(())
     }
 
@@ -886,6 +1004,22 @@ mod tests {
         assert!(!crate::spaces::vouch_holds(&v, &w.key, &home, now), "the vouch names the workshop");
         assert!(!crate::spaces::vouch_holds(&v, &spaces.stand_in_key("ada"), &board, now), "and ren");
         assert!(!crate::spaces::vouch_holds(&v, &w.key, &board, now + TimeDelta::days(8)), "and runs out");
+    }
+
+    #[tokio::test]
+    async fn what_happened_in_the_rooms_is_there_next_launch() {
+        let me = Arc::new(Keys::stand_in("maya"));
+        let tables = std::env::temp_dir().join(format!("diverge-desktop-relaunch-{}-{}", std::process::id(), Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        let first = StubSpaces::new(me.clone(), tables.clone());
+        let board = board();
+        first.act_now("ada", &board, "show", json!({ "title": "a shelf I built" })).unwrap();
+        let before = feed(&first, &board);
+        drop(first);
+        let again = StubSpaces::new(me.clone(), tables.clone());
+        assert_eq!(feed(&again, &board), before, "the same room, replayed from its record");
+        again.act_now("ada", &board, "show", json!({ "title": "and a stool" })).unwrap();
+        assert!(feed(&again, &board).iter().any(|m| m["title"] == "and a stool"), "ada's counter carries on");
+        let _ = std::fs::remove_dir_all(&tables);
     }
 
     #[tokio::test]

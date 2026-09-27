@@ -58,7 +58,7 @@ pub struct SpaceEntry {
 
 /// Someone at the door of a room this app hosts: what the provider
 /// observed (the address) and what they wrote (the authorization).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Knock {
     pub knock_id: u64,
     pub space: Id,

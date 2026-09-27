@@ -57,3 +57,15 @@ export function bytes(n: number): string {
 export function number(n: number): string {
   return n.toLocaleString();
 }
+
+/** A room as the screen names it: your profile is "Your profile", a direct room is "You and ada". */
+export function spaceTitle(s: { kind: string; title: string; mine: boolean; host_name: string }): string {
+  if (s.kind === "profile") return s.mine ? t.spaces.yourProfile : `${s.host_name}${t.spaces.profileOf}`;
+  if (s.kind === "dm") return `${t.spaces.youAnd} ${dmWith(s)}`;
+  return s.title;
+}
+
+/** Who a direct room is with: its title when you host it, its host when they do. */
+export function dmWith(s: { title: string; mine: boolean; host_name: string }): string {
+  return s.mine ? s.title : s.host_name;
+}

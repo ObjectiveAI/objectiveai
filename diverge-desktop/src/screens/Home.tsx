@@ -4,7 +4,7 @@ import type { HomeMove } from "../bindings/HomeMove";
 import { Markdown } from "../components/Markdown";
 import { Button, Chip, Dot } from "../components/ui";
 import { useShared } from "../lib/context";
-import { ago, kindTitle, providerName, time } from "../lib/format";
+import { ago, kindTitle, providerName, time, spaceTitle } from "../lib/format";
 import { api } from "../lib/ipc";
 import { KnockCard } from "../components/Knock";
 import { t } from "../strings";
@@ -29,11 +29,32 @@ export function Home() {
   const askable = spaces.filter((x) => ["home", "board", "idea"].includes(x.kind) && x.online);
 
   const load = useCallback(async () => setFeed(await api.homeFeed()), []);
+  // Home follows each reachable room's own updates, and reads again when one says it changed;
+  // a slow clock covers rooms that come and go.
+  const reachable = spaces.filter((x) => x.online).map((x) => x.id).join(",");
   useEffect(() => {
     load();
-    const timer = setInterval(load, 4000);
-    return () => clearInterval(timer);
-  }, [load]);
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const soon = () => {
+      if (pending) return;
+      pending = setTimeout(() => {
+        pending = null;
+        load();
+      }, 300);
+    };
+    let closed = false;
+    const scopes: string[] = [];
+    for (const id of reachable ? reachable.split(",") : []) {
+      api.spaceWatch(id, (e) => { if (e.event === "updated") soon(); }).then((s) => { if (closed) api.scopeClose(s); else scopes.push(s); }).catch(() => {});
+    }
+    const timer = setInterval(load, 30000);
+    return () => {
+      closed = true;
+      clearInterval(timer);
+      if (pending) clearTimeout(pending);
+      scopes.forEach((s) => api.scopeClose(s));
+    };
+  }, [load, reachable]);
 
   const post = async (verb: "show" | "ask") => {
     const text = draft.trim();
@@ -86,7 +107,7 @@ export function Home() {
                 {askable.map((x) => (
                   <label key={x.id} className="switch">
                     <input type="checkbox" checked={askTo.has(x.id)} onChange={(e) => setAskTo((cur) => { const next = new Set(cur); if (e.target.checked) next.add(x.id); else next.delete(x.id); return next; })} />
-                    <span>{x.title}</span>
+                    <span>{spaceTitle(x)}</span>
                   </label>
                 ))}
                 <Button small kind="primary" onClick={sendAsk} disabled={askTo.size === 0 || !draft.trim()}>{t.home.askSend} {askTo.size} {askTo.size === 1 ? t.home.room : t.home.rooms}</Button>
@@ -168,7 +189,7 @@ function FeedCard({ item, onOpen }: { item: HomeMove; onOpen: () => void }) {
         {kind ? <span className="move-kind">{kind}</span> : null}
         <span className="move-who">{who}</span>
         <span className="muted small">{t.home.in}</span>
-        <button className="space-chip" onClick={onOpen}>{space.title}</button>
+        <button className="space-chip" onClick={onOpen}>{spaceTitle(space)}</button>
         <span className="muted small">{time(m.at)}</span>
         {state ? <Chip tone={m.state === "done" || m.state === "issued" ? "ok" : m.state === "open" ? "accent" : "plain"}>{state}</Chip> : null}
       </header>
@@ -251,7 +272,7 @@ function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onO
               {th.places.map((p) => (
                 <li key={p.space.id}>
                   <span>
-                    <button className="space-chip" onClick={() => props.onOpen(p.space.id)}>{p.space.title}</button>{" "}
+                    <button className="space-chip" onClick={() => props.onOpen(p.space.id)}>{spaceTitle(p.space)}</button>{" "}
                     <span className="muted small">
                       {[p.offers.length ? count(p.offers.length, t.home.offer, t.home.offersWord) : null, p.replies.length ? count(p.replies.length, t.home.reply, t.home.replies) : null].filter(Boolean).join(" · ") || t.home.nothingYet}
                     </span>
@@ -266,7 +287,7 @@ function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onO
                 </li>
               ))}
             </ul>
-            {!answered && open && elsewhere.length ? <p className="muted small">{t.home.alsoAsk} {elsewhere.map((r) => r.title).join(", ")}.</p> : null}
+            {!answered && open && elsewhere.length ? <p className="muted small">{t.home.alsoAsk} {elsewhere.map((r) => spaceTitle(r)).join(", ")}.</p> : null}
           </article>
         );
       })}
@@ -281,7 +302,7 @@ function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onO
           </header>
           <h3 className="move-title">{th.what}</h3>
           <div className="row-actions">
-            {th.places.map((p) => <button key={p.space.id} className="space-chip" onClick={() => props.onOpen(p.space.id)}>{p.space.title}</button>)}
+            {th.places.map((p) => <button key={p.space.id} className="space-chip" onClick={() => props.onOpen(p.space.id)}>{spaceTitle(p.space)}</button>)}
           </div>
         </article>
       ))}

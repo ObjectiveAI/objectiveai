@@ -902,6 +902,9 @@ pub struct MemberView {
     pub is_agent: bool,
     #[serde(default)]
     pub agent_of: Option<String>,
+    /// For an agent: its person's key. Agents are told apart by key, never by name.
+    #[serde(default)]
+    pub agent_of_key: Option<String>,
     pub joined: String,
     #[serde(default)]
     pub last_acted: Option<String>,
@@ -1068,6 +1071,7 @@ pub struct PersonaView {
     pub id: String,
     pub name: String,
     pub usual: bool,
+    /// The rooms you're this name in, by id: the screen names them.
     pub rooms: Vec<String>,
 }
 

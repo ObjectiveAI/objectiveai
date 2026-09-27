@@ -509,7 +509,7 @@ fn personas(state: &AppState, entries: &[spaces::SpaceEntry]) -> Vec<PersonaView
         .personas()
         .into_iter()
         .map(|p| {
-            let rooms = entries.iter().filter(|e| state.identity.in_room(&e.id.id).map(|q| q.id == p.id).unwrap_or(p.usual)).map(|e| e.title.clone()).collect();
+            let rooms = entries.iter().filter(|e| state.identity.in_room(&e.id.id).map(|q| q.id == p.id).unwrap_or(p.usual)).map(|e| e.id.id.clone()).collect();
             PersonaView { id: p.id, name: p.name, usual: p.usual, rooms }
         })
         .collect()
@@ -597,8 +597,16 @@ pub async fn spaces_get(state: State<'_, AppState>, id: String) -> Result<SpaceV
     let entry = entries.iter().find(|e| e.id.id == id).ok_or("no such Space")?;
     let sid = space_id(&id);
     let tools = state.spaces.tools(&sid).await.map_err(|e| e.message.to_string())?;
-    let members: Vec<MemberView> = read_json(&state, &sid, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
-    let charter = read_text(&state, &sid, diverge_desktop_room::room::CHARTER).await.unwrap_or_default();
+    let mut members: Vec<MemberView> = read_json(&state, &sid, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
+    let mut charter = read_text(&state, &sid, diverge_desktop_room::room::CHARTER).await.unwrap_or_default();
+    // Unreachable: who was here and the rules, as your copy has them.
+    if !entry.online {
+        if let Some(room) = copy_room(&state, &id) {
+            let text = |uri: &str| room.read(uri).ok().and_then(|r| r.contents.into_iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text), _ => None }));
+            members = text(diverge_desktop_room::room::MEMBERS).and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+            charter = room.charter().to_owned();
+        }
+    }
     let before = if entry.mine { people_from_before(&state, &sid, &entries, &members).await } else { Vec::new() };
     Ok(SpaceView { summary: summary(entry, &state.identity), charter, members, tools: tools.tools.iter().map(Into::into).collect(), before })
 }

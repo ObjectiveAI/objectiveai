@@ -95,4 +95,4 @@ came from them. Seed content is invented and everyday.
 ## Browser preview (reviews, cloud sessions — no Mac window needed)
 `pnpm dev` and open http://localhost:1430 in any browser. Outside Tauri the page plays back
 `src/preview/fixture.json`, a snapshot of what the stand-in daemon says (regenerate with
-`cargo test -p diverge-desktop export_preview_fixture`). Nothing runs there; the rail says so.
+`DIVERGE_EXPORT_PREVIEW=1 cargo test -p diverge-desktop export_preview_fixture`; a plain `cargo test` leaves it alone). Nothing runs there; the rail says so.

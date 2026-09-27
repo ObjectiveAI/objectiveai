@@ -11,7 +11,10 @@ import { t } from "../strings";
 import { Button, Field } from "./ui";
 
 /** One mount as a form holds it. `machine` is an identity key; a pinned machine's own rows ignore it. */
-export type MountRow = { machine: string; volume: string; inVolume: string; to: string };
+export type MountRow = { machine: string; volume: string; inVolume: string; to: string; scratch?: string };
+
+/** Scratch space a fresh-each-run volume can have when served live: the person picks; nothing is picked for them. */
+export const SCRATCH_SIZES = [1, 4, 16].map((gb) => gb * 1024 ** 3);
 /** The daemon's three lists: the pinned machine's own volumes, live folders, live files. */
 export type MountsDraft = { own: MountRow[]; folders: MountRow[]; files: MountRow[] };
 
@@ -20,7 +23,7 @@ export const emptyDraft = (): MountsDraft => ({ own: [], folders: [], files: [] 
 const slash = (path: string) => path.trim().replace(/^\/+/, "");
 
 export function draftOf(view: MountsView): MountsDraft {
-  const row = (m: MountView): MountRow => ({ machine: m.provider ? identityKey(m.provider) : "", volume: m.volume_name, inVolume: m.volume_relative_path, to: m.container_path });
+  const row = (m: MountView): MountRow => ({ machine: m.provider ? identityKey(m.provider) : "", volume: m.volume_name, inVolume: m.volume_relative_path, to: m.container_path, scratch: m.overlay_disk ? String(m.overlay_disk) : "" });
   return { own: view.volume_mounts.map(row), folders: view.fuse_directory_mounts.map(row), files: view.fuse_file_mounts.map(row) };
 }
 
@@ -38,10 +41,17 @@ export function inputsOf(draft: MountsDraft, machines: MachineView[], pinned: Pr
       .map((r) => {
         const m = byKey.get(r.machine)!;
         const volumeMode = mode(m, r.volume);
-        // A volume that starts fresh each run is served on a layer of its own; the wire wants its size.
-        return { provider: m.identity, volume_name: r.volume, volume_relative_path: slash(r.inVolume), volume_mode: volumeMode, overlay_disk: volumeMode === "ephemeral" ? 1024 ** 3 : null, container_path: slash(r.to) };
+        // A volume that starts fresh each run is served on a layer of its own; the wire wants its size, and the person chose it.
+        return { provider: m.identity, volume_name: r.volume, volume_relative_path: slash(r.inVolume), volume_mode: volumeMode, overlay_disk: volumeMode === "ephemeral" && r.scratch ? Number(r.scratch) : null, container_path: slash(r.to) };
       });
   return { volume_mounts, fuse_directory_mounts: live(draft.folders), fuse_file_mounts: live(draft.files) };
+}
+
+/** Live mounts of a fresh-each-run volume still waiting for their scratch space. */
+export function scratchMissing(draft: MountsDraft, machines: MachineView[]): number {
+  const byKey = new Map(machines.map((m) => [identityKey(m.identity), m]));
+  const ephemeral = (r: MountRow) => byKey.get(r.machine)?.volumes.find((v) => v.name === r.volume)?.mode === "ephemeral";
+  return [...draft.folders, ...draft.files].filter((r) => r.volume && ephemeral(r) && !r.scratch).length;
 }
 
 /** A new row: the given machine, or the first with a volume, and its first volume. */
@@ -52,7 +62,7 @@ export function newRow(machines: MachineView[], fixed?: MachineView): MountRow {
 }
 
 /** The rows of one kind of mount. `fixed` is the pinned machine: its own rows choose only a volume. */
-export function MountRows(props: { rows: MountRow[]; onChange: (rows: MountRow[]) => void; machines: MachineView[]; fixed?: MachineView; inPlaceholder: string }) {
+export function MountRows(props: { rows: MountRow[]; onChange: (rows: MountRow[]) => void; machines: MachineView[]; fixed?: MachineView; inPlaceholder: string; live?: boolean }) {
   const { rows, onChange, machines, fixed } = props;
   const set = (i: number, patch: Partial<MountRow>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const machineOf = (r: MountRow) => fixed ?? machines.find((m) => identityKey(m.identity) === r.machine);
@@ -92,6 +102,14 @@ export function MountRows(props: { rows: MountRow[]; onChange: (rows: MountRow[]
             <Field label={t.create.inAgent}>
               <input className="mono" value={r.to} placeholder="work" onChange={(e) => set(i, { to: e.target.value })} spellCheck={false} />
             </Field>
+            {props.live && m?.volumes.find((v) => v.name === r.volume)?.mode === "ephemeral" ? (
+              <Field label={t.create.scratch}>
+                <select value={r.scratch ?? ""} onChange={(e) => set(i, { scratch: e.target.value })} className={r.scratch ? "" : "invalid"}>
+                  <option value="">{t.create.scratchPick}</option>
+                  {SCRATCH_SIZES.map((b) => <option key={b} value={String(b)}>{b / 1024 ** 3} GB</option>)}
+                </select>
+              </Field>
+            ) : null}
             <Button small kind="quiet" onClick={() => onChange(rows.filter((_, j) => j !== i))}>{t.create.remove}</Button>
           </div>
         );
@@ -106,8 +124,9 @@ export function LiveMounts(props: { draft: MountsDraft; onChange: (d: MountsDraf
   const any = machines.some((m) => m.volumes.length > 0);
   return (
     <>
-      <MountRows rows={draft.folders} onChange={(folders) => onChange({ ...draft, folders })} machines={machines} inPlaceholder="projects/site" />
-      <MountRows rows={draft.files} onChange={(files) => onChange({ ...draft, files })} machines={machines} inPlaceholder="notes/ideas.md" />
+      <MountRows live rows={draft.folders} onChange={(folders) => onChange({ ...draft, folders })} machines={machines} inPlaceholder="projects/site" />
+      <MountRows live rows={draft.files} onChange={(files) => onChange({ ...draft, files })} machines={machines} inPlaceholder="notes/ideas.md" />
+      {scratchMissing(draft, machines) ? <p className="warn small">{t.create.scratchNote}</p> : null}
       <div className="row-actions">
         <Button small kind="quiet" onClick={() => onChange({ ...draft, folders: [...draft.folders, newRow(machines)] })} disabled={!any}>+ {t.create.addShare}</Button>
         <Button small kind="quiet" onClick={() => onChange({ ...draft, files: [...draft.files, { ...newRow(machines), to: "" }] })} disabled={!any}>+ {t.create.addFileShare}</Button>
@@ -180,7 +199,7 @@ export function MountsPanel(props: { name: string; active: boolean; onClose: () 
             <span className="muted small">{props.active ? t.mounts.active : t.mounts.replaces}</span>
             {state.kind === "saved" ? <span className="ok small">{state.message}</span> : null}
             {state.kind === "problem" ? <span className="bad small">{state.message}</span> : null}
-            <Button small kind="primary" onClick={save} disabled={props.active || state.kind === "saving"}>{state.kind === "saving" ? t.mounts.saving : t.mounts.save}</Button>
+            <Button small kind="primary" onClick={save} disabled={props.active || state.kind === "saving" || scratchMissing(draft, machines) > 0}>{state.kind === "saving" ? t.mounts.saving : t.mounts.save}</Button>
           </footer>
         </>
       )}
