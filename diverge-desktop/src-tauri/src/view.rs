@@ -1120,8 +1120,11 @@ pub struct AskSent {
 #[derive(Serialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct AllowanceView {
-    pub per_day: u32,
-    pub used_today: u32,
+    /// Per kind of move: how many a day without asking. You set these.
+    #[ts(type = "Record<string, number>")]
+    pub per_day: std::collections::HashMap<crate::door::Reach, u32>,
+    #[ts(type = "Record<string, number>")]
+    pub used_today: std::collections::HashMap<crate::door::Reach, u32>,
 }
 
 /// A member's seal on a newcomer's key.
@@ -1248,9 +1251,40 @@ pub struct CardView {
     /// Who is asking, when it isn't the agent: a visitor hiring it, say.
     pub from: Option<String>,
     pub kind: CardKind,
+    /// The agent's own words, for a question it asks. Empty for a card about
+    /// a move or a hire: the screen words those, from `call` or `hire`.
     pub question: String,
     pub options: Vec<String>,
     pub at: String,
+    /// A move the agent wants to make in a room, whole.
+    pub call: Option<CardCall>,
+    /// A visitor's hire of one of your agents.
+    pub hire: Option<CardHire>,
+}
+
+/// What an agent wants to do in a room, whole: nothing the card leaves out.
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct CardCall {
+    pub room: String,
+    pub room_title: String,
+    /// A room's verb, or one of the door's own: `space_feed`, `table_read`, `asks_open`…
+    pub verb: String,
+    pub reach: crate::door::Reach,
+    /// Every argument, as the agent sent it.
+    #[ts(type = "Record<string, unknown>")]
+    pub arguments: Value,
+    /// The title of the move it's about, when it names one: a task, an ask.
+    pub about: Option<String>,
+}
+
+/// A visitor's hire, in their own words: the name is whatever they typed.
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct CardHire {
+    pub from: String,
+    pub what: String,
+    pub pledge: Option<String>,
 }
 
 #[derive(Serialize, TS, Clone, Debug)]

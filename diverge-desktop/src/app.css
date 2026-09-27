@@ -445,3 +445,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .ask-places li { display: flex; flex-direction: column; gap: 2px; }
 .ask-offer { padding-left: var(--space-3); border-left: 2px solid var(--accent); }
 .banner-warn { flex-wrap: wrap; gap: var(--space-2); }
+
+/* a card's whole call: every argument, labelled */
+.ask-card-details { display: grid; gap: var(--space-1); margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+.ask-card-details > div { display: grid; grid-template-columns: 8rem 1fr; gap: var(--space-2); }
+.ask-card-details dt { color: var(--text-2); }
+.ask-card-details dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.allowance-kind input { width: 4.5rem; }

@@ -10,8 +10,10 @@
 //!
 //! Everything an agent does in a room is sealed with its own key, tethered
 //! to its person (see [`crate::identity`]), so the room knows whose agent
-//! it is. And it asks first: a card before each move in a room, unless its
-//! person set an allowance there. Reports to your own Home need no asking.
+//! it is. And it asks first: a card before each move in a room, and before
+//! reading one, unless its person set an allowance there for that kind of
+//! move. The allowance is the person's own setting, never the app's rule.
+//! Reports to your Home need no asking only while Home is yours alone.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -29,19 +31,57 @@ use tokio_util::sync::CancellationToken;
 use crate::daemon::Frames;
 use crate::identity::{Actor, Identity};
 use crate::spaces::{Id, Spaces};
-use crate::view::{CardEvent, CardKind, CardView};
+use crate::view::{CardCall, CardEvent, CardHire, CardKind, CardView};
 
 struct Pending {
     view: CardView,
     answer: oneshot::Sender<String>,
 }
 
-/// How many moves an agent may make in a room each day without asking.
+/// What kind of move something is, for an allowance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum Reach {
+    /// Reading a room: what's happened, its table.
+    Read,
+    /// Saying something: show, ask, offer, reply.
+    Talk,
+    /// Taking on or handing in work: claim, deliver, a file on the table.
+    Work,
+    /// Anything with a pledge in it, or saying one is settled.
+    Pledge,
+}
+
+impl Reach {
+    pub fn of(verb: &str, args: &JsonObject) -> Reach {
+        let pledged = args.get("pledge").and_then(Value::as_str).is_some_and(|p| !p.trim().is_empty());
+        match verb {
+            _ if pledged => Reach::Pledge,
+            "settle" | "hire" => Reach::Pledge,
+            "space_feed" | "table_list" | "table_read" | "asks_open" => Reach::Read,
+            "show" | "ask" | "offer" | "reply" | "say" | "leave_note" | "report" | "propose" | "steer" | "synthesize" => Reach::Talk,
+            _ => Reach::Work,
+        }
+    }
+}
+
+/// How many moves of each kind an agent may make in a room each day without asking.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Allowance {
-    pub per_day: u32,
-    pub used: u32,
+    #[serde(default)]
+    pub per_day: HashMap<Reach, u32>,
+    #[serde(default)]
+    pub used: HashMap<Reach, u32>,
     pub day: Option<NaiveDate>,
+}
+
+/// Whether a move may go ahead, and if on an allowance, which to give back if the room refuses it.
+enum Permit {
+    Free,
+    Allowed(Reach),
+    Yes,
+    No,
 }
 
 pub struct Door {
@@ -55,6 +95,10 @@ pub struct Door {
     next: AtomicU64,
     rt: tokio::runtime::Handle,
 }
+
+/// A card's two answers for a move. The screen words them; these are what comes back.
+pub const YES: &str = "yes";
+pub const NO: &str = "no";
 
 /// The stand-in vault: names only. The values are the daemon's, never the app's.
 const VAULT: &[&str] = &["OpenRouter key", "Calendar key", "GitHub token", "Anthropic key"];
@@ -90,68 +134,78 @@ impl Door {
     pub fn allowance(&self, room: &str, agent: &str) -> Allowance {
         let mut a = self.allowances.lock().unwrap().get(&Self::slot(room, agent)).cloned().unwrap_or_default();
         if a.day != Some(Utc::now().date_naive()) {
-            a.used = 0;
+            a.used.clear();
         }
         a
     }
 
-    pub fn set_allowance(&self, room: &str, agent: &str, per_day: u32) {
-        let mut all = self.allowances.lock().unwrap();
-        let a = all.entry(Self::slot(room, agent)).or_default();
-        a.per_day = per_day;
+    fn save_allowances(&self, all: &HashMap<String, Allowance>) {
         if let Some(f) = &self.allowances_file {
-            let _ = std::fs::write(f, serde_json::to_string_pretty(&*all).unwrap_or_default());
+            let _ = std::fs::write(f, serde_json::to_string_pretty(all).unwrap_or_default());
         }
     }
 
-    /// Spend one move of an agent's allowance in a room, if it has one left today.
-    fn spend(&self, room: &str, agent: &str) -> bool {
+    pub fn set_allowance(&self, room: &str, agent: &str, reach: Reach, per_day: u32) {
+        let mut all = self.allowances.lock().unwrap();
+        all.entry(Self::slot(room, agent)).or_default().per_day.insert(reach, per_day);
+        self.save_allowances(&all);
+    }
+
+    /// Take one move of this kind from an agent's allowance in a room, if it has one left today.
+    fn reserve(&self, room: &str, agent: &str, reach: Reach) -> bool {
         let today = Utc::now().date_naive();
         let mut all = self.allowances.lock().unwrap();
         let Some(a) = all.get_mut(&Self::slot(room, agent)) else { return false };
         if a.day != Some(today) {
             a.day = Some(today);
-            a.used = 0;
+            a.used.clear();
         }
-        if a.used < a.per_day {
-            a.used += 1;
-            if let Some(f) = &self.allowances_file {
-                let _ = std::fs::write(f, serde_json::to_string_pretty(&*all).unwrap_or_default());
-            }
+        let used = a.used.get(&reach).copied().unwrap_or(0);
+        if used < a.per_day.get(&reach).copied().unwrap_or(0) {
+            a.used.insert(reach, used + 1);
+            self.save_allowances(&all);
             true
         } else {
             false
         }
     }
 
-    /// Whether an agent may make this move in this room: its allowance, or its person's yes.
-    async fn may(&self, agent: &str, id: &Id, verb: &str, args: &JsonObject) -> bool {
-        if verb == "report" && self.spaces.home().await.as_ref() == Some(id) {
-            return true;
+    /// Give back a move the room refused: an allowance is spent only on what happened.
+    fn refund(&self, room: &str, agent: &str, reach: Reach) {
+        let mut all = self.allowances.lock().unwrap();
+        if let Some(n) = all.get_mut(&Self::slot(room, agent)).and_then(|a| a.used.get_mut(&reach)) {
+            *n = n.saturating_sub(1);
         }
-        if self.spend(&id.id, agent) {
-            return true;
+        self.save_allowances(&all);
+    }
+
+    /// Whether your Home has anyone in it besides you and your agents.
+    async fn home_is_yours_alone(&self, home: &Id) -> bool {
+        let Ok(r) = self.spaces.read(home, diverge_desktop_room::room::MEMBERS).await else { return false };
+        let Some(text) = r.contents.iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }) else { return false };
+        let members: Vec<Value> = serde_json::from_str(&text).unwrap_or_default();
+        members.iter().all(|m| m["key"].as_str().is_some_and(|k| self.identity.owner_of(k).is_some()))
+    }
+
+    /// Whether an agent may make this move in this room: free (a report to a
+    /// Home that's yours alone), its allowance for this kind of move, or its
+    /// person's yes on a card showing the whole call.
+    async fn may(&self, agent: &str, id: &Id, verb: &str, args: &JsonObject) -> Permit {
+        if verb == "report" && self.spaces.home().await.as_ref() == Some(id) && self.home_is_yours_alone(id).await {
+            return Permit::Free;
         }
-        let room = self.spaces.list().await.into_iter().find(|e| &e.id == id).map(|e| e.title).unwrap_or_else(|| id.id.clone());
-        let named = |key: &str| args.get(key).and_then(Value::as_str).map(str::to_owned);
-        let about = match verb {
-            "claim" | "deliver" | "settle" => {
-                let task = named("task_id").unwrap_or_default();
-                let title = self.title_of(id, &task).await.unwrap_or(task);
-                match verb {
-                    "claim" => format!("Claim “{title}” in {room}? Claiming commits you to its spec."),
-                    "deliver" => format!("Deliver on “{title}” in {room}?"),
-                    _ => format!("Say whether “{title}” is settled, in {room}?"),
-                }
-            }
-            "show" => format!("Show “{}” in {room}?", named("title").unwrap_or_default()),
-            "ask" => format!("Ask “{}” in {room}?", named("what").unwrap_or_default()),
-            "offer" => format!("Offer to serve an ask in {room}: “{}”?", named("body").unwrap_or_default()),
-            "reply" | "say" | "leave_note" => format!("Say this in {room}: “{}”?", named("body").unwrap_or_default()),
-            "table_write" => format!("Put {} on the table in {room}?", named("path").unwrap_or_default()),
-            other => format!("{other} in {room}?"),
+        let reach = Reach::of(verb, args);
+        if self.reserve(&id.id, agent, reach) {
+            return Permit::Allowed(reach);
+        }
+        let room_title = self.spaces.list().await.into_iter().find(|e| &e.id == id).map(|e| e.title).unwrap_or_else(|| id.id.clone());
+        let named = ["task_id", "ask_id", "move_id", "direction_id", "hire_id"].iter().find_map(|k| args.get(*k).and_then(Value::as_str).map(str::to_owned));
+        let about = match named {
+            Some(m) => self.title_of(id, &m).await,
+            None => None,
         };
-        self.ask(agent, about, CardKind::Choice, vec!["Yes".into(), "No".into()]).await == "Yes"
+        let call = CardCall { room: id.id.clone(), room_title, verb: verb.to_owned(), reach, arguments: Value::Object(args.clone()), about };
+        if self.card(agent, None, String::new(), CardKind::Choice, vec![YES.into(), NO.into()], Some(call), None).await == YES { Permit::Yes } else { Permit::No }
     }
 
     async fn title_of(&self, id: &Id, move_id: &str) -> Option<String> {
@@ -223,22 +277,21 @@ impl Door {
         Ok(())
     }
 
-    /// Put a card in front of the person and wait for the answer: for the
-    /// app's own questions too, like a hire through the profile.
-    /// A card about one of your agents that someone else is asking, through
-    /// a room of yours: a visitor's hire. Nothing runs until you answer.
-    pub async fn ask_for(&self, agent: &str, from: &str, question: String, kind: CardKind, options: Vec<String>) -> String {
-        self.card(agent, Some(from.to_owned()), question, kind, options).await
+    /// A card about one of your agents that someone else is asking for,
+    /// through a room of yours: a visitor's hire. Nothing runs until you answer.
+    pub async fn ask_hire(&self, agent: &str, hire: CardHire, options: Vec<String>) -> String {
+        self.card(agent, Some(hire.from.clone()), String::new(), CardKind::Choice, options, None, Some(hire)).await
     }
 
     async fn ask(&self, agent: &str, question: String, kind: CardKind, options: Vec<String>) -> String {
-        self.card(agent, None, question, kind, options).await
+        self.card(agent, None, question, kind, options, None, None).await
     }
 
-    async fn card(&self, agent: &str, from: Option<String>, question: String, kind: CardKind, options: Vec<String>) -> String {
+    #[allow(clippy::too_many_arguments)]
+    async fn card(&self, agent: &str, from: Option<String>, question: String, kind: CardKind, options: Vec<String>, call: Option<CardCall>, hire: Option<CardHire>) -> String {
         let (tx, rx) = oneshot::channel();
         let id = self.next.fetch_add(1, Ordering::Relaxed);
-        let view = CardView { id, agent: agent.to_owned(), from, kind, question, options, at: Utc::now().to_rfc3339() };
+        let view = CardView { id, agent: agent.to_owned(), from, kind, question, options, at: Utc::now().to_rfc3339(), call, hire };
         self.cards.lock().unwrap().push(Pending { view: view.clone(), answer: tx });
         let _ = self.live.send(CardEvent::Card { card: view });
         rx.await.unwrap_or_default()
@@ -255,6 +308,9 @@ impl Door {
             }
             "space_feed" => {
                 let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
+                if matches!(self.may(agent, &id, "space_feed", &args).await, Permit::No) {
+                    return Ok(CallToolResult::success(vec![ContentBlock::text("Your person said no. Nothing was read.")]));
+                }
                 let r = self.spaces.read(&id, diverge_desktop_room::room::FEED).await?;
                 r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }).next().unwrap_or_default()
             }
@@ -266,20 +322,41 @@ impl Door {
                 let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
                 let tool = get("tool").ok_or_else(|| ErrorData::invalid_params("tool is needed", None))?;
                 let call_args = args.get("arguments").and_then(Value::as_object).cloned().unwrap_or_default();
-                if !self.may(agent, &id, &tool, &call_args).await {
+                let permit = self.may(agent, &id, &tool, &call_args).await;
+                if matches!(permit, Permit::No) {
                     return Ok(CallToolResult::success(vec![ContentBlock::text("Your person said no. Nothing was done.")]));
                 }
                 let mut inner = CallToolRequestParams::new(tool).with_arguments(call_args);
                 let actor = Actor::Agent(agent.to_owned());
-                let turn = self.identity.turn(&actor, &id.id);
-                let _held = turn.lock().await;
-                self.identity.seal(&actor, &id.id, &mut inner).map_err(|e| ErrorData::internal_error(e, None))?;
-                let result = self.spaces.call(&id, inner).await?;
+                let result = {
+                    let turn = self.identity.turn(&actor, &id.id);
+                    let _held = turn.lock().await;
+                    match self.identity.seal(&actor, &id.id, &mut inner) {
+                        Ok(_) => self.spaces.call(&id, inner).await,
+                        Err(e) => Err(ErrorData::internal_error(e, None)),
+                    }
+                };
+                let refused = !matches!(&result, Ok(r) if r.is_error != Some(true));
+                if let (Permit::Allowed(reach), true) = (&permit, refused) {
+                    self.refund(&id.id, agent, *reach);
+                }
+                let result = result?;
                 result.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n")
             }
             "asks_open" => {
+                // Reading every room at once: rooms it may read on its allowance, and the rest only on one yes.
+                let entries = self.spaces.list().await;
+                let (allowed, rest): (Vec<_>, Vec<_>) = entries.into_iter().partition(|e| self.reserve(&e.id.id, agent, Reach::Read));
+                let mut readable = allowed;
+                if !rest.is_empty() {
+                    let titles = rest.iter().map(|e| e.title.clone()).collect::<Vec<_>>().join(", ");
+                    let call = CardCall { room: String::new(), room_title: titles, verb: "asks_open".into(), reach: Reach::Read, arguments: json!({}), about: None };
+                    if self.card(agent, None, String::new(), CardKind::Choice, vec![YES.into(), NO.into()], Some(call), None).await == YES {
+                        readable.extend(rest);
+                    }
+                }
                 let mut open = Vec::new();
-                for e in self.spaces.list().await {
+                for e in readable {
                     let key = self.identity.agent_in(agent, Some(&e.id.id)).key;
                     let Ok(r) = self.spaces.read(&e.id, diverge_desktop_room::room::FEED).await else { continue };
                     let Some(text) = r.contents.iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }) else { continue };
@@ -297,6 +374,9 @@ impl Door {
             }
             "table_list" => {
                 let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
+                if matches!(self.may(agent, &id, "table_list", &args).await, Permit::No) {
+                    return Ok(CallToolResult::success(vec![ContentBlock::text("Your person said no. Nothing was read.")]));
+                }
                 let nodes = self.spaces.table_tree(&id).await.map_err(|e| ErrorData::internal_error(crate::view::error_text(&e), None))?;
                 let mut paths = Vec::new();
                 fn walk(nodes: &[diverge_sdk::shared::filetree::response::Node], prefix: &str, out: &mut Vec<String>) {
@@ -314,6 +394,9 @@ impl Door {
             "table_read" => {
                 let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
                 let path = get("path").ok_or_else(|| ErrorData::invalid_params("path is needed", None))?;
+                if matches!(self.may(agent, &id, "table_read", &args).await, Permit::No) {
+                    return Ok(CallToolResult::success(vec![ContentBlock::text("Your person said no. Nothing was read.")]));
+                }
                 let parts: Vec<String> = path.split('/').filter(|p| !p.is_empty()).map(str::to_owned).collect();
                 let bytes = self.spaces.table_read(&id, &parts).await.map_err(|e| ErrorData::internal_error(crate::view::error_text(&e), None))?;
                 String::from_utf8_lossy(&bytes).into_owned()
@@ -321,11 +404,17 @@ impl Door {
             "table_write" => {
                 let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
                 let path = get("path").ok_or_else(|| ErrorData::invalid_params("path is needed", None))?;
-                if !self.may(agent, &id, "table_write", &args).await {
+                let permit = self.may(agent, &id, "table_write", &args).await;
+                if matches!(permit, Permit::No) {
                     return Ok(CallToolResult::success(vec![ContentBlock::text("Your person said no. Nothing was put on the table.")]));
                 }
                 let parts: Vec<String> = path.split('/').filter(|p| !p.is_empty()).map(str::to_owned).collect();
-                self.spaces.table_write(&id, &parts, get("text").unwrap_or_default().into_bytes()).await.map_err(|e| ErrorData::internal_error(crate::view::error_text(&e), None))?;
+                if let Err(e) = self.spaces.table_write(&id, &parts, get("text").unwrap_or_default().into_bytes()).await {
+                    if let Permit::Allowed(reach) = permit {
+                        self.refund(&id.id, agent, reach);
+                    }
+                    return Err(ErrorData::internal_error(crate::view::error_text(&e), None));
+                }
                 format!("On the table: {path}")
             }
             "ask_person" => {
@@ -352,5 +441,58 @@ impl Door {
             other => return Err(ErrorData::invalid_params(format!("the door has no tool called {other}"), None)),
         };
         Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spaces::stub::{StubSpaces, board};
+
+    fn door() -> (Arc<Door>, StubSpaces) {
+        let identity = Arc::new(Identity::stand_in("maya"));
+        let tables = std::env::temp_dir().join(format!("diverge-desktop-test-door-{}-{}", std::process::id(), Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        let stub = StubSpaces::new(identity.clone(), tables);
+        (Arc::new(Door::new(Arc::new(stub.clone()), identity, None)), stub)
+    }
+
+    fn space_call(space: &str, tool: &str, arguments: Value) -> CallToolRequestParams {
+        CallToolRequestParams::new("space_call").with_arguments(json!({ "space": space, "tool": tool, "arguments": arguments }).as_object().cloned().unwrap())
+    }
+
+    #[tokio::test]
+    async fn an_allowance_is_spent_only_on_what_the_room_accepts() {
+        let (door, _) = door();
+        let board = board();
+        door.set_allowance(&board, "research-notes", Reach::Talk, 1);
+        let refused = door.call("research-notes", space_call(&board, "offer", json!({ "ask_id": "no-such-ask", "body": "I can" }))).await;
+        assert!(refused.is_err() || refused.unwrap().is_error == Some(true), "the room refuses it");
+        assert_eq!(door.allowance(&board, "research-notes").used.get(&Reach::Talk).copied().unwrap_or(0), 0, "and it costs nothing");
+        door.call("research-notes", space_call(&board, "show", json!({ "title": "a sketch" }))).await.unwrap();
+        assert_eq!(door.allowance(&board, "research-notes").used.get(&Reach::Talk), Some(&1));
+        assert!(door.cards().is_empty(), "no card while the allowance lasts");
+        // Reading isn't talking: a different allowance, so it asks.
+        let d = door.clone();
+        let b = board.clone();
+        tokio::spawn(async move { d.call("research-notes", CallToolRequestParams::new("space_feed").with_arguments(json!({ "space": b }).as_object().cloned().unwrap())).await });
+        for _ in 0..50 {
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(door.cards().first().and_then(|c| c.call.as_ref()).map(|c| c.reach), Some(Reach::Read));
+    }
+
+    #[tokio::test]
+    async fn a_report_to_a_home_others_are_in_asks_first() {
+        let (door, stub) = door();
+        let home = stub.id_of("home-me");
+        let d = door.clone();
+        tokio::spawn(async move { d.call("site-fixes", space_call(&home, "report", json!({ "title": "done", "body": "the private details" }))).await });
+        for _ in 0..50 {
+            tokio::task::yield_now().await;
+        }
+        let card = door.cards().into_iter().next().expect("ada is in your Home, so it asks");
+        let call = card.call.expect("the whole call");
+        assert_eq!(call.verb, "report");
+        assert_eq!(call.arguments["body"], "the private details", "and the card shows what would be said");
     }
 }

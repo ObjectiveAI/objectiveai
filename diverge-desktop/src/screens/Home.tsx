@@ -1,3 +1,4 @@
+import { cardLine } from "../lib/cards";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HomeMove } from "../bindings/HomeMove";
 import { Markdown } from "../components/Markdown";
@@ -134,7 +135,7 @@ export function Home() {
           {cards.map((c) => (
             <button key={c.id} className="waiting" onClick={() => open({ kind: "agent", name: c.agent })}>
               <span className="waiting-who">{c.agent}</span>
-              <span className="waiting-what">{c.question}</span>
+              <span className="waiting-what">{cardLine(c)}</span>
             </button>
           ))}
           {knocks.map((k) => (

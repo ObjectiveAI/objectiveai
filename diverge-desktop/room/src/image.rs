@@ -71,6 +71,41 @@ impl Default for ProxyHost {
     }
 }
 
+/// The first try at a call, holding the room: hires go straight to the host,
+/// but a seal the host would have to make is only noted, and the call is
+/// tried again once the host has made it, without the room held meanwhile.
+struct Noting<'a> {
+    host: &'a dyn Host,
+    wanted: Mutex<Option<(String, Value)>>,
+}
+
+const NEEDS_SEAL: &str = "the room needs its host's seal first";
+
+impl Host for Noting<'_> {
+    fn seal(&self, kind: &str, body: Value) -> Result<Statement, String> {
+        *self.wanted.lock().unwrap_or_else(|p| p.into_inner()) = Some((kind.to_owned(), body));
+        Err(NEEDS_SEAL.into())
+    }
+    fn hire(&self, room: &str, hire_id: &str, from: &str, agent: &str, what: &str, pledge: Option<&str>) {
+        self.host.hire(room, hire_id, from, agent, what, pledge)
+    }
+}
+
+/// The second try: the seal the host made while the room wasn't held.
+struct Sealed<'a> {
+    host: &'a dyn Host,
+    statement: Statement,
+}
+
+impl Host for Sealed<'_> {
+    fn seal(&self, _kind: &str, _body: Value) -> Result<Statement, String> {
+        Ok(self.statement.clone())
+    }
+    fn hire(&self, room: &str, hire_id: &str, from: &str, agent: &str, what: &str, pledge: Option<&str>) {
+        self.host.hire(room, hire_id, from, agent, what, pledge)
+    }
+}
+
 /// The two tools a room asks of its host's app.
 pub const HOST_SEAL: &str = "room_host_seal";
 pub const HOST_HIRE: &str = "room_host_hire";
@@ -180,7 +215,25 @@ impl ServerHandler for Mcp {
         if request.meta.is_none() {
             request.meta = Some(context.meta.clone());
         }
-        self.0.with(|room, host| room.call(request, host)).map(Into::into)
+        // Never wait on the host while holding the room: a call that needs the
+        // host's seal lets go, gets it, and tries again. Nothing it did the
+        // first time stuck, so the second try is the call itself.
+        let mut wanted = None;
+        let first = self.0.with(|room, host| {
+            let noting = Noting { host, wanted: Mutex::new(None) };
+            let result = room.call(request.clone(), &noting);
+            wanted = noting.wanted.into_inner().unwrap_or_else(|p| p.into_inner());
+            Ok(result)
+        })?;
+        let Some((kind, body)) = wanted.filter(|_| matches!(&first, Err(e) if e.message == NEEDS_SEAL)) else {
+            return first.map(Into::into);
+        };
+        let host = self.0.host.clone();
+        let statement = tokio::task::spawn_blocking(move || host.seal(&kind, body))
+            .await
+            .map_err(|e| ErrorData::internal_error(e.to_string(), None))?
+            .map_err(|e| ErrorData::internal_error(e, None))?;
+        self.0.with(|room, host| room.call(request, &Sealed { host, statement })).map(Into::into)
     }
 
     async fn list_resources(&self, _request: Option<PaginatedRequestParams>, _context: RequestContext<RoleServer>) -> Result<ListResourcesResult, ErrorData> {
@@ -197,11 +250,17 @@ impl ServerHandler for Mcp {
         // fans it out to every member.
         let Ok(mut live) = self.0.with(|room, _| Ok(room.subscribe())) else { return };
         tokio::spawn(async move {
-            while let Ok(n) = live.recv().await {
-                if let ServerNotification::ResourceUpdatedNotification(n) = n {
-                    if context.peer.notify_resource_updated(n.params).await.is_err() {
-                        return;
-                    }
+            use tokio::sync::broadcast::error::RecvError;
+            loop {
+                let n = match live.recv().await {
+                    Ok(ServerNotification::ResourceUpdatedNotification(n)) => n.params,
+                    Ok(_) => continue,
+                    // Fell behind: say everything changed, so the member reads it all again.
+                    Err(RecvError::Lagged(_)) => rmcp::model::ResourceUpdatedNotificationParam::new(FEED),
+                    Err(RecvError::Closed) => return,
+                };
+                if context.peer.notify_resource_updated(n).await.is_err() {
+                    return;
                 }
             }
         });
@@ -221,6 +280,7 @@ pub fn router(program: Shared) -> Router {
 mod tests {
     use super::*;
     use crate::{Kind, room_id, seal_call};
+    use crate::Keypair;
     use rmcp::ServiceExt;
     use rmcp::model::ResourceContents;
     use rmcp::transport::StreamableHttpClientTransport;
@@ -285,6 +345,20 @@ mod tests {
         assert_ne!(result.is_error, Some(true));
         let unsealed = CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
         assert!(client.call_tool(unsealed).await.is_err(), "the room refuses an unsealed call");
+        // A task through to its receipt: the accept needs the host's seal, made without the room held.
+        let ren = Keypair::from_seed("ren");
+        let call = |who: &Keypair, verb: &'static str, args: Value, counter: u64| {
+            let mut p = CallToolRequestParams::new(verb).with_arguments(args.as_object().cloned().unwrap());
+            seal_call(who, &id, &mut p, counter);
+            p
+        };
+        client.call_tool(call(&host, "admit", json!({ "key": ren.key(), "name": "ren" }), 2)).await.unwrap();
+        client.call_tool(call(&ren, "claim", json!({ "task_id": "task-1" }), 1)).await.unwrap();
+        client.call_tool(call(&ren, "deliver", json!({ "task_id": "task-1", "summary": "New switch." }), 2)).await.unwrap();
+        let accepted = client.call_tool(call(&host, "accept", json!({ "task_id": "task-1" }), 3)).await.unwrap();
+        assert_ne!(accepted.is_error, Some(true));
+        let again = client.call_tool(call(&host, "accept", json!({ "task_id": "task-1" }), 4)).await;
+        assert!(again.is_err() || again.unwrap().is_error == Some(true), "one receipt");
         let feed = client.read_resource(ReadResourceRequestParams::new(FEED)).await.unwrap();
         let ResourceContents::TextResourceContents { text, .. } = &feed.contents[0] else { panic!() };
         assert!(text.contains("Fix the lamp"));

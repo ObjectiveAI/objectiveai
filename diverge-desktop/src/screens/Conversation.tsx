@@ -1,3 +1,4 @@
+import { answerLabel, cardDetails, cardLine, cardNote } from "../lib/cards";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardView } from "../bindings/CardView";
 import type { LogEntry } from "../bindings/LogEntry";
@@ -239,7 +240,18 @@ function AskCard({ card, onAnswer }: { card: CardView; onAnswer: (answer: string
         <Chip tone="accent">{t.cards.kinds[card.kind]}</Chip>
         <span className="muted small">{card.from ? t.cards.waitingFor : t.cards.waiting}</span>
       </div>
-      <p className="ask-card-question selectable">{card.question}</p>
+      <p className="ask-card-question selectable">{cardLine(card)}</p>
+      {cardDetails(card).length > 0 ? (
+        <dl className="ask-card-details">
+          {cardDetails(card).map(([k, v]) => (
+            <div key={k}>
+              <dt>{k}</dt>
+              <dd className="selectable">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {cardNote(card) ? <p className="muted small">{cardNote(card)}</p> : null}
       {card.kind === "credential" ? <p className="muted small">{t.cards.credentialNote}</p> : null}
       {card.kind === "question" ? (
         <div className="composer-row">
@@ -249,7 +261,7 @@ function AskCard({ card, onAnswer }: { card: CardView; onAnswer: (answer: string
       ) : (
         <div className="ask-card-options">
           {card.options.map((o) => (
-            <Button key={o} kind={card.kind === "credential" ? "plain" : "primary"} onClick={() => onAnswer(o)}>{o}</Button>
+            <Button key={o} kind={card.kind === "credential" ? "plain" : o === "no" || o === "decline" ? "quiet" : "primary"} onClick={() => onAnswer(o)}>{answerLabel(o)}</Button>
           ))}
           {card.kind === "credential" ? <Button kind="quiet" onClick={() => onAnswer("")}>{t.cards.none}</Button> : null}
         </div>

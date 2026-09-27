@@ -1,6 +1,7 @@
 // The page's only door to Rust: one typed wrapper per registry action.
 // Types come from src/bindings (generated from Rust — never edit them).
 
+import type { Reach } from "../bindings/Reach";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { ActionInfo } from "../bindings/ActionInfo";
@@ -116,7 +117,7 @@ export const api = {
   personas: () => invoke<PersonaView[]>("personas_list"),
   personaRename: (id: string, name: string) => invoke<null>("persona_rename", { id, name }),
   allowanceGet: (id: string, agent: string) => invoke<AllowanceView>("allowance_get", { id, agent }),
-  allowanceSet: (id: string, agent: string, perDay: number) => invoke<AllowanceView>("allowance_set", { id, agent, perDay }),
+  allowanceSet: (id: string, agent: string, reach: Reach, perDay: number) => invoke<AllowanceView>("allowance_set", { id, agent, reach, perDay }),
   spaceLeave: (id: string) => invoke<null>("spaces_leave", { id }),
   spaceInvite: (id: string) => invoke<InviteView | null>("spaces_invite", { id }),
   knocksWatch: (onEvent: (e: KnockEvent) => void) => invoke<string>("knocks_watch", { onEvent: channel(onEvent) }),

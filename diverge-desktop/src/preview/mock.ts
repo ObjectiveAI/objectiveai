@@ -60,7 +60,7 @@ export function installPreview() {
   const you = fixture.you as { name: string; key: string };
   const personas = structuredClone(fixture.personas) as { id: string; name: string; usual: boolean; rooms: string[] }[];
   const tables = structuredClone(fixture.tables) as Record<string, { nodes: FileNode[]; files: Record<string, string> }>;
-  const allowances: Record<string, number> = {};
+  const allowances: Record<string, Record<string, number>> = {};
   const cards: CardView[] = structuredClone(fixture.cards) as CardView[];
   let cardCh: Chan | null = null;
   const spaceWatches = new Map<string, { id: string; ch: Chan }>();
@@ -263,9 +263,9 @@ export function installPreview() {
           return null;
         }
         case "allowance_get":
-          return { per_day: allowances[`${args.id}/${args.agent}`] ?? 0, used_today: 0 };
+          return { per_day: allowances[`${args.id}/${args.agent}`] ?? {}, used_today: {} };
         case "allowance_set":
-          allowances[`${args.id}/${args.agent}`] = args.perDay;
+          allowances[`${args.id}/${args.agent}`] = { ...(allowances[`${args.id}/${args.agent}`] ?? {}), [args.reach]: args.perDay };
           return { per_day: args.perDay, used_today: 0 };
         case "spaces_home":
           return yours("home");

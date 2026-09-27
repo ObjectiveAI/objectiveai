@@ -1,3 +1,5 @@
+import type { AllowanceView } from "../bindings/AllowanceView";
+import type { Reach } from "../bindings/Reach";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AdmittedView } from "../bindings/AdmittedView";
 import type { DoorwayView } from "../bindings/DoorwayView";
@@ -343,34 +345,35 @@ export function Space(props: { id: string; tabKey: string }) {
   );
 }
 
+const REACHES: Reach[] = ["read", "talk", "work", "pledge"];
+
 function AllowanceRow(props: { room: string; agent: string }) {
-  const [perDay, setPerDay] = useState<number | null>(null);
-  const [used, setUsed] = useState(0);
+  const [a, setA] = useState<AllowanceView | null>(null);
   useEffect(() => {
-    api.allowanceGet(props.room, props.agent).then((a) => {
-      setPerDay(a.per_day);
-      setUsed(a.used_today);
-    });
+    api.allowanceGet(props.room, props.agent).then(setA);
   }, [props.room, props.agent]);
-  if (perDay === null) return null;
+  if (!a) return null;
   return (
     <div className="allowance">
       <span>{props.agent}</span>
-      <label className="muted small">
-        {t.spaces.allowance}{" "}
-        <input
-          type="number"
-          min={0}
-          max={100}
-          value={perDay}
-          onChange={(e) => {
-            const n = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-            setPerDay(n);
-            api.allowanceSet(props.room, props.agent, n).then((a) => setUsed(a.used_today));
-          }}
-        />
-      </label>
-      {used ? <span className="muted small">{used} {t.spaces.today}</span> : null}
+      <span className="muted small">{t.spaces.allowance}</span>
+      {REACHES.map((r) => (
+        <label key={r} className="muted small allowance-kind">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={a.per_day[r] ?? 0}
+            onChange={(e) => {
+              const n = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+              setA({ ...a, per_day: { ...a.per_day, [r]: n } });
+              api.allowanceSet(props.room, props.agent, r, n).then(setA);
+            }}
+          />{" "}
+          {t.spaces.reaches[r]}
+          {a.used_today[r] ? ` (${a.used_today[r]} ${t.spaces.today})` : ""}
+        </label>
+      ))}
     </div>
   );
 }

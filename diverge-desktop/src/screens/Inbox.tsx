@@ -1,3 +1,4 @@
+import { cardLine } from "../lib/cards";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MoveView } from "../bindings/MoveView";
 import type { PersonView } from "../bindings/PersonView";
@@ -84,7 +85,7 @@ export function Inbox() {
             {cards.map((c) => (
               <button key={c.id} className="waiting" onClick={() => setSelected(`agent:${c.agent}`)}>
                 <span className="waiting-who">{c.agent}</span>
-                <span className="waiting-what">{c.question}</span>
+                <span className="waiting-what">{cardLine(c)}</span>
               </button>
             ))}
             {knocks.map((k) => (

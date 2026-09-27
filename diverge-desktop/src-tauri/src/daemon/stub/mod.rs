@@ -673,18 +673,21 @@ mod tests {
         let content = vec![serde_json::from_value(json!({ "type": "text", "text": "Claim the open task for me" })).unwrap()];
         let outcome = daemon.agents_message(agents::message::client::request::Frame { name: "research-notes".into(), content }, CancellationToken::new()).await;
         assert!(matches!(outcome, agents::message::server::response::Frame::Delivered));
-        let card = loop {
-            match cards.next().await {
-                Some(crate::view::CardEvent::Card { card }) => break card,
-                Some(_) => continue,
-                None => panic!("no card"),
-            }
-        };
-        assert_eq!(card.agent, "research-notes");
-        assert_eq!(card.kind, crate::view::CardKind::Choice);
-        assert_eq!(card.options.len(), 2);
-        assert!(card.question.contains("Package the photo resizer"), "the card names the task: {}", card.question);
-        door.answer(card.id, "Yes".into()).unwrap();
+        // First it asks to read the board, then to claim: two cards, each the whole call.
+        let mut asked = Vec::new();
+        while asked.len() < 2 {
+            let Some(crate::view::CardEvent::Card { card }) = cards.next().await else { continue };
+            assert_eq!(card.agent, "research-notes");
+            assert_eq!(card.kind, crate::view::CardKind::Choice);
+            assert_eq!(card.options, vec![crate::door::YES.to_owned(), crate::door::NO.to_owned()]);
+            let call = card.call.clone().expect("a card about a move");
+            assert_eq!(call.room, crate::spaces::stub::board());
+            asked.push((call.verb.clone(), call.reach, call.about.clone()));
+            door.answer(card.id, crate::door::YES.into()).unwrap();
+        }
+        assert_eq!((asked[0].0.as_str(), asked[0].1), ("space_feed", crate::door::Reach::Read), "reading asks first");
+        assert_eq!((asked[1].0.as_str(), asked[1].1), ("claim", crate::door::Reach::Work));
+        assert_eq!(asked[1].2.as_deref(), Some("Package the photo resizer as a tool"), "the card names the task");
         // Let the run finish (virtual time).
         for _ in 0..50 {
             tokio::time::sleep(Duration::from_millis(500)).await;

@@ -3,4 +3,8 @@
 /**
  * How many moves an agent may make in a room each day without asking you.
  */
-export type AllowanceView = { per_day: number, used_today: number, };
+export type AllowanceView = { 
+/**
+ * Per kind of move: how many a day without asking. You set these.
+ */
+per_day: Record<string, number>, used_today: Record<string, number>, };

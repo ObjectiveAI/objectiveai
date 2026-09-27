@@ -1040,9 +1040,10 @@ pub fn allowance_get(state: State<'_, AppState>, id: String, agent: String) -> A
     AllowanceView { per_day: a.per_day, used_today: a.used }
 }
 
+/// Your agent's allowance in a room, for one kind of move: your setting, nobody else's.
 #[tauri::command]
-pub fn allowance_set(state: State<'_, AppState>, id: String, agent: String, per_day: u32) -> AllowanceView {
-    state.door.set_allowance(&id, &agent, per_day);
+pub fn allowance_set(state: State<'_, AppState>, id: String, agent: String, reach: crate::door::Reach, per_day: u32) -> AllowanceView {
+    state.door.set_allowance(&id, &agent, reach, per_day);
     let a = state.door.allowance(&id, &agent);
     AllowanceView { per_day: a.per_day, used_today: a.used }
 }

@@ -143,7 +143,7 @@ pub fn run(kind: Kind, input: &str, read: &dyn Fn(&str) -> String) -> Vec<Step> 
         s.say(None, "Done. It's on the board under your name, claimed by me. Next I'll read the resizer script and draft the container.");
         return s.usage();
     }
-    if lower.contains("through my profile") {
+    if lower.contains("through your person's profile") {
         s.think(None, "Someone asked for this through my person's profile, and my person took it. Do exactly what was asked, change nothing, and say what I found.");
         let id = s.call(None, "web_fetch", json!({ "url": "their page" }));
         s.answer(None, &id, "9 links: /tracks, /tracks/rain, /tracks/night-bus, /about, /contact, mailto:, /shows, /shows/2025, /tour", false, 900);
