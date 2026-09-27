@@ -129,6 +129,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("knocks_watch", "Hear who is at the door of Spaces you host"),
     ("knocks_answer", "Let someone in, or not"),
     ("asks_send", "Send one ask to several rooms at once, followed as one thread"),
+    ("asks_close", "Close one of your asks in every room it went to"),
     ("spaces_doorways", "The rooms a room vouches for"),
     ("vouch_for", "Vouch for someone into a room you're in: your word, for that room, for a week, to hand them"),
     ("identity_broken", "Whether your keys file could be read; if not, where it is"),
@@ -598,7 +599,32 @@ pub async fn spaces_get(state: State<'_, AppState>, id: String) -> Result<SpaceV
     let tools = state.spaces.tools(&sid).await.map_err(|e| e.message.to_string())?;
     let members: Vec<MemberView> = read_json(&state, &sid, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
     let charter = read_text(&state, &sid, diverge_desktop_room::room::CHARTER).await.unwrap_or_default();
-    Ok(SpaceView { summary: summary(entry, &state.identity), charter, members, tools: tools.tools.iter().map(Into::into).collect() })
+    let before = if entry.mine { people_from_before(&state, &sid, &entries, &members).await } else { Vec::new() };
+    Ok(SpaceView { summary: summary(entry, &state.identity), charter, members, tools: tools.tools.iter().map(Into::into).collect(), before })
+}
+
+/// For a room you continued: who was listed in the room before and isn't
+/// here, each with a direct room you share, if any.
+async fn people_from_before(state: &AppState, id: &spaces::Id, entries: &[spaces::SpaceEntry], here: &[MemberView]) -> Vec<BeforeView> {
+    let Some(record) = read_json::<diverge_desktop_room::Record>(state, id, diverge_desktop_room::room::RECORD).await else { return Vec::new() };
+    let Some(before) = record.before else { return Vec::new() };
+    let Ok(old) = diverge_desktop_room::Room::check(&before) else { return Vec::new() };
+    let mut out = Vec::new();
+    for m in old.members().filter(|m| m.listed && !m.removed && !m.is_agent) {
+        if state.identity.owner_of(&m.key).is_some() || here.iter().any(|h| h.key == m.key) {
+            continue;
+        }
+        let mut dm = None;
+        for e in entries.iter().filter(|e| e.kind == "dm") {
+            let members: Vec<MemberView> = read_json(state, &e.id, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
+            if members.iter().any(|x| x.key == m.key) {
+                dm = Some(e.id.id.clone());
+                break;
+            }
+        }
+        out.push(BeforeView { name: m.name.clone(), key: m.key.clone(), dm });
+    }
+    out
 }
 
 #[tauri::command]
@@ -971,6 +997,33 @@ pub async fn asks_send(state: State<'_, AppState>, what: String, needs: Option<S
             Err(message) => CallOutcome::Error { message },
         };
         out.push(AskSent { room, outcome });
+    }
+    Ok(out)
+}
+
+/// Close one of your asks in every room it went to that still has it open:
+/// the people who offered see it's closed.
+#[tauri::command]
+pub async fn asks_close(state: State<'_, AppState>, thread: String, note: Option<String>) -> Result<Vec<AskSent>, String> {
+    let rooms: Vec<String> = {
+        let threads = state.threads.lock().unwrap();
+        threads.iter().filter(|(_, base)| **base == thread).map(|(room_thread, _)| room_thread.clone()).collect()
+    };
+    let mut out = Vec::new();
+    for e in state.spaces.list().await {
+        let Some(moves) = read_json::<Vec<MoveView>>(&state, &e.id, diverge_desktop_room::room::FEED).await else { continue };
+        for m in moves.iter().filter(|m| m.kind == "ask" && m.state == "open") {
+            let t = m.fields.get("thread").and_then(serde_json::Value::as_str).unwrap_or_default();
+            if !rooms.iter().any(|r| r == t) {
+                continue;
+            }
+            let outcome = match call_as_you(&state, &e.id, "close_ask", serde_json::json!({ "ask_id": m.id, "note": note })).await {
+                Ok(r) if r.is_error != Some(true) => CallOutcome::Ok { text: text_of(&r) },
+                Ok(r) => CallOutcome::Error { message: text_of(&r) },
+                Err(message) => CallOutcome::Error { message },
+            };
+            out.push(AskSent { room: e.id.id.clone(), outcome });
+        }
     }
     Ok(out)
 }

@@ -161,6 +161,7 @@ fn main() {
             actions::spaces_doorways,
             actions::vouch_for,
             actions::identity_broken,
+            actions::asks_close,
             actions::spaces_admitted,
             actions::spaces_restart,
             actions::spaces_continue,

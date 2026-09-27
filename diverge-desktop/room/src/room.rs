@@ -475,6 +475,13 @@ impl Room {
                 tools.push(show);
                 tools.push(ask);
                 tools.push(offer);
+                tools.push(verb(
+                    "take_offer",
+                    "Take an offer on your ask. The ask is taken; on a work board the offer becomes a task whoever offered already holds, and ends in a receipt like any other.",
+                    json!({ "offer_id": { "type": "string" } }),
+                    &["offer_id"],
+                ));
+                tools.push(verb("close_ask", "Close your ask: nobody can offer on it any more.", json!({ "ask_id": { "type": "string" }, "note": { "type": "string" } }), &["ask_id"]));
                 tools.push(reply);
             }
         }
@@ -792,6 +799,45 @@ impl Room {
                 let n = self.field_of(&ask, "offers").and_then(|v| v.as_u64()).unwrap_or(0) + 1;
                 self.derive(&ask, None, &[("offers", json!(n))]);
                 format!("Offered to serve {ask} ({id})")
+            }
+            "take_offer" => {
+                let offer = need(args, "offer_id")?.to_owned();
+                let o = self.find(&offer, "offer")?;
+                let ask = o.parent.clone().ok_or_else(|| bad("that offer isn't on an ask"))?;
+                let a = self.find(&ask, "ask")?;
+                if a.by != who.key {
+                    return Err(refused("only who asked may take an offer on it"));
+                }
+                let state = self.state_of(&ask).unwrap_or_default();
+                if state != "open" {
+                    return Err(refused(format!("{ask} is {state}")));
+                }
+                fields.insert("offer".into(), json!(offer));
+                fields.insert("offered_by".into(), json!(o.author));
+                if self.args.kind == Kind::Board {
+                    // The offer becomes a task its offerer already holds: the spec is what they offered.
+                    let task = push(self, "task", &a.title, &o.body, Some(&ask), fields)?;
+                    self.derive(&task, Some("claimed"), &[("claimed_by", json!(o.author)), ("claimed_by_key", json!(o.by))]);
+                } else {
+                    push(self, "taken", &a.title, &o.body, Some(&ask), fields)?;
+                }
+                self.derive(&ask, Some("taken"), &[("taken_offer", json!(offer))]);
+                self.derive(&offer, Some("taken"), &[]);
+                format!("Took {}'s offer: {}", o.author, a.title)
+            }
+            "close_ask" => {
+                let ask = need(args, "ask_id")?.to_owned();
+                let a = self.find(&ask, "ask")?;
+                if a.by != who.key {
+                    return Err(refused("only who asked may close it"));
+                }
+                let state = self.state_of(&ask).unwrap_or_default();
+                if state != "open" {
+                    return Err(refused(format!("{ask} is {state}")));
+                }
+                push(self, "closed", &a.title, arg(args, "note").unwrap_or_default(), Some(&ask), fields)?;
+                self.derive(&ask, Some("closed"), &[]);
+                format!("Closed: {}", a.title)
             }
             "reply" => {
                 let parent = need(args, "move_id")?.to_owned();

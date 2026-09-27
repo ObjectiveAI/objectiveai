@@ -233,6 +233,32 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn an_offer_taken_on_a_board_becomes_a_task_that_ends_in_a_receipt() {
+        let (mut maya, mut ren) = (Person::new("maya"), Person::new("ren"));
+        let host = host_for(&maya);
+        let mut room = board(&maya);
+        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        maya.call(&mut room, &host, "ask", json!({ "what": "Fix the lamp" })).unwrap();
+        ren.call(&mut room, &host, "offer", json!({ "ask_id": "ask-2", "body": "New switch, Saturday." })).unwrap();
+        assert!(ren.call(&mut room, &host, "take_offer", json!({ "offer_id": "offer-3" })).is_err(), "only who asked takes");
+        maya.call(&mut room, &host, "take_offer", json!({ "offer_id": "offer-3" })).unwrap();
+        assert!(ren.call(&mut room, &host, "offer", json!({ "ask_id": "ask-2", "body": "me too" })).is_err(), "taken asks take no offers");
+        let moves = feed(&room);
+        assert_eq!(moves.iter().find(|m| m["id"] == "ask-2").unwrap()["state"], "taken");
+        let task = moves.iter().find(|m| m["kind"] == "task").unwrap().clone();
+        assert_eq!((task["state"].as_str(), task["body"].as_str()), (Some("claimed"), Some("New switch, Saturday.")));
+        let id = task["id"].as_str().unwrap().to_owned();
+        ren.call(&mut room, &host, "deliver", json!({ "task_id": id, "summary": "Done." })).unwrap();
+        maya.call(&mut room, &host, "accept", json!({ "task_id": id })).unwrap();
+        assert!(feed(&room).iter().any(|m| m["kind"] == "receipt"));
+        maya.call(&mut room, &host, "ask", json!({ "what": "A ladder" })).unwrap();
+        let ask = feed(&room).into_iter().rev().find(|m| m["kind"] == "ask").unwrap()["id"].as_str().unwrap().to_owned();
+        maya.call(&mut room, &host, "close_ask", json!({ "ask_id": ask, "note": "found one" })).unwrap();
+        assert!(ren.call(&mut room, &host, "offer", json!({ "ask_id": ask, "body": "mine?" })).is_err(), "closed");
+        assert!(Room::check(&room.record()).is_ok());
+    }
+
+    #[test]
     fn a_room_restarts_from_its_record() {
         let (mut maya, mut ren) = (Person::new("maya"), Person::new("ren"));
         let host = host_for(&maya);

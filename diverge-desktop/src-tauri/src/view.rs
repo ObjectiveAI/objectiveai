@@ -939,6 +939,19 @@ pub struct SpaceView {
     pub charter: String,
     pub members: Vec<MemberView>,
     pub tools: Vec<ToolView>,
+    /// For a room that continues another: who was listed there and isn't
+    /// here yet. Nobody is invited unless you send it.
+    pub before: Vec<BeforeView>,
+}
+
+/// Someone from the room this one continues.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct BeforeView {
+    pub name: String,
+    pub key: String,
+    /// A direct room you share with them, to send the invite through.
+    pub dm: Option<String>,
 }
 
 /// One object in a room's feed.

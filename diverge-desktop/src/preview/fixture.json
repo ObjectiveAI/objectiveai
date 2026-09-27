@@ -147,6 +147,10 @@
       "does": "Send one ask to several rooms at once, followed as one thread"
     },
     {
+      "name": "asks_close",
+      "does": "Close one of your asks in every room it went to"
+    },
+    {
       "name": "spaces_doorways",
       "does": "The rooms a room vouches for"
     },
@@ -3736,9 +3740,9 @@
       "name": "site-fixes",
       "image_name": "diverge-agentic-loop-cc",
       "digest": "unbuilt",
-      "created": "2026-09-27T22:01:01.152205+00:00",
+      "created": "2026-09-27T22:09:15.226254+00:00",
       "active": true,
-      "last_active": "2026-09-27T22:40:41.152205+00:00",
+      "last_active": "2026-09-27T22:48:55.226254+00:00",
       "provider": {
         "kind": "outgoing",
         "address": "127.0.0.1:4640"
@@ -3750,9 +3754,9 @@
       "name": "research-notes",
       "image_name": "diverge-agentic-loop-hermes",
       "digest": "unbuilt",
-      "created": "2026-09-25T22:41:01.152205+00:00",
+      "created": "2026-09-25T22:49:15.226254+00:00",
       "active": false,
-      "last_active": "2026-09-27T02:41:06.904205+00:00",
+      "last_active": "2026-09-27T02:49:20.978254+00:00",
       "provider": {
         "kind": "outgoing",
         "address": "127.0.0.1:4640"
@@ -3764,9 +3768,9 @@
       "name": "broken-loop",
       "image_name": "diverge-agentic-loop-openrouter",
       "digest": "unbuilt",
-      "created": "2026-09-27T16:41:01.152205+00:00",
+      "created": "2026-09-27T16:49:15.226254+00:00",
       "active": false,
-      "last_active": "2026-09-27T17:41:05.152205+00:00",
+      "last_active": "2026-09-27T17:49:19.226254+00:00",
       "provider": {
         "kind": "incoming_unbrokered",
         "identity": "studio-pc"
@@ -3779,7 +3783,7 @@
     "broken-loop": [
       {
         "logs_index": 1,
-        "created": "2026-09-27T17:41:01.152205+00:00",
+        "created": "2026-09-27T17:49:15.226254+00:00",
         "item": {
           "kind": "user_text",
           "key": "m2",
@@ -3788,7 +3792,7 @@
       },
       {
         "logs_index": 2,
-        "created": "2026-09-27T17:41:01.152205+00:00",
+        "created": "2026-09-27T17:49:15.226254+00:00",
         "item": {
           "kind": "active",
           "provider": {
@@ -3799,7 +3803,7 @@
       },
       {
         "logs_index": 3,
-        "created": "2026-09-27T17:41:03.152205+00:00",
+        "created": "2026-09-27T17:49:17.226254+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3808,7 +3812,7 @@
       },
       {
         "logs_index": 4,
-        "created": "2026-09-27T17:41:05.152205+00:00",
+        "created": "2026-09-27T17:49:19.226254+00:00",
         "item": {
           "kind": "error",
           "message": "the upstream refused the request: no API key for it in the vault"
@@ -3816,7 +3820,7 @@
       },
       {
         "logs_index": 5,
-        "created": "2026-09-27T17:41:05.152205+00:00",
+        "created": "2026-09-27T17:49:19.226254+00:00",
         "item": {
           "kind": "inactive",
           "provider": {
@@ -3829,7 +3833,7 @@
     "research-notes": [
       {
         "logs_index": 1,
-        "created": "2026-09-27T02:41:01.152205+00:00",
+        "created": "2026-09-27T02:49:15.226254+00:00",
         "item": {
           "kind": "user_text",
           "key": "m1",
@@ -3838,7 +3842,7 @@
       },
       {
         "logs_index": 2,
-        "created": "2026-09-27T02:41:01.152205+00:00",
+        "created": "2026-09-27T02:49:15.226254+00:00",
         "item": {
           "kind": "active",
           "provider": {
@@ -3849,7 +3853,7 @@
       },
       {
         "logs_index": 3,
-        "created": "2026-09-27T02:41:01.292205+00:00",
+        "created": "2026-09-27T02:49:15.366254+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3858,7 +3862,7 @@
       },
       {
         "logs_index": 4,
-        "created": "2026-09-27T02:41:01.334205+00:00",
+        "created": "2026-09-27T02:49:15.408254+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3867,7 +3871,7 @@
       },
       {
         "logs_index": 5,
-        "created": "2026-09-27T02:41:01.383205+00:00",
+        "created": "2026-09-27T02:49:15.457254+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3876,7 +3880,7 @@
       },
       {
         "logs_index": 6,
-        "created": "2026-09-27T02:41:01.439205+00:00",
+        "created": "2026-09-27T02:49:15.513254+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3885,7 +3889,7 @@
       },
       {
         "logs_index": 7,
-        "created": "2026-09-27T02:41:01.502205+00:00",
+        "created": "2026-09-27T02:49:15.576254+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3894,7 +3898,7 @@
       },
       {
         "logs_index": 8,
-        "created": "2026-09-27T02:41:01.572205+00:00",
+        "created": "2026-09-27T02:49:15.646254+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3903,7 +3907,7 @@
       },
       {
         "logs_index": 9,
-        "created": "2026-09-27T02:41:01.609205+00:00",
+        "created": "2026-09-27T02:49:15.683254+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3912,51 +3916,51 @@
       },
       {
         "logs_index": 10,
-        "created": "2026-09-27T02:41:02.109205+00:00",
+        "created": "2026-09-27T02:49:16.183254+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
-          "id": "call_135",
+          "id": "call_121",
           "name": "read_file",
           "arguments": "{\"path\":\"/notes/ideas.md\"}"
         }
       },
       {
         "logs_index": 11,
-        "created": "2026-09-27T02:41:02.809205+00:00",
+        "created": "2026-09-27T02:49:16.883254+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
-          "id": "call_135",
+          "id": "call_121",
           "is_error": false,
           "text": "# ideas\n\n- Fix the Archive link on the site\n- Ask ada about the studio PC on Saturday\n- A darker theme for the site\n- Sort the trip photos\n"
         }
       },
       {
         "logs_index": 12,
-        "created": "2026-09-27T02:41:03.309205+00:00",
+        "created": "2026-09-27T02:49:17.383254+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
-          "id": "call_136",
+          "id": "call_122",
           "name": "web_search",
           "arguments": "{\"query\":\"Pull the open questions out of my notes\"}"
         }
       },
       {
         "logs_index": 13,
-        "created": "2026-09-27T02:41:04.509205+00:00",
+        "created": "2026-09-27T02:49:18.583254+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
-          "id": "call_136",
+          "id": "call_122",
           "is_error": true,
           "text": "The stand-in daemon has no network, so this search returned nothing. A real run would list results here."
         }
       },
       {
         "logs_index": 14,
-        "created": "2026-09-27T02:41:04.729205+00:00",
+        "created": "2026-09-27T02:49:18.803254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -3965,7 +3969,7 @@
       },
       {
         "logs_index": 15,
-        "created": "2026-09-27T02:41:04.791205+00:00",
+        "created": "2026-09-27T02:49:18.865254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -3974,7 +3978,7 @@
       },
       {
         "logs_index": 16,
-        "created": "2026-09-27T02:41:04.860205+00:00",
+        "created": "2026-09-27T02:49:18.934254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -3983,7 +3987,7 @@
       },
       {
         "logs_index": 17,
-        "created": "2026-09-27T02:41:04.936205+00:00",
+        "created": "2026-09-27T02:49:19.010254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -3992,7 +3996,7 @@
       },
       {
         "logs_index": 18,
-        "created": "2026-09-27T02:41:05.019205+00:00",
+        "created": "2026-09-27T02:49:19.093254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4001,7 +4005,7 @@
       },
       {
         "logs_index": 19,
-        "created": "2026-09-27T02:41:05.109205+00:00",
+        "created": "2026-09-27T02:49:19.183254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4010,7 +4014,7 @@
       },
       {
         "logs_index": 20,
-        "created": "2026-09-27T02:41:05.166205+00:00",
+        "created": "2026-09-27T02:49:19.240254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4019,7 +4023,7 @@
       },
       {
         "logs_index": 21,
-        "created": "2026-09-27T02:41:05.230205+00:00",
+        "created": "2026-09-27T02:49:19.304254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4028,7 +4032,7 @@
       },
       {
         "logs_index": 22,
-        "created": "2026-09-27T02:41:05.301205+00:00",
+        "created": "2026-09-27T02:49:19.375254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4037,7 +4041,7 @@
       },
       {
         "logs_index": 23,
-        "created": "2026-09-27T02:41:05.379205+00:00",
+        "created": "2026-09-27T02:49:19.453254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4046,7 +4050,7 @@
       },
       {
         "logs_index": 24,
-        "created": "2026-09-27T02:41:05.464205+00:00",
+        "created": "2026-09-27T02:49:19.538254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4055,7 +4059,7 @@
       },
       {
         "logs_index": 25,
-        "created": "2026-09-27T02:41:05.556205+00:00",
+        "created": "2026-09-27T02:49:19.630254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4064,7 +4068,7 @@
       },
       {
         "logs_index": 26,
-        "created": "2026-09-27T02:41:05.615205+00:00",
+        "created": "2026-09-27T02:49:19.689254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4073,7 +4077,7 @@
       },
       {
         "logs_index": 27,
-        "created": "2026-09-27T02:41:05.681205+00:00",
+        "created": "2026-09-27T02:49:19.755254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4082,7 +4086,7 @@
       },
       {
         "logs_index": 28,
-        "created": "2026-09-27T02:41:05.754205+00:00",
+        "created": "2026-09-27T02:49:19.828254+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4091,7 +4095,7 @@
       },
       {
         "logs_index": 29,
-        "created": "2026-09-27T02:41:05.904205+00:00",
+        "created": "2026-09-27T02:49:19.978254+00:00",
         "item": {
           "kind": "usage",
           "prompt_tokens": 470,
@@ -4101,7 +4105,7 @@
       },
       {
         "logs_index": 30,
-        "created": "2026-09-27T02:41:06.904205+00:00",
+        "created": "2026-09-27T02:49:20.978254+00:00",
         "item": {
           "kind": "inactive",
           "provider": {
@@ -4114,7 +4118,7 @@
     "site-fixes": [
       {
         "logs_index": 1,
-        "created": "2026-09-27T22:40:41.152205+00:00",
+        "created": "2026-09-27T22:48:55.226254+00:00",
         "item": {
           "kind": "user_text",
           "key": "m3",
@@ -4123,7 +4127,7 @@
       },
       {
         "logs_index": 2,
-        "created": "2026-09-27T22:40:41.152205+00:00",
+        "created": "2026-09-27T22:48:55.226254+00:00",
         "item": {
           "kind": "active",
           "provider": {
@@ -4134,7 +4138,7 @@
       },
       {
         "logs_index": 3,
-        "created": "2026-09-27T22:41:01.280503+00:00",
+        "created": "2026-09-27T22:49:15.323900+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4143,7 +4147,7 @@
       },
       {
         "logs_index": 4,
-        "created": "2026-09-27T22:41:01.280523+00:00",
+        "created": "2026-09-27T22:49:15.323908+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4152,7 +4156,7 @@
       },
       {
         "logs_index": 5,
-        "created": "2026-09-27T22:41:01.280554+00:00",
+        "created": "2026-09-27T22:49:15.323960+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4161,7 +4165,7 @@
       },
       {
         "logs_index": 6,
-        "created": "2026-09-27T22:41:01.280585+00:00",
+        "created": "2026-09-27T22:49:15.324006+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4170,29 +4174,29 @@
       },
       {
         "logs_index": 7,
-        "created": "2026-09-27T22:41:01.280614+00:00",
+        "created": "2026-09-27T22:49:15.324036+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
-          "id": "call_139",
+          "id": "call_127",
           "name": "Read",
           "arguments": "{\"file_path\":\"/projects/site/styles.css\"}"
         }
       },
       {
         "logs_index": 8,
-        "created": "2026-09-27T22:41:01.280643+00:00",
+        "created": "2026-09-27T22:49:15.324066+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
-          "id": "call_139",
+          "id": "call_127",
           "is_error": false,
           "text": "body { font-family: system-ui; margin: 0 auto; max-width: 42rem; }\nheader h1 { font-size: 2rem; }\n"
         }
       },
       {
         "logs_index": 9,
-        "created": "2026-09-27T22:41:01.280674+00:00",
+        "created": "2026-09-27T22:49:15.324097+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4201,7 +4205,7 @@
       },
       {
         "logs_index": 10,
-        "created": "2026-09-27T22:41:01.280704+00:00",
+        "created": "2026-09-27T22:49:15.324127+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4210,7 +4214,7 @@
       },
       {
         "logs_index": 11,
-        "created": "2026-09-27T22:41:01.280716+00:00",
+        "created": "2026-09-27T22:49:15.324140+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4219,7 +4223,7 @@
       },
       {
         "logs_index": 12,
-        "created": "2026-09-27T22:41:01.280744+00:00",
+        "created": "2026-09-27T22:49:15.324168+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4228,7 +4232,7 @@
       },
       {
         "logs_index": 13,
-        "created": "2026-09-27T22:41:01.280788+00:00",
+        "created": "2026-09-27T22:49:15.324211+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4237,29 +4241,29 @@
       },
       {
         "logs_index": 14,
-        "created": "2026-09-27T22:41:01.280828+00:00",
+        "created": "2026-09-27T22:49:15.324240+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
-          "id": "call_140",
+          "id": "call_129",
           "name": "Read",
           "arguments": "{\"file_path\":\"/projects/site/README.md\"}"
         }
       },
       {
         "logs_index": 15,
-        "created": "2026-09-27T22:41:01.280876+00:00",
+        "created": "2026-09-27T22:49:15.324287+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
-          "id": "call_140",
+          "id": "call_129",
           "is_error": false,
           "text": "# site\n\nA small static site. `index.html` and `styles.css`, nothing else.\n"
         }
       },
       {
         "logs_index": 16,
-        "created": "2026-09-27T22:41:01.280915+00:00",
+        "created": "2026-09-27T22:49:15.324317+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4268,7 +4272,7 @@
       },
       {
         "logs_index": 17,
-        "created": "2026-09-27T22:41:01.280948+00:00",
+        "created": "2026-09-27T22:49:15.324344+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4277,7 +4281,7 @@
       },
       {
         "logs_index": 18,
-        "created": "2026-09-27T22:41:01.280980+00:00",
+        "created": "2026-09-27T22:49:15.324386+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4286,7 +4290,7 @@
       },
       {
         "logs_index": 19,
-        "created": "2026-09-27T22:41:01.281009+00:00",
+        "created": "2026-09-27T22:49:15.324414+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4295,7 +4299,7 @@
       },
       {
         "logs_index": 20,
-        "created": "2026-09-27T22:41:01.281055+00:00",
+        "created": "2026-09-27T22:49:15.324457+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4304,29 +4308,29 @@
       },
       {
         "logs_index": 21,
-        "created": "2026-09-27T22:41:01.281084+00:00",
+        "created": "2026-09-27T22:49:15.324485+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
-          "id": "call_143",
+          "id": "call_131",
           "name": "Read",
           "arguments": "{\"file_path\":\"/projects/site/index.html\"}"
         }
       },
       {
         "logs_index": 22,
-        "created": "2026-09-27T22:41:01.281131+00:00",
+        "created": "2026-09-27T22:49:15.324530+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
-          "id": "call_143",
+          "id": "call_131",
           "is_error": false,
           "text": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <title>Workshop</title>\n    <link rel=\"stylesheet\" href=\"styles.css\" />\n  </head>\n  <body>\n    <header><h1>Workshop</h1></header>\n    <main>\n      <p>Things I'm building, and how to reach me about them.</p>\n      <a href=\"/projects\">Projects</a>\n      <a href=\"/notes\">Notes</a>\n      <a href=\"mailto:hello@example.com\">Email</a>\n      <a href=\"/old-page\">Archive</a>\n    </main>\n  </body>\n</html>\n"
         }
       },
       {
         "logs_index": 23,
-        "created": "2026-09-27T22:41:01.281161+00:00",
+        "created": "2026-09-27T22:49:15.324559+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4335,7 +4339,7 @@
       },
       {
         "logs_index": 24,
-        "created": "2026-09-27T22:41:01.281173+00:00",
+        "created": "2026-09-27T22:49:15.324571+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4344,7 +4348,7 @@
       },
       {
         "logs_index": 25,
-        "created": "2026-09-27T22:41:01.281202+00:00",
+        "created": "2026-09-27T22:49:15.324599+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4353,7 +4357,7 @@
       },
       {
         "logs_index": 26,
-        "created": "2026-09-27T22:41:01.281240+00:00",
+        "created": "2026-09-27T22:49:15.324627+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4362,7 +4366,7 @@
       },
       {
         "logs_index": 27,
-        "created": "2026-09-27T22:41:01.281293+00:00",
+        "created": "2026-09-27T22:49:15.324670+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4371,29 +4375,29 @@
       },
       {
         "logs_index": 28,
-        "created": "2026-09-27T22:41:01.281322+00:00",
+        "created": "2026-09-27T22:49:15.324698+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
-          "id": "call_147",
+          "id": "call_133",
           "name": "Read",
           "arguments": "{\"file_path\":\"/projects/site/styles.css\"}"
         }
       },
       {
         "logs_index": 29,
-        "created": "2026-09-27T22:41:01.281367+00:00",
+        "created": "2026-09-27T22:49:15.324741+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
-          "id": "call_147",
+          "id": "call_133",
           "is_error": false,
           "text": "body { font-family: system-ui; margin: 0 auto; max-width: 42rem; }\nheader h1 { font-size: 2rem; }\n"
         }
       },
       {
         "logs_index": 30,
-        "created": "2026-09-27T22:41:01.281397+00:00",
+        "created": "2026-09-27T22:49:15.324769+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4402,7 +4406,7 @@
       },
       {
         "logs_index": 31,
-        "created": "2026-09-27T22:41:01.281425+00:00",
+        "created": "2026-09-27T22:49:15.324804+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4411,7 +4415,7 @@
       },
       {
         "logs_index": 32,
-        "created": "2026-09-27T22:41:01.281459+00:00",
+        "created": "2026-09-27T22:49:15.324837+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4420,7 +4424,7 @@
       },
       {
         "logs_index": 33,
-        "created": "2026-09-27T22:41:01.281492+00:00",
+        "created": "2026-09-27T22:49:15.324874+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4429,7 +4433,7 @@
       },
       {
         "logs_index": 34,
-        "created": "2026-09-27T22:41:01.281540+00:00",
+        "created": "2026-09-27T22:49:15.324924+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4438,29 +4442,29 @@
       },
       {
         "logs_index": 35,
-        "created": "2026-09-27T22:41:01.281569+00:00",
+        "created": "2026-09-27T22:49:15.324957+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
-          "id": "call_150",
+          "id": "call_135",
           "name": "Read",
           "arguments": "{\"file_path\":\"/projects/site/README.md\"}"
         }
       },
       {
         "logs_index": 36,
-        "created": "2026-09-27T22:41:01.281597+00:00",
+        "created": "2026-09-27T22:49:15.324991+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
-          "id": "call_150",
+          "id": "call_135",
           "is_error": false,
           "text": "# site\n\nA small static site. `index.html` and `styles.css`, nothing else.\n"
         }
       },
       {
         "logs_index": 37,
-        "created": "2026-09-27T22:41:01.281627+00:00",
+        "created": "2026-09-27T22:49:15.325020+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4469,7 +4473,7 @@
       },
       {
         "logs_index": 38,
-        "created": "2026-09-27T22:41:01.281639+00:00",
+        "created": "2026-09-27T22:49:15.325032+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4478,7 +4482,7 @@
       },
       {
         "logs_index": 39,
-        "created": "2026-09-27T22:41:01.281670+00:00",
+        "created": "2026-09-27T22:49:15.325060+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4487,7 +4491,7 @@
       },
       {
         "logs_index": 40,
-        "created": "2026-09-27T22:41:01.281700+00:00",
+        "created": "2026-09-27T22:49:15.325088+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4506,24 +4510,24 @@
         {
           "name": "datasets",
           "bytes": 34359738368,
-          "created": "2026-09-27T22:41:01+00:00",
+          "created": "2026-09-27T22:49:15+00:00",
           "mode": "read_only"
         },
         {
           "name": "scratch",
           "bytes": 1073741824,
-          "created": "2026-09-27T22:41:01+00:00",
+          "created": "2026-09-27T22:49:15+00:00",
           "mode": "ephemeral"
         },
         {
           "name": "workspace",
           "bytes": 8589934592,
-          "created": "2026-09-27T22:41:01+00:00",
+          "created": "2026-09-27T22:49:15+00:00",
           "mode": "persistent"
         }
       ],
       "volumes_problem": null,
-      "added": "2026-09-18T22:41:01.152205+00:00",
+      "added": "2026-09-18T22:49:15.226254+00:00",
       "name": null
     },
     {
@@ -4535,12 +4539,12 @@
         {
           "name": "media",
           "bytes": 17179869184,
-          "created": "2026-09-27T22:41:01+00:00",
+          "created": "2026-09-27T22:49:15+00:00",
           "mode": "persistent"
         }
       ],
       "volumes_problem": null,
-      "added": "2026-09-24T22:41:01.152205+00:00",
+      "added": "2026-09-24T22:49:15.226254+00:00",
       "name": null
     }
   ],
@@ -4569,23 +4573,23 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:41:01.180492Z",
-            "last_acted": "2026-09-27T19:31:01.180492Z"
+            "joined": "2026-09-07T02:49:15.256438Z",
+            "last_acted": "2026-09-27T19:39:15.256438Z"
           },
           {
             "name": "ada",
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-19T14:41:01.180492Z",
-            "last_acted": "2026-09-27T20:21:01.180492Z"
+            "joined": "2026-09-19T14:49:15.256438Z",
+            "last_acted": "2026-09-27T20:29:15.256438Z"
           },
           {
             "name": "research-notes",
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a",
             "is_agent": true,
             "agent_of": "maya",
-            "joined": "2026-09-25T22:41:01.180492Z",
+            "joined": "2026-09-25T22:49:15.256438Z",
             "last_acted": null
           },
           {
@@ -4593,8 +4597,8 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7",
             "is_agent": true,
             "agent_of": "maya",
-            "joined": "2026-09-26T06:41:01.180492Z",
-            "last_acted": "2026-09-27T22:21:01.180492Z"
+            "joined": "2026-09-26T06:49:15.256438Z",
+            "last_acted": "2026-09-27T22:29:15.256438Z"
           }
         ],
         "tools": [
@@ -4676,6 +4680,43 @@
               "required": [
                 "ask_id",
                 "body"
+              ]
+            },
+            "host_only": false
+          },
+          {
+            "name": "take_offer",
+            "title": "take offer",
+            "description": "Take an offer on your ask. The ask is taken; on a work board the offer becomes a task whoever offered already holds, and ends in a receipt like any other.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "offer_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "offer_id"
+              ]
+            },
+            "host_only": false
+          },
+          {
+            "name": "close_ask",
+            "title": "close ask",
+            "description": "Close your ask: nobody can offer on it any more.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ask_id": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ask_id"
               ]
             },
             "host_only": false
@@ -4819,7 +4860,8 @@
             },
             "host_only": true
           }
-        ]
+        ],
+        "before": []
       },
       "moves": [
         {
@@ -4828,7 +4870,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-19T14:41:01.180492Z",
+          "at": "2026-09-19T14:49:15.256438Z",
           "title": "ada",
           "body": "",
           "state": "said",
@@ -4837,7 +4879,7 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "7249d2b32d2d6abd7e5e1442f19c895da14cee132053d208ed3002ba00f6b0af"
+          "hash": "6c73f3192b4c51e42ef3cd19eac303ec0f9a2a53a1c40ac75842765746c531b5"
         },
         {
           "id": "admitted-2",
@@ -4845,7 +4887,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-25T22:41:01.180492Z",
+          "at": "2026-09-25T22:49:15.256438Z",
           "title": "research-notes",
           "body": "",
           "state": "said",
@@ -4854,7 +4896,7 @@
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "aa1394335634d977db39d866de5936f194c0cf2ecc421d5382cb1ec6c1a4ee2e"
+          "hash": "fb5227de7566a893b965f732197b96af60b015b80d5a32441c1e44b2313fce2f"
         },
         {
           "id": "admitted-3",
@@ -4862,7 +4904,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T06:41:01.180492Z",
+          "at": "2026-09-26T06:49:15.256438Z",
           "title": "site-fixes",
           "body": "",
           "state": "said",
@@ -4871,7 +4913,7 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "b414fcb0b0fb0c7b7f86b6516a12eef9d0173e44fdfab0c9f7baff6c1fba0164"
+          "hash": "fdc97ba77a79b96ff39206d5ee73c12a75cb89ec27ebcb7166f487f2e68c4440"
         },
         {
           "id": "show-4",
@@ -4879,14 +4921,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T20:41:01.180492Z",
+          "at": "2026-09-26T20:49:15.256438Z",
           "title": "Draft one of the desktop app runs",
           "body": "Agents, storage, machines and saved Views, on a stand-in for the daemon. Screenshots tomorrow.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "3d9f4b216fb23770",
-          "hash": "2cfbcc8e5f0224e60ba10a843308ebc8b37d1675c7eb772aab5562cb59c2dce0"
+          "hash": "b18115f3d808e28e58c59d54d6ac7a268dddd56dfd5ea594618d2edcb6296a52"
         },
         {
           "id": "ask-5",
@@ -4894,7 +4936,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T19:31:01.180492Z",
+          "at": "2026-09-27T19:39:15.256438Z",
           "title": "Who has a GPU free on weekends?",
           "body": "",
           "state": "open",
@@ -4905,7 +4947,7 @@
             "who_may_serve": "anyone"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "fa8fd98f01e4694fe995617ec7560bd20ea8ec9c48b36131497ae88c4a7f74ab"
+          "hash": "81d8f01138e8a6106981ef4eedfcaed720d9078842d393a41a5c7322d20cf38d"
         },
         {
           "id": "reply-6",
@@ -4913,14 +4955,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-27T20:21:01.180492Z",
+          "at": "2026-09-27T20:29:15.256438Z",
           "title": "",
           "body": "Mine's free Saturday, the studio PC. Say when and I'll issue you a key.",
           "state": "said",
           "parent": "ask-5",
           "fields": {},
           "charter": "3d9f4b216fb23770",
-          "hash": "4c69a91bd3eb1717c9addaa0f3bb06505e93eba5e572c89cced5a607181f29ef"
+          "hash": "8272564167c0f816d5797a34ec68e85332ab5f3a9f657119bb00540f24005b91"
         },
         {
           "id": "run-7",
@@ -4928,7 +4970,7 @@
           "author": "site-fixes",
           "by": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7",
           "agent_of": "maya",
-          "at": "2026-09-27T22:21:01.180492Z",
+          "at": "2026-09-27T22:29:15.256438Z",
           "title": "Went through the site",
           "body": "12 passes. One broken link: “Archive” points at /old-page, which doesn't exist. Nothing changed.",
           "state": "done",
@@ -4937,10 +4979,10 @@
             "measured": "1,556 tokens"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "8d8886b98f508d79bc57bae1531ec0a9d04da475dd27bd83d17ce96466432c62"
+          "hash": "9c8aa67fcfea2d19673409c13bf8eb02121c58fe6fba66d23ec41b7eed2d1e0e"
         }
       ],
-      "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImhvbWUtbWUuYTI4Y2Y1ZjI4MGU4Iiwic2VjcmV0IjoiaG9tZS1mcmllbmRzIiwidGl0bGUiOiJZb3VyIGhvbWUiLCJraW5kIjoiaG9tZSIsImhvc3RfbmFtZSI6Im1heWEiLCJjaGFydGVyIjoiIyBZb3VyIGhvbWVcblxuV2hhdCB5b3UncmUgYnVpbGRpbmcsIHNob3duIHdoZW4geW91IGNob29zZSB0by4gRnJpZW5kcyBtYXkgYXNrIGFuZCBhbnN3ZXIuIFlvdXIgYWdlbnRzIHBvc3Qgd2hhdCB0aGV5IGZpbmlzaGVkLiIsInZlcmJzIjpbeyJuYW1lIjoic2hvdyIsImRvZXMiOiJTaG93IHNvbWV0aGluZyB5b3UgbWFkZSBvciBkaWQuIFdoYXQgeW91IHNob3cgc3RheXMgYXMgc2hvd247IGEgbmV3IHZlcnNpb24gaXMgYSBuZXcgc2hvdy4ifSx7Im5hbWUiOiJhc2siLCJkb2VzIjoiQXNrIGZvciBzb21ldGhpbmcuIEFueW9uZSBoZXJlLCBhIHBlcnNvbiBvciBhbiBhZ2VudCwgbWF5IG9mZmVyIHRvIHNlcnZlIGl0LiJ9LHsibmFtZSI6Im9mZmVyIiwiZG9lcyI6Ik9mZmVyIHRvIHNlcnZlIGFuIGFzay4ifSx7Im5hbWUiOiJyZXBseSIsImRvZXMiOiJSZXBseSB0byBhIG1vdmUuIn0seyJuYW1lIjoicmVwb3J0IiwiZG9lcyI6IlJlcG9ydCB3aGF0IHlvdSBmaW5pc2hlZDogZm9yIGFuIGFnZW50LCB3aGVuIGEgcnVuIGVuZHMuIn1dfQ"
+      "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImhvbWUtbWUuYTI4Y2Y1ZjI4MGU4Iiwic2VjcmV0IjoiaG9tZS1mcmllbmRzIiwidGl0bGUiOiJZb3VyIGhvbWUiLCJraW5kIjoiaG9tZSIsImhvc3RfbmFtZSI6Im1heWEiLCJjaGFydGVyIjoiIyBZb3VyIGhvbWVcblxuV2hhdCB5b3UncmUgYnVpbGRpbmcsIHNob3duIHdoZW4geW91IGNob29zZSB0by4gRnJpZW5kcyBtYXkgYXNrIGFuZCBhbnN3ZXIuIFlvdXIgYWdlbnRzIHBvc3Qgd2hhdCB0aGV5IGZpbmlzaGVkLiIsInZlcmJzIjpbeyJuYW1lIjoic2hvdyIsImRvZXMiOiJTaG93IHNvbWV0aGluZyB5b3UgbWFkZSBvciBkaWQuIFdoYXQgeW91IHNob3cgc3RheXMgYXMgc2hvd247IGEgbmV3IHZlcnNpb24gaXMgYSBuZXcgc2hvdy4ifSx7Im5hbWUiOiJhc2siLCJkb2VzIjoiQXNrIGZvciBzb21ldGhpbmcuIEFueW9uZSBoZXJlLCBhIHBlcnNvbiBvciBhbiBhZ2VudCwgbWF5IG9mZmVyIHRvIHNlcnZlIGl0LiJ9LHsibmFtZSI6Im9mZmVyIiwiZG9lcyI6Ik9mZmVyIHRvIHNlcnZlIGFuIGFzay4ifSx7Im5hbWUiOiJ0YWtlX29mZmVyIiwiZG9lcyI6IlRha2UgYW4gb2ZmZXIgb24geW91ciBhc2suIFRoZSBhc2sgaXMgdGFrZW47IG9uIGEgd29yayBib2FyZCB0aGUgb2ZmZXIgYmVjb21lcyBhIHRhc2sgd2hvZXZlciBvZmZlcmVkIGFscmVhZHkgaG9sZHMsIGFuZCBlbmRzIGluIGEgcmVjZWlwdCBsaWtlIGFueSBvdGhlci4ifSx7Im5hbWUiOiJjbG9zZV9hc2siLCJkb2VzIjoiQ2xvc2UgeW91ciBhc2s6IG5vYm9keSBjYW4gb2ZmZXIgb24gaXQgYW55IG1vcmUuIn0seyJuYW1lIjoicmVwbHkiLCJkb2VzIjoiUmVwbHkgdG8gYSBtb3ZlLiJ9LHsibmFtZSI6InJlcG9ydCIsImRvZXMiOiJSZXBvcnQgd2hhdCB5b3UgZmluaXNoZWQ6IGZvciBhbiBhZ2VudCwgd2hlbiBhIHJ1biBlbmRzLiJ9XX0"
     },
     {
       "view": {
@@ -4966,23 +5008,23 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:41:01.180492Z",
-            "last_acted": "2026-09-27T00:41:01.180492Z"
+            "joined": "2026-09-07T02:49:15.256438Z",
+            "last_acted": "2026-09-27T00:49:15.256438Z"
           },
           {
             "name": "ada",
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-25T00:41:01.180492Z",
-            "last_acted": "2026-09-26T23:41:01.180492Z"
+            "joined": "2026-09-25T00:49:15.256438Z",
+            "last_acted": "2026-09-26T23:49:15.256438Z"
           },
           {
             "name": "research-notes",
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a",
             "is_agent": true,
             "agent_of": "maya",
-            "joined": "2026-09-25T22:41:01.180492Z",
+            "joined": "2026-09-25T22:49:15.256438Z",
             "last_acted": null
           },
           {
@@ -4990,7 +5032,7 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7",
             "is_agent": true,
             "agent_of": "maya",
-            "joined": "2026-09-26T06:41:01.180492Z",
+            "joined": "2026-09-26T06:49:15.256438Z",
             "last_acted": null
           }
         ],
@@ -5073,6 +5115,43 @@
               "required": [
                 "ask_id",
                 "body"
+              ]
+            },
+            "host_only": false
+          },
+          {
+            "name": "take_offer",
+            "title": "take offer",
+            "description": "Take an offer on your ask. The ask is taken; on a work board the offer becomes a task whoever offered already holds, and ends in a receipt like any other.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "offer_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "offer_id"
+              ]
+            },
+            "host_only": false
+          },
+          {
+            "name": "close_ask",
+            "title": "close ask",
+            "description": "Close your ask: nobody can offer on it any more.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ask_id": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ask_id"
               ]
             },
             "host_only": false
@@ -5339,7 +5418,8 @@
             },
             "host_only": true
           }
-        ]
+        ],
+        "before": []
       },
       "moves": [
         {
@@ -5348,7 +5428,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-25T00:41:01.180492Z",
+          "at": "2026-09-25T00:49:15.256438Z",
           "title": "ada",
           "body": "",
           "state": "said",
@@ -5357,7 +5437,7 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "726f695751ce60b0",
-          "hash": "9a043303f83c3b5acd9ed2587428b455bc3432ebfc97ddea9ffe002312e14257"
+          "hash": "11aca6569c906bf1034c30c2d9a082f959eb68415e8eea35b3c6c9dd2f18481d"
         },
         {
           "id": "admitted-2",
@@ -5365,7 +5445,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-25T22:41:01.180492Z",
+          "at": "2026-09-25T22:49:15.256438Z",
           "title": "research-notes",
           "body": "",
           "state": "said",
@@ -5374,7 +5454,7 @@
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a"
           },
           "charter": "726f695751ce60b0",
-          "hash": "8aaee6eade96beb28fc08fedfdff8b7fbd093295c817f1ff0dc6ac08491dcd92"
+          "hash": "ef932dcc6c2169f6b1c4e376cb09ff17211d1ca00f5a3ebb5cf21bb1f4048608"
         },
         {
           "id": "admitted-3",
@@ -5382,7 +5462,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T06:41:01.180492Z",
+          "at": "2026-09-26T06:49:15.256438Z",
           "title": "site-fixes",
           "body": "",
           "state": "said",
@@ -5391,7 +5471,7 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7"
           },
           "charter": "726f695751ce60b0",
-          "hash": "486dd52dea3bc061759647cccbc2901446e7e0e32657bc0887aed70baca8c7c5"
+          "hash": "f8ea804fca3d953abc7f38d3a8d02f0b289ae9c3c0b295c805e05d40e4bdb073"
         },
         {
           "id": "task-4",
@@ -5399,7 +5479,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T21:41:01.180492Z",
+          "at": "2026-09-26T21:49:15.256438Z",
           "title": "Package the photo resizer as a tool",
           "body": "A container that runs the resizer script as a tool with one `resize` verb. Done = an agent can call it on a folder and get the smaller copies back.",
           "state": "open",
@@ -5408,7 +5488,7 @@
             "pledge": "a loaf of the good bread"
           },
           "charter": "726f695751ce60b0",
-          "hash": "be2084471df6e2f292b6bc813d4756cec021f99b7fb8bf37d293dad7b6c36d3f"
+          "hash": "5ed26a07577dd16cdc5fc7a85b29f8464605aa044d971b5a8db274610b3c0e71"
         },
         {
           "id": "task-5",
@@ -5416,7 +5496,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T22:11:01.180492Z",
+          "at": "2026-09-26T22:19:15.256438Z",
           "title": "Write a README for the label printer script",
           "body": "What it does, how to run it, one example. Done = someone new can print a label from it.",
           "state": "claimed",
@@ -5426,7 +5506,7 @@
             "claimed_by_key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "726f695751ce60b0",
-          "hash": "56512e40cc9a561cf67567816134fdbbf799229660a3d566ecbe892bcfc82b5a"
+          "hash": "3dcd90d1b99fd7356ac4315d30292c1e10e36c2960975e5ca88be16b089cd1ed"
         },
         {
           "id": "claim-6",
@@ -5434,14 +5514,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T22:41:01.180492Z",
+          "at": "2026-09-26T22:49:15.256438Z",
           "title": "Write a README for the label printer script",
           "body": "",
           "state": "claimed",
           "parent": "task-5",
           "fields": {},
           "charter": "726f695751ce60b0",
-          "hash": "0193a2bb5c0d88d0af839aebd959519d52b6f85bc9ae29c270c0a832f73f727d"
+          "hash": "da34413db4a28eb0cd782d2aed42df91272039191e3e3e6e7c9780874e4f8907"
         },
         {
           "id": "offering-7",
@@ -5449,7 +5529,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T23:41:01.180492Z",
+          "at": "2026-09-26T23:49:15.256438Z",
           "title": "Weekend GPU time on the studio PC",
           "body": "One card, 24 GB, Saturday and Sunday. Measured in seconds; friends free.",
           "state": "offered",
@@ -5459,7 +5539,7 @@
             "terms": "measured, not priced"
           },
           "charter": "726f695751ce60b0",
-          "hash": "df2b96916cadee822cc85e9a231e5ea0d17163f71f3a42d222abe02d6466a6ae"
+          "hash": "06d848d76e9f79acde741f371d571cb756e925d72110ea2f8737e99b21037ed1"
         },
         {
           "id": "show-8",
@@ -5467,17 +5547,17 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T00:41:01.180492Z",
+          "at": "2026-09-27T00:49:15.256438Z",
           "title": "The desktop app, draft one",
           "body": "It runs: agents, storage, machines, saved views.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "726f695751ce60b0",
-          "hash": "5fd2b5fc2466a906709294e630a841f565749fd64ec9a497fea12531a04c1d32"
+          "hash": "dbf875651b87f18cc49edde54b0eb7f93dda88d322c839ac48d343d45340901e"
         }
       ],
-      "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImJvYXJkLXNhdHVyZGF5LmEyOGNmNWYyODBlOCIsInNlY3JldCI6InNhdHVyZGF5LTIwMjYiLCJ0aXRsZSI6IlNhdHVyZGF5IFdvcmtzaG9wIiwia2luZCI6ImJvYXJkIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiIjIFNhdHVyZGF5IFdvcmtzaG9wXG5cbiMjIFJ1bGVzXG5TaG93IHdoYXQgeW91J3JlIG1ha2luZywgZmluaXNoZWQgb3Igbm90LiBBc2sgZm9yIGhlbHAgcGxhaW5seS4gQmUga2luZCBhYm91dCBvdGhlciBwZW9wbGUncyB3b3JrLlxuXG4jIyBXaG8gZG9lcyB3aGF0XG5UaGUgKipob3N0Kioga2VlcHMgdGhlIHJ1bGVzIGFuZCBhY2NlcHRzIGRlbGl2ZXJpZXMuICoqTWVtYmVycyoqIHBvc3QsIGNsYWltIGFuZCBvZmZlci4gKipHdWVzdHMqKiByZWFkLlxuXG4jIyBUYXNrc1xuQSB0YXNrIGhhcyBhIHRpdGxlIGFuZCBhIHNwZWMsIGZpeGVkIHdoZW4gaXQncyBwb3N0ZWQuIENsYWltIGl0IGFzIHBvc3RlZDsgdGhlIHNwZWMgaXMgd2hhdCBnZXRzIGNoZWNrZWQuIEEgcGxlZGdlIGlzIHdvcmRzOiBib3RoIHNpZGVzIHNheSB3aGVuIGl0J3Mgc2V0dGxlZC5cblxuIyMgUmVjZWlwdHNcbkFjY2VwdGluZyBhIGRlbGl2ZXJ5IGlzc3VlcyBhIHJlY2VpcHQgdG8gd2hvZXZlciBkaWQgdGhlIHdvcmssIHNlYWxlZCBieSB0aGlzIHJvb20uIEl0IGlzIGEgcmVjb3JkLCBuZXZlciBhIHJhdGluZyBvZiBhIHBlcnNvbi4iLCJ2ZXJicyI6W3sibmFtZSI6InNob3ciLCJkb2VzIjoiU2hvdyBzb21ldGhpbmcgeW91IG1hZGUgb3IgZGlkLiBXaGF0IHlvdSBzaG93IHN0YXlzIGFzIHNob3duOyBhIG5ldyB2ZXJzaW9uIGlzIGEgbmV3IHNob3cuIn0seyJuYW1lIjoiYXNrIiwiZG9lcyI6IkFzayBmb3Igc29tZXRoaW5nLiBBbnlvbmUgaGVyZSwgYSBwZXJzb24gb3IgYW4gYWdlbnQsIG1heSBvZmZlciB0byBzZXJ2ZSBpdC4ifSx7Im5hbWUiOiJvZmZlciIsImRvZXMiOiJPZmZlciB0byBzZXJ2ZSBhbiBhc2suIn0seyJuYW1lIjoicmVwbHkiLCJkb2VzIjoiUmVwbHkgdG8gYSBtb3ZlLiJ9LHsibmFtZSI6InBvc3RfdGFzayIsImRvZXMiOiJQb3N0IGEgdGFzazogaXRzIHNwZWMgaXMgZml4ZWQgYXQgcG9zdGluZywgYW5kIHdob2V2ZXIgY2xhaW1zIGl0IGlzIGp1ZGdlZCBvbiB0aGUgc3BlYy4ifSx7Im5hbWUiOiJjbGFpbSIsImRvZXMiOiJDbGFpbSBhbiBvcGVuIHRhc2suIFlvdSB0YWtlIGl0IGFzIHBvc3RlZC4ifSx7Im5hbWUiOiJkZWxpdmVyIiwiZG9lcyI6IkRlbGl2ZXIgb24gYSB0YXNrIHlvdSBjbGFpbWVkLiJ9LHsibmFtZSI6ImFjY2VwdCIsImRvZXMiOiJBY2NlcHQgYSBkZWxpdmVyeTogdGhlIHRhc2sgaXMgZG9uZSBhbmQgdGhlIHJvb20gaXNzdWVzIGEgcmVjZWlwdC4ifSx7Im5hbWUiOiJzZXR0bGUiLCJkb2VzIjoiU2F5IHdoZXRoZXIgYSB0YXNrJ3MgcGxlZGdlIGlzIHNldHRsZWQuIFdob2V2ZXIgcG9zdGVkIGl0IGFuZCB3aG9ldmVyIGRpZCBpdCBlYWNoIHNheTsgaWYgdGhleSBkaXNhZ3JlZSwgYm90aCBzdGFuZC4ifSx7Im5hbWUiOiJwb3N0X29mZmVyaW5nIiwiZG9lcyI6Ik9mZmVyIHNvbWV0aGluZyB5b3Ugc2VsbCBvciBsZW5kOiBhIGZpeGVkIHRoaW5nLCBvciBhIG1ldGVyZWQgY2FwYWJpbGl0eS4ifV19"
+      "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImJvYXJkLXNhdHVyZGF5LmEyOGNmNWYyODBlOCIsInNlY3JldCI6InNhdHVyZGF5LTIwMjYiLCJ0aXRsZSI6IlNhdHVyZGF5IFdvcmtzaG9wIiwia2luZCI6ImJvYXJkIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiIjIFNhdHVyZGF5IFdvcmtzaG9wXG5cbiMjIFJ1bGVzXG5TaG93IHdoYXQgeW91J3JlIG1ha2luZywgZmluaXNoZWQgb3Igbm90LiBBc2sgZm9yIGhlbHAgcGxhaW5seS4gQmUga2luZCBhYm91dCBvdGhlciBwZW9wbGUncyB3b3JrLlxuXG4jIyBXaG8gZG9lcyB3aGF0XG5UaGUgKipob3N0Kioga2VlcHMgdGhlIHJ1bGVzIGFuZCBhY2NlcHRzIGRlbGl2ZXJpZXMuICoqTWVtYmVycyoqIHBvc3QsIGNsYWltIGFuZCBvZmZlci4gKipHdWVzdHMqKiByZWFkLlxuXG4jIyBUYXNrc1xuQSB0YXNrIGhhcyBhIHRpdGxlIGFuZCBhIHNwZWMsIGZpeGVkIHdoZW4gaXQncyBwb3N0ZWQuIENsYWltIGl0IGFzIHBvc3RlZDsgdGhlIHNwZWMgaXMgd2hhdCBnZXRzIGNoZWNrZWQuIEEgcGxlZGdlIGlzIHdvcmRzOiBib3RoIHNpZGVzIHNheSB3aGVuIGl0J3Mgc2V0dGxlZC5cblxuIyMgUmVjZWlwdHNcbkFjY2VwdGluZyBhIGRlbGl2ZXJ5IGlzc3VlcyBhIHJlY2VpcHQgdG8gd2hvZXZlciBkaWQgdGhlIHdvcmssIHNlYWxlZCBieSB0aGlzIHJvb20uIEl0IGlzIGEgcmVjb3JkLCBuZXZlciBhIHJhdGluZyBvZiBhIHBlcnNvbi4iLCJ2ZXJicyI6W3sibmFtZSI6InNob3ciLCJkb2VzIjoiU2hvdyBzb21ldGhpbmcgeW91IG1hZGUgb3IgZGlkLiBXaGF0IHlvdSBzaG93IHN0YXlzIGFzIHNob3duOyBhIG5ldyB2ZXJzaW9uIGlzIGEgbmV3IHNob3cuIn0seyJuYW1lIjoiYXNrIiwiZG9lcyI6IkFzayBmb3Igc29tZXRoaW5nLiBBbnlvbmUgaGVyZSwgYSBwZXJzb24gb3IgYW4gYWdlbnQsIG1heSBvZmZlciB0byBzZXJ2ZSBpdC4ifSx7Im5hbWUiOiJvZmZlciIsImRvZXMiOiJPZmZlciB0byBzZXJ2ZSBhbiBhc2suIn0seyJuYW1lIjoidGFrZV9vZmZlciIsImRvZXMiOiJUYWtlIGFuIG9mZmVyIG9uIHlvdXIgYXNrLiBUaGUgYXNrIGlzIHRha2VuOyBvbiBhIHdvcmsgYm9hcmQgdGhlIG9mZmVyIGJlY29tZXMgYSB0YXNrIHdob2V2ZXIgb2ZmZXJlZCBhbHJlYWR5IGhvbGRzLCBhbmQgZW5kcyBpbiBhIHJlY2VpcHQgbGlrZSBhbnkgb3RoZXIuIn0seyJuYW1lIjoiY2xvc2VfYXNrIiwiZG9lcyI6IkNsb3NlIHlvdXIgYXNrOiBub2JvZHkgY2FuIG9mZmVyIG9uIGl0IGFueSBtb3JlLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifSx7Im5hbWUiOiJwb3N0X3Rhc2siLCJkb2VzIjoiUG9zdCBhIHRhc2s6IGl0cyBzcGVjIGlzIGZpeGVkIGF0IHBvc3RpbmcsIGFuZCB3aG9ldmVyIGNsYWltcyBpdCBpcyBqdWRnZWQgb24gdGhlIHNwZWMuIn0seyJuYW1lIjoiY2xhaW0iLCJkb2VzIjoiQ2xhaW0gYW4gb3BlbiB0YXNrLiBZb3UgdGFrZSBpdCBhcyBwb3N0ZWQuIn0seyJuYW1lIjoiZGVsaXZlciIsImRvZXMiOiJEZWxpdmVyIG9uIGEgdGFzayB5b3UgY2xhaW1lZC4ifSx7Im5hbWUiOiJhY2NlcHQiLCJkb2VzIjoiQWNjZXB0IGEgZGVsaXZlcnk6IHRoZSB0YXNrIGlzIGRvbmUgYW5kIHRoZSByb29tIGlzc3VlcyBhIHJlY2VpcHQuIn0seyJuYW1lIjoic2V0dGxlIiwiZG9lcyI6IlNheSB3aGV0aGVyIGEgdGFzaydzIHBsZWRnZSBpcyBzZXR0bGVkLiBXaG9ldmVyIHBvc3RlZCBpdCBhbmQgd2hvZXZlciBkaWQgaXQgZWFjaCBzYXk7IGlmIHRoZXkgZGlzYWdyZWUsIGJvdGggc3RhbmQuIn0seyJuYW1lIjoicG9zdF9vZmZlcmluZyIsImRvZXMiOiJPZmZlciBzb21ldGhpbmcgeW91IHNlbGwgb3IgbGVuZDogYSBmaXhlZCB0aGluZywgb3IgYSBtZXRlcmVkIGNhcGFiaWxpdHkuIn1dfQ"
     },
     {
       "view": {
@@ -5503,24 +5583,24 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:41:01.180492Z",
-            "last_acted": "2026-09-26T07:41:01.180492Z"
+            "joined": "2026-09-07T02:49:15.256438Z",
+            "last_acted": "2026-09-26T07:49:15.256438Z"
           },
           {
             "name": "scout",
             "key": "f6413c87a5d109ac89f962c1b80521b2f402e844071397fa9858081d471bff11",
             "is_agent": true,
             "agent_of": "ada",
-            "joined": "2026-09-24T09:41:01.180492Z",
-            "last_acted": "2026-09-25T16:41:01.180492Z"
+            "joined": "2026-09-24T09:49:15.256438Z",
+            "last_acted": "2026-09-25T16:49:15.256438Z"
           },
           {
             "name": "maya",
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-24T14:41:01.180492Z",
-            "last_acted": "2026-09-25T10:41:01.180492Z"
+            "joined": "2026-09-24T14:49:15.256438Z",
+            "last_acted": "2026-09-25T10:49:15.256438Z"
           }
         ],
         "tools": [
@@ -5602,6 +5682,43 @@
               "required": [
                 "ask_id",
                 "body"
+              ]
+            },
+            "host_only": false
+          },
+          {
+            "name": "take_offer",
+            "title": "take offer",
+            "description": "Take an offer on your ask. The ask is taken; on a work board the offer becomes a task whoever offered already holds, and ends in a receipt like any other.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "offer_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "offer_id"
+              ]
+            },
+            "host_only": false
+          },
+          {
+            "name": "close_ask",
+            "title": "close ask",
+            "description": "Close your ask: nobody can offer on it any more.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ask_id": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ask_id"
               ]
             },
             "host_only": false
@@ -5787,7 +5904,8 @@
             },
             "host_only": true
           }
-        ]
+        ],
+        "before": []
       },
       "moves": [
         {
@@ -5796,7 +5914,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-24T09:41:01.180492Z",
+          "at": "2026-09-24T09:49:15.256438Z",
           "title": "scout",
           "body": "",
           "state": "said",
@@ -5805,7 +5923,7 @@
             "key": "f6413c87a5d109ac89f962c1b80521b2f402e844071397fa9858081d471bff11"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "aae59228a05a2a6b842a30a5f4a59b9c806ec89061766dde055ae4899e90a998"
+          "hash": "056f20e131051334a75c789e5a9f46df21c0bc39a37f1e386bf83af22107b03b"
         },
         {
           "id": "admitted-2",
@@ -5813,7 +5931,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-24T14:41:01.180492Z",
+          "at": "2026-09-24T14:49:15.256438Z",
           "title": "maya",
           "body": "",
           "state": "said",
@@ -5822,7 +5940,7 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "0072de159ee7d34e0f20f42a5f638a5bf2e1618983d611e5e2496783c47a6a50"
+          "hash": "3d3506c6bc2a9d8a8eb1b9186e1e556ea358ca220003d972d6f4d0049c324413"
         },
         {
           "id": "direction-3",
@@ -5830,7 +5948,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-25T00:41:01.180492Z",
+          "at": "2026-09-25T00:49:15.256438Z",
           "title": "Recipes from every street",
           "body": "One page per street, cooked by whoever lives there.",
           "state": "open",
@@ -5839,7 +5957,7 @@
             "note": 1
           },
           "charter": "65418844c1d45a5a",
-          "hash": "14b49624de626839333f773c074a1ab14839b615a55c066e456a8152824122c1"
+          "hash": "96b16521929516abfd06d46bc8db09c81144d148018eb5b71612e56720cb5123"
         },
         {
           "id": "direction-4",
@@ -5847,7 +5965,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-25T10:41:01.180492Z",
+          "at": "2026-09-25T10:49:15.256438Z",
           "title": "A map drawn by kids",
           "body": "Hand-drawn, scanned, the centre spread.",
           "state": "open",
@@ -5856,7 +5974,7 @@
             "prefer": 1
           },
           "charter": "65418844c1d45a5a",
-          "hash": "0629aa2d2d3ed0911372565691229e44e73281a574d6376a38b7446a68ff3dfe"
+          "hash": "a0f2e61af007655497821207f35139971f06abf49331f2de64983f62a04fa52e"
         },
         {
           "id": "steer-5",
@@ -5864,7 +5982,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-25T15:41:01.180492Z",
+          "at": "2026-09-25T15:49:15.256438Z",
           "title": "A map drawn by kids",
           "body": "This is the one. Recipes can be issue two.",
           "state": "said",
@@ -5873,7 +5991,7 @@
             "move": "prefer"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "669559193efcc6832079709e505ce4ff4f553ea056282ab520324ff7a0549438"
+          "hash": "a04553b0cd0d990893c2bc1b52ae236250b4dc8a7b9c7b85d025ba21bc1721b9"
         },
         {
           "id": "steer-6",
@@ -5881,7 +5999,7 @@
           "author": "scout",
           "by": "f6413c87a5d109ac89f962c1b80521b2f402e844071397fa9858081d471bff11",
           "agent_of": "ada",
-          "at": "2026-09-25T16:41:01.180492Z",
+          "at": "2026-09-25T16:49:15.256438Z",
           "title": "Recipes from every street",
           "body": "Recipe zines are common; a map drawn by kids is rarer.",
           "state": "said",
@@ -5890,7 +6008,7 @@
             "move": "note"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "0d034cdd2f3507daa47bf21e01ab027742da5dd8f4cfdf17de740c48033673b4"
+          "hash": "02286b60a1119499ecdf1d974abe521fc3fcd93644942077900f55c81b6f0818"
         },
         {
           "id": "synthesis-7",
@@ -5898,14 +6016,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T06:41:01.180492Z",
+          "at": "2026-09-26T06:49:15.256438Z",
           "title": "Where it stands",
           "body": "Issue one is the kids' map; recipes wait for issue two.",
           "state": "open",
           "parent": null,
           "fields": {},
           "charter": "65418844c1d45a5a",
-          "hash": "eb019c040141fb64ed7b481f699f2e2f470a361cc748b346075c5cdacac0ff00"
+          "hash": "b80fdf3bd0b91a6a4266b3e34cfe3f4c7b2b18d7d83fba1687fdf43e5e28db6d"
         },
         {
           "id": "doorway-8",
@@ -5913,14 +6031,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-26T07:41:01.180492Z",
+          "at": "2026-09-26T07:49:15.256438Z",
           "title": "Saturday Workshop",
-          "body": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImJvYXJkLXNhdHVyZGF5LmEyOGNmNWYyODBlOCIsInNlY3JldCI6InNhdHVyZGF5LTIwMjYiLCJ0aXRsZSI6IlNhdHVyZGF5IFdvcmtzaG9wIiwia2luZCI6ImJvYXJkIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiIjIFNhdHVyZGF5IFdvcmtzaG9wXG5cbiMjIFJ1bGVzXG5TaG93IHdoYXQgeW91J3JlIG1ha2luZywgZmluaXNoZWQgb3Igbm90LiBBc2sgZm9yIGhlbHAgcGxhaW5seS4gQmUga2luZCBhYm91dCBvdGhlciBwZW9wbGUncyB3b3JrLlxuXG4jIyBXaG8gZG9lcyB3aGF0XG5UaGUgKipob3N0Kioga2VlcHMgdGhlIHJ1bGVzIGFuZCBhY2NlcHRzIGRlbGl2ZXJpZXMuICoqTWVtYmVycyoqIHBvc3QsIGNsYWltIGFuZCBvZmZlci4gKipHdWVzdHMqKiByZWFkLlxuXG4jIyBUYXNrc1xuQSB0YXNrIGhhcyBhIHRpdGxlIGFuZCBhIHNwZWMsIGZpeGVkIHdoZW4gaXQncyBwb3N0ZWQuIENsYWltIGl0IGFzIHBvc3RlZDsgdGhlIHNwZWMgaXMgd2hhdCBnZXRzIGNoZWNrZWQuIEEgcGxlZGdlIGlzIHdvcmRzOiBib3RoIHNpZGVzIHNheSB3aGVuIGl0J3Mgc2V0dGxlZC5cblxuIyMgUmVjZWlwdHNcbkFjY2VwdGluZyBhIGRlbGl2ZXJ5IGlzc3VlcyBhIHJlY2VpcHQgdG8gd2hvZXZlciBkaWQgdGhlIHdvcmssIHNlYWxlZCBieSB0aGlzIHJvb20uIEl0IGlzIGEgcmVjb3JkLCBuZXZlciBhIHJhdGluZyBvZiBhIHBlcnNvbi4iLCJ2ZXJicyI6W3sibmFtZSI6InNob3ciLCJkb2VzIjoiU2hvdyBzb21ldGhpbmcgeW91IG1hZGUgb3IgZGlkLiBXaGF0IHlvdSBzaG93IHN0YXlzIGFzIHNob3duOyBhIG5ldyB2ZXJzaW9uIGlzIGEgbmV3IHNob3cuIn0seyJuYW1lIjoiYXNrIiwiZG9lcyI6IkFzayBmb3Igc29tZXRoaW5nLiBBbnlvbmUgaGVyZSwgYSBwZXJzb24gb3IgYW4gYWdlbnQsIG1heSBvZmZlciB0byBzZXJ2ZSBpdC4ifSx7Im5hbWUiOiJvZmZlciIsImRvZXMiOiJPZmZlciB0byBzZXJ2ZSBhbiBhc2suIn0seyJuYW1lIjoicmVwbHkiLCJkb2VzIjoiUmVwbHkgdG8gYSBtb3ZlLiJ9LHsibmFtZSI6InBvc3RfdGFzayIsImRvZXMiOiJQb3N0IGEgdGFzazogaXRzIHNwZWMgaXMgZml4ZWQgYXQgcG9zdGluZywgYW5kIHdob2V2ZXIgY2xhaW1zIGl0IGlzIGp1ZGdlZCBvbiB0aGUgc3BlYy4ifSx7Im5hbWUiOiJjbGFpbSIsImRvZXMiOiJDbGFpbSBhbiBvcGVuIHRhc2suIFlvdSB0YWtlIGl0IGFzIHBvc3RlZC4ifSx7Im5hbWUiOiJkZWxpdmVyIiwiZG9lcyI6IkRlbGl2ZXIgb24gYSB0YXNrIHlvdSBjbGFpbWVkLiJ9LHsibmFtZSI6ImFjY2VwdCIsImRvZXMiOiJBY2NlcHQgYSBkZWxpdmVyeTogdGhlIHRhc2sgaXMgZG9uZSBhbmQgdGhlIHJvb20gaXNzdWVzIGEgcmVjZWlwdC4ifSx7Im5hbWUiOiJzZXR0bGUiLCJkb2VzIjoiU2F5IHdoZXRoZXIgYSB0YXNrJ3MgcGxlZGdlIGlzIHNldHRsZWQuIFdob2V2ZXIgcG9zdGVkIGl0IGFuZCB3aG9ldmVyIGRpZCBpdCBlYWNoIHNheTsgaWYgdGhleSBkaXNhZ3JlZSwgYm90aCBzdGFuZC4ifSx7Im5hbWUiOiJwb3N0X29mZmVyaW5nIiwiZG9lcyI6Ik9mZmVyIHNvbWV0aGluZyB5b3Ugc2VsbCBvciBsZW5kOiBhIGZpeGVkIHRoaW5nLCBvciBhIG1ldGVyZWQgY2FwYWJpbGl0eS4ifV19",
+          "body": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImJvYXJkLXNhdHVyZGF5LmEyOGNmNWYyODBlOCIsInNlY3JldCI6InNhdHVyZGF5LTIwMjYiLCJ0aXRsZSI6IlNhdHVyZGF5IFdvcmtzaG9wIiwia2luZCI6ImJvYXJkIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiIjIFNhdHVyZGF5IFdvcmtzaG9wXG5cbiMjIFJ1bGVzXG5TaG93IHdoYXQgeW91J3JlIG1ha2luZywgZmluaXNoZWQgb3Igbm90LiBBc2sgZm9yIGhlbHAgcGxhaW5seS4gQmUga2luZCBhYm91dCBvdGhlciBwZW9wbGUncyB3b3JrLlxuXG4jIyBXaG8gZG9lcyB3aGF0XG5UaGUgKipob3N0Kioga2VlcHMgdGhlIHJ1bGVzIGFuZCBhY2NlcHRzIGRlbGl2ZXJpZXMuICoqTWVtYmVycyoqIHBvc3QsIGNsYWltIGFuZCBvZmZlci4gKipHdWVzdHMqKiByZWFkLlxuXG4jIyBUYXNrc1xuQSB0YXNrIGhhcyBhIHRpdGxlIGFuZCBhIHNwZWMsIGZpeGVkIHdoZW4gaXQncyBwb3N0ZWQuIENsYWltIGl0IGFzIHBvc3RlZDsgdGhlIHNwZWMgaXMgd2hhdCBnZXRzIGNoZWNrZWQuIEEgcGxlZGdlIGlzIHdvcmRzOiBib3RoIHNpZGVzIHNheSB3aGVuIGl0J3Mgc2V0dGxlZC5cblxuIyMgUmVjZWlwdHNcbkFjY2VwdGluZyBhIGRlbGl2ZXJ5IGlzc3VlcyBhIHJlY2VpcHQgdG8gd2hvZXZlciBkaWQgdGhlIHdvcmssIHNlYWxlZCBieSB0aGlzIHJvb20uIEl0IGlzIGEgcmVjb3JkLCBuZXZlciBhIHJhdGluZyBvZiBhIHBlcnNvbi4iLCJ2ZXJicyI6W3sibmFtZSI6InNob3ciLCJkb2VzIjoiU2hvdyBzb21ldGhpbmcgeW91IG1hZGUgb3IgZGlkLiBXaGF0IHlvdSBzaG93IHN0YXlzIGFzIHNob3duOyBhIG5ldyB2ZXJzaW9uIGlzIGEgbmV3IHNob3cuIn0seyJuYW1lIjoiYXNrIiwiZG9lcyI6IkFzayBmb3Igc29tZXRoaW5nLiBBbnlvbmUgaGVyZSwgYSBwZXJzb24gb3IgYW4gYWdlbnQsIG1heSBvZmZlciB0byBzZXJ2ZSBpdC4ifSx7Im5hbWUiOiJvZmZlciIsImRvZXMiOiJPZmZlciB0byBzZXJ2ZSBhbiBhc2suIn0seyJuYW1lIjoidGFrZV9vZmZlciIsImRvZXMiOiJUYWtlIGFuIG9mZmVyIG9uIHlvdXIgYXNrLiBUaGUgYXNrIGlzIHRha2VuOyBvbiBhIHdvcmsgYm9hcmQgdGhlIG9mZmVyIGJlY29tZXMgYSB0YXNrIHdob2V2ZXIgb2ZmZXJlZCBhbHJlYWR5IGhvbGRzLCBhbmQgZW5kcyBpbiBhIHJlY2VpcHQgbGlrZSBhbnkgb3RoZXIuIn0seyJuYW1lIjoiY2xvc2VfYXNrIiwiZG9lcyI6IkNsb3NlIHlvdXIgYXNrOiBub2JvZHkgY2FuIG9mZmVyIG9uIGl0IGFueSBtb3JlLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifSx7Im5hbWUiOiJwb3N0X3Rhc2siLCJkb2VzIjoiUG9zdCBhIHRhc2s6IGl0cyBzcGVjIGlzIGZpeGVkIGF0IHBvc3RpbmcsIGFuZCB3aG9ldmVyIGNsYWltcyBpdCBpcyBqdWRnZWQgb24gdGhlIHNwZWMuIn0seyJuYW1lIjoiY2xhaW0iLCJkb2VzIjoiQ2xhaW0gYW4gb3BlbiB0YXNrLiBZb3UgdGFrZSBpdCBhcyBwb3N0ZWQuIn0seyJuYW1lIjoiZGVsaXZlciIsImRvZXMiOiJEZWxpdmVyIG9uIGEgdGFzayB5b3UgY2xhaW1lZC4ifSx7Im5hbWUiOiJhY2NlcHQiLCJkb2VzIjoiQWNjZXB0IGEgZGVsaXZlcnk6IHRoZSB0YXNrIGlzIGRvbmUgYW5kIHRoZSByb29tIGlzc3VlcyBhIHJlY2VpcHQuIn0seyJuYW1lIjoic2V0dGxlIiwiZG9lcyI6IlNheSB3aGV0aGVyIGEgdGFzaydzIHBsZWRnZSBpcyBzZXR0bGVkLiBXaG9ldmVyIHBvc3RlZCBpdCBhbmQgd2hvZXZlciBkaWQgaXQgZWFjaCBzYXk7IGlmIHRoZXkgZGlzYWdyZWUsIGJvdGggc3RhbmQuIn0seyJuYW1lIjoicG9zdF9vZmZlcmluZyIsImRvZXMiOiJPZmZlciBzb21ldGhpbmcgeW91IHNlbGwgb3IgbGVuZDogYSBmaXhlZCB0aGluZywgb3IgYSBtZXRlcmVkIGNhcGFiaWxpdHkuIn1dfQ",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "65418844c1d45a5a",
-          "hash": "548cf7260ddfa80c561ef5595b3809c6ddefbbf2af6acfab59248638770ca524"
+          "hash": "747e54678fe7f6a3c67f2fbb37ceb22c838db9952acb289ffca6e2890f479f54"
         }
       ],
       "invite": null
@@ -5944,7 +6062,8 @@
         },
         "charter": "# Tuesday repair café\n\nBring something broken. Post it as a task; whoever fixes it claims it. Pledges are words, settled between you.",
         "members": [],
-        "tools": []
+        "tools": [],
+        "before": []
       },
       "moves": [
         {
@@ -5953,7 +6072,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-11T06:41:01.180492Z",
+          "at": "2026-09-11T06:49:15.256438Z",
           "title": "maya",
           "body": "",
           "state": "said",
@@ -5962,7 +6081,7 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
           },
           "charter": "2bbccba23c8533ad",
-          "hash": "14187d1dd296d56ae17fd1407b53ce616f9ca6cfe50eb6d38ed95cb3165d7336"
+          "hash": "703092bc1047e029121b278d5893847ee54acc841d217099ed8c24ab0afbbfe7"
         },
         {
           "id": "task-2",
@@ -5970,7 +6089,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-11T16:41:01.180492Z",
+          "at": "2026-09-11T16:49:15.256438Z",
           "title": "Fix the café's toaster",
           "body": "Both slots heat. Done = two slices, evenly brown.",
           "state": "done",
@@ -5981,7 +6100,7 @@
             "claimed_by_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
           },
           "charter": "2bbccba23c8533ad",
-          "hash": "57b8a08d47d1d665113cf38687a193f7147464f450479a1f33bd767f010fe289"
+          "hash": "b0de7cf38369b986a6b25e11dc381e9a119596be4cfc9286867f5b97ad967d7c"
         },
         {
           "id": "claim-3",
@@ -5989,14 +6108,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-12T02:41:01.180492Z",
+          "at": "2026-09-12T02:49:15.256438Z",
           "title": "Fix the café's toaster",
           "body": "",
           "state": "claimed",
           "parent": "task-2",
           "fields": {},
           "charter": "2bbccba23c8533ad",
-          "hash": "5884478081e43d6a1f085ea2dd2ef1330a031b3a4b0206e7d87f8ebb703d26cf"
+          "hash": "46944b8438ee216834da1e587339cddf74c58e509af90de5ae4abbc2e4689743"
         },
         {
           "id": "delivery-4",
@@ -6004,14 +6123,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-12T12:41:01.180492Z",
+          "at": "2026-09-12T12:49:15.256438Z",
           "title": "Fix the café's toaster",
           "body": "New element in the left slot. Both slots heat now.",
           "state": "delivered",
           "parent": "task-2",
           "fields": {},
           "charter": "2bbccba23c8533ad",
-          "hash": "c6742b831d977e3f4dd649bf274cff95e9274085183be3120b318a23d2d621ad"
+          "hash": "7b9e0c9445be337e5fc2ba1c7eebb05b2f0baf0ba150beb09c8c373137a06229"
         },
         {
           "id": "receipt-5",
@@ -6019,7 +6138,7 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-12T13:41:01.180492Z",
+          "at": "2026-09-12T13:49:15.256438Z",
           "title": "Fix the café's toaster",
           "body": "Completed: Fix the café's toaster",
           "state": "issued",
@@ -6037,14 +6156,14 @@
                 "to": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
                 "to_name": "maya",
                 "to_person": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-                "issued": "2026-09-12T13:41:01.180492Z"
+                "issued": "2026-09-12T13:49:15.256438Z"
               },
               "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
-              "sig": "1b17adee5102b2cecb2e3eefb6d0c4503357f7f6e8ec9080c700bf5967a8c1e33e9c1a48e377e4aeb788b026224307d8259c4b4dadd6427f0f9879c021cb6d0c"
+              "sig": "c3c26dca8e3cc423262f38cb07b47b1f05b86cb8bcaf174584965642eb6d781c54f57e5865383ebfb29e03588d9e4af768cca5712d54455309f9c58fa8102109"
             }
           },
           "charter": "2bbccba23c8533ad",
-          "hash": "12339b5b59da932ab5c214f48e3482cfbbd734800a36ecbfefbfa2dd7a9afef3"
+          "hash": "feb224afea0b9a5ece960eefc2dbad534cff8fbc7eef4ed7ae3d6da76e33763b"
         },
         {
           "id": "show-6",
@@ -6052,14 +6171,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-13T18:41:01.180492Z",
+          "at": "2026-09-13T18:49:15.256438Z",
           "title": "Last Tuesday of the season",
           "body": "Thanks all. I'm moving the café to my new machine soon.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "2bbccba23c8533ad",
-          "hash": "1c8f99c366ea71f7154cd349ca310f84a3264f1ca50b4d834b6e823aa43890ba"
+          "hash": "dd7b6143e0174a087314fa5dc5f977288e4e1d31dddc8171277acf8ad6f70198"
         }
       ],
       "invite": null,
@@ -6089,16 +6208,16 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:41:01.180492Z",
-            "last_acted": "2026-09-27T17:51:01.180492Z"
+            "joined": "2026-09-07T02:49:15.256438Z",
+            "last_acted": "2026-09-27T17:59:15.256438Z"
           },
           {
             "name": "ada",
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-19T14:41:01.180492Z",
-            "last_acted": "2026-09-27T18:01:01.180492Z"
+            "joined": "2026-09-19T14:49:15.256438Z",
+            "last_acted": "2026-09-27T18:09:15.256438Z"
           }
         ],
         "tools": [
@@ -6213,7 +6332,8 @@
             },
             "host_only": true
           }
-        ]
+        ],
+        "before": []
       },
       "moves": [
         {
@@ -6222,7 +6342,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-19T14:41:01.180492Z",
+          "at": "2026-09-19T14:49:15.256438Z",
           "title": "ada",
           "body": "",
           "state": "said",
@@ -6231,7 +6351,7 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "d8e3b31ec2b20afe1ce7f0d76fe731966ad3df0b7047e5f9f2321aae496c40cc"
+          "hash": "f54c9017da33e176f4d76a67f33f9ccc2929b41f055a18879f30fa684cbef7fc"
         },
         {
           "id": "say-2",
@@ -6239,14 +6359,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-27T17:41:01.180492Z",
+          "at": "2026-09-27T17:49:15.256438Z",
           "title": "",
           "body": "did the draft run?",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "23cd67bde65d512a412398f5656785057b68f01dc4e48cdf2b87374d80461fa5"
+          "hash": "ef3327cd0b6a692813919dd9f6b2d8453ee7825cf92217811652d270d9131c60"
         },
         {
           "id": "say-3",
@@ -6254,14 +6374,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T17:51:01.180492Z",
+          "at": "2026-09-27T17:59:15.256438Z",
           "title": "",
           "body": "yes, screenshots tomorrow",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "fa44cf6b0eba105105b17d923056ffbdade1ce1615ce3f2730c2589c703d6258"
+          "hash": "dcbbcef1d076a1b5e2f0df3163f798c66f4dde1622dc88724cdc85605d84a1cc"
         },
         {
           "id": "say-4",
@@ -6269,14 +6389,14 @@
           "author": "ada",
           "by": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
           "agent_of": null,
-          "at": "2026-09-27T18:01:01.180492Z",
+          "at": "2026-09-27T18:09:15.256438Z",
           "title": "",
-          "body": "ren makes music, you'd like the room. here's the way in:\n\ndiverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiJyZW4tbGFwdG9wLmxvY2FsOjQ2NDAifSwiaWQiOiJtdXNpYy1yZW4uMWFlZDQ0NTkxOTA1Iiwic2VjcmV0IjoicmVuLW9wZW4iLCJ0aXRsZSI6IlJlbidzIG11c2ljIHJvb20iLCJraW5kIjoiaG9tZSIsImhvc3RfbmFtZSI6InJlbiIsImNoYXJ0ZXIiOiJUcmFja3MgSSBtYWtlLiBObyBBSS4gU2F5IHdoYXQgeW91IGhlYXIuIiwidmVyYnMiOlt7Im5hbWUiOiJzaG93IiwiZG9lcyI6IlNob3cgc29tZXRoaW5nIHlvdSBtYWRlIG9yIGRpZC4gV2hhdCB5b3Ugc2hvdyBzdGF5cyBhcyBzaG93bjsgYSBuZXcgdmVyc2lvbiBpcyBhIG5ldyBzaG93LiJ9LHsibmFtZSI6ImFzayIsImRvZXMiOiJBc2sgZm9yIHNvbWV0aGluZy4gQW55b25lIGhlcmUsIGEgcGVyc29uIG9yIGFuIGFnZW50LCBtYXkgb2ZmZXIgdG8gc2VydmUgaXQuIn0seyJuYW1lIjoib2ZmZXIiLCJkb2VzIjoiT2ZmZXIgdG8gc2VydmUgYW4gYXNrLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifSx7Im5hbWUiOiJyZXBvcnQiLCJkb2VzIjoiUmVwb3J0IHdoYXQgeW91IGZpbmlzaGVkOiBmb3IgYW4gYWdlbnQsIHdoZW4gYSBydW4gZW5kcy4ifV19",
+          "body": "ren makes music, you'd like the room. here's the way in:\n\ndiverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiJyZW4tbGFwdG9wLmxvY2FsOjQ2NDAifSwiaWQiOiJtdXNpYy1yZW4uMWFlZDQ0NTkxOTA1Iiwic2VjcmV0IjoicmVuLW9wZW4iLCJ0aXRsZSI6IlJlbidzIG11c2ljIHJvb20iLCJraW5kIjoiaG9tZSIsImhvc3RfbmFtZSI6InJlbiIsImNoYXJ0ZXIiOiJUcmFja3MgSSBtYWtlLiBObyBBSS4gU2F5IHdoYXQgeW91IGhlYXIuIiwidmVyYnMiOlt7Im5hbWUiOiJzaG93IiwiZG9lcyI6IlNob3cgc29tZXRoaW5nIHlvdSBtYWRlIG9yIGRpZC4gV2hhdCB5b3Ugc2hvdyBzdGF5cyBhcyBzaG93bjsgYSBuZXcgdmVyc2lvbiBpcyBhIG5ldyBzaG93LiJ9LHsibmFtZSI6ImFzayIsImRvZXMiOiJBc2sgZm9yIHNvbWV0aGluZy4gQW55b25lIGhlcmUsIGEgcGVyc29uIG9yIGFuIGFnZW50LCBtYXkgb2ZmZXIgdG8gc2VydmUgaXQuIn0seyJuYW1lIjoib2ZmZXIiLCJkb2VzIjoiT2ZmZXIgdG8gc2VydmUgYW4gYXNrLiJ9LHsibmFtZSI6InRha2Vfb2ZmZXIiLCJkb2VzIjoiVGFrZSBhbiBvZmZlciBvbiB5b3VyIGFzay4gVGhlIGFzayBpcyB0YWtlbjsgb24gYSB3b3JrIGJvYXJkIHRoZSBvZmZlciBiZWNvbWVzIGEgdGFzayB3aG9ldmVyIG9mZmVyZWQgYWxyZWFkeSBob2xkcywgYW5kIGVuZHMgaW4gYSByZWNlaXB0IGxpa2UgYW55IG90aGVyLiJ9LHsibmFtZSI6ImNsb3NlX2FzayIsImRvZXMiOiJDbG9zZSB5b3VyIGFzazogbm9ib2R5IGNhbiBvZmZlciBvbiBpdCBhbnkgbW9yZS4ifSx7Im5hbWUiOiJyZXBseSIsImRvZXMiOiJSZXBseSB0byBhIG1vdmUuIn0seyJuYW1lIjoicmVwb3J0IiwiZG9lcyI6IlJlcG9ydCB3aGF0IHlvdSBmaW5pc2hlZDogZm9yIGFuIGFnZW50LCB3aGVuIGEgcnVuIGVuZHMuIn1dfQ",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "d8db8b94361d9b4923e3fc4c01c6c7695c25995762333172699a09f6a1db305b"
+          "hash": "e279e1cd29beb2cbea9a818ed3903ee176231ca6f092ae09b8a19339bc96daec"
         }
       ],
       "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImRtLWFkYS5hMjhjZjVmMjgwZTgiLCJzZWNyZXQiOiJkbSIsInRpdGxlIjoiYWRhIiwia2luZCI6ImRtIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiJUd28gcGVvcGxlLiBOb3RoaW5nIGxlYXZlcyB0aGlzIHJvb20uIiwidmVyYnMiOlt7Im5hbWUiOiJzYXkiLCJkb2VzIjoiU2F5IHNvbWV0aGluZy4ifSx7Im5hbWUiOiJyZXBseSIsImRvZXMiOiJSZXBseSB0byBhIG1vdmUuIn1dfQ"
@@ -6305,16 +6425,16 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-07T02:41:01.180492Z",
-            "last_acted": "2026-09-27T14:41:01.180492Z"
+            "joined": "2026-09-07T02:49:15.256438Z",
+            "last_acted": "2026-09-27T14:49:15.256438Z"
           },
           {
             "name": "ren",
             "key": "13e2d46941a6ff6308a13b9be24539ac5da7fcc361d9486b24bd7913db6f46a1",
             "is_agent": false,
             "agent_of": null,
-            "joined": "2026-09-27T14:41:01.180492Z",
-            "last_acted": "2026-09-27T15:11:01.180492Z"
+            "joined": "2026-09-27T14:49:15.256438Z",
+            "last_acted": "2026-09-27T15:19:15.256438Z"
           }
         ],
         "tools": [
@@ -6598,7 +6718,8 @@
             },
             "host_only": true
           }
-        ]
+        ],
+        "before": []
       },
       "moves": [
         {
@@ -6607,14 +6728,14 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-26T20:41:01.180492Z",
+          "at": "2026-09-26T20:49:15.256438Z",
           "title": "The desktop app, draft one",
           "body": "Agents, storage, machines and saved Views, on a stand-in for the daemon.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "a856e5ef5c6f2920",
-          "hash": "07d0d9f692fa9bb90da767fdad81bec148d24233fc2f5c842fdf59b3fd77447b"
+          "hash": "56a51dcc2bb534088936eb031b2086d9dd4f646e9676bab12f7307e726b5cf6b"
         },
         {
           "id": "offering-2",
@@ -6622,7 +6743,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T02:41:01.180492Z",
+          "at": "2026-09-27T02:49:15.256438Z",
           "title": "A site check-up",
           "body": "site-fixes goes through a small site and lists what's broken. Nothing is changed without asking.",
           "state": "offered",
@@ -6632,7 +6753,7 @@
             "terms": "you get a list, in a day"
           },
           "charter": "a856e5ef5c6f2920",
-          "hash": "70eff19dc89fee1c6caa5bd02534875b010d26e3050f7ce0e1e7d82475f41814"
+          "hash": "63bdc729e621d848e6fd6916174623e69da8594f113a040bf183445cd99b405f"
         },
         {
           "id": "admitted-3",
@@ -6640,7 +6761,7 @@
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
           "agent_of": null,
-          "at": "2026-09-27T14:41:01.180492Z",
+          "at": "2026-09-27T14:49:15.256438Z",
           "title": "ren",
           "body": "",
           "state": "said",
@@ -6649,7 +6770,7 @@
             "key": "13e2d46941a6ff6308a13b9be24539ac5da7fcc361d9486b24bd7913db6f46a1"
           },
           "charter": "a856e5ef5c6f2920",
-          "hash": "98d3cdb86f246623021284295c6c2eba0ee3ded201e7e88462528699506af842"
+          "hash": "9f0b62028e96c01c0e499c9518322a64a1550a29bcc3932a6bf7589d1fc1579c"
         },
         {
           "id": "note-4",
@@ -6657,14 +6778,14 @@
           "author": "ren",
           "by": "13e2d46941a6ff6308a13b9be24539ac5da7fcc361d9486b24bd7913db6f46a1",
           "agent_of": null,
-          "at": "2026-09-27T15:11:01.180492Z",
+          "at": "2026-09-27T15:19:15.256438Z",
           "title": "",
           "body": "Loved the kids' map idea in ada's zine room.",
           "state": "left",
           "parent": null,
           "fields": {},
           "charter": "a856e5ef5c6f2920",
-          "hash": "877cd8519ef89d5512024a5d3d87123b647a506c9261e94a0326a3cec04fe7c8"
+          "hash": "799babb326f19728204e1a72cceaf1e90056ac339316258f50a9ff7071f98ba1"
         }
       ],
       "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6InByb2ZpbGUtbWUuYTI4Y2Y1ZjI4MGU4Iiwic2VjcmV0IjoicHJvZmlsZS1vcGVuIiwidGl0bGUiOiJtYXlhIiwia2luZCI6InByb2ZpbGUiLCJob3N0X25hbWUiOiJtYXlhIiwiY2hhcnRlciI6IiMgTXkgcHJvZmlsZVxuXG5XaGF0IEkndmUgbWFkZSBhbmQgd2hhdCBJIG9mZmVyLiBMZWF2ZSBhIG5vdGUsIG9yIGFzayBvbmUgb2YgbXkgYWdlbnRzIGZvciBzb21ldGhpbmc6IEkgZGVjaWRlLCBhbmQgaXQgcnVucyBvbiBteSBtYWNoaW5lLiIsInZlcmJzIjpbeyJuYW1lIjoibGVhdmVfbm90ZSIsImRvZXMiOiJMZWF2ZSBhIG5vdGUgZm9yIHdob2V2ZXIgdGhpcyBwcm9maWxlIGJlbG9uZ3MgdG8uIn0seyJuYW1lIjoiaGlyZSIsImRvZXMiOiJBc2sgb25lIG9mIHRoaXMgcGVyc29uJ3MgYWdlbnRzIHRvIGRvIHNvbWV0aGluZyBmb3IgeW91LiBUaGV5IGRlY2lkZTsgdGhlaXIgYWdlbnQgZG9lcyB0aGUgd29yayBvbiB0aGVpciBtYWNoaW5lLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifV19"
@@ -6857,7 +6978,7 @@
         "yes",
         "no"
       ],
-      "at": "2026-09-27T22:41:01.285548+00:00",
+      "at": "2026-09-27T22:49:15.329017+00:00",
       "call": {
         "room": "board-saturday.a28cf5f280e8",
         "room_title": "Saturday Workshop",
@@ -6887,7 +7008,7 @@
         "member_here": true,
         "holds": true
       },
-      "at": "2026-09-27T22:39:01.180492+00:00"
+      "at": "2026-09-27T22:47:15.256438+00:00"
     }
   ],
   "tables": {
@@ -6901,7 +7022,7 @@
               "kind": "file",
               "name": "print-label.py",
               "size": 45,
-              "modified_at": 1790548861
+              "modified_at": 1790549355
             }
           ]
         },
@@ -6913,13 +7034,13 @@
               "kind": "file",
               "name": "README.md",
               "size": 99,
-              "modified_at": 1790548861
+              "modified_at": 1790549355
             },
             {
               "kind": "file",
               "name": "resize.sh",
               "size": 96,
-              "modified_at": 1790548861
+              "modified_at": 1790549355
             }
           ]
         }
@@ -6944,7 +7065,7 @@
           "kind": "file",
           "name": "map-sketch.txt",
           "size": 82,
-          "modified_at": 1790548861
+          "modified_at": 1790549355
         }
       ],
       "files": {
@@ -6982,7 +7103,7 @@
           "kind": "file",
           "name": "README.md",
           "size": 52,
-          "modified_at": 1790548861
+          "modified_at": 1790549355
         }
       ]
     },
@@ -6992,7 +7113,7 @@
           "kind": "file",
           "name": "README.md",
           "size": 30,
-          "modified_at": 1790548861
+          "modified_at": 1790549355
         }
       ],
       "scratch": []
@@ -7005,7 +7126,7 @@
         "volume": {
           "name": "media",
           "bytes": 17179869184,
-          "created": "2026-09-27T22:41:01+00:00",
+          "created": "2026-09-27T22:49:15+00:00",
           "mode": "persistent"
         },
         "bytes_used": 52
@@ -7017,7 +7138,7 @@
         "volume": {
           "name": "datasets",
           "bytes": 34359738368,
-          "created": "2026-09-27T22:41:01+00:00",
+          "created": "2026-09-27T22:49:15+00:00",
           "mode": "read_only"
         },
         "bytes_used": 30
@@ -7027,7 +7148,7 @@
         "volume": {
           "name": "scratch",
           "bytes": 1073741824,
-          "created": "2026-09-27T22:41:01+00:00",
+          "created": "2026-09-27T22:49:15+00:00",
           "mode": "ephemeral"
         },
         "bytes_used": 0

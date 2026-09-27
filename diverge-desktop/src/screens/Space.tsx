@@ -38,6 +38,15 @@ export function Space(props: { id: string; tabKey: string }) {
   const [admitted, setAdmitted] = useState<AdmittedView[]>([]);
   const [vouchText, setVouchText] = useState<{ name: string; room: string; text: string } | null>(null);
   const [vouching, setVouching] = useState<{ key: string; name: string; room: string } | null>(null);
+  const [sentTo, setSentTo] = useState<string[]>([]);
+  /** An invite to this room, said in a direct room you share with someone from before. */
+  const sendInvite = async (key: string, dm: string) => {
+    const inv = await api.spaceInvite(props.id);
+    if (!inv || !space) return;
+    const out = await api.spaceCall(dm, "say", { body: `${t.spaces.inviteMessage} ${space.summary.title}:\n\n${inv.text}` });
+    if (out.outcome === "ok") setSentTo((s) => [...s, key]);
+    else setProblem(out.message);
+  };
   const [removing, setRemoving] = useState<string | null>(null);
   const [moderation, setModeration] = useState<string | null>(null);
 
@@ -300,6 +309,20 @@ export function Space(props: { id: string; tabKey: string }) {
               ))}
             </ul>
           </section>
+          {space.before.length > 0 ? (
+            <section>
+              <h2 className="list-head">{t.spaces.fromBefore}</h2>
+              <p className="muted small">{t.spaces.fromBeforeNote}</p>
+              <ul className="member-list">
+                {space.before.map((b) => (
+                  <li key={b.key} className="member">
+                    <span>{b.name}</span>
+                    {sentTo.includes(b.key) ? <Chip tone="ok">{t.spaces.inviteSent}</Chip> : b.dm ? <button className="link small" onClick={() => sendInvite(b.key, b.dm!)}>{t.spaces.sendInvite}</button> : <span className="muted small">{t.spaces.noDm}</span>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           {s.mine && admitted.length > 1 ? (
             <section>
               <h2 className="list-head">{t.spaces.everyone}</h2>

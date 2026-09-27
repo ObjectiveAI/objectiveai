@@ -141,7 +141,7 @@ mod tests {
                 let room = diverge_desktop_room::Room::check(&copy).unwrap();
                 let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &room.read(program::FEED).unwrap().contents[0] else { panic!() };
                 let moves: Vec<MoveView> = serde_json::from_str(text).unwrap();
-                let view = SpaceView { summary: summary(&e, &identity), charter: room.charter().to_owned(), members: Vec::new(), tools: Vec::new() };
+                let view = SpaceView { summary: summary(&e, &identity), charter: room.charter().to_owned(), members: Vec::new(), tools: Vec::new(), before: Vec::new() };
                 space_views.push(json!({ "view": view, "moves": moves, "invite": null, "from_copy": true }));
                 continue;
             }
@@ -150,7 +150,7 @@ mod tests {
             let members: Vec<MemberView> = serde_json::from_str(&text(spaces.read(&e.id, program::MEMBERS).await.unwrap())).unwrap();
             let moves: Vec<MoveView> = serde_json::from_str(&text(spaces.read(&e.id, program::FEED).await.unwrap())).unwrap();
             let charter = text(spaces.read(&e.id, program::CHARTER).await.unwrap());
-            let view = SpaceView { summary: summary(&e, &identity), charter, members, tools: tools.tools.iter().map(Into::into).collect() };
+            let view = SpaceView { summary: summary(&e, &identity), charter, members, tools: tools.tools.iter().map(Into::into).collect(), before: Vec::new() };
             let invite = spaces.invite(&e.id).await.map(|i| i.to_text());
             space_views.push(json!({ "view": view, "moves": moves, "invite": invite }));
             // The table: its tree, and every text file on it.

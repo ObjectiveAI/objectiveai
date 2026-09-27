@@ -98,7 +98,7 @@ export function Home() {
         ) : null}
         <div className="home-feed">
           {view === "asks" ? (
-            <AskThreads feed={feed} askable={askable} onOpen={(id) => open({ kind: "space", id })} />
+            <AskThreads feed={feed} askable={askable} onOpen={(id) => open({ kind: "space", id })} onChanged={load} />
           ) : (
             <>
               {shown.length === 0 ? <p className="muted">{t.home.empty}</p> : null}
@@ -184,7 +184,32 @@ type Place = { space: HomeMove["space"]; ask: HomeMove["entry"]; offers: HomeMov
 type Thread = { key: string; what: string; mine: boolean; at: string; by: string; places: Place[] };
 
 /** Your asks, each followed as one thread across every room it went to; and asks you could help with. */
-function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onOpen: (id: string) => void }) {
+function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onOpen: (id: string) => void; onChanged: () => void }) {
+  const [problem, setProblem] = useState<string | null>(null);
+  /** Close the ask everywhere it's still open: in each room, or the one room it went to. */
+  const closeAll = async (th: Thread) => {
+    const single = th.places.length === 1 && th.key.includes("/");
+    if (single) {
+      const p = th.places[0];
+      const out = await api.spaceCall(p.space.id, "close_ask", { ask_id: p.ask.id });
+      if (out.outcome !== "ok") setProblem(out.message);
+    } else {
+      const sent = await api.asksClose(th.key, null);
+      const failed = sent.find((s) => s.outcome.outcome !== "ok");
+      if (failed && failed.outcome.outcome === "error") setProblem(failed.outcome.message);
+    }
+    props.onChanged();
+  };
+  /** Take one offer: the ask is taken there, and closed everywhere else it went. */
+  const take = async (th: Thread, p: Place, offerId: string) => {
+    const out = await api.spaceCall(p.space.id, "take_offer", { offer_id: offerId });
+    if (out.outcome !== "ok") {
+      setProblem(out.message);
+      return;
+    }
+    if (!th.key.includes("/")) await api.asksClose(th.key, null);
+    props.onChanged();
+  };
   const threads = useMemo(() => {
     const byKey = new Map<string, Thread>();
     for (const m of props.feed.filter((x) => x.entry.kind === "ask")) {
@@ -206,15 +231,20 @@ function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onO
     <>
       <h2 className="list-head">{t.home.yourAsks}</h2>
       {mine.length === 0 ? <p className="muted small">{t.home.noAsks}</p> : null}
+      {problem ? <p className="warn small">{problem}</p> : null}
       {mine.map((th) => {
         const answered = th.places.some((p) => p.offers.length || p.replies.length);
         const elsewhere = props.askable.filter((r) => !th.places.some((p) => p.space.id === r.id));
+        const taken = th.places.some((p) => p.ask.state === "taken");
+        const open = th.places.some((p) => p.ask.state === "open");
+        const status = taken ? t.home.taken : !open ? t.home.closed : answered ? t.home.answered : t.home.noAnswerYet;
         return (
           <article key={th.key} className="feed-card ask-thread">
             <header className="move-head">
               <span className="move-kind">{t.spaces.moveKinds.ask}</span>
               <span className="muted small">{time(th.at)}</span>
-              <Chip tone={answered ? "ok" : "plain"}>{answered ? t.home.answered : t.home.noAnswerYet}</Chip>
+              <Chip tone={answered || taken ? "ok" : "plain"}>{status}</Chip>
+              {open ? <button className="link small" onClick={() => closeAll(th)}>{t.home.gotIt}</button> : null}
             </header>
             <h3 className="move-title">{th.what}</h3>
             <ul className="ask-places">
@@ -229,12 +259,14 @@ function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onO
                   {p.offers.map((o) => (
                     <div key={o.entry.id} className="ask-offer small">
                       <strong>{o.entry.author}</strong>{o.entry.agent_of ? ` (${t.spaces.runBy} ${o.entry.agent_of})` : ""}: {o.entry.body}
+                      {o.entry.state === "taken" ? <Chip tone="ok">{t.home.taken}</Chip> : null}
+                      {p.ask.state === "open" ? <Button small kind="primary" onClick={() => take(th, p, o.entry.id)}>{t.home.takeThis}</Button> : null}
                     </div>
                   ))}
                 </li>
               ))}
             </ul>
-            {!answered && elsewhere.length ? <p className="muted small">{t.home.alsoAsk} {elsewhere.map((r) => r.title).join(", ")}.</p> : null}
+            {!answered && open && elsewhere.length ? <p className="muted small">{t.home.alsoAsk} {elsewhere.map((r) => r.title).join(", ")}.</p> : null}
           </article>
         );
       })}
