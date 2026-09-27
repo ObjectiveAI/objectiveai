@@ -19,7 +19,7 @@ use crate::identity::{Actor, Identity};
 use crate::spaces::Spaces;
 
 /// The last turn's text and measurement, from the log after its last `active`.
-async fn last_turn(daemon: &dyn Daemon, name: &str) -> (String, Option<String>) {
+pub async fn last_turn(daemon: &dyn Daemon, name: &str) -> (String, Option<String>) {
     let request = agents::logs::client::request::Frame { name: name.into(), logs_index_from: None, logs_index_to: None, created_from: None, created_to: None, r#type: None, jq: None, count: None, watch: None };
     let mut frames = daemon.agents_logs(request, tokio_util::sync::CancellationToken::new());
     let mut text = String::new();

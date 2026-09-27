@@ -48,6 +48,7 @@ pub struct SpaceEntry {
     /// Whose provider runs it, as the daemon names providers.
     pub host: Identity,
     pub host_name: String,
+    #[allow(dead_code)] // what a WireSpaces reads from the room; the screen goes by `mine`
     pub host_key: Key,
     pub mine: bool,
     /// A room is only as reachable as its host's connection.
@@ -201,4 +202,9 @@ pub trait Spaces: Send + Sync + 'static {
     async fn table_read(&self, id: &Id, path: &[String]) -> Result<Vec<u8>, WireError>;
     async fn table_write(&self, id: &Id, path: &[String], body: Vec<u8>) -> Result<(), WireError>;
     async fn transfer(&self, from: &Id, path: &[String], to: &Id) -> Result<(), WireError>;
+
+    /// Stop a room you host and run it again from its record: the run
+    /// scope's `stop`, then `containers::tools::run`. Everyone must connect
+    /// again; the files are closed to anyone the room no longer admits.
+    async fn restart(&self, id: &Id) -> Result<(), WireError>;
 }

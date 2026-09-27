@@ -13,4 +13,8 @@ issued_by: string,
 /**
  * Whether the room's seal on it holds.
  */
-holds: boolean, };
+holds: boolean, 
+/**
+ * The sealed receipt itself, to pin to your profile.
+ */
+statement: unknown, };

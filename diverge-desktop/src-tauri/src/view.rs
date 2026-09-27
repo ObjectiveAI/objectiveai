@@ -961,7 +961,8 @@ pub struct MoveView {
 #[serde(tag = "outcome", rename_all = "snake_case")]
 #[ts(export, export_to = "../../src/bindings/")]
 pub enum FeedRead {
-    Feed { moves: Vec<MoveView> },
+    /// `from_copy`: the room is unreachable, and this is your own copy of its record.
+    Feed { moves: Vec<MoveView>, from_copy: bool },
     Error { message: String },
 }
 
@@ -1073,6 +1074,26 @@ pub struct KnockView {
     pub at: String,
 }
 
+/// A room another room vouches for: its host minted this invite for the list.
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct DoorwayView {
+    pub title: String,
+    pub invite: String,
+    pub by: String,
+    pub at: String,
+}
+
+/// Someone a room you host let in, from its record: listed or not.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct AdmittedView {
+    pub name: String,
+    pub key: String,
+    pub listed: bool,
+    pub is_agent: bool,
+}
+
 /// Where one ask went, and what the room said.
 #[derive(Serialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]
@@ -1152,6 +1173,9 @@ pub struct ReceiptView {
     pub issued_by: String,
     /// Whether the room's seal on it holds.
     pub holds: bool,
+    /// The sealed receipt itself, to pin to your profile.
+    #[ts(type = "unknown")]
+    pub statement: Value,
 }
 
 #[derive(Serialize, TS, Clone, Debug)]

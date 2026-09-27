@@ -424,7 +424,9 @@ impl Room {
         let (text, mime) = match uri {
             FEED => {
                 let from = self.args.continues.as_ref().map(|c| c.title.as_str());
-                let all: Vec<Value> = self.history.iter().map(|m| self.served(m, from)).chain(self.moves.iter().map(|m| self.served(m, None))).collect();
+                // Someone who asked not to be listed isn't announced; the record still holds it.
+                let shown = |m: &&Move| !(m.kind == "admitted" && m.args.get("listed").and_then(Value::as_bool) == Some(false));
+                let all: Vec<Value> = self.history.iter().filter(shown).map(|m| self.served(m, from)).chain(self.moves.iter().filter(shown).map(|m| self.served(m, None))).collect();
                 (serde_json::to_string(&all).unwrap_or_default(), "application/json")
             }
             MEMBERS => {

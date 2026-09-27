@@ -11,6 +11,7 @@ mod catalog;
 mod daemon;
 mod machines;
 mod door;
+mod hires;
 mod identity;
 mod preview;
 mod reporter;
@@ -55,16 +56,17 @@ fn main() {
             // account name until you rename it), kept in one owner-only file.
             let usual_name = std::env::var("USER").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| "you".into());
             let identity = Arc::new(identity::Identity::open(data.join("identity.json"), &usual_name));
-            let (daemon, spaces, door) = tauri::async_runtime::block_on({
+            let (daemon, spaces, door, stand_in_spaces) = tauri::async_runtime::block_on({
                 let host = host.clone();
                 let identity = identity.clone();
                 let allowances = data.join("allowances.json");
                 async move {
                     let daemon = StubDaemon::new(host.clone());
-                    let spaces: Arc<dyn spaces::Spaces> = Arc::new(StubSpaces::new(identity.clone(), host.join("tables")));
+                    let stub = StubSpaces::new(identity.clone(), host.join("tables"));
+                    let spaces: Arc<dyn spaces::Spaces> = Arc::new(stub.clone());
                     let door = Arc::new(door::Door::new(spaces.clone(), identity, Some(allowances)));
                     daemon.set_door(door.clone());
-                    (daemon, spaces, door)
+                    (daemon, spaces, door, stub)
                 }
             });
             let views_file = data.join("views.json");
@@ -84,6 +86,18 @@ fn main() {
             let machines: Arc<dyn machines::Machines> = daemon.clone();
             let daemon: Arc<dyn daemon::Daemon> = daemon;
             reporter::spawn(daemon.clone(), spaces.clone(), identity.clone());
+            hires::spawn(daemon.clone(), spaces.clone(), identity.clone(), door.clone());
+            // The stand-in's own scenes: someone hires one of your agents a little after you open the app.
+            stand_in_spaces.stage();
+            // The stand-in's past: copies you'd already hold of rooms that have since gone quiet.
+            let records = data.join("records");
+            let _ = std::fs::create_dir_all(&records);
+            for (id, record) in stand_in_spaces.records_you_hold() {
+                let file = records.join(format!("{id}.json"));
+                if !file.exists() {
+                    let _ = std::fs::write(file, record.to_string());
+                }
+            }
             app.manage(AppState {
                 stand_in_host: Some(host.clone()),
                 daemon,
@@ -99,6 +113,8 @@ fn main() {
                 machine_names: Mutex::new(machine_names),
                 machine_names_file,
                 agent_mounts: Mutex::new(agent_mounts),
+                records_dir: data.join("records"),
+                record_heads: Mutex::new(HashMap::new()),
                 agent_mounts_file,
             });
             Ok(())
@@ -140,6 +156,11 @@ fn main() {
             actions::knocks_answer,
             actions::spaces_door,
             actions::asks_send,
+            actions::spaces_doorways,
+            actions::vouch_for,
+            actions::spaces_admitted,
+            actions::spaces_restart,
+            actions::spaces_continue,
             actions::table_tree,
             actions::table_read,
             actions::table_write,

@@ -41,6 +41,8 @@ import type { VolumeChange } from "../bindings/VolumeChange";
 import type { VolumeMode } from "../bindings/VolumeMode";
 import type { DoorView } from "../bindings/DoorView";
 import type { AskSent } from "../bindings/AskSent";
+import type { DoorwayView } from "../bindings/DoorwayView";
+import type { AdmittedView } from "../bindings/AdmittedView";
 import type { AppearAs } from "../bindings/AppearAs";
 import type { PersonaView } from "../bindings/PersonaView";
 import type { AllowanceView } from "../bindings/AllowanceView";
@@ -99,7 +101,12 @@ export const api = {
   spaceWatch: (id: string, onEvent: (e: SpaceEvent) => void) => invoke<string>("spaces_watch", { id, onEvent: channel(onEvent) }),
   spaceHost: (input: HostSpaceInput) => invoke<HostOutcome>("spaces_host", { input }),
   spaceDoor: (invite: string) => invoke<DoorView>("spaces_door", { invite }),
-  spaceJoin: (invite: string, appearAs: AppearAs, note: string, listed: boolean) => invoke<JoinOutcome>("spaces_join", { invite, appearAs, note, listed }),
+  spaceJoin: (invite: string, appearAs: AppearAs, note: string, listed: boolean, vouch: string | null) => invoke<JoinOutcome>("spaces_join", { invite, appearAs, note, listed, vouch }),
+  spacesDoorways: (id: string) => invoke<DoorwayView[]>("spaces_doorways", { id }),
+  vouchFor: (key: string, name: string) => invoke<string>("vouch_for", { key, name }),
+  spacesAdmitted: (id: string) => invoke<AdmittedView[]>("spaces_admitted", { id }),
+  spacesRestart: (id: string) => invoke<null>("spaces_restart", { id }),
+  spacesContinue: (id: string) => invoke<HostOutcome>("spaces_continue", { id }),
   asksSend: (what: string, needs: string | null, ceiling: string | null, rooms: string[]) => invoke<AskSent[]>("asks_send", { what, needs, ceiling, rooms }),
   tableTree: (id: string) => invoke<VolumeTree>("table_tree", { id }),
   tableRead: (id: string, path: string) => invoke<FileRead>("table_read", { id, path }),

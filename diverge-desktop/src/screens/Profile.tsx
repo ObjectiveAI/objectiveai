@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { MoveView } from "../bindings/MoveView";
 import type { ProfileView } from "../bindings/ProfileView";
 import { Markdown } from "../components/Markdown";
 import { Button, Chip, Empty, Section } from "../components/ui";
@@ -10,8 +11,16 @@ import { t } from "../strings";
 export function Profile() {
   const { open } = useShared();
   const [p, setP] = useState<ProfileView | null>(null);
+  const [room, setRoom] = useState<MoveView[]>([]);
+  const [pinned, setPinned] = useState<string | null>(null);
   useEffect(() => {
-    api.profile().then(setP);
+    api.profile().then(async (view) => {
+      setP(view);
+      if (view.profile) {
+        const feed = await api.spaceFeed(view.profile);
+        if (feed.outcome === "feed") setRoom(feed.moves);
+      }
+    });
   }, []);
   if (!p) return <Empty title={t.profile.title} />;
   return (
@@ -27,12 +36,42 @@ export function Profile() {
           {p.profile ? <Button small kind="quiet" onClick={() => open({ kind: "space", id: p.profile! })}>{t.profile.visit}</Button> : null}
         </Section>
 
+        {p.profile ? (
+          <Section title={t.profile.visit} note={t.profile.visitNote}>
+            <h3 className="list-head">{t.profile.hires}</h3>
+            {room.filter((m) => m.kind === "hire").length === 0 ? <p className="muted small">{t.profile.noHires}</p> : null}
+            <ul className="member-list">
+              {room.filter((m) => m.kind === "hire").map((m) => (
+                <li key={m.id} className="member">
+                  <span><strong>{m.author}</strong>: {m.title}</span>
+                  <Chip tone={m.state === "delivered" ? "ok" : "plain"}>{t.spaces.states[m.state] ?? m.state}</Chip>
+                </li>
+              ))}
+            </ul>
+            <h3 className="list-head">{t.profile.notes}</h3>
+            {room.filter((m) => m.kind === "note").length === 0 ? <p className="muted small">{t.profile.noNotes}</p> : null}
+            <ul className="member-list">
+              {room.filter((m) => m.kind === "note").map((m) => (
+                <li key={m.id} className="member">
+                  <span><strong>{m.author}</strong>: “{m.body}”</span>
+                  <span className="muted small">{time(m.at)}</span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ) : null}
+
         <Section title={t.profile.receipts} note={t.profile.receiptsNote}>
           {p.receipts.length === 0 ? <p className="muted small">{t.profile.noReceipts}</p> : null}
           <ul className="receipts">
             {p.receipts.map((b, i) => (
               <li key={i} className="receipt">
                 <span className="receipt-name">✓ {b.title}</span>
+                {p.profile && b.holds ? (
+                  <button className="link small" onClick={() => api.spaceCall(p.profile!, "pin_receipt", { statement: b.statement }).then((out) => setPinned(out.outcome === "ok" ? b.title : out.message))}>
+                    {pinned === b.title ? t.profile.pinned : t.profile.pin}
+                  </button>
+                ) : null}
                 <span className="muted small">{t.profile.earnedBy} <strong>{b.to}</strong> · {t.profile.issuedBy} <button className="space-chip" onClick={() => open({ kind: "space", id: b.space.id })}>{b.space.title}</button> · {b.holds ? `${t.profile.holds} ${b.issued_by}` : t.profile.doesntHold} · {time(b.at)}</span>
               </li>
             ))}

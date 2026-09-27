@@ -130,6 +130,18 @@ fn text_of(result: &CallToolResult) -> String {
 }
 
 impl StubSpaces {
+    /// The records you'd hold copies of from before the app ever ran: the
+    /// stand-in's past. The real app keeps its own copies as it goes.
+    pub fn records_you_hold(&self) -> Vec<(String, Value)> {
+        let inner = self.lock();
+        inner
+            .rooms
+            .iter()
+            .filter(|(_, h)| h.joined && !h.online)
+            .map(|(id, h)| (id.clone(), json!({ "args": h.room.args, "history": [], "moves": h.room.moves() })))
+            .collect()
+    }
+
     /// Must be called inside a tokio runtime; that runtime is the one it keeps.
     /// `tables` is where each room's table lives on this Mac.
     pub fn new(me: Arc<Keys>, tables: PathBuf) -> Self {
@@ -288,7 +300,24 @@ impl StubSpaces {
         let _ = self.act(inner, "ada", "idea-ada", "steer", json!({ "direction_id": d2, "move": "prefer", "note": "This is the one. Recipes can be issue two." }), ago(55, 0));
         let _ = self.act(inner, "ada/scout", "idea-ada", "steer", json!({ "direction_id": d1, "move": "note", "note": "Recipe zines are common; a map drawn by kids is rarer." }), ago(54, 0));
         let _ = self.act(inner, "ada", "idea-ada", "synthesize", json!({ "body": "Issue one is the kids' map; recipes wait for issue two." }), ago(40, 0));
+        let workshop = self.invite_for(inner, BOARD).map(|i| i.to_text()).unwrap_or_default();
+        let _ = self.act(inner, "ada", "idea-ada", "vouch_room", json!({ "title": "Saturday Workshop", "invite": workshop }), ago(39, 0));
         self.put("idea-ada", "map-sketch.txt", "north: the bakery, the bridge, the school\nsouth: the park, the pond, the bus stop\n");
+
+        // A room ada hosted on her old laptop, gone quiet. You hold a copy of its record.
+        self.open(inner, CAFE, "Tuesday repair café", Kind::Board, (&ada, "ada"), Identity::Outgoing { address: "ada-old-laptop.local:4640".into() }, CAFE_CHARTER, "cafe", false, Some("ada"));
+        let _ = self.act(inner, "ada", CAFE, "admit", json!({ "key": usual.key, "name": usual.name }), ago(400, 0));
+        self.me.set_room(CAFE, "usual");
+        let _ = self.act(inner, "ada", CAFE, "post_task", json!({ "title": "Fix the café's toaster", "spec": "Both slots heat. Done = two slices, evenly brown.", "pledge": "free coffee for a month" }), ago(390, 0));
+        let toaster = Self::last_id(inner, CAFE);
+        let _ = self.me_act(inner, me.clone(), CAFE, "claim", json!({ "task_id": toaster }), ago(380, 0));
+        let _ = self.me_act(inner, me.clone(), CAFE, "deliver", json!({ "task_id": toaster, "summary": "New element in the left slot. Both slots heat now." }), ago(370, 0));
+        let _ = self.act(inner, "ada", CAFE, "accept", json!({ "task_id": toaster }), ago(369, 0));
+        let _ = self.act(inner, "ada", CAFE, "show", json!({ "title": "Last Tuesday of the season", "body": "Thanks all. I'm moving the café to my new machine soon." }), ago(340, 0));
+        if let Some(h) = inner.rooms.get_mut(CAFE) {
+            h.joined = true;
+            h.online = false;
+        }
 
         // ren's music room: joinable with an invite ada passes on.
         self.open(inner, "music-ren", "Ren's music room", Kind::Home, (&ren, "ren"), ren_machine(), "Tracks I make. No AI. Say what you hear.", "ren-open", false, Some("ren"));
@@ -310,7 +339,8 @@ impl StubSpaces {
         let _ = self.act(inner, "ren", "profile-me", "leave_note", json!({ "body": "Loved the kids' map idea in ada's zine room." }), ago(7, 30));
 
         // ren at the workshop's door, with an invite and a note.
-        let knocking = Knocking { secret: Some("saturday-2026".into()), key: ren.clone(), name: "ren".into(), note: "ada said to come by. I fix lamps and radios.".into(), listed: true, vouch: None };
+        let vouch = Statement::make(&inner.people["ada"].keypair, "vouch", json!({ "for": ren, "for_name": "ren", "by_name": "ada" }));
+        let knocking = Knocking { secret: Some("saturday-2026".into()), key: ren.clone(), name: "ren".into(), note: "ada said to come by. I fix lamps and radios.".into(), listed: true, vouch: Some(vouch) };
         inner.pending.push(Knock {
             knock_id: 1,
             space: Id { id: BOARD.into() },
@@ -318,6 +348,16 @@ impl StubSpaces {
             at: ago(0, 2),
         });
         inner.next_knock = 2;
+    }
+
+    /// The stand-in's scenes, once the app is listening: ren hires one of
+    /// your agents through your profile a few seconds in.
+    pub fn stage(&self) {
+        let this = self.clone();
+        self.rt.spawn(async move {
+            tokio::time::sleep(Duration::from_secs(8)).await;
+            let _ = this.act_now("ren", "profile-me", "hire", json!({ "agent": "site-fixes", "what": "Check the links on my music page", "pledge": "a copy of the next track" }));
+        });
     }
 
     /// ada answers an ask a few seconds later: a second person in the room.
@@ -409,6 +449,8 @@ impl Spaces for StubSpaces {
     }
 
     async fn host(&self, container: Container) -> Result<Id, WireError> {
+        // A successor carries the record of the room it continues.
+        let history: Vec<diverge_desktop_room::Move> = container.arguments.get("history").cloned().and_then(|h| serde_json::from_value(h).ok()).unwrap_or_default();
         let mut args: Args = serde_json::from_value(container.arguments).map_err(|e| wire_error(format!("these are not a room's settings: {e}")))?;
         if args.title.trim().is_empty() {
             return Err(wire_error("a Space needs a title"));
@@ -417,8 +459,10 @@ impl Spaces for StubSpaces {
         let id = format!("space-{}", inner.next_room);
         inner.next_room += 1;
         args.id = id.clone();
+        let host = RoomHost { stand_in: None, me: &self.me, host_key: args.host_key.clone(), calls: self.calls_live.clone() };
+        let room = if args.continues.is_some() { Room::from_record(args, history, &[], &host).map_err(wire_error)? } else { Room::new(args) };
         let secret = format!("{id}-{}", &diverge_desktop_room::seal::digest(format!("{id}{}", Utc::now()).as_bytes())[..8]);
-        inner.rooms.insert(id.clone(), Hosted { room: Room::new(args), provider: mine(), online: true, secret, mine: true, joined: true, stand_in_host: None });
+        inner.rooms.insert(id.clone(), Hosted { room, provider: mine(), online: true, secret, mine: true, joined: true, stand_in_host: None });
         let _ = std::fs::create_dir_all(self.table_dir(&id));
         Ok(Id { id })
     }
@@ -488,7 +532,11 @@ impl Spaces for StubSpaces {
 
     async fn read(&self, id: &Id, uri: &str) -> Result<ReadResourceResult, ErrorData> {
         let inner = self.lock();
-        inner.rooms.get(&id.id).ok_or_else(|| ErrorData::invalid_request("no such room", None))?.room.read(uri)
+        let h = inner.rooms.get(&id.id).ok_or_else(|| ErrorData::invalid_request("no such room", None))?;
+        if !h.online {
+            return Err(ErrorData::internal_error("the room's host is offline", None));
+        }
+        h.room.read(uri)
     }
 
     async fn call(&self, id: &Id, params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
@@ -591,6 +639,21 @@ impl Spaces for StubSpaces {
         std::fs::write(&p, body).map_err(|e| wire_error(e.to_string()))
     }
 
+    async fn restart(&self, id: &Id) -> Result<(), WireError> {
+        let mut inner = self.lock();
+        let h = inner.rooms.get(&id.id).ok_or_else(|| wire_error("no such room"))?;
+        if !h.mine {
+            return Err(wire_error("only its host restarts a room"));
+        }
+        let (args, moves) = (h.room.args.clone(), h.room.moves().to_vec());
+        let host = RoomHost { stand_in: None, me: &self.me, host_key: args.host_key.clone(), calls: self.calls_live.clone() };
+        let room = Room::from_record(args, Vec::new(), &moves, &host).map_err(wire_error)?;
+        if let Some(h) = inner.rooms.get_mut(&id.id) {
+            h.room = room;
+        }
+        Ok(())
+    }
+
     async fn transfer(&self, from: &Id, path: &[String], to: &Id) -> Result<(), WireError> {
         self.reachable(from)?;
         self.reachable(to)?;
@@ -613,6 +676,8 @@ impl Spaces for StubSpaces {
 const HOME_CHARTER: &str = "# Your home\n\nWhat you're building, shown when you choose to. Friends may ask and answer. Your agents post what they finished.";
 const BOARD_CHARTER: &str = "# Saturday Workshop\n\n## Rules\nShow what you're making, finished or not. Ask for help plainly. Be kind about other people's work.\n\n## Who does what\nThe **host** keeps the rules and accepts deliveries. **Members** post, claim and offer. **Guests** read.\n\n## Tasks\nA task has a title and a spec, fixed when it's posted. Claim it as posted; the spec is what gets checked. A pledge is words: both sides say when it's settled.\n\n## Receipts\nAccepting a delivery issues a receipt to whoever did the work, sealed by this room. It is a record, never a rating of a person.";
 const IDEA_CHARTER: &str = "# A zine for the neighbourhood\n\nPropose directions, steer them (prefer, reject, note), and write where it stands. Each round starts from the last synthesis.";
+pub const CAFE: &str = "board-cafe";
+const CAFE_CHARTER: &str = "# Tuesday repair café\n\nBring something broken. Post it as a task; whoever fixes it claims it. Pledges are words, settled between you.";
 const PROFILE_CHARTER: &str = "# My profile\n\nWhat I've made and what I offer. Leave a note, or ask one of my agents for something: I decide, and it runs on my machine.";
 
 #[cfg(test)]

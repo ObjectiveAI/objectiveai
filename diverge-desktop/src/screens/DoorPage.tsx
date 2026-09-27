@@ -18,6 +18,7 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
   const [freshName, setFreshName] = useState("");
   const [note, setNote] = useState("");
   const [listed, setListed] = useState(true);
+  const [vouch, setVouch] = useState("");
   const [state, setState] = useState<State>({ kind: "reading" });
 
   useEffect(() => {
@@ -30,7 +31,7 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
   const knock = async () => {
     setState({ kind: "waiting" });
     try {
-      const out = await api.spaceJoin(props.invite, fresh ? { as: "fresh", name: freshName.trim() } : { as: "usual" }, note.trim(), listed);
+      const out = await api.spaceJoin(props.invite, fresh ? { as: "fresh", name: freshName.trim() } : { as: "usual" }, note.trim(), listed, vouch.trim() || null);
       if (out.outcome === "joined") {
         await refreshSpaces();
         setState({ kind: "in", id: out.id, rulesMatch: out.rules_match });
@@ -96,6 +97,9 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
               <textarea rows={2} value={note} placeholder={t.door.notePlaceholder} onChange={(e) => setNote(e.target.value)} />
             </Field>
             {door.invited ? null : <p className="muted small">{t.door.openDoor}</p>}
+            <Field label={t.door.vouchLabel} wide>
+              <input className="mono" value={vouch} placeholder={t.door.vouchPlaceholder} onChange={(e) => setVouch(e.target.value)} spellCheck={false} />
+            </Field>
             <label className="switch switch-line">
               <input type="checkbox" checked={listed} onChange={(e) => setListed(e.target.checked)} />
               <span>{t.door.listed}</span>

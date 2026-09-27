@@ -54,7 +54,7 @@ export function installPreview() {
   const machineOf = (p: { kind: string }) => machines.find((m) => machineKey(m.identity) === machineKey(p));
   const volumesOf = (p: { kind: string }) => machineOf(p)?.volumes ?? [];
   const views: SavedView[] = [];
-  type SpaceRec = { view: SpaceView; moves: MoveView[]; invite: string | null };
+  type SpaceRec = { view: SpaceView; moves: MoveView[]; invite: string | null; from_copy?: boolean };
   const spaceRecs: SpaceRec[] = structuredClone(fixture.spaces) as SpaceRec[];
   const knocks: KnockView[] = structuredClone(fixture.knocks) as KnockView[];
   const you = fixture.you as { name: string; key: string };
@@ -264,7 +264,27 @@ export function installPreview() {
         }
         case "spaces_feed": {
           const r = spaceOf(args.id);
-          return r ? { outcome: "feed", moves: r.moves } : { outcome: "error", message: "no such Space" };
+          return r ? { outcome: "feed", moves: r.moves, from_copy: Boolean(r.from_copy) } : { outcome: "error", message: "no such Space" };
+        }
+        case "spaces_doorways": {
+          const r = spaceOf(args.id);
+          return (r?.moves ?? []).filter((m) => m.kind === "doorway").map((m) => ({ title: m.title, invite: m.body, by: m.author, at: m.at }));
+        }
+        case "vouch_for":
+          return "diverge-vouch:" + btoa(JSON.stringify({ kind: "vouch", body: { for: args.key, for_name: args.name, by_name: you.name }, key: you.key, sig: "preview" })).replace(/=+$/, "");
+        case "spaces_admitted": {
+          const r = spaceOf(args.id);
+          return (r?.view.members ?? []).map((m) => ({ name: m.name, key: m.key, listed: true, is_agent: m.is_agent }));
+        }
+        case "spaces_restart":
+          return null;
+        case "spaces_continue": {
+          const r = spaceOf(args.id);
+          if (!r) return { outcome: "error", message: "you hold no copy of that room" };
+          const id = `space-${Date.now()}`;
+          const summary = { ...r.view.summary, id, title: `${r.view.summary.title}, continued`, host: { kind: "outgoing", address: "127.0.0.1:4640" }, host_name: you.name, mine: true, online: true } as SpaceView["summary"];
+          spaceRecs.push({ view: { ...r.view, summary, members: [{ name: you.name, key: you.key, is_agent: false, agent_of: null, joined: new Date().toISOString(), last_acted: null }], tools: spaceRecs[0]?.view.tools ?? [] }, moves: r.moves.map((m) => ({ ...m, fields: { ...(m.fields as object), from: r.view.summary.title } })), invite: null });
+          return { outcome: "hosted", id };
         }
         case "spaces_call": {
           const r = spaceOf(args.id);

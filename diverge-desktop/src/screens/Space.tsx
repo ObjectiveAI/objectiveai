@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { AdmittedView } from "../bindings/AdmittedView";
+import type { DoorwayView } from "../bindings/DoorwayView";
 import type { MoveView } from "../bindings/MoveView";
 import type { SpaceView } from "../bindings/SpaceView";
 import type { ToolView } from "../bindings/ToolView";
@@ -29,13 +31,26 @@ export function Space(props: { id: string; tabKey: string }) {
   const [copied, setCopied] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [view, setView] = useState<"feed" | "table">("feed");
+  const [fromCopy, setFromCopy] = useState(false);
+  const [doorways, setDoorways] = useState<DoorwayView[]>([]);
+  const [admitted, setAdmitted] = useState<AdmittedView[]>([]);
+  const [vouchText, setVouchText] = useState<{ name: string; text: string } | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [moderation, setModeration] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setSpace(await api.space(props.id));
+      const view = await api.space(props.id);
+      setSpace(view);
       const feed = await api.spaceFeed(props.id);
-      if (feed.outcome === "feed") setMoves(feed.moves);
-      else setProblem(feed.message);
+      if (feed.outcome === "feed") {
+        setMoves(feed.moves);
+        setFromCopy(feed.from_copy);
+      } else setProblem(feed.message);
+      if (view.summary.online) {
+        setDoorways(await api.spacesDoorways(props.id));
+        if (view.summary.mine) setAdmitted(await api.spacesAdmitted(props.id));
+      }
     } catch (e) {
       setProblem(errorText(e));
     }
@@ -79,6 +94,33 @@ export function Space(props: { id: string; tabKey: string }) {
       refreshSpaces();
     } catch (e) {
       setProblem(errorText(e));
+    }
+  };
+
+  const continueIt = async () => {
+    const out = await api.spacesContinue(props.id);
+    if (out.outcome === "hosted") {
+      await refreshSpaces();
+      open({ kind: "space", id: out.id });
+    } else setProblem(out.message);
+  };
+
+  const vouch = async (key: string, name: string) => setVouchText({ name, text: await api.vouchFor(key, name) });
+
+  const remove = async (key: string) => {
+    const out = await api.spaceCall(props.id, "remove", { key });
+    setRemoving(null);
+    setModeration(out.outcome === "ok" ? t.spaces.removedNote : out.message);
+    load();
+  };
+
+  const restart = async () => {
+    try {
+      await api.spacesRestart(props.id);
+      setModeration(t.spaces.restarted);
+      load();
+    } catch (e) {
+      setModeration(errorText(e));
     }
   };
 
@@ -131,6 +173,33 @@ export function Space(props: { id: string; tabKey: string }) {
         </div>
       ) : null}
       {problem ? <div className="banner banner-bad">{problem}</div> : null}
+      {!s.online ? (
+        <div className="banner banner-warn">
+          <span>{t.spaces.quiet} {fromCopy ? t.spaces.fromCopy : ""} </span>
+          {fromCopy && !s.mine ? (
+            <>
+              <span className="muted small">{t.spaces.continueNote}</span>
+              <Button small kind="primary" onClick={continueIt}>{t.spaces.continueIt}</Button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+      {moderation ? (
+        <div className="banner banner-quiet">
+          <span>{moderation}</span>
+          {moderation === t.spaces.removedNote ? <Button small kind="primary" onClick={restart}>{t.spaces.restartNow}</Button> : null}
+          <button className="link" onClick={() => setModeration(null)}>{t.common.close}</button>
+        </div>
+      ) : null}
+      {vouchText ? (
+        <div className="banner banner-quiet">
+          <strong>{t.spaces.vouchTitle} {vouchText.name}</strong>
+          <span className="muted small">{t.spaces.vouchNote}</span>
+          <code className="selectable invite-text">{vouchText.text}</code>
+          <Button small kind="quiet" onClick={() => navigator.clipboard?.writeText(vouchText.text)}>{t.spaces.copy}</Button>
+          <button className="link" onClick={() => setVouchText(null)}>{t.common.close}</button>
+        </div>
+      ) : null}
 
       <div className="space-body">
         <section className="space-feed">
@@ -197,10 +266,46 @@ export function Space(props: { id: string; tabKey: string }) {
                   <span>{m.key === s.you_key ? t.spaces.you : m.name}</span>
                   {m.is_agent ? <Chip>{m.agent_of === s.you_are ? t.spaces.yourAgent : `${t.spaces.runBy} ${m.agent_of ?? "?"}`}</Chip> : null}
                   <span className="muted small">{m.last_acted ? `${t.spaces.lastActed} ${ago(m.last_acted)}` : ago(m.joined)}</span>
+                  {m.key && m.key !== s.you_key && !m.is_agent ? <button className="link small" onClick={() => vouch(m.key, m.name)}>{t.spaces.vouch}</button> : null}
                 </li>
               ))}
             </ul>
           </section>
+          {s.mine && admitted.length > 1 ? (
+            <section>
+              <h2 className="list-head">{t.spaces.everyone}</h2>
+              <p className="muted small">{t.spaces.everyoneNote}</p>
+              <ul className="member-list">
+                {admitted.filter((a) => a.key !== s.you_key).map((a) => (
+                  <li key={a.key} className="member">
+                    <span>{a.name}</span>
+                    {a.listed ? null : <Chip>{t.spaces.notListed}</Chip>}
+                    {removing === a.key ? (
+                      <>
+                        <Button small kind="danger" onClick={() => remove(a.key)}>{t.spaces.removeConfirm}</Button>
+                        <Button small kind="quiet" onClick={() => setRemoving(null)}>{t.spaces.keep}</Button>
+                      </>
+                    ) : (
+                      <button className="link small" onClick={() => setRemoving(a.key)}>{t.spaces.remove}</button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {doorways.length ? (
+            <section>
+              <h2 className="list-head">{t.spaces.doorways}</h2>
+              <ul className="member-list">
+                {doorways.map((d) => (
+                  <li key={d.invite} className="member">
+                    <span>{d.title}</span>
+                    <button className="link small" onClick={() => open({ kind: "door", invite: d.invite })}>{t.door.openInvite}</button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           <details className="charter">
             <summary className="list-head">{t.spaces.charter}</summary>
             <Markdown text={space.charter} />

@@ -89,6 +89,7 @@ impl Identity {
 
     /// Keys that live only in memory, made from fixed seeds: tests and the
     /// browser preview's snapshot, so they come out the same every run.
+    #[allow(dead_code)] // tests and the browser preview's snapshot
     pub fn stand_in(usual_name: &str) -> Self {
         let identity = Identity { file: None, keys: Mutex::new(Keys::default()) };
         identity.ensure_usual(usual_name, Some(Keypair::from_seed(usual_name)));

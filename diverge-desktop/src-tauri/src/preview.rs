@@ -133,7 +133,21 @@ mod tests {
 
         let mut space_views = Vec::new();
         let mut tables = BTreeMap::new();
+        let copies: BTreeMap<String, serde_json::Value> = spaces.records_you_hold().into_iter().collect();
         for e in spaces.list().await {
+            if !e.online {
+                // Unreachable: the preview shows your copy, as the app does.
+                let copy = copies.get(&e.id.id).cloned().unwrap_or_default();
+                let args: diverge_desktop_room::Args = serde_json::from_value(copy["args"].clone()).unwrap();
+                let moves: Vec<diverge_desktop_room::Move> = serde_json::from_value(copy["moves"].clone()).unwrap_or_default();
+                let moves: Vec<MoveView> = moves
+                    .into_iter()
+                    .map(|m| MoveView { id: m.id, kind: m.kind, author: m.author, by: m.by, agent_of: m.agent_of, at: m.at.to_rfc3339(), title: m.title, body: m.body, state: String::new(), parent: m.parent, fields: serde_json::Value::Object(m.fields), charter: m.charter, hash: m.hash })
+                    .collect();
+                let view = SpaceView { summary: summary(&e, &identity), charter: args.charter, members: Vec::new(), tools: Vec::new() };
+                space_views.push(json!({ "view": view, "moves": moves, "invite": null, "from_copy": true }));
+                continue;
+            }
             let text = |r: rmcp::model::ReadResourceResult| r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }).next().unwrap_or_default();
             let tools = spaces.tools(&e.id).await.unwrap();
             let members: Vec<MemberView> = serde_json::from_str(&text(spaces.read(&e.id, program::MEMBERS).await.unwrap())).unwrap();

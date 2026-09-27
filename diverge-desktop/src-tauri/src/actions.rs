@@ -42,6 +42,10 @@ pub struct AppState {
     /// Machine names, yours: identity key → name.
     pub machine_names: Mutex<HashMap<String, String>>,
     pub machine_names_file: PathBuf,
+    /// Your copies of every room's record, one file each, kept as you go.
+    pub records_dir: PathBuf,
+    /// The last hash of each copy, so a copy is written only when it grew.
+    pub record_heads: Mutex<HashMap<String, String>>,
     /// What this app last stated each agent mounts: agent name → mounts.
     pub agent_mounts: Mutex<HashMap<String, AgentMounts>>,
     pub agent_mounts_file: PathBuf,
@@ -121,6 +125,11 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("knocks_watch", "Hear who is at the door of Spaces you host"),
     ("knocks_answer", "Let someone in, or not"),
     ("asks_send", "Send one ask to several rooms at once, followed as one thread"),
+    ("spaces_doorways", "The rooms a room vouches for"),
+    ("vouch_for", "Vouch for someone: your seal on their key, to hand them"),
+    ("spaces_admitted", "Everyone a room you host let in, listed or not"),
+    ("spaces_restart", "Run a room you host again from its record"),
+    ("spaces_continue", "Continue a room whose host is gone, from your copy of its record"),
     ("table_tree", "What's on a room's table"),
     ("table_read", "Open a file on a room's table"),
     ("table_write", "Put a file on a room's table"),
@@ -389,6 +398,59 @@ pub async fn admit_agent(state: &AppState, room: &spaces::Id, agent: &str) -> Re
     call_as_you(state, room, "admit", serde_json::json!({ "key": key, "name": agent, "is_agent": true, "agent_of": person.key, "tether": tether })).await.map(|_| ())
 }
 
+/// Keep your copy of a room's record, checked, whenever it has grown.
+async fn keep_copy(state: &AppState, id: &spaces::Id) {
+    let Some(record) = read_json::<serde_json::Value>(state, id, diverge_desktop_room::room::RECORD).await else { return };
+    let moves: Vec<diverge_desktop_room::Move> = serde_json::from_value(record["moves"].clone()).unwrap_or_default();
+    let head = moves.last().map(|m| m.hash.clone()).unwrap_or_default();
+    if state.record_heads.lock().unwrap().get(&id.id) == Some(&head) {
+        return;
+    }
+    // Only a record whose every link and seal holds is worth keeping.
+    if diverge_desktop_room::check_record(&id.id, &moves).is_err() {
+        return;
+    }
+    let _ = std::fs::create_dir_all(&state.records_dir);
+    if std::fs::write(state.records_dir.join(format!("{}.json", id.id)), record.to_string()).is_ok() {
+        state.record_heads.lock().unwrap().insert(id.id.clone(), head);
+    }
+}
+
+/// Your copy of a room's record, if you hold one.
+fn copy_of(state: &AppState, id: &str) -> Option<serde_json::Value> {
+    std::fs::read_to_string(state.records_dir.join(format!("{id}.json"))).ok().and_then(|s| serde_json::from_str(&s).ok())
+}
+
+/// A room's moves as it serves them, or, when it can't be reached, as your copy holds them.
+async fn moves_of(state: &AppState, id: &spaces::Id) -> (Vec<MoveView>, bool) {
+    if let Some(moves) = read_json::<Vec<MoveView>>(state, id, diverge_desktop_room::room::FEED).await {
+        keep_copy(state, id).await;
+        return (moves, false);
+    }
+    let Some(copy) = copy_of(state, &id.id) else { return (Vec::new(), false) };
+    let moves: Vec<diverge_desktop_room::Move> = serde_json::from_value(copy["moves"].clone()).unwrap_or_default();
+    let views = moves
+        .into_iter()
+        .filter(|m| !(m.kind == "admitted" && m.args.get("listed").and_then(serde_json::Value::as_bool) == Some(false)))
+        .map(|m| MoveView {
+            id: m.id,
+            kind: m.kind.clone(),
+            author: m.author,
+            by: m.by,
+            agent_of: m.agent_of,
+            at: m.at.to_rfc3339(),
+            title: m.title,
+            body: m.body,
+            state: String::new(),
+            parent: m.parent,
+            fields: serde_json::Value::Object(m.fields),
+            charter: m.charter,
+            hash: m.hash,
+        })
+        .collect();
+    (views, true)
+}
+
 #[tauri::command]
 pub async fn spaces_home(state: State<'_, AppState>) -> Result<Option<String>, String> {
     Ok(state.spaces.home().await.map(|id| id.id))
@@ -399,7 +461,7 @@ pub async fn home_feed(state: State<'_, AppState>) -> Result<Vec<HomeMove>, Stri
     let mut out = Vec::new();
     for e in state.spaces.list().await {
         let summary = summary(&e, &state.identity);
-        let moves: Vec<MoveView> = read_json(&state, &e.id, diverge_desktop_room::room::FEED).await.unwrap_or_default();
+        let (moves, _) = moves_of(&state, &e.id).await;
         out.extend(moves.into_iter().map(|entry| HomeMove { space: summary.clone(), entry }));
     }
     out.sort_by(|a, b| b.entry.at.cmp(&a.entry.at));
@@ -430,7 +492,7 @@ pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, Stri
     let mut shows = Vec::new();
     for e in &entries {
         let summary = summary(e, &state.identity);
-        let moves: Vec<MoveView> = read_json(&state, &e.id, diverge_desktop_room::room::FEED).await.unwrap_or_default();
+        let (moves, _) = moves_of(&state, &e.id).await;
         for m in moves {
             if m.kind == "receipt" {
                 let Some(statement) = m.fields.get("statement").and_then(|v| serde_json::from_value::<diverge_desktop_room::Statement>(v.clone()).ok()) else { continue };
@@ -445,6 +507,7 @@ pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, Stri
                     at: m.at.clone(),
                     issued_by: statement.field("host").unwrap_or_default().to_owned(),
                     holds: statement.holds(),
+                    statement: serde_json::to_value(&statement).unwrap_or_default(),
                 });
             } else if m.kind == "show" && Some(&e.id.id) == profile.as_ref() {
                 shows.push(m);
@@ -494,12 +557,102 @@ pub async fn spaces_get(state: State<'_, AppState>, id: String) -> Result<SpaceV
 
 #[tauri::command]
 pub async fn spaces_feed(state: State<'_, AppState>, id: String) -> Result<FeedRead, String> {
-    Ok(match state.spaces.read(&space_id(&id), diverge_desktop_room::room::FEED).await {
+    let sid = space_id(&id);
+    Ok(match state.spaces.read(&sid, diverge_desktop_room::room::FEED).await {
         Ok(r) => {
             let moves = r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str::<Vec<MoveView>>(text).ok(), _ => None }).next().unwrap_or_default();
-            FeedRead::Feed { moves }
+            keep_copy(&state, &sid).await;
+            FeedRead::Feed { moves, from_copy: false }
         }
-        Err(e) => FeedRead::Error { message: e.message.to_string() },
+        Err(e) => match moves_of(&state, &sid).await {
+            (moves, true) => FeedRead::Feed { moves, from_copy: true },
+            _ => FeedRead::Error { message: e.message.to_string() },
+        },
+    })
+}
+
+/// Rooms this room vouches for: invites its host minted for the list.
+#[tauri::command]
+pub async fn spaces_doorways(state: State<'_, AppState>, id: String) -> Result<Vec<DoorwayView>, String> {
+    Ok(read_json(&state, &space_id(&id), diverge_desktop_room::room::DOORWAYS).await.unwrap_or_default())
+}
+
+/// A vouch: your seal on someone's key, as text to hand them. They present
+/// it when they knock; the host sees who vouched and whether it holds.
+#[tauri::command]
+pub fn vouch_for(state: State<'_, AppState>, key: String, name: String) -> Result<String, String> {
+    use base64::Engine;
+    let you = state.identity.usual();
+    let statement = state.identity.state(&you.key, "vouch", serde_json::json!({ "for": key, "for_name": name, "by_name": you.name }))?;
+    Ok(format!("diverge-vouch:{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(serde_json::to_vec(&statement).unwrap_or_default())))
+}
+
+fn parse_vouch(text: &str) -> Result<diverge_desktop_room::Statement, String> {
+    use base64::Engine;
+    let body = text.trim().strip_prefix("diverge-vouch:").ok_or("that isn't a vouch")?;
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(body).map_err(|_| "that vouch is damaged".to_string())?;
+    serde_json::from_slice(&bytes).map_err(|_| "that vouch is damaged".to_string())
+}
+
+/// Everyone a room you host let in and hasn't removed, listed or not: from its record.
+#[tauri::command]
+pub async fn spaces_admitted(state: State<'_, AppState>, id: String) -> Result<Vec<AdmittedView>, String> {
+    let record: serde_json::Value = read_json(&state, &space_id(&id), diverge_desktop_room::room::RECORD).await.ok_or("the room can't be reached")?;
+    let moves: Vec<diverge_desktop_room::Move> = serde_json::from_value(record["moves"].clone()).unwrap_or_default();
+    let mut people: IndexMap<String, AdmittedView> = IndexMap::new();
+    for m in moves {
+        let key = m.args.get("key").and_then(serde_json::Value::as_str).unwrap_or_default().to_owned();
+        match m.kind.as_str() {
+            "admitted" => {
+                let listed = m.args.get("listed").and_then(serde_json::Value::as_bool).unwrap_or(true);
+                let is_agent = m.args.get("is_agent").and_then(serde_json::Value::as_bool).unwrap_or(false);
+                people.insert(key.clone(), AdmittedView { name: m.title, key, listed, is_agent });
+            }
+            "removed" => {
+                people.shift_remove(&key);
+            }
+            _ => {}
+        }
+    }
+    Ok(people.into_values().collect())
+}
+
+/// Stop a room you host and run it again from its record: the way to close
+/// its files to someone you removed.
+#[tauri::command]
+pub async fn spaces_restart(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state.spaces.restart(&space_id(&id)).await.map_err(|e| error_text(&e))
+}
+
+/// Continue a room whose host is gone, on your machine, from your copy of
+/// its record. The old moves keep their seals; you host what comes next.
+#[tauri::command]
+pub async fn spaces_continue(state: State<'_, AppState>, id: String) -> Result<HostOutcome, String> {
+    use diverge_sdk::shared::containers::request::{Container, Image};
+    let copy = copy_of(&state, &id).ok_or("you hold no copy of that room")?;
+    let old: diverge_desktop_room::Args = serde_json::from_value(copy["args"].clone()).map_err(|e| e.to_string())?;
+    let history: Vec<diverge_desktop_room::Move> = serde_json::from_value(copy["moves"].clone()).map_err(|e| e.to_string())?;
+    let you = state.identity.in_room(&id).unwrap_or_else(|| state.identity.usual());
+    let last = history.last().map(|m| m.hash.clone()).unwrap_or_default();
+    let args = diverge_desktop_room::Args {
+        id: String::new(),
+        title: format!("{}, continued", old.title),
+        kind: old.kind,
+        host_key: you.key.clone(),
+        host_name: you.name.clone(),
+        charter: old.charter.clone(),
+        open_door: old.open_door,
+        continues: Some(diverge_desktop_room::Continues { room: old.id.clone(), title: old.title.clone(), last }),
+    };
+    let mut arguments = serde_json::to_value(&args).unwrap_or_default();
+    arguments["history"] = serde_json::to_value(&history).unwrap_or_default();
+    let container = Container { image: Image { name: "diverge-desktop-room".into(), digest: catalog::UNBUILT_DIGEST.into() }, memory: 1 << 30, disk: 1 << 30, volume_mounts: Vec::new(), fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new(), arguments };
+    Ok(match state.spaces.host(container).await {
+        Ok(new) => {
+            state.identity.set_room(&new.id, &you.id);
+            HostOutcome::Hosted { id: new.id }
+        }
+        Err(e) => HostOutcome::Error { message: error_text(&e) },
     })
 }
 
@@ -572,13 +725,17 @@ pub async fn spaces_door(state: State<'_, AppState>, invite: String) -> Result<D
 }
 
 #[tauri::command]
-pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: AppearAs, note: String, listed: bool) -> Result<JoinOutcome, String> {
+pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: AppearAs, note: String, listed: bool, vouch: Option<String>) -> Result<JoinOutcome, String> {
     let invite = spaces::Invite::from_text(&invite)?;
+    let vouch = match vouch.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+        Some(text) => Some(parse_vouch(text)?),
+        None => None,
+    };
     let persona = match appear_as {
         AppearAs::Usual => state.identity.usual(),
         AppearAs::Fresh { name } => state.identity.fresh(&name)?,
     };
-    let knocking = spaces::Knocking { secret: invite.secret.clone(), key: persona.key.clone(), name: persona.name.clone(), note, listed, vouch: None };
+    let knocking = spaces::Knocking { secret: invite.secret.clone(), key: persona.key.clone(), name: persona.name.clone(), note, listed, vouch };
     Ok(match state.spaces.join(&invite, &knocking).await {
         spaces::Joined::Joined(id) => {
             state.identity.set_room(&id.id, &persona.id);
