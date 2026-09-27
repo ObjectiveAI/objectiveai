@@ -1883,11 +1883,14 @@ dependencies = [
 name = "diverge-desktop-room"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "chrono",
+ "diverge-sdk",
  "ed25519-dalek",
  "getrandom 0.2.17",
  "hex",
  "indexmap 2.14.0",
+ "reqwest 0.12.28",
  "rmcp 3.1.2",
  "serde",
  "serde_json",

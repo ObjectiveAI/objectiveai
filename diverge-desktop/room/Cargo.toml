@@ -18,3 +18,19 @@ ed25519-dalek = "2"
 sha2 = "0.10"
 hex = "0.4"
 getrandom = "0.2"
+# The room as a tool container image (feature `image`): an HTTP server on
+# the container's loopback, answering Ronald's proxy.
+diverge-sdk = { path = "../../diverge-sdk-rs", optional = true }
+axum = { version = "0.8.9", optional = true }
+
+[features]
+image = ["dep:diverge-sdk", "dep:axum", "rmcp/server", "rmcp/transport-streamable-http-server", "tokio/full"]
+
+[dev-dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
+tokio = { version = "1.50.0", features = ["full"] }
+
+[[bin]]
+name = "diverge-desktop-room"
+required-features = ["image"]
