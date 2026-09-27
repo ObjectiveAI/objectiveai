@@ -10,7 +10,8 @@
 //! [`create`] spawns an agent under a name; [`delete`] removes one by
 //! name; [`edit`] changes what one mounts; [`message`] sends one a message, and may take it back;
 //! [`logs`] reads what one said and what was said to it; [`list`]
-//! names every one the caller has.
+//! names every one the caller has. The MCP servers an agent calls
+//! are [`tools`](super::tools), attached to it by name.
 
 pub mod create;
 pub mod delete;

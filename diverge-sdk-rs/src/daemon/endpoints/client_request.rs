@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::agents;
+use super::{agents, tools};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -39,6 +39,16 @@ pub enum ClientRequest<'a> {
     AgentsList(agents::list::client::request::Frame),
     /// Tag `5`. Change what an agent mounts.
     AgentsEdit(agents::edit::client::request::Frame),
+    /// Tag `6`. Create a tool under a name.
+    ToolsCreate(tools::create::client::request::Frame),
+    /// Tag `7`. Attach a tool to an agent.
+    ToolsAttach(tools::attach::client::request::Frame),
+    /// Tag `8`. Detach a tool from an agent.
+    ToolsDetach(tools::detach::client::request::Frame),
+    /// Tag `9`. Delete a tool by name.
+    ToolsDelete(tools::delete::client::request::Frame),
+    /// Tag `10`. List the caller's tools.
+    ToolsList(tools::list::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -65,6 +75,11 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsLogs(frame) => frame.encode(out),
             ClientRequest::AgentsList(frame) => frame.encode(out),
             ClientRequest::AgentsEdit(frame) => frame.encode(out),
+            ClientRequest::ToolsCreate(frame) => frame.encode(out),
+            ClientRequest::ToolsAttach(frame) => frame.encode(out),
+            ClientRequest::ToolsDetach(frame) => frame.encode(out),
+            ClientRequest::ToolsDelete(frame) => frame.encode(out),
+            ClientRequest::ToolsList(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -107,6 +122,21 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             5 => agents::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsEdit)
                 .ok(),
+            6 => tools::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsCreate)
+                .ok(),
+            7 => tools::attach::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsAttach)
+                .ok(),
+            8 => tools::detach::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsDetach)
+                .ok(),
+            9 => tools::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsDelete)
+                .ok(),
+            10 => tools::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsList)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -122,6 +152,11 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsLogs(_) => f.write_str("agents logs"),
             ClientRequest::AgentsList(_) => f.write_str("agents list"),
             ClientRequest::AgentsEdit(_) => f.write_str("agents edit"),
+            ClientRequest::ToolsCreate(_) => f.write_str("tools create"),
+            ClientRequest::ToolsAttach(_) => f.write_str("tools attach"),
+            ClientRequest::ToolsDetach(_) => f.write_str("tools detach"),
+            ClientRequest::ToolsDelete(_) => f.write_str("tools delete"),
+            ClientRequest::ToolsList(_) => f.write_str("tools list"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

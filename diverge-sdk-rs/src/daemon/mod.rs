@@ -7,7 +7,7 @@
 //! the one error shape in [`shared::error`](crate::shared::error), and
 //! the frame-level cores of each half — and defines its own
 //! [`endpoints`] on top, as the [`provider`](crate::provider) defines
-//! its own. The provider's endpoints are not the daemon's, and nothing
+//! its own: agents, and the tools attached to them. The provider's endpoints are not the daemon's, and nothing
 //! here names them but what a daemon spawns an agent from.
 
 pub mod endpoints;
