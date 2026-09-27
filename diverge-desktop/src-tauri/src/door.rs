@@ -270,14 +270,17 @@ impl Door {
                     return Ok(CallToolResult::success(vec![ContentBlock::text("Your person said no. Nothing was done.")]));
                 }
                 let mut inner = CallToolRequestParams::new(tool).with_arguments(call_args);
-                self.identity.seal(&Actor::Agent(agent.to_owned()), &id.id, &mut inner).map_err(|e| ErrorData::internal_error(e, None))?;
+                let actor = Actor::Agent(agent.to_owned());
+                let turn = self.identity.turn(&actor, &id.id);
+                let _held = turn.lock().await;
+                self.identity.seal(&actor, &id.id, &mut inner).map_err(|e| ErrorData::internal_error(e, None))?;
                 let result = self.spaces.call(&id, inner).await?;
                 result.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n")
             }
             "asks_open" => {
                 let mut open = Vec::new();
                 for e in self.spaces.list().await {
-                    let (key, _) = self.identity.agent_in(agent, Some(&e.id.id));
+                    let key = self.identity.agent_in(agent, Some(&e.id.id)).key;
                     let Ok(r) = self.spaces.read(&e.id, diverge_desktop_room::room::FEED).await else { continue };
                     let Some(text) = r.contents.iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }) else { continue };
                     let Ok(moves) = serde_json::from_str::<Vec<Value>>(&text) else { continue };

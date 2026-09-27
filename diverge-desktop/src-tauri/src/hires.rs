@@ -36,7 +36,10 @@ pub fn spawn(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: Arc<Ide
 
 async fn seal_call(spaces: &dyn Spaces, identity: &Identity, room: &Id, verb: &str, args: Value) -> Result<(), String> {
     let mut params = CallToolRequestParams::new(verb.to_owned()).with_arguments(args.as_object().cloned().unwrap_or_default());
-    identity.seal(&identity.you_in(&room.id), &room.id, &mut params)?;
+    let actor = identity.you_in(&room.id);
+    let turn = identity.turn(&actor, &room.id);
+    let _held = turn.lock().await;
+    identity.seal(&actor, &room.id, &mut params)?;
     spaces.call(room, params).await.map(|_| ()).map_err(|e| e.message.to_string())
 }
 

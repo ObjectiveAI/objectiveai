@@ -22,6 +22,11 @@
 //! - **Receipts are sealed by the host**, so a receipt proves which room
 //!   issued it wherever it is shown.
 //!
+//! - **Someone let in unlisted is a mark in the record**, not a key, until
+//!   they first act: the mark is of their key and this room, so it can't be
+//!   matched against the same key elsewhere. Their moves name their key, as
+//!   everyone's do.
+//!
 //! One thing no record can show is what came after it: a copy that stops
 //! early is a true copy of an earlier moment. Copies say when they end.
 
@@ -218,6 +223,12 @@ pub trait Host: Send + Sync {
     fn hire(&self, _room: &str, _hire_id: &str, _from: &str, _agent: &str, _what: &str, _pledge: Option<&str>) {}
 }
 
+/// The mark a record keeps for someone let in unlisted: of their key and
+/// this room, so it can't be matched against the same key in another room.
+pub fn key_mark(room: &str, key: &str) -> String {
+    digest(format!("diverge-desktop member\n{room}\n{key}").as_bytes())[..32].to_owned()
+}
+
 /// No host at all: for replaying a record, which never asks one.
 pub struct NoHost;
 
@@ -245,6 +256,8 @@ pub struct Room {
     /// What later moves made of earlier ones: id → (state, fields).
     derived: HashMap<String, (String, Map<String, Value>)>,
     counters: HashMap<Key, u64>,
+    /// Let in unlisted, not yet acted: their key's mark → the name they gave, and when.
+    unlisted: HashMap<String, (String, DateTime<Utc>)>,
     /// The room this one continues, rebuilt from its record by replay.
     old: Option<Box<Room>>,
     live: broadcast::Sender<ServerNotification>,
@@ -342,7 +355,7 @@ impl Room {
             args.host_key.clone(),
             Member { key: args.host_key.clone(), name: args.host_name.clone(), is_agent: false, agent_of: None, agent_of_name: None, listed: true, joined: args.at, removed: false },
         );
-        Ok(Room { args, room_key, charters: vec![charter], members, moves: Vec::new(), derived: HashMap::new(), counters: HashMap::new(), old, live })
+        Ok(Room { args, room_key, charters: vec![charter], members, moves: Vec::new(), derived: HashMap::new(), counters: HashMap::new(), unlisted: HashMap::new(), old, live })
     }
 
     /// A room rebuilt from its record, every move replayed under the rules a
@@ -388,6 +401,11 @@ impl Room {
 
     pub fn member(&self, key: &str) -> Option<&Member> {
         self.members.get(key)
+    }
+
+    /// Whether this key may still read the room: someone let in, not removed.
+    pub fn may_read(&self, key: &str) -> bool {
+        self.members.get(key).is_some_and(|m| !m.removed) || self.unlisted.contains_key(&key_mark(&self.args.id, key))
     }
 
     pub fn last_hash(&self) -> String {
@@ -605,6 +623,7 @@ impl Room {
         let who = self.gate(&name, &seal)?;
         let args = params.arguments.clone().unwrap_or_default();
         let line = self.apply(&name, &args, &seal, &who, at, host, None)?;
+        self.settle(&who);
         self.counters.insert(seal.key.clone(), seal.counter);
         self.notify(FEED);
         Ok(CallToolResult::success(vec![ContentBlock::text(line)]))
@@ -620,7 +639,11 @@ impl Room {
         let who = match self.members.get(&seal.key) {
             Some(m) if m.removed => return Err(refused(format!("{} was removed from this room", m.name))),
             Some(m) => m.clone(),
-            None => return Err(refused("that key is not a member here")),
+            // Someone let in unlisted, acting for the first time: their key matches the mark.
+            None => match self.unlisted.get(&key_mark(&self.args.id, &seal.key)) {
+                Some((name, joined)) => Member { key: seal.key.clone(), name: name.clone(), is_agent: false, agent_of: None, agent_of_name: None, listed: false, joined: *joined, removed: false },
+                None => return Err(refused("that key is not a member here")),
+            },
         };
         if host_verb && seal.key != self.args.host_key {
             return Err(refused("only the host may do that"));
@@ -636,11 +659,19 @@ impl Room {
         }
         let who = self.gate(&m.verb, &m.seal).map_err(|e| format!("{} would have been refused: {}", m.id, e.message))?;
         self.apply(&m.verb, &m.args, &m.seal, &who, m.at, &NoHost, Some(m)).map_err(|e| format!("{} does not replay: {}", m.id, e.message))?;
+        self.settle(&who);
         self.counters.insert(m.seal.key.clone(), m.seal.counter);
         if self.moves.last() != Some(m) {
             return Err(format!("{} was changed after it was made", m.id));
         }
         Ok(())
+    }
+
+    /// After someone's first move lands: if they were a mark, they're a member now.
+    fn settle(&mut self, who: &Member) {
+        if !self.members.contains_key(&who.key) && self.unlisted.remove(&key_mark(&self.args.id, &who.key)).is_some() {
+            self.members.insert(who.key.clone(), who.clone());
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -959,10 +990,24 @@ impl Room {
                 format!("Delivered: {}", h.title)
             }
             "admit" => {
-                let key = need(args, "key")?.to_owned();
                 let member_name = need(args, "name")?.to_owned();
                 let is_agent = args.get("is_agent").and_then(Value::as_bool).unwrap_or(false);
                 let listed = args.get("listed").and_then(Value::as_bool).unwrap_or(true);
+                // Unlisted: let in by a mark of their key, which the record keeps instead of the key.
+                if !listed {
+                    if is_agent || args.contains_key("key") {
+                        return Err(bad("someone unlisted is let in by their key's mark, never their key"));
+                    }
+                    let mark = need(args, "key_mark")?.to_owned();
+                    if self.unlisted.contains_key(&mark) || self.members.keys().any(|k| key_mark(&self.args.id, k) == mark && !self.members[k].removed) {
+                        return Err(refused(format!("{member_name} is already let in")));
+                    }
+                    fields.insert("key_mark".into(), json!(mark));
+                    push(self, "admitted", &member_name, "", None, fields)?;
+                    self.unlisted.insert(mark, (member_name.clone(), at));
+                    return Ok(format!("Let in, unlisted: {member_name}"));
+                }
+                let key = need(args, "key")?.to_owned();
                 let (agent_of, agent_of_name) = if is_agent {
                     let person = need(args, "agent_of")?.to_owned();
                     let tether: Statement = serde_json::from_value(args.get("tether").cloned().unwrap_or_default()).map_err(|_| bad("an agent needs its person's tether"))?;
@@ -987,6 +1032,15 @@ impl Room {
                 let key = need(args, "key")?.to_owned();
                 if key == self.args.host_key {
                     return Err(refused("the host can't remove themselves; end the room instead"));
+                }
+                // Someone let in unlisted who never acted is removed by their mark, which never names them.
+                if let Some((gone, _)) = self.unlisted.get(&key).cloned() {
+                    pick(&mut fields, &["reason"]);
+                    fields.insert("key_mark".into(), json!(key));
+                    push(self, "removed", &gone, arg(args, "reason").unwrap_or_default(), None, fields)?;
+                    self.unlisted.remove(&key);
+                    self.notify(MEMBERS);
+                    return Ok(format!("Removed: {gone}"));
                 }
                 let gone = self.members.get(&key).filter(|m| !m.removed).map(|m| m.name.clone()).ok_or_else(|| bad("no such member"))?;
                 // An agent goes with its person, in the same move.

@@ -279,7 +279,8 @@ impl StubSpaces {
 
     /// Admit one of your agents, tethered to you.
     fn admit_agent(&self, inner: &mut Inner, room: &str, agent: &str, at: DateTime<Utc>) {
-        let (key, t) = self.me.agent_in(agent, Some(room));
+        let a = self.me.agent_in(agent, Some(room));
+        let (key, t, agent) = (a.key, a.tether, a.name.as_str());
         let usual = self.me.usual();
         let _ = self.me_act(inner, Actor::Persona("usual".into()), room, "admit", json!({ "key": key, "name": agent, "is_agent": true, "agent_of": usual.key, "tether": t }), at);
     }
@@ -457,7 +458,11 @@ impl StubSpaces {
         tokio::time::sleep(Duration::from_millis(1500)).await;
         let mut inner = self.lock();
         let Some(host) = inner.rooms.get(id).and_then(|h| h.stand_in_host.clone()) else { return Joined::Missing };
-        let args = json!({ "key": knocking.key, "name": knocking.name, "listed": knocking.listed });
+        let args = if knocking.listed {
+            json!({ "key": knocking.key, "name": knocking.name })
+        } else {
+            json!({ "key_mark": diverge_desktop_room::key_mark(id, &knocking.key), "name": knocking.name, "listed": false })
+        };
         match self.act(&mut inner, &host, id, "admit", args, Utc::now()) {
             Ok(_) => {
                 if let Some(h) = inner.rooms.get_mut(id) {
@@ -609,6 +614,11 @@ impl Spaces for StubSpaces {
         let h = inner.rooms.get(&id.id).ok_or_else(|| ErrorData::invalid_request("no such room", None))?;
         if !h.online {
             return Err(ErrorData::internal_error("the room's host is offline", None));
+        }
+        // Only someone let in and not removed reads a room: here, you, as whoever you are there.
+        let you = self.me.in_room(&id.id).unwrap_or_else(|| self.me.usual()).key;
+        if !h.mine && !h.room.may_read(&you) {
+            return Err(ErrorData::invalid_request("you're not in that room, or you were removed", None));
         }
         h.room.read(uri)
     }

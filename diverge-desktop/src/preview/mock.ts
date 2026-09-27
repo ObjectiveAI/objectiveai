@@ -221,12 +221,25 @@ export function installPreview() {
         }
         case "profile_get": {
           const mineKeys = new Set(personas.map(() => you.key));
+          const seen = new Set<string>();
           const receipts = spaceRecs.flatMap((r) =>
             r.moves
               .filter((m) => m.kind === "receipt")
-              .map((m) => ({ m, st: (m.fields as Record<string, unknown>).statement as { key: string; body: Record<string, string> } | undefined }))
-              .filter(({ st }) => st && mineKeys.has(st.body.to_person))
-              .map(({ m, st }) => ({ title: m.title, for_title: m.body.replace(/^Completed: /, ""), space: r.view.summary, to: st!.body.to_name, at: m.at, issued_by: st!.body.host, holds: true })),
+              .map((m) => ({ m, st: (m.fields as Record<string, unknown>).statement as { key: string; sig: string; body: Record<string, string> } | undefined }))
+              .filter(({ st }) => st && mineKeys.has(st.body.to_person) && !seen.has(st.sig) && seen.add(st.sig))
+              .map(({ m, st }) => ({
+                title: m.title,
+                for_title: m.body.replace(/^Completed: /, ""),
+                room_title: st!.body.room_title,
+                space: spaceRecs.find((x) => x.view.summary.id === st!.body.room)?.view.summary ?? null,
+                to: st!.body.to_name,
+                at: m.at,
+                issued_by: st!.body.host,
+                known: true,
+                holds: true,
+                earned_as: you.name,
+                earned_as_usual: true,
+              })),
           );
           const profileId = yours("profile");
           const profile = profileId ? spaceOf(profileId) : undefined;
@@ -273,6 +286,8 @@ export function installPreview() {
           const r = spaceOf(args.id);
           return (r?.moves ?? []).filter((m) => m.kind === "doorway").map((m) => ({ title: m.title, invite: m.body, by: m.author, at: m.at }));
         }
+        case "identity_broken":
+          return null;
         case "vouch_for":
           return "diverge-vouch:" + btoa(JSON.stringify({ kind: "vouch", body: { for: args.key, for_name: args.name, by_name: you.name }, key: you.key, sig: "preview" })).replace(/=+$/, "");
         case "spaces_admitted": {

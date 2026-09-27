@@ -46,6 +46,10 @@ pub struct AppState {
     pub records_dir: PathBuf,
     /// The last hash of each copy, so a copy is written only when it grew.
     pub record_heads: Mutex<HashMap<String, String>>,
+    /// Your asks' thread ids, one per room they went to, and the one thread
+    /// each belongs to. Only this app knows they're one; the rooms can't tell.
+    pub threads: Mutex<HashMap<String, String>>,
+    pub threads_file: PathBuf,
     /// What this app last stated each agent mounts: agent name → mounts.
     pub agent_mounts: Mutex<HashMap<String, AgentMounts>>,
     pub agent_mounts_file: PathBuf,
@@ -127,6 +131,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("asks_send", "Send one ask to several rooms at once, followed as one thread"),
     ("spaces_doorways", "The rooms a room vouches for"),
     ("vouch_for", "Vouch for someone into a room you're in: your word, for that room, for a week, to hand them"),
+    ("identity_broken", "Whether your keys file could be read; if not, where it is"),
     ("spaces_admitted", "Everyone a room you host let in, listed or not"),
     ("spaces_restart", "Run a room you host again from its record"),
     ("spaces_continue", "Continue a room whose host is gone, from your copy of its record"),
@@ -384,24 +389,37 @@ fn text_of(result: &rmcp::model::CallToolResult) -> String {
     result.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n")
 }
 
-/// Your call to a room: sealed as whoever you are there.
+/// Where your keys file is, if it couldn't be read: the app then signs nothing.
+#[tauri::command]
+pub fn identity_broken(state: State<'_, AppState>) -> Option<String> {
+    state.identity.broken().map(|p| p.display().to_string())
+}
+
+/// Your call to a room: sealed as whoever you are there, one call at a time for that key and room.
 async fn call_as_you(state: &AppState, id: &spaces::Id, tool: &str, arguments: serde_json::Value) -> Result<rmcp::model::CallToolResult, String> {
     let mut params = rmcp::model::CallToolRequestParams::new(tool.to_owned()).with_arguments(arguments.as_object().cloned().unwrap_or_default());
-    state.identity.seal(&state.identity.you_in(&id.id), &id.id, &mut params)?;
+    let actor = state.identity.you_in(&id.id);
+    let turn = state.identity.turn(&actor, &id.id);
+    let _held = turn.lock().await;
+    state.identity.seal(&actor, &id.id, &mut params)?;
     state.spaces.call(id, params).await.map_err(|e| e.message.to_string())
 }
 
 /// Let one of your agents into a room you host, tethered to who you are there.
 pub async fn admit_agent(state: &AppState, room: &spaces::Id, agent: &str) -> Result<(), String> {
-    let (key, tether) = state.identity.agent_in(agent, Some(&room.id));
+    let a = state.identity.agent_in(agent, Some(&room.id));
     let person = state.identity.in_room(&room.id).unwrap_or_else(|| state.identity.usual());
-    call_as_you(state, room, "admit", serde_json::json!({ "key": key, "name": agent, "is_agent": true, "agent_of": person.key, "tether": tether })).await.map(|_| ())
+    call_as_you(state, room, "admit", serde_json::json!({ "key": a.key, "name": a.name, "is_agent": true, "agent_of": person.key, "tether": a.tether })).await.map(|_| ())
 }
 
 /// Where your copy of a room's record lives: named for a digest of the
 /// room's id, never the id itself, which came from someone else.
+pub fn record_file_name(id: &str) -> String {
+    format!("{}.json", &diverge_desktop_room::seal::digest(id.as_bytes())[..32])
+}
+
 fn record_file(state: &AppState, id: &str) -> std::path::PathBuf {
-    state.records_dir.join(format!("{}.json", &diverge_desktop_room::seal::digest(id.as_bytes())[..32]))
+    state.records_dir.join(record_file_name(id))
 }
 
 /// Keep your copy of a room's record whenever it has grown, if it is that
@@ -471,6 +489,14 @@ pub async fn home_feed(state: State<'_, AppState>) -> Result<Vec<HomeMove>, Stri
         let (moves, _) = moves_of(&state, &e.id).await;
         out.extend(moves.into_iter().map(|entry| HomeMove { space: summary.clone(), entry }));
     }
+    // Your own asks, each room's thread id mapped back to the one thread you sent.
+    let threads = state.threads.lock().unwrap().clone();
+    for m in out.iter_mut().filter(|m| m.entry.kind == "ask") {
+        let base = m.entry.fields.get("thread").and_then(serde_json::Value::as_str).and_then(|t| threads.get(t)).cloned();
+        if let (Some(base), Some(fields)) = (base, m.entry.fields.as_object_mut()) {
+            fields.insert("thread".into(), serde_json::json!(base));
+        }
+    }
     out.sort_by(|a, b| b.entry.at.cmp(&a.entry.at));
     out.truncate(300);
     Ok(out)
@@ -491,29 +517,42 @@ fn personas(state: &AppState, entries: &[spaces::SpaceEntry]) -> Vec<PersonaView
 #[tauri::command]
 pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, String> {
     let agents = listed(state.daemon.agents_list(agents::list::client::request::Frame {}).collect::<Vec<_>>().await).agents;
-    let mine: Vec<String> = state.identity.personas().into_iter().map(|p| p.key).collect();
+    let mine = state.identity.personas();
     let home = state.spaces.home().await.map(|id| id.id);
     let profile = state.spaces.profile().await.map(|id| id.id);
     let entries = state.spaces.list().await;
+    // Everyone you've met: members of rooms you're in.
+    let mut met = std::collections::HashSet::new();
+    for e in &entries {
+        let members: Vec<MemberView> = read_json(&state, &e.id, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
+        met.extend(members.into_iter().map(|m| m.key));
+    }
     let mut receipts = Vec::new();
+    let mut seen = std::collections::HashSet::new();
     let mut shows = Vec::new();
     for e in &entries {
-        let summary = summary(e, &state.identity);
         let (moves, _) = moves_of(&state, &e.id).await;
         for m in moves {
             if m.kind == "receipt" {
                 let Some(statement) = m.fields.get("statement").and_then(|v| serde_json::from_value::<diverge_desktop_room::Statement>(v.clone()).ok()) else { continue };
-                if !mine.iter().any(|k| Some(k.as_str()) == statement.field("to_person")) {
+                let Some(earned_as) = mine.iter().find(|p| Some(p.key.as_str()) == statement.field("to_person")) else { continue };
+                // One receipt, once: a continued room carries its old receipts too.
+                if !seen.insert(statement.sig.clone()) {
                     continue;
                 }
+                let room = statement.field("room").unwrap_or_default().to_owned();
                 receipts.push(ReceiptView {
                     title: m.title.clone(),
                     for_title: m.body.strip_prefix("Completed: ").unwrap_or(&m.body).to_owned(),
-                    space: summary.clone(),
+                    room_title: statement.field("room_title").unwrap_or_default().to_owned(),
+                    space: entries.iter().find(|x| x.id.id == room).map(|x| summary(x, &state.identity)),
                     to: statement.field("to_name").unwrap_or_default().to_owned(),
                     at: m.at.clone(),
                     issued_by: statement.field("host").unwrap_or_default().to_owned(),
-                    holds: statement.holds(),
+                    known: met.contains(&statement.key),
+                    holds: statement.holds() && diverge_desktop_room::id_holds(&room, &statement.key),
+                    earned_as: earned_as.name.clone(),
+                    earned_as_usual: earned_as.usual,
                     statement: serde_json::to_value(&statement).unwrap_or_default(),
                 });
             } else if m.kind == "show" && Some(&e.id.id) == profile.as_ref() {
@@ -612,8 +651,11 @@ fn parse_vouch(text: &str) -> Result<diverge_desktop_room::Statement, String> {
 pub async fn spaces_admitted(state: State<'_, AppState>, id: String) -> Result<Vec<AdmittedView>, String> {
     let record: diverge_desktop_room::Record = read_json(&state, &space_id(&id), diverge_desktop_room::room::RECORD).await.ok_or("the room can't be reached")?;
     let mut people: IndexMap<String, AdmittedView> = IndexMap::new();
+    // Someone let in unlisted is known by a mark until they act; then by their key.
+    let acted: HashMap<String, String> = record.moves.iter().map(|m| (diverge_desktop_room::key_mark(&record.args.id, &m.by), m.by.clone())).collect();
     for m in record.moves {
-        let key = m.args.get("key").and_then(serde_json::Value::as_str).unwrap_or_default().to_owned();
+        let key = m.args.get("key").or_else(|| m.args.get("key_mark")).and_then(serde_json::Value::as_str).unwrap_or_default().to_owned();
+        let key = acted.get(&key).cloned().unwrap_or(key);
         match m.kind.as_str() {
             "admitted" => {
                 let listed = m.args.get("listed").and_then(serde_json::Value::as_bool).unwrap_or(true);
@@ -880,7 +922,12 @@ pub async fn knocks_answer(state: State<'_, AppState>, knock_id: u64, yes: bool)
         state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
         return Err("that knock doesn't check, so it wasn't let in".into());
     };
-    let admitted = call_as_you(&state, &knock.space, "admit", serde_json::json!({ "key": knocking.key, "name": knocking.name, "listed": knocking.listed })).await;
+    let args = if knocking.listed {
+        serde_json::json!({ "key": knocking.key, "name": knocking.name })
+    } else {
+        serde_json::json!({ "key_mark": diverge_desktop_room::key_mark(&knock.space.id, &knocking.key), "name": knocking.name, "listed": false })
+    };
+    let admitted = call_as_you(&state, &knock.space, "admit", args).await;
     match admitted {
         Ok(r) if r.is_error != Some(true) => {
             state.spaces.answer(knock_id, spaces::Answer::Authorized).await?;
@@ -904,9 +951,19 @@ pub async fn asks_send(state: State<'_, AppState>, what: String, needs: Option<S
     if what.trim().is_empty() {
         return Err("an ask needs words".into());
     }
-    let thread = diverge_desktop_room::seal::digest(format!("{what}{}", chrono::Utc::now()).as_bytes())[..12].to_owned();
+    // A thread id of its own in each room: the same words in two rooms don't
+    // say they came from one person, unless the words do.
+    let base = diverge_desktop_room::fresh_label();
     let mut out = Vec::new();
     for room in rooms {
+        let thread = diverge_desktop_room::seal::digest(format!("{base}\n{room}").as_bytes())[..12].to_owned();
+        {
+            let mut threads = state.threads.lock().unwrap();
+            threads.insert(thread.clone(), base.clone());
+            if let Ok(json) = serde_json::to_string(&*threads) {
+                let _ = std::fs::write(&state.threads_file, json);
+            }
+        }
         let args = serde_json::json!({ "what": what.trim(), "needs": needs, "ceiling": ceiling, "who_may_serve": "anyone", "thread": thread });
         let outcome = match call_as_you(&state, &space_id(&room), "ask", args).await {
             Ok(r) if r.is_error != Some(true) => CallOutcome::Ok { text: text_of(&r) },

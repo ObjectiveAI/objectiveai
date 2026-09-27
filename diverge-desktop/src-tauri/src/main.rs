@@ -93,7 +93,7 @@ fn main() {
             let records = data.join("records");
             let _ = std::fs::create_dir_all(&records);
             for (id, record) in stand_in_spaces.records_you_hold() {
-                let file = records.join(format!("{id}.json"));
+                let file = records.join(actions::record_file_name(&id));
                 if !file.exists() {
                     let _ = std::fs::write(file, record.to_string());
                 }
@@ -115,6 +115,8 @@ fn main() {
                 agent_mounts: Mutex::new(agent_mounts),
                 records_dir: data.join("records"),
                 record_heads: Mutex::new(HashMap::new()),
+                threads: Mutex::new(std::fs::read_to_string(data.join("threads.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()),
+                threads_file: data.join("threads.json"),
                 agent_mounts_file,
             });
             Ok(())
@@ -158,6 +160,7 @@ fn main() {
             actions::asks_send,
             actions::spaces_doorways,
             actions::vouch_for,
+            actions::identity_broken,
             actions::spaces_admitted,
             actions::spaces_restart,
             actions::spaces_continue,

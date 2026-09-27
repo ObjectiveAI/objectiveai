@@ -14,7 +14,7 @@ pub mod image;
 pub mod room;
 pub mod seal;
 
-pub use room::{Args, Continues, Host, Kind, Member, Move, NoHost, Record, Room};
+pub use room::{Args, Continues, Host, Kind, Member, Move, NoHost, Record, Room, key_mark};
 pub use seal::{Key, Keypair, Seal, Statement, fresh_label, id_holds, room_id, seal_call, tether};
 
 #[cfg(test)]
@@ -195,18 +195,41 @@ pub(crate) mod tests {
         let mut helper = Person::new("helper");
         let host = host_for(&maya);
         let mut room = board(&maya);
-        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren", "listed": false })).unwrap();
+        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
         let t = tether(&ren.keypair, &helper.key(), "helper");
         maya.call(&mut room, &host, "admit", json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key(), "tether": t })).unwrap();
-        let listed = room.read(room::MEMBERS).unwrap();
-        let ResourceContents::TextResourceContents { text, .. } = &listed.contents[0] else { panic!() };
-        assert!(!text.contains("\"ren\""), "ren chose not to be listed");
         maya.call(&mut room, &host, "remove", json!({ "key": ren.key(), "reason": "spam" })).unwrap();
         assert!(ren.call(&mut room, &host, "show", json!({ "title": "x" })).unwrap_err().contains("removed"));
         assert!(helper.call(&mut room, &host, "show", json!({ "title": "x" })).is_err());
         let removal = room.moves().last().unwrap();
         assert_eq!(removal.fields["also"], json!([helper.key()]), "the record says the agent went too");
         assert!(Room::check(&room.record()).unwrap().member(&helper.key()).unwrap().removed, "and a replay agrees");
+    }
+
+    #[test]
+    fn someone_unlisted_is_a_mark_in_the_record_until_they_act() {
+        let (mut maya, mut ren, mut ada) = (Person::new("maya"), Person::new("ren"), Person::new("ada"));
+        let host = host_for(&maya);
+        let mut room = board(&maya);
+        let id = room.id().to_owned();
+        assert!(maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren", "listed": false })).is_err(), "never by key");
+        maya.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &ren.key()), "name": "ren", "listed": false })).unwrap();
+        maya.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &ada.key()), "name": "ada", "listed": false })).unwrap();
+        let record = serde_json::to_string(&room.record()).unwrap();
+        assert!(!record.contains(&ren.key()), "the record doesn't name ren's key");
+        assert!(room.may_read(&ren.key()));
+        let listed = room.read(room::MEMBERS).unwrap();
+        let ResourceContents::TextResourceContents { text, .. } = &listed.contents[0] else { panic!() };
+        assert!(!text.contains("\"ren\""), "ren chose not to be listed");
+        ren.call(&mut room, &host, "show", json!({ "title": "a radio" })).unwrap();
+        assert_eq!(feed(&room).into_iter().find(|m| m["kind"] == "show").unwrap()["author"], "ren", "once they act, their moves are theirs");
+        assert!(Room::check(&room.record()).is_ok(), "and a copy replays it");
+        // ada never acted: she's removed by her mark, and her key is never named.
+        maya.call(&mut room, &host, "remove", json!({ "key": key_mark(&id, &ada.key()) })).unwrap();
+        assert!(!serde_json::to_string(&room.record()).unwrap().contains(&ada.key()));
+        assert!(!room.may_read(&ada.key()));
+        assert!(ada.call(&mut room, &host, "show", json!({ "title": "x" })).is_err());
+        assert!(Room::check(&room.record()).is_ok());
     }
 
     #[test]

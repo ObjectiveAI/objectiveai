@@ -67,12 +67,17 @@ export function Profile() {
             {p.receipts.map((b, i) => (
               <li key={i} className="receipt">
                 <span className="receipt-name">✓ {b.title}</span>
-                {p.profile && b.holds ? (
+                {p.profile && b.holds && b.earned_as_usual ? (
                   <button className="link small" onClick={() => api.spaceCall(p.profile!, "pin_receipt", { statement: b.statement }).then((out) => setPinned(out.outcome === "ok" ? b.title : out.message))}>
                     {pinned === b.title ? t.profile.pinned : t.profile.pin}
                   </button>
                 ) : null}
-                <span className="muted small">{t.profile.earnedBy} <strong>{b.to}</strong> · {t.profile.issuedBy} <button className="space-chip" onClick={() => open({ kind: "space", id: b.space.id })}>{b.space.title}</button> · {b.holds ? `${t.profile.holds} ${b.issued_by}` : t.profile.doesntHold} · {time(b.at)}</span>
+                <span className="muted small">
+                  {t.profile.earnedBy} <strong>{b.to}</strong> · {t.profile.issuedBy}{" "}
+                  {b.space ? <button className="space-chip" onClick={() => open({ kind: "space", id: b.space!.id })}>{b.room_title}</button> : <strong>{b.room_title}</strong>} ·{" "}
+                  {b.holds ? `${t.profile.holds} ${b.issued_by}, ${b.known ? t.profile.someoneYouKnow : t.profile.someoneNew}` : t.profile.doesntHold} · {time(b.at)}
+                </span>
+                {b.holds && !b.earned_as_usual ? <span className="muted small">{t.profile.earnedAsFresh} {b.earned_as}{t.profile.earnedAsFreshNote}</span> : null}
               </li>
             ))}
           </ul>

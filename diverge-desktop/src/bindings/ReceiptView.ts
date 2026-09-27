@@ -5,15 +5,36 @@ import type { SpaceSummary } from "./SpaceSummary";
  * A receipt for a task done, attributed to the Space that issued it.
  * Never merged, ranked or converted.
  */
-export type ReceiptView = { title: string, for_title: string, space: SpaceSummary, to: string, at: string, 
+export type ReceiptView = { title: string, for_title: string, 
 /**
- * Who hosts the room that issued it, as its seal says.
+ * The room that issued it, as the receipt itself names it.
+ */
+room_title: string, 
+/**
+ * That room, when you're in it: somewhere to open.
+ */
+space: SpaceSummary | null, to: string, at: string, 
+/**
+ * The name the room's host gave, as the receipt says.
  */
 issued_by: string, 
 /**
- * Whether the room's seal on it holds.
+ * Whether whoever sealed it is someone you've met in a room you're in.
+ */
+known: boolean, 
+/**
+ * Whether its seal holds and was made by the host of the room it names.
  */
 holds: boolean, 
+/**
+ * Which of your names earned it.
+ */
+earned_as: string, 
+/**
+ * Whether that's your usual name: only then can it go on your profile
+ * without linking your names.
+ */
+earned_as_usual: boolean, 
 /**
  * The sealed receipt itself, to pin to your profile.
  */

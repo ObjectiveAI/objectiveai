@@ -61,6 +61,7 @@ function channel<T>(onEvent: (event: T) => void): Channel<T> {
 
 export const api = {
   appInfo: () => invoke<AppInfo>("app_info"),
+  identityBroken: () => invoke<string | null>("identity_broken"),
   actions: () => invoke<ActionInfo[]>("actions_list"),
   catalog: () => invoke<ImageKindView[]>("catalog_images"),
   check: (kind: string, args: unknown) => invoke<null>("catalog_check", { kind, arguments: args }),

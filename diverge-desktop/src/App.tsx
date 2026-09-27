@@ -123,6 +123,12 @@ export function App() {
     };
   }, [tabs, open, close, focus]);
 
+  // Whether your keys file could be read: if not, nothing is signed, and the app says so everywhere.
+  const [keysBroken, setKeysBroken] = useState<string | null>(null);
+  useEffect(() => {
+    api.identityBroken().then(setKeysBroken).catch(() => setKeysBroken(null));
+  }, []);
+
   const shared = useMemo(
     () => ({ agents, listedAt, refreshAgents, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, answerCard }),
     [agents, listedAt, refreshAgents, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, answerCard],
@@ -134,6 +140,11 @@ export function App() {
         <Rail focused={tabs.focused} />
         <main className="stage">
           <TabStrip snapshot={tabs} onFocus={focus} onClose={close} />
+          {keysBroken ? (
+            <div className="banner banner-warn">
+              <strong>{t.keys.unreadable}</strong> {t.keys.where} <span className="mono selectable">{keysBroken}</span>. {t.keys.untouched}
+            </div>
+          ) : null}
           <div className="panes">
             {tabs.tabs.length === 0 ? <Empty title={t.emptyState.title} body={t.emptyState.body} /> : null}
             {tabs.tabs.map(({ key, tab }) => (

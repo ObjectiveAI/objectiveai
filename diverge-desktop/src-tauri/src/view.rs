@@ -1180,13 +1180,23 @@ pub struct HomeMove {
 pub struct ReceiptView {
     pub title: String,
     pub for_title: String,
-    pub space: SpaceSummary,
+    /// The room that issued it, as the receipt itself names it.
+    pub room_title: String,
+    /// That room, when you're in it: somewhere to open.
+    pub space: Option<SpaceSummary>,
     pub to: String,
     pub at: String,
-    /// Who hosts the room that issued it, as its seal says.
+    /// The name the room's host gave, as the receipt says.
     pub issued_by: String,
-    /// Whether the room's seal on it holds.
+    /// Whether whoever sealed it is someone you've met in a room you're in.
+    pub known: bool,
+    /// Whether its seal holds and was made by the host of the room it names.
     pub holds: bool,
+    /// Which of your names earned it.
+    pub earned_as: String,
+    /// Whether that's your usual name: only then can it go on your profile
+    /// without linking your names.
+    pub earned_as_usual: bool,
     /// The sealed receipt itself, to pin to your profile.
     #[ts(type = "unknown")]
     pub statement: Value,
