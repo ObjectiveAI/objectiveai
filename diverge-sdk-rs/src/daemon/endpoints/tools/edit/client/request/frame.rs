@@ -22,6 +22,9 @@ use crate::wire::encode::{Encode, Writer};
 /// because a caller acts on it differently from a failure: wait for
 /// the container to stop, and ask again. The tool's image, limits,
 /// provider and arguments are not edited: they are its for its life.
+/// A [`connect`](crate::daemon::endpoints::tools::connect)ed tool has
+/// no mounts of this caller's and is not edited; the daemon says so
+/// with a variant of its own.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The tool's name, as its create gave it.

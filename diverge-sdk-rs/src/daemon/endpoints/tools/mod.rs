@@ -2,10 +2,16 @@
 //!
 //! A tool is a tool container — an MCP server in a container, the
 //! provider protocol's `containers::tools::run` — that the daemon
-//! holds under a name of the caller's choosing, made from what its
-//! [`create`] names: the image, the limits, the mounts, the
-//! arguments, and the provider it is pinned to, if any, exactly as an
-//! [`agent`](super::agents) is. What a tool is FOR is being attached
+//! holds under a name of the caller's choosing. It comes to be one of
+//! two ways: a [`create`] makes it from what it names — the image,
+//! the limits, the mounts, the arguments, and the provider it is
+//! pinned to, if any, exactly as an [`agent`](super::agents) is — and
+//! the daemon runs it; or a [`connect`] names a container somebody
+//! else runs, by its provider, its id and an authorization, and the
+//! daemon joins it with the provider protocol's
+//! `containers::tools::connect` and never runs it. Whom a daemon
+//! admits as a connector to a tool it runs is that daemon's
+//! configuration, stated on no request. What a tool is FOR is being attached
 //! to agents: an [`attach`] puts it among the MCP servers the daemon
 //! answers an agent's tool calls with, under the tool's name, and the
 //! agent's merged tool list says which image serves each tool under
@@ -21,14 +27,16 @@
 //! it, and stops it when no attached agent is active. A tool attached
 //! nowhere runs nowhere. A create runs nothing.
 //!
-//! [`create`] makes a tool under a name; [`edit`] changes what one
-//! mounts; [`attach`] and [`detach`]
+//! [`create`] makes a tool under a name; [`edit`] changes what a
+//! created one mounts; [`connect`] holds somebody else's under a
+//! name; [`attach`] and [`detach`]
 //! put it on an agent and take it off, the attach allowed while the
 //! agent is active and the detach only while it is not; [`delete`]
 //! removes a tool that is attached nowhere; [`list`] names every one
 //! the caller has, with the agents each is attached to.
 
 pub mod attach;
+pub mod connect;
 pub mod create;
 pub mod delete;
 pub mod detach;

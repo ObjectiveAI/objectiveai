@@ -2,9 +2,10 @@
 //!
 //! A client asks for its tools and the daemon sends every one it
 //! holds under the caller's identity, one response each, oldest
-//! created first, then finishes: what each is called, what image it
-//! runs, whether its container is running now, when that last
-//! changed and where it ran, and which agents it is attached to. A
+//! created first, then finishes: what each is called, where it comes
+//! from — the image it runs, or the container of somebody else's it
+//! joins — whether it is active now, when that last changed, and
+//! which agents it is attached to. A
 //! caller with no tools sees the finish and nothing before it. The
 //! daemon does not stay open.
 //!

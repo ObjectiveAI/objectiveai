@@ -43,13 +43,15 @@ pub enum ClientRequest<'a> {
     ToolsCreate(tools::create::client::request::Frame),
     /// Tag `7`. Change what a tool mounts.
     ToolsEdit(tools::edit::client::request::Frame),
-    /// Tag `8`. Attach a tool to an agent.
+    /// Tag `8`. Hold somebody else's tool container under a name.
+    ToolsConnect(tools::connect::client::request::Frame),
+    /// Tag `9`. Attach a tool to an agent.
     ToolsAttach(tools::attach::client::request::Frame),
-    /// Tag `9`. Detach a tool from an agent.
+    /// Tag `10`. Detach a tool from an agent.
     ToolsDetach(tools::detach::client::request::Frame),
-    /// Tag `10`. Delete a tool by name.
+    /// Tag `11`. Delete a tool by name.
     ToolsDelete(tools::delete::client::request::Frame),
-    /// Tag `11`. List the caller's tools.
+    /// Tag `12`. List the caller's tools.
     ToolsList(tools::list::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -79,6 +81,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsEdit(frame) => frame.encode(out),
             ClientRequest::ToolsCreate(frame) => frame.encode(out),
             ClientRequest::ToolsEdit(frame) => frame.encode(out),
+            ClientRequest::ToolsConnect(frame) => frame.encode(out),
             ClientRequest::ToolsAttach(frame) => frame.encode(out),
             ClientRequest::ToolsDetach(frame) => frame.encode(out),
             ClientRequest::ToolsDelete(frame) => frame.encode(out),
@@ -131,16 +134,19 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             7 => tools::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsEdit)
                 .ok(),
-            8 => tools::attach::client::request::Frame::decode(bytes)
+            8 => tools::connect::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsConnect)
+                .ok(),
+            9 => tools::attach::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsAttach)
                 .ok(),
-            9 => tools::detach::client::request::Frame::decode(bytes)
+            10 => tools::detach::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsDetach)
                 .ok(),
-            10 => tools::delete::client::request::Frame::decode(bytes)
+            11 => tools::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsDelete)
                 .ok(),
-            11 => tools::list::client::request::Frame::decode(bytes)
+            12 => tools::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsList)
                 .ok(),
             _ => None,
@@ -160,6 +166,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsEdit(_) => f.write_str("agents edit"),
             ClientRequest::ToolsCreate(_) => f.write_str("tools create"),
             ClientRequest::ToolsEdit(_) => f.write_str("tools edit"),
+            ClientRequest::ToolsConnect(_) => f.write_str("tools connect"),
             ClientRequest::ToolsAttach(_) => f.write_str("tools attach"),
             ClientRequest::ToolsDetach(_) => f.write_str("tools detach"),
             ClientRequest::ToolsDelete(_) => f.write_str("tools delete"),
