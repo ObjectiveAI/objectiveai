@@ -227,9 +227,17 @@ function AskCard({ card, onAnswer }: { card: CardView; onAnswer: (answer: string
   return (
     <div className={`ask-card ask-card-${card.kind}`}>
       <div className="ask-card-head">
-        <strong>{card.agent}</strong> <span>{t.cards.asksYou}</span>
+        {card.from ? (
+          <>
+            <strong>{card.from}</strong> <span>{t.cards.asksOf} {card.agent}</span>
+          </>
+        ) : (
+          <>
+            <strong>{card.agent}</strong> <span>{t.cards.asksYou}</span>
+          </>
+        )}
         <Chip tone="accent">{t.cards.kinds[card.kind]}</Chip>
-        <span className="muted small">{t.cards.waiting}</span>
+        <span className="muted small">{card.from ? t.cards.waitingFor : t.cards.waiting}</span>
       </div>
       <p className="ask-card-question selectable">{card.question}</p>
       {card.kind === "credential" ? <p className="muted small">{t.cards.credentialNote}</p> : null}

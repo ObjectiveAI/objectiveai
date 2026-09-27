@@ -229,10 +229,20 @@ impl Door {
         self.ask(agent, question, kind, options).await
     }
 
+    /// A card about one of your agents that someone else is asking, through
+    /// a room of yours: a visitor's hire. Nothing runs until you answer.
+    pub async fn ask_for(&self, agent: &str, from: &str, question: String, kind: CardKind, options: Vec<String>) -> String {
+        self.card(agent, Some(from.to_owned()), question, kind, options).await
+    }
+
     async fn ask(&self, agent: &str, question: String, kind: CardKind, options: Vec<String>) -> String {
+        self.card(agent, None, question, kind, options).await
+    }
+
+    async fn card(&self, agent: &str, from: Option<String>, question: String, kind: CardKind, options: Vec<String>) -> String {
         let (tx, rx) = oneshot::channel();
         let id = self.next.fetch_add(1, Ordering::Relaxed);
-        let view = CardView { id, agent: agent.to_owned(), kind, question, options, at: Utc::now().to_rfc3339() };
+        let view = CardView { id, agent: agent.to_owned(), from, kind, question, options, at: Utc::now().to_rfc3339() };
         self.cards.lock().unwrap().push(Pending { view: view.clone(), answer: tx });
         let _ = self.live.send(CardEvent::Card { card: view });
         rx.await.unwrap_or_default()

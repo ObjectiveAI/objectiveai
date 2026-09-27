@@ -44,7 +44,7 @@ pub async fn handle(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: 
     let HostCall::Hire { room, hire_id, from, agent, what, pledge } = call;
     let pledge = pledge.map(|p| format!(" They pledge: {p}.")).unwrap_or_default();
     let question = format!("{from} asks {agent}, through your profile: “{what}”.{pledge} It would run on your machine.");
-    let answer = door.ask_person(&agent, question, CardKind::Choice, vec![TAKE.into(), DECLINE.into()]).await;
+    let answer = door.ask_for(&agent, &from, question, CardKind::Choice, vec![TAKE.into(), DECLINE.into()]).await;
     let take = answer == TAKE;
     if seal_call(spaces.as_ref(), &identity, &room, "answer_hire", json!({ "hire_id": hire_id, "take": take })).await.is_err() || !take {
         return;

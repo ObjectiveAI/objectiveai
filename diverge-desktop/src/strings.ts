@@ -523,6 +523,8 @@ export const t = {
   cards: {
     asksYou: "asks you",
     waiting: "Waiting on you — the run is paused, using nothing.",
+    asksOf: "asks",
+    waitingFor: "Nothing runs until you answer.",
     kinds: { question: "A question", choice: "Your call", credential: "A key" } as Record<string, string>,
     credentialNote: "Pick which key to use. The agent is told a key was used, never the value.",
     none: "None of these",

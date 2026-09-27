@@ -1232,6 +1232,8 @@ pub struct CardView {
     #[ts(type = "number")]
     pub id: u64,
     pub agent: String,
+    /// Who is asking, when it isn't the agent: a visitor hiring it, say.
+    pub from: Option<String>,
     pub kind: CardKind,
     pub question: String,
     pub options: Vec<String>,
