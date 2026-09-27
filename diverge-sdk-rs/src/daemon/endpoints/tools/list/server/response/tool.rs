@@ -33,7 +33,8 @@ pub struct Tool {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<Provider>,
     /// The names of the agents it is attached to, in the order they
-    /// were attached; empty for a tool attached nowhere.
+    /// were attached; empty for a tool attached nowhere. The agents
+    /// list reports the same attachments from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<String>,
 }

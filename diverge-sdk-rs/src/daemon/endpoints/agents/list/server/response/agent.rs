@@ -38,4 +38,10 @@ pub struct Agent {
     /// and where a read that wants only what comes next starts.
     /// `0` for an empty log.
     pub logs_index: u64,
+    /// The names of the [`tools`](crate::daemon::endpoints::tools)
+    /// attached to it, in the order they were attached; empty for an
+    /// agent with none. The tools list reports the same attachments
+    /// from the other side.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tools: Vec<String>,
 }
