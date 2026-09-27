@@ -60,7 +60,7 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
         <Section title={t.door.verbsTitle} note={t.door.verbsNote}>
           <ul className="door-verbs">
             {door.verbs.map((v) => (
-              <li key={v.name}><strong>{v.name.replace(/_/g, " ")}</strong>: {v.does}</li>
+              <li key={v.name}><strong>{t.spaces.verbNames[v.name] ?? v.name.replace(/_/g, " ")}</strong>: {v.does}</li>
             ))}
           </ul>
         </Section>

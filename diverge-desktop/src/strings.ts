@@ -600,7 +600,7 @@ export const t = {
       receipt: "Receipt", offering: "Offering", direction: "Direction", steer: "Steered", synthesis: "Where it stands",
       offer: "Offer", settle: "Settled?", hire: "Asked for", hire_answer: "Answer", hire_delivery: "Delivered", note: "Note", pinned_receipt: "Receipt",
     } as Record<string, string>,
-    states: { open: "Open", claimed: "Claimed", delivered: "Delivered", done: "Done", issued: "Issued", offered: "Offered", shown: "", said: "", prefer: "preferred", reject: "rejected", note: "noted" } as Record<string, string>,
+    states: { open: "Open", claimed: "Claimed", delivered: "Delivered", done: "Done", issued: "Issued", offered: "Offered", shown: "", said: "", left: "", asked: "Waiting on an answer", taken: "Taken", declined: "Turned down", closed: "Closed", prefer: "preferred", reject: "rejected", note: "noted" } as Record<string, string>,
     fields: { needs: "Needs", ceiling: "Ceiling", who_may_serve: "Who may serve", pricing: "Pricing", terms: "Terms", claimed_by: "Claimed by", pledge: "Pledge", measured: "Measured", to: "To", prefer: "prefer", reject: "reject", note: "notes" } as Record<string, string>,
   },
   cards: {

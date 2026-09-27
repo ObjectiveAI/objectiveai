@@ -17,8 +17,9 @@ import { t } from "../strings";
 
 type Active = { tool: ToolView; values: Record<string, unknown> };
 
-/** The host's own tools: never raw forms. Letting in is at the door; the rest have their own places below. */
-const HOST_TOOLS = new Set(["admit", "remove", "set_charter", "vouch_room"]);
+/** Verbs that have their own place, never a raw form: letting in is at the door; removing is on a member's row;
+ * rules and recommendations are under "Your room"; hires are answered on cards; a receipt is pinned from You. */
+const ELSEWHERE = new Set(["admit", "remove", "set_charter", "vouch_room", "answer_hire", "deliver_hire", "pin_receipt"]);
 
 /** Moves the room makes about itself: shown as quiet lines, not cards. */
 const SYSTEM = new Set(["admitted", "removed", "charter", "doorway"]);
@@ -190,8 +191,10 @@ export function Space(props: { id: string; tabKey: string }) {
 
   if (!space) return problem ? <div className="banner banner-bad">{problem}</div> : <Empty title={t.spaces.title} />;
   const s = space.summary;
-  const verbs = s.online ? space.tools.filter((x) => (!x.host_only || s.mine) && !HOST_TOOLS.has(x.name)) : [];
-  const recommendable = spaces.filter((r) => r.mine && r.id !== props.id && r.kind !== "dm");
+  // Nothing the room would refuse you: no hiring your own agents in your own profile.
+  const verbs = s.online ? space.tools.filter((x) => (!x.host_only || s.mine) && !ELSEWHERE.has(x.name) && !(x.name === "hire" && s.mine)) : [];
+  // Recommending needs the room to have the verb: a direct room doesn't.
+  const recommendable = tool("vouch_room") ? spaces.filter((r) => r.mine && r.id !== props.id && r.kind !== "dm") : [];
   const lastSeen = moves.reduce<string | null>((a, m) => (!a || m.at > a ? m.at : a), null);
   const incomplete = active ? missing(active.tool.schema as Schema, active.values) : [];
   const myAgents = space.members.filter((m) => m.is_agent && m.agent_of_key === s.you_key);
@@ -231,11 +234,11 @@ export function Space(props: { id: string; tabKey: string }) {
       {!s.online ? (
         <div className="banner banner-warn">
           <span>
-            {t.spaces.quiet} {fromCopy && lastSeen ? `${t.spaces.copyAsOf} ${time(lastSeen)}.` : ""} {fromCopy ? t.spaces.fromCopy : ""}
+            {[t.spaces.quiet, fromCopy && lastSeen ? `${t.spaces.copyAsOf} ${time(lastSeen)}.` : "", fromCopy ? t.spaces.fromCopy : ""].filter(Boolean).join(" ")}
           </span>
           {fromCopy && !s.mine ? (
             <>
-              <span className="muted small">{t.spaces.continueNote}</span>
+              <span className="muted small"> {t.spaces.continueNote}</span>
               <Button small kind="primary" onClick={continueIt}>{t.spaces.continueIt}</Button>
             </>
           ) : null}
@@ -284,6 +287,7 @@ export function Space(props: { id: string; tabKey: string }) {
           )}
         </section>
         <aside className="space-side">
+          {verbs.length ? (
           <section className="verbs">
             <h2 className="list-head">{t.spaces.verbs}</h2>
             <p className="muted small">{t.spaces.verbsNote}</p>
@@ -308,6 +312,7 @@ export function Space(props: { id: string; tabKey: string }) {
             ) : null}
             {said ? <p className={said.startsWith(t.spaces.did) ? "ok small" : "warn small"}>{said}</p> : null}
           </section>
+          ) : null}
           {s.mine && s.online ? (
             <section>
               <h2 className="list-head">{t.spaces.yourRoom}</h2>
@@ -388,12 +393,12 @@ export function Space(props: { id: string; tabKey: string }) {
               </ul>
             </section>
           ) : null}
-          {s.mine && admitted.length > 1 ? (
+          {s.mine && admitted.some((a) => a.key !== s.you_key && !a.yours) ? (
             <section>
               <h2 className="list-head">{t.spaces.everyone}</h2>
               <p className="muted small">{t.spaces.everyoneNote}</p>
               <ul className="member-list">
-                {admitted.filter((a) => a.key !== s.you_key).map((a) => (
+                {admitted.filter((a) => a.key !== s.you_key && !a.yours).map((a) => (
                   <li key={a.key} className="member">
                     <span>{a.name}</span>
                     {a.listed ? null : <Chip>{t.spaces.notListed}</Chip>}

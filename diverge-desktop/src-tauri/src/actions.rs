@@ -694,7 +694,8 @@ pub async fn spaces_admitted(state: State<'_, AppState>, id: String) -> Result<V
             "admitted" => {
                 let listed = m.args.get("listed").and_then(serde_json::Value::as_bool).unwrap_or(true);
                 let is_agent = m.args.get("is_agent").and_then(serde_json::Value::as_bool).unwrap_or(false);
-                people.insert(key.clone(), AdmittedView { name: m.title, key, listed, is_agent });
+                let yours = state.identity.owner_of(&key).is_some();
+                people.insert(key.clone(), AdmittedView { name: m.title, key, listed, is_agent, yours });
             }
             "removed" => {
                 // A person's agents leave in the same move.

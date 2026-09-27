@@ -9,3 +9,11 @@ describe("the agent door's tools", () => {
     for (const name of names) expect(t.convo.doorTools[name], name).toBeTruthy();
   });
 });
+
+describe("a move's state", () => {
+  // Every state the room program gives a move (diverge-desktop-room: first_state and derive).
+  const states = ["shown", "open", "offered", "claimed", "delivered", "issued", "done", "asked", "left", "said", "taken", "declined", "closed"];
+  it("each has words on screen, or is deliberately left unsaid", () => {
+    for (const s of states) expect(t.spaces.states[s], s).toBeDefined();
+  });
+});

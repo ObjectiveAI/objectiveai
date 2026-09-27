@@ -79,7 +79,8 @@ export function MountRows(props: { rows: MountRow[]; onChange: (rows: MountRow[]
                   value={r.machine}
                   onChange={(e) => {
                     const next = machines.find((x) => identityKey(x.identity) === e.target.value);
-                    set(i, { machine: e.target.value, volume: next?.volumes[0]?.name ?? "" });
+                    const volume = next?.volumes[0]?.name ?? "";
+                    set(i, { machine: e.target.value, volume, to: !r.to || r.to === r.volume ? volume : r.to, scratch: "" });
                   }}
                 >
                   {machines.map((x) => (
@@ -89,7 +90,7 @@ export function MountRows(props: { rows: MountRow[]; onChange: (rows: MountRow[]
               </Field>
             )}
             <Field label={t.create.here}>
-              <select value={r.volume} onChange={(e) => set(i, { volume: e.target.value })}>
+              <select value={r.volume} onChange={(e) => set(i, { volume: e.target.value, to: !r.to || r.to === r.volume ? e.target.value : r.to, scratch: "" })}>
                 {r.volume && !known ? <option value={r.volume}>{r.volume}</option> : null}
                 {m?.volumes.map((v) => (
                   <option key={v.name} value={v.name}>{v.name} · {t.storage.modes[v.mode]}</option>

@@ -1123,6 +1123,8 @@ pub struct AdmittedView {
     pub key: String,
     pub listed: bool,
     pub is_agent: bool,
+    /// One of your own agents: its place is your allowances, not the list of people you let in.
+    pub yours: bool,
 }
 
 /// Where one ask went, and what the room said.

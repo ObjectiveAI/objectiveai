@@ -411,7 +411,7 @@ impl StubSpaces {
         let _ = self.me_act(inner, me.clone(), &home, "show", json!({ "title": "Draft one of the desktop app runs", "body": "Agents, storage, machines and saved Views, on a stand-in for the daemon. Screenshots tomorrow." }), ago(26, 0));
         let _ = self.me_act(inner, me.clone(), &home, "ask", json!({ "what": "Who has a GPU free on weekends?", "needs": "a card with 24 GB, reachable from my daemon", "ceiling": "one weekend", "who_may_serve": "anyone" }), ago(3, 10));
         let ask = Self::last_id(inner, &home);
-        let _ = self.act(inner, "ada", &home, "reply", json!({ "move_id": ask, "body": "Mine's free Saturday, the studio PC. Say when and I'll issue you a key." }), ago(2, 20));
+        let _ = self.act(inner, "ada", &home, "offer", json!({ "ask_id": ask, "body": "Mine's free Saturday, the studio PC. Say when and I'll issue you a key." }), ago(2, 20));
         let _ = self.me_act(inner, Actor::Agent("site-fixes".into()), &home, "report", json!({ "title": "Went through the site", "body": "12 passes. One broken link: “Archive” points at /old-page, which doesn't exist. Nothing changed.", "measured": "1,556 tokens" }), ago(0, 20));
 
         // A work board you host.

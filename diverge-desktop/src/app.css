@@ -74,7 +74,7 @@
 /* A focused tab overlaps the strip's rule by a pixel, which made the strip scroll vertically — the stray scrollbar. */
 .strip { height: var(--strip-height); flex: none; display: flex; align-items: flex-end; gap: 2px; padding: 0 var(--space-2); border-bottom: 1px solid var(--line); background: var(--rail); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .strip::-webkit-scrollbar { display: none; }
-.tab { display: flex; align-items: center; gap: var(--space-2); height: 30px; padding: 0 6px 0 12px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-2); flex: 0 1 200px; min-width: 64px; cursor: pointer; border: 1px solid transparent; border-bottom: 0; }
+.tab { display: flex; align-items: center; gap: var(--space-2); height: 30px; padding: 0 6px 0 12px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-2); flex: 0 1 200px; min-width: 124px; cursor: pointer; border: 1px solid transparent; border-bottom: 0; }
 .tab-title { flex: 1; min-width: 0; }
 .tab:hover { color: var(--text); }
 .tab.on { background: var(--bg); color: var(--here); border-color: var(--line); margin-bottom: -1px; height: 31px; font-weight: 600; }
@@ -310,7 +310,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .verb-form { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg); display: flex; flex-direction: column; gap: var(--space-3); }
 .verb-form-head { display: flex; flex-direction: column; gap: 2px; }
 .member-list { list-style: none; padding: 0; margin: var(--space-2) 0 0; display: flex; flex-direction: column; gap: 4px; }
-.member { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.member { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); flex-wrap: wrap; }
+/* A choice about one member sits on its own line under them. */
+.member > .vouch-pick, .member > .remove-confirm { flex-basis: 100%; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-1) 0 var(--space-2) var(--space-3); }
 .member .muted { margin-left: auto; }
 .charter summary { cursor: pointer; }
 .charter .md { margin-top: var(--space-2); font-size: var(--text-sm); }

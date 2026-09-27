@@ -3,4 +3,8 @@
 /**
  * Someone a room you host let in, from its record: listed or not.
  */
-export type AdmittedView = { name: string, key: string, listed: boolean, is_agent: boolean, };
+export type AdmittedView = { name: string, key: string, listed: boolean, is_agent: boolean, 
+/**
+ * One of your own agents: its place is your allowances, not the list of people you let in.
+ */
+yours: boolean, };

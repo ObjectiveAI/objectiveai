@@ -124,10 +124,20 @@ mod tests {
                 let _ = door.call("site-fixes", params).await;
             });
         }
+        // ren hires research-notes through your profile: the hire, and its card, as the app raises them.
+        {
+            let profile = spaces.id_of("profile-me");
+            spaces.act_now("ren", &profile, "hire", json!({ "agent": "research-notes", "what": "Check the links on my music page", "pledge": "a copy of the next track" })).unwrap();
+            let door = door.clone();
+            tokio::spawn(async move {
+                let hire = crate::view::CardHire { from: "ren".into(), what: "Check the links on my music page".into(), pledge: Some("a copy of the next track".into()) };
+                door.ask_hire("research-notes", hire, vec![crate::hires::TAKE.into(), crate::hires::DECLINE.into()]).await
+            });
+        }
         tokio::task::yield_now().await;
         for _ in 0..20 {
             tokio::task::yield_now().await;
-            if !door.cards().is_empty() {
+            if door.cards().len() >= 2 {
                 break;
             }
         }
@@ -143,7 +153,9 @@ mod tests {
                 let room = diverge_desktop_room::Room::check(&copy).unwrap();
                 let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &room.read(program::FEED).unwrap().contents[0] else { panic!() };
                 let moves: Vec<MoveView> = serde_json::from_str(text).unwrap();
-                let view = SpaceView { summary: summary(&e, &identity), charter: room.charter().to_owned(), members: Vec::new(), tools: Vec::new(), before: Vec::new() };
+                let rmcp::model::ResourceContents::TextResourceContents { text: who, .. } = &room.read(program::MEMBERS).unwrap().contents[0] else { panic!() };
+                let members: Vec<MemberView> = serde_json::from_str(who).unwrap();
+                let view = SpaceView { summary: summary(&e, &identity), charter: room.charter().to_owned(), members, tools: Vec::new(), before: Vec::new() };
                 space_views.push(json!({ "view": view, "moves": moves, "invite": null, "from_copy": true }));
                 continue;
             }

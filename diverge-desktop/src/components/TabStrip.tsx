@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { spaceTitle as nameOf } from "../lib/format";
 import type { TabKind } from "../bindings/TabKind";
 import type { TabsSnapshot } from "../bindings/TabsSnapshot";
@@ -51,8 +52,13 @@ function spaceTitle(id: string): string {
 export function TabStrip(props: { snapshot: TabsSnapshot; onFocus: (key: string) => void; onClose: (key: string) => void }) {
   const { agents, spaces } = useShared();
   spaceTitles = Object.fromEntries(spaces.map((s) => [s.id, nameOf(s)]));
+  // Many tabs scroll sideways; the one you're on is always in view.
+  const strip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    strip.current?.querySelector(".tab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [props.snapshot.focused, props.snapshot.tabs.length]);
   return (
-    <div className="strip" role="tablist">
+    <div className="strip" role="tablist" ref={strip}>
       {props.snapshot.tabs.map(({ key, tab }) => {
         const agent = tab.kind === "agent" ? agents.find((a) => a.name === tab.name) : undefined;
         return (

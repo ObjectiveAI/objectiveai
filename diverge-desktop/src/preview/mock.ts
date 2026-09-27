@@ -287,14 +287,15 @@ export function installPreview() {
           return (r?.moves ?? []).filter((m) => m.kind === "doorway").map((m) => ({ title: m.title, invite: m.body, by: m.author, at: m.at }));
         }
         case "identity_broken":
-          return null;
+          // Preview only: add ?keys-unreadable to the address to see how the app says so.
+          return new URLSearchParams(location.search).has("keys-unreadable") ? "~/Library/Application Support/network.diverge.desktop.draft/identity.json" : null;
         case "asks_close":
           return [];
         case "vouch_for":
           return "diverge-vouch:" + btoa(JSON.stringify({ kind: "vouch", body: { for: args.key, for_name: args.name, by_name: you.name }, key: you.key, sig: "preview" })).replace(/=+$/, "");
         case "spaces_admitted": {
           const r = spaceOf(args.id);
-          return (r?.view.members ?? []).map((m) => ({ name: m.name, key: m.key, listed: true, is_agent: m.is_agent }));
+          return (r?.view.members ?? []).map((m) => ({ name: m.name, key: m.key, listed: true, is_agent: m.is_agent, yours: m.is_agent && m.agent_of_key === you.key }));
         }
         case "spaces_restart":
           return null;
