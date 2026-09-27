@@ -124,7 +124,7 @@ export const t = {
     machines: "Machines",
     storage: "Storage",
     offers: "What your machines offer",
-    offersNote: "Measured, never priced. The wire counts; a rate is the broker's, later.",
+    offersNote: "Measured, never priced.",
     volumesLine: "volumes",
   },
   inbox: {
@@ -346,7 +346,7 @@ export const t = {
   machines: {
     title: "Machines",
     note: "Where your agents can run. The daemon spreads work across them.",
-    ours: "Adding machines here is ours until Ronald's daemon has a way to do it.",
+    ours: "The daemon has no way to add a machine, so the app does it.",
     add: "Add a machine",
     dial: "I connect to it",
     accept: "It connects to me",

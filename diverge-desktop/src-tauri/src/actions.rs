@@ -1,6 +1,6 @@
 //! The action registry: everything a person can do in this app, in one
-//! place. The page calls these; an agent's door (MCP, after draft one)
-//! will call the same functions. No action lives only in a click handler.
+//! place. The page calls these; an agent's door (the MCP server in
+//! `door.rs`) calls the same functions. No action lives only in a click handler.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -819,8 +819,7 @@ pub async fn knocks_answer(state: State<'_, AppState>, knock_id: u64, yes: bool)
 }
 
 /// One ask, sent to several rooms at once: the same thread in each, so
-/// Home follows it everywhere. There is no router; when there is, it's one
-/// more place an ask can go.
+/// Home follows it everywhere. It goes only to rooms you're in.
 #[tauri::command]
 pub async fn asks_send(state: State<'_, AppState>, what: String, needs: Option<String>, ceiling: Option<String>, rooms: Vec<String>) -> Result<Vec<AskSent>, String> {
     if what.trim().is_empty() {

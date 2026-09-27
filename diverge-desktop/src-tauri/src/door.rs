@@ -57,7 +57,7 @@ pub struct Door {
 }
 
 /// The stand-in vault: names only. The values are the daemon's, never the app's.
-const VAULT: &[&str] = &["OpenRouter key", "Spotify key", "GitHub token", "Anthropic key"];
+const VAULT: &[&str] = &["OpenRouter key", "Calendar key", "GitHub token", "Anthropic key"];
 
 fn schema(props: Value, required: &[&str]) -> Arc<JsonObject> {
     let mut o = JsonObject::new();

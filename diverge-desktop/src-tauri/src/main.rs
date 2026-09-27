@@ -1,4 +1,4 @@
-//! Diverge — the desktop app, draft one.
+//! Diverge — the desktop app.
 //!
 //! Rust owns the daemon, its address and its credentials; the page gets
 //! commands (see [`actions`]) and one channel per stream. Today the daemon

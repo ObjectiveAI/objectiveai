@@ -1,7 +1,7 @@
 # diverge-desktop — read this first
 
-The Diverge desktop app, draft three. Maya (co-founder/CPO, designer, not a coder) owns the product;
-Ronald owns everything below the daemon seam. This file is committed so every session and worktree
+The Diverge desktop app, draft three. Maya owns the product and its words; Ronald owns everything below the
+daemon seam. This file is committed so every session and worktree
 inherits it.
 
 ## The seams
@@ -10,8 +10,8 @@ inherits it.
   Ronald ships a daemon. The app doesn't use the tools verbs for rooms: a daemon-attached tool bypasses the app, which
   seals agents' calls and asks the person first.
 - `src-tauri/src/machines.rs` — `Machines`: the provider protocol's volume verbs, addressed to one machine. Since
-  `87015ef92` a volume is its provider's own; the daemon has none. How the app reaches a machine's verbs is an open question for Ronald. The
-  stand-in daemon implements both seams (it knows every agent's mounts, so it keeps every machine's holds).
+  `87015ef92` a volume is its provider's own; the daemon has none. The wire doesn't say yet how the app reaches a machine's verbs.
+  The stand-in daemon implements both seams (it knows every agent's mounts, so it keeps every machine's holds).
 - Meeting up with Ronald = writing `WireDaemon` and `WireMachines`, nothing else.
 - Everything returns **Ronald's real `diverge_sdk` types** (one crate since `d238949ba`, no features). Every
   conversion to our view types is an exhaustive `match` (never `_ =>`) so a new variant from him fails our build.
@@ -28,7 +28,7 @@ inherits it.
   Ronald's types on the wire; what rides inside them is ours (below). `StubSpaces` runs the real room program in
   process until rooms are hosted on the wire.
 - **The person layer is ours, not Ronald's** — the wire gives a room no way to tell members apart (a tool program sees
-  one MCP client; a runner sees an address and an opaque string), and the broker is gone for now:
+  one MCP client; a runner sees an address and an opaque string), and nothing on the wire names a person:
   - `diverge-desktop/room` (crate `diverge-desktop-room`): the room program. Every call is sealed under the `_meta` key
     `network.diverge.desktop/seal` and checked against keys the host admitted; every move is chained and keeps what
     made it; receipts are sealed by the host; admissions, removals and charter changes are moves, so a room rebuilds
@@ -57,10 +57,10 @@ inherits it.
   route around it on the stub.
 
 ## Product laws (Maya's rulings)
-- Style comes from the protocol site's tokens (Maya, 9/25): `diverge-provider-web/src/layouts/Layout.astro`
-  on origin/main. Gold means ONLY "where you are". All colour goes through `src/theme.css`; users set themes later.
+- Style comes from the protocol site's tokens: `diverge-provider-web/src/layouts/Layout.astro` on origin/main.
+  Gold means ONLY "where you are". All colour goes through `src/theme.css`, which is the theme.
 - Every action has two doors: all actions live in the Rust registry (`src-tauri/src/actions.rs`); no
-  logic only in a click handler. The agent-facing door (MCP) comes right after draft one.
+  logic only in a click handler. The agent-facing door is the MCP server in `src-tauri/src/door.rs`.
 - No popups, quickstarts, tours, modals, or anything that takes the mouse.
 - Never assume who someone is — show a provider only as the daemon names it.
 - Don't lead with a feed. Lead with the work: agents, runs, files, machines.
@@ -81,14 +81,13 @@ conversation (work folds into one line; ask cards inline; Mounts, changed while 
 Storage is per machine: pick a machine, then a volume; each volume is in one of Ronald's three modes (keeps changes /
 fresh each run / read only).
 
-## Working with Maya
-Layman's terms, few words, tl;dr first. Show screenshots, don't describe. Check the code before asking
-her anything; never ask ideological or industry questions — resolve from code or make the call and note
-it. **GitHub: drafts live on the `user-experience` branch** of this public repo, rebased onto Ronald's latest when
-pushed (Maya, 9/26: "rebase onto the new sdk then push to user-experience"). Push only when she says. Never push to Ronald's branches; no PRs or issues
-unless she says so. **Private material never enters this repo**, in files or commit messages: planning docs,
-questions lists, quotes from private chats, and wording or ideas that came from them. Seed content is invented and
-everyday.
+## Working on it
+Plain words, few of them, tl;dr first. Show screenshots, don't describe. Check the code before asking Maya
+anything; settle protocol and industry questions from the code, or make the call and note it. **GitHub: drafts live
+on the `user-experience` branch** of this public repo, rebased onto Ronald's latest, and are pushed only when Maya
+says. Never push to Ronald's branches; no PRs or issues unless asked. **Nothing private enters this repo**, in files
+or commit messages: planning docs, lists of questions, quotes from outside conversations, and wording or ideas that
+came from them. Seed content is invented and everyday.
 
 ## Run it
 `pnpm install` (from the repo root) then `cd diverge-desktop && pnpm tauri dev`.

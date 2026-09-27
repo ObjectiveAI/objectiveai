@@ -158,10 +158,10 @@ pub fn run(kind: Kind, input: &str, read: &dyn Fn(&str) -> String) -> Vec<Step> 
         s.say(None, "I read the open asks across your rooms. Nothing there is something I can serve yet. When there is, I'll offer, and you'll be asked before anything is sent.");
         return s.usage();
     }
-    if lower.contains("spotify") || lower.contains("playlist") {
-        s.think(None, "This needs the Spotify API. I don't hold keys; I ask for one by what it's for.");
-        s.door("ask_person", json!({ "question": "I need the Spotify key to read your playlists.", "kind": "credential" }));
-        s.say(None, "Thanks — I'm in. Three playlists, 212 tracks. The most-played this month is your focus mix; want it as a playlist cover?");
+    if lower.contains("calendar") || lower.contains("schedule") {
+        s.think(None, "This needs your calendar. I don't hold keys; I ask for one by what it's for.");
+        s.door("ask_person", json!({ "question": "I need the calendar key to read your week.", "kind": "credential" }));
+        s.say(None, "Thanks — I'm in. Fourteen things this week; Thursday is the full one. Want a short list each morning?");
         return s.usage();
     }
     match kind {

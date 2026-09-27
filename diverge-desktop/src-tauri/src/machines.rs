@@ -12,9 +12,10 @@
 //! with its volumes mounted directly; or any machine's volume served live
 //! across the daemon over FUSE.
 //!
-//! How the app reaches a machine's verbs is an open question for Ronald. The SDK's caller half (`volumes::*::client::execute`) can
-//! dial a machine the daemon dials, not one that dials the daemon. Until
-//! he answers, the stand-in daemon answers for every machine it knows.
+//! The wire doesn't say yet how the app reaches a machine's verbs. The SDK's
+//! caller half (`volumes::*::client::execute`) can dial a machine the daemon
+//! dials, not one that dials the daemon. Until it does, the stand-in daemon
+//! answers for every machine it knows.
 //! Nothing above this module knows which it holds.
 
 use async_trait::async_trait;
