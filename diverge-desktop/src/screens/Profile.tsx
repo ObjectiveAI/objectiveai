@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ProfileView } from "../bindings/ProfileView";
 import { Markdown } from "../components/Markdown";
-import { Chip, Empty, Section } from "../components/ui";
+import { Button, Chip, Empty, Section } from "../components/ui";
 import { useShared } from "../lib/context";
 import { ago, bytes, kindTitle, providerName, providerWay, time } from "../lib/format";
 import { api } from "../lib/ipc";
@@ -20,13 +20,20 @@ export function Profile() {
         <h1 className="page-title">{t.profile.title}</h1>
         <p className="muted">{t.profile.note}</p>
 
+        <Section title={t.profile.personas} note={t.profile.personasNote}>
+          <ul className="personas">
+            {p.personas.map((q) => <PersonaRow key={q.id} id={q.id} name={q.name} usual={q.usual} rooms={q.rooms} onChanged={() => api.profile().then(setP)} />)}
+          </ul>
+          {p.profile ? <Button small kind="quiet" onClick={() => open({ kind: "space", id: p.profile! })}>{t.profile.visit}</Button> : null}
+        </Section>
+
         <Section title={t.profile.receipts} note={t.profile.receiptsNote}>
           {p.receipts.length === 0 ? <p className="muted small">{t.profile.noReceipts}</p> : null}
           <ul className="receipts">
             {p.receipts.map((b, i) => (
               <li key={i} className="receipt">
                 <span className="receipt-name">✓ {b.title}</span>
-                <span className="muted small">{t.profile.earnedBy} <strong>{b.to === "me" ? t.spaces.you : b.to}</strong> · {t.profile.issuedBy} <button className="space-chip" onClick={() => open({ kind: "space", id: b.space.id })}>{b.space.title}</button> · {time(b.at)}</span>
+                <span className="muted small">{t.profile.earnedBy} <strong>{b.to}</strong> · {t.profile.issuedBy} <button className="space-chip" onClick={() => open({ kind: "space", id: b.space.id })}>{b.space.title}</button> · {b.holds ? `${t.profile.holds} ${b.issued_by}` : t.profile.doesntHold} · {time(b.at)}</span>
               </li>
             ))}
           </ul>
@@ -73,5 +80,27 @@ export function Profile() {
         </Section>
       </div>
     </div>
+  );
+}
+
+function PersonaRow(props: { id: string; name: string; usual: boolean; rooms: string[]; onChanged: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(props.name);
+  return (
+    <li className="persona">
+      {editing ? (
+        <>
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+          <Button small kind="primary" onClick={() => api.personaRename(props.id, name).then(() => { setEditing(false); props.onChanged(); })} disabled={!name.trim()}>{t.profile.save}</Button>
+        </>
+      ) : (
+        <>
+          <strong>{props.name}</strong>
+          {props.usual ? <Chip>{t.profile.usualTag}</Chip> : null}
+          <button className="link small" onClick={() => setEditing(true)}>{t.profile.rename}</button>
+        </>
+      )}
+      <span className="muted small">{props.rooms.length ? `${t.profile.inRooms} ${props.rooms.join(", ")}` : t.profile.noRooms}</span>
+    </li>
   );
 }

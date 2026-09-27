@@ -7,6 +7,7 @@ import { useShared } from "../lib/context";
 import { ago, kindTitle, time } from "../lib/format";
 import { api } from "../lib/ipc";
 import { Conversation } from "./Conversation";
+import { KnockCard } from "../components/Knock";
 import { t } from "../strings";
 
 type Thread = { key: string; kind: "agent" | "dm"; name: string; id: string; at: string | null; sub: string };
@@ -46,9 +47,10 @@ export function Inbox() {
       setPicking(false);
       return;
     }
-    const out = await api.spaceHost({ title: p.name, kind: "dm", charter: "Two people. Nothing leaves this room.", invite: `dm-${p.name}` });
+    const out = await api.spaceHost({ title: p.name, kind: "dm", charter: "Two people. Nothing leaves this room.", open_door: false });
     if (out.outcome === "hosted") {
-      await api.spaceCall(out.id, "admit", { name: p.name, agent: p.is_agent });
+      // The room lets in the key you know them by, in the rooms you share.
+      await api.spaceCall(out.id, "admit", { key: p.key, name: p.name });
       await refreshSpaces();
       setSelected(`dm:${out.id}`);
     }
@@ -86,14 +88,7 @@ export function Inbox() {
               </button>
             ))}
             {knocks.map((k) => (
-              <div key={k.knock_id} className="waiting waiting-knock">
-                <span className="waiting-who mono">{k.address}</span>
-                <span className="waiting-what">{k.authorization} → {k.space_title}</span>
-                <span className="row-actions">
-                  <Button small kind="primary" onClick={() => answerKnock(k.knock_id, true)}>{t.spaces.letIn}</Button>
-                  <Button small kind="quiet" onClick={() => answerKnock(k.knock_id, false)}>{t.spaces.notNow}</Button>
-                </span>
-              </div>
+              <KnockCard key={k.knock_id} knock={k} compact onAnswer={(yes) => answerKnock(k.knock_id, yes)} />
             ))}
           </div>
         ) : null}

@@ -3,4 +3,8 @@
 /**
  * A room's verb: an MCP tool, rendered as a button with a generated form.
  */
-export type ToolView = { name: string, title: string, description: string, schema: Record<string, unknown>, };
+export type ToolView = { name: string, title: string, description: string, schema: Record<string, unknown>, 
+/**
+ * Only the room's host may use it; the room enforces that.
+ */
+host_only: boolean, };

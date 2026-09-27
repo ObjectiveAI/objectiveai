@@ -3,4 +3,16 @@
 /**
  * One object in a room's feed.
  */
-export type MoveView = { id: string, kind: string, author: string, at: string, title: string, body: string, state: string, parent: string | null, fields: Record<string, unknown>, };
+export type MoveView = { id: string, kind: string, author: string, 
+/**
+ * The key that sealed it.
+ */
+by: string, 
+/**
+ * For an agent: the person it acts for.
+ */
+agent_of: string | null, at: string, title: string, body: string, state: string, parent: string | null, fields: Record<string, unknown>, 
+/**
+ * The version of the room's rules it was made under.
+ */
+charter: string, hash: string, };

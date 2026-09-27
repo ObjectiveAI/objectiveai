@@ -20,8 +20,9 @@ mod tests {
     use crate::daemon::Daemon;
     use crate::daemon::stub::StubDaemon;
     use crate::machines::{Machines, ReadFrame};
-    use crate::spaces::stub::{rooms, StubSpaces};
-    use crate::spaces::Spaces;
+    use crate::spaces::stub::StubSpaces;
+    use crate::spaces::{Knocking, Spaces};
+    use diverge_desktop_room::room as program;
     use crate::view::*;
 
     fn files(nodes: &[FileNode], prefix: &str, out: &mut Vec<String>) {
@@ -38,8 +39,10 @@ mod tests {
     async fn export_preview_fixture() {
         let root = std::env::temp_dir().join(format!("diverge-desktop-preview-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        let daemon = StubDaemon::new(root);
-        let spaces = StubSpaces::new();
+        let daemon = StubDaemon::new(root.clone());
+        let identity = std::sync::Arc::new(crate::identity::Identity::stand_in("maya"));
+        let _ = std::fs::remove_dir_all(root.join("tables"));
+        let spaces = StubSpaces::new(identity.clone(), root.join("tables"));
         // Let the long job get part of the way through (virtual time).
         tokio::time::sleep(Duration::from_secs(70)).await;
 
@@ -108,38 +111,78 @@ mod tests {
             machines.push(MachineView { identity, volumes, volumes_problem, added: p.added.to_rfc3339(), name: None });
         }
 
-        let door = std::sync::Arc::new(crate::door::Door::new(std::sync::Arc::new(StubSpaces::new())));
+        let door = std::sync::Arc::new(crate::door::Door::new(std::sync::Arc::new(spaces.clone()), identity.clone(), None));
         let door_tools: Vec<ToolView> = door.tools().tools.iter().map(Into::into).collect();
         {
             let door = door.clone();
             tokio::spawn(async move {
-                let params = rmcp::model::CallToolRequestParams::new("ask_person").with_arguments(json!({ "question": "Claim “Package the photo resizer as a tool” on the Saturday Workshop board? Claiming is a commitment to its spec.", "kind": "choice", "options": ["Yes, claim it", "No, leave it"] }).as_object().cloned().unwrap());
+                let params = rmcp::model::CallToolRequestParams::new("space_call").with_arguments(
+                    json!({ "space": crate::spaces::stub::BOARD, "tool": "claim", "arguments": { "task_id": crate::spaces::stub::open_task() } }).as_object().cloned().unwrap(),
+                );
                 let _ = door.call("site-fixes", params).await;
             });
         }
         tokio::task::yield_now().await;
-        tokio::task::yield_now().await;
+        for _ in 0..20 {
+            tokio::task::yield_now().await;
+            if !door.cards().is_empty() {
+                break;
+            }
+        }
         let cards = door.cards();
 
         let mut space_views = Vec::new();
+        let mut tables = BTreeMap::new();
         for e in spaces.list().await {
             let text = |r: rmcp::model::ReadResourceResult| r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }).next().unwrap_or_default();
             let tools = spaces.tools(&e.id).await.unwrap();
-            let members: Vec<MemberView> = serde_json::from_str(&text(spaces.read(&e.id, rooms::MEMBERS).await.unwrap())).unwrap();
-            let moves: Vec<MoveView> = serde_json::from_str(&text(spaces.read(&e.id, rooms::FEED).await.unwrap())).unwrap();
-            let charter = text(spaces.read(&e.id, rooms::CHARTER).await.unwrap());
-            let view = SpaceView { summary: (&e).into(), charter, members, tools: tools.tools.iter().map(Into::into).collect() };
-            let invite = spaces.invite(&e.id).await.map(|i| crate::actions::invite_text(&i));
+            let members: Vec<MemberView> = serde_json::from_str(&text(spaces.read(&e.id, program::MEMBERS).await.unwrap())).unwrap();
+            let moves: Vec<MoveView> = serde_json::from_str(&text(spaces.read(&e.id, program::FEED).await.unwrap())).unwrap();
+            let charter = text(spaces.read(&e.id, program::CHARTER).await.unwrap());
+            let view = SpaceView { summary: summary(&e, &identity), charter, members, tools: tools.tools.iter().map(Into::into).collect() };
+            let invite = spaces.invite(&e.id).await.map(|i| i.to_text());
             space_views.push(json!({ "view": view, "moves": moves, "invite": invite }));
+            // The table: its tree, and every text file on it.
+            let nodes: Vec<FileNode> = spaces.table_tree(&e.id).await.map(|n| n.iter().map(Into::into).collect()).unwrap_or_default();
+            let mut paths = Vec::new();
+            files(&nodes, "", &mut paths);
+            let mut texts = BTreeMap::new();
+            for path in paths {
+                let parts: Vec<String> = path.split('/').filter(|p| !p.is_empty()).map(str::to_owned).collect();
+                if let Ok(bytes) = spaces.table_read(&e.id, &parts).await {
+                    texts.insert(path.trim_start_matches('/').to_owned(), String::from_utf8_lossy(&bytes).into_owned());
+                }
+            }
+            tables.insert(e.id.id.clone(), json!({ "nodes": nodes, "files": texts }));
         }
         let cancel = CancellationToken::new();
         let mut knock_stream = spaces.knocks(cancel.clone());
         let mut knocks = Vec::new();
         while let Ok(Some(k)) = tokio::time::timeout(Duration::from_millis(50), knock_stream.next()).await {
             let title = spaces.list().await.into_iter().find(|e| e.id == k.space).map(|e| e.title).unwrap_or_default();
-            knocks.push(KnockView { knock_id: k.knock_id, space: k.space.id.clone(), space_title: title, address: k.authorize.address.to_string(), authorization: k.authorize.authorization.clone(), at: k.at.to_rfc3339() });
+            let w = Knocking::from_authorization(&k.authorize.authorization).unwrap();
+            knocks.push(KnockView {
+                knock_id: k.knock_id,
+                space: k.space.id.clone(),
+                space_title: title,
+                address: k.authorize.address.to_string(),
+                name: w.name.clone(),
+                note: w.note.clone(),
+                listed: w.listed,
+                invited: w.secret.is_some(),
+                vouch: None,
+                at: k.at.to_rfc3339(),
+            });
+            let _ = w;
         }
         cancel.cancel();
+        let entries = spaces.list().await;
+        let personas: Vec<PersonaView> = identity
+            .personas()
+            .into_iter()
+            .map(|p| PersonaView { id: p.id.clone(), name: p.name.clone(), usual: p.usual, rooms: entries.iter().filter(|e| identity.in_room(&e.id.id).map(|q| q.id == p.id).unwrap_or(p.usual)).map(|e| e.title.clone()).collect() })
+            .collect();
+        let you = identity.usual();
 
         let fixture = json!({
             "note": "Generated by `cargo test -p diverge-desktop export_preview_fixture`. Do not edit.",
@@ -153,6 +196,9 @@ mod tests {
             "door_tools": door_tools,
             "cards": cards,
             "knocks": knocks,
+            "tables": tables,
+            "personas": personas,
+            "you": { "name": you.name, "key": you.key },
             "trees": trees,
             "stats": stats,
             "mounts": daemon.creates().iter().map(|c| (c.name.clone(), AgentMounts::of_create(c).view())).collect::<BTreeMap<_, _>>(),

@@ -137,10 +137,9 @@ pub fn run(kind: Kind, input: &str, read: &dyn Fn(&str) -> String) -> Vec<Step> 
     if lower.contains("task") || lower.contains("claim") {
         s.think(None, "My person wants me to take a task. I should look at the board, and ask before I commit them to anything.");
         s.door("spaces_list", json!({}));
-        s.door("space_feed", json!({ "space": "board-saturday" }));
-        s.say(None, "There's one open task on the Saturday Workshop board: **Package the photo resizer as a tool**. Claiming binds you to its spec, so I'll check first.");
-        s.door("ask_person", json!({ "question": "Claim “Package the photo resizer as a tool” on the Saturday Workshop board? Claiming is a commitment to its spec.", "kind": "choice", "options": ["Yes, claim it", "No, leave it"] }));
-        s.door("space_call", json!({ "space": "board-saturday", "tool": "claim", "arguments": { "task_id": "task-1" } }));
+        s.door("space_feed", json!({ "space": crate::spaces::stub::BOARD }));
+        s.say(None, "There's one open task on the Saturday Workshop board: **Package the photo resizer as a tool**. Claiming binds you to its spec, so you'll be asked first.");
+        s.door("space_call", json!({ "space": crate::spaces::stub::BOARD, "tool": "claim", "arguments": { "task_id": crate::spaces::stub::open_task() } }));
         s.say(None, "Done. It's on the board under your name, claimed by me. Next I'll read the resizer script and draft the container.");
         return s.usage();
     }
@@ -240,6 +239,6 @@ mod tests {
         }
         assert!(long_job(&read).len() > 20);
         let doors = run(Kind::Cc, "Claim the open task", &read).into_iter().filter(|s| matches!(s.piece, Piece::Door { .. })).count();
-        assert_eq!(doors, 4, "the task flow goes through the door four times");
+        assert_eq!(doors, 3, "the task flow goes through the door three times");
     }
 }

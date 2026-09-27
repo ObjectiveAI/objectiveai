@@ -26,6 +26,21 @@ type Args = Record<string, any>;
 
 export const PREVIEW_HOST = "browser-preview";
 
+type Invite = { host: { kind: string; address?: string; identity?: string }; id: string; secret?: string; title: string; kind: string; host_name: string; charter: string; verbs: { name: string; does: string }[] };
+
+function decodeInvite(text: string): Invite | null {
+  try {
+    const body = String(text).trim().replace(/^diverge-invite:/, "").replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(decodeURIComponent(escape(atob(body + "===".slice((body.length + 3) % 4)))));
+  } catch {
+    return null;
+  }
+}
+
+function encodeInvite(invite: Invite): string {
+  return "diverge-invite:" + btoa(unescape(encodeURIComponent(JSON.stringify(invite)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 export function installPreview() {
   const agents: AgentView[] = structuredClone(fixture.agents) as AgentView[];
   const logs: Record<string, LogEntry[]> = structuredClone(fixture.logs) as Record<string, LogEntry[]>;
@@ -42,6 +57,10 @@ export function installPreview() {
   type SpaceRec = { view: SpaceView; moves: MoveView[]; invite: string | null };
   const spaceRecs: SpaceRec[] = structuredClone(fixture.spaces) as SpaceRec[];
   const knocks: KnockView[] = structuredClone(fixture.knocks) as KnockView[];
+  const you = fixture.you as { name: string; key: string };
+  const personas = structuredClone(fixture.personas) as { id: string; name: string; usual: boolean; rooms: string[] }[];
+  const tables = structuredClone(fixture.tables) as Record<string, { nodes: FileNode[]; files: Record<string, string> }>;
+  const allowances: Record<string, number> = {};
   const cards: CardView[] = structuredClone(fixture.cards) as CardView[];
   let cardCh: Chan | null = null;
   const spaceWatches = new Map<string, { id: string; ch: Chan }>();
@@ -58,7 +77,8 @@ export function installPreview() {
   let generation = 0;
   let scope = 0;
 
-  const keyOf = (tab: TabKind) => (tab.kind === "agent" ? `agent:${tab.name}` : tab.kind.replace("_", "-"));
+  const keyOf = (tab: TabKind) =>
+    tab.kind === "agent" ? `agent:${tab.name}` : tab.kind === "space" ? `space:${tab.id}` : tab.kind === "door" ? `door:${tab.invite.slice(-16)}` : tab.kind.replace("_", "-");
   const snapshot = () => ({ generation, tabs, focused });
   const later = (fn: () => void) => setTimeout(fn, 0);
   const push = (name: string, entry: LogEntry) => {
@@ -198,21 +218,39 @@ export function installPreview() {
           return { outcome: "done" };
         }
         case "profile_get": {
-          const mine = new Set(["me", ...agents.map((a) => a.name)]);
-          const receipts = spaceRecs.flatMap((r) => r.moves.filter((m) => m.kind === "receipt" && mine.has(String((m.fields as Record<string, unknown>).to))).map((m) => ({ title: m.title, for_title: m.body.replace(/^Completed: /, ""), space: r.view.summary, to: String((m.fields as Record<string, unknown>).to), at: m.at })));
-          const home = spaceOf("home-me");
-          return { receipts, shows: home ? home.moves.filter((m) => m.kind === "show" && m.author === "me") : [], agents, machines, volumes: machines.flatMap((m) => m.volumes), home: "home-me" };
+          const mineKeys = new Set(personas.map(() => you.key));
+          const receipts = spaceRecs.flatMap((r) =>
+            r.moves
+              .filter((m) => m.kind === "receipt")
+              .map((m) => ({ m, st: (m.fields as Record<string, unknown>).statement as { key: string; body: Record<string, string> } | undefined }))
+              .filter(({ st }) => st && mineKeys.has(st.body.to_person))
+              .map(({ m, st }) => ({ title: m.title, for_title: m.body.replace(/^Completed: /, ""), space: r.view.summary, to: st!.body.to_name, at: m.at, issued_by: st!.body.host, holds: true })),
+          );
+          const profile = spaceOf("profile-me");
+          return { receipts, shows: profile ? profile.moves.filter((m) => m.kind === "show") : [], agents, machines, volumes: machines.flatMap((m) => m.volumes), home: "home-me", profile: "profile-me", personas };
         }
         case "people_list": {
-          const people = new Map<string, { name: string; is_agent: boolean; spaces: string[] }>();
+          const people = new Map<string, { name: string; key: string; is_agent: boolean; agent_of: string | null; spaces: string[] }>();
           for (const r of spaceRecs) for (const m of r.view.members) {
-            if (m.name === "me" || m.name === r.view.summary.joined_as) continue;
-            const p = people.get(m.name) ?? { name: m.name, is_agent: m.is_agent, spaces: [] };
+            if (!m.key || m.key === you.key || (m.is_agent && m.agent_of === you.name)) continue;
+            const p = people.get(m.key) ?? { name: m.name, key: m.key, is_agent: m.is_agent, agent_of: m.agent_of, spaces: [] };
             p.spaces.push(r.view.summary.id);
-            people.set(m.name, p);
+            people.set(m.key, p);
           }
           return [...people.values()];
         }
+        case "personas_list":
+          return personas;
+        case "persona_rename": {
+          const q = personas.find((x) => x.id === args.id);
+          if (q) q.name = args.name;
+          return null;
+        }
+        case "allowance_get":
+          return { per_day: allowances[`${args.id}/${args.agent}`] ?? 0, used_today: 0 };
+        case "allowance_set":
+          allowances[`${args.id}/${args.agent}`] = args.perDay;
+          return { per_day: args.perDay, used_today: 0 };
         case "spaces_home":
           return "home-me";
         case "home_feed":
@@ -232,28 +270,34 @@ export function installPreview() {
           const r = spaceOf(args.id);
           if (!r) return { outcome: "error", message: "no such Space" };
           const a = (args.arguments ?? {}) as Record<string, string>;
-          const me = r.view.summary.joined_as;
           const now = new Date().toISOString();
           const push = (kind: string, title: string, body: string, state: string, parent: string | null, fields: Record<string, unknown> = {}) => {
             const id = `${kind}-${++moveN}`;
-            r.moves.push({ id, kind, author: me, at: now, title, body, state, parent, fields });
+            r.moves.push({ id, kind, author: r.view.summary.you_are, by: r.view.summary.you_key, agent_of: null, at: now, title, body, state, parent, fields, charter: "", hash: "" });
             return id;
           };
+          const find = (id: string) => r.moves.find((m) => m.id === id);
           let line = "";
           switch (args.tool) {
             case "show": line = `Shown: ${a.title} (${push("show", a.title, a.body ?? "", "shown", null)})`; break;
-            case "ask": line = `Asked: ${a.what} (${push("ask", a.what, "", "open", null, { needs: a.needs, ceiling: a.ceiling, who_may_serve: a.who_may_serve })})`; break;
+            case "ask": line = `Asked: ${a.what} (${push("ask", a.what, "", "open", null, { needs: a.needs, ceiling: a.ceiling, who_may_serve: a.who_may_serve, thread: a.thread })})`; break;
+            case "offer": { const q = find(a.ask_id); line = `Offered to serve ${a.ask_id} (${push("offer", q?.title ?? "", a.body, "offered", a.ask_id)})`; break; }
             case "say": line = `Said (${push("say", "", a.body, "said", null)})`; break;
             case "reply": line = `Replied to ${a.move_id} (${push("reply", "", a.body, "said", a.move_id)})`; break;
-            case "post_task": line = `Task posted: ${a.title} (${push("task", a.title, a.spec, "open", null, {})})`; break;
-            case "claim": { const b = r.moves.find((m) => m.id === a.task_id); if (b) { b.state = "claimed"; (b.fields as Record<string, unknown>).claimed_by = me; push("claim", b.title, "", "claimed", b.id); line = `Claimed: ${b.title}`; } break; }
-            case "deliver": { const b = r.moves.find((m) => m.id === a.task_id); if (b) { b.state = "delivered"; push("delivery", b.title, a.summary, "delivered", b.id); line = `Delivered: ${b.title}`; } break; }
-            case "accept": { const b = r.moves.find((m) => m.id === a.task_id); if (b) { b.state = "done"; const f = b.fields as Record<string, unknown>; push("receipt", b.title, `Completed: ${b.title}`, "issued", b.id, { to: f.claimed_by }); line = `Accepted: ${b.title}`; } break; }
+            case "leave_note": line = `Left a note (${push("note", "", a.body, "left", null)})`; break;
+            case "post_task": line = `Task posted: ${a.title} (${push("task", a.title, a.spec, "open", null, { pledge: a.pledge })})`; break;
+            case "claim": { const b = find(a.task_id); if (b) { b.state = "claimed"; Object.assign(b.fields as object, { claimed_by: r.view.summary.you_are, claimed_by_key: r.view.summary.you_key }); push("claim", b.title, "", "claimed", b.id); line = `Claimed: ${b.title}`; } break; }
+            case "deliver": { const b = find(a.task_id); if (b) { b.state = "delivered"; push("delivery", b.title, a.summary, "delivered", b.id, { files: a.files }); line = `Delivered: ${b.title}`; } break; }
+            case "accept": { const b = find(a.task_id); if (b) { b.state = "done"; const f = b.fields as Record<string, unknown>; push("receipt", b.title, `Completed: ${b.title}`, "issued", b.id, { to: f.claimed_by }); line = `Accepted: ${b.title}`; } break; }
+            case "settle": { const b = find(a.task_id); if (b) { const f = b.fields as Record<string, unknown>; const side = b.by === r.view.summary.you_key ? "poster_says" : "doer_says"; f[side] = { agree: Boolean(a.agree), note: a.note ?? null }; push("settle", b.title, a.note ?? "", "said", b.id, { agree: a.agree }); line = `Said: ${b.title}`; } break; }
             case "post_offering": line = `Offered: ${a.title} (${push("offering", a.title, a.what, "offered", null, { pricing: a.pricing, terms: a.terms })})`; break;
             case "propose": line = `Proposed: ${a.direction} (${push("direction", a.direction, a.body ?? "", "open", null)})`; break;
-            case "steer": { const d = r.moves.find((m) => m.id === a.direction_id); if (d) { const f = d.fields as Record<string, number>; f[a.move] = (f[a.move] ?? 0) + 1; push("steer", d.title, a.note ?? "", a.move, d.id); line = `Steered ${d.title}: ${a.move}`; } break; }
+            case "steer": { const d = find(a.direction_id); if (d) { const f = d.fields as Record<string, number>; f[a.move] = (f[a.move] ?? 0) + 1; push("steer", d.title, a.note ?? "", a.move, d.id); line = `Steered ${d.title}: ${a.move}`; } break; }
             case "synthesize": line = `Synthesis written (${push("synthesis", "Where it stands", a.body, "open", null)})`; break;
-            default: return { outcome: "error", message: `this room has no verb called ${args.tool}` };
+            case "set_charter": r.view.charter = a.text; push("charter", "The rules changed", "", "said", null); line = "Rules changed"; break;
+            case "admit": r.view.members.push({ name: a.name, key: a.key, is_agent: false, agent_of: null, joined: now, last_acted: null }); push("admitted", a.name, "", "said", null); line = `Admitted: ${a.name}`; break;
+            case "remove": { const m = r.view.members.find((x) => x.key === a.key); r.view.members = r.view.members.filter((x) => x.key !== a.key); push("removed", m?.name ?? "someone", a.reason ?? "", "said", null); line = "Removed"; break; }
+            default: return { outcome: "error", message: `the preview doesn't play ${args.tool}` };
           }
           later(() => bump(args.id));
           return { outcome: "ok", text: line };
@@ -266,14 +310,33 @@ export function installPreview() {
         case "spaces_host": {
           const i = args.input;
           const id = `space-${Date.now()}`;
-          spaceRecs.push({ view: { summary: { id, title: i.title, kind: i.kind, host: { kind: "outgoing", address: "127.0.0.1:4640" }, mine: true, online: true, joined_as: "me" }, charter: i.charter, members: [{ name: "me", is_agent: false, joined: new Date().toISOString() }], tools: spaceRecs[0]?.view.tools ?? [] }, moves: [], invite: `diverge://space/${id}?host=outgoing:127.0.0.1:4640&key=${i.invite}` });
+          const summary = { id, title: i.title, kind: i.kind, host: { kind: "outgoing", address: "127.0.0.1:4640" }, host_name: you.name, mine: true, online: true, you_are: you.name, you_key: you.key, fresh: false } as SpaceView["summary"];
+          spaceRecs.push({ view: { summary, charter: i.charter, members: [{ name: you.name, key: you.key, is_agent: false, agent_of: null, joined: new Date().toISOString(), last_acted: null }], tools: spaceRecs[0]?.view.tools ?? [] }, moves: [], invite: encodeInvite({ host: summary.host, id, secret: `${id}-key`, title: i.title, kind: i.kind, host_name: you.name, charter: i.charter, verbs: [] }) });
           return { outcome: "hosted", id };
         }
+        case "spaces_door": {
+          const inv = decodeInvite(args.invite);
+          if (!inv) throw new Error("that isn't an invite");
+          return { title: inv.title, kind: inv.kind, host_name: inv.host_name, host: inv.host, charter: inv.charter, verbs: inv.verbs, invited: Boolean(inv.secret), already_in: spaceRecs.some((r) => r.view.summary.id === inv.id) };
+        }
         case "spaces_join": {
-          const m = /^diverge:\/\/space\/([^?]+)\?/.exec(String(args.invite));
-          const r = m && spaceOf(m[1]);
-          if (!r) return { outcome: "missing" };
-          return { outcome: "joined", id: r.view.summary.id };
+          const inv = decodeInvite(args.invite);
+          if (!inv) return { outcome: "missing" };
+          const as = args.appearAs as { as: string; name?: string };
+          const name = as.as === "fresh" ? String(as.name) : you.name;
+          const key = as.as === "fresh" ? `fresh-${Date.now()}` : you.key;
+          if (as.as === "fresh") personas.push({ id: `persona-${personas.length + 1}`, name, usual: false, rooms: [inv.title] });
+          await new Promise((res) => setTimeout(res, 1500));
+          if (!spaceOf(inv.id)) {
+            const summary = { id: inv.id, title: inv.title, kind: inv.kind, host: inv.host, host_name: inv.host_name, mine: false, online: true, you_are: name, you_key: key, fresh: as.as === "fresh" } as SpaceView["summary"];
+            const now = new Date().toISOString();
+            spaceRecs.push({
+              view: { summary, charter: inv.charter, members: [{ name: inv.host_name, key: `host-${inv.id}`, is_agent: false, agent_of: null, joined: now, last_acted: null }, { name, key, is_agent: false, agent_of: null, joined: now, last_acted: null }], tools: spaceRecs[0]?.view.tools ?? [] },
+              moves: [{ id: "admitted-1", kind: "admitted", author: inv.host_name, by: `host-${inv.id}`, agent_of: null, at: now, title: name, body: "", state: "said", parent: null, fields: {}, charter: "", hash: "" }],
+              invite: null,
+            });
+          }
+          return { outcome: "joined", id: inv.id, rules_match: true };
         }
         case "spaces_leave": {
           const at = spaceRecs.findIndex((r) => r.view.summary.id === args.id);
@@ -297,9 +360,39 @@ export function installPreview() {
           if (at >= 0) {
             const k = knocks.splice(at, 1)[0];
             const r = spaceOf(k.space);
-            if (args.yes && r) r.view.members.push({ name: k.authorization.split(" as ")[1] ?? k.address, is_agent: false, joined: new Date().toISOString() });
+            const now = new Date().toISOString();
+            if (args.yes && r) {
+              r.view.members.push({ name: k.name, key: `knock-${k.knock_id}`, is_agent: false, agent_of: null, joined: now, last_acted: null });
+              r.moves.push({ id: `admitted-${++moveN}`, kind: "admitted", author: you.name, by: you.key, agent_of: null, at: now, title: k.name, body: "", state: "said", parent: null, fields: {}, charter: "", hash: "" });
+              later(() => bump(k.space));
+            }
           }
           return null;
+        }
+        case "table_tree": {
+          const tb = tables[args.id];
+          return tb ? { outcome: "tree", nodes: tb.nodes } : { outcome: "error", message: "you're not in that room" };
+        }
+        case "table_read": {
+          const text = tables[args.id]?.files[args.path];
+          return text === undefined ? { outcome: "error", message: `nothing at /${args.path} on this table` } : { outcome: "text", text, bytes: new TextEncoder().encode(text).length };
+        }
+        case "table_write": {
+          const tb = (tables[args.id] ??= { nodes: [], files: {} });
+          if (!(args.path in tb.files)) tb.nodes.push({ kind: "file", name: args.path, size: args.text.length, modified_at: null } as FileNode);
+          tb.files[args.path] = args.text;
+          return { outcome: "written" };
+        }
+        case "table_transfer": {
+          const from = spaceOf(args.from);
+          const to = spaceOf(args.to);
+          if (!from || !to) return { outcome: "error", message: "no such room" };
+          if (JSON.stringify(from.view.summary.host) !== JSON.stringify(to.view.summary.host)) return { outcome: "error", message: "those rooms run on different machines; a file moves between them through your Mac instead" };
+          const text = tables[args.from]?.files[args.path] ?? "";
+          const tb = (tables[args.to] ??= { nodes: [], files: {} });
+          if (!(args.path in tb.files)) tb.nodes.push({ kind: "file", name: args.path, size: text.length, modified_at: null } as FileNode);
+          tb.files[args.path] = text;
+          return { outcome: "written" };
         }
         case "cards_watch":
           cardCh = args.onEvent as Chan;

@@ -18,6 +18,7 @@ import { Inbox } from "./screens/Inbox";
 import { Profile } from "./screens/Profile";
 import { Machines } from "./screens/Machines";
 import { NewAgent } from "./screens/NewAgent";
+import { DoorPage } from "./screens/DoorPage";
 import { Space } from "./screens/Space";
 import { Spaces } from "./screens/Spaces";
 import { Storage } from "./screens/Storage";
@@ -145,6 +146,7 @@ export function App() {
                 {tab.kind === "profile" ? <Profile /> : null}
                 {tab.kind === "spaces" ? <Spaces /> : null}
                 {tab.kind === "space" ? <Space id={tab.id} tabKey={key} /> : null}
+                {tab.kind === "door" ? <DoorPage invite={tab.invite} tabKey={key} /> : null}
                 {tab.kind === "machines" ? <Machines /> : null}
                 {tab.kind === "views" ? <Views /> : null}
               </div>

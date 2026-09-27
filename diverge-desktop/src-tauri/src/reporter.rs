@@ -15,7 +15,8 @@ use diverge_sdk::daemon::endpoints::agents::logs::server::response::{Item, ItemW
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 
 use crate::daemon::Daemon;
-use crate::spaces::{Caller, Spaces};
+use crate::identity::{Actor, Identity};
+use crate::spaces::Spaces;
 
 /// The last turn's text and measurement, from the log after its last `active`.
 async fn last_turn(daemon: &dyn Daemon, name: &str) -> (String, Option<String>) {
@@ -52,7 +53,7 @@ async fn last_turn(daemon: &dyn Daemon, name: &str) -> (String, Option<String>) 
     (text, measured)
 }
 
-pub fn spawn(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>) {
+pub fn spawn(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: Arc<Identity>) {
     tauri::async_runtime::spawn(async move {
         let mut seen: HashMap<String, bool> = HashMap::new();
         loop {
@@ -69,8 +70,10 @@ pub fn spawn(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>) {
                     if let Some(m) = measured {
                         args["measured"] = json!(m);
                     }
-                    let params = CallToolRequestParams::new("report").with_arguments(args.as_object().cloned().unwrap_or_default());
-                    let _ = spaces.call(&home, params, Caller::Agent(a.name.clone())).await;
+                    let mut params = CallToolRequestParams::new("report").with_arguments(args.as_object().cloned().unwrap_or_default());
+                    if identity.seal(&Actor::Agent(a.name.clone()), &home.id, &mut params).is_ok() {
+                        let _ = spaces.call(&home, params).await;
+                    }
                 }
             }
         }

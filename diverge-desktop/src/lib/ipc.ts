@@ -39,6 +39,10 @@ import type { TabKind } from "../bindings/TabKind";
 import type { TabsSnapshot } from "../bindings/TabsSnapshot";
 import type { VolumeChange } from "../bindings/VolumeChange";
 import type { VolumeMode } from "../bindings/VolumeMode";
+import type { DoorView } from "../bindings/DoorView";
+import type { AppearAs } from "../bindings/AppearAs";
+import type { PersonaView } from "../bindings/PersonaView";
+import type { AllowanceView } from "../bindings/AllowanceView";
 import type { EditMountsInput } from "../bindings/EditMountsInput";
 import type { EditOutcome } from "../bindings/EditOutcome";
 import type { MountsView } from "../bindings/MountsView";
@@ -93,7 +97,16 @@ export const api = {
   spaceCall: (id: string, tool: string, args: unknown) => invoke<CallOutcome>("spaces_call", { id, tool, arguments: args }),
   spaceWatch: (id: string, onEvent: (e: SpaceEvent) => void) => invoke<string>("spaces_watch", { id, onEvent: channel(onEvent) }),
   spaceHost: (input: HostSpaceInput) => invoke<HostOutcome>("spaces_host", { input }),
-  spaceJoin: (invite: string, asName: string) => invoke<JoinOutcome>("spaces_join", { invite, asName }),
+  spaceDoor: (invite: string) => invoke<DoorView>("spaces_door", { invite }),
+  spaceJoin: (invite: string, appearAs: AppearAs, note: string, listed: boolean) => invoke<JoinOutcome>("spaces_join", { invite, appearAs, note, listed }),
+  tableTree: (id: string) => invoke<VolumeTree>("table_tree", { id }),
+  tableRead: (id: string, path: string) => invoke<FileRead>("table_read", { id, path }),
+  tableWrite: (id: string, path: string, text: string) => invoke<FileWritten>("table_write", { id, path, text }),
+  tableTransfer: (from: string, path: string, to: string) => invoke<FileWritten>("table_transfer", { from, path, to }),
+  personas: () => invoke<PersonaView[]>("personas_list"),
+  personaRename: (id: string, name: string) => invoke<null>("persona_rename", { id, name }),
+  allowanceGet: (id: string, agent: string) => invoke<AllowanceView>("allowance_get", { id, agent }),
+  allowanceSet: (id: string, agent: string, perDay: number) => invoke<AllowanceView>("allowance_set", { id, agent, perDay }),
   spaceLeave: (id: string) => invoke<null>("spaces_leave", { id }),
   spaceInvite: (id: string) => invoke<InviteView | null>("spaces_invite", { id }),
   knocksWatch: (onEvent: (e: KnockEvent) => void) => invoke<string>("knocks_watch", { onEvent: channel(onEvent) }),

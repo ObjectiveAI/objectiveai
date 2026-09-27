@@ -608,8 +608,10 @@ mod tests {
         use futures::StreamExt;
         let root = std::env::temp_dir().join(format!("diverge-desktop-test-door-{}", std::process::id()));
         let daemon = StubDaemon::new(root);
-        let spaces: Arc<dyn Spaces> = Arc::new(crate::spaces::stub::StubSpaces::new());
-        let door = Arc::new(Door::new(spaces.clone()));
+        let identity = Arc::new(crate::identity::Identity::stand_in("maya"));
+        let tables = std::env::temp_dir().join(format!("diverge-desktop-test-door-tables-{}", std::process::id()));
+        let spaces: Arc<dyn Spaces> = Arc::new(crate::spaces::stub::StubSpaces::new(identity.clone(), tables));
+        let door = Arc::new(Door::new(spaces.clone(), identity, None));
         daemon.set_door(door.clone());
         let cancel = CancellationToken::new();
         let mut cards = door.watch(cancel.clone());
@@ -626,7 +628,8 @@ mod tests {
         assert_eq!(card.agent, "research-notes");
         assert_eq!(card.kind, crate::view::CardKind::Choice);
         assert_eq!(card.options.len(), 2);
-        door.answer(card.id, "Yes, claim it".into()).unwrap();
+        assert!(card.question.contains("Package the photo resizer"), "the card names the task: {}", card.question);
+        door.answer(card.id, "Yes".into()).unwrap();
         // Let the run finish (virtual time).
         for _ in 0..50 {
             tokio::time::sleep(Duration::from_millis(500)).await;
@@ -634,9 +637,13 @@ mod tests {
                 break;
             }
         }
-        let feed = spaces.read(&crate::spaces::Id { id: "board-saturday".into() }, crate::spaces::stub::rooms::FEED).await.unwrap();
+        let feed = spaces.read(&crate::spaces::Id { id: crate::spaces::stub::BOARD.into() }, diverge_desktop_room::room::FEED).await.unwrap();
         let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &feed.contents[0] else { panic!() };
-        assert!(text.contains("\"claimed_by\":\"research-notes\""), "the agent claimed it as itself: {text}");
+        let moves: Vec<Value> = serde_json::from_str(text).unwrap();
+        let open = crate::spaces::stub::open_task();
+        let claim = moves.iter().find(|m| m["kind"] == "claim" && m["parent"] == open.as_str()).expect("claimed");
+        assert_eq!(claim["author"], "research-notes", "the agent claimed it as itself");
+        assert_eq!(claim["agent_of"], "maya", "and the room knows whose agent it is");
         cancel.cancel();
     }
 

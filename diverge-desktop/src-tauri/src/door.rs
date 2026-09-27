@@ -7,11 +7,19 @@
 //! or a credential-by-meaning, put in front of the person as a card. The
 //! agent waits for the answer; nothing times out. A credential's value
 //! never reaches the agent: it learns that a key was used, not which.
+//!
+//! Everything an agent does in a room is sealed with its own key, tethered
+//! to its person (see [`crate::identity`]), so the room knows whose agent
+//! it is. And it asks first: a card before each move in a room, unless its
+//! person set an allowance there. Reports to your own Home need no asking.
 
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use chrono::Utc;
+use chrono::{NaiveDate, Utc};
+use serde::{Deserialize, Serialize};
 use futures::stream;
 use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, ErrorData, JsonObject, ListToolsResult, Tool};
 use serde_json::{Value, json};
@@ -19,7 +27,8 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
 use crate::daemon::Frames;
-use crate::spaces::{Caller, Id, Spaces};
+use crate::identity::{Actor, Identity};
+use crate::spaces::{Id, Spaces};
 use crate::view::{CardEvent, CardKind, CardView};
 
 struct Pending {
@@ -27,8 +36,20 @@ struct Pending {
     answer: oneshot::Sender<String>,
 }
 
+/// How many moves an agent may make in a room each day without asking.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Allowance {
+    pub per_day: u32,
+    pub used: u32,
+    pub day: Option<NaiveDate>,
+}
+
 pub struct Door {
     spaces: Arc<dyn Spaces>,
+    identity: Arc<Identity>,
+    /// (room, agent) → allowance. Yours, kept by the app.
+    allowances: Mutex<HashMap<String, Allowance>>,
+    allowances_file: Option<PathBuf>,
     cards: Mutex<Vec<Pending>>,
     live: broadcast::Sender<CardEvent>,
     next: AtomicU64,
@@ -47,9 +68,97 @@ fn schema(props: Value, required: &[&str]) -> Arc<JsonObject> {
 }
 
 impl Door {
-    pub fn new(spaces: Arc<dyn Spaces>) -> Self {
+    pub fn new(spaces: Arc<dyn Spaces>, identity: Arc<Identity>, allowances_file: Option<PathBuf>) -> Self {
         let (live, _) = broadcast::channel(64);
-        Door { spaces, cards: Mutex::new(Vec::new()), live, next: AtomicU64::new(1), rt: tokio::runtime::Handle::current() }
+        let allowances = allowances_file.as_ref().and_then(|f| std::fs::read_to_string(f).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        Door {
+            spaces,
+            identity,
+            allowances: Mutex::new(allowances),
+            allowances_file,
+            cards: Mutex::new(Vec::new()),
+            live,
+            next: AtomicU64::new(1),
+            rt: tokio::runtime::Handle::current(),
+        }
+    }
+
+    fn slot(room: &str, agent: &str) -> String {
+        format!("{room}\u{1f}{agent}")
+    }
+
+    pub fn allowance(&self, room: &str, agent: &str) -> Allowance {
+        let mut a = self.allowances.lock().unwrap().get(&Self::slot(room, agent)).cloned().unwrap_or_default();
+        if a.day != Some(Utc::now().date_naive()) {
+            a.used = 0;
+        }
+        a
+    }
+
+    pub fn set_allowance(&self, room: &str, agent: &str, per_day: u32) {
+        let mut all = self.allowances.lock().unwrap();
+        let a = all.entry(Self::slot(room, agent)).or_default();
+        a.per_day = per_day;
+        if let Some(f) = &self.allowances_file {
+            let _ = std::fs::write(f, serde_json::to_string_pretty(&*all).unwrap_or_default());
+        }
+    }
+
+    /// Spend one move of an agent's allowance in a room, if it has one left today.
+    fn spend(&self, room: &str, agent: &str) -> bool {
+        let today = Utc::now().date_naive();
+        let mut all = self.allowances.lock().unwrap();
+        let Some(a) = all.get_mut(&Self::slot(room, agent)) else { return false };
+        if a.day != Some(today) {
+            a.day = Some(today);
+            a.used = 0;
+        }
+        if a.used < a.per_day {
+            a.used += 1;
+            if let Some(f) = &self.allowances_file {
+                let _ = std::fs::write(f, serde_json::to_string_pretty(&*all).unwrap_or_default());
+            }
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Whether an agent may make this move in this room: its allowance, or its person's yes.
+    async fn may(&self, agent: &str, id: &Id, verb: &str, args: &JsonObject) -> bool {
+        if verb == "report" && self.spaces.home().await.as_ref() == Some(id) {
+            return true;
+        }
+        if self.spend(&id.id, agent) {
+            return true;
+        }
+        let room = self.spaces.list().await.into_iter().find(|e| &e.id == id).map(|e| e.title).unwrap_or_else(|| id.id.clone());
+        let named = |key: &str| args.get(key).and_then(Value::as_str).map(str::to_owned);
+        let about = match verb {
+            "claim" | "deliver" | "settle" => {
+                let task = named("task_id").unwrap_or_default();
+                let title = self.title_of(id, &task).await.unwrap_or(task);
+                match verb {
+                    "claim" => format!("Claim “{title}” in {room}? Claiming commits you to its spec."),
+                    "deliver" => format!("Deliver on “{title}” in {room}?"),
+                    _ => format!("Say whether “{title}” is settled, in {room}?"),
+                }
+            }
+            "show" => format!("Show “{}” in {room}?", named("title").unwrap_or_default()),
+            "ask" => format!("Ask “{}” in {room}?", named("what").unwrap_or_default()),
+            "offer" => format!("Offer to serve an ask in {room}: “{}”?", named("body").unwrap_or_default()),
+            "reply" | "say" | "leave_note" => format!("Say this in {room}: “{}”?", named("body").unwrap_or_default()),
+            "table_write" => format!("Put {} on the table in {room}?", named("path").unwrap_or_default()),
+            other => format!("{other} in {room}?"),
+        };
+        self.ask(agent, about, CardKind::Choice, vec!["Yes".into(), "No".into()]).await == "Yes"
+    }
+
+    async fn title_of(&self, id: &Id, move_id: &str) -> Option<String> {
+        let r = self.spaces.read(id, diverge_desktop_room::room::FEED).await.ok()?;
+        let text = r.contents.iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None })?;
+        let moves: Vec<Value> = serde_json::from_str(&text).ok()?;
+        moves.iter().find(|m| m["id"] == move_id).and_then(|m| m["title"].as_str()).map(str::to_owned)
     }
 
     pub fn tools(&self) -> ListToolsResult {
@@ -57,7 +166,10 @@ impl Door {
             Tool::new("spaces_list", "The Spaces your person hosts or has joined.", schema(json!({}), &[])),
             Tool::new("space_feed", "What has happened in a Space: its moves, newest last.", schema(json!({ "space": { "type": "string" } }), &["space"])),
             Tool::new("space_tools", "A Space's own verbs, with their arguments.", schema(json!({ "space": { "type": "string" } }), &["space"])),
-            Tool::new("space_call", "Do something in a Space: one of its verbs, with arguments. You act as yourself.", schema(json!({ "space": { "type": "string" }, "tool": { "type": "string" }, "arguments": { "type": "object" } }), &["space", "tool"])),
+            Tool::new("space_call", "Do something in a Space: one of its verbs, with arguments. You act as yourself, sealed as your person's agent; your person is asked first unless they allowed it.", schema(json!({ "space": { "type": "string" }, "tool": { "type": "string" }, "arguments": { "type": "object" } }), &["space", "tool"])),
+            Tool::new("table_list", "The files on a Space's table: everyone in the room sees the same ones.", schema(json!({ "space": { "type": "string" } }), &["space"])),
+            Tool::new("table_read", "Read one file off a Space's table.", schema(json!({ "space": { "type": "string" }, "path": { "type": "string" } }), &["space", "path"])),
+            Tool::new("table_write", "Put a text file on a Space's table. Everyone in the room can see and change it.", schema(json!({ "space": { "type": "string" }, "path": { "type": "string" }, "text": { "type": "string" } }), &["space", "path", "text"])),
             Tool::new(
                 "ask_person",
                 "Ask your person something and wait for the answer. A question (free text), a choice (options), or a credential described by meaning — you get told a key was used, never its value.",
@@ -130,7 +242,7 @@ impl Door {
             }
             "space_feed" => {
                 let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
-                let r = self.spaces.read(&id, crate::spaces::stub::rooms::FEED).await?;
+                let r = self.spaces.read(&id, diverge_desktop_room::room::FEED).await?;
                 r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }).next().unwrap_or_default()
             }
             "space_tools" => {
@@ -140,9 +252,47 @@ impl Door {
             "space_call" => {
                 let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
                 let tool = get("tool").ok_or_else(|| ErrorData::invalid_params("tool is needed", None))?;
-                let inner = CallToolRequestParams::new(tool).with_arguments(args.get("arguments").and_then(Value::as_object).cloned().unwrap_or_default());
-                let result = self.spaces.call(&id, inner, Caller::Agent(agent.to_owned())).await?;
+                let call_args = args.get("arguments").and_then(Value::as_object).cloned().unwrap_or_default();
+                if !self.may(agent, &id, &tool, &call_args).await {
+                    return Ok(CallToolResult::success(vec![ContentBlock::text("Your person said no. Nothing was done.")]));
+                }
+                let mut inner = CallToolRequestParams::new(tool).with_arguments(call_args);
+                self.identity.seal(&Actor::Agent(agent.to_owned()), &id.id, &mut inner).map_err(|e| ErrorData::internal_error(e, None))?;
+                let result = self.spaces.call(&id, inner).await?;
                 result.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n")
+            }
+            "table_list" => {
+                let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
+                let nodes = self.spaces.table_tree(&id).await.map_err(|e| ErrorData::internal_error(crate::view::error_text(&e), None))?;
+                let mut paths = Vec::new();
+                fn walk(nodes: &[diverge_sdk::shared::filetree::response::Node], prefix: &str, out: &mut Vec<String>) {
+                    use diverge_sdk::shared::filetree::response::Node;
+                    for n in nodes {
+                        match n {
+                            Node::File { name, .. } | Node::Symlink { name, .. } => out.push(format!("{prefix}{name}")),
+                            Node::Directory { name, children, .. } => walk(children, &format!("{prefix}{name}/"), out),
+                        }
+                    }
+                }
+                walk(&nodes, "", &mut paths);
+                paths.join("\n")
+            }
+            "table_read" => {
+                let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
+                let path = get("path").ok_or_else(|| ErrorData::invalid_params("path is needed", None))?;
+                let parts: Vec<String> = path.split('/').filter(|p| !p.is_empty()).map(str::to_owned).collect();
+                let bytes = self.spaces.table_read(&id, &parts).await.map_err(|e| ErrorData::internal_error(crate::view::error_text(&e), None))?;
+                String::from_utf8_lossy(&bytes).into_owned()
+            }
+            "table_write" => {
+                let id = Id { id: get("space").ok_or_else(|| ErrorData::invalid_params("space is needed", None))? };
+                let path = get("path").ok_or_else(|| ErrorData::invalid_params("path is needed", None))?;
+                if !self.may(agent, &id, "table_write", &args).await {
+                    return Ok(CallToolResult::success(vec![ContentBlock::text("Your person said no. Nothing was put on the table.")]));
+                }
+                let parts: Vec<String> = path.split('/').filter(|p| !p.is_empty()).map(str::to_owned).collect();
+                self.spaces.table_write(&id, &parts, get("text").unwrap_or_default().into_bytes()).await.map_err(|e| ErrorData::internal_error(crate::view::error_text(&e), None))?;
+                format!("On the table: {path}")
             }
             "ask_person" => {
                 let question = get("question").ok_or_else(|| ErrorData::invalid_params("question is needed", None))?;

@@ -5,10 +5,11 @@ import { Button, Chip, Dot } from "../components/ui";
 import { useShared } from "../lib/context";
 import { ago, kindTitle, providerName, time } from "../lib/format";
 import { api } from "../lib/ipc";
+import { KnockCard } from "../components/Knock";
 import { t } from "../strings";
 
 const VIEWS: Record<string, (m: HomeMove) => boolean> = {
-  all: (m) => !m.entry.parent && m.entry.kind !== "say" && m.space.kind !== "dm",
+  all: (m) => !m.entry.parent && !["say", "admitted", "removed", "charter", "doorway"].includes(m.entry.kind) && m.space.kind !== "dm",
   asks: (m) => m.entry.kind === "ask",
   shows: (m) => m.entry.kind === "show",
   board: (m) => ["task", "offering"].includes(m.entry.kind) && !m.entry.parent,
@@ -95,14 +96,7 @@ export function Home() {
             </button>
           ))}
           {knocks.map((k) => (
-            <div key={k.knock_id} className="waiting waiting-knock">
-              <span className="waiting-who mono">{k.address}</span>
-              <span className="waiting-what">{k.authorization} → {k.space_title}</span>
-              <span className="row-actions">
-                <Button small kind="primary" onClick={() => answerKnock(k.knock_id, true)}>{t.spaces.letIn}</Button>
-                <Button small kind="quiet" onClick={() => answerKnock(k.knock_id, false)}>{t.spaces.notNow}</Button>
-              </span>
-            </div>
+            <KnockCard key={k.knock_id} knock={k} compact onAnswer={(yes) => answerKnock(k.knock_id, yes)} />
           ))}
         </section>
         <section>
@@ -124,7 +118,7 @@ function FeedCard({ item, onOpen }: { item: HomeMove; onOpen: () => void }) {
   const kind = t.spaces.moveKinds[m.kind] ?? m.kind;
   const state = t.spaces.states[m.state] ?? "";
   const f = m.fields as Record<string, unknown>;
-  const who = m.author === space.joined_as ? t.spaces.you : m.author;
+  const who = m.by === space.you_key ? t.spaces.you : m.agent_of ? `${m.author} (${m.agent_of === space.you_are ? t.spaces.yourAgent : `${t.spaces.runBy} ${m.agent_of}`})` : m.author;
   return (
     <article className={`feed-card move-${m.kind}`}>
       <header className="move-head">

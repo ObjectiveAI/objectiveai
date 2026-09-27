@@ -855,23 +855,45 @@ pub struct SpaceSummary {
     pub title: String,
     pub kind: String,
     pub host: ProviderView,
+    pub host_name: String,
     pub mine: bool,
     pub online: bool,
-    pub joined_as: String,
+    /// The name you go by there, and the key you seal with.
+    pub you_are: String,
+    pub you_key: String,
+    /// Whether you're a fresh persona there, not your usual self.
+    pub fresh: bool,
 }
 
-impl From<&crate::spaces::SpaceEntry> for SpaceSummary {
-    fn from(e: &crate::spaces::SpaceEntry) -> Self {
-        SpaceSummary { id: e.id.id.clone(), title: e.title.clone(), kind: e.kind.clone(), host: (&e.host).into(), mine: e.mine, online: e.online, joined_as: e.joined_as.clone() }
+pub fn summary(e: &crate::spaces::SpaceEntry, identity: &crate::identity::Identity) -> SpaceSummary {
+    let you = identity.in_room(&e.id.id).unwrap_or_else(|| identity.usual());
+    SpaceSummary {
+        id: e.id.id.clone(),
+        title: e.title.clone(),
+        kind: e.kind.clone(),
+        host: (&e.host).into(),
+        host_name: e.host_name.clone(),
+        mine: e.mine,
+        online: e.online,
+        you_are: you.name,
+        you_key: you.key,
+        fresh: !you.usual,
     }
 }
 
+/// Someone on a room's list: only those who chose to be.
 #[derive(Serialize, Deserialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct MemberView {
     pub name: String,
+    #[serde(default)]
+    pub key: String,
     pub is_agent: bool,
+    #[serde(default)]
+    pub agent_of: Option<String>,
     pub joined: String,
+    #[serde(default)]
+    pub last_acted: Option<String>,
 }
 
 /// A room's verb: an MCP tool, rendered as a button with a generated form.
@@ -883,6 +905,8 @@ pub struct ToolView {
     pub description: String,
     #[ts(type = "Record<string, unknown>")]
     pub schema: Value,
+    /// Only the room's host may use it; the room enforces that.
+    pub host_only: bool,
 }
 
 impl From<&rmcp::model::Tool> for ToolView {
@@ -892,6 +916,7 @@ impl From<&rmcp::model::Tool> for ToolView {
             title: t.title.clone().unwrap_or_else(|| t.name.replace('_', " ")),
             description: t.description.as_deref().unwrap_or_default().to_owned(),
             schema: Value::Object((*t.input_schema).clone()),
+            host_only: t.meta.as_ref().and_then(|m| m.0.get(diverge_desktop_room::room::META_HOST_ONLY)).and_then(Value::as_bool).unwrap_or(false),
         }
     }
 }
@@ -912,6 +937,12 @@ pub struct MoveView {
     pub id: String,
     pub kind: String,
     pub author: String,
+    /// The key that sealed it.
+    #[serde(default)]
+    pub by: String,
+    /// For an agent: the person it acts for.
+    #[serde(default)]
+    pub agent_of: Option<String>,
     pub at: String,
     pub title: String,
     pub body: String,
@@ -919,6 +950,11 @@ pub struct MoveView {
     pub parent: Option<String>,
     #[ts(type = "Record<string, unknown>")]
     pub fields: Value,
+    /// The version of the room's rules it was made under.
+    #[serde(default)]
+    pub charter: String,
+    #[serde(default)]
+    pub hash: String,
 }
 
 #[derive(Serialize, TS, Clone, Debug)]
@@ -941,22 +977,11 @@ pub enum CallOutcome {
 #[serde(tag = "outcome", rename_all = "snake_case")]
 #[ts(export, export_to = "../../src/bindings/")]
 pub enum JoinOutcome {
-    Joined { id: String },
+    /// In. `rules_match`: the room's rules are the ones the invite showed.
+    Joined { id: String, rules_match: bool },
     Denied,
     Missing,
     Error { message: String },
-}
-
-impl From<crate::spaces::Joined> for JoinOutcome {
-    fn from(j: crate::spaces::Joined) -> Self {
-        use crate::spaces::Joined;
-        match j {
-            Joined::Joined(id) => JoinOutcome::Joined { id: id.id },
-            Joined::Denied => JoinOutcome::Denied,
-            Joined::Missing => JoinOutcome::Missing,
-            Joined::Error(error) => JoinOutcome::Error { message: error_text(&error) },
-        }
-    }
 }
 
 #[derive(Serialize, TS, Clone, Debug)]
@@ -973,7 +998,52 @@ pub struct HostSpaceInput {
     pub title: String,
     pub kind: String,
     pub charter: String,
-    pub invite: String,
+    /// Whether anyone may knock with a note, without an invite.
+    pub open_door: bool,
+}
+
+/// How you'll appear in a room you're about to knock on.
+#[derive(Deserialize, TS, Clone, Debug)]
+#[serde(tag = "as", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum AppearAs {
+    /// Your usual self.
+    Usual,
+    /// A fresh persona, just for this room.
+    Fresh { name: String },
+}
+
+/// What an invite shows before you knock.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct DoorView {
+    pub title: String,
+    pub kind: String,
+    pub host_name: String,
+    pub host: ProviderView,
+    pub charter: String,
+    pub verbs: Vec<VerbView>,
+    /// Whether it carries a secret; without one, a knock needs a note.
+    pub invited: bool,
+    /// You already have a persona here, or you host it.
+    pub already_in: bool,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct VerbView {
+    pub name: String,
+    pub does: String,
+}
+
+/// One of your personas, and the rooms you're it in.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct PersonaView {
+    pub id: String,
+    pub name: String,
+    pub usual: bool,
+    pub rooms: Vec<String>,
 }
 
 #[derive(Serialize, TS, Clone, Debug)]
@@ -992,9 +1062,34 @@ pub struct KnockView {
     pub space_title: String,
     /// Attested: the provider observed it.
     pub address: String,
-    /// Asserted: relayed as sent, never read by the provider.
-    pub authorization: String,
+    /// Asserted, from what they wrote: the name they'll go by, their note.
+    pub name: String,
+    pub note: String,
+    pub listed: bool,
+    /// Whether they came with the invite's secret, or knocked on an open door.
+    pub invited: bool,
+    /// A member who vouches for them, if any.
+    pub vouch: Option<VouchView>,
     pub at: String,
+}
+
+/// How many moves an agent may make in a room each day without asking you.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct AllowanceView {
+    pub per_day: u32,
+    pub used_today: u32,
+}
+
+/// A member's seal on a newcomer's key.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct VouchView {
+    pub by: String,
+    /// Whether the voucher is a member of the room being knocked on.
+    pub member_here: bool,
+    /// Whether the seal holds and names this newcomer's key.
+    pub holds: bool,
 }
 
 #[derive(Serialize, TS, Clone, Debug)]
@@ -1045,6 +1140,10 @@ pub struct ReceiptView {
     pub space: SpaceSummary,
     pub to: String,
     pub at: String,
+    /// Who hosts the room that issued it, as its seal says.
+    pub issued_by: String,
+    /// Whether the room's seal on it holds.
+    pub holds: bool,
 }
 
 #[derive(Serialize, TS, Clone, Debug)]
@@ -1056,6 +1155,9 @@ pub struct ProfileView {
     pub machines: Vec<MachineView>,
     pub volumes: Vec<VolumeView>,
     pub home: Option<String>,
+    /// Your profile room, which anyone with its link can knock on.
+    pub profile: Option<String>,
+    pub personas: Vec<PersonaView>,
 }
 
 /// Someone you share a Space with.
@@ -1063,8 +1165,10 @@ pub struct ProfileView {
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct PersonView {
     pub name: String,
+    pub key: String,
     pub is_agent: bool,
-    /// The Spaces you are both in, by id.
+    pub agent_of: Option<String>,
+    /// The Spaces you are both in, by id: the same key in each.
     pub spaces: Vec<String>,
 }
 
@@ -1158,6 +1262,8 @@ pub enum TabKind {
     Views,
     Spaces,
     Space { id: String },
+    /// An invite, read before knocking.
+    Door { invite: String },
     Home,
     Inbox,
     Profile,

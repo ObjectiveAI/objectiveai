@@ -36,6 +36,7 @@ members = [
     # The Diverge desktop app (Maya). Links diverge-sdk by path, so it
     # lives here until the SDK is published.
     "diverge-desktop/src-tauri",
+    "diverge-desktop/room",
     "tests/objectiveai-tests",
     "tests/objectiveai-api-tests",
     "tests/objectiveai-cli-tests",

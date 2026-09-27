@@ -416,3 +416,27 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .machine-pick select { width: 100%; }
 .volume-mode-line { padding: var(--space-2) var(--space-4) 0; }
 .volume-actions select { width: auto; }
+
+/* draft three: seals, the door before knocking, the table, allowances */
+.allowance { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) 0; }
+.allowance > span:first-child { font-weight: 600; }
+.allowance label { display: flex; align-items: center; gap: var(--space-2); }
+.allowance input { width: 4.5em; }
+.system-line { padding: 2px var(--space-2); border-left: 2px solid var(--line); margin: var(--space-1) 0; }
+.door-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: var(--space-3) 0; }
+.door-head strong { font-size: var(--text-lg); }
+.door-verbs { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+.radio-line { display: flex; align-items: center; gap: var(--space-2); padding: 2px 0; cursor: pointer; }
+.knock { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+.knock-compact { padding: var(--space-2); }
+.knock-note { font-style: italic; color: var(--text-2); }
+.invite-text { word-break: break-all; max-height: 4.5em; overflow-y: auto; display: block; }
+.settled { display: flex; flex-direction: column; gap: 2px; margin-top: var(--space-1); }
+.personas { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.persona { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.table { display: grid; grid-template-columns: minmax(200px, 1fr) 2fr; gap: var(--space-3); min-height: 360px; margin-top: var(--space-3); }
+.table-tree { display: flex; flex-direction: column; gap: var(--space-2); border-right: 1px solid var(--line); padding-right: var(--space-3); }
+.table-file { display: flex; flex-direction: column; min-height: 0; gap: var(--space-2); }
+.table-file .editor { flex: 1; min-height: 260px; }
+.table-copy { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.space-feed > .segmented { margin-bottom: var(--space-3); }

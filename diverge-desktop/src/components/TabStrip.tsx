@@ -4,6 +4,17 @@ import { useShared } from "../lib/context";
 import { t } from "../strings";
 import { Dot, Icon } from "./ui";
 
+/** An invite's title, for its tab only: the app reads invites properly in Rust. */
+function inviteTitle(text: string): string {
+  try {
+    const body = text.replace(/^diverge-invite:/, "").replace(/-/g, "+").replace(/_/g, "/");
+    const json = JSON.parse(decodeURIComponent(escape(atob(body + "===".slice((body.length + 3) % 4)))));
+    return String(json.title ?? "");
+  } catch {
+    return "";
+  }
+}
+
 function title(tab: TabKind): string {
   switch (tab.kind) {
     case "agent":
@@ -26,6 +37,8 @@ function title(tab: TabKind): string {
       return t.spaces.title;
     case "space":
       return spaceTitle(tab.id);
+    case "door":
+      return `${t.door.fromDm}: ${inviteTitle(tab.invite)}`;
   }
 }
 

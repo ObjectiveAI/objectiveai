@@ -3,8 +3,8 @@
 /**
  * Someone you share a Space with.
  */
-export type PersonView = { name: string, is_agent: boolean, 
+export type PersonView = { name: string, key: string, is_agent: boolean, agent_of: string | null, 
 /**
- * The Spaces you are both in, by id.
+ * The Spaces you are both in, by id: the same key in each.
  */
 spaces: Array<string>, };

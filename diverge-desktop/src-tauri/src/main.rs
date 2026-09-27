@@ -11,6 +11,7 @@ mod catalog;
 mod daemon;
 mod machines;
 mod door;
+mod identity;
 mod preview;
 mod reporter;
 mod spaces;
@@ -50,12 +51,18 @@ fn main() {
             let data = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data)?;
             let host = data.join("stand-in-host");
+            // Your keys: made on first run, under your usual name (your Mac's
+            // account name until you rename it), kept in one owner-only file.
+            let usual_name = std::env::var("USER").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| "you".into());
+            let identity = Arc::new(identity::Identity::open(data.join("identity.json"), &usual_name));
             let (daemon, spaces, door) = tauri::async_runtime::block_on({
                 let host = host.clone();
+                let identity = identity.clone();
+                let allowances = data.join("allowances.json");
                 async move {
-                    let daemon = StubDaemon::new(host);
-                    let spaces: Arc<dyn spaces::Spaces> = Arc::new(StubSpaces::new());
-                    let door = Arc::new(door::Door::new(spaces.clone()));
+                    let daemon = StubDaemon::new(host.clone());
+                    let spaces: Arc<dyn spaces::Spaces> = Arc::new(StubSpaces::new(identity.clone(), host.join("tables")));
+                    let door = Arc::new(door::Door::new(spaces.clone(), identity, Some(allowances)));
                     daemon.set_door(door.clone());
                     (daemon, spaces, door)
                 }
@@ -76,10 +83,11 @@ fn main() {
             let daemon = Arc::new(daemon);
             let machines: Arc<dyn machines::Machines> = daemon.clone();
             let daemon: Arc<dyn daemon::Daemon> = daemon;
-            reporter::spawn(daemon.clone(), spaces.clone());
+            reporter::spawn(daemon.clone(), spaces.clone(), identity.clone());
             app.manage(AppState {
                 stand_in_host: Some(host.clone()),
                 daemon,
+                identity,
                 machines,
                 spaces,
                 door,
@@ -130,6 +138,15 @@ fn main() {
             actions::spaces_invite,
             actions::knocks_watch,
             actions::knocks_answer,
+            actions::spaces_door,
+            actions::table_tree,
+            actions::table_read,
+            actions::table_write,
+            actions::table_transfer,
+            actions::personas_list,
+            actions::persona_rename,
+            actions::allowance_get,
+            actions::allowance_set,
             actions::cards_watch,
             actions::cards_answer,
             actions::door_tools,

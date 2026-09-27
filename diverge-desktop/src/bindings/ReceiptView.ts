@@ -5,4 +5,12 @@ import type { SpaceSummary } from "./SpaceSummary";
  * A receipt for a task done, attributed to the Space that issued it.
  * Never merged, ranked or converted.
  */
-export type ReceiptView = { title: string, for_title: string, space: SpaceSummary, to: string, at: string, };
+export type ReceiptView = { title: string, for_title: string, space: SpaceSummary, to: string, at: string, 
+/**
+ * Who hosts the room that issued it, as its seal says.
+ */
+issued_by: string, 
+/**
+ * Whether the room's seal on it holds.
+ */
+holds: boolean, };

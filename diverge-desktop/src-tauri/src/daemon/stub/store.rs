@@ -249,7 +249,7 @@ fn secs(time: std::io::Result<SystemTime>) -> Option<u64> {
     time.ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_secs())
 }
 
-fn entries(dir: &Path) -> Vec<Node> {
+pub fn entries(dir: &Path) -> Vec<Node> {
     let Ok(read) = fs::read_dir(dir) else { return Vec::new() };
     let mut nodes: Vec<Node> = Vec::new();
     for entry in read.flatten() {

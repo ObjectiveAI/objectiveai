@@ -2,7 +2,12 @@
 import type { AgentView } from "./AgentView";
 import type { MachineView } from "./MachineView";
 import type { MoveView } from "./MoveView";
+import type { PersonaView } from "./PersonaView";
 import type { ReceiptView } from "./ReceiptView";
 import type { VolumeView } from "./VolumeView";
 
-export type ProfileView = { receipts: Array<ReceiptView>, shows: Array<MoveView>, agents: Array<AgentView>, machines: Array<MachineView>, volumes: Array<VolumeView>, home: string | null, };
+export type ProfileView = { receipts: Array<ReceiptView>, shows: Array<MoveView>, agents: Array<AgentView>, machines: Array<MachineView>, volumes: Array<VolumeView>, home: string | null, 
+/**
+ * Your profile room, which anyone with its link can knock on.
+ */
+profile: string | null, personas: Array<PersonaView>, };

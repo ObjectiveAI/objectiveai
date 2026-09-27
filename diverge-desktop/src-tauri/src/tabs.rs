@@ -24,6 +24,7 @@ pub fn key_of(tab: &TabKind) -> String {
         TabKind::Profile => "profile".into(),
         TabKind::Spaces => "spaces".into(),
         TabKind::Space { id } => format!("space:{id}"),
+        TabKind::Door { invite } => format!("door:{}", &diverge_desktop_room::seal::digest(invite.as_bytes())[..12]),
     }
 }
 

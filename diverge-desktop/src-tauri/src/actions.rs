@@ -8,8 +8,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use futures::StreamExt;
+use indexmap::IndexMap;
 use tauri::ipc::Channel;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
 
 use diverge_sdk::daemon::endpoints::agents;
@@ -26,6 +27,8 @@ use crate::view::*;
 
 pub struct AppState {
     pub daemon: Arc<dyn Daemon>,
+    /// Your keys: personas, your agents' keys, counters. Ours, not the wire's.
+    pub identity: Arc<crate::identity::Identity>,
     /// Each machine's own volumes: the provider protocol's verbs.
     pub machines: Arc<dyn Machines>,
     pub spaces: Arc<dyn Spaces>,
@@ -111,11 +114,20 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("spaces_call", "Do something in a Space: one of its verbs, with arguments"),
     ("spaces_watch", "Hear when a Space changes"),
     ("spaces_host", "Host a Space on your machine"),
-    ("spaces_join", "Join a Space with an invite"),
+    ("spaces_door", "Read an invite before knocking: the room's rules, its verbs, who hosts it"),
+    ("spaces_join", "Knock with an invite, as your usual self or a fresh persona"),
     ("spaces_leave", "Leave a Space (or end one you host)"),
     ("spaces_invite", "The invite to hand a friend"),
     ("knocks_watch", "Hear who is at the door of Spaces you host"),
     ("knocks_answer", "Let someone in, or not"),
+    ("table_tree", "What's on a room's table"),
+    ("table_read", "Open a file on a room's table"),
+    ("table_write", "Put a file on a room's table"),
+    ("table_transfer", "Move a file from one room's table to another's, on one machine"),
+    ("personas_list", "Your personas, and the rooms you're each one in"),
+    ("persona_rename", "Rename one of your personas"),
+    ("allowance_get", "How many moves an agent may make in a room each day without asking"),
+    ("allowance_set", "Let an agent make some moves in a room each day without asking"),
     ("cards_watch", "Hear when an agent asks you something"),
     ("cards_answer", "Answer an agent's card"),
     ("door_tools", "What agents can do through the app (the agent door)"),
@@ -186,8 +198,7 @@ pub async fn agents_create(state: State<'_, AppState>, input: CreateAgentInput) 
     // A new agent of yours is a member of your Home, so it can report there.
     if matches!(outcome, CreateOutcome::Created) {
         if let Some(home) = state.spaces.home().await {
-            let params = rmcp::model::CallToolRequestParams::new("admit").with_arguments(serde_json::json!({ "name": name, "agent": true }).as_object().cloned().unwrap_or_default());
-            let _ = state.spaces.call(&home, params, spaces::Caller::Person).await;
+            let _ = admit_agent(&state, &home, &name).await;
         }
     }
     Ok(outcome)
@@ -347,38 +358,34 @@ fn space_id(id: &str) -> spaces::Id {
     spaces::Id { id: id.to_owned() }
 }
 
-/// An invite as text: `diverge://space/<id>?host=<kind>:<value>&key=<what to present>`.
-pub fn invite_text(invite: &spaces::Invite) -> String {
-    use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
-    let host = match &invite.host {
-        Identity::Outgoing { address } => format!("outgoing:{address}"),
-        Identity::IncomingUnbrokered { identity } => format!("incoming:{identity}"),
-    };
-    format!("diverge://space/{}?host={}&key={}", invite.connect.id, host.replace(' ', "%20"), invite.connect.authorization.replace(' ', "%20"))
+async fn read_text(state: &AppState, id: &spaces::Id, uri: &str) -> Option<String> {
+    let r = state.spaces.read(id, uri).await.ok()?;
+    r.contents.iter().find_map(|c| match c {
+        rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()),
+        _ => None,
+    })
 }
 
-fn parse_invite(text: &str) -> Result<spaces::Invite, String> {
-    use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
-    let rest = text.trim().strip_prefix("diverge://space/").ok_or("that isn't an invite")?;
-    let (id, query) = rest.split_once('?').ok_or("the invite is missing its host and key")?;
-    let mut host = None;
-    let mut key = None;
-    for pair in query.split('&') {
-        let (k, v) = pair.split_once('=').ok_or("the invite is malformed")?;
-        let v = v.replace("%20", " ");
-        match k {
-            "host" => host = Some(v),
-            "key" => key = Some(v),
-            _ => {}
-        }
-    }
-    let host = host.ok_or("the invite names no host")?;
-    let host = match host.split_once(':') {
-        Some(("outgoing", address)) => Identity::Outgoing { address: address.into() },
-        Some(("incoming", identity)) => Identity::IncomingUnbrokered { identity: identity.into() },
-        _ => return Err("the invite's host is not one the daemon can name".into()),
-    };
-    Ok(spaces::Invite { host, connect: spaces::Connect { id: id.into(), authorization: key.ok_or("the invite has no key")? } })
+async fn read_json<T: serde::de::DeserializeOwned>(state: &AppState, id: &spaces::Id, uri: &str) -> Option<T> {
+    serde_json::from_str(&read_text(state, id, uri).await?).ok()
+}
+
+fn text_of(result: &rmcp::model::CallToolResult) -> String {
+    result.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n")
+}
+
+/// Your call to a room: sealed as whoever you are there.
+async fn call_as_you(state: &AppState, id: &spaces::Id, tool: &str, arguments: serde_json::Value) -> Result<rmcp::model::CallToolResult, String> {
+    let mut params = rmcp::model::CallToolRequestParams::new(tool.to_owned()).with_arguments(arguments.as_object().cloned().unwrap_or_default());
+    state.identity.seal(&state.identity.you_in(&id.id), &id.id, &mut params)?;
+    state.spaces.call(id, params).await.map_err(|e| e.message.to_string())
+}
+
+/// Let one of your agents into a room you host, tethered to who you are there.
+pub async fn admit_agent(state: &AppState, room: &spaces::Id, agent: &str) -> Result<(), String> {
+    let (key, tether) = state.identity.agent_in(agent, Some(&room.id));
+    let person = state.identity.in_room(&room.id).unwrap_or_else(|| state.identity.usual());
+    call_as_you(state, room, "admit", serde_json::json!({ "key": key, "name": agent, "is_agent": true, "agent_of": person.key, "tether": tether })).await.map(|_| ())
 }
 
 #[tauri::command]
@@ -390,37 +397,56 @@ pub async fn spaces_home(state: State<'_, AppState>) -> Result<Option<String>, S
 pub async fn home_feed(state: State<'_, AppState>) -> Result<Vec<HomeMove>, String> {
     let mut out = Vec::new();
     for e in state.spaces.list().await {
-        let summary: SpaceSummary = (&e).into();
-        if let Ok(r) = state.spaces.read(&e.id, spaces::stub::rooms::FEED).await {
-            let moves = r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str::<Vec<MoveView>>(text).ok(), _ => None }).next().unwrap_or_default();
-            out.extend(moves.into_iter().map(|entry| HomeMove { space: summary.clone(), entry }));
-        }
+        let summary = summary(&e, &state.identity);
+        let moves: Vec<MoveView> = read_json(&state, &e.id, diverge_desktop_room::room::FEED).await.unwrap_or_default();
+        out.extend(moves.into_iter().map(|entry| HomeMove { space: summary.clone(), entry }));
     }
     out.sort_by(|a, b| b.entry.at.cmp(&a.entry.at));
     out.truncate(300);
     Ok(out)
 }
 
+fn personas(state: &AppState, entries: &[spaces::SpaceEntry]) -> Vec<PersonaView> {
+    state
+        .identity
+        .personas()
+        .into_iter()
+        .map(|p| {
+            let rooms = entries.iter().filter(|e| state.identity.in_room(&e.id.id).map(|q| q.id == p.id).unwrap_or(p.usual)).map(|e| e.title.clone()).collect();
+            PersonaView { id: p.id, name: p.name, usual: p.usual, rooms }
+        })
+        .collect()
+}
+
 #[tauri::command]
 pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, String> {
     let agents = listed(state.daemon.agents_list(agents::list::client::request::Frame {}).collect::<Vec<_>>().await).agents;
-    let mut mine: Vec<String> = agents.iter().map(|a| a.name.clone()).collect();
+    let mine: Vec<String> = state.identity.personas().into_iter().map(|p| p.key).collect();
     let home = state.spaces.home().await.map(|id| id.id);
+    let profile = state.spaces.profile().await.map(|id| id.id);
+    let entries = state.spaces.list().await;
     let mut receipts = Vec::new();
     let mut shows = Vec::new();
-    for e in state.spaces.list().await {
-        mine.push(e.joined_as.clone());
-        let summary: SpaceSummary = (&e).into();
-        if let Ok(r) = state.spaces.read(&e.id, spaces::stub::rooms::FEED).await {
-            let moves = r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str::<Vec<MoveView>>(text).ok(), _ => None }).next().unwrap_or_default();
-            for m in moves {
-                let to = m.fields.get("to").and_then(serde_json::Value::as_str).unwrap_or_default().to_owned();
-                if m.kind == "receipt" && mine.contains(&to) {
-                    let for_title = m.body.strip_prefix("Completed: ").unwrap_or(&m.body).to_owned();
-                    receipts.push(ReceiptView { title: m.title.clone(), for_title, space: summary.clone(), to, at: m.at.clone() });
-                } else if m.kind == "show" && Some(&e.id.id) == home.as_ref() && m.author == e.joined_as {
-                    shows.push(m);
+    for e in &entries {
+        let summary = summary(e, &state.identity);
+        let moves: Vec<MoveView> = read_json(&state, &e.id, diverge_desktop_room::room::FEED).await.unwrap_or_default();
+        for m in moves {
+            if m.kind == "receipt" {
+                let Some(statement) = m.fields.get("statement").and_then(|v| serde_json::from_value::<diverge_desktop_room::Statement>(v.clone()).ok()) else { continue };
+                if !mine.iter().any(|k| Some(k.as_str()) == statement.field("to_person")) {
+                    continue;
                 }
+                receipts.push(ReceiptView {
+                    title: m.title.clone(),
+                    for_title: m.body.strip_prefix("Completed: ").unwrap_or(&m.body).to_owned(),
+                    space: summary.clone(),
+                    to: statement.field("to_name").unwrap_or_default().to_owned(),
+                    at: m.at.clone(),
+                    issued_by: statement.field("host").unwrap_or_default().to_owned(),
+                    holds: statement.holds(),
+                });
+            } else if m.kind == "show" && Some(&e.id.id) == profile.as_ref() {
+                shows.push(m);
             }
         }
     }
@@ -428,23 +454,22 @@ pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, Stri
     shows.sort_by(|a, b| b.at.cmp(&a.at));
     let machines = machines_with_volumes(&state).await;
     let volumes: Vec<VolumeView> = machines.iter().flat_map(|m| m.volumes.clone()).collect();
-    Ok(ProfileView { receipts, shows, agents, machines, volumes, home })
+    let personas = personas(&state, &entries);
+    Ok(ProfileView { receipts, shows, agents, machines, volumes, home, profile, personas })
 }
 
 #[tauri::command]
 pub async fn people_list(state: State<'_, AppState>) -> Result<Vec<PersonView>, String> {
-    let mut people: std::collections::BTreeMap<String, PersonView> = std::collections::BTreeMap::new();
+    // People are keys: the same key in two rooms is the same someone.
+    let mut people: IndexMap<String, PersonView> = IndexMap::new();
     for e in state.spaces.list().await {
-        let me = e.joined_as.clone();
-        if let Ok(r) = state.spaces.read(&e.id, spaces::stub::rooms::MEMBERS).await {
-            let members = r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str::<Vec<MemberView>>(text).ok(), _ => None }).next().unwrap_or_default();
-            for m in members {
-                if m.name == me || m.name == "me" {
-                    continue;
-                }
-                let p = people.entry(m.name.clone()).or_insert(PersonView { name: m.name.clone(), is_agent: m.is_agent, spaces: Vec::new() });
-                p.spaces.push(e.id.id.clone());
+        let members: Vec<MemberView> = read_json(&state, &e.id, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
+        for m in members {
+            if m.key.is_empty() || state.identity.owner_of(&m.key).is_some() {
+                continue;
             }
+            let p = people.entry(m.key.clone()).or_insert(PersonView { name: m.name.clone(), key: m.key.clone(), is_agent: m.is_agent, agent_of: m.agent_of.clone(), spaces: Vec::new() });
+            p.spaces.push(e.id.id.clone());
         }
     }
     Ok(people.into_values().collect())
@@ -452,7 +477,7 @@ pub async fn people_list(state: State<'_, AppState>) -> Result<Vec<PersonView>, 
 
 #[tauri::command]
 pub async fn spaces_list(state: State<'_, AppState>) -> Result<Vec<SpaceSummary>, String> {
-    Ok(state.spaces.list().await.iter().map(Into::into).collect())
+    Ok(state.spaces.list().await.iter().map(|e| summary(e, &state.identity)).collect())
 }
 
 #[tauri::command]
@@ -461,20 +486,14 @@ pub async fn spaces_get(state: State<'_, AppState>, id: String) -> Result<SpaceV
     let entry = entries.iter().find(|e| e.id.id == id).ok_or("no such Space")?;
     let sid = space_id(&id);
     let tools = state.spaces.tools(&sid).await.map_err(|e| e.message.to_string())?;
-    let members = match state.spaces.read(&sid, spaces::stub::rooms::MEMBERS).await {
-        Ok(r) => r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str::<Vec<MemberView>>(text).ok(), _ => None }).next().unwrap_or_default(),
-        Err(_) => Vec::new(),
-    };
-    let charter = match state.spaces.read(&sid, spaces::stub::rooms::CHARTER).await {
-        Ok(r) => r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }).next().unwrap_or_default(),
-        Err(_) => String::new(),
-    };
-    Ok(SpaceView { summary: entry.into(), charter, members, tools: tools.tools.iter().map(Into::into).collect() })
+    let members: Vec<MemberView> = read_json(&state, &sid, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
+    let charter = read_text(&state, &sid, diverge_desktop_room::room::CHARTER).await.unwrap_or_default();
+    Ok(SpaceView { summary: summary(entry, &state.identity), charter, members, tools: tools.tools.iter().map(Into::into).collect() })
 }
 
 #[tauri::command]
 pub async fn spaces_feed(state: State<'_, AppState>, id: String) -> Result<FeedRead, String> {
-    Ok(match state.spaces.read(&space_id(&id), spaces::stub::rooms::FEED).await {
+    Ok(match state.spaces.read(&space_id(&id), diverge_desktop_room::room::FEED).await {
         Ok(r) => {
             let moves = r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str::<Vec<MoveView>>(text).ok(), _ => None }).next().unwrap_or_default();
             FeedRead::Feed { moves }
@@ -485,13 +504,12 @@ pub async fn spaces_feed(state: State<'_, AppState>, id: String) -> Result<FeedR
 
 #[tauri::command]
 pub async fn spaces_call(state: State<'_, AppState>, id: String, tool: String, arguments: serde_json::Value) -> Result<CallOutcome, String> {
-    let params = rmcp::model::CallToolRequestParams::new(tool).with_arguments(arguments.as_object().cloned().unwrap_or_default());
-    Ok(match state.spaces.call(&space_id(&id), params, spaces::Caller::Person).await {
+    Ok(match call_as_you(&state, &space_id(&id), &tool, arguments).await {
         Ok(result) => {
-            let text = result.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n");
+            let text = text_of(&result);
             if result.is_error == Some(true) { CallOutcome::Error { message: text } } else { CallOutcome::Ok { text } }
         }
-        Err(e) => CallOutcome::Error { message: e.message.to_string() },
+        Err(message) => CallOutcome::Error { message },
     })
 }
 
@@ -514,30 +532,69 @@ pub fn spaces_watch(state: State<'_, AppState>, id: String, on_event: Channel<Sp
 #[tauri::command]
 pub async fn spaces_host(state: State<'_, AppState>, input: HostSpaceInput) -> Result<HostOutcome, String> {
     use diverge_sdk::shared::containers::request::{Container, Image};
+    let Some(kind) = diverge_desktop_room::Kind::parse(&input.kind) else { return Ok(HostOutcome::Error { message: "no such kind of Space".into() }) };
+    let you = state.identity.usual();
+    let args = diverge_desktop_room::Args { id: String::new(), title: input.title, kind, host_key: you.key, host_name: you.name, charter: input.charter, open_door: input.open_door, continues: None };
     let container = Container {
-        image: Image { name: format!("diverge-space-{}", input.kind), digest: catalog::UNBUILT_DIGEST.into() },
+        image: Image { name: "diverge-desktop-room".into(), digest: catalog::UNBUILT_DIGEST.into() },
         memory: 1 << 30,
         disk: 1 << 30,
         volume_mounts: Vec::new(),
         fuse_file_mounts: Vec::new(),
         fuse_directory_mounts: Vec::new(),
-        arguments: serde_json::json!({ "title": input.title, "kind": input.kind, "charter": input.charter, "invite": input.invite }),
+        arguments: serde_json::to_value(&args).unwrap_or_default(),
     };
     Ok(match state.spaces.host(container).await {
-        Ok(id) => HostOutcome::Hosted { id: id.id },
+        Ok(id) => {
+            state.identity.set_room(&id.id, "usual");
+            HostOutcome::Hosted { id: id.id }
+        }
         Err(e) => HostOutcome::Error { message: error_text(&e) },
     })
 }
 
+/// What an invite shows before you knock: nothing is sent.
 #[tauri::command]
-pub async fn spaces_join(state: State<'_, AppState>, invite: String, as_name: String) -> Result<JoinOutcome, String> {
-    let invite = parse_invite(&invite)?;
-    Ok(state.spaces.join(invite, as_name).await.into())
+pub async fn spaces_door(state: State<'_, AppState>, invite: String) -> Result<DoorView, String> {
+    let invite = spaces::Invite::from_text(&invite)?;
+    let already_in = state.spaces.list().await.iter().any(|e| e.id.id == invite.id);
+    Ok(DoorView {
+        title: invite.title,
+        kind: invite.kind,
+        host_name: invite.host_name,
+        host: (&invite.host).into(),
+        charter: invite.charter,
+        verbs: invite.verbs.into_iter().map(|v| VerbView { name: v.name, does: v.does }).collect(),
+        invited: invite.secret.is_some(),
+        already_in,
+    })
+}
+
+#[tauri::command]
+pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: AppearAs, note: String, listed: bool) -> Result<JoinOutcome, String> {
+    let invite = spaces::Invite::from_text(&invite)?;
+    let persona = match appear_as {
+        AppearAs::Usual => state.identity.usual(),
+        AppearAs::Fresh { name } => state.identity.fresh(&name)?,
+    };
+    let knocking = spaces::Knocking { secret: invite.secret.clone(), key: persona.key.clone(), name: persona.name.clone(), note, listed, vouch: None };
+    Ok(match state.spaces.join(&invite, &knocking).await {
+        spaces::Joined::Joined(id) => {
+            state.identity.set_room(&id.id, &persona.id);
+            let about: Option<serde_json::Value> = read_json(&state, &id, diverge_desktop_room::room::ABOUT).await;
+            let rules_match = about.and_then(|a| a["charter"].as_str().map(str::to_owned)).as_deref() == Some(diverge_desktop_room::seal::fingerprint(&invite.charter).as_str());
+            JoinOutcome::Joined { id: id.id, rules_match }
+        }
+        spaces::Joined::Denied => JoinOutcome::Denied,
+        spaces::Joined::Missing => JoinOutcome::Missing,
+        spaces::Joined::Error(e) => JoinOutcome::Error { message: error_text(&e) },
+    })
 }
 
 #[tauri::command]
 pub async fn spaces_leave(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<(), String> {
     state.spaces.leave(&space_id(&id)).await?;
+    state.identity.forget_room(&id);
     let snapshot = state.tabs.lock().unwrap().close(&crate::tabs::key_of(&TabKind::Space { id }));
     let _ = app.emit("tabs://changed", snapshot);
     Ok(())
@@ -545,18 +602,43 @@ pub async fn spaces_leave(app: AppHandle, state: State<'_, AppState>, id: String
 
 #[tauri::command]
 pub async fn spaces_invite(state: State<'_, AppState>, id: String) -> Result<Option<InviteView>, String> {
-    Ok(state.spaces.invite(&space_id(&id)).await.map(|i| InviteView { text: invite_text(&i) }))
+    Ok(state.spaces.invite(&space_id(&id)).await.map(|i| InviteView { text: i.to_text() }))
+}
+
+/// A knock as the host reads it: the address the provider saw, and what the
+/// knocker wrote, checked where it can be.
+async fn knock_view(state: &AppState, k: &spaces::Knock) -> KnockView {
+    let entries = state.spaces.list().await;
+    let title = entries.iter().find(|e| e.id == k.space).map(|e| e.title.clone()).unwrap_or_else(|| k.space.id.clone());
+    let knocking = spaces::Knocking::from_authorization(&k.authorize.authorization);
+    let members: Vec<MemberView> = read_json(state, &k.space, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
+    let vouch = knocking.as_ref().and_then(|w| w.vouch.as_ref().map(|v| {
+        let holds = v.kind == "vouch" && v.holds() && v.field("for") == Some(w.key.as_str());
+        let by = members.iter().find(|m| m.key == v.key).map(|m| m.name.clone()).or_else(|| v.field("by_name").map(str::to_owned)).unwrap_or_else(|| "someone".into());
+        VouchView { by, member_here: members.iter().any(|m| m.key == v.key), holds }
+    }));
+    KnockView {
+        knock_id: k.knock_id,
+        space: k.space.id.clone(),
+        space_title: title,
+        address: k.authorize.address.to_string(),
+        name: knocking.as_ref().map(|w| w.name.clone()).unwrap_or_else(|| k.authorize.address.to_string()),
+        note: knocking.as_ref().map(|w| w.note.clone()).unwrap_or_default(),
+        listed: knocking.as_ref().map(|w| w.listed).unwrap_or(true),
+        invited: knocking.as_ref().and_then(|w| w.secret.as_ref()).is_some(),
+        vouch,
+        at: k.at.to_rfc3339(),
+    }
 }
 
 #[tauri::command]
-pub fn knocks_watch(state: State<'_, AppState>, on_event: Channel<KnockEvent>) -> String {
+pub fn knocks_watch(app: AppHandle, state: State<'_, AppState>, on_event: Channel<KnockEvent>) -> String {
     let (scope, token) = state.open_scope("knocks");
-    let spaces = state.spaces.clone();
     let mut frames = state.spaces.knocks(token.clone());
     tauri::async_runtime::spawn(async move {
+        let state = app.state::<AppState>();
         while let Some(k) = frames.next().await {
-            let title = spaces.list().await.into_iter().find(|e| e.id == k.space).map(|e| e.title).unwrap_or_else(|| k.space.id.clone());
-            let view = KnockView { knock_id: k.knock_id, space: k.space.id.clone(), space_title: title, address: k.authorize.address.to_string(), authorization: k.authorize.authorization.clone(), at: k.at.to_rfc3339() };
+            let view = knock_view(&state, &k).await;
             if on_event.send(KnockEvent::Knock { knock: view }).is_err() {
                 token.cancel();
                 return;
@@ -567,9 +649,87 @@ pub fn knocks_watch(state: State<'_, AppState>, on_event: Channel<KnockEvent>) -
     scope
 }
 
+/// The host's answer; on yes, the host's `admit`, sealed as who they are there.
 #[tauri::command]
 pub async fn knocks_answer(state: State<'_, AppState>, knock_id: u64, yes: bool) -> Result<(), String> {
-    state.spaces.answer(knock_id, if yes { spaces::Answer::Authorized } else { spaces::Answer::Denied }).await
+    let knock = state.spaces.answer(knock_id, if yes { spaces::Answer::Authorized } else { spaces::Answer::Denied }).await?;
+    if yes {
+        let knocking = spaces::Knocking::from_authorization(&knock.authorize.authorization).ok_or("that knock carried no key to let in")?;
+        call_as_you(&state, &knock.space, "admit", serde_json::json!({ "key": knocking.key, "name": knocking.name, "listed": knocking.listed })).await?;
+    }
+    Ok(())
+}
+
+// --- the table: a room's shared files ----------------------------------
+
+fn parts(path: &str) -> Vec<String> {
+    path.split('/').filter(|p| !p.is_empty()).map(str::to_owned).collect()
+}
+
+#[tauri::command]
+pub async fn table_tree(state: State<'_, AppState>, id: String) -> Result<VolumeTree, String> {
+    Ok(match state.spaces.table_tree(&space_id(&id)).await {
+        Ok(nodes) => VolumeTree::Tree { nodes: nodes.iter().map(Into::into).collect() },
+        Err(e) => VolumeTree::Error { message: error_text(&e) },
+    })
+}
+
+#[tauri::command]
+pub async fn table_read(state: State<'_, AppState>, id: String, path: String) -> Result<FileRead, String> {
+    Ok(match state.spaces.table_read(&space_id(&id), &parts(&path)).await {
+        Ok(bytes) => {
+            let size = bytes.len() as u64;
+            match String::from_utf8(bytes) {
+                Ok(text) => FileRead::Text { text, bytes: size },
+                Err(_) => FileRead::Binary { bytes: size },
+            }
+        }
+        Err(e) => FileRead::Error { message: error_text(&e) },
+    })
+}
+
+#[tauri::command]
+pub async fn table_write(state: State<'_, AppState>, id: String, path: String, text: String) -> Result<FileWritten, String> {
+    Ok(match state.spaces.table_write(&space_id(&id), &parts(&path), text.into_bytes()).await {
+        Ok(()) => FileWritten::Written,
+        Err(e) => FileWritten::Error { message: error_text(&e) },
+    })
+}
+
+/// A file from one room's table to another's, provider-side. Only between
+/// rooms on one machine; otherwise it would pass through your Mac.
+#[tauri::command]
+pub async fn table_transfer(state: State<'_, AppState>, from: String, path: String, to: String) -> Result<FileWritten, String> {
+    Ok(match state.spaces.transfer(&space_id(&from), &parts(&path), &space_id(&to)).await {
+        Ok(()) => FileWritten::Written,
+        Err(e) => FileWritten::Error { message: error_text(&e) },
+    })
+}
+
+// --- personas and allowances -----------------------------------------------
+
+#[tauri::command]
+pub async fn personas_list(state: State<'_, AppState>) -> Result<Vec<PersonaView>, String> {
+    let entries = state.spaces.list().await;
+    Ok(personas(&state, &entries))
+}
+
+#[tauri::command]
+pub fn persona_rename(state: State<'_, AppState>, id: String, name: String) -> Result<(), String> {
+    state.identity.rename(&id, &name)
+}
+
+#[tauri::command]
+pub fn allowance_get(state: State<'_, AppState>, id: String, agent: String) -> AllowanceView {
+    let a = state.door.allowance(&id, &agent);
+    AllowanceView { per_day: a.per_day, used_today: a.used }
+}
+
+#[tauri::command]
+pub fn allowance_set(state: State<'_, AppState>, id: String, agent: String, per_day: u32) -> AllowanceView {
+    state.door.set_allowance(&id, &agent, per_day);
+    let a = state.door.allowance(&id, &agent);
+    AllowanceView { per_day: a.per_day, used_today: a.used }
 }
 
 // --- cards: the agent door's questions ------------------------------------

@@ -13,6 +13,10 @@ publish = false
 # No features: every half compiles for every dependent.
 diverge-sdk = { path = "../../diverge-sdk-rs" }
 rmcp = { version = "3.1.2", default-features = false }
+# The room program, seals and records: ours (../room).
+diverge-desktop-room = { path = "../room" }
+# Invites travel as text.
+base64 = "0.22"
 
 tauri = { version = "2.10.3", features = [] }
 tokio = { version = "1.50.0", features = ["full"] }
