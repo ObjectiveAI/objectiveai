@@ -1765,6 +1765,8 @@ mod tests {
         offline: Mutex<HashSet<String>>,
         knocks: Mutex<Vec<Knock>>,
         log: Mutex<Vec<String>>,
+        /// The room the app reads as your profile, where a test names one.
+        profile: Mutex<Option<String>>,
     }
 
     /// A room's host's side: receipts sealed as its host.
@@ -1781,7 +1783,7 @@ mod tests {
 
     impl Rooms {
         fn new(me: Arc<Keys>) -> Arc<Rooms> {
-            Arc::new(Rooms { me, rooms: Mutex::default(), room_keys: Mutex::default(), secrets: Mutex::default(), offline: Mutex::default(), knocks: Mutex::default(), log: Mutex::default() })
+            Arc::new(Rooms { me, rooms: Mutex::default(), room_keys: Mutex::default(), secrets: Mutex::default(), offline: Mutex::default(), knocks: Mutex::default(), log: Mutex::default(), profile: Mutex::default() })
         }
 
         fn log(&self) -> Vec<String> {
@@ -1896,7 +1898,7 @@ mod tests {
         }
 
         async fn profile(&self) -> Option<Id> {
-            None
+            self.profile.lock().unwrap().clone().map(|id| Id { id })
         }
 
         fn host_calls(&self, _: CancellationToken) -> Frames<HostCall> {
@@ -2683,6 +2685,24 @@ mod tests {
         let HostOutcome::Hosted { id } = host_space(&state, HostSpaceInput { title: "me".into(), kind: "profile".into(), charter: String::new(), open_door: true }).await.unwrap() else { panic!("hosted") };
         let about: serde_json::Value = read_json(&state, &space_id(&id), diverge_desktop_room::room::ABOUT).await.unwrap();
         assert_eq!(about["notes_key"].as_str(), Some(state.identity.notes_public().unwrap().as_str()));
+    }
+
+    /// Your profile reads as sealed only where its settings name your notes
+    /// key: one hosted before profiles named it says what it always said.
+    #[tokio::test]
+    async fn a_profile_without_a_notes_key_is_not_read_as_sealed() {
+        let (state, rooms) = app("actions-profile-plain");
+        let HostOutcome::Hosted { id } = host_space(&state, HostSpaceInput { title: "me".into(), kind: "profile".into(), charter: String::new(), open_door: true }).await.unwrap() else { panic!("hosted") };
+        *rooms.profile.lock().unwrap() = Some(id.clone());
+        assert!(profile_of(&state).await.unwrap().profile_sealed, "today's profile seals");
+        let key = rooms.room_keys.lock().unwrap()[&id].clone();
+        let before = rooms.rooms.lock().unwrap()[&id].args.clone();
+        let args = Args { notes_key: None, sig: String::new(), ..before };
+        let sig = state.identity.state(&args.host_key, "room", args.body()).unwrap().sig;
+        rooms.rooms.lock().unwrap().insert(id.clone(), Room::new(Args { sig, ..args }, key).unwrap());
+        let view = profile_of(&state).await.unwrap();
+        assert_eq!(view.profile.as_deref(), Some(id.as_str()));
+        assert!(!view.profile_sealed, "one from before doesn't");
     }
 
     #[tokio::test]

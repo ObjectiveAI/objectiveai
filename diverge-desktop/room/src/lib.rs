@@ -500,13 +500,10 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn a_profile_under_rules_two_names_its_owners_notes_key_and_nothing_else_does() {
+    fn only_a_profile_under_rules_two_names_a_notes_key() {
         let maya = Person::new("maya's mac");
         let notes = envelope::OpenKey::from_seed(b"maya's words");
         let (profile, _) = sealed_profile(&maya, &notes);
-        let mut args = profile.args.clone();
-        args.notes_key = None;
-        assert!(args.signed(&maya.keypair).holds().is_err(), "a rules-2 profile without one");
         let mut args = profile.args.clone();
         args.kind = Kind::Board;
         assert!(args.signed(&maya.keypair).holds().is_err(), "a board with one");
@@ -515,6 +512,34 @@ pub(crate) mod tests {
         assert!(args.signed(&maya.keypair).holds().is_err(), "not a key");
         let (rules_one, _) = settings("p1", &maya, "maya", Kind::Profile);
         assert!(rules_one.notes_key.is_none() && rules_one.holds().is_ok(), "rules 1 are as they were");
+    }
+
+    /// A profile made under rules 2 before profiles named a notes key still
+    /// holds, replays and takes what visitors leave plainly, as it did.
+    #[test]
+    fn a_rules_two_profile_without_a_notes_key_replays_and_stays_plain() {
+        let (mut maya, mut ren) = (Person::new("maya's mac"), Person::new("ren's laptop"));
+        let notes = envelope::OpenKey::from_seed(b"maya's words");
+        let host = host_for(&maya);
+        let (sealed, _) = sealed_profile(&maya, &notes);
+        let mut args = sealed.args.clone();
+        args.notes_key = None;
+        let args = args.signed(&maya.keypair);
+        assert!(args.holds().is_ok(), "its settings hold");
+        let room_key = Keypair::from_seed("profile v2");
+        let mut profile = Room::new(args, room_key.clone()).unwrap();
+        assert!(!profile.seals_notes(), "and it doesn't seal");
+        maya.call(&mut profile, &host, "admit", json!({ "account": one_device(&ren, "ren's root"), "name": "ren" })).unwrap();
+        ren.call(&mut profile, &host, "leave_note", json!({ "body": "love the lamp" })).unwrap();
+        ren.call(&mut profile, &host, "hire", json!({ "agent": "site-fixes", "what": "check my links", "pledge": "a coffee" })).unwrap();
+        let again = Room::from_record(profile.record(), Some(room_key)).expect("its record replays");
+        assert!(Room::check(&profile.record()).is_ok(), "and checks out as a copy");
+        let moves = feed(&again);
+        assert_eq!(moves.iter().find(|m| m["kind"] == "note").unwrap()["body"], "love the lamp", "the note reads plainly, as before");
+        assert_eq!(moves.iter().find(|m| m["kind"] == "hire").unwrap()["title"], "check my links");
+        let ren_reads = envelope::OpenKey::for_author(&ren.keypair, profile.id());
+        let to_nobody = [ren_reads.public()];
+        assert!(sealed_call(&mut ren, &mut profile, &host, "leave_note", json!({ "body": "sealed?" }), &to_nobody).is_err(), "a room that doesn't seal takes no envelopes");
     }
 
     #[test]

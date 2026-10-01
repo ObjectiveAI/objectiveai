@@ -290,8 +290,9 @@ mod tests {
         let owner = OpenKey::generate();
         let args = json!({ "hire_id": "hire-3", "take": true, "note": "Saturday" }).as_object().cloned().unwrap();
         let out = seal_args("p", "answer_hire", &args, "k", &[owner.public()]).unwrap();
-        let keys: Vec<&String> = out.keys().collect();
-        assert_eq!(keys, ["hire_id", "take", "sealed"]);
+        let mut keys: Vec<&String> = out.keys().collect();
+        keys.sort();
+        assert_eq!(keys, ["hire_id", "sealed", "take"]);
         let e = shape(&out["sealed"]).unwrap();
         assert_eq!(open(&e, &owner, "p", "answer_hire", "k"), Some(json!({ "note": "Saturday" })));
         let bare = json!({ "hire_id": "hire-3", "take": false }).as_object().cloned().unwrap();

@@ -287,10 +287,10 @@ impl Args {
         if !self.keepers.is_empty() && self.rules != 2 {
             return Err("only a room under rules 2 has doorkeepers".into());
         }
-        // Under rules 2 a profile names its owner's notes key, and nothing else does.
+        // Only a profile under rules 2 names its owner's notes key. One made
+        // before profiles named it holds too, and takes what visitors leave plainly.
         let profile_two = self.rules == 2 && self.kind == Kind::Profile;
         match &self.notes_key {
-            None if profile_two => return Err("a profile under rules 2 names its owner's notes key".into()),
             Some(_) if !profile_two => return Err("only a profile under rules 2 names a notes key".into()),
             Some(k) if hex::decode(k).map(|b| b.len()) != Ok(32) => return Err("a notes key is 32 bytes, as hex".into()),
             _ => {}

@@ -1189,6 +1189,40 @@ mod tests {
         assert!(hire.fields.get("pledge").is_none());
     }
 
+    /// A profile hosted under rules 2 before profiles named a notes key is
+    /// kept, with every other room, across a launch, and takes notes plainly.
+    #[tokio::test]
+    async fn a_profile_from_before_notes_keys_keeps_the_rooms_file() {
+        let (spaces, me) = stub();
+        let profile = spaces.id_of("profile-me");
+        let board = board();
+        spaces.act_now("ada", &board, "show", json!({ "title": "a shelf I built" })).unwrap();
+        {
+            let mut inner = spaces.lock();
+            let hosted = inner.rooms.get_mut(&profile).unwrap();
+            let args = Args { notes_key: None, sig: String::new(), ..hosted.room.args.clone() };
+            let sig = me.state(&args.host_key, "room", args.body()).unwrap().sig;
+            hosted.room = Room::new(Args { sig, ..args }, hosted.room_key.clone()).unwrap();
+            let usual = Actor::Persona("usual".into());
+            spaces.me_act(&mut inner, usual, &profile, "admit", json!({ "account": stand_in_account("ren"), "name": "ren" }), Utc::now()).unwrap();
+        }
+        spaces.act_now("ren", &profile, "leave_note", json!({ "body": "love the lamp" })).unwrap();
+        let (board_before, profile_before) = (feed(&spaces, &board), feed(&spaces, &profile));
+        let tables = spaces.tables.clone();
+        drop(spaces);
+        let again = StubSpaces::new(me.clone(), tables.clone());
+        assert!(crate::store::notices_under(&tables).is_empty(), "nothing set aside");
+        assert_eq!(feed(&again, &board), board_before, "the other rooms come back as they were");
+        assert_eq!(feed(&again, &profile), profile_before, "and so does the profile");
+        assert!(again.lock().rooms[&profile].room.args.notes_key.is_none());
+        let note = feed(&again, &profile).into_iter().find(|m| m["kind"] == "note").unwrap();
+        assert_eq!(note["body"], "love the lamp", "its notes read plainly, as before");
+        let about = again.read(&Id { id: profile.clone() }, program::ABOUT).await.unwrap();
+        let ResourceContents::TextResourceContents { text: about, .. } = &about.contents[0] else { panic!() };
+        assert!(serde_json::from_str::<Value>(about).unwrap()["notes_key"].is_null(), "its settings name no notes key");
+        let _ = std::fs::remove_dir_all(&tables);
+    }
+
     #[tokio::test]
     async fn a_hire_through_your_profile_reaches_you() {
         let (spaces, _) = stub();

@@ -56,7 +56,8 @@ inherits it.
       (`mark_invite` with `invite_lock(mark)`; a keeper's let-in uses it up, since its mark is then in the record, and it can't be sealed again) or standing in the room this one continues. Recorded as "let in by <host>'s
       doorkeeper", marked as the host's. `drop_keeper` ends it. Nothing in the app runs a keeper yet.
     - **Sealed notes (rules 2 profiles).** A profile's settings name its owner's notes key (`Args.notes_key`, X25519, drawn
-      with HKDF from the recovery words on its own path; `envelope.rs`), and only a rules-2 profile names one. A note, a hire,
+      with HKDF from the recovery words on its own path; `envelope.rs`), and only a rules-2 profile names one. A rules-2 profile
+      made before profiles named it still holds and replays, and takes what visitors leave plainly. A note, a hire,
       an answer's note and a hire's result come only as envelopes (ChaCha20-Poly1305, a fresh X25519 exchange per reader,
       bound to room, verb and sealing key) to the owner's key and their author's key for that room (drawn from the key that
       seals the call); a result goes to the owner and the key the sealed ask names. The room checks shape only, refuses
