@@ -14,15 +14,20 @@
      --bg, --rail          the ground everything sits on
      --surface, -2, -3     raised things: cards, buttons, a hovered row
      --line, --line-strong edges; a strong edge marks something you can press
+     --line-bad            the edge round something that went wrong
      --text, -2, -3        words, from most to least said
      --accent, --on-accent the one action that goes ahead; words on it
+     --accent-hover        that action under the mouse
      --here                where you are, and nothing else
      --warn, --warn-soft   something to know before you act
      --ok, --bad (+ -soft) how something went; --bad-hover is a danger button under the mouse
 
    The one rule every theme keeps: each pair of words-on-background the app
-   uses reads at 7:1 or better (WCAG AAA). src/theme.test.ts checks every pair,
-   so a theme that breaks it fails the build.
+   uses reads at 7:1 or better (WCAG AAA), and each edge of something you can
+   press or type into, and the focus ring, reads at 3:1 against what's around
+   it. src/theme.test.ts checks every pair. The pairs this theme still breaks
+   are named there, each waiting on a colour pick; any other break fails the
+   build.
 
    Status colours (ok / bad) are NOT from the site — it never needed them.
    They are the only invented values here, and Maya's to replace. */
@@ -82,6 +87,7 @@
   --text-3: color-mix(in srgb, var(--ink) 70%, var(--ground));
   --accent: var(--pink);
   --accent-soft: color-mix(in srgb, var(--pink) 14%, var(--ground));
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, var(--ink));
   --on-accent: var(--plum);
   --here: var(--gold);
   --warn: var(--pink);
@@ -94,6 +100,7 @@
   --bad: #ff9a8f;
   --bad-soft: color-mix(in srgb, #ff9a8f 14%, var(--ground));
   --bad-hover: color-mix(in srgb, #ff9a8f 88%, var(--ink));
+  --line-bad: color-mix(in srgb, var(--bad) 45%, var(--line));
 
   --focus: 0 0 0 2px color-mix(in srgb, var(--pink) 55%, transparent);
   --shadow: none;

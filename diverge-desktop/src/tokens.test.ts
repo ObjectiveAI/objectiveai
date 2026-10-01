@@ -85,6 +85,12 @@ describe("tokens", () => {
     expect(off.map(where)).toEqual([]);
   });
 
+  it("app.css names no colour of its own: every colour is a theme role", () => {
+    const named = /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix)\(|\b(white|black|red|green|blue|gray|grey|pink|gold|orange|purple|yellow)\b/i;
+    const off = declarations("app.css").filter((d) => !d.prop.startsWith("--") && named.test(d.value.replace(/var\(--[\w-]+\)/g, "")));
+    expect(off.map(where)).toEqual([]);
+  });
+
   it("native controls take the theme's accent once, on :root", () => {
     const set = decls.filter((d) => d.prop === "accent-color");
     expect(set.map((d) => `${d.at} ${d.selector} ${d.value}`)).toEqual(["theme.css :root var(--accent)"]);
