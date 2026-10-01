@@ -60,7 +60,8 @@ impl Reach {
             _ if pledged => Reach::Pledge,
             "settle" | "hire" => Reach::Pledge,
             "space_feed" | "table_list" | "table_read" | "asks_open" => Reach::Read,
-            "show" | "ask" | "offer" | "reply" | "say" | "leave_note" | "report" | "propose" | "steer" | "synthesize" => Reach::Talk,
+            // Taking back its own words is saying something too: everyone sees that it did.
+            "show" | "ask" | "offer" | "reply" | "say" | "leave_note" | "report" | "propose" | "steer" | "synthesize" | "withdraw" => Reach::Talk,
             _ => Reach::Work,
         }
     }
@@ -458,6 +459,13 @@ mod tests {
 
     fn space_call(space: &str, tool: &str, arguments: Value) -> CallToolRequestParams {
         CallToolRequestParams::new("space_call").with_arguments(json!({ "space": space, "tool": tool, "arguments": arguments }).as_object().cloned().unwrap())
+    }
+
+    #[test]
+    fn taking_back_its_words_is_talk_and_erasing_someone_elses_is_work() {
+        let none = JsonObject::new();
+        assert_eq!(Reach::of("withdraw", &none), Reach::Talk);
+        assert_eq!(Reach::of("erase", &none), Reach::Work);
     }
 
     #[tokio::test]

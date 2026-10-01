@@ -19,16 +19,20 @@ import { t } from "../strings";
 type Active = { tool: ToolView; values: Record<string, unknown> };
 
 /** Verbs that have their own place, never a raw form: letting in is at the door; removing is on a member's row;
- * rules and recommendations are under "Your room"; hires are answered on cards; a receipt is pinned from You. */
-const ELSEWHERE = new Set(["admit", "remove", "set_charter", "vouch_room", "answer_hire", "deliver_hire", "pin_receipt", "keys"]);
+ * rules and recommendations are under "Your room"; hires are answered on cards; a receipt is pinned from You;
+ * taking back and erasing are on the move itself. */
+const ELSEWHERE = new Set(["admit", "remove", "set_charter", "vouch_room", "answer_hire", "deliver_hire", "pin_receipt", "keys", "withdraw", "erase", "mark_invite", "drop_keeper"]);
+
+/** Moves whose words can be taken back or erased: what someone said. The room has the last word on each. */
+const ERASABLE = new Set(["show", "ask", "offer", "reply", "say", "run", "note", "direction", "synthesis", "offering", "task", "delivery", "hire_delivery", "hire"]);
 
 /** Whether a member's key is you here: the key you seal with, or, in a room under rules 2, the account it's on. */
 const isYou = (s: { you_key: string; you_account: string | null }, key?: string | null) => !!key && (key === s.you_key || key === s.you_account);
 
 /** Moves the room makes about itself: shown as quiet lines, not cards. */
-const SYSTEM = new Set(["admitted", "removed", "charter", "doorway"]);
+const SYSTEM = new Set(["admitted", "removed", "charter", "doorway", "keeper_dropped"]);
 /** Fields the screen shows in its own way, or not at all. */
-const HIDDEN = new Set(["claimed_by_key", "statement", "thread", "poster_says", "doer_says", "key", "key_mark", "fingerprint", "from", "files", "agent", "take", "agree", "move", "offers", "to", "offer", "offered_by", "taken_offer", "also"]);
+const HIDDEN = new Set(["claimed_by_key", "statement", "thread", "poster_says", "doer_says", "key", "key_mark", "fingerprint", "from", "files", "agent", "take", "agree", "move", "offers", "to", "offer", "offered_by", "taken_offer", "also", "erased", "how"]);
 
 export function Space(props: { id: string; tabKey: string }) {
   const { refreshSpaces, spaces, open } = useShared();
@@ -109,7 +113,7 @@ export function Space(props: { id: string; tabKey: string }) {
       setSaid(`${t.spaces.did} ${out.text}`);
       setActive(null);
       load();
-    } else setSaid(out.message);
+    } else setSaid(wordsFor(out.message));
   };
 
   const leave = async () => {
@@ -491,7 +495,7 @@ function SystemLine(props: { move: MoveView; you: string }) {
   const m = props.move;
   const who = m.by === props.you ? t.spaces.you : m.author;
   const text =
-    m.kind === "admitted" ? ((m.fields as Record<string, unknown>).key === props.you ? `${who} ${t.spaces.letYouIn}` : `${who} ${t.spaces.admitted} ${m.title}`) : m.kind === "removed" ? `${m.title} ${t.spaces.removedLine}` : m.kind === "charter" ? t.spaces.rulesChanged : `${who} ${t.spaces.vouchesFor}: ${m.title}`;
+    m.kind === "admitted" ? ((m.fields as Record<string, unknown>).key === props.you ? `${who} ${t.spaces.letYouIn}` : `${who} ${t.spaces.admitted} ${m.title}`) : m.kind === "removed" ? `${m.title} ${t.spaces.removedLine}` : m.kind === "charter" ? t.spaces.rulesChanged : m.kind === "keeper_dropped" ? `${who} ${t.spaces.keeperDropped}` : `${who} ${t.spaces.vouchesFor}: ${m.title}`;
   return (
     <div className="system-line muted small">
       {text} · {time(m.at)}
@@ -523,6 +527,14 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
   const canSettle = m.kind === "task" && typeof f.pledge === "string" && (m.state === "delivered" || m.state === "done") && (isMe || claimedByMe) && has("settle");
   const who = (x: MoveView) => (x.by === s.you_key ? t.spaces.you : x.author);
   const agentLine = (x: MoveView) => (x.agent_of ? (x.agent_of === s.you_are ? t.spaces.yourAgent : `${t.spaces.runBy} ${x.agent_of}`) : null);
+  /** Taking back your own words, or, for the host, erasing someone else's with a reason. */
+  const erasing = (x: MoveView) => {
+    if (!ERASABLE.has(x.kind) || (x.fields as Record<string, unknown>).erased) return null;
+    if (x.by === s.you_key && has("withdraw")) return <Button small kind="tertiary" onClick={() => props.onVerb("withdraw", { move_id: x.id })}>{t.spaces.takeBack}</Button>;
+    if (x.by !== s.you_key && s.mine && has("erase")) return <Button small kind="tertiary" onClick={() => props.onVerb("erase", { move_id: x.id })}>{t.spaces.erase}</Button>;
+    return null;
+  };
+  const erasedNote = (x: MoveView) => ((x.fields as Record<string, unknown>).erased ? <p className="muted small">{t.spaces.wordsErased} {t.spaces.erasedCopies}</p> : null);
   return (
     <article className={`move move-${m.kind}`}>
       <header className="move-head">
@@ -534,6 +546,7 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
         {typeof f.from === "string" ? <span className="muted small">· {f.from}</span> : null}
       </header>
       {m.title ? <h3 className="move-title selectable">{m.title}</h3> : null}
+      {erasedNote(m)}
       {m.body ? <div className="move-body"><Markdown text={invite ? m.body.replace(invite, "").trim() : m.body} /></div> : null}
       {invite ? <Button small kind="secondary" onClick={() => props.onOpenInvite(invite)}>{t.door.openInvite}</Button> : null}
       {fieldRows(m).length ? (
@@ -569,6 +582,7 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
             <Button small kind="tertiary" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "note" })}>{t.spaces.noteVerb}</Button>
           </>
         ) : null}
+        {erasing(m)}
       </div>
       {replies.length ? (
         <div className="move-replies">
@@ -580,6 +594,9 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
               {r.kind === "steer" ? <Chip>{t.spaces.states[r.state] ?? r.state}</Chip> : null}
               <span className="muted small">{time(r.at)}</span>
               {r.body && r.kind !== "receipt" ? <div className="move-body"><Markdown text={r.body} /></div> : null}
+              {r.kind === "erased" ? <p className="muted small">{t.spaces.erasedCopies}</p> : null}
+              {erasedNote(r)}
+              {erasing(r)}
               {Array.isArray((r.fields as Record<string, unknown>).files) ? <div className="muted small mono">{((r.fields as Record<string, unknown>).files as string[]).join(" · ")}</div> : null}
               {r.kind === "receipt" ? (
                 <div className="receipt-line">✓ {r.title} → {String((r.fields as Record<string, unknown>).to ?? "")} <span className="muted small">· {t.spaces.receiptSealed} {s.title}</span></div>

@@ -369,6 +369,8 @@ export function installPreview() {
             case "set_charter": r.view.charter = a.text; push("charter", "The rules changed", "", "said", null); line = "Rules changed"; break;
             case "admit": r.view.members.push({ name: a.name, key: a.key, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null, mark: null, devices: [] }); push("admitted", a.name, "", "said", null); line = `Admitted: ${a.name}`; break;
             case "remove": { const m = r.view.members.find((x) => x.key === a.key); r.view.members = r.view.members.filter((x) => x.key !== a.key); push("removed", m?.name ?? "someone", a.reason ?? "", "said", null); line = "Removed"; break; }
+            case "withdraw":
+            case "erase": { const b = find(a.move_id); if (b) { const reason = a.reason ?? "withdrawn by its author"; const by = r.view.summary.you_are; Object.assign(b, { title: "", body: "" }); Object.assign(b.fields as object, { erased: { by, how: args.tool, reason } }); push("erased", "", `erased by ${by} under ${reason}`, "said", b.id, { move: b.id, how: args.tool }); line = `Erased the words of ${b.id}`; } break; }
             default: return { outcome: "error", message: `the preview doesn't play ${args.tool}` };
           }
           later(() => bump(args.id));

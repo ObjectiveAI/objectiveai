@@ -667,17 +667,28 @@ fn record_file(state: &AppState, id: &str) -> std::path::PathBuf {
 }
 
 /// Keep your copy of a room's record whenever it has grown, if it is that
-/// room's and it replays whole.
+/// room's and it replays whole. What's kept is the replayed record, so words
+/// an erasure covers leave your copy even if the room still served them;
+/// when a new erasure arrives, the copy before it is written over too, so
+/// neither file keeps them.
 async fn keep_copy(state: &AppState, id: &spaces::Id) {
-    let Some(record) = read_json::<diverge_desktop_room::Record>(state, id, diverge_desktop_room::room::RECORD).await else { return };
-    let head = record.moves.last().map(|m| m.hash.clone()).unwrap_or_default();
+    let Some(served) = read_json::<diverge_desktop_room::Record>(state, id, diverge_desktop_room::room::RECORD).await else { return };
+    let head = served.moves.last().map(|m| m.hash.clone()).unwrap_or_default();
     if state.record_heads.lock().unwrap().get(&id.id) == Some(&head) {
         return;
     }
-    if !state.folder.held() || record.args.id != id.id || diverge_desktop_room::Room::check(&record).is_err() {
+    if !state.folder.held() || served.args.id != id.id {
         return;
     }
-    if crate::store::save(&record_file(state, &id.id), crate::store::RECORD_COPY, &record).is_ok() {
+    let Ok(room) = diverge_desktop_room::Room::check(&served) else { return };
+    let record = room.record();
+    let erasures = |r: &diverge_desktop_room::Record| r.moves.iter().filter(|m| m.kind == "erased").count();
+    let newly_erased = erasures(&record) > copy_of(state, &id.id).map(|r| erasures(&r)).unwrap_or(0);
+    let file = record_file(state, &id.id);
+    if crate::store::save(&file, crate::store::RECORD_COPY, &record).is_ok() {
+        if newly_erased {
+            let _ = crate::store::save(&file, crate::store::RECORD_COPY, &record);
+        }
         state.record_heads.lock().unwrap().insert(id.id.clone(), head);
     }
 }
@@ -2237,6 +2248,30 @@ mod tests {
         assert_eq!(n.room.as_deref(), Some("Saturday Workshop"), "named for its room, not its file");
         assert_eq!((n.carried_on.clone(), n.last_good_copy), (CarriedOnView::LastGood, false));
         assert_eq!(std::fs::read(n.kept_as.as_ref().unwrap()).unwrap(), cut, "kept exactly as it was");
+    }
+
+    #[tokio::test]
+    async fn erased_words_leave_your_copy_and_the_copy_before_it() {
+        let (state, _) = app("actions-copy-erased");
+        let id = board(&state, "Saturday Workshop").await;
+        let sid = space_id(&id);
+        call_as_you(&state, &sid, "show", json!({ "title": "where I live", "body": "12 Elm Street" })).await.unwrap();
+        let (moves, _) = moves_of(&state, &sid).await;
+        let shown = moves.iter().find(|m| m.kind == "show").unwrap().id.clone();
+        call_as_you(&state, &sid, "show", json!({ "title": "a stool" })).await.unwrap();
+        moves_of(&state, &sid).await;
+        let file = record_file(&state, &id);
+        let before = crate::store::previous_of(&file);
+        assert!(std::fs::read_to_string(&before).unwrap().contains("12 Elm Street"), "both copies hold the words until they're erased");
+        call_as_you(&state, &sid, "withdraw", json!({ "move_id": shown })).await.unwrap();
+        let (moves, _) = moves_of(&state, &sid).await;
+        for f in [&file, &before] {
+            let text = std::fs::read_to_string(f).unwrap();
+            assert!(!text.contains("12 Elm Street") && !text.contains("where I live"), "{}", f.display());
+        }
+        assert!(copy_room(&state, &id).is_some(), "and the copy still replays");
+        let erased = moves.iter().find(|m| m.id == shown).unwrap();
+        assert_eq!((erased.title.as_str(), erased.fields["erased"]["how"].as_str()), ("", Some("withdraw")));
     }
 
     #[tokio::test]
