@@ -135,6 +135,11 @@ struct AgentRecord {
     /// What a local agent is called, on screen and in rooms where you're your usual self.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     display: Option<String>,
+    /// A local agent you removed: its key is kept, so its past moves are
+    /// still known as your agent's, but it acts no more and its id is never
+    /// given to another.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    removed: bool,
 }
 
 impl AgentRecord {
@@ -283,6 +288,9 @@ pub const NOT_ADULT: &str = "Diverge is for adults. Confirm that you're 18 or ol
 pub const NO_NAME: &str = "Type the name people should call you.";
 /// What anything gets for a local agent nobody added: no key is made for one.
 pub const NO_SUCH_LOCAL: &str = "No local agent goes by that id here.";
+
+/// What adding a local agent gets under an id a removed one had.
+pub const LOCAL_ID_USED: &str = "A local agent you removed had that id; a new one gets an id of its own.";
 
 /// Where a keys file from before accounts is kept, as it was, once it's upgraded.
 pub const BEFORE_ACCOUNTS: &str = "identity.v1.json";
@@ -609,17 +617,18 @@ impl Identity {
     fn agent_keypair(&self, agent: &AgentId, persona: &str) -> Result<Keypair, String> {
         let mut keys = self.lock();
         let found = keys.agent_entry(agent, persona).map(|(entry, a)| (entry.clone(), Keypair::from_secret_hex(&a.secret)));
-        if let Some((_, Ok(k))) = found {
+        let removed = matches!(agent, AgentId::Local(_)) && keys.agent_entry(agent, "usual").is_some_and(|(_, a)| a.removed);
+        if let (Some((_, Ok(k))), false) = (found.clone(), removed) {
             return Ok(k);
         }
-        if matches!(agent, AgentId::Local(_)) && keys.agent_entry(agent, "usual").is_none() {
+        if matches!(agent, AgentId::Local(_)) && keys.agent_entry(agent, "usual").is_none_or(|(_, a)| a.removed) {
             return Err(NO_SUCH_LOCAL.into());
         }
         let entry = found.map(|(entry, _)| entry).unwrap_or_else(|| keys.new_entry(agent, persona));
         let seed = if persona == "usual" { agent.slot() } else { format!("{}@{persona}", agent.slot()) };
         let keypair = if self.seeded { Keypair::from_seed(&format!("agent {seed}")) } else { Keypair::generate() };
         let display = keys.agent_entry(agent, persona).and_then(|(_, a)| a.display.clone());
-        keys.agents.insert(entry, AgentRecord { secret: keypair.secret_hex(), persona: persona.into(), kind: agent.kind(), name: Some(agent.name().to_owned()), display });
+        keys.agents.insert(entry, AgentRecord { secret: keypair.secret_hex(), persona: persona.into(), kind: agent.kind(), name: Some(agent.name().to_owned()), display, removed: false });
         self.save(&keys);
         Ok(keypair)
     }
@@ -628,7 +637,6 @@ impl Identity {
     /// app's door directly, under an id and a name to call it by. Its slot
     /// is `local/<id>`, and its keys are its own: never a daemon agent's,
     /// whatever that one is called. Adding it again renames it.
-    #[allow(dead_code)] // tests; nothing on the page adds a local agent yet
     pub fn add_local(&self, id: &str, display: &str) -> Result<AgentId, String> {
         self.ready()?;
         let (id, display) = (id.trim(), display.trim());
@@ -641,6 +649,9 @@ impl Identity {
         let agent = AgentId::Local(id.to_owned());
         let mut keys = self.lock();
         let entry = keys.agent_entry(&agent, "usual").map(|(entry, _)| entry.clone());
+        if keys.agent_entry(&agent, "usual").is_some_and(|(_, a)| a.removed) {
+            return Err(LOCAL_ID_USED.into());
+        }
         match entry {
             Some(entry) => {
                 if let Some(a) = keys.agents.get_mut(&entry) {
@@ -650,16 +661,49 @@ impl Identity {
             None => {
                 let keypair = if self.seeded { Keypair::from_seed(&format!("agent {}", agent.slot())) } else { Keypair::generate() };
                 let entry = keys.new_entry(&agent, "usual");
-                keys.agents.insert(entry, AgentRecord { secret: keypair.secret_hex(), persona: "usual".into(), kind: AgentKind::Local, name: Some(id.to_owned()), display: Some(display.to_owned()) });
+                keys.agents.insert(entry, AgentRecord { secret: keypair.secret_hex(), persona: "usual".into(), kind: AgentKind::Local, name: Some(id.to_owned()), display: Some(display.to_owned()), removed: false });
             }
         }
         self.save(&keys);
         Ok(agent)
     }
 
-    /// Whether a local agent by this id has been added.
+    /// Whether a local agent by this id has been added, and not removed.
     pub fn is_local(&self, id: &str) -> bool {
-        self.lock().agent_entry(&AgentId::Local(id.to_owned()), "usual").is_some()
+        self.lock().agent_entry(&AgentId::Local(id.to_owned()), "usual").is_some_and(|(_, a)| !a.removed)
+    }
+
+    /// Whether no local agent, now or before, has ever had this id here.
+    pub fn local_id_free(&self, id: &str) -> bool {
+        let agent = AgentId::Local(id.to_owned());
+        let keys = self.lock();
+        !keys.agents.iter().any(|(entry, a)| a.agent(entry) == agent)
+    }
+
+    /// What a local agent you added is called; none once it's removed.
+    pub fn local_name(&self, id: &str) -> Option<String> {
+        let keys = self.lock();
+        keys.agent_entry(&AgentId::Local(id.to_owned()), "usual").filter(|(_, a)| !a.removed).map(|(_, a)| a.display.clone().unwrap_or_else(|| id.to_owned()))
+    }
+
+    /// Remove a local agent: it acts no more, under any of your names. Its
+    /// keys are kept, marked removed, so what it did before is still known
+    /// as your agent's, and its id is never given to another.
+    pub fn remove_local(&self, id: &str) -> Result<(), String> {
+        self.ready()?;
+        let agent = AgentId::Local(id.to_owned());
+        let mut keys = self.lock();
+        let entries: Vec<String> = keys.agents.iter().filter(|(entry, a)| a.agent(entry) == agent && !a.removed).map(|(entry, _)| entry.clone()).collect();
+        if entries.is_empty() {
+            return Err(NO_SUCH_LOCAL.into());
+        }
+        for entry in entries {
+            if let Some(a) = keys.agents.get_mut(&entry) {
+                a.removed = true;
+            }
+        }
+        self.save(&keys);
+        Ok(())
     }
 
     /// The key an agent already holds in a room, if it holds one there.
@@ -917,6 +961,28 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// A removed local agent acts no more and gets no new key, but its key is
+    /// still known as yours, and its id is never given to another.
+    #[test]
+    fn a_removed_local_agent_keeps_its_key_known_and_its_id_used() {
+        let dir = store::tests::folder("keys-remove-local");
+        let file = dir.join("identity.json");
+        let me = Identity::open(file.clone());
+        me.finish_first_run("maya", true).unwrap();
+        let local = me.add_local("claude", "Claude Code").unwrap();
+        let key = me.agent_in(&local, None).unwrap().key;
+        assert!(!me.local_id_free("claude") && me.local_id_free("other"));
+        me.remove_local("claude").unwrap();
+        assert!(!me.is_local("claude") && me.local_name("claude").is_none());
+        assert_eq!(me.agent_in(&local, None).unwrap_err(), NO_SUCH_LOCAL, "no key for it now");
+        assert_eq!(me.owner_of(&key).as_deref(), Some("Claude Code"), "what it did before is still your agent's");
+        assert_eq!(me.add_local("claude", "Someone new").unwrap_err(), LOCAL_ID_USED);
+        let again = Identity::open(file.clone());
+        assert!(!again.is_local("claude") && !again.local_id_free("claude"), "and so after a reopen");
+        assert_eq!(store::header(&file).map(|h| h.version), Some(3), "a file a build from before local agents leaves alone");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// A keys file from before local agents names agents only by entry,
     /// with no kind: each is read as the daemon agent it was.
     #[test]
@@ -924,7 +990,7 @@ mod tests {
         let dir = store::tests::folder("keys-agents-before-kinds");
         let file = dir.join("identity.json");
         let (usual, fresh, plain, helper) = (Keypair::generate(), Keypair::generate(), Keypair::generate(), Keypair::generate());
-        let old = json!({ "file": "keys", "version": store::KEYS.version, "data": {
+        let old = json!({ "file": "keys", "version": 2, "data": {
             "personas": [
                 { "id": "usual", "name": "maya", "secret": usual.secret_hex(), "created": Utc::now(), "usual": true },
                 { "id": "persona-2", "name": "lamp person", "secret": fresh.secret_hex(), "created": Utc::now(), "usual": false }

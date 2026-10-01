@@ -33,6 +33,8 @@ pub struct AppState {
     pub machines: Arc<dyn Machines>,
     pub spaces: Arc<dyn Spaces>,
     pub door: Arc<Door>,
+    /// The door served on this machine's loopback, for local agents you run yourself.
+    pub serve: Arc<crate::door_serve::DoorServe>,
     pub stand_in_host: Option<PathBuf>,
     /// Whether anything answers for the daemon, machines and rooms.
     pub network: bool,
@@ -183,6 +185,7 @@ impl AppState {
         }
         // An allowance lets an agent act without asking: a copy that can't save one starts with none.
         let door = Arc::new(Door::new(seams.spaces.clone(), identity.clone(), seams.daemon.clone(), held.then(|| data.join(ALLOWANCES_FILE))));
+        let serve = crate::door_serve::DoorServe::open(data.clone(), door.clone(), identity.clone(), held);
         let records_dir = data.join(RECORDS_DIR);
         if held {
             let _ = std::fs::create_dir_all(&records_dir);
@@ -193,6 +196,7 @@ impl AppState {
             machines: seams.machines,
             spaces: seams.spaces,
             door,
+            serve,
             stand_in_host: seams.stand_in_host,
             network: seams.network,
             scopes: Mutex::new(HashMap::new()),
@@ -305,6 +309,12 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("cards_watch", "Hear when an agent asks you something"),
     ("cards_answer", "Answer an agent's card"),
     ("door_tools", "What agents can do through the app (the agent door): a daemon agent, or a local one"),
+    ("local_agents_list", "The local agents you run yourself that reach the door on this machine"),
+    ("local_agents_add", "Add a local agent: its own keys and token, and the line that connects Claude Code to the door"),
+    ("local_agents_new_key", "Give a local agent a new token: the old one stops at once"),
+    ("local_agents_remove", "Remove a local agent: its token stops, and it acts no more"),
+    ("door_status", "Whether the door is listening on this machine, and on which port"),
+    ("agent_bring_in", "Let one of your local agents into a room you host"),
     ("machines_list", "List the machines the daemon can run on"),
     ("machines_add", "Add a machine: one you dial, or one that dials you"),
     ("machines_remove", "Remove a machine"),
@@ -1595,6 +1605,55 @@ pub fn door_tools(state: State<'_, AppState>, kind: Option<crate::identity::Agen
     state.door.tools(kind.unwrap_or_default()).tools.iter().map(Into::into).collect()
 }
 
+// --- the door on this machine, for local agents ---------------------------
+
+#[tauri::command]
+pub fn local_agents_list(state: State<'_, AppState>) -> Vec<LocalAgentView> {
+    state.serve.list()
+}
+
+/// Add a local agent you run yourself. Its token stays in its own file;
+/// what comes back names the helper that prints it, never the token.
+#[tauri::command]
+pub fn local_agents_add(state: State<'_, AppState>, name: String) -> Result<LocalAgentView, String> {
+    state.serve.add(&name)
+}
+
+#[tauri::command]
+pub fn local_agents_new_key(state: State<'_, AppState>, id: String) -> Result<LocalAgentView, String> {
+    state.serve.new_key(&id)
+}
+
+#[tauri::command]
+pub async fn local_agents_remove(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state.serve.remove(&id).await
+}
+
+#[tauri::command]
+pub fn door_status(state: State<'_, AppState>) -> DoorStatusView {
+    state.serve.status()
+}
+
+/// What bringing an agent into a room you don't host gets.
+pub const NOT_YOUR_ROOM: &str = "Only a room's host lets agents in, and you don't host that one.";
+
+#[tauri::command]
+pub async fn agent_bring_in(state: State<'_, AppState>, id: String, agent: String) -> Result<(), String> {
+    bring_in(&state, &id, &agent).await
+}
+
+/// Let one of your local agents into a room you host, tethered to who you are there.
+pub async fn bring_in(state: &AppState, room: &str, agent: &str) -> Result<(), String> {
+    if !state.identity.is_local(agent) {
+        return Err(crate::door_serve::NO_SUCH_AGENT.into());
+    }
+    let id = space_id(room);
+    if !state.spaces.list().await.iter().any(|e| e.id == id && e.mine) {
+        return Err(NOT_YOUR_ROOM.into());
+    }
+    admit_agent(state, &id, &crate::identity::AgentId::Local(agent.to_owned())).await
+}
+
 // --- machines (ours until the wire has them) -----------------------------
 
 fn machine(entry: ProviderEntry) -> MachineView {
@@ -2381,6 +2440,30 @@ mod tests {
             HostOutcome::Error { message } => assert_eq!(message, crate::absent::NOT_YET),
             other => panic!("{other:?}"),
         }
+    }
+
+    /// A local agent is brought into a room you host, tethered to you there;
+    /// not into one you don't, and no agent nobody added.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_local_agent_is_brought_only_into_a_room_you_host() {
+        let (state, _) = app("actions-bring-in");
+        let room = board(&state, "Workshop").await;
+        let a = local_agents_add_for_test(&state, "Claude Code");
+        assert_eq!(bring_in(&state, "someone-elses-room", &a.id).await.unwrap_err(), NOT_YOUR_ROOM);
+        assert_eq!(bring_in(&state, &room, "ghost").await.unwrap_err(), crate::door_serve::NO_SUCH_AGENT);
+        bring_in(&state, &room, &a.id).await.unwrap();
+        let key = state.identity.agent_key(&crate::identity::AgentId::Local(a.id.clone()), &room).unwrap();
+        let members: Vec<Value> = read_json(&state, &space_id(&room), program::MEMBERS).await.unwrap();
+        let you = state.identity.who_in(&room).unwrap();
+        let member = members.iter().find(|m| m["key"] == key.as_str()).expect("let in");
+        assert_eq!((member["is_agent"].clone(), member["name"].clone()), (json!(true), json!("Claude Code")));
+        assert!(member["agent_of_key"] == you.key.as_str() || member["agent_of_key"].as_str() == you.account.as_deref(), "{member}");
+        state.serve.remove(&a.id).await.unwrap();
+        assert_eq!(bring_in(&state, &room, &a.id).await.unwrap_err(), crate::door_serve::NO_SUCH_AGENT, "a removed agent is brought in nowhere");
+    }
+
+    fn local_agents_add_for_test(state: &AppState, name: &str) -> LocalAgentView {
+        state.serve.add(name).unwrap()
     }
 
     #[tokio::test]

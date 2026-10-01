@@ -1925,6 +1925,7 @@ name = "diverge-desktop"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "axum",
  "base64 0.22.1",
  "bip39",
  "chacha20poly1305",
@@ -1940,11 +1941,13 @@ dependencies = [
  "jaq-core",
  "jaq-json",
  "jaq-std",
+ "reqwest 0.12.28",
  "rmcp 3.1.2",
  "schemars 1.2.2",
  "serde",
  "serde_json",
  "sha2",
+ "subtle",
  "tauri",
  "tauri-build",
  "tokio",

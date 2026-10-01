@@ -45,7 +45,10 @@ pub struct Format {
 
 /// Your keys: your account, personas and your agents' keys. Version 2
 /// added the account; a version 1 file reads as one with no account yet.
-pub const KEYS: Format = Format { name: "keys", version: 2, keep_previous: true };
+/// Version 3 added local agents (an agent's kind, its display name, and
+/// whether it was removed): a build from before reads a version 3 file as
+/// newer and leaves it alone, never dropping them.
+pub const KEYS: Format = Format { name: "keys", version: 3, keep_previous: true };
 /// Each key's last counter. Never behind the clock, so losing it locks nobody out.
 pub const COUNTERS: Format = Format { name: "counters", version: 1, keep_previous: false };
 /// Your agents' allowances, room by room.
@@ -61,9 +64,13 @@ pub const THREADS: Format = Format { name: "threads", version: 1, keep_previous:
 /// Your copy of one room's record.
 pub const RECORD_COPY: Format = Format { name: "record copy", version: 1, keep_previous: true };
 
+/// The local agents the door is served to: each one's token, as a sha256,
+/// and the port the door was given once.
+pub const DOOR_AGENTS: Format = Format { name: "door agents", version: 1, keep_previous: true };
+
 /// Every kind of file the app itself keeps (the stand-in keeps two more of its own).
 #[allow(dead_code)] // read by the test that every kind has words on screen
-pub const FORMATS: &[Format] = &[KEYS, COUNTERS, ALLOWANCES, VIEWS, MACHINE_NAMES, AGENT_MOUNTS, THREADS, RECORD_COPY];
+pub const FORMATS: &[Format] = &[KEYS, COUNTERS, ALLOWANCES, VIEWS, MACHINE_NAMES, AGENT_MOUNTS, THREADS, RECORD_COPY, DOOR_AGENTS];
 
 /// Why a file can't be used.
 #[derive(Debug, Clone, PartialEq, Eq)]

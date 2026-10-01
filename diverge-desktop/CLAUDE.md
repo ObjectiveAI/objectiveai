@@ -118,7 +118,8 @@ inherits it.
   person; nothing times out, but a card whose caller stops waiting (the call's cancellation) is withdrawn
   (`CardEvent::Withdrawn`) and a late answer does nothing.
   - Two kinds of agent (`identity::AgentId`): the daemon's, by name, and local ones you already run yourself, added
-    with an id (`Identity::add_local`; nothing on the page adds one yet). A slot names one agent: a daemon agent's name
+    with an id (`Identity::add_local`, from Machines → "Agents you run yourself"). A removed local agent's keys stay,
+    marked removed: its past moves are still your agent's, it gets no new key, and its id is never reused. A slot names one agent: a daemon agent's name
     (`daemon/<name>` if it starts like a slot), or `local/<id>`. Keys are found by kind, name and persona, never by an
     entry's name, so agents of two kinds never share a key.
   - The door answers only agents it knows (the daemon's list, asked again on a miss, and the local ones added) and
@@ -127,9 +128,16 @@ inherits it.
   - A local agent can't ask for a key (`door_tools` lists tools per kind), and room text reaches it framed as other
     people's words, the frame marked with a digest of the text so nothing inside can close it. A room's refusal is room
     text too: it comes back as a refused result, framed.
-  - Known limit: the keys file's version didn't change when agent records gained a kind and a display name. A build
-    from before then reads the file as its own and, writing it back, drops them, so a local agent's entry would read
-    as a daemon agent's. Bump the keys version before anything on the page adds a local agent.
+  - The keys file is version 3 since local agents: a build from before reads it as newer and leaves it alone.
+  - **The door served on this Mac** (`src-tauri/src/door_serve.rs`): an rmcp server over Streamable HTTP on
+    127.0.0.1, on a port picked once and kept in `door_agents.json` (never moved; taken → `door_status` says so). It
+    listens only while a local agent is added, and only in the copy holding its folder. Each local agent has a token
+    in `door/<id>.token` (0600) and a helper `door/<id>-headers` (0700) that prints the header; the app keeps only
+    the sha256, compared in constant time. The caller is whichever token matched, never what the client says; a
+    session is its opener's. Any `Origin` → 403; rmcp keeps `Host` to the loopback names. A new key stops the old one
+    at once and withdraws its waiting cards. `local_agents_add` returns the Claude Code `add-json` line, naming the
+    helper, never the token. Measured: a client's `notifications/cancelled`, or ending its session, withdraws a
+    waiting card; a client that drops a request and says nothing leaves the card up.
 - **The reporter** (`src-tauri/src/reporter.rs`): when an agent's run ends it `report`s to the person's Home, with the
   run's words only while Home is theirs alone.
 - **The stand-in keeps its rooms** between launches (`tables/.stand-in-rooms.json`), rebuilt by replaying their

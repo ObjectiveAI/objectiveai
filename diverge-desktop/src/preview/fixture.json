@@ -219,6 +219,30 @@
       "does": "What agents can do through the app (the agent door): a daemon agent, or a local one"
     },
     {
+      "name": "local_agents_list",
+      "does": "The local agents you run yourself that reach the door on this machine"
+    },
+    {
+      "name": "local_agents_add",
+      "does": "Add a local agent: its own keys and token, and the line that connects Claude Code to the door"
+    },
+    {
+      "name": "local_agents_new_key",
+      "does": "Give a local agent a new token: the old one stops at once"
+    },
+    {
+      "name": "local_agents_remove",
+      "does": "Remove a local agent: its token stops, and it acts no more"
+    },
+    {
+      "name": "door_status",
+      "does": "Whether the door is listening on this machine, and on which port"
+    },
+    {
+      "name": "agent_bring_in",
+      "does": "Let one of your local agents into a room you host"
+    },
+    {
       "name": "machines_list",
       "does": "List the machines the daemon can run on"
     },
@@ -3794,9 +3818,9 @@
       "name": "site-fixes",
       "image_name": "diverge-agentic-loop-cc",
       "digest": "unbuilt",
-      "created": "2026-10-01T05:37:31.088552+00:00",
+      "created": "2026-10-01T05:48:38.294151+00:00",
       "active": true,
-      "last_active": "2026-10-01T06:17:11.088552+00:00",
+      "last_active": "2026-10-01T06:28:18.294151+00:00",
       "provider": {
         "kind": "outgoing",
         "address": "127.0.0.1:4640"
@@ -3808,9 +3832,9 @@
       "name": "research-notes",
       "image_name": "diverge-agentic-loop-hermes",
       "digest": "unbuilt",
-      "created": "2026-09-29T06:17:31.088552+00:00",
+      "created": "2026-09-29T06:28:38.294151+00:00",
       "active": false,
-      "last_active": "2026-09-30T10:17:36.840552+00:00",
+      "last_active": "2026-09-30T10:28:44.046151+00:00",
       "provider": {
         "kind": "outgoing",
         "address": "127.0.0.1:4640"
@@ -3822,9 +3846,9 @@
       "name": "broken-loop",
       "image_name": "diverge-agentic-loop-openrouter",
       "digest": "unbuilt",
-      "created": "2026-10-01T00:17:31.088552+00:00",
+      "created": "2026-10-01T00:28:38.294151+00:00",
       "active": false,
-      "last_active": "2026-10-01T01:17:35.088552+00:00",
+      "last_active": "2026-10-01T01:28:42.294151+00:00",
       "provider": {
         "kind": "incoming_unbrokered",
         "identity": "studio-pc"
@@ -3837,7 +3861,7 @@
     "broken-loop": [
       {
         "logs_index": 1,
-        "created": "2026-10-01T01:17:31.088552+00:00",
+        "created": "2026-10-01T01:28:38.294151+00:00",
         "item": {
           "kind": "user_text",
           "key": "m2",
@@ -3846,7 +3870,7 @@
       },
       {
         "logs_index": 2,
-        "created": "2026-10-01T01:17:31.088552+00:00",
+        "created": "2026-10-01T01:28:38.294151+00:00",
         "item": {
           "kind": "active",
           "provider": {
@@ -3857,7 +3881,7 @@
       },
       {
         "logs_index": 3,
-        "created": "2026-10-01T01:17:33.088552+00:00",
+        "created": "2026-10-01T01:28:40.294151+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3866,7 +3890,7 @@
       },
       {
         "logs_index": 4,
-        "created": "2026-10-01T01:17:35.088552+00:00",
+        "created": "2026-10-01T01:28:42.294151+00:00",
         "item": {
           "kind": "error",
           "message": "the upstream refused the request: no API key for it in the vault"
@@ -3874,7 +3898,7 @@
       },
       {
         "logs_index": 5,
-        "created": "2026-10-01T01:17:35.088552+00:00",
+        "created": "2026-10-01T01:28:42.294151+00:00",
         "item": {
           "kind": "inactive",
           "provider": {
@@ -3887,7 +3911,7 @@
     "research-notes": [
       {
         "logs_index": 1,
-        "created": "2026-09-30T10:17:31.088552+00:00",
+        "created": "2026-09-30T10:28:38.294151+00:00",
         "item": {
           "kind": "user_text",
           "key": "m1",
@@ -3896,7 +3920,7 @@
       },
       {
         "logs_index": 2,
-        "created": "2026-09-30T10:17:31.088552+00:00",
+        "created": "2026-09-30T10:28:38.294151+00:00",
         "item": {
           "kind": "active",
           "provider": {
@@ -3907,7 +3931,7 @@
       },
       {
         "logs_index": 3,
-        "created": "2026-09-30T10:17:31.228552+00:00",
+        "created": "2026-09-30T10:28:38.434151+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3916,7 +3940,7 @@
       },
       {
         "logs_index": 4,
-        "created": "2026-09-30T10:17:31.270552+00:00",
+        "created": "2026-09-30T10:28:38.476151+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3925,7 +3949,7 @@
       },
       {
         "logs_index": 5,
-        "created": "2026-09-30T10:17:31.319552+00:00",
+        "created": "2026-09-30T10:28:38.525151+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3934,7 +3958,7 @@
       },
       {
         "logs_index": 6,
-        "created": "2026-09-30T10:17:31.375552+00:00",
+        "created": "2026-09-30T10:28:38.581151+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3943,7 +3967,7 @@
       },
       {
         "logs_index": 7,
-        "created": "2026-09-30T10:17:31.438552+00:00",
+        "created": "2026-09-30T10:28:38.644151+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3952,7 +3976,7 @@
       },
       {
         "logs_index": 8,
-        "created": "2026-09-30T10:17:31.508552+00:00",
+        "created": "2026-09-30T10:28:38.714151+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3961,7 +3985,7 @@
       },
       {
         "logs_index": 9,
-        "created": "2026-09-30T10:17:31.545552+00:00",
+        "created": "2026-09-30T10:28:38.751151+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -3970,7 +3994,7 @@
       },
       {
         "logs_index": 10,
-        "created": "2026-09-30T10:17:32.045552+00:00",
+        "created": "2026-09-30T10:28:39.251151+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -3981,7 +4005,7 @@
       },
       {
         "logs_index": 11,
-        "created": "2026-09-30T10:17:32.745552+00:00",
+        "created": "2026-09-30T10:28:39.951151+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -3992,7 +4016,7 @@
       },
       {
         "logs_index": 12,
-        "created": "2026-09-30T10:17:33.245552+00:00",
+        "created": "2026-09-30T10:28:40.451151+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4003,7 +4027,7 @@
       },
       {
         "logs_index": 13,
-        "created": "2026-09-30T10:17:34.445552+00:00",
+        "created": "2026-09-30T10:28:41.651151+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4014,7 +4038,7 @@
       },
       {
         "logs_index": 14,
-        "created": "2026-09-30T10:17:34.665552+00:00",
+        "created": "2026-09-30T10:28:41.871151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4023,7 +4047,7 @@
       },
       {
         "logs_index": 15,
-        "created": "2026-09-30T10:17:34.727552+00:00",
+        "created": "2026-09-30T10:28:41.933151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4032,7 +4056,7 @@
       },
       {
         "logs_index": 16,
-        "created": "2026-09-30T10:17:34.796552+00:00",
+        "created": "2026-09-30T10:28:42.002151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4041,7 +4065,7 @@
       },
       {
         "logs_index": 17,
-        "created": "2026-09-30T10:17:34.872552+00:00",
+        "created": "2026-09-30T10:28:42.078151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4050,7 +4074,7 @@
       },
       {
         "logs_index": 18,
-        "created": "2026-09-30T10:17:34.955552+00:00",
+        "created": "2026-09-30T10:28:42.161151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4059,7 +4083,7 @@
       },
       {
         "logs_index": 19,
-        "created": "2026-09-30T10:17:35.045552+00:00",
+        "created": "2026-09-30T10:28:42.251151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4068,7 +4092,7 @@
       },
       {
         "logs_index": 20,
-        "created": "2026-09-30T10:17:35.102552+00:00",
+        "created": "2026-09-30T10:28:42.308151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4077,7 +4101,7 @@
       },
       {
         "logs_index": 21,
-        "created": "2026-09-30T10:17:35.166552+00:00",
+        "created": "2026-09-30T10:28:42.372151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4086,7 +4110,7 @@
       },
       {
         "logs_index": 22,
-        "created": "2026-09-30T10:17:35.237552+00:00",
+        "created": "2026-09-30T10:28:42.443151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4095,7 +4119,7 @@
       },
       {
         "logs_index": 23,
-        "created": "2026-09-30T10:17:35.315552+00:00",
+        "created": "2026-09-30T10:28:42.521151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4104,7 +4128,7 @@
       },
       {
         "logs_index": 24,
-        "created": "2026-09-30T10:17:35.400552+00:00",
+        "created": "2026-09-30T10:28:42.606151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4113,7 +4137,7 @@
       },
       {
         "logs_index": 25,
-        "created": "2026-09-30T10:17:35.492552+00:00",
+        "created": "2026-09-30T10:28:42.698151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4122,7 +4146,7 @@
       },
       {
         "logs_index": 26,
-        "created": "2026-09-30T10:17:35.551552+00:00",
+        "created": "2026-09-30T10:28:42.757151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4131,7 +4155,7 @@
       },
       {
         "logs_index": 27,
-        "created": "2026-09-30T10:17:35.617552+00:00",
+        "created": "2026-09-30T10:28:42.823151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4140,7 +4164,7 @@
       },
       {
         "logs_index": 28,
-        "created": "2026-09-30T10:17:35.690552+00:00",
+        "created": "2026-09-30T10:28:42.896151+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4149,7 +4173,7 @@
       },
       {
         "logs_index": 29,
-        "created": "2026-09-30T10:17:35.840552+00:00",
+        "created": "2026-09-30T10:28:43.046151+00:00",
         "item": {
           "kind": "usage",
           "prompt_tokens": 470,
@@ -4159,7 +4183,7 @@
       },
       {
         "logs_index": 30,
-        "created": "2026-09-30T10:17:36.840552+00:00",
+        "created": "2026-09-30T10:28:44.046151+00:00",
         "item": {
           "kind": "inactive",
           "provider": {
@@ -4172,7 +4196,7 @@
     "site-fixes": [
       {
         "logs_index": 1,
-        "created": "2026-10-01T06:17:11.088552+00:00",
+        "created": "2026-10-01T06:28:18.294151+00:00",
         "item": {
           "kind": "user_text",
           "key": "m3",
@@ -4181,7 +4205,7 @@
       },
       {
         "logs_index": 2,
-        "created": "2026-10-01T06:17:11.088552+00:00",
+        "created": "2026-10-01T06:28:18.294151+00:00",
         "item": {
           "kind": "active",
           "provider": {
@@ -4192,7 +4216,7 @@
       },
       {
         "logs_index": 3,
-        "created": "2026-10-01T06:17:31.276138+00:00",
+        "created": "2026-10-01T06:28:38.452292+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4201,7 +4225,7 @@
       },
       {
         "logs_index": 4,
-        "created": "2026-10-01T06:17:31.276147+00:00",
+        "created": "2026-10-01T06:28:38.452300+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4210,7 +4234,7 @@
       },
       {
         "logs_index": 5,
-        "created": "2026-10-01T06:17:31.276166+00:00",
+        "created": "2026-10-01T06:28:38.452319+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4219,7 +4243,7 @@
       },
       {
         "logs_index": 6,
-        "created": "2026-10-01T06:17:31.276185+00:00",
+        "created": "2026-10-01T06:28:38.452339+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4228,7 +4252,7 @@
       },
       {
         "logs_index": 7,
-        "created": "2026-10-01T06:17:31.276202+00:00",
+        "created": "2026-10-01T06:28:38.452356+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4239,7 +4263,7 @@
       },
       {
         "logs_index": 8,
-        "created": "2026-10-01T06:17:31.276219+00:00",
+        "created": "2026-10-01T06:28:38.452373+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4250,7 +4274,7 @@
       },
       {
         "logs_index": 9,
-        "created": "2026-10-01T06:17:31.276237+00:00",
+        "created": "2026-10-01T06:28:38.452391+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4259,7 +4283,7 @@
       },
       {
         "logs_index": 10,
-        "created": "2026-10-01T06:17:31.276254+00:00",
+        "created": "2026-10-01T06:28:38.452409+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4268,7 +4292,7 @@
       },
       {
         "logs_index": 11,
-        "created": "2026-10-01T06:17:31.276258+00:00",
+        "created": "2026-10-01T06:28:38.452414+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4277,7 +4301,7 @@
       },
       {
         "logs_index": 12,
-        "created": "2026-10-01T06:17:31.276274+00:00",
+        "created": "2026-10-01T06:28:38.452430+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4286,7 +4310,7 @@
       },
       {
         "logs_index": 13,
-        "created": "2026-10-01T06:17:31.276302+00:00",
+        "created": "2026-10-01T06:28:38.452458+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4295,7 +4319,7 @@
       },
       {
         "logs_index": 14,
-        "created": "2026-10-01T06:17:31.276318+00:00",
+        "created": "2026-10-01T06:28:38.452474+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4306,7 +4330,7 @@
       },
       {
         "logs_index": 15,
-        "created": "2026-10-01T06:17:31.276347+00:00",
+        "created": "2026-10-01T06:28:38.452503+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4317,7 +4341,7 @@
       },
       {
         "logs_index": 16,
-        "created": "2026-10-01T06:17:31.276363+00:00",
+        "created": "2026-10-01T06:28:38.452519+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4326,7 +4350,7 @@
       },
       {
         "logs_index": 17,
-        "created": "2026-10-01T06:17:31.276379+00:00",
+        "created": "2026-10-01T06:28:38.452535+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4335,7 +4359,7 @@
       },
       {
         "logs_index": 18,
-        "created": "2026-10-01T06:17:31.276396+00:00",
+        "created": "2026-10-01T06:28:38.452553+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4344,7 +4368,7 @@
       },
       {
         "logs_index": 19,
-        "created": "2026-10-01T06:17:31.276412+00:00",
+        "created": "2026-10-01T06:28:38.452569+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4353,7 +4377,7 @@
       },
       {
         "logs_index": 20,
-        "created": "2026-10-01T06:17:31.276439+00:00",
+        "created": "2026-10-01T06:28:38.452597+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4362,7 +4386,7 @@
       },
       {
         "logs_index": 21,
-        "created": "2026-10-01T06:17:31.276455+00:00",
+        "created": "2026-10-01T06:28:38.452614+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4373,7 +4397,7 @@
       },
       {
         "logs_index": 22,
-        "created": "2026-10-01T06:17:31.276484+00:00",
+        "created": "2026-10-01T06:28:38.452642+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4384,7 +4408,7 @@
       },
       {
         "logs_index": 23,
-        "created": "2026-10-01T06:17:31.276502+00:00",
+        "created": "2026-10-01T06:28:38.452658+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4393,7 +4417,7 @@
       },
       {
         "logs_index": 24,
-        "created": "2026-10-01T06:17:31.276506+00:00",
+        "created": "2026-10-01T06:28:38.452662+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4402,7 +4426,7 @@
       },
       {
         "logs_index": 25,
-        "created": "2026-10-01T06:17:31.276522+00:00",
+        "created": "2026-10-01T06:28:38.452678+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4411,7 +4435,7 @@
       },
       {
         "logs_index": 26,
-        "created": "2026-10-01T06:17:31.276541+00:00",
+        "created": "2026-10-01T06:28:38.452695+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4420,7 +4444,7 @@
       },
       {
         "logs_index": 27,
-        "created": "2026-10-01T06:17:31.276569+00:00",
+        "created": "2026-10-01T06:28:38.452726+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4429,7 +4453,7 @@
       },
       {
         "logs_index": 28,
-        "created": "2026-10-01T06:17:31.276586+00:00",
+        "created": "2026-10-01T06:28:38.452743+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4440,7 +4464,7 @@
       },
       {
         "logs_index": 29,
-        "created": "2026-10-01T06:17:31.276614+00:00",
+        "created": "2026-10-01T06:28:38.452774+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4451,7 +4475,7 @@
       },
       {
         "logs_index": 30,
-        "created": "2026-10-01T06:17:31.276631+00:00",
+        "created": "2026-10-01T06:28:38.452790+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4460,7 +4484,7 @@
       },
       {
         "logs_index": 31,
-        "created": "2026-10-01T06:17:31.276647+00:00",
+        "created": "2026-10-01T06:28:38.452806+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4469,7 +4493,7 @@
       },
       {
         "logs_index": 32,
-        "created": "2026-10-01T06:17:31.276663+00:00",
+        "created": "2026-10-01T06:28:38.452822+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4478,7 +4502,7 @@
       },
       {
         "logs_index": 33,
-        "created": "2026-10-01T06:17:31.276679+00:00",
+        "created": "2026-10-01T06:28:38.452838+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4487,7 +4511,7 @@
       },
       {
         "logs_index": 34,
-        "created": "2026-10-01T06:17:31.276710+00:00",
+        "created": "2026-10-01T06:28:38.452869+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4496,7 +4520,7 @@
       },
       {
         "logs_index": 35,
-        "created": "2026-10-01T06:17:31.276727+00:00",
+        "created": "2026-10-01T06:28:38.452885+00:00",
         "item": {
           "kind": "tool_call",
           "parent": null,
@@ -4507,7 +4531,7 @@
       },
       {
         "logs_index": 36,
-        "created": "2026-10-01T06:17:31.276743+00:00",
+        "created": "2026-10-01T06:28:38.452901+00:00",
         "item": {
           "kind": "tool_response",
           "parent": null,
@@ -4518,7 +4542,7 @@
       },
       {
         "logs_index": 37,
-        "created": "2026-10-01T06:17:31.276760+00:00",
+        "created": "2026-10-01T06:28:38.452917+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4527,7 +4551,7 @@
       },
       {
         "logs_index": 38,
-        "created": "2026-10-01T06:17:31.276764+00:00",
+        "created": "2026-10-01T06:28:38.452921+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4536,7 +4560,7 @@
       },
       {
         "logs_index": 39,
-        "created": "2026-10-01T06:17:31.276780+00:00",
+        "created": "2026-10-01T06:28:38.452936+00:00",
         "item": {
           "kind": "reasoning",
           "parent": null,
@@ -4545,7 +4569,7 @@
       },
       {
         "logs_index": 40,
-        "created": "2026-10-01T06:17:31.276796+00:00",
+        "created": "2026-10-01T06:28:38.452952+00:00",
         "item": {
           "kind": "text",
           "parent": null,
@@ -4564,24 +4588,24 @@
         {
           "name": "datasets",
           "bytes": 34359738368,
-          "created": "2026-10-01T06:17:31+00:00",
+          "created": "2026-10-01T06:28:38+00:00",
           "mode": "read_only"
         },
         {
           "name": "scratch",
           "bytes": 1073741824,
-          "created": "2026-10-01T06:17:31+00:00",
+          "created": "2026-10-01T06:28:38+00:00",
           "mode": "ephemeral"
         },
         {
           "name": "workspace",
           "bytes": 8589934592,
-          "created": "2026-10-01T06:17:31+00:00",
+          "created": "2026-10-01T06:28:38+00:00",
           "mode": "persistent"
         }
       ],
       "volumes_problem": null,
-      "added": "2026-09-22T06:17:31.088552+00:00",
+      "added": "2026-09-22T06:28:38.294151+00:00",
       "name": null
     },
     {
@@ -4593,12 +4617,12 @@
         {
           "name": "media",
           "bytes": 17179869184,
-          "created": "2026-10-01T06:17:31+00:00",
+          "created": "2026-10-01T06:28:38+00:00",
           "mode": "persistent"
         }
       ],
       "volumes_problem": null,
-      "added": "2026-09-28T06:17:31.088552+00:00",
+      "added": "2026-09-28T06:28:38.294151+00:00",
       "name": null
     }
   ],
@@ -4618,7 +4642,7 @@
           "online": true,
           "you_are": "maya",
           "you_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-          "you_account": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+          "you_account": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
           "fresh": false
         },
         "charter": "# Your home\n\nWhat you're building, shown when you choose to. Friends may ask and answer. Your agents post what they finished.",
@@ -4629,8 +4653,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-10T10:17:31.190307Z",
-            "last_acted": "2026-10-01T03:07:31.190307Z",
+            "joined": "2026-09-10T10:28:38.370264Z",
+            "last_acted": "2026-10-01T03:18:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -4641,8 +4665,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-22T22:17:31.190307Z",
-            "last_acted": "2026-10-01T03:57:31.190307Z",
+            "joined": "2026-09-22T22:28:38.370264Z",
+            "last_acted": "2026-10-01T04:08:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -4653,7 +4677,7 @@
             "is_agent": true,
             "agent_of": "maya",
             "agent_of_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-            "joined": "2026-09-29T06:17:31.190307Z",
+            "joined": "2026-09-29T06:28:38.370264Z",
             "last_acted": null,
             "mark": null,
             "devices": [],
@@ -4665,8 +4689,8 @@
             "is_agent": true,
             "agent_of": "maya",
             "agent_of_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-            "joined": "2026-09-29T14:17:31.190307Z",
-            "last_acted": "2026-10-01T05:57:31.190307Z",
+            "joined": "2026-09-29T14:28:38.370264Z",
+            "last_acted": "2026-10-01T06:08:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": "site-fixes"
@@ -4955,7 +4979,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-22T22:17:31.190307Z",
+          "at": "2026-09-22T22:28:38.370264Z",
           "title": "ada",
           "body": "",
           "state": "said",
@@ -4964,7 +4988,7 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "f0d38a640cbbbb56c6ac28378fa4490c4018b44aeaa35382b0d511126e85abbb"
+          "hash": "e8a90b414a7307a04be6ed29796f701139a85410b3e8d62fee06209394e19d61"
         },
         {
           "id": "admitted-2",
@@ -4974,7 +4998,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-29T06:17:31.190307Z",
+          "at": "2026-09-29T06:28:38.370264Z",
           "title": "research-notes",
           "body": "",
           "state": "said",
@@ -4983,7 +5007,7 @@
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "508eff2ff34b0b06c629c2e4d68d3250d4e7895ee806fee13c105c74a6ee34c7"
+          "hash": "6217aa03782712f54a1b4cfffae0439cbcdcb243773c37308d1405f6bedb5993"
         },
         {
           "id": "admitted-3",
@@ -4993,7 +5017,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-29T14:17:31.190307Z",
+          "at": "2026-09-29T14:28:38.370264Z",
           "title": "site-fixes",
           "body": "",
           "state": "said",
@@ -5002,7 +5026,7 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "165fcd8e0bea333c85a641e2e5e1176a6ef8d95676760ed50629352f6cb714ff"
+          "hash": "51cb8d247bac36b915ad1255873b4eaf05ddc83df6b39f3e786c7e7d6d7337c4"
         },
         {
           "id": "show-4",
@@ -5012,14 +5036,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-30T04:17:31.190307Z",
+          "at": "2026-09-30T04:28:38.370264Z",
           "title": "Draft one of the desktop app runs",
           "body": "Agents, storage, machines and saved Views, on a stand-in for the daemon. Screenshots tomorrow.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "3d9f4b216fb23770",
-          "hash": "fbe28d082b973c484ef708eb8bf2bf75a950d0ae5c159225372e4a47423e3120"
+          "hash": "d8e301abbbc824b1cb04cc9ff23c31c21846ee890053e01100e85215007175d9"
         },
         {
           "id": "ask-5",
@@ -5029,7 +5053,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-10-01T03:07:31.190307Z",
+          "at": "2026-10-01T03:18:38.370264Z",
           "title": "Who has a GPU free on weekends?",
           "body": "",
           "state": "open",
@@ -5041,7 +5065,7 @@
             "offers": 1
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "9bb8c5740c4b033d7f7f1aedc80de7290e792fec456e302db0b73f80a3486720"
+          "hash": "eb5a9c42ce7ce6bffe90d7e05cb9a8b6aac6caa6600f261306dd5380228f8359"
         },
         {
           "id": "offer-6",
@@ -5051,14 +5075,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-10-01T03:57:31.190307Z",
+          "at": "2026-10-01T04:08:38.370264Z",
           "title": "Who has a GPU free on weekends?",
           "body": "Mine's free Saturday, the studio PC. Say when and I'll issue you a key.",
           "state": "offered",
           "parent": "ask-5",
           "fields": {},
           "charter": "3d9f4b216fb23770",
-          "hash": "02130c35e41f7ea878677f9e9a5e65dc639ec833741038787bf30f15cb1adca0"
+          "hash": "76caa4b8eadfdafec95b5b6dc2292c132d83d58dc82a555bf01f310d68650c28"
         },
         {
           "id": "run-7",
@@ -5068,7 +5092,7 @@
           "member": null,
           "erasable": false,
           "agent_of": "maya",
-          "at": "2026-10-01T05:57:31.190307Z",
+          "at": "2026-10-01T06:08:38.370264Z",
           "title": "Went through the site",
           "body": "12 passes. One broken link: “Archive” points at /old-page, which doesn't exist. Nothing changed.",
           "state": "done",
@@ -5077,7 +5101,7 @@
             "measured": "1,556 tokens"
           },
           "charter": "3d9f4b216fb23770",
-          "hash": "8ee5c9b6b0806a4cd3affc15c9710308bc5e4f136504082373e57ef4d978033a"
+          "hash": "24bdff18a2e05a6d3f4ee339f11268692ec402fc5f37f9ed82cf345c96781b7e"
         }
       ],
       "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImhvbWUtbWUuYTI4Y2Y1ZjI4MGU4Iiwic2VjcmV0IjoiaG9tZS1mcmllbmRzIiwidGl0bGUiOiJZb3VyIGhvbWUiLCJraW5kIjoiaG9tZSIsImhvc3RfbmFtZSI6Im1heWEiLCJjaGFydGVyIjoiIyBZb3VyIGhvbWVcblxuV2hhdCB5b3UncmUgYnVpbGRpbmcsIHNob3duIHdoZW4geW91IGNob29zZSB0by4gRnJpZW5kcyBtYXkgYXNrIGFuZCBhbnN3ZXIuIFlvdXIgYWdlbnRzIHBvc3Qgd2hhdCB0aGV5IGZpbmlzaGVkLiIsInZlcmJzIjpbeyJuYW1lIjoic2hvdyIsImRvZXMiOiJTaG93IHNvbWV0aGluZyB5b3UgbWFkZSBvciBkaWQuIFdoYXQgeW91IHNob3cgc3RheXMgYXMgc2hvd247IGEgbmV3IHZlcnNpb24gaXMgYSBuZXcgc2hvdy4ifSx7Im5hbWUiOiJhc2siLCJkb2VzIjoiQXNrIGZvciBzb21ldGhpbmcuIEFueW9uZSBoZXJlLCBhIHBlcnNvbiBvciBhbiBhZ2VudCwgbWF5IG9mZmVyIHRvIHNlcnZlIGl0LiJ9LHsibmFtZSI6Im9mZmVyIiwiZG9lcyI6Ik9mZmVyIHRvIHNlcnZlIGFuIGFzay4ifSx7Im5hbWUiOiJ0YWtlX29mZmVyIiwiZG9lcyI6IlRha2UgYW4gb2ZmZXIgb24geW91ciBhc2suIFRoZSBhc2sgaXMgdGFrZW47IG9uIGEgd29yayBib2FyZCB0aGUgb2ZmZXIgYmVjb21lcyBhIHRhc2sgd2hvZXZlciBvZmZlcmVkIGFscmVhZHkgaG9sZHMsIGFuZCBlbmRzIGluIGEgcmVjZWlwdCBsaWtlIGFueSBvdGhlci4ifSx7Im5hbWUiOiJjbG9zZV9hc2siLCJkb2VzIjoiQ2xvc2UgeW91ciBhc2s6IG5vYm9keSBjYW4gb2ZmZXIgb24gaXQgYW55IG1vcmUuIn0seyJuYW1lIjoicmVwbHkiLCJkb2VzIjoiUmVwbHkgdG8gYSBtb3ZlLiJ9LHsibmFtZSI6InJlcG9ydCIsImRvZXMiOiJSZXBvcnQgd2hhdCB5b3UgZmluaXNoZWQ6IGZvciBhbiBhZ2VudCwgd2hlbiBhIHJ1biBlbmRzLiJ9XX0"
@@ -5097,7 +5121,7 @@
           "online": true,
           "you_are": "maya",
           "you_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-          "you_account": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+          "you_account": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
           "fresh": false
         },
         "charter": "# Saturday Workshop\n\n## Rules\nShow what you're making, finished or not. Ask for help plainly. Be kind about other people's work.\n\n## Who does what\nThe **host** keeps the rules and accepts deliveries. **Members** post, claim and offer. **Guests** read.\n\n## Tasks\nA task has a title and a spec, fixed when it's posted. Claim it as posted; the spec is what gets checked. A pledge is words: both sides say when it's settled.\n\n## Receipts\nAccepting a delivery issues a receipt to whoever did the work, sealed by this room. It is a record, never a rating of a person.",
@@ -5108,8 +5132,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-10T10:17:31.190307Z",
-            "last_acted": "2026-09-30T08:17:31.190307Z",
+            "joined": "2026-09-10T10:28:38.370264Z",
+            "last_acted": "2026-09-30T08:28:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -5120,8 +5144,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-28T08:17:31.190307Z",
-            "last_acted": "2026-09-30T07:17:31.190307Z",
+            "joined": "2026-09-28T08:28:38.370264Z",
+            "last_acted": "2026-09-30T07:28:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -5132,7 +5156,7 @@
             "is_agent": true,
             "agent_of": "maya",
             "agent_of_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-            "joined": "2026-09-29T06:17:31.190307Z",
+            "joined": "2026-09-29T06:28:38.370264Z",
             "last_acted": null,
             "mark": null,
             "devices": [],
@@ -5144,7 +5168,7 @@
             "is_agent": true,
             "agent_of": "maya",
             "agent_of_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-            "joined": "2026-09-29T14:17:31.190307Z",
+            "joined": "2026-09-29T14:28:38.370264Z",
             "last_acted": null,
             "mark": null,
             "devices": [],
@@ -5557,7 +5581,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-28T08:17:31.190307Z",
+          "at": "2026-09-28T08:28:38.370264Z",
           "title": "ada",
           "body": "",
           "state": "said",
@@ -5566,7 +5590,7 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "726f695751ce60b0",
-          "hash": "5d5104319595ac3c2dfd04d31327a3f88f784362e08793fe4850898aa9b6c551"
+          "hash": "9990fab7165c537854f00f1d3c16aaa11a3af344f0d3df9231d9f67ffcc862e4"
         },
         {
           "id": "admitted-2",
@@ -5576,7 +5600,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-29T06:17:31.190307Z",
+          "at": "2026-09-29T06:28:38.370264Z",
           "title": "research-notes",
           "body": "",
           "state": "said",
@@ -5585,7 +5609,7 @@
             "key": "60f840f2bc48abf86cefb1d4c3f001f34fd6108cc5e859e0bd7c46e5e818b61a"
           },
           "charter": "726f695751ce60b0",
-          "hash": "44102ccd78296568db571981131e1a241621e40c2afe774c6931b13028bc0c14"
+          "hash": "b4841e7cb17058dda462f9b477e8ee9e7db74a4f717bb495e1599aaa234e67ef"
         },
         {
           "id": "admitted-3",
@@ -5595,7 +5619,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-29T14:17:31.190307Z",
+          "at": "2026-09-29T14:28:38.370264Z",
           "title": "site-fixes",
           "body": "",
           "state": "said",
@@ -5604,7 +5628,7 @@
             "key": "4f99d9d411190245a45a25093752ff53fb8f75292aac88d8ce8ae9e54e8080d7"
           },
           "charter": "726f695751ce60b0",
-          "hash": "56e483922df7e6c6929a217e7895c8c53335e7ab321357c0d60b5d3bb89a904f"
+          "hash": "7066340152a16fa760327d361a1f72b6e3a975d23b6dae88bb7fdf54cb1e8749"
         },
         {
           "id": "task-4",
@@ -5614,7 +5638,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-30T05:17:31.190307Z",
+          "at": "2026-09-30T05:28:38.370264Z",
           "title": "Package the photo resizer as a tool",
           "body": "A container that runs the resizer script as a tool with one `resize` verb. Done = an agent can call it on a folder and get the smaller copies back.",
           "state": "open",
@@ -5623,7 +5647,7 @@
             "pledge": "a loaf of the good bread"
           },
           "charter": "726f695751ce60b0",
-          "hash": "72280d314dbef80ac7d61a328ee62752f9c4edf6d1abcb144e770f7e7618f909"
+          "hash": "a16cfe01eae08fed3c426ac639948cfe1a315251c6c5c12095b2d026f46699a9"
         },
         {
           "id": "task-5",
@@ -5633,7 +5657,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-30T05:47:31.190307Z",
+          "at": "2026-09-30T05:58:38.370264Z",
           "title": "Write a README for the label printer script",
           "body": "What it does, how to run it, one example. Done = someone new can print a label from it.",
           "state": "claimed",
@@ -5643,7 +5667,7 @@
             "claimed_by_key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "726f695751ce60b0",
-          "hash": "f97949eb8ea9a2fefe6c10f0aa66df9ae8e9874776c1bdcd86573f2a6a7333cf"
+          "hash": "a996e07f78c88d6884c87394eb572a2ed5761559846056a289372aca42a524f3"
         },
         {
           "id": "claim-6",
@@ -5653,14 +5677,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-30T06:17:31.190307Z",
+          "at": "2026-09-30T06:28:38.370264Z",
           "title": "Write a README for the label printer script",
           "body": "",
           "state": "claimed",
           "parent": "task-5",
           "fields": {},
           "charter": "726f695751ce60b0",
-          "hash": "ae6d966453d4206c7e4af7addcc646983ff680a3cd35d2fc03fefd75dbf560c7"
+          "hash": "4e9099c87b3c8275349ffa674baa54d388ceb2f9d2a8aa850c78babc454e46ac"
         },
         {
           "id": "offering-7",
@@ -5670,7 +5694,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-30T07:17:31.190307Z",
+          "at": "2026-09-30T07:28:38.370264Z",
           "title": "Weekend GPU time on the studio PC",
           "body": "One card, 24 GB, Saturday and Sunday. Measured in seconds; friends free.",
           "state": "offered",
@@ -5680,7 +5704,7 @@
             "terms": "measured, not priced"
           },
           "charter": "726f695751ce60b0",
-          "hash": "f709c7c8e800e9a8423521beb929c6bb58d4335c3d6debe5a673882d79e01548"
+          "hash": "e4e5a71223919a00c0cc52da618c172e7780f507e9968ef2d47f777942b8c5d1"
         },
         {
           "id": "show-8",
@@ -5690,14 +5714,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-30T08:17:31.190307Z",
+          "at": "2026-09-30T08:28:38.370264Z",
           "title": "The desktop app, draft one",
           "body": "It runs: agents, storage, machines, saved views.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "726f695751ce60b0",
-          "hash": "046a796ab3bf31e32646ff8a2a3347da2d654a42f698c6516a0945b314f33958"
+          "hash": "a75feafc422fe5f4ab30852cd63037b7cc044839a1fe3be74ece9fc1797bb438"
         }
       ],
       "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImJvYXJkLXNhdHVyZGF5LmEyOGNmNWYyODBlOCIsInNlY3JldCI6InNhdHVyZGF5LTIwMjYiLCJ0aXRsZSI6IlNhdHVyZGF5IFdvcmtzaG9wIiwia2luZCI6ImJvYXJkIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiIjIFNhdHVyZGF5IFdvcmtzaG9wXG5cbiMjIFJ1bGVzXG5TaG93IHdoYXQgeW91J3JlIG1ha2luZywgZmluaXNoZWQgb3Igbm90LiBBc2sgZm9yIGhlbHAgcGxhaW5seS4gQmUga2luZCBhYm91dCBvdGhlciBwZW9wbGUncyB3b3JrLlxuXG4jIyBXaG8gZG9lcyB3aGF0XG5UaGUgKipob3N0Kioga2VlcHMgdGhlIHJ1bGVzIGFuZCBhY2NlcHRzIGRlbGl2ZXJpZXMuICoqTWVtYmVycyoqIHBvc3QsIGNsYWltIGFuZCBvZmZlci4gKipHdWVzdHMqKiByZWFkLlxuXG4jIyBUYXNrc1xuQSB0YXNrIGhhcyBhIHRpdGxlIGFuZCBhIHNwZWMsIGZpeGVkIHdoZW4gaXQncyBwb3N0ZWQuIENsYWltIGl0IGFzIHBvc3RlZDsgdGhlIHNwZWMgaXMgd2hhdCBnZXRzIGNoZWNrZWQuIEEgcGxlZGdlIGlzIHdvcmRzOiBib3RoIHNpZGVzIHNheSB3aGVuIGl0J3Mgc2V0dGxlZC5cblxuIyMgUmVjZWlwdHNcbkFjY2VwdGluZyBhIGRlbGl2ZXJ5IGlzc3VlcyBhIHJlY2VpcHQgdG8gd2hvZXZlciBkaWQgdGhlIHdvcmssIHNlYWxlZCBieSB0aGlzIHJvb20uIEl0IGlzIGEgcmVjb3JkLCBuZXZlciBhIHJhdGluZyBvZiBhIHBlcnNvbi4iLCJ2ZXJicyI6W3sibmFtZSI6InNob3ciLCJkb2VzIjoiU2hvdyBzb21ldGhpbmcgeW91IG1hZGUgb3IgZGlkLiBXaGF0IHlvdSBzaG93IHN0YXlzIGFzIHNob3duOyBhIG5ldyB2ZXJzaW9uIGlzIGEgbmV3IHNob3cuIn0seyJuYW1lIjoiYXNrIiwiZG9lcyI6IkFzayBmb3Igc29tZXRoaW5nLiBBbnlvbmUgaGVyZSwgYSBwZXJzb24gb3IgYW4gYWdlbnQsIG1heSBvZmZlciB0byBzZXJ2ZSBpdC4ifSx7Im5hbWUiOiJvZmZlciIsImRvZXMiOiJPZmZlciB0byBzZXJ2ZSBhbiBhc2suIn0seyJuYW1lIjoidGFrZV9vZmZlciIsImRvZXMiOiJUYWtlIGFuIG9mZmVyIG9uIHlvdXIgYXNrLiBUaGUgYXNrIGlzIHRha2VuOyBvbiBhIHdvcmsgYm9hcmQgdGhlIG9mZmVyIGJlY29tZXMgYSB0YXNrIHdob2V2ZXIgb2ZmZXJlZCBhbHJlYWR5IGhvbGRzLCBhbmQgZW5kcyBpbiBhIHJlY2VpcHQgbGlrZSBhbnkgb3RoZXIuIn0seyJuYW1lIjoiY2xvc2VfYXNrIiwiZG9lcyI6IkNsb3NlIHlvdXIgYXNrOiBub2JvZHkgY2FuIG9mZmVyIG9uIGl0IGFueSBtb3JlLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifSx7Im5hbWUiOiJwb3N0X3Rhc2siLCJkb2VzIjoiUG9zdCBhIHRhc2s6IGl0cyBzcGVjIGlzIGZpeGVkIGF0IHBvc3RpbmcsIGFuZCB3aG9ldmVyIGNsYWltcyBpdCBpcyBqdWRnZWQgb24gdGhlIHNwZWMuIn0seyJuYW1lIjoiY2xhaW0iLCJkb2VzIjoiQ2xhaW0gYW4gb3BlbiB0YXNrLiBZb3UgdGFrZSBpdCBhcyBwb3N0ZWQuIn0seyJuYW1lIjoiZGVsaXZlciIsImRvZXMiOiJEZWxpdmVyIG9uIGEgdGFzayB5b3UgY2xhaW1lZC4ifSx7Im5hbWUiOiJhY2NlcHQiLCJkb2VzIjoiQWNjZXB0IGEgZGVsaXZlcnk6IHRoZSB0YXNrIGlzIGRvbmUgYW5kIHRoZSByb29tIGlzc3VlcyBhIHJlY2VpcHQuIn0seyJuYW1lIjoic2V0dGxlIiwiZG9lcyI6IlNheSB3aGV0aGVyIGEgdGFzaydzIHBsZWRnZSBpcyBzZXR0bGVkLiBXaG9ldmVyIHBvc3RlZCBpdCBhbmQgd2hvZXZlciBkaWQgaXQgZWFjaCBzYXk7IGlmIHRoZXkgZGlzYWdyZWUsIGJvdGggc3RhbmQuIn0seyJuYW1lIjoicG9zdF9vZmZlcmluZyIsImRvZXMiOiJPZmZlciBzb21ldGhpbmcgeW91IHNlbGwgb3IgbGVuZDogYSBmaXhlZCB0aGluZywgb3IgYSBtZXRlcmVkIGNhcGFiaWxpdHkuIn1dfQ"
@@ -5717,7 +5741,7 @@
           "online": true,
           "you_are": "maya",
           "you_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-          "you_account": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+          "you_account": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
           "fresh": false
         },
         "charter": "# A zine for the neighbourhood\n\nPropose directions, steer them (prefer, reject, note), and write where it stands. Each round starts from the last synthesis.",
@@ -5728,8 +5752,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-10T10:17:31.190307Z",
-            "last_acted": "2026-09-29T15:17:31.190307Z",
+            "joined": "2026-09-10T10:28:38.370264Z",
+            "last_acted": "2026-09-29T15:28:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -5740,8 +5764,8 @@
             "is_agent": true,
             "agent_of": "ada",
             "agent_of_key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
-            "joined": "2026-09-27T17:17:31.190307Z",
-            "last_acted": "2026-09-29T00:17:31.190307Z",
+            "joined": "2026-09-27T17:28:38.370264Z",
+            "last_acted": "2026-09-29T00:28:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -5752,8 +5776,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-27T22:17:31.190307Z",
-            "last_acted": "2026-09-28T18:17:31.190307Z",
+            "joined": "2026-09-27T22:28:38.370264Z",
+            "last_acted": "2026-09-28T18:28:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -6084,7 +6108,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-27T17:17:31.190307Z",
+          "at": "2026-09-27T17:28:38.370264Z",
           "title": "scout",
           "body": "",
           "state": "said",
@@ -6093,7 +6117,7 @@
             "key": "f6413c87a5d109ac89f962c1b80521b2f402e844071397fa9858081d471bff11"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "240bac8de9ac299cd8cd14c5108b1a23e8ed3ecd6f0b6c846db8bebaf47eff20"
+          "hash": "c78fe15234a7bd0416191bf26bf56ddbb7003977638fd39e81485e5e923dd2d9"
         },
         {
           "id": "admitted-2",
@@ -6103,7 +6127,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-27T22:17:31.190307Z",
+          "at": "2026-09-27T22:28:38.370264Z",
           "title": "maya",
           "body": "",
           "state": "said",
@@ -6112,7 +6136,7 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "0b0f3ed1ef5624aa54f4e0148818dbba4352f275a5c385bc7b963efa2655494b"
+          "hash": "0c97af06b80eda33426156b0a8e9e76093da4476c4cc36bb053f1168ebf50908"
         },
         {
           "id": "direction-3",
@@ -6122,7 +6146,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-28T08:17:31.190307Z",
+          "at": "2026-09-28T08:28:38.370264Z",
           "title": "Recipes from every street",
           "body": "One page per street, cooked by whoever lives there.",
           "state": "open",
@@ -6131,7 +6155,7 @@
             "note": 1
           },
           "charter": "65418844c1d45a5a",
-          "hash": "3cdcd5e7015c0fc0f2380ef4bbae38f6badc238faebaf5ae2b00983083c9c5d2"
+          "hash": "3d3f81bdd7c0aa3366279c6bfbfc29c6d75d867638e2492ec9c9015425702e92"
         },
         {
           "id": "direction-4",
@@ -6141,7 +6165,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-28T18:17:31.190307Z",
+          "at": "2026-09-28T18:28:38.370264Z",
           "title": "A map drawn by kids",
           "body": "Hand-drawn, scanned, the centre spread.",
           "state": "open",
@@ -6150,7 +6174,7 @@
             "prefer": 1
           },
           "charter": "65418844c1d45a5a",
-          "hash": "e58687fda1bca94224359581068c721be653f3a43d2c8cfc0b21e19b140f9c9d"
+          "hash": "5bc38d7b3968e09171e2edb49774cd6c1586516480f735246b5252265501e38a"
         },
         {
           "id": "steer-5",
@@ -6160,7 +6184,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-28T23:17:31.190307Z",
+          "at": "2026-09-28T23:28:38.370264Z",
           "title": "A map drawn by kids",
           "body": "This is the one. Recipes can be issue two.",
           "state": "said",
@@ -6169,7 +6193,7 @@
             "move": "prefer"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "d15500f73e316986ce1c5915949e25022f53a4a751e17cf23f7e0202ad51c0aa"
+          "hash": "7029983df3cbb67ed89dc5127a40dc55b101b3fae1c1ec2e5abb830980ba9cb8"
         },
         {
           "id": "steer-6",
@@ -6179,7 +6203,7 @@
           "member": null,
           "erasable": false,
           "agent_of": "ada",
-          "at": "2026-09-29T00:17:31.190307Z",
+          "at": "2026-09-29T00:28:38.370264Z",
           "title": "Recipes from every street",
           "body": "Recipe zines are common; a map drawn by kids is rarer.",
           "state": "said",
@@ -6188,7 +6212,7 @@
             "move": "note"
           },
           "charter": "65418844c1d45a5a",
-          "hash": "1cdee45b2f025465413458de680616415948001e971096dfc5ae361851fee8f3"
+          "hash": "32ed7b572810384ba5134bf931aca75457c1bf1ba79f1d35c2279369a4a7ac71"
         },
         {
           "id": "synthesis-7",
@@ -6198,14 +6222,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-29T14:17:31.190307Z",
+          "at": "2026-09-29T14:28:38.370264Z",
           "title": "Where it stands",
           "body": "Issue one is the kids' map; recipes wait for issue two.",
           "state": "open",
           "parent": null,
           "fields": {},
           "charter": "65418844c1d45a5a",
-          "hash": "586624c6a87d8aba9fd3060776a285b957ccfc91b083ee67f014def872a36db3"
+          "hash": "658699ad123d57c8200c9e19f7ec3561b4c58ed1e72954dbc8411e080190a2a0"
         },
         {
           "id": "doorway-8",
@@ -6215,14 +6239,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-29T15:17:31.190307Z",
+          "at": "2026-09-29T15:28:38.370264Z",
           "title": "Saturday Workshop",
           "body": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImJvYXJkLXNhdHVyZGF5LmEyOGNmNWYyODBlOCIsInNlY3JldCI6InNhdHVyZGF5LTIwMjYiLCJ0aXRsZSI6IlNhdHVyZGF5IFdvcmtzaG9wIiwia2luZCI6ImJvYXJkIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiIjIFNhdHVyZGF5IFdvcmtzaG9wXG5cbiMjIFJ1bGVzXG5TaG93IHdoYXQgeW91J3JlIG1ha2luZywgZmluaXNoZWQgb3Igbm90LiBBc2sgZm9yIGhlbHAgcGxhaW5seS4gQmUga2luZCBhYm91dCBvdGhlciBwZW9wbGUncyB3b3JrLlxuXG4jIyBXaG8gZG9lcyB3aGF0XG5UaGUgKipob3N0Kioga2VlcHMgdGhlIHJ1bGVzIGFuZCBhY2NlcHRzIGRlbGl2ZXJpZXMuICoqTWVtYmVycyoqIHBvc3QsIGNsYWltIGFuZCBvZmZlci4gKipHdWVzdHMqKiByZWFkLlxuXG4jIyBUYXNrc1xuQSB0YXNrIGhhcyBhIHRpdGxlIGFuZCBhIHNwZWMsIGZpeGVkIHdoZW4gaXQncyBwb3N0ZWQuIENsYWltIGl0IGFzIHBvc3RlZDsgdGhlIHNwZWMgaXMgd2hhdCBnZXRzIGNoZWNrZWQuIEEgcGxlZGdlIGlzIHdvcmRzOiBib3RoIHNpZGVzIHNheSB3aGVuIGl0J3Mgc2V0dGxlZC5cblxuIyMgUmVjZWlwdHNcbkFjY2VwdGluZyBhIGRlbGl2ZXJ5IGlzc3VlcyBhIHJlY2VpcHQgdG8gd2hvZXZlciBkaWQgdGhlIHdvcmssIHNlYWxlZCBieSB0aGlzIHJvb20uIEl0IGlzIGEgcmVjb3JkLCBuZXZlciBhIHJhdGluZyBvZiBhIHBlcnNvbi4iLCJ2ZXJicyI6W3sibmFtZSI6InNob3ciLCJkb2VzIjoiU2hvdyBzb21ldGhpbmcgeW91IG1hZGUgb3IgZGlkLiBXaGF0IHlvdSBzaG93IHN0YXlzIGFzIHNob3duOyBhIG5ldyB2ZXJzaW9uIGlzIGEgbmV3IHNob3cuIn0seyJuYW1lIjoiYXNrIiwiZG9lcyI6IkFzayBmb3Igc29tZXRoaW5nLiBBbnlvbmUgaGVyZSwgYSBwZXJzb24gb3IgYW4gYWdlbnQsIG1heSBvZmZlciB0byBzZXJ2ZSBpdC4ifSx7Im5hbWUiOiJvZmZlciIsImRvZXMiOiJPZmZlciB0byBzZXJ2ZSBhbiBhc2suIn0seyJuYW1lIjoidGFrZV9vZmZlciIsImRvZXMiOiJUYWtlIGFuIG9mZmVyIG9uIHlvdXIgYXNrLiBUaGUgYXNrIGlzIHRha2VuOyBvbiBhIHdvcmsgYm9hcmQgdGhlIG9mZmVyIGJlY29tZXMgYSB0YXNrIHdob2V2ZXIgb2ZmZXJlZCBhbHJlYWR5IGhvbGRzLCBhbmQgZW5kcyBpbiBhIHJlY2VpcHQgbGlrZSBhbnkgb3RoZXIuIn0seyJuYW1lIjoiY2xvc2VfYXNrIiwiZG9lcyI6IkNsb3NlIHlvdXIgYXNrOiBub2JvZHkgY2FuIG9mZmVyIG9uIGl0IGFueSBtb3JlLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifSx7Im5hbWUiOiJwb3N0X3Rhc2siLCJkb2VzIjoiUG9zdCBhIHRhc2s6IGl0cyBzcGVjIGlzIGZpeGVkIGF0IHBvc3RpbmcsIGFuZCB3aG9ldmVyIGNsYWltcyBpdCBpcyBqdWRnZWQgb24gdGhlIHNwZWMuIn0seyJuYW1lIjoiY2xhaW0iLCJkb2VzIjoiQ2xhaW0gYW4gb3BlbiB0YXNrLiBZb3UgdGFrZSBpdCBhcyBwb3N0ZWQuIn0seyJuYW1lIjoiZGVsaXZlciIsImRvZXMiOiJEZWxpdmVyIG9uIGEgdGFzayB5b3UgY2xhaW1lZC4ifSx7Im5hbWUiOiJhY2NlcHQiLCJkb2VzIjoiQWNjZXB0IGEgZGVsaXZlcnk6IHRoZSB0YXNrIGlzIGRvbmUgYW5kIHRoZSByb29tIGlzc3VlcyBhIHJlY2VpcHQuIn0seyJuYW1lIjoic2V0dGxlIiwiZG9lcyI6IlNheSB3aGV0aGVyIGEgdGFzaydzIHBsZWRnZSBpcyBzZXR0bGVkLiBXaG9ldmVyIHBvc3RlZCBpdCBhbmQgd2hvZXZlciBkaWQgaXQgZWFjaCBzYXk7IGlmIHRoZXkgZGlzYWdyZWUsIGJvdGggc3RhbmQuIn0seyJuYW1lIjoicG9zdF9vZmZlcmluZyIsImRvZXMiOiJPZmZlciBzb21ldGhpbmcgeW91IHNlbGwgb3IgbGVuZDogYSBmaXhlZCB0aGluZywgb3IgYSBtZXRlcmVkIGNhcGFiaWxpdHkuIn1dfQ",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "65418844c1d45a5a",
-          "hash": "43d9876de19e380dcc54b0ab337c5908358585d2d83096c7d0a4368ab5994c0d"
+          "hash": "63b8cd7c8425e2d4ec38396b9e24227c29f3ff141296cd8044026dd322e4d638"
         }
       ],
       "invite": null
@@ -6242,7 +6266,7 @@
           "online": false,
           "you_are": "maya",
           "you_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-          "you_account": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+          "you_account": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
           "fresh": false
         },
         "charter": "# Tuesday repair café\n\nBring something broken. Post it as a task; whoever fixes it claims it. Pledges are words, settled between you.",
@@ -6253,8 +6277,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-10T10:17:31.190307Z",
-            "last_acted": "2026-09-17T02:17:31.190307Z",
+            "joined": "2026-09-10T10:28:38.370264Z",
+            "last_acted": "2026-09-17T02:28:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -6265,8 +6289,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-14T14:17:31.190307Z",
-            "last_acted": "2026-09-15T20:17:31.190307Z",
+            "joined": "2026-09-14T14:28:38.370264Z",
+            "last_acted": "2026-09-15T20:28:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -6284,7 +6308,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-14T14:17:31.190307Z",
+          "at": "2026-09-14T14:28:38.370264Z",
           "title": "maya",
           "body": "",
           "state": "said",
@@ -6293,7 +6317,7 @@
             "key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
           },
           "charter": "2bbccba23c8533ad",
-          "hash": "fc802796b514a1235dccb6111c3aa321a7a3133753bed499f87e962ab66669f8"
+          "hash": "d27a46be1a7ecc244488c51d66f87cad5c956f941dc64d00f55b126260882437"
         },
         {
           "id": "task-2",
@@ -6303,7 +6327,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-15T00:17:31.190307Z",
+          "at": "2026-09-15T00:28:38.370264Z",
           "title": "Fix the café's toaster",
           "body": "Both slots heat. Done = two slices, evenly brown.",
           "state": "done",
@@ -6314,7 +6338,7 @@
             "claimed_by_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
           },
           "charter": "2bbccba23c8533ad",
-          "hash": "ec9fa592d4598f8404163cdbe250ff03c9c5a9d2fe12223dd6c4970302c4b456"
+          "hash": "c720f208df3311be9b8a05658d60734a62d1f87e7b9f2fd8640f5b71da2d7499"
         },
         {
           "id": "claim-3",
@@ -6324,14 +6348,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-15T10:17:31.190307Z",
+          "at": "2026-09-15T10:28:38.370264Z",
           "title": "Fix the café's toaster",
           "body": "",
           "state": "claimed",
           "parent": "task-2",
           "fields": {},
           "charter": "2bbccba23c8533ad",
-          "hash": "a5b228e894fdf5082ee154870c1865dad8a4fbb2e19d919730dd6d04e18a7a8f"
+          "hash": "90fe8d74ada71dfa7b25967b99d5656fc0f0ae34d88157124127320ccdd18bf9"
         },
         {
           "id": "delivery-4",
@@ -6341,14 +6365,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-15T20:17:31.190307Z",
+          "at": "2026-09-15T20:28:38.370264Z",
           "title": "Fix the café's toaster",
           "body": "New element in the left slot. Both slots heat now.",
           "state": "delivered",
           "parent": "task-2",
           "fields": {},
           "charter": "2bbccba23c8533ad",
-          "hash": "06d3a2275e2241f22c85c55771278ac3937506b089b63642943d9ec65650e5f7"
+          "hash": "9c5fd2894e9942aca5a6a46fe8a7c67928a9eeda6093b895cf847ff3ab28d974"
         },
         {
           "id": "receipt-5",
@@ -6358,7 +6382,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-15T21:17:31.190307Z",
+          "at": "2026-09-15T21:28:38.370264Z",
           "title": "Fix the café's toaster",
           "body": "Completed: Fix the café's toaster",
           "state": "issued",
@@ -6376,14 +6400,14 @@
                 "to": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
                 "to_name": "maya",
                 "to_person": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-                "issued": "2026-09-15T21:17:31.190307Z"
+                "issued": "2026-09-15T21:28:38.370264Z"
               },
               "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025",
-              "sig": "888c86c2964ca8a5f08c5383a4cb40a7967a6460ec42c3d0847bc097bffb866a7321470d9aa32149ef2aadd0e60f16bcb0851c7dc07f98dbebc7687e65814a09"
+              "sig": "787174d2bcfd6bf1e35ffc745cdbb9cde665661db0ce10e7862df5d790263178654e0f42036f66e3223f4e44f74e077bbb32e605da188213ee8a5a031651370a"
             }
           },
           "charter": "2bbccba23c8533ad",
-          "hash": "9adcf8c86ebf978e8a9206327e491630d37e567b64a83b387d953749a97e9198"
+          "hash": "80b9a5d02f250ed39ebe25aab873507ad440bb1abc9ed34427593788df05d1ca"
         },
         {
           "id": "show-6",
@@ -6393,14 +6417,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-17T02:17:31.190307Z",
+          "at": "2026-09-17T02:28:38.370264Z",
           "title": "Last Tuesday of the season",
           "body": "Thanks all. I'm moving the café to my new machine soon.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "2bbccba23c8533ad",
-          "hash": "e8a19dd4f8d9357ada157623e40084175e00d38ac6d4973e64b799d0b69d5547"
+          "hash": "a7a8dd079caa847a93be8e692a36db7f70958f053a08ad5c465a95b8ab158232"
         }
       ],
       "invite": null,
@@ -6421,7 +6445,7 @@
           "online": true,
           "you_are": "maya",
           "you_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-          "you_account": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+          "you_account": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
           "fresh": false
         },
         "charter": "Two people. Nothing leaves this room.",
@@ -6432,8 +6456,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-10T10:17:31.190307Z",
-            "last_acted": "2026-10-01T01:27:31.190307Z",
+            "joined": "2026-09-10T10:28:38.370264Z",
+            "last_acted": "2026-10-01T01:38:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -6444,8 +6468,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-22T22:17:31.190307Z",
-            "last_acted": "2026-10-01T01:37:31.190307Z",
+            "joined": "2026-09-22T22:28:38.370264Z",
+            "last_acted": "2026-10-01T01:48:38.370264Z",
             "mark": null,
             "devices": [],
             "slot": null
@@ -6587,7 +6611,7 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-22T22:17:31.190307Z",
+          "at": "2026-09-22T22:28:38.370264Z",
           "title": "ada",
           "body": "",
           "state": "said",
@@ -6596,7 +6620,7 @@
             "key": "94830e1f53e14720123f4890898a21c6eb04e8c3992998f8df79162716276025"
           },
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "47f447f4963b1fc1928b53f9ba839d7c6233e5b11d65609a55fc5d871cd68a19"
+          "hash": "ede47f00feb100e5c67d3504f207945f47e441b3fbdecbeaddf69dc9938a30a8"
         },
         {
           "id": "say-2",
@@ -6606,14 +6630,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-10-01T01:17:31.190307Z",
+          "at": "2026-10-01T01:28:38.370264Z",
           "title": "",
           "body": "did the draft run?",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "8335e12ce41dc4a6014b72a4673e6a22bdb9f4bebf4f5868e970c83280274cd0"
+          "hash": "9c486aaf4cb82db6b3a505f2afd23eb5dd92d8ac9c3a34b2d35791fffb8d2348"
         },
         {
           "id": "say-3",
@@ -6623,14 +6647,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-10-01T01:27:31.190307Z",
+          "at": "2026-10-01T01:38:38.370264Z",
           "title": "",
           "body": "yes, screenshots tomorrow",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "54d18c7b372ec73f7acc4632aec6c7e5c425fa9cc72bff36c606ec26ef5e8ff8"
+          "hash": "060c76ff5f01c723a70b925f147600d857be70ba190a2641e158aa9804c95fc6"
         },
         {
           "id": "say-4",
@@ -6640,14 +6664,14 @@
           "member": null,
           "erasable": false,
           "agent_of": null,
-          "at": "2026-10-01T01:37:31.190307Z",
+          "at": "2026-10-01T01:48:38.370264Z",
           "title": "",
           "body": "ren makes music, you'd like the room. here's the way in:\n\ndiverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiJyZW4tbGFwdG9wLmxvY2FsOjQ2NDAifSwiaWQiOiJtdXNpYy1yZW4uMWFlZDQ0NTkxOTA1Iiwic2VjcmV0IjoicmVuLW9wZW4iLCJ0aXRsZSI6IlJlbidzIG11c2ljIHJvb20iLCJraW5kIjoiaG9tZSIsImhvc3RfbmFtZSI6InJlbiIsImNoYXJ0ZXIiOiJUcmFja3MgSSBtYWtlLiBObyBBSS4gU2F5IHdoYXQgeW91IGhlYXIuIiwidmVyYnMiOlt7Im5hbWUiOiJzaG93IiwiZG9lcyI6IlNob3cgc29tZXRoaW5nIHlvdSBtYWRlIG9yIGRpZC4gV2hhdCB5b3Ugc2hvdyBzdGF5cyBhcyBzaG93bjsgYSBuZXcgdmVyc2lvbiBpcyBhIG5ldyBzaG93LiJ9LHsibmFtZSI6ImFzayIsImRvZXMiOiJBc2sgZm9yIHNvbWV0aGluZy4gQW55b25lIGhlcmUsIGEgcGVyc29uIG9yIGFuIGFnZW50LCBtYXkgb2ZmZXIgdG8gc2VydmUgaXQuIn0seyJuYW1lIjoib2ZmZXIiLCJkb2VzIjoiT2ZmZXIgdG8gc2VydmUgYW4gYXNrLiJ9LHsibmFtZSI6InRha2Vfb2ZmZXIiLCJkb2VzIjoiVGFrZSBhbiBvZmZlciBvbiB5b3VyIGFzay4gVGhlIGFzayBpcyB0YWtlbjsgb24gYSB3b3JrIGJvYXJkIHRoZSBvZmZlciBiZWNvbWVzIGEgdGFzayB3aG9ldmVyIG9mZmVyZWQgYWxyZWFkeSBob2xkcywgYW5kIGVuZHMgaW4gYSByZWNlaXB0IGxpa2UgYW55IG90aGVyLiJ9LHsibmFtZSI6ImNsb3NlX2FzayIsImRvZXMiOiJDbG9zZSB5b3VyIGFzazogbm9ib2R5IGNhbiBvZmZlciBvbiBpdCBhbnkgbW9yZS4ifSx7Im5hbWUiOiJyZXBseSIsImRvZXMiOiJSZXBseSB0byBhIG1vdmUuIn0seyJuYW1lIjoicmVwb3J0IiwiZG9lcyI6IlJlcG9ydCB3aGF0IHlvdSBmaW5pc2hlZDogZm9yIGFuIGFnZW50LCB3aGVuIGEgcnVuIGVuZHMuIn1dfQ",
           "state": "said",
           "parent": null,
           "fields": {},
           "charter": "5c2f1a98dfe5aa5b",
-          "hash": "c1fa5bc5bcd07cd6cc02e0e5070ba09ecf05b0be7f11c48111349a6956a839f0"
+          "hash": "c779d3c7a9cb3626913cc61c20dd4b83996dd31002d9860dce53b94b490dcac1"
         }
       ],
       "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6ImRtLWFkYS5hMjhjZjVmMjgwZTgiLCJzZWNyZXQiOiJkbSIsInRpdGxlIjoiYWRhIiwia2luZCI6ImRtIiwiaG9zdF9uYW1lIjoibWF5YSIsImNoYXJ0ZXIiOiJUd28gcGVvcGxlLiBOb3RoaW5nIGxlYXZlcyB0aGlzIHJvb20uIiwidmVyYnMiOlt7Im5hbWUiOiJzYXkiLCJkb2VzIjoiU2F5IHNvbWV0aGluZy4ifSx7Im5hbWUiOiJyZXBseSIsImRvZXMiOiJSZXBseSB0byBhIG1vdmUuIn1dfQ"
@@ -6655,7 +6679,7 @@
     {
       "view": {
         "summary": {
-          "id": "profile-me.442b3c9f8d09",
+          "id": "profile-me.0efb0948c1f2",
           "title": "maya",
           "kind": "profile",
           "host": {
@@ -6667,19 +6691,19 @@
           "online": true,
           "you_are": "maya",
           "you_key": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-          "you_account": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+          "you_account": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
           "fresh": false
         },
         "charter": "# My profile\n\nWhat I've made and what I offer. Leave a note, or ask one of my agents for something: I decide, and it runs on my machine.",
         "members": [
           {
             "name": "maya",
-            "key": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+            "key": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-10T10:17:31.190307Z",
-            "last_acted": "2026-09-30T22:17:31.190307Z",
+            "joined": "2026-09-10T10:28:38.370264Z",
+            "last_acted": "2026-09-30T22:28:38.370264Z",
             "mark": null,
             "devices": [
               "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111"
@@ -6692,8 +6716,8 @@
             "is_agent": false,
             "agent_of": null,
             "agent_of_key": null,
-            "joined": "2026-09-30T22:17:31.190307Z",
-            "last_acted": "2026-10-01T06:17:31.279021Z",
+            "joined": "2026-09-30T22:28:38.370264Z",
+            "last_acted": "2026-10-01T06:28:38.455467Z",
             "mark": null,
             "devices": [
               "13e2d46941a6ff6308a13b9be24539ac5da7fcc361d9486b24bd7913db6f46a1"
@@ -7080,27 +7104,27 @@
           "kind": "show",
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-          "member": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+          "member": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
           "erasable": true,
           "agent_of": null,
-          "at": "2026-09-30T04:17:31.190307Z",
+          "at": "2026-09-30T04:28:38.370264Z",
           "title": "The desktop app, draft one",
           "body": "Agents, storage, machines and saved Views, on a stand-in for the daemon.",
           "state": "shown",
           "parent": null,
           "fields": {},
           "charter": "a856e5ef5c6f2920",
-          "hash": "5647966bc88ec377ece924e081a63dd6d38309c5797f6764ef8fb2093f87e5df"
+          "hash": "39b4aa078acaee14551238d64c5bfc69aeacfdbc489e4e6833b3dd48d8464638"
         },
         {
           "id": "offering-2",
           "kind": "offering",
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-          "member": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+          "member": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
           "erasable": true,
           "agent_of": null,
-          "at": "2026-09-30T10:17:31.190307Z",
+          "at": "2026-09-30T10:28:38.370264Z",
           "title": "A site check-up",
           "body": "site-fixes goes through a small site and lists what's broken. Nothing is changed without asking.",
           "state": "offered",
@@ -7110,17 +7134,17 @@
             "terms": "you get a list, in a day"
           },
           "charter": "a856e5ef5c6f2920",
-          "hash": "c8d0ff13962794859c9f031eac52d1d6c85d211bd6e9f433a95092869c99a7df"
+          "hash": "6fae5e2ed17cd1d58530b080d77b541985768772896632ed727da9097b2801bb"
         },
         {
           "id": "admitted-3",
           "kind": "admitted",
           "author": "maya",
           "by": "d520959fd8f229ceb6ef20cec1263e790604fe6ec5340c56622db50d86fd1111",
-          "member": "72681228db47bdc60256ec55bea8663f1af73f34b480d2d0e6a212a0e5244c36",
+          "member": "cd19c9432af3caf0ad86d7a18b4d6bd2b4645cc9ba7477b4d35ec389e9eb34c8",
           "erasable": false,
           "agent_of": null,
-          "at": "2026-09-30T22:17:31.190307Z",
+          "at": "2026-09-30T22:28:38.370264Z",
           "title": "ren",
           "body": "",
           "state": "said",
@@ -7129,7 +7153,7 @@
             "key": "19e1ce567c5f2cdb65d20d674f34bc97e9a4bf8a9c80fdae07e6dd4da5fdfd3b"
           },
           "charter": "a856e5ef5c6f2920",
-          "hash": "a407940b2b70d5b90d7d3db09e31a4ddbe6ac95b5d0c42a6442ae7e733296ff4"
+          "hash": "6234667360d7d6b26f22195a11d7fe67824e9d938080d6e67cbe0f466f7247c1"
         },
         {
           "id": "note-4",
@@ -7139,7 +7163,7 @@
           "member": "19e1ce567c5f2cdb65d20d674f34bc97e9a4bf8a9c80fdae07e6dd4da5fdfd3b",
           "erasable": true,
           "agent_of": null,
-          "at": "2026-09-30T22:47:31.190307Z",
+          "at": "2026-09-30T22:58:38.370264Z",
           "title": "",
           "body": "Loved the kids' map idea in ada's zine room.",
           "state": "left",
@@ -7149,7 +7173,7 @@
             "opened": true
           },
           "charter": "a856e5ef5c6f2920",
-          "hash": "634323b51265d018927421752312ddc1fbb3044c0dd3a2ba207e581d70d4bd40"
+          "hash": "a9a6b7c8e77c0ffc6cebc487229aeffac71c8592eb4a5a4642f9a5f8afd4ff88"
         },
         {
           "id": "hire-5",
@@ -7159,7 +7183,7 @@
           "member": "19e1ce567c5f2cdb65d20d674f34bc97e9a4bf8a9c80fdae07e6dd4da5fdfd3b",
           "erasable": true,
           "agent_of": null,
-          "at": "2026-10-01T06:17:31.279021Z",
+          "at": "2026-10-01T06:28:38.455467Z",
           "title": "Check the links on my music page",
           "body": "",
           "state": "asked",
@@ -7171,10 +7195,10 @@
             "pledge": "a copy of the next track"
           },
           "charter": "a856e5ef5c6f2920",
-          "hash": "ccedcafbd80d6ba7cc9360b88d68b1d913f6a0367901e856c391c6e0e936ea73"
+          "hash": "6515c2ad67cd5ee43dc3f8e248767b0e5e09deeff61f50afdeb2cfb1cdbe713c"
         }
       ],
-      "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6InByb2ZpbGUtbWUuNDQyYjNjOWY4ZDA5Iiwic2VjcmV0IjoicHJvZmlsZS1vcGVuIiwidGl0bGUiOiJtYXlhIiwia2luZCI6InByb2ZpbGUiLCJob3N0X25hbWUiOiJtYXlhIiwiY2hhcnRlciI6IiMgTXkgcHJvZmlsZVxuXG5XaGF0IEkndmUgbWFkZSBhbmQgd2hhdCBJIG9mZmVyLiBMZWF2ZSBhIG5vdGUsIG9yIGFzayBvbmUgb2YgbXkgYWdlbnRzIGZvciBzb21ldGhpbmc6IEkgZGVjaWRlLCBhbmQgaXQgcnVucyBvbiBteSBtYWNoaW5lLiIsInZlcmJzIjpbeyJuYW1lIjoibGVhdmVfbm90ZSIsImRvZXMiOiJMZWF2ZSBhIG5vdGUgZm9yIHdob2V2ZXIgdGhpcyBwcm9maWxlIGJlbG9uZ3MgdG8uIn0seyJuYW1lIjoiaGlyZSIsImRvZXMiOiJBc2sgb25lIG9mIHRoaXMgcGVyc29uJ3MgYWdlbnRzIHRvIGRvIHNvbWV0aGluZyBmb3IgeW91LiBUaGV5IGRlY2lkZTsgdGhlaXIgYWdlbnQgZG9lcyB0aGUgd29yayBvbiB0aGVpciBtYWNoaW5lLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifSx7Im5hbWUiOiJrZXlzIiwiZG9lcyI6IkJyaW5nIHlvdXIgYWNjb3VudCdzIG5ld2VzdCBkZXZpY2UgbGlzdDogdGhlIGtleXMgdGhhdCBhY3QgZm9yIHlvdSBub3cuIEEga2V5IGl0IGxlYXZlcyBvZmYgY2FuJ3QgYWN0IGhlcmUgYW55IG1vcmUuIn0seyJuYW1lIjoid2l0aGRyYXciLCJkb2VzIjoiVGFrZSBiYWNrIHNvbWV0aGluZyB5b3Ugc2FpZCBoZXJlLiBJdHMgd29yZHMgYXJlIGVyYXNlZCBmcm9tIHRoZSByb29tJ3MgcmVjb3JkLCB3aGljaCBzYXlzIHlvdSBkaWQuIENvcGllcyBtYWRlIGJlZm9yZSBtYXkgc3Vydml2ZS4ifV19"
+      "invite": "diverge-invite:eyJob3N0Ijp7ImtpbmQiOiJvdXRnb2luZyIsImFkZHJlc3MiOiIxMjcuMC4wLjE6NDY0MCJ9LCJpZCI6InByb2ZpbGUtbWUuMGVmYjA5NDhjMWYyIiwic2VjcmV0IjoicHJvZmlsZS1vcGVuIiwidGl0bGUiOiJtYXlhIiwia2luZCI6InByb2ZpbGUiLCJob3N0X25hbWUiOiJtYXlhIiwiY2hhcnRlciI6IiMgTXkgcHJvZmlsZVxuXG5XaGF0IEkndmUgbWFkZSBhbmQgd2hhdCBJIG9mZmVyLiBMZWF2ZSBhIG5vdGUsIG9yIGFzayBvbmUgb2YgbXkgYWdlbnRzIGZvciBzb21ldGhpbmc6IEkgZGVjaWRlLCBhbmQgaXQgcnVucyBvbiBteSBtYWNoaW5lLiIsInZlcmJzIjpbeyJuYW1lIjoibGVhdmVfbm90ZSIsImRvZXMiOiJMZWF2ZSBhIG5vdGUgZm9yIHdob2V2ZXIgdGhpcyBwcm9maWxlIGJlbG9uZ3MgdG8uIn0seyJuYW1lIjoiaGlyZSIsImRvZXMiOiJBc2sgb25lIG9mIHRoaXMgcGVyc29uJ3MgYWdlbnRzIHRvIGRvIHNvbWV0aGluZyBmb3IgeW91LiBUaGV5IGRlY2lkZTsgdGhlaXIgYWdlbnQgZG9lcyB0aGUgd29yayBvbiB0aGVpciBtYWNoaW5lLiJ9LHsibmFtZSI6InJlcGx5IiwiZG9lcyI6IlJlcGx5IHRvIGEgbW92ZS4ifSx7Im5hbWUiOiJrZXlzIiwiZG9lcyI6IkJyaW5nIHlvdXIgYWNjb3VudCdzIG5ld2VzdCBkZXZpY2UgbGlzdDogdGhlIGtleXMgdGhhdCBhY3QgZm9yIHlvdSBub3cuIEEga2V5IGl0IGxlYXZlcyBvZmYgY2FuJ3QgYWN0IGhlcmUgYW55IG1vcmUuIn0seyJuYW1lIjoid2l0aGRyYXciLCJkb2VzIjoiVGFrZSBiYWNrIHNvbWV0aGluZyB5b3Ugc2FpZCBoZXJlLiBJdHMgd29yZHMgYXJlIGVyYXNlZCBmcm9tIHRoZSByb29tJ3MgcmVjb3JkLCB3aGljaCBzYXlzIHlvdSBkaWQuIENvcGllcyBtYWRlIGJlZm9yZSBtYXkgc3Vydml2ZS4ifV19"
     }
   ],
   "door_tools": [
@@ -7364,7 +7388,7 @@
         "yes",
         "no"
       ],
-      "at": "2026-10-01T06:17:31.301889+00:00",
+      "at": "2026-10-01T06:28:38.478352+00:00",
       "call": {
         "room": "board-saturday.a28cf5f280e8",
         "room_title": "Saturday Workshop",
@@ -7387,7 +7411,7 @@
         "take",
         "decline"
       ],
-      "at": "2026-10-01T06:17:31.301940+00:00",
+      "at": "2026-10-01T06:28:38.478416+00:00",
       "call": null,
       "hire": {
         "from": "ren",
@@ -7413,7 +7437,7 @@
         "member_here": true,
         "holds": true
       },
-      "at": "2026-10-01T06:15:31.190307+00:00",
+      "at": "2026-10-01T06:26:38.370264+00:00",
       "answered": null
     }
   ],
@@ -7428,7 +7452,7 @@
               "kind": "file",
               "name": "print-label.py",
               "size": 45,
-              "modified_at": 1790835451
+              "modified_at": 1790836118
             }
           ]
         },
@@ -7440,13 +7464,13 @@
               "kind": "file",
               "name": "README.md",
               "size": 99,
-              "modified_at": 1790835451
+              "modified_at": 1790836118
             },
             {
               "kind": "file",
               "name": "resize.sh",
               "size": 96,
-              "modified_at": 1790835451
+              "modified_at": 1790836118
             }
           ]
         }
@@ -7471,14 +7495,14 @@
           "kind": "file",
           "name": "map-sketch.txt",
           "size": 82,
-          "modified_at": 1790835451
+          "modified_at": 1790836118
         }
       ],
       "files": {
         "map-sketch.txt": "north: the bakery, the bridge, the school\nsouth: the park, the pond, the bus stop\n"
       }
     },
-    "profile-me.442b3c9f8d09": {
+    "profile-me.0efb0948c1f2": {
       "nodes": [],
       "files": {}
     }
@@ -7494,7 +7518,7 @@
         "idea-ada.b69b5567d882",
         "board-cafe.b69b5567d882",
         "dm-ada.a28cf5f280e8",
-        "profile-me.442b3c9f8d09"
+        "profile-me.0efb0948c1f2"
       ]
     }
   ],
@@ -7515,7 +7539,7 @@
       "at",
       "sig"
     ],
-    "account_made": "2026-10-01T06:17:31.165198Z",
+    "account_made": "2026-10-01T06:28:38.350892Z",
     "list_number": 1,
     "devices": 1
   },
@@ -7526,7 +7550,7 @@
           "kind": "file",
           "name": "README.md",
           "size": 52,
-          "modified_at": 1790835451
+          "modified_at": 1790836118
         }
       ]
     },
@@ -7536,7 +7560,7 @@
           "kind": "file",
           "name": "README.md",
           "size": 30,
-          "modified_at": 1790835451
+          "modified_at": 1790836118
         }
       ],
       "scratch": []
@@ -7549,7 +7573,7 @@
         "volume": {
           "name": "media",
           "bytes": 17179869184,
-          "created": "2026-10-01T06:17:31+00:00",
+          "created": "2026-10-01T06:28:38+00:00",
           "mode": "persistent"
         },
         "bytes_used": 52
@@ -7561,7 +7585,7 @@
         "volume": {
           "name": "datasets",
           "bytes": 34359738368,
-          "created": "2026-10-01T06:17:31+00:00",
+          "created": "2026-10-01T06:28:38+00:00",
           "mode": "read_only"
         },
         "bytes_used": 30
@@ -7571,7 +7595,7 @@
         "volume": {
           "name": "scratch",
           "bytes": 1073741824,
-          "created": "2026-10-01T06:17:31+00:00",
+          "created": "2026-10-01T06:28:38+00:00",
           "mode": "ephemeral"
         },
         "bytes_used": 0

@@ -12,7 +12,12 @@ publish = false
 # a `WireDaemon` and a `WireMachines` have nothing to add but themselves.
 # No features: every half compiles for every dependent.
 diverge-sdk = { path = "../../diverge-sdk-rs" }
-rmcp = { version = "3.1.2", default-features = false }
+rmcp = { version = "3.1.2", default-features = false, features = ["server", "transport-streamable-http-server"] }
+# The agent door served on this machine's loopback, for local agents you
+# already run: MCP over Streamable HTTP behind a bearer token per agent,
+# compared in constant time.
+axum = "0.8.9"
+subtle = "2.6"
 # The room program, seals and records: ours (../room).
 diverge-desktop-room = { path = "../room" }
 # Invites travel as text.
@@ -60,3 +65,6 @@ tauri-build = { version = "2.5.6", features = [] }
 [dev-dependencies]
 # Virtual time, so the preview snapshot can catch a run part-way through.
 tokio = { version = "1.50.0", features = ["full", "test-util"] }
+# The door served over real HTTP, reached by the MCP client a local agent uses.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
