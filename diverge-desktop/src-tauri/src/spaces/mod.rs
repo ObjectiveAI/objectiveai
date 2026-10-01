@@ -287,6 +287,12 @@ pub trait Spaces: Send + Sync + 'static {
 
     /// Stop a room you host and run it again from its record: the run
     /// scope's `stop`, then `containers::tools::run`. Everyone must connect
-    /// again; the files are closed to anyone the room no longer admits.
+    /// again; the files are closed to anyone the room no longer admits. The
+    /// invite stays as it was.
     async fn restart(&self, id: &Id) -> Result<(), WireError>;
+
+    /// The host's restart to shut someone out: [`Spaces::restart`], and the
+    /// room gets a new invite secret, so a knock with an invite handed out
+    /// before no longer comes with this room's invite. Returns the new invite.
+    async fn restart_with_new_invite(&self, id: &Id) -> Result<Invite, WireError>;
 }

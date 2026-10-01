@@ -867,6 +867,18 @@ impl Spaces for StubSpaces {
         Ok(())
     }
 
+    async fn restart_with_new_invite(&self, id: &Id) -> Result<Invite, WireError> {
+        self.restart(id).await?;
+        let invite = {
+            let mut inner = self.lock();
+            let h = inner.rooms.get_mut(&id.id).ok_or_else(|| wire_error("no such room"))?;
+            h.secret = diverge_desktop_room::fresh_label();
+            self.invite_for(&inner, &id.id).ok_or_else(|| wire_error("no such room"))?
+        };
+        self.persist();
+        Ok(invite)
+    }
+
     async fn transfer(&self, from: &Id, path: &[String], to: &Id) -> Result<(), WireError> {
         self.reachable(from)?;
         self.reachable(to)?;
@@ -1048,6 +1060,40 @@ mod tests {
         assert_eq!((aside.len(), aside[0].kind, aside[0].carried_on), (1, "stand-in rooms", crate::store::CarriedOn::Empty));
         assert_eq!(std::fs::read_to_string(aside[0].kept_as().unwrap()).unwrap(), "{ \"file\": \"stand-in rooms\", \"vers", "kept as it was");
         let _ = std::fs::remove_dir_all(&tables);
+    }
+
+    #[tokio::test]
+    async fn a_restart_keeps_the_invite_and_a_restart_to_shut_someone_out_makes_a_new_one() {
+        let (spaces, _) = stub();
+        let board = Id { id: board() };
+        let before = spaces.invite(&board).await.unwrap();
+        let feed_before = feed(&spaces, &board.id);
+        // Rebuilt from its record: the same room, the same invite.
+        spaces.restart(&board).await.unwrap();
+        assert_eq!(spaces.invite(&board).await.unwrap(), before, "the same invite");
+        assert_eq!(feed(&spaces, &board.id), feed_before, "the same room");
+        // Restarted on purpose: a new secret, and the invite says so.
+        let after = spaces.restart_with_new_invite(&board).await.unwrap();
+        assert_ne!(after.secret, before.secret);
+        assert!(after.secret.is_some());
+        assert_eq!(spaces.invite(&board).await.unwrap(), after, "the room's invite is the new one");
+        assert_eq!(feed(&spaces, &board.id), feed_before, "and still the same room");
+        // A knock with the invite from before no longer comes with this room's invite; one with the new one does.
+        let ren = Keypair::from_seed("ren");
+        let knock = |secret: &str| {
+            let k = Knocking { room: board.id.clone(), invite: Some(Knocking::invite_mark(&board.id, secret)), key: ren.key(), name: "ren".into(), note: String::new(), listed: true, vouch: None, account: None, at: Utc::now(), sig: String::new() }.signed(&ren);
+            Knock { knock_id: 9, space: board.clone(), authorize: Authorize { address: "10.0.0.42".parse::<IpAddr>().unwrap(), authorization: k.to_authorization() }, at: Utc::now() }
+        };
+        let now_secret = after.secret.as_deref();
+        assert!(!crate::actions::knock_view_of(&knock(before.secret.as_deref().unwrap()), "Saturday Workshop".into(), now_secret, &[], Utc::now()).invited, "the old invite");
+        assert!(crate::actions::knock_view_of(&knock(after.secret.as_deref().unwrap()), "Saturday Workshop".into(), now_secret, &[], Utc::now()).invited, "the new one");
+        // Kept across a launch: the new invite, not the old.
+        let tables = spaces.tables.clone();
+        drop(spaces);
+        let again = StubSpaces::new(Arc::new(Keys::stand_in("maya")), tables);
+        assert_eq!(again.invite(&board).await.unwrap().secret, after.secret);
+        // Only the host restarts a room.
+        assert!(again.restart_with_new_invite(&Id { id: again.id_of("idea-ada") }).await.is_err());
     }
 
     #[tokio::test]

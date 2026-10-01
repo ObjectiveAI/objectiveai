@@ -322,8 +322,14 @@ export function installPreview() {
           const r = spaceOf(args.id);
           return (r?.view.members ?? []).map((m) => ({ name: m.name, key: m.key, listed: true, is_agent: m.is_agent, yours: m.is_agent && m.agent_of_key === you.key, mark: m.mark ?? null }));
         }
-        case "spaces_restart":
-          return null;
+        case "spaces_restart": {
+          // A restart to shut someone out: the room's invite gets a new secret.
+          const r = spaceOf(args.id);
+          const old = r?.invite ? decodeInvite(r.invite) : null;
+          if (!r || !old) throw new Error("only its host restarts a room");
+          r.invite = encodeInvite({ ...old, secret: `${old.id}-${Date.now()}` });
+          return { text: r.invite };
+        }
         case "spaces_continue": {
           const r = spaceOf(args.id);
           if (!r) return { outcome: "error", message: "you hold no copy of that room" };

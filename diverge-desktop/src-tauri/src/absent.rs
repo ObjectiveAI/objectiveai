@@ -243,6 +243,10 @@ impl Spaces for Absent {
     async fn restart(&self, _: &Id) -> Result<(), WireError> {
         Err(self.no())
     }
+
+    async fn restart_with_new_invite(&self, _: &Id) -> Result<Invite, WireError> {
+        Err(self.no())
+    }
 }
 
 #[cfg(test)]

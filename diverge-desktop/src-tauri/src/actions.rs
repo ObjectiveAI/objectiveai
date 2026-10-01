@@ -292,7 +292,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("vouch_for", "Vouch for someone into a room you're in: your word, for that room, for a week, to hand them"),
     ("identity_broken", "Whether your keys file can be used; if not, where it is and whether a newer version wrote it"),
     ("spaces_admitted", "Everyone a room you host let in, listed or not"),
-    ("spaces_restart", "Run a room you host again from its record"),
+    ("spaces_restart", "Run a room you host again from its record, with a new invite"),
     ("spaces_continue", "Continue a room whose host is gone, from your copy of its record"),
     ("table_tree", "What's on a room's table"),
     ("table_read", "Open a file on a room's table"),
@@ -987,11 +987,16 @@ async fn admitted(state: &AppState, id: &str) -> Result<Vec<AdmittedView>, Strin
     Ok(people)
 }
 
-/// Stop a room you host and run it again from its record: the way to close
-/// its files to someone you removed.
+/// Stop a room you host and run it again from its record, with a new
+/// invite: the way to close its files to someone you removed. An invite
+/// handed out before no longer comes with this room's invite.
 #[tauri::command]
-pub async fn spaces_restart(state: State<'_, AppState>, id: String) -> Result<(), String> {
-    state.spaces.restart(&space_id(&id)).await.map_err(|e| error_text(&e))
+pub async fn spaces_restart(state: State<'_, AppState>, id: String) -> Result<InviteView, String> {
+    restart_room(&state, &id).await
+}
+
+async fn restart_room(state: &AppState, id: &str) -> Result<InviteView, String> {
+    state.spaces.restart_with_new_invite(&space_id(id)).await.map(|i| InviteView { text: i.to_text() }).map_err(|e| error_text(&e))
 }
 
 /// The settings of a room you make now: under rules 2, hosted by the account
@@ -1861,6 +1866,11 @@ mod tests {
             Ok(())
         }
 
+        async fn restart_with_new_invite(&self, id: &Id) -> Result<Invite, WireError> {
+            self.restart(id).await?;
+            self.secrets.lock().unwrap().insert(id.id.clone(), diverge_desktop_room::fresh_label());
+            self.invite(id).await.ok_or_else(|| wire("no such room"))
+        }
     }
 
     /// The app over a folder of its own, with rooms in process and no daemon.
@@ -2118,6 +2128,23 @@ mod tests {
 
     async fn asks_or(state: &AppState, room: &str, kind: &str) -> String {
         read_json::<Vec<MoveView>>(state, &space_id(room), program::FEED).await.unwrap().into_iter().find(|m| m.kind == kind).unwrap().id
+    }
+
+    #[tokio::test]
+    async fn a_restart_to_shut_someone_out_hands_back_a_new_invite_and_the_old_one_stops_counting() {
+        let (state, rooms) = app("actions-restart");
+        let id = board(&state, "Saturday Workshop").await;
+        let before = state.spaces.invite(&space_id(&id)).await.unwrap();
+        let ren = Keypair::from_seed("ren");
+        let with_old = knock(1, &id, &ren, "ren", before.secret.as_deref());
+        assert!(knock_view(&state, &with_old).await.invited);
+        let new = restart_room(&state, &id).await.unwrap();
+        assert_eq!(rooms.log(), [format!("restart {id}")]);
+        let after = spaces::Invite::from_text(&new.text).unwrap();
+        assert_ne!(after.secret, before.secret, "a new secret");
+        assert_eq!(state.spaces.invite(&space_id(&id)).await, Some(after.clone()), "the room's invite now");
+        assert!(!knock_view(&state, &with_old).await.invited, "the old invite no longer reads as this room's");
+        assert!(knock_view(&state, &knock(2, &id, &ren, "ren", after.secret.as_deref())).await.invited, "the new one does");
     }
 
     #[tokio::test]

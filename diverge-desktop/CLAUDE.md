@@ -74,7 +74,8 @@ inherits it.
     against the room on entry.
   - **Members back in**: where a knock arrives (`knocks_watch`), `knock_verdict` reads `Room::standing` over the
     host's replayed copy: someone let in and still in (listed or not) is answered yes with no admit and no card,
-    someone removed is answered no, anyone else is a card; the knock list says which.
+    someone removed is answered no, anyone else is a card; the knock list says which. A restart to shut someone out
+    (`spaces_restart`) gives the room a new invite secret; a restart that only rebuilds it keeps the secret.
   - `records/`: the app keeps a replayed copy of every room's record, named for a digest of the room's id, with the
     copy before it beside it. An unreachable room shows from it, and someone still in it can continue it. A copy that
     won't parse, isn't that room's or doesn't replay is set aside, and the one before it carries on.

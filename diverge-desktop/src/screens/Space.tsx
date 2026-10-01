@@ -38,6 +38,7 @@ export function Space(props: { id: string; tabKey: string }) {
   const [active, setActive] = useState<Active | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [invite, setInvite] = useState<string | null>(null);
+  const [inviteIsNew, setInviteIsNew] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [view, setView] = useState<"feed" | "table">("feed");
@@ -174,8 +175,11 @@ export function Space(props: { id: string; tabKey: string }) {
 
   const restart = async () => {
     try {
-      await api.spacesRestart(props.id);
+      const fresh = await api.spacesRestart(props.id);
       setModeration(t.spaces.restarted);
+      setInvite(fresh.text);
+      setInviteIsNew(true);
+      setCopied(false);
       load();
     } catch (e) {
       setModeration(errorText(e));
@@ -185,6 +189,7 @@ export function Space(props: { id: string; tabKey: string }) {
   const showInvite = async () => {
     const i = await api.spaceInvite(props.id);
     setInvite(i?.text ?? null);
+    setInviteIsNew(false);
     setCopied(false);
   };
 
@@ -228,7 +233,7 @@ export function Space(props: { id: string; tabKey: string }) {
       </header>
       {invite ? (
         <div className="banner banner-quiet">
-          <span className="muted small">{t.spaces.inviteNote}</span>
+          <span className="muted small">{inviteIsNew ? t.spaces.newInviteNote : t.spaces.inviteNote}</span>
           <code className="selectable invite-text">{invite}</code>
           <Button small kind="tertiary" onClick={() => navigator.clipboard?.writeText(invite).then(() => setCopied(true))}>{copied ? t.spaces.copied : t.spaces.copy}</Button>
           <Button small kind="tertiary" onClick={() => setInvite(null)}>{t.common.close}</Button>
