@@ -87,7 +87,11 @@ inherits it.
     refuses any other before a key could be made. An agent reads and acts only in rooms it's in, by the room's own
     record, checked before any card; `spaces_list` and `asks_open` name only those rooms.
   - A local agent can't ask for a key (`door_tools` lists tools per kind), and room text reaches it framed as other
-    people's words, the frame marked with a digest of the text so nothing inside can close it.
+    people's words, the frame marked with a digest of the text so nothing inside can close it. A room's refusal is room
+    text too: it comes back as a refused result, framed.
+  - Known limit: the keys file's version didn't change when agent records gained a kind and a display name. A build
+    from before then reads the file as its own and, writing it back, drops them, so a local agent's entry would read
+    as a daemon agent's. Bump the keys version before anything on the page adds a local agent.
 - **The reporter** (`src-tauri/src/reporter.rs`): when an agent's run ends it `report`s to the person's Home, with the
   run's words only while Home is theirs alone.
 - **The stand-in keeps its rooms** between launches (`tables/.stand-in-rooms.json`), rebuilt by replaying their
