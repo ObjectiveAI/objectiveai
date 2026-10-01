@@ -290,6 +290,10 @@ pub fn actions_list() -> Vec<ActionInfo> {
 
 #[tauri::command]
 pub fn app_info(state: State<'_, AppState>) -> AppInfo {
+    info(&state)
+}
+
+fn info(state: &AppState) -> AppInfo {
     AppInfo {
         stand_in: state.stand_in_host.is_some(),
         network: state.network,
@@ -333,6 +337,10 @@ pub async fn agents_list(state: State<'_, AppState>) -> Result<AgentsListed, Str
 
 #[tauri::command]
 pub async fn agents_create(state: State<'_, AppState>, input: CreateAgentInput) -> Result<CreateOutcome, String> {
+    create_agent(&state, input).await
+}
+
+async fn create_agent(state: &AppState, input: CreateAgentInput) -> Result<CreateOutcome, String> {
     let request = input.into_request()?;
     let name = request.name.clone();
     let mounts = AgentMounts::of_create(&request);
@@ -343,7 +351,7 @@ pub async fn agents_create(state: State<'_, AppState>, input: CreateAgentInput) 
     // A new agent of yours is a member of your Home, so it can report there.
     if matches!(outcome, CreateOutcome::Created) {
         if let Some(home) = state.spaces.home().await {
-            let _ = admit_agent(&state, &home, &name).await;
+            let _ = admit_agent(state, &home, &name).await;
         }
     }
     Ok(outcome)
@@ -914,6 +922,10 @@ pub fn spaces_watch(state: State<'_, AppState>, id: String, on_event: Channel<Sp
 
 #[tauri::command]
 pub async fn spaces_host(state: State<'_, AppState>, input: HostSpaceInput) -> Result<HostOutcome, String> {
+    host_space(&state, input).await
+}
+
+async fn host_space(state: &AppState, input: HostSpaceInput) -> Result<HostOutcome, String> {
     use diverge_sdk::shared::containers::request::{Container, Image};
     let Some(kind) = diverge_desktop_room::Kind::parse(&input.kind) else { return Ok(HostOutcome::Error { message: "no such kind of Space".into() }) };
     let you = state.identity.usual();
@@ -931,7 +943,7 @@ pub async fn spaces_host(state: State<'_, AppState>, input: HostSpaceInput) -> R
         at: chrono::Utc::now(),
         sig: String::new(),
     };
-    let arguments = room_arguments(&state, args, &room_key, None)?;
+    let arguments = room_arguments(state, args, &room_key, None)?;
     let container = Container {
         image: Image { name: "diverge-desktop-room".into(), digest: catalog::UNBUILT_DIGEST.into() },
         memory: 1 << 30,
@@ -1082,6 +1094,10 @@ pub fn knocks_watch(app: AppHandle, state: State<'_, AppState>, on_event: Channe
 /// the room has let them in. If anything fails, the answer is no.
 #[tauri::command]
 pub async fn knocks_answer(state: State<'_, AppState>, knock_id: u64, yes: bool) -> Result<(), String> {
+    answer_knock(&state, knock_id, yes).await
+}
+
+async fn answer_knock(state: &AppState, knock_id: u64, yes: bool) -> Result<(), String> {
     if !yes {
         state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
         return Ok(());
@@ -1097,7 +1113,7 @@ pub async fn knocks_answer(state: State<'_, AppState>, knock_id: u64, yes: bool)
     } else {
         serde_json::json!({ "key_mark": diverge_desktop_room::key_mark(&knock.space.id, &knocking.key), "name": knocking.name, "listed": false })
     };
-    let admitted = call_as_you(&state, &knock.space, "admit", args).await;
+    let admitted = call_as_you(state, &knock.space, "admit", args).await;
     match admitted {
         Ok(r) if r.is_error != Some(true) => {
             state.spaces.answer(knock_id, spaces::Answer::Authorized).await?;
@@ -1118,6 +1134,10 @@ pub async fn knocks_answer(state: State<'_, AppState>, knock_id: u64, yes: bool)
 /// Home follows it everywhere. It goes only to rooms you're in.
 #[tauri::command]
 pub async fn asks_send(state: State<'_, AppState>, what: String, needs: Option<String>, ceiling: Option<String>, rooms: Vec<String>) -> Result<Vec<AskSent>, String> {
+    send_ask(&state, what, needs, ceiling, rooms).await
+}
+
+async fn send_ask(state: &AppState, what: String, needs: Option<String>, ceiling: Option<String>, rooms: Vec<String>) -> Result<Vec<AskSent>, String> {
     if what.trim().is_empty() {
         return Err("an ask needs words".into());
     }
@@ -1133,7 +1153,7 @@ pub async fn asks_send(state: State<'_, AppState>, what: String, needs: Option<S
             state.keep(THREADS_FILE, crate::store::THREADS, &*threads);
         }
         let args = serde_json::json!({ "what": what.trim(), "needs": needs, "ceiling": ceiling, "who_may_serve": "anyone", "thread": thread });
-        let outcome = match call_as_you(&state, &space_id(&room), "ask", args).await {
+        let outcome = match call_as_you(state, &space_id(&room), "ask", args).await {
             Ok(r) if r.is_error != Some(true) => CallOutcome::Ok { text: text_of(&r) },
             Ok(r) => CallOutcome::Error { message: text_of(&r) },
             Err(message) => CallOutcome::Error { message },
@@ -1147,19 +1167,23 @@ pub async fn asks_send(state: State<'_, AppState>, what: String, needs: Option<S
 /// the people who offered see it's closed.
 #[tauri::command]
 pub async fn asks_close(state: State<'_, AppState>, thread: String, note: Option<String>) -> Result<Vec<AskSent>, String> {
+    close_ask(&state, thread, note).await
+}
+
+async fn close_ask(state: &AppState, thread: String, note: Option<String>) -> Result<Vec<AskSent>, String> {
     let rooms: Vec<String> = {
         let threads = state.threads.lock().unwrap();
         threads.iter().filter(|(_, base)| **base == thread).map(|(room_thread, _)| room_thread.clone()).collect()
     };
     let mut out = Vec::new();
     for e in state.spaces.list().await {
-        let Some(moves) = read_json::<Vec<MoveView>>(&state, &e.id, diverge_desktop_room::room::FEED).await else { continue };
+        let Some(moves) = read_json::<Vec<MoveView>>(state, &e.id, diverge_desktop_room::room::FEED).await else { continue };
         for m in moves.iter().filter(|m| m.kind == "ask" && m.state == "open") {
             let t = m.fields.get("thread").and_then(serde_json::Value::as_str).unwrap_or_default();
             if !rooms.iter().any(|r| r == t) {
                 continue;
             }
-            let outcome = match call_as_you(&state, &e.id, "close_ask", serde_json::json!({ "ask_id": m.id, "note": note })).await {
+            let outcome = match call_as_you(state, &e.id, "close_ask", serde_json::json!({ "ask_id": m.id, "note": note })).await {
                 Ok(r) if r.is_error != Some(true) => CallOutcome::Ok { text: text_of(&r) },
                 Ok(r) => CallOutcome::Error { message: text_of(&r) },
                 Err(message) => CallOutcome::Error { message },
@@ -1309,8 +1333,12 @@ pub fn machines_names(state: State<'_, AppState>) -> HashMap<String, String> {
 
 #[tauri::command]
 pub fn machines_rename(state: State<'_, AppState>, identity: ProviderView, name: String) -> HashMap<String, String> {
+    rename_machine(&state, &identity, &name)
+}
+
+fn rename_machine(state: &AppState, identity: &ProviderView, name: &str) -> HashMap<String, String> {
     let mut names = state.machine_names.lock().unwrap();
-    let key = identity_key(&identity);
+    let key = identity_key(identity);
     if name.trim().is_empty() {
         names.remove(&key);
     } else {
@@ -1342,7 +1370,11 @@ pub fn views_list(state: State<'_, AppState>) -> Vec<SavedView> {
 }
 
 #[tauri::command]
-pub fn views_save(state: State<'_, AppState>, mut view: SavedView) -> Result<SavedView, String> {
+pub fn views_save(state: State<'_, AppState>, view: SavedView) -> Result<SavedView, String> {
+    save_view(&state, view)
+}
+
+fn save_view(state: &AppState, mut view: SavedView) -> Result<SavedView, String> {
     view.query.clone().into_request()?;
     if view.title.trim().is_empty() {
         return Err("a View needs a title".into());
@@ -1398,19 +1430,346 @@ pub fn tabs_focus(app: AppHandle, state: State<'_, AppState>, key: String) -> Ta
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
     use std::path::Path;
 
+    use async_trait::async_trait;
     use chrono::Utc;
-    use serde_json::json;
+    use futures::stream;
+    use rmcp::model::{CallToolRequestParams, CallToolResult, ErrorData, ListToolsResult, ReadResourceResult, ServerNotification};
+    use serde_json::{Value, json};
 
-    use diverge_desktop_room::Keypair;
+    use diverge_desktop_room::{Args, Keypair, Record, Room, Statement, room as program};
+    use diverge_sdk::shared::error::Error as WireError;
+    use diverge_sdk::shared::filetree::response::Node;
 
+    use crate::daemon::Frames;
+    use crate::identity::Identity as Keys;
+    use crate::spaces::{Answer, Authorize, Container, HostCall, Id, Invite, Joined, Knock, Knocking, SpaceEntry};
     use crate::store;
+
+    fn wire(message: impl Into<String>) -> WireError {
+        WireError(json!({ "message": message.into() }))
+    }
+
+    /// Rooms run in process by the real room program, with every call into
+    /// a room and every answer at a door written down in order.
+    struct Rooms {
+        me: Arc<Keys>,
+        rooms: Mutex<IndexMap<String, Room>>,
+        offline: Mutex<HashSet<String>>,
+        knocks: Mutex<Vec<Knock>>,
+        log: Mutex<Vec<String>>,
+    }
+
+    /// A room's host's side: receipts sealed as its host.
+    struct HostSide<'a> {
+        me: &'a Keys,
+        host_key: String,
+    }
+
+    impl diverge_desktop_room::Host for HostSide<'_> {
+        fn seal(&self, kind: &str, body: Value) -> Result<Statement, String> {
+            self.me.state(&self.host_key, kind, body)
+        }
+    }
+
+    impl Rooms {
+        fn new(me: Arc<Keys>) -> Arc<Rooms> {
+            Arc::new(Rooms { me, rooms: Mutex::default(), offline: Mutex::default(), knocks: Mutex::default(), log: Mutex::default() })
+        }
+
+        fn log(&self) -> Vec<String> {
+            self.log.lock().unwrap().clone()
+        }
+
+        fn note(&self, what: String) {
+            self.log.lock().unwrap().push(what);
+        }
+
+        fn no_room() -> ErrorData {
+            ErrorData::invalid_request("no such room", None)
+        }
+    }
+
+    #[async_trait]
+    impl Spaces for Rooms {
+        async fn list(&self) -> Vec<SpaceEntry> {
+            let offline = self.offline.lock().unwrap().clone();
+            self.rooms
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|(id, r)| SpaceEntry {
+                    id: Id { id: id.clone() },
+                    title: r.args.title.clone(),
+                    kind: r.args.kind.key().into(),
+                    host: Identity::Outgoing { address: "127.0.0.1:4640".into() },
+                    host_name: r.args.host_name.clone(),
+                    host_key: r.args.host_key.clone(),
+                    mine: true,
+                    online: !offline.contains(id),
+                })
+                .collect()
+        }
+
+        async fn host(&self, container: Container) -> Result<Id, WireError> {
+            let mut arguments = container.arguments;
+            let o = arguments.as_object_mut().ok_or_else(|| wire("a room's settings are an object"))?;
+            let secret = o.remove("room_secret").and_then(|v| v.as_str().map(str::to_owned)).ok_or_else(|| wire("a room needs its key"))?;
+            let key = Keypair::from_secret_hex(&secret).map_err(wire)?;
+            let args: Args = serde_json::from_value(arguments).map_err(|e| wire(e.to_string()))?;
+            let room = Room::from_record(Record { args, before: None, moves: Vec::new() }, Some(key)).map_err(wire)?;
+            let id = room.id().to_owned();
+            self.rooms.lock().unwrap().insert(id.clone(), room);
+            Ok(Id { id })
+        }
+
+        fn knocks(&self, _: CancellationToken) -> Frames<Knock> {
+            Box::pin(stream::iter(self.knocks.lock().unwrap().clone()))
+        }
+
+        async fn answer(&self, knock_id: u64, answer: Answer) -> Result<Knock, String> {
+            let said = match answer {
+                Answer::Authorized => "yes",
+                Answer::Denied => "no",
+            };
+            self.note(format!("answer {knock_id} {said}"));
+            let mut knocks = self.knocks.lock().unwrap();
+            let at = knocks.iter().position(|k| k.knock_id == knock_id).ok_or("nobody is at that door")?;
+            Ok(knocks.remove(at))
+        }
+
+        async fn pending(&self, knock_id: u64) -> Option<Knock> {
+            self.knocks.lock().unwrap().iter().find(|k| k.knock_id == knock_id).cloned()
+        }
+
+        async fn join(&self, _: &Invite, _: &Knocking) -> Joined {
+            Joined::Missing
+        }
+
+        async fn leave(&self, id: &Id) -> Result<(), String> {
+            self.rooms.lock().unwrap().shift_remove(&id.id);
+            Ok(())
+        }
+
+        async fn tools(&self, id: &Id) -> Result<ListToolsResult, ErrorData> {
+            self.rooms.lock().unwrap().get(&id.id).map(Room::tools).ok_or_else(Self::no_room)
+        }
+
+        async fn read(&self, id: &Id, uri: &str) -> Result<ReadResourceResult, ErrorData> {
+            if self.offline.lock().unwrap().contains(&id.id) {
+                return Err(ErrorData::internal_error("the room's host is offline", None));
+            }
+            self.rooms.lock().unwrap().get(&id.id).ok_or_else(Self::no_room)?.read(uri)
+        }
+
+        async fn call(&self, id: &Id, params: CallToolRequestParams) -> Result<CallToolResult, ErrorData> {
+            self.note(format!("call {}", params.name));
+            let mut rooms = self.rooms.lock().unwrap();
+            let room = rooms.get_mut(&id.id).ok_or_else(Self::no_room)?;
+            let host = HostSide { me: &self.me, host_key: room.args.host_key.clone() };
+            room.call_at(params, Utc::now(), &host)
+        }
+
+        fn notifications(&self, _: &Id, _: CancellationToken) -> Frames<ServerNotification> {
+            Box::pin(stream::empty())
+        }
+
+        async fn invite(&self, _: &Id) -> Option<Invite> {
+            None
+        }
+
+        async fn home(&self) -> Option<Id> {
+            None
+        }
+
+        async fn profile(&self) -> Option<Id> {
+            None
+        }
+
+        fn host_calls(&self, _: CancellationToken) -> Frames<HostCall> {
+            Box::pin(stream::empty())
+        }
+
+        async fn table_tree(&self, _: &Id) -> Result<Vec<Node>, WireError> {
+            Err(wire("no tables here"))
+        }
+
+        async fn table_read(&self, _: &Id, _: &[String]) -> Result<Vec<u8>, WireError> {
+            Err(wire("no tables here"))
+        }
+
+        async fn table_write(&self, _: &Id, _: &[String], _: Vec<u8>) -> Result<(), WireError> {
+            Err(wire("no tables here"))
+        }
+
+        async fn transfer(&self, _: &Id, _: &[String], _: &Id) -> Result<(), WireError> {
+            Err(wire("no tables here"))
+        }
+
+        async fn restart(&self, _: &Id) -> Result<(), WireError> {
+            Err(wire("not here"))
+        }
+    }
+
+    /// The app over a folder of its own, with rooms in process and no daemon.
+    fn app_in(data: PathBuf) -> (AppState, Arc<Rooms>) {
+        let identity = Arc::new(Keys::open(data.join(KEYS_FILE), "maya"));
+        let rooms = Rooms::new(identity.clone());
+        let absent = Arc::new(crate::absent::Absent);
+        let seams = Seams { daemon: absent.clone(), machines: absent, spaces: rooms.clone(), stand_in_host: None, network: true, first_mounts: HashMap::new() };
+        (AppState::assemble(data, identity, seams), rooms)
+    }
+
+    fn app(what: &str) -> (AppState, Arc<Rooms>) {
+        app_in(store::tests::folder(what))
+    }
 
     /// Keys made from a fixed seed, so the stand-in's rooms get the ids every other test's do.
     fn seeded_keys(data: &Path) {
         let keys = json!({ "personas": [{ "id": "usual", "name": "maya", "secret": Keypair::from_seed("maya").secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
         store::save(&data.join(KEYS_FILE), store::KEYS, &keys).unwrap();
+    }
+
+    async fn board(state: &AppState, title: &str) -> String {
+        match host_space(state, HostSpaceInput { title: title.into(), kind: "board".into(), charter: "Be kind about other people's work.".into(), open_door: false }).await.unwrap() {
+            HostOutcome::Hosted { id } => id,
+            HostOutcome::Error { message } => panic!("{message}"),
+        }
+    }
+
+    fn knock(knock_id: u64, room: &str, who: &Keypair, name: &str, invite: Option<&str>) -> Knock {
+        let knocking = Knocking {
+            room: room.into(),
+            invite: invite.map(|secret| Knocking::invite_mark(room, secret)),
+            key: who.key(),
+            name: name.into(),
+            note: "I fix lamps and radios.".into(),
+            listed: true,
+            vouch: None,
+            at: Utc::now(),
+            sig: String::new(),
+        }
+        .signed(who);
+        Knock { knock_id, space: Id { id: room.into() }, authorize: Authorize { address: "10.0.0.42".parse().unwrap(), authorization: knocking.to_authorization() }, at: Utc::now() }
+    }
+
+    async fn asks_in(state: &AppState, room: &str) -> Vec<MoveView> {
+        read_json::<Vec<MoveView>>(state, &space_id(room), program::FEED).await.unwrap().into_iter().filter(|m| m.kind == "ask").collect()
+    }
+
+    #[test]
+    fn a_knock_with_another_invite_is_not_invited() {
+        let ren = Keypair::from_seed("ren");
+        let k = knock(1, "room-1", &ren, "ren", Some("the room's secret"));
+        let wrong = knock_view_of(&k, "Saturday Workshop".into(), Some("another secret"), &[], Utc::now());
+        assert!(wrong.checked, "signed by the key it names, for this room, just now");
+        assert!(!wrong.invited, "but not with this room's invite");
+        assert!(knock_view_of(&k, "Saturday Workshop".into(), Some("the room's secret"), &[], Utc::now()).invited);
+        assert!(!knock_view_of(&k, "Saturday Workshop".into(), None, &[], Utc::now()).invited, "a room with no invite");
+    }
+
+    #[tokio::test]
+    async fn letting_someone_in_admits_them_before_the_door_says_yes() {
+        let (state, rooms) = app("actions-knock");
+        let id = board(&state, "Saturday Workshop").await;
+        let ren = Keypair::from_seed("ren");
+        rooms.knocks.lock().unwrap().push(knock(7, &id, &ren, "ren", None));
+        answer_knock(&state, 7, true).await.unwrap();
+        assert_eq!(rooms.log(), ["call admit", "answer 7 yes"], "the room lets them in, then the door opens");
+        assert!(rooms.rooms.lock().unwrap()[&id].member(&ren.key()).is_some_and(|m| !m.removed));
+        // A knock made for another room is turned away, and nobody is let in.
+        let ada = Keypair::from_seed("ada");
+        let elsewhere = Knock { space: Id { id: id.clone() }, ..knock(8, "another room", &ada, "ada", None) };
+        rooms.knocks.lock().unwrap().push(elsewhere);
+        assert!(answer_knock(&state, 8, true).await.is_err());
+        assert_eq!(rooms.log()[2..], ["answer 8 no"]);
+        assert!(rooms.rooms.lock().unwrap()[&id].member(&ada.key()).is_none());
+    }
+
+    #[tokio::test]
+    async fn one_ask_in_two_rooms_is_one_thread_and_closes_in_both() {
+        let (state, _) = app("actions-asks");
+        let (a, b) = (board(&state, "Saturday Workshop").await, board(&state, "Tuesday repair café").await);
+        let sent = send_ask(&state, "A ladder for Saturday".into(), Some("three metres".into()), None, vec![a.clone(), b.clone()]).await.unwrap();
+        assert!(sent.iter().all(|s| matches!(s.outcome, CallOutcome::Ok { .. })), "{sent:?}");
+        let threads = state.threads.lock().unwrap().clone();
+        let bases: HashSet<&String> = threads.values().collect();
+        assert_eq!((threads.len(), bases.len()), (2, 1), "a thread id in each room, one thread");
+        let base = bases.into_iter().next().unwrap().clone();
+        let (in_a, in_b) = (asks_in(&state, &a).await, asks_in(&state, &b).await);
+        for asks in [&in_a, &in_b] {
+            assert_eq!(asks.len(), 1);
+            assert_eq!(asks[0].state, "open");
+            assert!(threads.contains_key(asks[0].fields["thread"].as_str().unwrap()));
+        }
+        assert_ne!(in_a[0].fields["thread"], in_b[0].fields["thread"], "the rooms can't tell it's one ask");
+        let closed = close_ask(&state, base, Some("found one".into())).await.unwrap();
+        assert_eq!(closed.iter().filter(|c| matches!(c.outcome, CallOutcome::Ok { .. })).count(), 2, "{closed:?}");
+        for room in [&a, &b] {
+            assert_eq!(asks_in(&state, room).await[0].state, "closed");
+        }
+        assert_eq!(store::header(&state.data.join(THREADS_FILE)).map(|h| h.version), Some(store::THREADS.version), "the threads file says its version");
+    }
+
+    #[tokio::test]
+    async fn a_copy_cut_short_is_set_aside_and_the_one_before_it_still_replays() {
+        let (state, rooms) = app("actions-copy");
+        let id = board(&state, "Saturday Workshop").await;
+        let sid = space_id(&id);
+        call_as_you(&state, &sid, "show", json!({ "title": "a shelf I built" })).await.unwrap();
+        let (first, _) = moves_of(&state, &sid).await;
+        call_as_you(&state, &sid, "show", json!({ "title": "and a stool" })).await.unwrap();
+        let (second, _) = moves_of(&state, &sid).await;
+        assert_eq!(second.len(), first.len() + 1);
+        let file = record_file(&state, &id);
+        let whole = std::fs::read(&file).unwrap();
+        let cut = &whole[..whole.len() / 3];
+        std::fs::write(&file, cut).unwrap();
+        rooms.offline.lock().unwrap().insert(id.clone());
+        let (moves, from_copy) = moves_of(&state, &sid).await;
+        assert!(from_copy, "the room can't be reached, so your copy is read");
+        assert_eq!(moves.len(), first.len(), "the copy before the damaged one");
+        assert!(copy_room(&state, &id).is_some(), "and it replays");
+        let aside = set_aside_views(&state);
+        assert_eq!(aside.len(), 1, "{aside:?}");
+        assert_eq!((aside[0].file.clone(), aside[0].why.clone()), (file.display().to_string(), SetAsideWhy::Damaged));
+        assert_eq!(std::fs::read(&aside[0].kept_as).unwrap(), cut, "kept exactly as it was");
+    }
+
+    #[tokio::test]
+    async fn views_from_a_newer_version_are_set_aside_and_never_written_over() {
+        let data = store::tests::folder("actions-newer");
+        let newer = r#"{"file":"views","version":99,"data":"a shape this build doesn't know"}"#;
+        std::fs::write(data.join(VIEWS_FILE), newer).unwrap();
+        let (state, _) = app_in(data);
+        assert!(state.views.lock().unwrap().is_empty());
+        let aside = set_aside_views(&state);
+        assert_eq!(aside.len(), 1, "{aside:?}");
+        assert_eq!(aside[0].why, SetAsideWhy::Newer);
+        let view: SavedView = serde_json::from_value(json!({ "id": "", "title": "What it said", "query": { "name": "site-fixes", "logs_index_from": null, "logs_index_to": null, "created_from": null, "created_to": null, "item_type": null, "jq": null, "count": null, "watch": false }, "saved": "" })).unwrap();
+        save_view(&state, view).unwrap();
+        assert_eq!(std::fs::read_to_string(&aside[0].kept_as).unwrap(), newer, "untouched");
+        assert_eq!(store::header(&state.data.join(VIEWS_FILE)).map(|h| h.version), Some(store::VIEWS.version));
+    }
+
+    #[tokio::test]
+    async fn with_nothing_answering_the_app_says_the_network_part_isnt_there() {
+        let data = store::tests::folder("actions-absent");
+        let identity = Arc::new(Keys::open(data.join(KEYS_FILE), "maya"));
+        let absent = Arc::new(crate::absent::Absent);
+        let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
+        let state = AppState::assemble(data, identity, seams);
+        let about = info(&state);
+        assert!(!about.network && !about.stand_in);
+        assert!(listed(state.daemon.agents_list(agents::list::client::request::Frame {}).collect().await).agents.is_empty(), "no agents made up");
+        assert!(state.daemon.providers_list().await.is_empty(), "no machines made up");
+        assert!(state.spaces.list().await.is_empty(), "no rooms made up");
+        match host_space(&state, HostSpaceInput { title: "Saturday Workshop".into(), kind: "board".into(), charter: String::new(), open_door: false }).await.unwrap() {
+            HostOutcome::Error { message } => assert_eq!(message, crate::absent::NOT_YET),
+            other => panic!("{other:?}"),
+        }
     }
 
     #[tokio::test]
@@ -1439,5 +1798,57 @@ mod tests {
         for words in &looked_for {
             assert_eq!(program.contains(words.as_str()), cfg!(feature = "stand-in"), "{words}");
         }
+    }
+
+    #[cfg(feature = "stand-in")]
+    fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() { walk(&path, out) } else { out.push(path) }
+        }
+    }
+
+    #[cfg(feature = "stand-in")]
+    #[tokio::test]
+    async fn every_file_a_stand_in_run_keeps_carries_its_version() {
+        let data = store::tests::folder("actions-full-run");
+        seeded_keys(&data);
+        let state = AppState::open(data.clone()).await;
+        // Everything that keeps a file, once.
+        state.remember_mounts("site-fixes", Some(AgentMounts::default()));
+        let view: SavedView = serde_json::from_value(json!({ "id": "", "title": "What it said", "query": { "name": "site-fixes", "logs_index_from": null, "logs_index_to": null, "created_from": null, "created_to": null, "item_type": null, "jq": null, "count": null, "watch": false }, "saved": "" })).unwrap();
+        save_view(&state, view).unwrap();
+        let machine = state.daemon.providers_list().await.into_iter().next().expect("the stand-in has a machine");
+        rename_machine(&state, &(&machine.identity).into(), "the desk upstairs");
+        let entries = state.spaces.list().await;
+        let mine: Vec<String> = entries.iter().filter(|e| e.mine && (e.kind == "home" || e.kind == "board")).map(|e| e.id.id.clone()).collect();
+        assert_eq!(mine.len(), 2, "your home and your board");
+        state.door.set_allowance(&mine[0], "site-fixes", crate::door::Reach::Talk, 2);
+        for round in ["A ladder for Saturday", "A long extension cable"] {
+            send_ask(&state, round.into(), None, None, mine.clone()).await.unwrap();
+            for e in &entries {
+                moves_of(&state, &e.id).await;
+            }
+        }
+        let mut files = Vec::new();
+        walk(&data, &mut files);
+        let mut kinds = HashSet::new();
+        for file in files {
+            let parts: Vec<String> = file.strip_prefix(&data).unwrap().components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
+            // A stand-in machine's volumes and a room's table hold their own files, not the app's.
+            if parts[0] == "stand-in-host" && ((parts[1] == "machines" && parts.len() > 4 && parts[3] == "volumes") || (parts[1] == "tables" && parts.len() > 3)) {
+                continue;
+            }
+            let name = parts.last().unwrap();
+            if name.starts_with('.') && name.ends_with(".tmp") {
+                continue; // a write still under way when the folder was read
+            }
+            let header = store::header(&file).unwrap_or_else(|| panic!("{} carries no version", parts.join("/")));
+            kinds.insert(header.file);
+        }
+        for kind in ["keys", "counters", "allowances", "views", "machine names", "agent mounts", "threads", "record copy", "stand-in rooms", "stand-in volumes"] {
+            assert!(kinds.contains(kind), "a {kind} file was kept: {kinds:?}");
+        }
+        assert!(set_aside_views(&state).is_empty(), "nothing set aside on a clean run");
     }
 }
