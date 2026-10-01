@@ -6,7 +6,7 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them all; change what one mounts |
+//! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them all; change what one mounts; make, list and delete the templates agents are made from |
 //! | [`tools`] | create a tool under a name; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them all |
 //!
 //! # The tags
@@ -24,15 +24,18 @@
 //! | `3` | [`agents::logs`] |
 //! | `4` | [`agents::list`] |
 //! | `5` | [`agents::edit`] |
-//! | `6` | [`tools::create`] |
-//! | `7` | [`tools::edit`] |
-//! | `8` | [`tools::connect`] |
-//! | `9` | [`tools::attach`] |
-//! | `10` | [`tools::detach`] |
-//! | `11` | [`tools::delete`] |
-//! | `12` | [`tools::list`] |
+//! | `6` | [`agents::templates::create`] |
+//! | `7` | [`agents::templates::list`] |
+//! | `8` | [`agents::templates::delete`] |
+//! | `9` | [`tools::create`] |
+//! | `10` | [`tools::edit`] |
+//! | `11` | [`tools::connect`] |
+//! | `12` | [`tools::attach`] |
+//! | `13` | [`tools::detach`] |
+//! | `14` | [`tools::delete`] |
+//! | `15` | [`tools::list`] |
 //!
-//! Thirteen, so far. Tags are handed out in the order scopes are defined
+//! Sixteen, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

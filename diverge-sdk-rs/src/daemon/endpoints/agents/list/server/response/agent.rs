@@ -3,7 +3,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::agents::create::client::request::Image;
 use crate::daemon::endpoints::agents::logs::server::response::Provider;
 
 /// One agent of the caller's: what the daemon knows of it without
@@ -12,14 +11,18 @@ use crate::daemon::endpoints::agents::logs::server::response::Provider;
 /// Everything here the daemon holds for the agent's life, so a list
 /// costs no more than the agents it names. What an agent has SAID is
 /// its [`logs`](crate::daemon::endpoints::agents::logs), read separately;
-/// what it was made from beyond the image — its limits, its mounts,
-/// its arguments — is the create's, and is not repeated here.
+/// what it was made from is its template's, named by id, and its
+/// mounts are the create's, and neither is repeated here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Agent {
     /// The name, as its create gave it.
     pub name: String,
-    /// The image it runs: the name and the digest the create named.
-    pub image: Image,
+    /// The template it was made from, by id: the hash a
+    /// [`templates::create`](crate::daemon::endpoints::agents::templates::create)
+    /// answered, and what a
+    /// [`templates::list`](crate::daemon::endpoints::agents::templates::list)
+    /// names it by.
+    pub template: String,
     /// When the create made it.
     pub created: DateTime<Utc>,
     /// Whether the agent is active now: a loop is running in it.

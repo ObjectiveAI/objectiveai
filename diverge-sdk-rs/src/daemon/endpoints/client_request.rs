@@ -39,19 +39,25 @@ pub enum ClientRequest<'a> {
     AgentsList(agents::list::client::request::Frame),
     /// Tag `5`. Change what an agent mounts.
     AgentsEdit(agents::edit::client::request::Frame),
-    /// Tag `6`. Create a tool under a name.
+    /// Tag `6`. Make a template.
+    AgentsTemplatesCreate(agents::templates::create::client::request::Frame),
+    /// Tag `7`. List the caller's templates.
+    AgentsTemplatesList(agents::templates::list::client::request::Frame),
+    /// Tag `8`. Delete a template by id.
+    AgentsTemplatesDelete(agents::templates::delete::client::request::Frame),
+    /// Tag `9`. Create a tool under a name.
     ToolsCreate(tools::create::client::request::Frame),
-    /// Tag `7`. Change what a tool mounts.
+    /// Tag `10`. Change what a tool mounts.
     ToolsEdit(tools::edit::client::request::Frame),
-    /// Tag `8`. Hold somebody else's tool container under a name.
+    /// Tag `11`. Hold somebody else's tool container under a name.
     ToolsConnect(tools::connect::client::request::Frame),
-    /// Tag `9`. Attach a tool to an agent.
+    /// Tag `12`. Attach a tool to an agent.
     ToolsAttach(tools::attach::client::request::Frame),
-    /// Tag `10`. Detach a tool from an agent.
+    /// Tag `13`. Detach a tool from an agent.
     ToolsDetach(tools::detach::client::request::Frame),
-    /// Tag `11`. Delete a tool by name.
+    /// Tag `14`. Delete a tool by name.
     ToolsDelete(tools::delete::client::request::Frame),
-    /// Tag `12`. List the caller's tools.
+    /// Tag `15`. List the caller's tools.
     ToolsList(tools::list::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -79,6 +85,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsLogs(frame) => frame.encode(out),
             ClientRequest::AgentsList(frame) => frame.encode(out),
             ClientRequest::AgentsEdit(frame) => frame.encode(out),
+            ClientRequest::AgentsTemplatesCreate(frame) => frame.encode(out),
+            ClientRequest::AgentsTemplatesList(frame) => frame.encode(out),
+            ClientRequest::AgentsTemplatesDelete(frame) => frame.encode(out),
             ClientRequest::ToolsCreate(frame) => frame.encode(out),
             ClientRequest::ToolsEdit(frame) => frame.encode(out),
             ClientRequest::ToolsConnect(frame) => frame.encode(out),
@@ -128,25 +137,34 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             5 => agents::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsEdit)
                 .ok(),
-            6 => tools::create::client::request::Frame::decode(bytes)
+            6 => agents::templates::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsTemplatesCreate)
+                .ok(),
+            7 => agents::templates::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsTemplatesList)
+                .ok(),
+            8 => agents::templates::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsTemplatesDelete)
+                .ok(),
+            9 => tools::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsCreate)
                 .ok(),
-            7 => tools::edit::client::request::Frame::decode(bytes)
+            10 => tools::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsEdit)
                 .ok(),
-            8 => tools::connect::client::request::Frame::decode(bytes)
+            11 => tools::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsConnect)
                 .ok(),
-            9 => tools::attach::client::request::Frame::decode(bytes)
+            12 => tools::attach::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsAttach)
                 .ok(),
-            10 => tools::detach::client::request::Frame::decode(bytes)
+            13 => tools::detach::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsDetach)
                 .ok(),
-            11 => tools::delete::client::request::Frame::decode(bytes)
+            14 => tools::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsDelete)
                 .ok(),
-            12 => tools::list::client::request::Frame::decode(bytes)
+            15 => tools::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsList)
                 .ok(),
             _ => None,
@@ -164,6 +182,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsLogs(_) => f.write_str("agents logs"),
             ClientRequest::AgentsList(_) => f.write_str("agents list"),
             ClientRequest::AgentsEdit(_) => f.write_str("agents edit"),
+            ClientRequest::AgentsTemplatesCreate(_) => f.write_str("agents templates create"),
+            ClientRequest::AgentsTemplatesList(_) => f.write_str("agents templates list"),
+            ClientRequest::AgentsTemplatesDelete(_) => f.write_str("agents templates delete"),
             ClientRequest::ToolsCreate(_) => f.write_str("tools create"),
             ClientRequest::ToolsEdit(_) => f.write_str("tools edit"),
             ClientRequest::ToolsConnect(_) => f.write_str("tools connect"),

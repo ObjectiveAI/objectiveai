@@ -1,13 +1,16 @@
 //! Agents: what the daemon runs on a caller's behalf, and names.
 //!
 //! An agent is an agent container the daemon spawns on a provider —
-//! one the daemon chooses, or the one a [`create`] pins it to, with
-//! that provider's volumes mounted — from what the create names: the
-//! image, the limits, the mounts, the arguments. The daemon holds it
+//! one the daemon chooses, or the one its template pins it to, with
+//! that provider's volumes mounted — from what the [`create`] names:
+//! a [`template`](templates), which is the image, the limits, the
+//! provider pin and the arguments, held by its hash, and the mounts
+//! that are the agent's own. The daemon holds it
 //! under a name of the caller's choosing. The name is how the caller reaches the agent
 //! after: one name, one agent, for as long as the agent exists.
 //!
-//! [`create`] spawns an agent under a name; [`delete`] removes one by
+//! [`templates`] holds what agents are made from; [`create`] spawns
+//! an agent under a name from one; [`delete`] removes one by
 //! name; [`edit`] changes what one mounts; [`message`] sends one a message, and may take it back;
 //! [`logs`] reads what one said and what was said to it; [`list`]
 //! names every one the caller has. The MCP servers an agent calls
@@ -19,3 +22,4 @@ pub mod edit;
 pub mod list;
 pub mod logs;
 pub mod message;
+pub mod templates;

@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 use super::VolumeMount;
 use crate::daemon::endpoints::agents::logs::server::response::Identity;
 
-/// Pin the agent to one provider, and mount that provider's volumes
-/// in it.
+/// Pin a tool to one provider, and mount that provider's volumes in
+/// it. An agent's pin is its template's, and its volume mounts are
+/// its create's; a tool's create carries both here.
 ///
 /// A volume is a provider's own: named in that provider's listing,
 /// kept on that provider's disk, and meaning nothing to any other.

@@ -3,21 +3,22 @@
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
-use super::{FuseMount, Image, Provider};
+use super::{FuseMount, VolumeMount};
 
-/// Ask the daemon to create an agent under a name.
+/// Ask the daemon to create an agent under a name, from a template.
 ///
-/// Everything the agent is made from — the image, the limits, the
-/// mounts, the arguments, and the provider it is pinned to, if any —
-/// and the name the agent is held under from then on. What a caller may not choose is not here at all rather
-/// than here and ignored: the container's name, its ports, its
-/// entrypoint and its environment are the provider's, because they
-/// are how the provider reaches the container and how the container
-/// reaches back. There is no environment: the mounts are the
-/// caller's only provisioning channel, and a field that is accepted
-/// and ignored is a field callers will believe in.
+/// What every agent made from the template shares — the image, the
+/// limits, the provider pin, the arguments — is the
+/// [`template`](Self::template), named by its id; what is this
+/// agent's own is here: the mounts, and the name the agent is held
+/// under from then on. What a caller may not choose is not here at
+/// all rather than here and ignored: the container's name, its
+/// ports, its entrypoint and its environment are the provider's,
+/// because they are how the provider reaches the container and how
+/// the container reaches back. There is no environment: the mounts
+/// are the caller's only provisioning channel, and a field that is
+/// accepted and ignored is a field callers will believe in.
 ///
 /// # The name
 ///
@@ -28,42 +29,23 @@ use super::{FuseMount, Image, Provider};
 /// choose another name. Nothing here constrains the string's form;
 /// the name is the caller's word for its agent, and the daemon
 /// compares it and does not read it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The image: a name and a digest. See [`Image`].
-    pub image: Image,
-    /// How much memory the container may have, in BYTES.
-    ///
-    /// A ceiling, not a hint. A process that exceeds what the
-    /// container is allowed is killed by the kernel rather than told
-    /// — no failed allocation to catch, no warning first — and the
-    /// container will not see this number in its own
-    /// `/proc/meminfo`, which reports the host's. An image that sizes
-    /// itself off what it thinks it has will size itself wrong.
-    ///
-    /// Bytes rather than megabytes because a unit that has to be
-    /// spelled out in prose is a unit half of everyone gets wrong.
-    pub memory: u64,
-    /// How much the container may WRITE, in BYTES.
-    ///
-    /// Its own filesystem only — what it adds to or changes over the
-    /// image it came from. The image's layers are read-only and are
-    /// not counted, so a container starts at nothing however large
-    /// the image is. It does not govern the mounts: a volume is
-    /// storage that already existed, with a size of its own.
-    ///
-    /// Bytes rather than megabytes, for the reason
-    /// [`memory`](Self::memory) gives.
-    pub disk: u64,
-    /// The one provider the agent runs on, and the volumes of that
-    /// provider made visible inside the container. See [`Provider`].
-    ///
-    /// Absent, the agent runs on whichever provider the daemon
-    /// chooses, and mounts no volume: a volume is a provider's own
-    /// and does not carry across, so an agent with state on a
-    /// provider's disk is an agent of that provider.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider: Option<Provider>,
+    /// The template the agent is made from, by its id — the hash a
+    /// [`templates::create`](crate::daemon::endpoints::agents::templates::create)
+    /// answered. An id no template of the caller's has is the
+    /// create's error. The template's provider pin, if any, is the
+    /// agent's; its image, limits and arguments are the agent's for
+    /// its life.
+    pub template: String,
+    /// Volumes of the provider the template pins the agent to, made
+    /// visible inside the container: see [`VolumeMount`]. Ordered,
+    /// and applied in order; no mount's path, in any list of the
+    /// create, is a prefix of another's. A template that pins no
+    /// provider admits none here: a request that names one for such
+    /// a template is the create's error.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub volume_mounts: Vec<VolumeMount>,
     /// Files of providers' volumes served LIVE across the daemon,
     /// mounted one each over FUSE.
     ///
@@ -93,14 +75,6 @@ pub struct Frame {
     /// mount may lie inside it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// What the image is told once, as the image defines it, for the
-    /// agent's life.
-    ///
-    /// A JSON value, because this crate does not know what an image
-    /// takes — a model, tools, an image's own knobs — and a wire that
-    /// typed it would have to be revised for every image that ever
-    /// ran. It is handed to the container and not read here.
-    pub arguments: Value,
     /// The name, unique among the caller's agents.
     pub name: String,
 }
@@ -119,9 +93,7 @@ pub struct Frame {
 /// at once.
 const TAG: u8 = 0;
 
-/// JSON, as the container request is on the provider's wire: the
-/// arguments are a JSON value, and a value cannot come back out of
-/// postcard at all.
+/// JSON, as every request of the daemon's is.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;

@@ -1,28 +1,23 @@
-//! What a client's request frame carries for a detach.
+//! What a client's request frame carries for a create.
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::endpoints::agents::templates::Template;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to detach a tool from an agent, by their names.
+/// Ask the daemon to make a template.
 ///
-/// Each name is the one its [`create`](crate::daemon::endpoints::tools::create)
-/// gave it, compared as the daemon compares names and not read.
-/// Detaching is idempotent: a tool not attached to the agent is not
-/// attached to it after, and the daemon says so as it says it of a
-/// detach that took a tool off. An agent that is active — one with a
-/// loop running — is not detached from, and the daemon says so with
-/// a variant of its own, because a caller acts on it differently
-/// from a failure: wait for the loop to end, and ask again. A tool
-/// detached from its last active agent has its container stopped.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Frame {
-    /// The tool's name, as its create gave it.
-    pub tool: String,
-    /// The agent's name, as its create gave it.
-    pub agent: String,
-}
+/// The template and nothing else: there is no name to choose, since
+/// the template's id is its hash, and no mounts, since those are an
+/// agent's. The daemon answers the id whether the template is new or
+/// was made before, so a caller that creates the same template twice
+/// holds one.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Frame(
+    /// The template.
+    pub Template,
+);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -36,9 +31,10 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 13;
+const TAG: u8 = 6;
 
-/// JSON, as the rest of the daemon's requests are: two strings.
+/// JSON, as every request of the daemon's is: the template's own JSON,
+/// the very bytes its id is the hash of, after the tag.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
@@ -62,7 +58,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A tools detach request frame that could not be read.
+/// A agents templates create request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -80,12 +76,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("tools detach request frame is empty"),
+            FrameError::Empty => f.write_str("agents templates create request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected tools detach request tag {TAG}, found {tag}")
+                write!(f, "expected agents templates create request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "tools detach request did not parse: {error}")
+                write!(f, "agents templates create request did not parse: {error}")
             }
         }
     }

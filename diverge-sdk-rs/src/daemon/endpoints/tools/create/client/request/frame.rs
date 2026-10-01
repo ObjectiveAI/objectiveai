@@ -12,8 +12,9 @@ use crate::wire::encode::{Encode, Writer};
 /// Everything the tool container is made from — the image, the
 /// limits, the mounts, the arguments, and the provider it is pinned
 /// to, if any — and the name the tool is held under from then on.
-/// Member for member the agents create's, because a tool container
-/// is made of what an agent container is made of; what makes it a
+/// Member for member what an agent's template and create name
+/// between them, because a tool container is made of what an agent
+/// container is made of; what makes it a
 /// tool is the image, which runs an MCP server, and what the daemon
 /// does with it, which is to serve it to the agents it is attached
 /// to. What a caller may not choose is not here at all rather than
@@ -35,12 +36,12 @@ pub struct Frame {
     /// server, as a tool container's image does.
     pub image: Image,
     /// How much memory the container may have, in BYTES: a ceiling,
-    /// as the agents create's
-    /// [`memory`](crate::daemon::endpoints::agents::create::client::request::Frame::memory).
+    /// as a template's
+    /// [`memory`](crate::daemon::endpoints::agents::templates::Template::memory).
     pub memory: u64,
-    /// How much the container may WRITE, in BYTES: a ceiling, as the
-    /// agents create's
-    /// [`disk`](crate::daemon::endpoints::agents::create::client::request::Frame::disk).
+    /// How much the container may WRITE, in BYTES: a ceiling, as a
+    /// template's
+    /// [`disk`](crate::daemon::endpoints::agents::templates::Template::disk).
     pub disk: u64,
     /// The one provider the tool runs on, and the volumes of that
     /// provider made visible inside the container. See [`Provider`].
@@ -88,7 +89,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 6;
+const TAG: u8 = 9;
 
 /// JSON, as the agents create is: the arguments are a JSON value,
 /// and a value cannot come back out of postcard at all.

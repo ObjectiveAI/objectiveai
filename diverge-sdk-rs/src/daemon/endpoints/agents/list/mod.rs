@@ -2,8 +2,8 @@
 //!
 //! A client asks for its agents and the daemon sends every one it
 //! holds under the caller's identity, one response each, oldest
-//! created first, then finishes: what each is called, what image it
-//! runs, whether it is active now, when its activity last changed
+//! created first, then finishes: what each is called, what template
+//! it was made from, whether it is active now, when its activity last changed
 //! and where it ran, how long its log is, and which tools are
 //! attached to it. A caller with no
 //! agents sees the finish and nothing before it. The
