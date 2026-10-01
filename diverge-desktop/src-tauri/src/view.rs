@@ -1409,6 +1409,40 @@ pub struct AppInfo {
     pub stand_in_host: Option<String>,
 }
 
+/// A file the app couldn't use, set aside untouched under a new name.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct SetAsideView {
+    /// Where it was.
+    pub file: String,
+    /// Where it is now.
+    pub kept_as: String,
+    pub why: SetAsideWhy,
+}
+
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum SetAsideWhy {
+    /// It won't parse, it's another kind of file, or what it holds doesn't check.
+    Damaged,
+    /// A newer version of the app wrote it.
+    Newer,
+}
+
+impl From<&crate::store::SetAside> for SetAsideView {
+    fn from(s: &crate::store::SetAside) -> Self {
+        SetAsideView {
+            file: s.file.display().to_string(),
+            kept_as: s.kept_as.display().to_string(),
+            why: match s.why {
+                crate::store::Why::Damaged => SetAsideWhy::Damaged,
+                crate::store::Why::Newer(_) => SetAsideWhy::Newer,
+            },
+        }
+    }
+}
+
 /// One entry in the action registry: everything a person can do here,
 /// by name — the list an agent's door will expose.
 #[derive(Serialize, TS, Clone, Debug)]

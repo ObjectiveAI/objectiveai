@@ -114,7 +114,7 @@ fn schema(props: Value, required: &[&str]) -> Arc<JsonObject> {
 impl Door {
     pub fn new(spaces: Arc<dyn Spaces>, identity: Arc<Identity>, allowances_file: Option<PathBuf>) -> Self {
         let (live, _) = broadcast::channel(64);
-        let allowances = allowances_file.as_ref().and_then(|f| std::fs::read_to_string(f).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        let allowances = allowances_file.as_ref().and_then(|f| crate::store::load(f, crate::store::ALLOWANCES)).unwrap_or_default();
         Door {
             spaces,
             identity,
@@ -141,7 +141,7 @@ impl Door {
 
     fn save_allowances(&self, all: &HashMap<String, Allowance>) {
         if let Some(f) = &self.allowances_file {
-            let _ = std::fs::write(f, serde_json::to_string_pretty(all).unwrap_or_default());
+            let _ = crate::store::save(f, crate::store::ALLOWANCES, all);
         }
     }
 

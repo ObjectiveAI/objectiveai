@@ -281,6 +281,10 @@
     {
       "name": "app_info",
       "does": "Whether the daemon is the stand-in, and the contract pin"
+    },
+    {
+      "name": "files_set_aside",
+      "does": "Files the app couldn't use and set aside, untouched: where each was and where it is now"
     }
   ],
   "catalog": [

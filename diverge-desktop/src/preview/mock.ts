@@ -289,6 +289,14 @@ export function installPreview() {
         case "identity_broken":
           // Preview only: add ?keys-unreadable to the address to see how the app says so.
           return new URLSearchParams(location.search).has("keys-unreadable") ? "~/Library/Application Support/network.diverge.desktop.draft/identity.json" : null;
+        case "files_set_aside":
+          // Preview only: add ?files-set-aside to the address to see how the app says so.
+          return new URLSearchParams(location.search).has("files-set-aside")
+            ? [
+                { file: "~/Library/Application Support/network.diverge.desktop.draft/views.json", kept_as: "~/Library/Application Support/network.diverge.desktop.draft/views.newer-v2-20260930120000.json", why: "newer" },
+                { file: "~/Library/Application Support/network.diverge.desktop.draft/records/5f1c0e.json", kept_as: "~/Library/Application Support/network.diverge.desktop.draft/records/5f1c0e.damaged-20260930120000.json", why: "damaged" },
+              ]
+            : [];
         case "asks_close":
           return [];
         case "vouch_for":

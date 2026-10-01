@@ -45,14 +45,15 @@ inherits it.
       program re-attaches it before checking the seal. It never waits on its host while holding the room.
   - `src-tauri/src/identity.rs`: your usual self and fresh personas, and your agents' keys tethered to the persona they
     act for, named plainly in a fresh name's rooms. One owner-only file (`identity.json`), written whole and swapped
-    in, with a backup kept beside it; never the keychain (it can prompt in a popup). If it and its backup are both
+    in through `store.rs`, with a backup kept beside it; never the keychain (it can prompt in a popup). If it and its backup are both
     unreadable, the app signs nothing and says so; it never makes new keys over them. Counters live in
     `counters.json` and never fall behind the clock. One call at a time per key per room (`Identity::turn`).
   - A knock's opaque authorization carries a `Knocking`, signed by the key it names, for one room, good for a day,
     with a mark of the invite it came with. A vouch names the room it vouches someone into and runs out after a week.
     An invite is text (`diverge-invite:…`) carrying the room's rules and verbs, checked against the room on entry.
-  - `records/`: the app keeps a replayed copy of every room's record, named for a digest of the room's id. An
-    unreachable room shows from it, and someone still in it can continue it.
+  - `records/`: the app keeps a replayed copy of every room's record, named for a digest of the room's id, with the
+    copy before it beside it. An unreachable room shows from it, and someone still in it can continue it. A copy that
+    won't parse, isn't that room's or doesn't replay is set aside, and the one before it carries on.
 - **Hires** (`src-tauri/src/hires.rs`): a visitor asks one of your agents for something through your profile room; the
   room calls its host (on the wire, its own `mcp-call-tool`); you decide on a card. A hire waits until its agent is
   free, reaches it quoted as the visitor's words, and its result is read from its own run alone
@@ -67,7 +68,15 @@ inherits it.
 - **The reporter** (`src-tauri/src/reporter.rs`): when an agent's run ends it `report`s to the person's Home, with the
   run's words only while Home is theirs alone.
 - **The stand-in keeps its rooms** between launches (`tables/.stand-in-rooms.json`), rebuilt by replaying their
-  records.
+  records. A rooms file that won't parse or replay is set aside, and the stand-in starts again from its own past.
+- **Files** (`src-tauri/src/store.rs`): every JSON file the app keeps says what it is and its version
+  (`{"file", "version", "data"}`); one from before versions is read as it is. A write goes to a new owner-only file,
+  synced, then renamed over the old one, which becomes `<file>.bak` where the format keeps a last good copy. A file
+  that won't parse, or that a newer version wrote, is set aside under a new name beside it and never written over;
+  the app carries on from the last good copy, or starts that file empty, and every screen says so
+  (`files_set_aside`, words in `src/strings.ts`).
+- **Setup** is `AppState::open(data)` (actions.rs); main.rs builds the menu and picks the folder: the one
+  `DIVERGE_DATA_DIR` names (tests, a second copy of the app), the system's place for the app otherwise.
 - **The menu** (main.rs): ⌘N new agent, ⌘W closes a TAB (never the window), ⌘1 Home, ⌘2 Inbox; the page handles ⌘3–9
   and ⌘[ ⌘].
 - The webview never holds a daemon connection, address or credential. Rust owns them.
@@ -117,7 +126,7 @@ came from them. Seed content is invented and everyday.
 
 ## Run it
 `pnpm install` (from the repo root) then `cd diverge-desktop && pnpm tauri dev`. Every test, in one command:
-`pnpm test:all` (the app's Rust tests, the room crate with its container program, and vitest).
+`pnpm test:all` (the app's Rust tests, the room crate with its container program, and vitest). A second copy with its own files: `DIVERGE_DATA_DIR=/some/folder pnpm tauri dev`.
 
 ## Browser preview (reviews, cloud sessions — no Mac window needed)
 `pnpm dev` and open http://localhost:1430 in any browser. Outside Tauri the page plays back

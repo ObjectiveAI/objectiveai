@@ -7,6 +7,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { ActionInfo } from "../bindings/ActionInfo";
 import type { AgentsListed } from "../bindings/AgentsListed";
 import type { AppInfo } from "../bindings/AppInfo";
+import type { SetAsideView } from "../bindings/SetAsideView";
 import type { CreateAgentInput } from "../bindings/CreateAgentInput";
 import type { CreateOutcome } from "../bindings/CreateOutcome";
 import type { DeleteOutcome } from "../bindings/DeleteOutcome";
@@ -63,6 +64,7 @@ function channel<T>(onEvent: (event: T) => void): Channel<T> {
 export const api = {
   appInfo: () => invoke<AppInfo>("app_info"),
   identityBroken: () => invoke<string | null>("identity_broken"),
+  filesSetAside: () => invoke<SetAsideView[]>("files_set_aside"),
   asksClose: (thread: string, note: string | null) => invoke<AskSent[]>("asks_close", { thread, note }),
   actions: () => invoke<ActionInfo[]>("actions_list"),
   catalog: () => invoke<ImageKindView[]>("catalog_images"),

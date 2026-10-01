@@ -145,11 +145,11 @@ mod tests {
 
         let mut space_views = Vec::new();
         let mut tables = BTreeMap::new();
-        let copies: BTreeMap<String, serde_json::Value> = spaces.records_you_hold().into_iter().collect();
+        let copies: BTreeMap<String, diverge_desktop_room::Record> = spaces.records_you_hold().into_iter().collect();
         for e in spaces.list().await {
             if !e.online {
                 // Unreachable: the preview shows your copy, as the app does.
-                let copy: diverge_desktop_room::Record = serde_json::from_value(copies.get(&e.id.id).cloned().unwrap_or_default()).unwrap();
+                let copy = copies.get(&e.id.id).cloned().unwrap();
                 let room = diverge_desktop_room::Room::check(&copy).unwrap();
                 let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &room.read(program::FEED).unwrap().contents[0] else { panic!() };
                 let moves: Vec<MoveView> = serde_json::from_str(text).unwrap();

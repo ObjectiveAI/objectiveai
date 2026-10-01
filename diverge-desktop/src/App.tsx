@@ -3,6 +3,7 @@ import type { AgentView } from "./bindings/AgentView";
 import type { AppInfo } from "./bindings/AppInfo";
 import type { CardView } from "./bindings/CardView";
 import type { KnockView } from "./bindings/KnockView";
+import type { SetAsideView } from "./bindings/SetAsideView";
 import type { SpaceSummary } from "./bindings/SpaceSummary";
 import type { TabKind } from "./bindings/TabKind";
 import type { TabsSnapshot } from "./bindings/TabsSnapshot";
@@ -56,6 +57,12 @@ export function App() {
     setListedAt(Date.now());
   }, []);
 
+  // Files the app couldn't use, set aside untouched: said on every screen, as they turn up.
+  const [setAside, setSetAside] = useState<SetAsideView[]>([]);
+  const refreshSetAside = useCallback(() => {
+    api.filesSetAside().then(setSetAside).catch(() => setSetAside([]));
+  }, []);
+
   useEffect(() => {
     api.appInfo().then(setInfo);
     api.spacesHome().then(setHomeId);
@@ -67,6 +74,7 @@ export function App() {
     });
     refreshAgents();
     refreshSpaces();
+    refreshSetAside();
     const knocksScope = api.knocksWatch((event) => {
       if (event.event === "knock") setKnocks((k) => (k.some((x) => x.knock_id === event.knock.knock_id) ? k : [...k, event.knock]));
     });
@@ -74,7 +82,10 @@ export function App() {
       if (event.event === "card") setCards((c) => (c.some((x) => x.id === event.card.id) ? c : [...c, event.card]));
       else if (event.event === "answered") setCards((c) => c.filter((x) => x.id !== event.id));
     });
-    const timer = setInterval(refreshAgents, RELIST_MS);
+    const timer = setInterval(() => {
+      refreshAgents();
+      refreshSetAside();
+    }, RELIST_MS);
     const unlisten = api.onTabs((snapshot) => setTabs((current) => (snapshot.generation >= current.generation ? snapshot : current)));
     return () => {
       clearInterval(timer);
@@ -82,7 +93,7 @@ export function App() {
       knocksScope.then((id) => api.scopeClose(id));
       cardsScope.then((id) => api.scopeClose(id));
     };
-  }, [refreshAgents, refreshSpaces]);
+  }, [refreshAgents, refreshSpaces, refreshSetAside]);
 
   const apply = useCallback((snapshot: TabsSnapshot) => setTabs((current) => (snapshot.generation >= current.generation ? snapshot : current)), []);
   const open = useCallback((tab: TabKind) => void api.tabOpen(tab).then(apply), [apply]);
@@ -145,6 +156,12 @@ export function App() {
               <strong>{t.keys.unreadable}</strong> {t.keys.where} <span className="mono selectable">{keysBroken}</span>. {t.keys.untouched}
             </div>
           ) : null}
+          {setAside.map((f) => (
+            <div key={f.kept_as} className="banner banner-warn">
+              <strong>{f.file.split(/[\\/]/).pop()}</strong> {f.why === "newer" ? t.files.newer : t.files.damaged}{" "}
+              <span className="mono selectable">{f.kept_as}</span>. {t.files.untouched}
+            </div>
+          ))}
           <div className="panes">
             {tabs.tabs.length === 0 ? <Empty title={t.emptyState.title} body={t.emptyState.body} /> : null}
             {tabs.tabs.map(({ key, tab }) => (

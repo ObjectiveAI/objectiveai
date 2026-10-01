@@ -34,14 +34,14 @@ pub struct AppState {
     pub spaces: Arc<dyn Spaces>,
     pub door: Arc<Door>,
     pub stand_in_host: Option<PathBuf>,
+    /// The folder every file the app keeps is in.
+    pub data: PathBuf,
     pub scopes: Mutex<HashMap<String, CancellationToken>>,
     pub next_scope: AtomicU64,
     pub tabs: Mutex<Tabs>,
     pub views: Mutex<Vec<SavedView>>,
-    pub views_file: PathBuf,
     /// Machine names, yours: identity key → name.
     pub machine_names: Mutex<HashMap<String, String>>,
-    pub machine_names_file: PathBuf,
     /// Your copies of every room's record, one file each, kept as you go.
     pub records_dir: PathBuf,
     /// The last hash of each copy, so a copy is written only when it grew.
@@ -49,22 +49,128 @@ pub struct AppState {
     /// Your asks' thread ids, one per room they went to, and the one thread
     /// each belongs to. Only this app knows they're one; the rooms can't tell.
     pub threads: Mutex<HashMap<String, String>>,
-    pub threads_file: PathBuf,
     /// What this app last stated each agent mounts: agent name → mounts.
     pub agent_mounts: Mutex<HashMap<String, AgentMounts>>,
-    pub agent_mounts_file: PathBuf,
+}
+
+/// The files the app keeps, in its folder.
+const KEYS_FILE: &str = "identity.json";
+const ALLOWANCES_FILE: &str = "allowances.json";
+const VIEWS_FILE: &str = "views.json";
+const MACHINE_NAMES_FILE: &str = "machine_names.json";
+const AGENT_MOUNTS_FILE: &str = "agent_mounts.json";
+const THREADS_FILE: &str = "threads.json";
+const RECORDS_DIR: &str = "records";
+
+/// The variable that puts the app's files in a folder of your choosing:
+/// for tests, and for a second copy of the app beside the first.
+pub const DATA_DIR_VAR: &str = "DIVERGE_DATA_DIR";
+
+/// Where the app keeps its files: the folder [`DATA_DIR_VAR`] names, when
+/// it names one (a relative one from where the app started); the system's
+/// place for this app otherwise.
+pub fn data_dir<E>(from_env: Option<std::ffi::OsString>, system: impl FnOnce() -> Result<PathBuf, E>) -> Result<PathBuf, E> {
+    match from_env.filter(|v| !v.is_empty()).map(PathBuf::from) {
+        Some(dir) => Ok(std::path::absolute(&dir).unwrap_or(dir)),
+        None => system(),
+    }
+}
+
+/// The name your usual self starts under: your account name on this
+/// computer until you rename it.
+fn usual_name() -> String {
+    std::env::var("USER").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| "you".into())
+}
+
+/// What answers the app's seams, and what the app knows of them before it
+/// has files of its own.
+pub struct Seams {
+    pub daemon: Arc<dyn Daemon>,
+    pub machines: Arc<dyn Machines>,
+    pub spaces: Arc<dyn Spaces>,
+    pub stand_in_host: Option<PathBuf>,
+    /// What the app counts as having stated each agent mounts, until it
+    /// keeps a file of its own.
+    pub first_mounts: HashMap<String, AgentMounts>,
 }
 
 impl AppState {
+    /// The app over its folder: your keys, every file it keeps, and the
+    /// stand-in daemon and rooms. Starts the reporter and the hires. Call
+    /// it inside the runtime the app keeps.
+    pub async fn open(data: PathBuf) -> AppState {
+        let _ = std::fs::create_dir_all(&data);
+        let identity = Arc::new(crate::identity::Identity::open(data.join(KEYS_FILE), &usual_name()));
+        let state = Self::with_stand_in(data, identity);
+        crate::reporter::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone());
+        crate::hires::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone(), state.door.clone());
+        state
+    }
+
+    /// The stand-in daemon and rooms, their past, and their scenes.
+    fn with_stand_in(data: PathBuf, identity: Arc<crate::identity::Identity>) -> AppState {
+        use crate::daemon::stub::StubDaemon;
+        use crate::spaces::stub::StubSpaces;
+        let host = data.join("stand-in-host");
+        let daemon = Arc::new(StubDaemon::new(host.clone()));
+        let stub = StubSpaces::new(identity.clone(), host.join("tables"));
+        // On a first run, the stand-in's seeded agents count as made here.
+        let first_mounts = daemon.creates().iter().map(|c| (c.name.clone(), AgentMounts::of_create(c))).collect();
+        // The stand-in answers both seams: it knows every agent's mounts, so it keeps every machine's holds.
+        let seams = Seams { daemon: daemon.clone(), machines: daemon.clone(), spaces: Arc::new(stub.clone()), stand_in_host: Some(host), first_mounts };
+        let state = Self::assemble(data, identity, seams);
+        daemon.set_door(state.door.clone());
+        // The stand-in's past: copies you'd already hold of rooms that have since gone quiet.
+        for (id, record) in stub.records_you_hold() {
+            let file = record_file(&state, &id);
+            if !file.exists() {
+                let _ = crate::store::save(&file, crate::store::RECORD_COPY, &record);
+            }
+        }
+        // The stand-in's own scenes: someone hires one of your agents a little after you open the app.
+        stub.stage();
+        state
+    }
+
+    /// The app over its folder and these seams, every file it keeps read
+    /// back. Call it inside a tokio runtime: the door keeps that one.
+    pub fn assemble(data: PathBuf, identity: Arc<crate::identity::Identity>, seams: Seams) -> AppState {
+        use crate::store;
+        let door = Arc::new(Door::new(seams.spaces.clone(), identity.clone(), Some(data.join(ALLOWANCES_FILE))));
+        let records_dir = data.join(RECORDS_DIR);
+        let _ = std::fs::create_dir_all(&records_dir);
+        AppState {
+            daemon: seams.daemon,
+            identity,
+            machines: seams.machines,
+            spaces: seams.spaces,
+            door,
+            stand_in_host: seams.stand_in_host,
+            scopes: Mutex::new(HashMap::new()),
+            next_scope: AtomicU64::new(1),
+            tabs: Mutex::new(Tabs::default()),
+            views: Mutex::new(store::load(&data.join(VIEWS_FILE), store::VIEWS).unwrap_or_default()),
+            machine_names: Mutex::new(store::load(&data.join(MACHINE_NAMES_FILE), store::MACHINE_NAMES).unwrap_or_default()),
+            records_dir,
+            record_heads: Mutex::new(HashMap::new()),
+            threads: Mutex::new(store::load(&data.join(THREADS_FILE), store::THREADS).unwrap_or_default()),
+            agent_mounts: Mutex::new(store::load(&data.join(AGENT_MOUNTS_FILE), store::AGENT_MOUNTS).unwrap_or(seams.first_mounts)),
+            data,
+        }
+    }
+
+    /// Write one of the app's files, whole or not at all.
+    fn keep<T: serde::Serialize + serde::de::DeserializeOwned>(&self, name: &str, format: crate::store::Format, data: &T) {
+        let _ = crate::store::save(&self.data.join(name), format, data);
+    }
+
     fn remember_mounts(&self, name: &str, mounts: Option<AgentMounts>) {
         let mut all = self.agent_mounts.lock().unwrap();
         match mounts {
             Some(m) => all.insert(name.to_owned(), m),
             None => all.remove(name),
         };
-        if let Ok(json) = serde_json::to_string_pretty(&*all) {
-            let _ = std::fs::write(&self.agent_mounts_file, json);
-        }
+        self.keep(AGENT_MOUNTS_FILE, crate::store::AGENT_MOUNTS, &*all);
     }
 
     fn open_scope(&self, prefix: &str) -> (String, CancellationToken) {
@@ -85,9 +191,7 @@ impl AppState {
     }
 
     fn save_views(&self, views: &[SavedView]) {
-        if let Ok(json) = serde_json::to_string_pretty(views) {
-            let _ = std::fs::write(&self.views_file, json);
-        }
+        self.keep(VIEWS_FILE, crate::store::VIEWS, &views.to_vec());
     }
 }
 
@@ -163,6 +267,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("tabs_focus", "Focus a tab"),
     ("actions_list", "This list"),
     ("app_info", "Whether the daemon is the stand-in, and the contract pin"),
+    ("files_set_aside", "Files the app couldn't use and set aside, untouched: where each was and where it is now"),
 ];
 
 #[tauri::command]
@@ -177,6 +282,16 @@ pub fn app_info(state: State<'_, AppState>) -> AppInfo {
         contract_pin: include_str!("../../CONTRACT_PIN").lines().next().unwrap_or_default().to_owned(),
         stand_in_host: state.stand_in_host.as_ref().map(|p| p.display().to_string()),
     }
+}
+
+/// Files the app couldn't use since it started: each set aside, untouched, under a new name.
+#[tauri::command]
+pub fn files_set_aside(state: State<'_, AppState>) -> Vec<SetAsideView> {
+    set_aside_views(&state)
+}
+
+fn set_aside_views(state: &AppState) -> Vec<SetAsideView> {
+    crate::store::set_aside_under(&state.data).iter().map(SetAsideView::from).collect()
 }
 
 #[tauri::command]
@@ -434,15 +549,21 @@ async fn keep_copy(state: &AppState, id: &spaces::Id) {
     if record.args.id != id.id || diverge_desktop_room::Room::check(&record).is_err() {
         return;
     }
-    let _ = std::fs::create_dir_all(&state.records_dir);
-    if std::fs::write(record_file(state, &id.id), serde_json::to_string(&record).unwrap_or_default()).is_ok() {
+    if crate::store::save(&record_file(state, &id.id), crate::store::RECORD_COPY, &record).is_ok() {
         state.record_heads.lock().unwrap().insert(id.id.clone(), head);
     }
 }
 
-/// Your copy of a room's record, if you hold one.
+/// Your copy of a room's record, if you hold one that is that room's and
+/// replays whole. One that doesn't is set aside, and the copy before it
+/// carries on.
 fn copy_of(state: &AppState, id: &str) -> Option<diverge_desktop_room::Record> {
-    std::fs::read_to_string(record_file(state, id)).ok().and_then(|s| serde_json::from_str(&s).ok())
+    crate::store::load_with(&record_file(state, id), crate::store::RECORD_COPY, |record: &diverge_desktop_room::Record| {
+        if record.args.id != id {
+            return Err("another room's record".into());
+        }
+        diverge_desktop_room::Room::check(record).map(|_| ())
+    })
 }
 
 /// Your copy of a room, rebuilt by replay: what it served when you last saw it.
@@ -995,9 +1116,7 @@ pub async fn asks_send(state: State<'_, AppState>, what: String, needs: Option<S
         {
             let mut threads = state.threads.lock().unwrap();
             threads.insert(thread.clone(), base.clone());
-            if let Ok(json) = serde_json::to_string(&*threads) {
-                let _ = std::fs::write(&state.threads_file, json);
-            }
+            state.keep(THREADS_FILE, crate::store::THREADS, &*threads);
         }
         let args = serde_json::json!({ "what": what.trim(), "needs": needs, "ceiling": ceiling, "who_may_serve": "anyone", "thread": thread });
         let outcome = match call_as_you(&state, &space_id(&room), "ask", args).await {
@@ -1183,9 +1302,7 @@ pub fn machines_rename(state: State<'_, AppState>, identity: ProviderView, name:
     } else {
         names.insert(key, name.trim().to_owned());
     }
-    if let Ok(json) = serde_json::to_string_pretty(&*names) {
-        let _ = std::fs::write(&state.machine_names_file, json);
-    }
+    state.keep(MACHINE_NAMES_FILE, crate::store::MACHINE_NAMES, &*names);
     names.clone()
 }
 
@@ -1262,4 +1379,37 @@ pub fn tabs_focus(app: AppHandle, state: State<'_, AppState>, key: String) -> Ta
     let snapshot = state.tabs.lock().unwrap().focus(&key);
     let _ = app.emit("tabs://changed", snapshot.clone());
     snapshot
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    use chrono::Utc;
+    use serde_json::json;
+
+    use diverge_desktop_room::Keypair;
+
+    use crate::store;
+
+    /// Keys made from a fixed seed, so the stand-in's rooms get the ids every other test's do.
+    fn seeded_keys(data: &Path) {
+        let keys = json!({ "personas": [{ "id": "usual", "name": "maya", "secret": Keypair::from_seed("maya").secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
+        store::save(&data.join(KEYS_FILE), store::KEYS, &keys).unwrap();
+    }
+
+    #[tokio::test]
+    async fn with_the_data_dir_variable_set_the_app_keeps_its_files_there() {
+        let dir = store::tests::folder("actions-data-dir");
+        let data = data_dir::<std::io::Error>(Some(dir.clone().into_os_string()), || unreachable!("not the system's folder")).unwrap();
+        assert_eq!(data, dir);
+        assert_eq!(data_dir::<()>(Some("".into()), || Ok(PathBuf::from("/the/system/folder"))), Ok(PathBuf::from("/the/system/folder")), "an empty one names nothing");
+        assert_eq!(data_dir::<()>(Some("second-copy".into()), || unreachable!()), Ok(std::env::current_dir().unwrap().join("second-copy")), "a relative one is from where the app started");
+        seeded_keys(&data);
+        let _state = AppState::open(data.clone()).await;
+        assert!(data.join(KEYS_FILE).is_file());
+        assert!(data.join(RECORDS_DIR).is_dir());
+        assert!(std::fs::read_dir(data.join(RECORDS_DIR)).unwrap().next().is_some(), "the stand-in's copies are there too");
+    }
 }

@@ -18,12 +18,11 @@
 //! Kept in files only this app reads, owner-only from the moment they're
 //! made, never the system keychain: a keychain can ask for permission in a
 //! popup, and this app has none. The keys file is written whole to a new
-//! file and swapped in, with the last good one kept beside it. If it can't
-//! be read and neither can its backup, the app signs nothing and says so;
-//! it never makes new keys over it.
+//! file and swapped in, with the last good one kept beside it (see
+//! [`crate::store`]). If it can't be read and neither can its backup, the
+//! app signs nothing and says so; it never makes new keys over it.
 
 use std::collections::{BTreeMap, HashMap};
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -33,6 +32,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use diverge_desktop_room::{Key, Keypair, Statement, seal_call, tether};
+
+use crate::store::{self, Read};
 
 #[derive(Serialize, Deserialize, Clone)]
 struct PersonaRecord {
@@ -98,36 +99,8 @@ pub struct Identity {
 /// What a call gets when the keys file couldn't be read.
 pub const UNREADABLE: &str = "Your keys file can't be read, so nothing is sent as you.";
 
-fn backup_of(file: &Path) -> PathBuf {
-    file.with_extension("json.bak")
-}
-
 fn counters_of(file: &Path) -> PathBuf {
     file.with_file_name("counters.json")
-}
-
-/// Write a file only its owner can read, whole or not at all: a new file,
-/// synced, then renamed over the old. With `keep`, the old one is kept as
-/// that backup first.
-fn write_private(path: &Path, bytes: &[u8], keep: Option<&Path>) -> std::io::Result<()> {
-    let tmp = path.with_extension("json.tmp");
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let mut f = options.open(&tmp)?;
-    f.write_all(bytes)?;
-    f.sync_all()?;
-    drop(f);
-    if let Some(keep) = keep {
-        if path.exists() {
-            std::fs::rename(path, keep)?;
-        }
-    }
-    std::fs::rename(&tmp, path)
 }
 
 fn persona_view(p: &PersonaRecord) -> Persona {
@@ -140,20 +113,21 @@ impl Identity {
     /// file falls back to its backup; if both are unreadable, the app runs
     /// signing nothing, and neither file is touched.
     pub fn open(file: PathBuf, usual_name: &str) -> Self {
-        let read = |p: &Path| std::fs::read_to_string(p).ok().map(|s| serde_json::from_str::<Keys>(&s).ok());
-        let (main, backup) = (read(&file), read(&backup_of(&file)));
-        let (keys, broken, restore) = match (main, backup) {
-            (Some(Some(k)), _) => (k, None, false),
-            // The file is missing or damaged, and the last good one holds: carry on from it.
-            (_, Some(Some(k))) => (k, None, true),
-            (None, None) => (Keys::default(), None, false),
-            _ => (Keys::default(), Some(file.clone()), false),
+        let main = store::read::<Keys>(&file, store::KEYS);
+        let backup = store::read::<Keys>(&store::previous_of(&file), store::KEYS);
+        let (keys, broken, damaged) = match (main, backup) {
+            (Read::Good(k), _) => (k, None, None),
+            // The file is missing or can't be used, and the last good one holds: carry on from it.
+            (main, Read::Good(k)) => (k, None, Some(main)),
+            (Read::Missing, Read::Missing) => (Keys::default(), None, None),
+            _ => (Keys::default(), Some(file.clone()), None),
         };
-        if restore && file.exists() {
-            // Keep the damaged one for whoever wants to look at it.
-            let _ = std::fs::rename(&file, file.with_extension(format!("damaged-{}.json", Utc::now().format("%Y%m%d%H%M%S"))));
+        let restore = damaged.is_some();
+        if let Some(Read::Unusable(why)) = damaged {
+            // Keep the one that can't be used for whoever wants to look at it.
+            let _ = store::set_aside(&file, &why);
         }
-        let saved: BTreeMap<Key, u64> = std::fs::read_to_string(counters_of(&file)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        let saved: BTreeMap<Key, u64> = store::load(&counters_of(&file), store::COUNTERS).unwrap_or_default();
         let mut counters = keys.counters.clone();
         counters.extend(saved);
         let identity = Identity {
@@ -197,9 +171,7 @@ impl Identity {
 
     fn save(&self, keys: &Keys) {
         let Some(file) = &self.file else { return };
-        if let Ok(json) = serde_json::to_string_pretty(keys) {
-            let _ = write_private(file, json.as_bytes(), Some(&backup_of(file)));
-        }
+        let _ = store::save(file, store::KEYS, keys);
     }
 
     fn ensure_usual(&self, name: &str, keypair: Option<Keypair>) {
@@ -352,8 +324,8 @@ impl Identity {
             // Never behind the clock: a lost counters file can't lock you out.
             let next = (counters.get(&key).copied().unwrap_or(0) + 1).max(Utc::now().timestamp_millis().max(0) as u64);
             counters.insert(key.clone(), next);
-            if let (Some(file), Ok(json)) = (&self.file, serde_json::to_string(&*counters)) {
-                let _ = write_private(&counters_of(file), json.as_bytes(), None);
+            if let Some(file) = &self.file {
+                let _ = store::save(&counters_of(file), store::COUNTERS, &*counters);
             }
             next
         };
@@ -433,7 +405,7 @@ mod tests {
         assert!(std::fs::read_dir(&dir).unwrap().any(|e| e.unwrap().file_name().to_string_lossy().contains("damaged")));
         // Damaged, and the backup too: nothing is signed, and neither file is touched.
         std::fs::write(&file, "{ not json").unwrap();
-        std::fs::write(backup_of(&file), "also not json").unwrap();
+        std::fs::write(store::previous_of(&file), "also not json").unwrap();
         let broken = Identity::open(file.clone(), "maya");
         assert!(broken.broken().is_some());
         let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
@@ -441,6 +413,35 @@ mod tests {
         assert!(broken.state(&broken.usual().key, "vouch", json!({})).is_err());
         broken.fresh("anyone").ok();
         assert_eq!(std::fs::read_to_string(&file).unwrap(), "{ not json", "left as it was");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn keys_from_before_files_carried_a_version_carry_on() {
+        let dir = store::tests::folder("keys-unversioned");
+        let file = dir.join("identity.json");
+        let keypair = Keypair::generate();
+        let old = json!({ "personas": [{ "id": "usual", "name": "maya", "secret": keypair.secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
+        std::fs::write(&file, old.to_string()).unwrap();
+        let me = Identity::open(file.clone(), "someone else");
+        assert_eq!(me.usual().key, keypair.key(), "the same keys");
+        me.fresh("lamp person").unwrap();
+        assert_eq!(store::header(&file).map(|h| (h.file, h.version)), Some(("keys".into(), 1)), "and now it says what it is");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_keys_file_from_a_newer_version_is_left_alone() {
+        let dir = store::tests::folder("keys-newer");
+        let file = dir.join("identity.json");
+        let newer = r#"{"file":"keys","version":99,"data":{"what":"this build can't read"}}"#;
+        std::fs::write(&file, newer).unwrap();
+        std::fs::write(store::previous_of(&file), newer).unwrap();
+        let me = Identity::open(file.clone(), "maya");
+        assert!(me.broken().is_some(), "nothing is signed");
+        me.fresh("anyone").ok();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), newer, "never written over");
+        assert_eq!(std::fs::read_to_string(store::previous_of(&file)).unwrap(), newer);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
