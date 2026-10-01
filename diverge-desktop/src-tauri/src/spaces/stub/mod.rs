@@ -195,12 +195,22 @@ impl StubSpaces {
             calls_live,
             tables,
         };
-        // What happened in the rooms last time, if anything did; the stand-in's own past otherwise.
+        // What happened in the rooms last time, if anything did; the stand-in's own past otherwise,
+        // once there's a you: until the first-run page is finished, nothing is seeded.
         if !s.restore() {
-            s.seed();
-            s.persist();
+            s.begin();
         }
         s
+    }
+
+    /// Seed the stand-in's own past, if there are no rooms yet and the
+    /// first-run page is finished: the seeded rooms are yours too.
+    pub fn begin(&self) {
+        if self.me.ready().is_err() || !self.lock().rooms.is_empty() {
+            return;
+        }
+        self.seed();
+        self.persist();
     }
 
     fn saved_file(&self) -> PathBuf {
@@ -385,9 +395,8 @@ impl StubSpaces {
 
     /// Admit one of your agents, tethered to you.
     fn admit_agent(&self, inner: &mut Inner, room: &str, agent: &str, at: DateTime<Utc>) {
-        let a = self.me.agent_in(agent, Some(room));
+        let (Ok(a), Ok(usual)) = (self.me.agent_in(agent, Some(room)), self.me.usual()) else { return };
         let (key, t, agent) = (a.key, a.tether, a.name.as_str());
-        let usual = self.me.usual();
         let _ = self.me_act(inner, Actor::Persona("usual".into()), room, "admit", json!({ "key": key, "name": agent, "is_agent": true, "agent_of": usual.key, "tether": t }), at);
     }
 
@@ -400,7 +409,7 @@ impl StubSpaces {
         let ago = |h: i64, m: i64| now - TimeDelta::hours(h) - TimeDelta::minutes(m);
         // Every seeded room was made before anything happened in it.
         let since = ago(500, 0);
-        let usual = self.me.usual();
+        let Ok(usual) = self.me.usual() else { return };
         let me = Actor::Persona("usual".into());
         let (ada, scout, ren) = (self.stand_in_key("ada"), self.stand_in_key("ada/scout"), self.stand_in_key("ren"));
         let mut guard = self.lock();
@@ -734,7 +743,7 @@ impl Spaces for StubSpaces {
             return Err(ErrorData::internal_error("the room's host is offline", None));
         }
         // Only someone let in and not removed reads a room: here, you, as whoever you are there.
-        let you = self.me.in_room(&id.id).unwrap_or_else(|| self.me.usual()).key;
+        let you = self.me.who_in(&id.id).map(|p| p.key).unwrap_or_default();
         if !h.mine && !h.room.may_read(&you) {
             return Err(ErrorData::invalid_request("you're not in that room, or you were removed", None));
         }
@@ -945,7 +954,7 @@ mod tests {
         let invite = Invite::from_text(said.split_whitespace().find(|w| w.starts_with("diverge-invite:")).unwrap()).unwrap();
         assert_eq!(invite.title, "Ren's music room");
         assert!(invite.verbs.iter().any(|v| v.name == "show"));
-        let usual = me.usual();
+        let usual = me.usual().unwrap();
         let knock = |invite_mark: Option<String>| Knocking {
             room: invite.id.clone(),
             invite: invite_mark,

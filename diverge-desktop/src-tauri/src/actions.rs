@@ -56,7 +56,12 @@ pub struct AppState {
     pub threads: Mutex<HashMap<String, String>>,
     /// What this app last stated each agent mounts: agent name → mounts.
     pub agent_mounts: Mutex<HashMap<String, AgentMounts>>,
+    /// What waits for the first-run page to be finished: anything that acts as you.
+    pub after_first_run: Mutex<Vec<AfterFirstRun>>,
 }
+
+/// Something that waits for the first-run page to be finished.
+pub type AfterFirstRun = Box<dyn FnOnce(&AppState) + Send>;
 
 /// The files the app keeps, in its folder.
 const KEYS_FILE: &str = "identity.json";
@@ -79,12 +84,6 @@ pub fn data_dir<E>(from_env: Option<std::ffi::OsString>, system: impl FnOnce() -
         Some(dir) => Ok(std::path::absolute(&dir).unwrap_or(dir)),
         None => system(),
     }
-}
-
-/// The name your usual self starts under: your account name on this
-/// computer until you rename it.
-fn usual_name() -> String {
-    std::env::var("USER").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| "you".into())
 }
 
 /// What answers the app's seams, and what the app knows of them before it
@@ -113,13 +112,14 @@ impl AppState {
         let folder = crate::store::hold(&data);
         let state = match folder.refusal() {
             Some(says) => {
-                let identity = Arc::new(crate::identity::Identity::untouched(&data.join(KEYS_FILE), &usual_name(), says));
+                let identity = Arc::new(crate::identity::Identity::untouched(&data.join(KEYS_FILE), says));
                 let absent = Arc::new(crate::absent::Absent::saying(says));
                 let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
                 return Self::assemble(data, identity, seams, folder);
             }
             None => {
-                let identity = Arc::new(crate::identity::Identity::open(data.join(KEYS_FILE), &usual_name()));
+                // Nobody is named from this Mac: until the first-run page is finished there's no you here.
+                let identity = Arc::new(crate::identity::Identity::open(data.join(KEYS_FILE)));
                 #[cfg(feature = "stand-in")]
                 let state = Self::with_stand_in(data, identity, folder);
                 #[cfg(not(feature = "stand-in"))]
@@ -150,15 +150,24 @@ impl AppState {
         let seams = Seams { daemon: daemon.clone(), machines: daemon.clone(), spaces: Arc::new(stub.clone()), stand_in_host: Some(host), network: true, first_mounts };
         let state = Self::assemble(data, identity, seams, folder);
         daemon.set_door(state.door.clone());
-        // The stand-in's past: copies you'd already hold of rooms that have since gone quiet.
-        for (id, record) in stub.records_you_hold() {
-            let file = record_file(&state, &id);
-            if !file.exists() {
-                let _ = crate::store::save(&file, crate::store::RECORD_COPY, &record);
+        // The stand-in's rooms are yours and others': they start once there's a you, after the first-run page.
+        let begin = move |state: &AppState| {
+            stub.begin();
+            // The stand-in's past: copies you'd already hold of rooms that have since gone quiet.
+            for (id, record) in stub.records_you_hold() {
+                let file = record_file(state, &id);
+                if !file.exists() {
+                    let _ = crate::store::save(&file, crate::store::RECORD_COPY, &record);
+                }
             }
+            // The stand-in's own scenes: someone hires one of your agents a little after you open the app.
+            stub.stage();
+        };
+        if state.identity.ready().is_ok() {
+            begin(&state);
+        } else {
+            state.after_first_run.lock().unwrap().push(Box::new(begin));
         }
-        // The stand-in's own scenes: someone hires one of your agents a little after you open the app.
-        stub.stage();
         state
     }
 
@@ -195,6 +204,7 @@ impl AppState {
             record_heads: Mutex::new(HashMap::new()),
             threads: Mutex::new(kept(held, &data.join(THREADS_FILE), store::THREADS).unwrap_or_default()),
             agent_mounts: Mutex::new(kept(held, &data.join(AGENT_MOUNTS_FILE), store::AGENT_MOUNTS).unwrap_or(seams.first_mounts)),
+            after_first_run: Mutex::new(Vec::new()),
             data,
             folder,
         }
@@ -312,6 +322,8 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("actions_list", "This list"),
     ("app_info", "Whether the daemon is the stand-in, whether there's a network part at all, and the contract pin"),
     ("files_set_aside", "Files the app couldn't use since it started: each set aside untouched, or left where it is; what it carried on from"),
+    ("first_run_get", "Where the first-run page stands: finished, not started, or a folder from before accounts"),
+    ("first_run_finish", "Finish the first-run page: the name people should call you, and that you're 18 or older. Makes your account; nothing is signed before"),
 ];
 
 #[tauri::command]
@@ -357,6 +369,29 @@ async fn file_notices(state: &AppState) -> Vec<FileNoticeView> {
             FileNoticeView::of(n, room)
         })
         .collect()
+}
+
+/// Where the first-run page stands. Until it's finished there's no you
+/// here: nothing is signed or sent, and the screens show only that page.
+#[tauri::command]
+pub fn first_run_get(state: State<'_, AppState>) -> FirstRunView {
+    state.identity.first_run().into()
+}
+
+/// Finish the first-run page. Only a person does this, on the page: no
+/// door gives an agent your name, your account or your words.
+#[tauri::command]
+pub async fn first_run_finish(state: State<'_, AppState>, name: String, adult: bool) -> Result<FirstRunView, String> {
+    finish_first_run(&state, &name, adult)
+}
+
+fn finish_first_run(state: &AppState, name: &str, adult: bool) -> Result<FirstRunView, String> {
+    state.identity.finish_first_run(name, adult)?;
+    let waiting = std::mem::take(&mut *state.after_first_run.lock().unwrap());
+    for then in waiting {
+        then(state);
+    }
+    Ok(state.identity.first_run().into())
 }
 
 #[tauri::command]
@@ -593,8 +628,8 @@ async fn call_as_you(state: &AppState, id: &spaces::Id, tool: &str, arguments: s
 
 /// Let one of your agents into a room you host, tethered to who you are there.
 pub async fn admit_agent(state: &AppState, room: &spaces::Id, agent: &str) -> Result<(), String> {
-    let a = state.identity.agent_in(agent, Some(&room.id));
-    let person = state.identity.in_room(&room.id).unwrap_or_else(|| state.identity.usual());
+    let a = state.identity.agent_in(agent, Some(&room.id))?;
+    let person = state.identity.who_in(&room.id)?;
     call_as_you(state, room, "admit", serde_json::json!({ "key": a.key, "name": a.name, "is_agent": true, "agent_of": person.key, "tether": a.tether })).await.map(|_| ())
 }
 
@@ -789,21 +824,25 @@ pub async fn spaces_list(state: State<'_, AppState>) -> Result<Vec<SpaceSummary>
 
 #[tauri::command]
 pub async fn spaces_get(state: State<'_, AppState>, id: String) -> Result<SpaceView, String> {
+    space_view(&state, id).await
+}
+
+async fn space_view(state: &AppState, id: String) -> Result<SpaceView, String> {
     let entries = state.spaces.list().await;
     let entry = entries.iter().find(|e| e.id.id == id).ok_or("no such Space")?;
     let sid = space_id(&id);
     let tools = state.spaces.tools(&sid).await.map_err(|e| e.message.to_string())?;
-    let mut members: Vec<MemberView> = read_json(&state, &sid, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
-    let mut charter = read_text(&state, &sid, diverge_desktop_room::room::CHARTER).await.unwrap_or_default();
+    let mut members: Vec<MemberView> = read_json(state, &sid, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
+    let mut charter = read_text(state, &sid, diverge_desktop_room::room::CHARTER).await.unwrap_or_default();
     // Unreachable: who was here and the rules, as your copy has them.
     if !entry.online {
-        if let Some(room) = copy_room(&state, &id) {
+        if let Some(room) = copy_room(state, &id) {
             let text = |uri: &str| room.read(uri).ok().and_then(|r| r.contents.into_iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text), _ => None }));
             members = text(diverge_desktop_room::room::MEMBERS).and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
             charter = room.charter().to_owned();
         }
     }
-    let before = if entry.mine { people_from_before(&state, &sid, &entries, &members).await } else { Vec::new() };
+    let before = if entry.mine { people_from_before(state, &sid, &entries, &members).await } else { Vec::new() };
     Ok(SpaceView { summary: summary(entry, &state.identity), charter, members, tools: tools.tools.iter().map(Into::into).collect(), before })
 }
 
@@ -863,7 +902,7 @@ pub async fn vouch_for(state: State<'_, AppState>, key: String, name: String, ro
     if !state.spaces.list().await.iter().any(|e| e.id.id == room) {
         return Err("you can vouch someone into a room you're in".into());
     }
-    let you = state.identity.in_room(&room).unwrap_or_else(|| state.identity.usual());
+    let you = state.identity.who_in(&room)?;
     let until = (chrono::Utc::now() + spaces::VOUCH_GOOD_FOR).to_rfc3339();
     let statement = state.identity.state(&you.key, "vouch", serde_json::json!({ "for": key, "for_name": name, "by_name": you.name, "room": room, "until": until }))?;
     Ok(format!("diverge-vouch:{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(serde_json::to_vec(&statement).unwrap_or_default())))
@@ -879,7 +918,11 @@ fn parse_vouch(text: &str) -> Result<diverge_desktop_room::Statement, String> {
 /// Everyone a room you host let in and hasn't removed, listed or not: from its record.
 #[tauri::command]
 pub async fn spaces_admitted(state: State<'_, AppState>, id: String) -> Result<Vec<AdmittedView>, String> {
-    let record: diverge_desktop_room::Record = read_json(&state, &space_id(&id), diverge_desktop_room::room::RECORD).await.ok_or("the room can't be reached")?;
+    admitted(&state, &id).await
+}
+
+async fn admitted(state: &AppState, id: &str) -> Result<Vec<AdmittedView>, String> {
+    let record: diverge_desktop_room::Record = read_json(state, &space_id(id), diverge_desktop_room::room::RECORD).await.ok_or("the room can't be reached")?;
     let mut people: IndexMap<String, AdmittedView> = IndexMap::new();
     // Someone let in unlisted is known by a mark until they act; then by their key.
     let acted: HashMap<String, String> = record.moves.iter().map(|m| (diverge_desktop_room::key_mark(&record.args.id, &m.by), m.by.clone())).collect();
@@ -920,7 +963,7 @@ pub async fn spaces_continue(state: State<'_, AppState>, id: String) -> Result<H
     use diverge_sdk::shared::containers::request::{Container, Image};
     let copy = copy_of(&state, &id).ok_or("you hold no copy of that room")?;
     let old = diverge_desktop_room::Room::check(&copy)?;
-    let you = state.identity.in_room(&id).unwrap_or_else(|| state.identity.usual());
+    let you = state.identity.who_in(&id)?;
     let room_key = diverge_desktop_room::Keypair::generate();
     let args = diverge_desktop_room::Args {
         id: diverge_desktop_room::room_id(&diverge_desktop_room::fresh_label(), &you.key),
@@ -981,7 +1024,7 @@ pub async fn spaces_host(state: State<'_, AppState>, input: HostSpaceInput) -> R
 async fn host_space(state: &AppState, input: HostSpaceInput) -> Result<HostOutcome, String> {
     use diverge_sdk::shared::containers::request::{Container, Image};
     let Some(kind) = diverge_desktop_room::Kind::parse(&input.kind) else { return Ok(HostOutcome::Error { message: "no such kind of Space".into() }) };
-    let you = state.identity.usual();
+    let you = state.identity.usual()?;
     let room_key = diverge_desktop_room::Keypair::generate();
     let args = diverge_desktop_room::Args {
         id: diverge_desktop_room::room_id(&diverge_desktop_room::fresh_label(), &you.key),
@@ -1018,9 +1061,14 @@ async fn host_space(state: &AppState, input: HostSpaceInput) -> Result<HostOutco
 /// What an invite shows before you knock: nothing is sent.
 #[tauri::command]
 pub async fn spaces_door(state: State<'_, AppState>, invite: String) -> Result<DoorView, String> {
-    let invite = spaces::Invite::from_text(&invite)?;
+    door_of(&state, &invite).await
+}
+
+async fn door_of(state: &AppState, invite: &str) -> Result<DoorView, String> {
+    let invite = spaces::Invite::from_text(invite)?;
     let already_in = state.spaces.list().await.iter().any(|e| e.id.id == invite.id);
     Ok(DoorView {
+        usual_name: state.identity.usual()?.name,
         title: invite.title,
         kind: invite.kind,
         host_name: invite.host_name,
@@ -1040,7 +1088,7 @@ pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: 
         None => None,
     };
     let persona = match appear_as {
-        AppearAs::Usual => state.identity.usual(),
+        AppearAs::Usual => state.identity.usual()?,
         AppearAs::Fresh { name } => state.identity.fresh(&name)?,
     };
     let now = chrono::Utc::now();
@@ -1668,7 +1716,7 @@ mod tests {
 
     /// The app over a folder of its own, with rooms in process and no daemon.
     fn app_in(data: PathBuf) -> (AppState, Arc<Rooms>) {
-        let identity = Arc::new(Keys::open(data.join(KEYS_FILE), "maya"));
+        let identity = Arc::new(named(&data, "maya"));
         let rooms = Rooms::new(identity.clone());
         let absent = Arc::new(crate::absent::Absent::not_yet());
         let seams = Seams { daemon: absent.clone(), machines: absent, spaces: rooms.clone(), stand_in_host: None, network: true, first_mounts: HashMap::new() };
@@ -1680,10 +1728,19 @@ mod tests {
         app_in(store::tests::folder(what))
     }
 
-    /// Keys made from a fixed seed, so the stand-in's rooms get the ids every other test's do.
+    /// Keys made from a fixed seed, so the stand-in's rooms get the ids
+    /// every other test's do, with the first-run page finished.
     fn seeded_keys(data: &Path) {
         let keys = json!({ "personas": [{ "id": "usual", "name": "maya", "secret": Keypair::from_seed("maya").secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
         store::save(&data.join(KEYS_FILE), store::KEYS, &keys).unwrap();
+        Keys::open(data.join(KEYS_FILE)).finish_first_run("maya", true).unwrap();
+    }
+
+    /// Your keys in a folder, with the first-run page finished under `name`.
+    fn named(data: &Path, name: &str) -> Keys {
+        let keys = Keys::open(data.join(KEYS_FILE));
+        keys.finish_first_run(name, true).unwrap();
+        keys
     }
 
     async fn board(state: &AppState, title: &str) -> String {
@@ -1834,7 +1891,7 @@ mod tests {
     #[tokio::test]
     async fn with_nothing_answering_the_app_says_the_network_part_isnt_there() {
         let data = store::tests::folder("actions-absent");
-        let identity = Arc::new(Keys::open(data.join(KEYS_FILE), "maya"));
+        let identity = Arc::new(named(&data, "maya"));
         let absent = Arc::new(crate::absent::Absent::not_yet());
         let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
         let folder = store::hold(&data);
@@ -1864,7 +1921,11 @@ mod tests {
         assert_eq!(state.network, cfg!(feature = "stand-in"));
         assert!(state.folder.held());
         #[cfg(not(feature = "stand-in"))]
-        assert_eq!(store::header(&data.join(KEYS_FILE)).map(|h| (h.file, h.version)), Some(("keys".into(), 1)), "your keys, made and kept there");
+        {
+            assert!(!data.join(KEYS_FILE).exists(), "no keys until you've said what to call you");
+            finish_first_run(&state, "Ada", true).unwrap();
+            assert_eq!(store::header(&data.join(KEYS_FILE)).map(|h| (h.file, h.version)), Some(("keys".into(), store::KEYS.version)), "your keys, made and kept there");
+        }
         save_view(&state, a_view()).unwrap();
         assert_eq!(store::header(&data.join(VIEWS_FILE)).map(|h| (h.file, h.version)), Some(("views".into(), 1)), "what you keep, kept there");
         assert!(data.join(RECORDS_DIR).is_dir());
@@ -1897,7 +1958,7 @@ mod tests {
         let state = AppState::open(data.clone()).await;
         assert_eq!(info(&state).folder_held, FolderHeld::InUse);
         assert!(!state.network);
-        assert_eq!(state.identity.usual().key, Keypair::from_seed("maya").key(), "your keys, read as they are");
+        assert_eq!(state.identity.usual().unwrap().key, Keypair::from_seed("maya").key(), "your keys, read as they are");
         assert_eq!(state.views.lock().unwrap().len(), 1, "your files, read as they are");
         // Whatever it's asked to do, it changes nothing there.
         save_view(&state, a_view()).unwrap();
@@ -1918,7 +1979,7 @@ mod tests {
         // Once the other copy closes, the folder is this one's.
         let again = AppState::open(data.clone()).await;
         assert_eq!(info(&again).folder_held, FolderHeld::Yes);
-        assert_eq!(again.identity.usual().key, Keypair::from_seed("maya").key());
+        assert_eq!(again.identity.usual().unwrap().key, Keypair::from_seed("maya").key());
     }
 
     #[tokio::test]
@@ -1995,5 +2056,42 @@ mod tests {
             assert!(kinds.contains(kind), "a {kind} file was kept: {kinds:?}");
         }
         assert!(file_notices(&state).await.is_empty(), "nothing set aside on a clean run");
+    }
+
+    #[tokio::test]
+    async fn from_an_empty_folder_nobody_is_named_and_nothing_is_signed_until_the_first_run_page_is_finished() {
+        let data = store::tests::folder("actions-first-run");
+        // The login this Mac runs under is there to be read; the app never reads it.
+        let login = std::env::var("USER").unwrap_or_default();
+        let state = AppState::open(data.clone()).await;
+        assert_eq!(FirstRunView::from(state.identity.first_run()), FirstRunView::New);
+        assert!(state.identity.personas().is_empty(), "no persona");
+        assert!(state.spaces.list().await.is_empty(), "no rooms: the stand-in's are yours too, so they wait for you");
+        match host_space(&state, HostSpaceInput { title: "Saturday Workshop".into(), kind: "board".into(), charter: String::new(), open_door: false }).await {
+            Err(message) => assert_eq!(message, crate::identity::NOT_NAMED),
+            #[cfg(not(feature = "stand-in"))]
+            Ok(HostOutcome::Error { .. }) => {}
+            other => panic!("{other:?}"),
+        }
+        let invite = spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: "workshop.abc".into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new() }.to_text();
+        assert_eq!(door_of(&state, &invite).await.unwrap_err(), crate::identity::NOT_NAMED, "no name for a knock to send");
+        assert_eq!(finish_first_run(&state, "Ada", false).unwrap_err(), crate::identity::NOT_ADULT);
+        assert!(!data.join(KEYS_FILE).exists(), "no keys made");
+        assert!(!data.join("stand-in-host").join("tables").join(".stand-in-rooms.json").exists(), "nothing seeded");
+        assert!(std::fs::read_dir(data.join(RECORDS_DIR)).unwrap().next().is_none(), "no copies of anything");
+        // The page, finished.
+        assert_eq!(finish_first_run(&state, "Ada", true).unwrap(), FirstRunView::Done);
+        assert_eq!(door_of(&state, &invite).await.unwrap().usual_name, "Ada", "the door shows the exact name a knock sends");
+        #[cfg(feature = "stand-in")]
+        {
+            let entries = state.spaces.list().await;
+            let home = entries.iter().find(|e| e.mine && e.kind == "home").expect("the stand-in's rooms, now there's a you");
+            assert_eq!(home.host_name, "Ada", "under the name you typed");
+            assert!(std::fs::read_dir(data.join(RECORDS_DIR)).unwrap().next().is_some(), "and the stand-in's copies");
+        }
+        if login.len() > 2 && !"Ada".contains(login.as_str()) {
+            let keys = std::fs::read_to_string(data.join(KEYS_FILE)).unwrap();
+            assert!(!keys.contains(login.as_str()), "nothing in your keys came from the login");
+        }
     }
 }

@@ -294,6 +294,14 @@ export function installPreview() {
           const r = spaceOf(args.id);
           return (r?.moves ?? []).filter((m) => m.kind === "doorway").map((m) => ({ title: m.title, invite: m.body, by: m.author, at: m.at }));
         }
+        case "first_run_get": {
+          // Preview only: add ?first-run (or ?first-run=earlier) to the address to see the first-run page.
+          const asked = new URLSearchParams(location.search).get("first-run");
+          if (asked === null) return { state: "done" };
+          return asked === "earlier" ? { state: "earlier", name: you.name } : { state: "new" };
+        }
+        case "first_run_finish":
+          return { state: "done" };
         case "identity_broken":
           // Preview only: add ?keys-unreadable to the address to see how the app says so.
           return new URLSearchParams(location.search).has("keys-unreadable") ? { file: "~/Library/Application Support/network.diverge.desktop.draft/identity.json", newer: false } : null;
@@ -393,7 +401,7 @@ export function installPreview() {
         case "spaces_door": {
           const inv = decodeInvite(args.invite);
           if (!inv) throw new Error("that isn't an invite");
-          return { title: inv.title, kind: inv.kind, host_name: inv.host_name, host: inv.host, charter: inv.charter, verbs: inv.verbs, invited: Boolean(inv.secret), already_in: spaceRecs.some((r) => r.view.summary.id === inv.id) };
+          return { usual_name: you.name, title: inv.title, kind: inv.kind, host_name: inv.host_name, host: inv.host, charter: inv.charter, verbs: inv.verbs, invited: Boolean(inv.secret), already_in: spaceRecs.some((r) => r.view.summary.id === inv.id) };
         }
         case "spaces_join": {
           const inv = decodeInvite(args.invite);

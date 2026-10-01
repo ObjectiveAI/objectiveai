@@ -80,7 +80,7 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
         ) : door.already_in ? null : (
           <Section title={t.door.appearAs}>
             <label className="radio-line">
-              <input type="radio" checked={!fresh} onChange={() => setFresh(false)} /> {t.door.usual}
+              <input type="radio" checked={!fresh} onChange={() => setFresh(false)} /> {door.usual_name}
             </label>
             <label className="radio-line">
               <input type="radio" checked={fresh} onChange={() => setFresh(true)} /> {t.door.fresh}

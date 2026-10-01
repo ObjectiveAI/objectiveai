@@ -43,8 +43,9 @@ pub struct Format {
     pub keep_previous: bool,
 }
 
-/// Your keys: personas and your agents' keys.
-pub const KEYS: Format = Format { name: "keys", version: 1, keep_previous: true };
+/// Your keys: your account, personas and your agents' keys. Version 2
+/// added the account; a version 1 file reads as one with no account yet.
+pub const KEYS: Format = Format { name: "keys", version: 2, keep_previous: true };
 /// Each key's last counter. Never behind the clock, so losing it locks nobody out.
 pub const COUNTERS: Format = Format { name: "counters", version: 1, keep_previous: false };
 /// Your agents' allowances, room by room.
@@ -217,6 +218,27 @@ fn parse<T: DeserializeOwned>(bytes: &[u8], format: Format) -> Read<T> {
         Some(Ok(t)) => Read::Good(t),
         _ => Read::Unusable(Why::Damaged),
     }
+}
+
+/// The version a kept file says it is, without reading what it holds: 0
+/// for one from before files carried a version; `None` if it won't read.
+pub fn version_on_disk(path: &Path) -> Option<u32> {
+    let value: Value = serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
+    match value.as_object() {
+        Some(o) if o.contains_key("file") && o.contains_key("version") => o.get("version").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()),
+        _ => Some(0),
+    }
+}
+
+/// Keep a copy of a file under another name, owner-only and synced, once:
+/// a copy already there is left as it is.
+pub fn keep_copy(from: &Path, to: &Path) -> std::io::Result<()> {
+    if to.exists() {
+        return Ok(());
+    }
+    write_new(to, &std::fs::read(from)?)?;
+    sync_dir(to);
+    Ok(())
 }
 
 /// Move a file out of the way, untouched, under a name that says why.

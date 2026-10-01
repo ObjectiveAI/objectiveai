@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./theme.css";
 import "./app.css";
-import { App } from "./App";
+import { Start } from "./Start";
 
 async function start() {
   // Outside the Tauri app (a plain browser): play back the preview snapshot.
@@ -12,7 +12,7 @@ async function start() {
   }
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <App />
+      <Start />
     </StrictMode>,
   );
 }

@@ -877,7 +877,7 @@ pub struct SpaceSummary {
 }
 
 pub fn summary(e: &crate::spaces::SpaceEntry, identity: &crate::identity::Identity) -> SpaceSummary {
-    let you = identity.in_room(&e.id.id).unwrap_or_else(|| identity.usual());
+    let you = identity.who_in(&e.id.id).ok();
     SpaceSummary {
         id: e.id.id.clone(),
         title: e.title.clone(),
@@ -886,9 +886,9 @@ pub fn summary(e: &crate::spaces::SpaceEntry, identity: &crate::identity::Identi
         host_name: e.host_name.clone(),
         mine: e.mine,
         online: e.online,
-        you_are: you.name,
-        you_key: you.key,
-        fresh: !you.usual,
+        you_are: you.as_ref().map(|p| p.name.clone()).unwrap_or_default(),
+        you_key: you.as_ref().map(|p| p.key.clone()).unwrap_or_default(),
+        fresh: you.is_some_and(|p| !p.usual),
     }
 }
 
@@ -1045,6 +1045,8 @@ pub enum AppearAs {
 #[derive(Serialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct DoorView {
+    /// The name a knock as your usual self sends, exactly.
+    pub usual_name: String,
     pub title: String,
     pub kind: String,
     pub host_name: String,
@@ -1397,6 +1399,32 @@ pub struct TabsSnapshot {
 }
 
 // --- the app itself --------------------------------------------------------
+
+/// Where the first-run page stands. Until it's finished there's no you
+/// here, and nothing is signed or sent.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "state", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum FirstRunView {
+    Done,
+    New,
+    /// A folder from before accounts: it has you under a name an earlier
+    /// version of the app took from this Mac's login.
+    Earlier { name: String },
+    /// The page can't be finished in this copy of the app; the words say why.
+    Blocked { words: String },
+}
+
+impl From<crate::identity::FirstRun> for FirstRunView {
+    fn from(f: crate::identity::FirstRun) -> Self {
+        match f {
+            crate::identity::FirstRun::Done => FirstRunView::Done,
+            crate::identity::FirstRun::New => FirstRunView::New,
+            crate::identity::FirstRun::Earlier { name } => FirstRunView::Earlier { name },
+            crate::identity::FirstRun::Blocked(words) => FirstRunView::Blocked { words: words.into() },
+        }
+    }
+}
 
 #[derive(Serialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]

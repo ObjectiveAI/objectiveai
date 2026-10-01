@@ -5,7 +5,11 @@ import type { VerbView } from "./VerbView";
 /**
  * What an invite shows before you knock.
  */
-export type DoorView = { title: string, kind: string, host_name: string, host: ProviderView, charter: string, verbs: Array<VerbView>, 
+export type DoorView = { 
+/**
+ * The name a knock as your usual self sends, exactly.
+ */
+usual_name: string, title: string, kind: string, host_name: string, host: ProviderView, charter: string, verbs: Array<VerbView>, 
 /**
  * Whether it carries a secret; without one, a knock needs a note.
  */

@@ -49,6 +49,14 @@ inherits it.
     unreadable, the app signs nothing and says so; it never makes new keys over them. A keys file a newer version wrote, or one the
     system won't read, is left exactly as it is with its backup, whatever the backup holds, and nothing is signed. Counters live in
     `counters.json` and never fall behind the clock. One call at a time per key per room (`Identity::turn`).
+  - **Your account** (`src-tauri/src/account.rs`, `room/src/account.rs`): made when the first-run page is finished, never
+    before. Until then there is no persona, and `seal`, `state`, `fresh` and `agent_in` refuse; the stand-in's rooms
+    wait too (`AppState::after_first_run`). Nothing reads the login or the machine's name (a test greps for it). Twelve
+    BIP-39 words make the root (SLIP-10, hardened, `m/0'`), which signs the genesis (account id = its digest) and a
+    device list (sequence 1) naming the usual persona's key as this Mac's, and is dropped. The words stay sealed in
+    `identity.json` (ChaCha20-Poly1305 under an HKDF key from the device key), unconfirmed; nothing but tests opens them,
+    and no door tool reads them. A keys file from before accounts (v1) upgrades in place, is kept as
+    `identity.v1.json`, and shows the first-run page naming the name an earlier version took from the login.
   - A knock's opaque authorization carries a `Knocking`, signed by the key it names, for one room, good for a day,
     with a mark of the invite it came with. A vouch names the room it vouches someone into and runs out after a week.
     An invite is text (`diverge-invite:…`) carrying the room's rules and verbs, checked against the room on entry.
@@ -113,7 +121,8 @@ inherits it.
 - Words are tabled: every user-facing string lives in `src/strings.ts`.
 
 ## Screens (draft four)
-Home (feed across Spaces + fleet; tabs are filters; an ask goes to several rooms and is followed as one thread; take
+The first-run page, alone, until it's finished (what people should call you, 18 or older, a terms slot that says
+Diverge's terms aren't written yet; no acceptance is recorded) · Home (feed across Spaces + fleet; tabs are filters; an ask goes to several rooms and is followed as one thread; take
 an offer, or close the ask everywhere) · Inbox (agents and direct rooms, one list) · You (your names, your profile
 room's hires and notes, receipts once each, credited to the room that issued them) · Spaces (knocks that check, with
 notes and vouches; hosted, joined; host with an open door or not; paste an invite) · the door (an invite read before

@@ -12,6 +12,7 @@
 #![cfg_attr(not(feature = "stand-in"), allow(dead_code))]
 
 mod absent;
+mod account;
 mod actions;
 mod catalog;
 mod daemon;
@@ -128,6 +129,8 @@ fn main() {
             actions::actions_list,
             actions::app_info,
             actions::files_set_aside,
+            actions::first_run_get,
+            actions::first_run_finish,
         ])
         .run(tauri::generate_context!())
         .expect("the app could not start");

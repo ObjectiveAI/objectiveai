@@ -29,7 +29,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
 use crate::daemon::Frames;
-use crate::identity::{Actor, Identity};
+use crate::identity::{Actor, AgentIn, Identity};
 use crate::spaces::{Id, Spaces};
 use crate::view::{CardCall, CardEvent, CardHire, CardKind, CardView};
 
@@ -357,11 +357,11 @@ impl Door {
                 }
                 let mut open = Vec::new();
                 for e in readable {
-                    let key = self.identity.agent_in(agent, Some(&e.id.id)).key;
+                    let Ok(AgentIn { key, .. }) = self.identity.agent_in(agent, Some(&e.id.id)) else { continue };
                     let Ok(r) = self.spaces.read(&e.id, diverge_desktop_room::room::FEED).await else { continue };
                     let Some(text) = r.contents.iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }) else { continue };
                     let Ok(moves) = serde_json::from_str::<Vec<Value>>(&text) else { continue };
-                    let person = self.identity.in_room(&e.id.id).map(|p| p.key).unwrap_or_else(|| self.identity.usual().key);
+                    let person = self.identity.who_in(&e.id.id).map(|p| p.key).unwrap_or_default();
                     for m in moves.iter().filter(|m| m["kind"] == "ask" && m["state"] == "open") {
                         // Not your own person's asks, and not rooms you aren't in as this agent.
                         if m["by"] == person.as_str() || m["by"] == key.as_str() {
@@ -494,5 +494,41 @@ mod tests {
         let call = card.call.expect("the whole call");
         assert_eq!(call.verb, "report");
         assert_eq!(call.arguments["body"], "the private details", "and the card shows what would be said");
+    }
+
+    /// No door tool reads your recovery words: none is about your account,
+    /// and nothing any of them answers carries the words.
+    #[tokio::test]
+    async fn no_door_tool_can_read_the_words() {
+        let (door, stub) = door();
+        let names: Vec<String> = door.tools().tools.iter().map(|t| t.name.to_string()).collect();
+        assert_eq!(names, ["spaces_list", "space_feed", "space_tools", "space_call", "asks_open", "table_list", "table_read", "table_write", "ask_person"], "no account tools at the door yet");
+        let words = door.identity.words().expect("the stand-in has an account");
+        let seq: Vec<&str> = words.split(' ').collect();
+        let mut answers = Vec::new();
+        let rooms: Vec<String> = stub.list().await.into_iter().map(|e| e.id.id).collect();
+        for room in &rooms {
+            door.set_allowance(room, "research-notes", Reach::Read, 100);
+        }
+        let call = |name: &str, args: Value| CallToolRequestParams::new(name.to_owned()).with_arguments(args.as_object().cloned().unwrap());
+        answers.push(door.call("research-notes", call("spaces_list", json!({}))).await);
+        answers.push(door.call("research-notes", call("asks_open", json!({}))).await);
+        for room in &rooms {
+            for tool in ["space_feed", "space_tools", "table_list"] {
+                answers.push(door.call("research-notes", call(tool, json!({ "space": room }))).await);
+            }
+        }
+        assert!(door.cards().is_empty(), "everything read on the allowance, nothing waiting");
+        let mut seen = serde_json::to_string(&door.tools()).unwrap();
+        for a in answers {
+            seen.push_str(&match a {
+                Ok(r) => serde_json::to_string(&r).unwrap(),
+                Err(e) => e.message.to_string(),
+            });
+        }
+        assert!(seen.len() > 1000, "the door answered");
+        for three in seq.windows(3) {
+            assert!(!seen.contains(&three.join(" ")), "the door gave out part of the words");
+        }
     }
 }
