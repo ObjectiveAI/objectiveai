@@ -9,7 +9,8 @@
     "tauri": "tauri",
     "bindings": "cargo test -p diverge-desktop --quiet",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:all": "cargo test -p diverge-desktop && cargo test -p diverge-desktop-room --features image && vitest run"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",

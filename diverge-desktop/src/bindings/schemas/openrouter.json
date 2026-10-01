@@ -431,7 +431,7 @@
       ]
     },
     "Tool": {
-      "description": "One tool container the program depends on: everything the caller\nneeds to run it that the image can know, and nothing the caller\nalone can know.\n\nA [`Container`](crate::shared::containers::request::Container) is\nan image, two limits, mounts and arguments. The first four are\nhere, member for member; the mounts are not, because a volume is\nnamed by a `volume_name` in the caller's own listing and a FUSE\nmount is something the caller serves live, and a tool that named\neither would be dictating the caller's storage.",
+      "description": "One tool container the program depends on: everything the caller\nneeds to run it that the image can know, and nothing the caller\nalone can know.\n\nA [`Container`](crate::shared::containers::request::Container) is\nan image, two limits, mounts and arguments. The first four are\nhere, member for member; the mounts are not, because a volume is\nnamed by a `volume_name` in the caller's own listing and a FUSE\nmount is something the caller serves live, and a tool that named\neither would be dictating the caller's storage. What the tool needs\nof the caller that it cannot name — a mount at some path, a\nvolume of some shape, anything else about running it — it says\nin words, in [`instructions`](Self::instructions), for whoever\ndeploys it to read.",
       "type": "object",
       "properties": {
         "name": {
@@ -456,6 +456,13 @@
         },
         "arguments": {
           "description": "The arguments the tool container is registered with — the\n`arguments` of the run request that makes it, verbatim."
+        },
+        "instructions": {
+          "description": "What the caller needs to know to run it, in words, for\nwhoever deploys the tool to read: the mounts it needs and at\nwhat paths, since it cannot name a volume or a FUSE mount of\nthe caller's, and anything else about deploying it. Absent\nwhen the tool needs nothing said. Not read by the provider,\nand not handed to the container.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [

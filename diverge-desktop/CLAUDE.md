@@ -110,13 +110,14 @@ fresh each run / read only).
 ## Working on it
 Plain words, few of them, tl;dr first. Show screenshots, don't describe. Check the code before asking Maya
 anything; settle protocol and industry questions from the code, or make the call and note it. **GitHub: drafts live
-on the `user-experience` branch** of this public repo, rebased onto Ronald's latest, and are pushed only when Maya
+on the `user-experience` branch** of this public repo, kept current with main (merged in) and built against Ronald's branch at `CONTRACT_PIN`, and are pushed only when Maya
 says. Never push to Ronald's branches; no PRs or issues unless asked. **Nothing private enters this repo**, in files
 or commit messages: planning docs, lists of questions, quotes from outside conversations, and wording or ideas that
 came from them. Seed content is invented and everyday.
 
 ## Run it
-`pnpm install` (from the repo root) then `cd diverge-desktop && pnpm tauri dev`.
+`pnpm install` (from the repo root) then `cd diverge-desktop && pnpm tauri dev`. Every test, in one command:
+`pnpm test:all` (the app's Rust tests, the room crate with its container program, and vitest).
 
 ## Browser preview (reviews, cloud sessions — no Mac window needed)
 `pnpm dev` and open http://localhost:1430 in any browser. Outside Tauri the page plays back
