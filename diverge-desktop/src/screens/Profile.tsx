@@ -8,6 +8,9 @@ import { ago, bytes, kindTitle, providerName, providerWay, time, spaceTitle } fr
 import { api } from "../lib/ipc";
 import { t } from "../strings";
 
+/** Sealed, and this app couldn't open it. */
+const shut = (m: MoveView) => (m.fields as Record<string, unknown>).opened === false;
+
 export function Profile() {
   const { open } = useShared();
   const [p, setP] = useState<ProfileView | null>(null);
@@ -37,13 +40,13 @@ export function Profile() {
         </Section>
 
         {p.profile ? (
-          <Section title={t.profile.visit} note={t.profile.visitNote}>
+          <Section title={t.profile.visit} note={p.profile_sealed ? t.profile.visitNoteSealed : t.profile.visitNote}>
             <SectionHead small level={3} title={t.profile.hires} />
             {room.filter((m) => m.kind === "hire").length === 0 ? <p className="muted small">{t.profile.noHires}</p> : null}
             <ul className="member-list">
               {room.filter((m) => m.kind === "hire").map((m) => (
                 <li key={m.id} className="member">
-                  <span><strong>{m.author}</strong>: {m.title}</span>
+                  <span><strong>{m.author}</strong>: {shut(m) ? t.spaces.sealedShut : m.title}</span>
                   <Chip tone={m.state === "delivered" ? "ok" : "plain"}>{t.spaces.states[m.state] ?? m.state}</Chip>
                 </li>
               ))}
@@ -53,7 +56,7 @@ export function Profile() {
             <ul className="member-list">
               {room.filter((m) => m.kind === "note").map((m) => (
                 <li key={m.id} className="member">
-                  <span><strong>{m.author}</strong>: “{m.body}”</span>
+                  <span><strong>{m.author}</strong>: {shut(m) ? t.spaces.sealedShut : `“${m.body}”`}</span>
                   <span className="muted small">{time(m.at)}</span>
                 </li>
               ))}

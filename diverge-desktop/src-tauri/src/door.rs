@@ -530,8 +530,19 @@ impl Door {
                     Permit::Withdrawn => return Ok(Said::refused(STOPPED_WAITING)),
                     _ => {}
                 }
-                let mut inner = CallToolRequestParams::new(tool).with_arguments(call_args);
                 let actor = Actor::Agent(agent.clone());
+                // Words for a profile's owner alone are sealed to them before the agent's key signs them.
+                let call_args = match crate::notes::prepare(&self.identity, self.spaces.as_ref(), &id, &actor, &tool, Value::Object(call_args)).await {
+                    Ok(Value::Object(a)) => a,
+                    Ok(_) => JsonObject::new(),
+                    Err(e) => {
+                        if let Permit::Allowed(reach) = permit {
+                            self.refund(&id.id, &slot, reach);
+                        }
+                        return Err(ErrorData::internal_error(e, None));
+                    }
+                };
+                let mut inner = CallToolRequestParams::new(tool).with_arguments(call_args);
                 let result = {
                     let turn = self.identity.turn(&actor, &id.id);
                     let _held = turn.lock().await;

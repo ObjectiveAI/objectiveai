@@ -164,7 +164,9 @@ mod tests {
             let tools = spaces.tools(&e.id).await.unwrap();
             let mut members: Vec<MemberView> = serde_json::from_str(&text(spaces.read(&e.id, program::MEMBERS).await.unwrap())).unwrap();
             crate::actions::slots(&identity, &mut members);
-            let moves: Vec<MoveView> = serde_json::from_str(&text(spaces.read(&e.id, program::FEED).await.unwrap())).unwrap();
+            let mut moves: Vec<MoveView> = serde_json::from_str(&text(spaces.read(&e.id, program::FEED).await.unwrap())).unwrap();
+            // What you can open of what was sealed, as the app does.
+            crate::notes::open_moves(&identity, &e.id.id, crate::notes::notes_key_of(&spaces, &e.id).await.as_deref(), &mut moves);
             let charter = text(spaces.read(&e.id, program::CHARTER).await.unwrap());
             let view = SpaceView { summary: summary(&e, &identity), charter, members, tools: tools.tools.iter().map(Into::into).collect(), before: Vec::new() };
             let invite = spaces.invite(&e.id).await.map(|i| i.to_text());

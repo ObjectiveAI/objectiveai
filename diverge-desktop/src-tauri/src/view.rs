@@ -1276,6 +1276,8 @@ pub struct ProfileView {
     pub home: Option<String>,
     /// Your profile room, which anyone with its link can knock on.
     pub profile: Option<String>,
+    /// Whether your profile seals what visitors leave to you: its settings name your notes key.
+    pub profile_sealed: bool,
     pub personas: Vec<PersonaView>,
 }
 

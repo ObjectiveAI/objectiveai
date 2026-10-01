@@ -55,6 +55,14 @@ inherits it.
       names, under a day old, an account naming that key, listed), plus either an invite the host sealed earlier
       (`mark_invite` with `invite_lock(mark)`; a keeper's let-in uses it up, since its mark is then in the record, and it can't be sealed again) or standing in the room this one continues. Recorded as "let in by <host>'s
       doorkeeper", marked as the host's. `drop_keeper` ends it. Nothing in the app runs a keeper yet.
+    - **Sealed notes (rules 2 profiles).** A profile's settings name its owner's notes key (`Args.notes_key`, X25519, drawn
+      with HKDF from the recovery words on its own path; `envelope.rs`), and only a rules-2 profile names one. A note, a hire,
+      an answer's note and a hire's result come only as envelopes (ChaCha20-Poly1305, a fresh X25519 exchange per reader,
+      bound to room, verb and sealing key) to the owner's key and their author's key for that room (drawn from the key that
+      seals the call); a result goes to the owner and the key the sealed ask names. The room checks shape only, refuses
+      their words in the clear and a reply to them in the open; the feed and every copy hold ciphertext. The app seals
+      before signing (`src-tauri/src/notes.rs`, `prepare`, on every path: screen, door, hires) and opens what it can when it
+      reads a feed (`open_moves`), marking each sealed move `sealed`/`opened`.
     - Every call is sealed under the `_meta` key `network.diverge.desktop/seal` for that id, and checked against keys
       the host admitted. Someone let in unlisted is a mark of their key (`key_mark`) until they first act.
     - Every move is chained and countersigned by the room's own key, which the host's app made and named in the
@@ -77,8 +85,8 @@ inherits it.
     wait too (`AppState::after_first_run`). Nothing reads the login or the machine's name (a test greps for it). Twelve
     BIP-39 words make the root (SLIP-10, hardened, `m/0'`), which signs the genesis (account id = its digest) and a
     device list (sequence 1) naming the usual persona's key as this Mac's, and is dropped. The words stay sealed in
-    `identity.json` (ChaCha20-Poly1305 under an HKDF key from the device key), unconfirmed; nothing but tests opens them,
-    and no door tool reads them. A keys file from before accounts (v1) upgrades in place, is kept as
+    `identity.json` (ChaCha20-Poly1305 under an HKDF key from the device key), unconfirmed; the app opens them only to
+    draw the notes key (below), which stays in memory, and no door tool reads them. A keys file from before accounts (v1) upgrades in place, is kept as
     `identity.v1.json`, and shows the first-run page naming the name an earlier version took from the login.
   - **Key marks** (`src-tauri/src/marks.rs`): where two members of one room share a name, each gets a short mark of the
     room and their key, on member lists, the host's list of everyone let in, and hire cards. Per room, so a mark never
@@ -97,7 +105,8 @@ inherits it.
 - **Hires** (`src-tauri/src/hires.rs`): a visitor asks one of your agents for something through your profile room; the
   room calls its host (on the wire, its own `mcp-call-tool`); you decide on a card. A hire waits until its agent is
   free, reaches it quoted as the visitor's words, and its result is read from its own run alone
-  (`reporter::run_after`). It lands on the profile's table. A hire asked while the app was closed is picked up from
+  (`reporter::run_after`). In a profile that seals, the result goes back sealed whole and never onto the table (which
+  everyone in the room reads); a rules-1 profile's lands on the table. A hire asked while the app was closed is picked up from
   the profile's record.
 - **The agent door** (`src-tauri/src/door.rs`): the MCP server this app is for its agents — the Space verbs, the table,
   open asks, and `ask_person` (question / choice / credential by meaning; the value never reaches the agent). Every

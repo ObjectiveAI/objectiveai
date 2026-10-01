@@ -621,6 +621,8 @@ pub fn identity_broken(state: State<'_, AppState>) -> Option<KeysBrokenView> {
 /// or you're on a device it hasn't been shown) gets your account's device list first, then the call again.
 async fn call_as_you(state: &AppState, id: &spaces::Id, tool: &str, arguments: serde_json::Value) -> Result<rmcp::model::CallToolResult, String> {
     let actor = state.identity.you_in(&id.id);
+    // Words for a profile's owner alone are sealed to them before anything is signed.
+    let arguments = crate::notes::prepare(&state.identity, state.spaces.as_ref(), id, &actor, tool, arguments).await?;
     let turn = state.identity.turn(&actor, &id.id);
     let _held = turn.lock().await;
     let send = |tool: &str, arguments: &serde_json::Value| {
@@ -717,16 +719,19 @@ fn copy_room(state: &AppState, id: &str) -> Option<diverge_desktop_room::Room> {
 
 /// A room's moves as it serves them, or, when it can't be reached, as your copy holds them.
 async fn moves_of(state: &AppState, id: &spaces::Id) -> (Vec<MoveView>, bool) {
-    if let Some(moves) = read_json::<Vec<MoveView>>(state, id, diverge_desktop_room::room::FEED).await {
+    if let Some(mut moves) = read_json::<Vec<MoveView>>(state, id, diverge_desktop_room::room::FEED).await {
         keep_copy(state, id).await;
+        let notes_key = crate::notes::notes_key_of(state.spaces.as_ref(), id).await;
+        crate::notes::open_moves(&state.identity, &id.id, notes_key.as_deref(), &mut moves);
         return (moves, false);
     }
     let Some(room) = copy_room(state, &id.id) else { return (Vec::new(), false) };
-    let moves = room
+    let mut moves: Vec<MoveView> = room
         .read(diverge_desktop_room::room::FEED)
         .ok()
         .and_then(|r| r.contents.into_iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str::<Vec<MoveView>>(&text).ok(), _ => None }))
         .unwrap_or_default();
+    crate::notes::open_moves(&state.identity, &id.id, room.args.notes_key.as_deref(), &mut moves);
     (moves, true)
 }
 
@@ -838,7 +843,11 @@ async fn profile_of(state: &AppState) -> Result<ProfileView, String> {
     let machines = machines_with_volumes(state).await;
     let volumes: Vec<VolumeView> = machines.iter().flat_map(|m| m.volumes.clone()).collect();
     let personas = personas(state, &entries);
-    Ok(ProfileView { receipts, shows, agents, machines, volumes, home, profile, personas })
+    let profile_sealed = match &profile {
+        Some(id) => crate::notes::notes_key_of(state.spaces.as_ref(), &space_id(id)).await.is_some_and(|k| state.identity.notes_public().is_ok_and(|mine| mine == k)),
+        None => false,
+    };
+    Ok(ProfileView { receipts, shows, agents, machines, volumes, home, profile, profile_sealed, personas })
 }
 
 #[tauri::command]
@@ -925,8 +934,10 @@ pub async fn spaces_feed(state: State<'_, AppState>, id: String) -> Result<FeedR
     let sid = space_id(&id);
     Ok(match state.spaces.read(&sid, diverge_desktop_room::room::FEED).await {
         Ok(r) => {
-            let moves = r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str::<Vec<MoveView>>(text).ok(), _ => None }).next().unwrap_or_default();
+            let mut moves = r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => serde_json::from_str::<Vec<MoveView>>(text).ok(), _ => None }).next().unwrap_or_default();
             keep_copy(&state, &sid).await;
+            let notes_key = crate::notes::notes_key_of(state.spaces.as_ref(), &sid).await;
+            crate::notes::open_moves(&state.identity, &sid.id, notes_key.as_deref(), &mut moves);
             FeedRead::Feed { moves, from_copy: false }
         }
         Err(e) => match moves_of(&state, &sid).await {

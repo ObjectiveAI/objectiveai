@@ -11,8 +11,9 @@
 //! and marked unconfirmed until you've written them down. The sealing key
 //! lives in the same owner-only file, so the seal keeps the words out of
 //! plain sight (a search of the folder, a file pasted somewhere); it adds
-//! nothing against someone who already holds the file. Nothing in the app
-//! opens them yet, and no door can read them.
+//! nothing against someone who already holds the file. The app opens them
+//! for one thing only: drawing your notes key ([`crate::identity::Identity::notes_key`]),
+//! which never leaves memory. No door can read them.
 
 use bip39::Mnemonic;
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
@@ -94,9 +95,8 @@ fn seal(device: &Keypair, account: &str, phrase: &str) -> SealedWords {
     SealedWords { nonce: hex::encode(nonce), sealed: hex::encode(sealed), confirmed: false }
 }
 
-/// The words, opened: only tests, for now. Showing them to you comes with
-/// confirming them; nothing else may read them.
-#[cfg(test)]
+/// The words, opened: for drawing your notes key, and tests. Showing them
+/// to you comes with confirming them; nothing else may read them.
 pub fn open(device: &Keypair, account: &str, words: &SealedWords) -> Result<Zeroizing<String>, String> {
     let key = sealing_key(device, account);
     let cipher = ChaCha20Poly1305::new(AeadKey::from_slice(key.as_ref()));

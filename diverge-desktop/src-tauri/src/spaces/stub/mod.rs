@@ -21,7 +21,9 @@ use tokio::sync::{broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
 
 use diverge_desktop_room::room::META_HOST_ONLY;
-use diverge_desktop_room::{Args, Host, Key, Keypair, Kind, Move, Record, Room, Statement, room_id, seal_call, tether};
+use diverge_desktop_room::account::Proof;
+use diverge_desktop_room::envelope::{self, OpenKey};
+use diverge_desktop_room::{Args, Host, Key, Keypair, Kind, Move, Record, Room, Statement, account_room_id, room_id, seal_call, tether};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::shared::error::Error as WireError;
 use diverge_sdk::shared::filetree::response::Node;
@@ -45,6 +47,12 @@ fn ren_machine() -> Identity {
 
 fn wire_error(message: impl Into<String>) -> WireError {
     WireError(json!({ "message": message.into() }))
+}
+
+/// Someone invented's account: one device, their stand-in key.
+pub fn stand_in_account(name: &str) -> Proof {
+    let at = DateTime::<Utc>::from_timestamp(1_767_225_600, 0).unwrap_or_default();
+    Proof::first(&Keypair::from_seed(&format!("{name} root")), at, &[Keypair::from_seed(name).key()])
 }
 
 /// Someone invented, with a key of their own.
@@ -122,6 +130,8 @@ struct RoomHost<'a> {
     stand_in: Option<Keypair>,
     me: &'a Keys,
     host_key: Key,
+    /// The notes key the room's settings name, in a profile that seals what visitors leave.
+    notes_key: Option<String>,
     calls: broadcast::Sender<HostCall>,
 }
 
@@ -135,14 +145,15 @@ impl Host for RoomHost<'_> {
 
     fn hire(&self, room: &str, hire_id: &str, from: &str, ask: &Value) {
         let text = |k: &str| ask.get(k).and_then(Value::as_str).unwrap_or_default().to_owned();
-        let _ = self.calls.send(HostCall::Hire {
-            room: Id { id: room.into() },
-            hire_id: hire_id.into(),
-            from: from.into(),
-            agent: text("agent"),
-            what: text("what"),
-            pledge: ask.get("pledge").and_then(Value::as_str).map(str::to_owned),
-        });
+        let (agent, what, pledge) = match (ask.get("sealed"), &self.notes_key) {
+            // Sealed to the host's notes key: the host's app opens it; nobody else can.
+            (Some(sealed), Some(notes_key)) => match crate::notes::open_ask(self.me, room, notes_key, sealed, &text("by")) {
+                Some(asked) => (asked.agent, asked.what, asked.pledge),
+                None => return,
+            },
+            _ => (text("agent"), text("what"), ask.get("pledge").and_then(Value::as_str).map(str::to_owned)),
+        };
+        let _ = self.calls.send(HostCall::Hire { room: Id { id: room.into() }, hire_id: hire_id.into(), from: from.into(), agent, what, pledge });
     }
 }
 
@@ -302,15 +313,26 @@ impl StubSpaces {
     fn call_in(&self, inner: &mut Inner, room: &str, params: CallToolRequestParams, at: DateTime<Utc>) -> Result<CallToolResult, ErrorData> {
         let stand_in = inner.rooms.get(room).and_then(|h| h.stand_in_host.clone()).and_then(|n| inner.people.get(&n)).map(|p| p.keypair.clone());
         let hosted = inner.rooms.get_mut(room).ok_or_else(|| ErrorData::invalid_request("no such room", None))?;
-        let host = RoomHost { stand_in, me: &self.me, host_key: hosted.room.args.host_key.clone(), calls: self.calls_live.clone() };
+        let host = RoomHost { stand_in, me: &self.me, host_key: hosted.room.args.host_key.clone(), notes_key: hosted.room.args.notes_key.clone(), calls: self.calls_live.clone() };
         hosted.room.call_at(params, at, &host)
     }
 
-    /// Someone invented, acting in a room.
+    /// Someone invented, acting in a room. In a profile that seals what
+    /// visitors leave, their words go sealed to its owner and to themselves,
+    /// as the app sends yours.
     fn act(&self, inner: &mut Inner, who: &str, room: &str, verb: &str, args: Value, at: DateTime<Utc>) -> Result<String, String> {
+        let notes_key = inner.rooms.get(room).and_then(|h| h.room.seals_notes().then(|| h.room.args.notes_key.clone()).flatten());
         let person = inner.people.get_mut(who).ok_or("nobody by that name")?;
         person.counter += 1;
-        let mut params = CallToolRequestParams::new(verb.to_owned()).with_arguments(obj(args));
+        let mut args = obj(args);
+        if let Some(notes_key) = notes_key {
+            let mine = OpenKey::for_author(&person.keypair, room);
+            if verb == "hire" {
+                args.insert("reply_to".into(), json!(mine.public()));
+            }
+            args = envelope::seal_args(room, verb, &args, &person.keypair.key(), &[notes_key, mine.public()])?;
+        }
+        let mut params = CallToolRequestParams::new(verb.to_owned()).with_arguments(args);
         seal_call(&person.keypair, room, &mut params, person.counter);
         self.call_in(inner, room, params, at).map(|r| text_of(&r)).map_err(|e| e.message.to_string())
     }
@@ -396,6 +418,40 @@ impl StubSpaces {
         inner.labels.insert(label.into(), id.clone());
         let _ = std::fs::create_dir_all(self.table_dir(&id));
         id
+    }
+
+    /// Your profile: under rules 2, hosted by your account and naming your
+    /// notes key, so what visitors leave there is sealed to you.
+    fn open_profile(&self, inner: &mut Inner, label: &str, since: DateTime<Utc>) -> Option<String> {
+        let usual = self.me.usual().ok()?;
+        let account = self.me.proof_of("usual").ok()?;
+        let notes_key = self.me.notes_public().ok()?;
+        let id = account_room_id(label, &account.id());
+        let room_key = Keypair::from_seed(&format!("stand-in room {id}"));
+        let args = Args {
+            id: id.clone(),
+            title: usual.name.clone(),
+            kind: Kind::Profile,
+            host_key: usual.key.clone(),
+            host_name: usual.name.clone(),
+            charter: PROFILE_CHARTER.into(),
+            open_door: true,
+            continues: None,
+            room_key: room_key.key(),
+            at: since,
+            rules: 2,
+            host_account: Some(account),
+            keepers: Vec::new(),
+            notes_key: Some(notes_key),
+            sig: String::new(),
+        };
+        let sig = self.me.state(&usual.key, "room", args.body()).ok()?.sig;
+        let room = Room::new(Args { sig, ..args }, room_key.clone()).ok()?;
+        self.me.set_room(&id, "usual");
+        inner.rooms.insert(id.clone(), Hosted { room, room_key, provider: mine(), online: true, secret: "profile-open".into(), mine: true, joined: true, stand_in_host: None });
+        inner.labels.insert(label.into(), id.clone());
+        let _ = std::fs::create_dir_all(self.table_dir(&id));
+        Some(id)
     }
 
     /// Admit one of your agents, tethered to you.
@@ -496,10 +552,10 @@ impl StubSpaces {
         let _ = self.act(inner, "ada", &dm, "say", json!({ "body": format!("ren makes music, you'd like the room. here's the way in:\n\n{ren_invite}") }), ago(4, 40));
 
         // Your profile: a room anyone with the link can knock on.
-        let profile = self.open(inner, "profile-me", &usual.name, Kind::Profile, (&usual.key, &usual.name), mine(), PROFILE_CHARTER, "profile-open", true, None, since);
+        let Some(profile) = self.open_profile(inner, "profile-me", since) else { return };
         let _ = self.me_act(inner, me.clone(), &profile, "show", json!({ "title": "The desktop app, draft one", "body": "Agents, storage, machines and saved Views, on a stand-in for the daemon." }), ago(26, 0));
         let _ = self.me_act(inner, me.clone(), &profile, "post_offering", json!({ "title": "A site check-up", "what": "site-fixes goes through a small site and lists what's broken. Nothing is changed without asking.", "pricing": "fixed", "terms": "you get a list, in a day" }), ago(20, 0));
-        let _ = self.me_act(inner, me.clone(), &profile, "admit", json!({ "key": ren, "name": "ren" }), ago(8, 0));
+        let _ = self.me_act(inner, me.clone(), &profile, "admit", json!({ "account": stand_in_account("ren"), "name": "ren" }), ago(8, 0));
         let _ = self.act(inner, "ren", &profile, "leave_note", json!({ "body": "Loved the kids' map idea in ada's zine room." }), ago(7, 30));
 
         // ren at the workshop's door, with an invite and a note.
@@ -1097,6 +1153,40 @@ mod tests {
         assert_eq!(again.invite(&board).await.unwrap().secret, after.secret);
         // Only the host restarts a room.
         assert!(again.restart_with_new_invite(&Id { id: again.id_of("idea-ada") }).await.is_err());
+    }
+
+    /// What ren left on your profile reaches the room, and every copy of it, sealed:
+    /// your app opens it, so does ren's, and nobody else's does.
+    #[tokio::test]
+    async fn notes_on_your_profile_are_sealed_to_you_and_their_author() {
+        let (spaces, me) = stub();
+        let profile = Id { id: spaces.id_of("profile-me") };
+        spaces.act_now("ren", &profile.id, "hire", json!({ "agent": "site-fixes", "what": "check my links", "pledge": "a coffee" })).unwrap();
+        let record = spaces.read(&profile, program::RECORD).await.unwrap();
+        let ResourceContents::TextResourceContents { text, .. } = &record.contents[0] else { panic!() };
+        for words in ["Loved the kids' map idea", "check my links", "a coffee"] {
+            assert!(!text.contains(words), "the record holds \"{words}\" in the clear");
+        }
+        let about = spaces.read(&profile, program::ABOUT).await.unwrap();
+        let ResourceContents::TextResourceContents { text: about, .. } = &about.contents[0] else { panic!() };
+        assert_eq!(serde_json::from_str::<Value>(about).unwrap()["notes_key"], json!(me.notes_public().unwrap()), "the settings name your notes key");
+        let feed = || serde_json::from_value::<Vec<crate::view::MoveView>>(json!(feed(&spaces, &profile.id))).unwrap();
+        let notes_key = me.notes_public().ok();
+        let opened = |who: &Keys| {
+            let mut moves = feed();
+            crate::notes::open_moves(who, &profile.id, notes_key.as_deref(), &mut moves);
+            let note = moves.iter().find(|m| m.kind == "note").unwrap().clone();
+            let hire = moves.iter().find(|m| m.kind == "hire").unwrap().clone();
+            (note, hire)
+        };
+        let (note, hire) = opened(&me);
+        assert_eq!((note.body.as_str(), hire.title.as_str(), hire.fields["pledge"].as_str()), ("Loved the kids' map idea in ada's zine room.", "check my links", Some("a coffee")), "you read them");
+        assert_eq!(note.fields["opened"], json!(true));
+        let (note, hire) = opened(&Keys::stand_in("ren"));
+        assert_eq!((note.body.as_str(), hire.title.as_str()), ("Loved the kids' map idea in ada's zine room.", "check my links"), "ren reads his own");
+        let (note, hire) = opened(&Keys::stand_in("ada"));
+        assert_eq!((note.body.as_str(), hire.title.as_str(), note.fields["opened"].clone()), ("", "", json!(false)), "ada reads neither");
+        assert!(hire.fields.get("pledge").is_none());
     }
 
     #[tokio::test]

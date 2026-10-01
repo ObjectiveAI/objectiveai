@@ -29,7 +29,7 @@ const isYou = (s: { you_key: string; you_account: string | null }, key?: string 
 /** Moves the room makes about itself: shown as quiet lines, not cards. */
 const SYSTEM = new Set(["admitted", "removed", "charter", "doorway", "keeper_dropped"]);
 /** Fields the screen shows in its own way, or not at all. */
-const HIDDEN = new Set(["claimed_by_key", "statement", "thread", "poster_says", "doer_says", "key", "key_mark", "fingerprint", "from", "files", "agent", "take", "agree", "move", "offers", "to", "offer", "offered_by", "taken_offer", "also", "erased", "how"]);
+const HIDDEN = new Set(["claimed_by_key", "statement", "thread", "poster_says", "doer_says", "key", "key_mark", "fingerprint", "from", "files", "agent", "take", "agree", "move", "offers", "to", "offer", "offered_by", "taken_offer", "also", "erased", "how", "sealed", "opened"]);
 
 export function Space(props: { id: string; tabKey: string }) {
   const { refreshSpaces, spaces, open } = useShared();
@@ -549,6 +549,7 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
       </header>
       {m.title ? <h3 className="move-title selectable">{m.title}</h3> : null}
       {erasedNote(m)}
+      {f.sealed === true ? <p className="muted small">{f.opened === true ? t.spaces.sealedOpen : t.spaces.sealedShut}</p> : null}
       {m.body ? <div className="move-body"><Markdown text={invite ? m.body.replace(invite, "").trim() : m.body} /></div> : null}
       {invite ? <Button small kind="secondary" onClick={() => props.onOpenInvite(invite)}>{t.door.openInvite}</Button> : null}
       {fieldRows(m).length ? (
@@ -565,7 +566,7 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
         </div>
       ) : null}
       <div className="move-actions">
-        {has("reply") && m.kind !== "reply" ? <Button small kind="tertiary" onClick={() => props.onVerb("reply", { move_id: m.id })}>{t.spaces.reply}</Button> : null}
+        {has("reply") && m.kind !== "reply" && f.sealed !== true ? <Button small kind="tertiary" onClick={() => props.onVerb("reply", { move_id: m.id })}>{t.spaces.reply}</Button> : null}
         {m.kind === "ask" && !isMe && has("offer") ? <Button small kind="tertiary" onClick={() => props.onVerb("offer", { ask_id: m.id })}>{t.spaces.moveKinds.offer}</Button> : null}
         {m.kind === "task" && m.state === "open" && !isMe && has("claim") ? <Button small kind="tertiary" onClick={() => props.onVerb("claim", { task_id: m.id })}>{t.spaces.claim}</Button> : null}
         {m.kind === "task" && m.state === "claimed" && claimedByMe && has("deliver") ? <Button small kind="tertiary" onClick={() => props.onVerb("deliver", { task_id: m.id })}>{t.spaces.deliver}</Button> : null}

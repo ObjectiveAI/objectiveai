@@ -31,7 +31,7 @@ pub fn spawn(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: Arc<Ide
         let handled: Arc<Mutex<HashSet<String>>> = Arc::default();
         let mut calls = spaces.host_calls(CancellationToken::new());
         // Hires asked while the app was closed are moves in the profile's record: pick them up.
-        for call in waiting(spaces.as_ref()).await {
+        for call in waiting(spaces.as_ref(), &identity).await {
             start(&daemon, &spaces, &identity, &door, &handled, call);
         }
         while let Some(call) = calls.next().await {
@@ -49,22 +49,26 @@ fn start(daemon: &Arc<dyn Daemon>, spaces: &Arc<dyn Spaces>, identity: &Arc<Iden
     tauri::async_runtime::spawn(async move { handle(daemon, spaces, identity, door, call).await });
 }
 
-/// Hires on your profile nobody has answered yet.
-async fn waiting(spaces: &dyn Spaces) -> Vec<HostCall> {
+/// Hires on your profile nobody has answered yet. A sealed one is opened
+/// with your notes key; one that won't open is left as it is.
+async fn waiting(spaces: &dyn Spaces, identity: &Identity) -> Vec<HostCall> {
     let Some(profile) = spaces.profile().await else { return Vec::new() };
     let Ok(r) = spaces.read(&profile, diverge_desktop_room::room::FEED).await else { return Vec::new() };
     let Some(text) = r.contents.iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }) else { return Vec::new() };
     let moves: Vec<Value> = serde_json::from_str(&text).unwrap_or_default();
+    let notes_key = crate::notes::notes_key_of(spaces, &profile).await;
     moves
         .iter()
         .filter(|m| m["kind"] == "hire" && m["state"] == "asked")
-        .map(|m| HostCall::Hire {
-            room: profile.clone(),
-            hire_id: m["id"].as_str().unwrap_or_default().to_owned(),
-            from: m["author"].as_str().unwrap_or_default().to_owned(),
-            agent: m["fields"]["agent"].as_str().unwrap_or_default().to_owned(),
-            what: m["title"].as_str().unwrap_or_default().to_owned(),
-            pledge: m["fields"]["pledge"].as_str().map(str::to_owned),
+        .filter_map(|m| {
+            let (agent, what, pledge) = match (m["fields"].get("sealed"), &notes_key) {
+                (Some(sealed), Some(key)) => {
+                    let asked = crate::notes::open_ask(identity, &profile.id, key, sealed, m["by"].as_str().unwrap_or_default())?;
+                    (asked.agent, asked.what, asked.pledge)
+                }
+                _ => (m["fields"]["agent"].as_str().unwrap_or_default().to_owned(), m["title"].as_str().unwrap_or_default().to_owned(), m["fields"]["pledge"].as_str().map(str::to_owned)),
+            };
+            Some(HostCall::Hire { room: profile.clone(), hire_id: m["id"].as_str().unwrap_or_default().to_owned(), from: m["author"].as_str().unwrap_or_default().to_owned(), agent, what, pledge })
         })
         .collect()
 }
@@ -101,8 +105,10 @@ async fn active(daemon: &dyn Daemon, agent: &str) -> Option<bool> {
 }
 
 async fn seal_call(spaces: &dyn Spaces, identity: &Identity, room: &Id, verb: &str, args: Value) -> Result<(), String> {
-    let mut params = CallToolRequestParams::new(verb.to_owned()).with_arguments(args.as_object().cloned().unwrap_or_default());
     let actor = identity.you_in(&room.id);
+    // An answer and a result go sealed to you and whoever asked, where the profile seals them.
+    let args = crate::notes::prepare(identity, spaces, room, &actor, verb, args).await?;
+    let mut params = CallToolRequestParams::new(verb.to_owned()).with_arguments(args.as_object().cloned().unwrap_or_default());
     let turn = identity.turn(&actor, &room.id);
     let _held = turn.lock().await;
     identity.seal(&actor, &room.id, &mut params)?;
@@ -151,12 +157,18 @@ pub async fn handle(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: 
     }
     // Only this run's words: from the hire's own message to the next one's.
     let (text, _) = crate::reporter::run_after(daemon.as_ref(), &agent, mark).await;
+    let summary = text.split(['\n', '.']).find(|l| !l.trim().is_empty()).unwrap_or("Done").trim().to_owned();
+    // Where the profile seals what visitors leave, the result goes back sealed to whoever asked, whole,
+    // and never onto the table, which everyone in the room reads.
+    if crate::notes::notes_key_of(spaces.as_ref(), &room).await.is_some() {
+        let _ = seal_call(spaces.as_ref(), &identity, &room, "deliver_hire", json!({ "hire_id": hire_id, "summary": summary, "result": text })).await;
+        return;
+    }
     let path = vec![format!("for-{}", from.replace(['/', ' '], "-")), format!("{hire_id}.md")];
     let body = format!("# {what}\n\nFor {from}, by {agent}.\n\n{text}\n");
     if spaces.table_write(&room, &path, body.into_bytes()).await.is_err() {
         return;
     }
-    let summary = text.split(['\n', '.']).find(|l| !l.trim().is_empty()).unwrap_or("Done").trim().to_owned();
     let _ = seal_call(spaces.as_ref(), &identity, &room, "deliver_hire", json!({ "hire_id": hire_id, "summary": summary, "files": [path.join("/")] })).await;
 }
 
@@ -232,13 +244,25 @@ mod tests {
         assert!(card.question.is_empty(), "the screen words it");
         door.answer(card.id, TAKE.into()).unwrap();
         running.await.unwrap();
-        let path = vec!["for-ren".to_owned(), format!("{hire}.md")];
-        let body = String::from_utf8(spaces.table_read(&profile, &path).await.unwrap()).unwrap();
-        assert!(body.contains("one broken"), "the agent's answer is on the table: {body}");
+        // Sealed back to ren and to you, whole; never on the table everyone in the room reads.
+        assert!(spaces.table_tree(&profile).await.unwrap().is_empty(), "nothing on the table");
         let feed = spaces.read(&profile, diverge_desktop_room::room::FEED).await.unwrap();
         let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &feed.contents[0] else { panic!() };
+        assert!(!text.contains("one broken") && !text.contains("Check the links"), "the room serves only ciphertext for it");
         let moves: Vec<Value> = serde_json::from_str(text).unwrap();
         assert_eq!(moves.iter().find(|m| m["id"] == hire.as_str()).unwrap()["state"], "delivered");
+        let result = moves.iter().find(|m| m["kind"] == "hire_delivery").unwrap();
+        let sealed = diverge_desktop_room::envelope::shape(&result["fields"]["sealed"]).unwrap();
+        let ren = diverge_desktop_room::envelope::OpenKey::for_author(&diverge_desktop_room::Keypair::from_seed("ren"), &profile.id);
+        let words = diverge_desktop_room::envelope::open(&sealed, &ren, &profile.id, "deliver_hire", result["by"].as_str().unwrap()).expect("ren opens the result");
+        assert!(words["result"].as_str().unwrap().contains("one broken"), "the agent's answer, whole: {words}");
+        // And your app opens all of it.
+        let mut views: Vec<crate::view::MoveView> = serde_json::from_str(text).unwrap();
+        crate::notes::open_moves(&identity, &profile.id, crate::notes::notes_key_of(spaces.as_ref(), &profile).await.as_deref(), &mut views);
+        let asked = views.iter().find(|m| m.id == hire).unwrap();
+        assert_eq!((asked.title.as_str(), asked.fields["pledge"].as_str()), ("Check the links on my music page", Some("a coffee")));
+        let delivered = views.iter().find(|m| m.kind == "hire_delivery").unwrap();
+        assert!(delivered.body.contains("one broken") && delivered.title == asked.title);
     }
 
     /// A hire card marks whoever asked when someone else in the profile room goes by the same name.
@@ -256,14 +280,15 @@ mod tests {
         let first = hire_of(&hire("Check the links")).expect("a hire id");
         assert_eq!(hirer_mark(spaces.as_ref(), &profile, &first, "ren").await, None);
         // Someone else let in as "ren": now each needs telling apart.
-        let other = diverge_desktop_room::Keypair::from_seed("another ren");
-        let mut params = CallToolRequestParams::new("admit").with_arguments(json!({ "key": other.key(), "name": "ren" }).as_object().cloned().unwrap());
+        let other = crate::spaces::stub::stand_in_account("another ren");
+        let mut params = CallToolRequestParams::new("admit").with_arguments(json!({ "account": other, "name": "ren" }).as_object().cloned().unwrap());
         identity.seal(&identity.you_in(&profile.id), &profile.id, &mut params).unwrap();
         spaces.call(&profile, params).await.unwrap();
         let second = hire_of(&hire("Check the links again")).expect("a hire id");
         let mark = hirer_mark(spaces.as_ref(), &profile, &second, "ren").await.expect("marked");
-        assert_eq!(mark, crate::marks::mark(&profile.id, &stub.stand_in_key("ren"), crate::marks::SHORTEST));
-        assert_ne!(mark, crate::marks::mark(&profile.id, &other.key(), crate::marks::SHORTEST), "not the other ren's");
+        // Under rules 2 a person is their account: the mark is of it.
+        assert_eq!(mark, crate::marks::mark(&profile.id, &crate::spaces::stub::stand_in_account("ren").id(), crate::marks::SHORTEST));
+        assert_ne!(mark, crate::marks::mark(&profile.id, &other.id(), crate::marks::SHORTEST), "not the other ren's");
         let _ = std::fs::remove_dir_all(&root);
     }
 }

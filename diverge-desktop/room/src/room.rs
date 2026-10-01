@@ -441,7 +441,8 @@ impl Move {
 pub trait Host: Send + Sync {
     fn seal(&self, kind: &str, body: Value) -> Result<Statement, String>;
     /// A hire asked here. `ask` is `{ agent, what, pledge }`, or in a profile
-    /// that seals what visitors leave, `{ sealed }`: only its owner opens it.
+    /// that seals what visitors leave, `{ sealed, by }` (the envelope, and the
+    /// key that sealed the call): only its owner opens it.
     fn hire(&self, _room: &str, _hire_id: &str, _from: &str, _ask: &Value) {}
 }
 
@@ -1655,7 +1656,7 @@ impl Room {
                     fields.insert("sealed".into(), e.clone());
                     let id = push(self, "hire", "", "", None, fields)?;
                     if replaying.is_none() {
-                        host.hire(&self.args.id, &id, &who.name, &json!({ "sealed": e }));
+                        host.hire(&self.args.id, &id, &who.name, &json!({ "sealed": e, "by": seal.key }));
                     }
                     return Ok(format!("Asked {}, sealed to them ({id})", self.args.host_name));
                 }

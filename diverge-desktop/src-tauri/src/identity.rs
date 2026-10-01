@@ -48,6 +48,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use diverge_desktop_room::account::Proof;
+use diverge_desktop_room::envelope::OpenKey;
 use diverge_desktop_room::{Key, Keypair, Statement, seal_call, tether};
 
 use crate::account::SealedWords;
@@ -250,6 +251,8 @@ pub struct Identity {
     refused: Option<Refused>,
     /// One call at a time from one key to one room.
     turns: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    /// Your notes key, once drawn from your words: kept in memory only.
+    notes: Mutex<Option<Arc<OpenKey>>>,
 }
 
 /// Why nothing is signed.
@@ -364,6 +367,7 @@ impl Identity {
             counters: Mutex::new(counters),
             refused,
             turns: Mutex::new(HashMap::new()),
+            notes: Mutex::new(None),
         };
         if from_backup.is_some() || upgrade {
             identity.save(&identity.lock());
@@ -383,6 +387,7 @@ impl Identity {
             counters: Mutex::new(BTreeMap::new()),
             refused: Some(Refused::Folder(says)),
             turns: Mutex::new(HashMap::new()),
+            notes: Mutex::new(None),
         }
     }
 
@@ -391,7 +396,7 @@ impl Identity {
     /// preview's snapshot, so they come out the same every run.
     #[allow(dead_code)] // tests and the browser preview's snapshot
     pub fn stand_in(usual_name: &str) -> Self {
-        let identity = Identity { file: None, seeded: true, keys: Mutex::new(Keys::default()), counters: Mutex::new(BTreeMap::new()), refused: None, turns: Mutex::new(HashMap::new()) };
+        let identity = Identity { file: None, seeded: true, keys: Mutex::new(Keys::default()), counters: Mutex::new(BTreeMap::new()), refused: None, turns: Mutex::new(HashMap::new()), notes: Mutex::new(None) };
         identity.finish_first_run(usual_name, true).expect("an invented person finishes the first-run page");
         identity
     }
@@ -754,6 +759,51 @@ impl Identity {
         let id = self.persona_by_key(persona_key).map(|p| p.id).ok_or("that key isn't one of yours")?;
         let keypair = self.persona_keypair(&id).ok_or("no such persona")?;
         Ok(Statement::make(&keypair, kind, body))
+    }
+
+    /// Your notes key: what visitors leave on your profile is sealed to it.
+    /// Drawn from your recovery words on its own path (see
+    /// `diverge_desktop_room::envelope`), the one thing the app opens the
+    /// words for; the words are wiped again at once, and the key stays in
+    /// memory only. Nothing before the first-run page.
+    pub fn notes_key(&self) -> Result<Arc<OpenKey>, String> {
+        self.ready()?;
+        let mut cached = self.notes.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(k) = cached.as_ref() {
+            return Ok(k.clone());
+        }
+        let key = {
+            let keys = self.lock();
+            let account = keys.account.as_ref().ok_or(NOT_NAMED)?;
+            let device = keys.personas.iter().find(|p| p.usual).and_then(|p| Keypair::from_secret_hex(&p.secret).ok()).ok_or(NOT_NAMED)?;
+            let words = crate::account::open(&device, &account.proof.id(), &account.words)?;
+            let mnemonic = bip39::Mnemonic::parse(words.as_str()).map_err(|_| "your recovery words don't read as words".to_string())?;
+            let seed = zeroize::Zeroizing::new(mnemonic.to_seed(""));
+            Arc::new(OpenKey::from_seed(seed.as_ref()))
+        };
+        *cached = Some(key.clone());
+        Ok(key)
+    }
+
+    /// The public half of your notes key: what your profile's settings name.
+    pub fn notes_public(&self) -> Result<String, String> {
+        self.notes_key().map(|k| k.public())
+    }
+
+    /// The key `actor` seals with in a room, and the key it opens its own
+    /// sealed words with there.
+    pub fn author_key(&self, actor: &Actor, room: &str) -> Result<(Key, OpenKey), String> {
+        self.ready()?;
+        let keypair = self.keypair_for(actor, room)?;
+        Ok((keypair.key(), OpenKey::for_author(&keypair, room)))
+    }
+
+    /// Every key of yours that could have sealed words in a room (your
+    /// names and your agents), as the keys that open them again.
+    pub fn author_keys(&self, room: &str) -> Vec<OpenKey> {
+        let keys = self.lock();
+        let secrets = keys.personas.iter().map(|p| p.secret.as_str()).chain(keys.agents.values().map(|a| a.secret.as_str()));
+        secrets.filter_map(|s| Keypair::from_secret_hex(s).ok()).map(|k| OpenKey::for_author(&k, room)).collect()
     }
 
     /// Your recovery words as they're kept, sealed: tests only, to look for

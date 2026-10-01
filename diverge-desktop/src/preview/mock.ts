@@ -253,7 +253,7 @@ export function installPreview() {
           );
           const profileId = yours("profile");
           const profile = profileId ? spaceOf(profileId) : undefined;
-          return { receipts, shows: profile ? profile.moves.filter((m) => m.kind === "show") : [], agents, machines, volumes: machines.flatMap((m) => m.volumes), home: yours("home"), profile: profileId, personas };
+          return { receipts, shows: profile ? profile.moves.filter((m) => m.kind === "show") : [], agents, machines, volumes: machines.flatMap((m) => m.volumes), home: yours("home"), profile: profileId, profile_sealed: profile ? profile.moves.some((m) => (m.fields as Record<string, unknown>).sealed === true) : false, personas };
         }
         case "people_list": {
           const people = new Map<string, { name: string; key: string; is_agent: boolean; agent_of: string | null; spaces: string[] }>();

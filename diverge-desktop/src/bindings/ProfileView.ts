@@ -10,4 +10,8 @@ export type ProfileView = { receipts: Array<ReceiptView>, shows: Array<MoveView>
 /**
  * Your profile room, which anyone with its link can knock on.
  */
-profile: string | null, personas: Array<PersonaView>, };
+profile: string | null, 
+/**
+ * Whether your profile seals what visitors leave to you: its settings name your notes key.
+ */
+profile_sealed: boolean, personas: Array<PersonaView>, };
