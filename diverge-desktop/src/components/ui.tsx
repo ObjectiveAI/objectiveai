@@ -31,7 +31,7 @@ export function Segmented<T extends string>(props: { value: T; options: { value:
 
 export function Field(props: { label: string; hint?: string; children: ReactNode; needed?: boolean; wide?: boolean; size?: "narrow" | "grow" }) {
   return (
-    <label className={`field${props.wide ? " field-wide" : ""}${props.size ? ` ${props.size}` : ""}`}>
+    <label className={`field${props.wide ? " field-wide" : ""}${props.size ? ` field-${props.size}` : ""}`}>
       <span className="field-label">
         {props.label}
         {props.needed ? <span className="needed">needed</span> : null}
