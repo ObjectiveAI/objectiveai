@@ -2527,7 +2527,9 @@ mod tests {
     #[tokio::test]
     async fn a_folder_from_before_accounts_sends_nothing_more_until_the_first_run_page_is_finished() {
         let data = store::tests::folder("actions-earlier");
-        let usual = Keypair::from_seed("sam from before");
+        // The stand-in's own seeded key: the stand-in seeds its rooms here too once the page is
+        // finished, and its board's id (which the scripted run names, once per test process) comes from this key.
+        let usual = Keypair::from_seed("maya");
         let v1 = json!({ "file": "keys", "version": 1, "data": {
             "personas": [{ "id": "usual", "name": "sam", "secret": usual.secret_hex(), "created": Utc::now(), "usual": true }],
             "agents": {}, "rooms": {}
