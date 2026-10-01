@@ -9,6 +9,7 @@
 //! The same program runs two ways: in-process, inside the app's stand-in
 //! for rooms, and as a tool container image. Nothing in it knows which.
 
+pub mod account;
 #[cfg(feature = "image")]
 pub mod image;
 pub mod room;
