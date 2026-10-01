@@ -14,7 +14,10 @@
 .link { background: none; border: 0; color: var(--pink); padding: 0 var(--space-1); cursor: pointer; }
 
 /* --- rail --------------------------------------------------------------- */
-.rail { background: var(--rail); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; padding: var(--space-3) var(--space-2); gap: var(--space-4); overflow-y: auto; }
+.rail { background: var(--rail); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+/* Everything in the rail but the stand-in label scrolls; the label stays in view at the foot.
+   Scrolling to a focused row leaves room for its focus ring. */
+.rail-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-3) var(--space-2); gap: var(--space-4); overflow-y: auto; scroll-padding: var(--space-1) 0; }
 .rail-brand { display: flex; align-items: flex-end; gap: var(--space-2); padding: var(--space-1) var(--space-2) 0; }
 /* The wordmark, as Maya drew it: pink on the plum ground (an approved lockup). Never recoloured. */
 .brand-wordmark { height: 22px; width: auto; display: block; }
@@ -398,7 +401,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .md h5 { font-size: var(--text-sm); font-weight: 650; margin-top: var(--space-1); }
 
 /* --- quality floor ---------------------------------------------------------------- */
-.stand-in-line { margin-top: auto; display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-2) 0; font-size: var(--text-xs); color: var(--text-3); border-top: 1px solid var(--line); }
+.stand-in-line { flex: none; display: flex; justify-content: space-between; gap: var(--space-2); margin: 0 var(--space-2); padding: var(--space-2) var(--space-2) var(--space-3); font-size: var(--text-xs); color: var(--text-3); border-top: 1px solid var(--line); }
 .machine-name-input { font-weight: 600; background: transparent !important; border-color: transparent !important; padding-left: 0 !important; }
 .machine-name-input:hover, .machine-name-input:focus { border-color: var(--line-strong) !important; padding-left: var(--space-2) !important; }
 .inbox-waiting { padding: 0 var(--space-3) var(--space-3); display: flex; flex-direction: column; }

@@ -136,3 +136,43 @@ describe("tokens", () => {
     expect(unnamed).toEqual([]);
   });
 });
+
+describe("the stand-in label", () => {
+  it("sits outside every part of the rail that scrolls, so it can't scroll out of view", () => {
+    // Classes app.css makes scroll (from the last part of each selector that sets overflow to auto or scroll).
+    const scrolls = new Set<string>();
+    for (const d of declarations("app.css")) {
+      if (!/^overflow(-y)?$/.test(d.prop) || !/\b(auto|scroll)\b/.test(d.value)) continue;
+      for (const s of d.selector.split(",")) for (const m of (s.trim().split(/[\s>+~]+/).pop() ?? "").matchAll(/\.([\w-]+)/g)) scrolls.add(m[1]);
+    }
+    const file = join(SRC, "components", "Rail.tsx");
+    const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    // The class words an element's className spells as plain text.
+    const classes = (el: ts.JsxOpeningLikeElement) =>
+      el.attributes.properties.flatMap((a) => {
+        if (!ts.isJsxAttribute(a) || a.name.getText(source) !== "className" || !a.initializer) return [];
+        const words: string[] = [];
+        const visit = (n: ts.Node) => {
+          if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n)) words.push(...n.text.split(/\s+/).filter(Boolean));
+          ts.forEachChild(n, visit);
+        };
+        visit(a.initializer);
+        return words;
+      });
+    const opening = (n: ts.Node) => (ts.isJsxElement(n) ? n.openingElement : ts.isJsxSelfClosingElement(n) ? n : null);
+    const all: ts.Node[] = [];
+    const walk = (n: ts.Node) => {
+      if (opening(n)) all.push(n);
+      ts.forEachChild(n, walk);
+    };
+    walk(source);
+    const label = all.filter((n) => classes(opening(n)!).includes("stand-in-line"));
+    expect(label).toHaveLength(1);
+    const around: string[] = [];
+    for (let n = label[0].parent; n; n = n.parent) if (opening(n)) around.push(...classes(opening(n)!));
+    expect(around).toContain("rail");
+    expect(around.filter((c) => scrolls.has(c))).toEqual([]);
+    // …while the rest of the rail still scrolls, so a long list stays reachable.
+    expect(all.some((n) => classes(opening(n)!).some((c) => scrolls.has(c)))).toBe(true);
+  });
+});
