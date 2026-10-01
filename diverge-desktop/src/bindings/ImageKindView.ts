@@ -2,6 +2,6 @@
 
 export type ImageKindView = { key: string, image_name: string, digest: string, 
 /**
- * JSON Schema of the image's settings, from Ronald's source.
+ * JSON Schema of the image's settings, from the SDK's source.
  */
 schema: Record<string, unknown>, };

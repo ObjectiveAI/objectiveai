@@ -412,7 +412,7 @@ pub fn catalog_images() -> Vec<ImageKindView> {
         .collect()
 }
 
-/// Checked with the image's own types, from Ronald's source.
+/// Checked with the image's own types, from the SDK's source.
 #[tauri::command]
 pub fn catalog_check(kind: String, arguments: serde_json::Value) -> Result<(), String> {
     let kind = catalog::ALL.into_iter().find(|k| k.key() == kind).ok_or_else(|| format!("no image called {kind}"))?;
@@ -1998,7 +1998,7 @@ mod tests {
 
     /// The app over a folder of its own, with rooms in process and no daemon.
     fn app_in(data: PathBuf) -> (AppState, Arc<Rooms>) {
-        let identity = Arc::new(named(&data, "maya"));
+        let identity = Arc::new(named(&data, "juno"));
         let rooms = Rooms::new(identity.clone());
         let absent = Arc::new(crate::absent::Absent::not_yet());
         let seams = Seams { daemon: absent.clone(), machines: absent, spaces: rooms.clone(), stand_in_host: None, network: true, first_mounts: HashMap::new() };
@@ -2013,9 +2013,9 @@ mod tests {
     /// Keys made from a fixed seed, so the stand-in's rooms get the ids
     /// every other test's do, with the first-run page finished.
     fn seeded_keys(data: &Path) {
-        let keys = json!({ "personas": [{ "id": "usual", "name": "maya", "secret": Keypair::from_seed("maya").secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
+        let keys = json!({ "personas": [{ "id": "usual", "name": "juno", "secret": Keypair::from_seed("juno").secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
         store::save(&data.join(KEYS_FILE), store::KEYS, &keys).unwrap();
-        Keys::open(data.join(KEYS_FILE)).finish_first_run("maya", true).unwrap();
+        Keys::open(data.join(KEYS_FILE)).finish_first_run("juno", true).unwrap();
     }
 
     /// Your keys in a folder, with the first-run page finished under `name`.
@@ -2129,7 +2129,7 @@ mod tests {
         let members: Vec<MemberView> = read_json(&state, &space_id(&id), program::MEMBERS).await.unwrap();
         let agent = members.iter().find(|m| m.is_agent).unwrap();
         assert_eq!(agent.agent_of_key.as_deref(), Some(you.as_str()), "its person is your account");
-        assert_eq!(rooms.rooms.lock().unwrap()[&id].moves().last().unwrap().agent_of.as_deref(), Some("maya"));
+        assert_eq!(rooms.rooms.lock().unwrap()[&id].moves().last().unwrap().agent_of.as_deref(), Some("juno"));
     }
 
     /// A returning member's knock: today's door let them in once; their next knock comes back.
@@ -2181,7 +2181,7 @@ mod tests {
 
     #[test]
     fn the_door_answers_from_the_record_by_key_by_account_and_by_a_newer_device_list() {
-        let host = Keypair::from_seed("maya");
+        let host = Keypair::from_seed("juno");
         let host_account = account_of(&host);
         let room_key = Keypair::from_seed("room");
         let args = Args {
@@ -2189,7 +2189,7 @@ mod tests {
             title: "Saturday Workshop".into(),
             kind: diverge_desktop_room::Kind::Board,
             host_key: host.key(),
-            host_name: "maya".into(),
+            host_name: "juno".into(),
             charter: "#".into(),
             open_door: false,
             continues: None,
@@ -2300,7 +2300,7 @@ mod tests {
         let mut room = Room::new(args, room_key).unwrap();
         let id = room.id().to_owned();
         let (you, _) = state.identity.account().unwrap();
-        let mut p = CallToolRequestParams::new("admit").with_arguments(json!({ "key_mark": diverge_desktop_room::key_mark(&id, &you), "name": "maya", "listed": false }).as_object().cloned().unwrap());
+        let mut p = CallToolRequestParams::new("admit").with_arguments(json!({ "key_mark": diverge_desktop_room::key_mark(&id, &you), "name": "juno", "listed": false }).as_object().cloned().unwrap());
         diverge_desktop_room::seal_call(&ada, &id, &mut p, 1);
         room.call(p, &diverge_desktop_room::NoHost).unwrap();
         rooms.rooms.lock().unwrap().insert(id.clone(), room);
@@ -2426,7 +2426,7 @@ mod tests {
     #[tokio::test]
     async fn with_nothing_answering_the_app_says_the_network_part_isnt_there() {
         let data = store::tests::folder("actions-absent");
-        let identity = Arc::new(named(&data, "maya"));
+        let identity = Arc::new(named(&data, "juno"));
         let absent = Arc::new(crate::absent::Absent::not_yet());
         let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
         let folder = store::hold(&data);
@@ -2517,7 +2517,7 @@ mod tests {
         let state = AppState::open(data.clone()).await;
         assert_eq!(info(&state).folder_held, FolderHeld::InUse);
         assert!(!state.network);
-        assert_eq!(state.identity.usual().unwrap().key, Keypair::from_seed("maya").key(), "your keys, read as they are");
+        assert_eq!(state.identity.usual().unwrap().key, Keypair::from_seed("juno").key(), "your keys, read as they are");
         assert_eq!(state.views.lock().unwrap().len(), 1, "your files, read as they are");
         // Whatever it's asked to do, it changes nothing there.
         save_view(&state, a_view()).unwrap();
@@ -2538,7 +2538,7 @@ mod tests {
         // Once the other copy closes, the folder is this one's.
         let again = AppState::open(data.clone()).await;
         assert_eq!(info(&again).folder_held, FolderHeld::Yes);
-        assert_eq!(again.identity.usual().unwrap().key, Keypair::from_seed("maya").key());
+        assert_eq!(again.identity.usual().unwrap().key, Keypair::from_seed("juno").key());
     }
 
     #[tokio::test]
@@ -2704,7 +2704,7 @@ mod tests {
         let data = store::tests::folder("actions-earlier");
         // The stand-in's own seeded key: the stand-in seeds its rooms here too once the page is
         // finished, and its board's id (which the scripted run names, once per test process) comes from this key.
-        let usual = Keypair::from_seed("maya");
+        let usual = Keypair::from_seed("juno");
         let v1 = json!({ "file": "keys", "version": 1, "data": {
             "personas": [{ "id": "usual", "name": "sam", "secret": usual.secret_hex(), "created": Utc::now(), "usual": true }],
             "agents": {}, "rooms": {}

@@ -1,33 +1,33 @@
 # diverge-desktop — read this first
 
-The Diverge desktop app, draft four. Maya owns the product and its words; Ronald owns everything below the
+The Diverge desktop app. The product's owner sets the product and its words; the SDK's owner owns everything below the
 daemon seam. This file is committed so every session and worktree
 inherits it.
 
 ## The seams
 - `src-tauri/src/daemon/mod.rs` — `Daemon`, one method per daemon verb (`agents::{create, delete, message, logs,
   list, edit}`, `tools::{create, edit, connect, attach, detach, delete, list}`). `StubDaemon` (feature `stand-in`) now;
-  `WireDaemon` when Ronald ships a daemon. The app doesn't use the tools verbs for rooms: a daemon-attached tool bypasses the app, which
+  `WireDaemon` when a daemon ships. The app doesn't use the tools verbs for rooms: a daemon-attached tool bypasses the app, which
   seals agents' calls and asks the person first.
 - `src-tauri/src/machines.rs` — `Machines`: the provider protocol's volume verbs, addressed to one machine. Since
   `87015ef92` a volume is its provider's own; the daemon has none. The wire doesn't say yet how the app reaches a machine's verbs.
   The stand-in daemon implements both seams (it knows every agent's mounts, so it keeps every machine's holds).
-- Meeting up with Ronald = writing `WireDaemon` and `WireMachines`, nothing else.
-- Everything returns **Ronald's real `diverge_sdk` types** (one crate since `d238949ba`, no features). Every
+- Meeting up with the real daemon = writing `WireDaemon` and `WireMachines`, nothing else.
+- Everything returns **the SDK's real `diverge_sdk` types** (one crate since `d238949ba`, no features). Every
   conversion to our view types is an exhaustive `match` (never `_ =>`) so a new variant from him fails our build.
 - The contract is `diverge-sdk-rs/src/{daemon,provider/endpoints/{volumes,containers/tools},shared,container_proxy/inside}/**` at `origin/p2p-provider-binary` —
   never a doc. `CONTRACT_PIN` holds the commit we built against. Start every session with the drift check in it and
-  tell Maya in one line whether anything moved.
-- `providers::{list, add, remove}` are **ours until the wire has them** (Maya: add a machine inside the app). Machine
+  say in one line whether anything moved.
+- `providers::{list, add, remove}` are **ours until the wire has them** (a product ruling: add a machine inside the app). Machine
   names are the app's (`machine_names.json`); the daemon's name stays underneath.
 - **Mounts are remembered by the app** (`agent_mounts.json`): the daemon never reports an agent's mounts and
   `agents::edit` states them all anew, so the app offers "Mounts" only for agents it made.
 - **Spaces** (`src-tauri/src/spaces/mod.rs`): the social layer on the provider protocol's tool rooms —
   `containers::tools::run` (host), `tools::connect` (join by id), the run's `authorize` channel (the host's yes), the
   MCP exchanges (a room's verbs, resources, notifications), the container's files (a room's table) and `transfer`.
-  Ronald's types on the wire; what rides inside them is ours (below). `StubSpaces` runs the real room program in
+  the SDK's types on the wire; what rides inside them is ours (below). `StubSpaces` runs the real room program in
   process until rooms are hosted on the wire.
-- **The person layer is ours, not Ronald's** — the wire gives a room no way to tell members apart (a tool program sees
+- **The person layer is ours, not the SDK's** — the wire gives a room no way to tell members apart (a tool program sees
   one MCP client; a runner sees an address and an opaque string), and nothing on the wire names a person:
   - `diverge-desktop/room` (crate `diverge-desktop-room`): the room program.
     - A room's settings (`Args`) are signed by its host, and its id is a label plus the host's mark (`room_id`), so
@@ -167,10 +167,10 @@ inherits it.
   only to Tauri's IPC; so nothing in the page may be inline (`src/window.test.ts`). It applies to built windows, not
   to `pnpm tauri dev`, which loads the dev server directly.
 - View types in `src-tauri/src/view.rs` generate `src/bindings/*.ts` (`cargo test -p diverge-desktop`).
-- Never edit Ronald's crates. Blocked? Note it for Ronald in the private questions list (kept outside this repo) and
+- Never edit the SDK's crates. Blocked? Note it in the private questions list (kept outside this repo) and
   route around it on the stub.
 
-## Product laws (Maya's rulings)
+## Product laws
 - **The app sets nothing for anyone.** Every permission on screen says who set it (you over your own agents, a host
   over their room, whoever runs a machine over it, the network's own rules as plain facts), and only its setter can
   change it. The app ships starting positions for your own settings and says so; it adds no rules of its own.
@@ -202,14 +202,14 @@ recommend a room, remove someone quietly or not, restart; members with whose age
 by kind; the people from before, in a room you continued; an unreachable room from your copy, with how old it is and
 "continue it") · Storage (volumes) · Machines · Views · New agent · a conversation (work folds into one line; cards
 show the whole call; Mounts, changed while it's idle, with scratch space you choose).
-Storage is per machine: pick a machine, then a volume; each volume is in one of Ronald's three modes (keeps changes /
+Storage is per machine: pick a machine, then a volume; each volume is in one of the provider's three modes (keeps changes /
 fresh each run / read only).
 
 ## Working on it
-Plain words, few of them, tl;dr first. Show screenshots, don't describe. Check the code before asking Maya
+Plain words, few of them, tl;dr first. Show screenshots, don't describe. Check the code before asking the product's owner
 anything; settle protocol and industry questions from the code, or make the call and note it. **GitHub: drafts live
-on the `user-experience` branch** of this public repo, kept current with main (merged in) and built against Ronald's branch at `CONTRACT_PIN`, and are pushed only when Maya
-says. Never push to Ronald's branches; no PRs or issues unless asked. **Nothing private enters this repo**, in files
+on the `user-experience` branch** of this public repo, kept current with main (merged in) and built against the SDK's branch at `CONTRACT_PIN`, and are pushed only when the product's owner
+says. Never push to the SDK's branches; no PRs or issues unless asked. **Nothing private enters this repo**, in files
 or commit messages: planning docs, lists of questions, quotes from outside conversations, and wording or ideas that
 came from them. Seed content is invented and everyday.
 

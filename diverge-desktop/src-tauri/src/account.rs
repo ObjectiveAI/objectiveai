@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn the_words_make_the_root_that_signed_and_open_only_for_their_account() {
         let device = Keypair::from_seed("this mac");
-        let made = make(&device, seeded_entropy("maya"), Utc::now());
+        let made = make(&device, seeded_entropy("juno"), Utc::now());
         let account = made.proof.check().unwrap();
         assert_eq!((account.sequence, account.devices.clone()), (1, vec![device.key()]));
         let words = open(&device, &account.id, &made.words).unwrap();

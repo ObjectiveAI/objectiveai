@@ -3,7 +3,7 @@
    the values, and the whole app follows.
 
    Where the colours come from: the protocol site (diverge-provider-web/src/
-   layouts/Layout.astro on main, Maya's palette of 2026-09-14). Its own rules:
+   layouts/Layout.astro on main, the palette of 2026-09-14). Its own rules:
    ink #fbeacd, links #ffb2ff, and gold #eba52a for ONE thing only — where
    you are. The mark's plum #280022 stays the mark's; the ground is that plum
    taken to near black, #11000e. Surfaces are tints of it, never neutral
@@ -30,7 +30,7 @@
    build.
 
    Status colours (ok / bad) are NOT from the site — it never needed them.
-   They are the only invented values here, and Maya's to replace. */
+   They are the only invented values here, and the product owner's to replace. */
 
 :root {
   color-scheme: dark;

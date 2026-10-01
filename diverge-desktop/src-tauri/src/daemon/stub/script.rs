@@ -3,7 +3,7 @@
 //! Every piece is written as the JSON an agent container streams and read
 //! back through the provider SDK's own `AgenticLoopChunk`, so a chunk this
 //! file writes is one the real wire could carry. The tests run every
-//! script through that parse; if Ronald reshapes a chunk, they fail.
+//! script through that parse; if the SDK reshapes a chunk, they fail.
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Item;
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;

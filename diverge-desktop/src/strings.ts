@@ -1,10 +1,10 @@
-// Every word a person reads in this app lives here, so Maya's naming
+// Every word a person reads in this app lives here, so the naming
 // pass is one edit. The words below are PROVISIONAL — names are tabled.
 
 export const t = {
   app: {
     name: "Diverge",
-    draft: "draft four",
+    draft: "draft five",
   },
   home: {
     askWhere: "Ask in:",
@@ -192,7 +192,7 @@ export const t = {
   },
   standIn: {
     label: "Stand-in daemon",
-    note: "Runs are scripted and nothing leaves this Mac. Ronald's daemon replaces this in one piece.",
+    note: "Runs are scripted and nothing leaves this Mac. The real daemon replaces this in one piece.",
     pin: "Built against",
     preview: "Browser preview: a snapshot of the stand-in, for looking at screens. Nothing here runs.",
     previewShort: "Browser preview",
@@ -820,7 +820,7 @@ export const t = {
     where: "It's at",
     untouched: "Nothing has written over it, and nothing will until it can be read again.",
   },
-  // The first-run page. Plain working words: the naming pass is Maya's.
+  // The first-run page. Plain working words: the naming pass decides them.
   firstRun: {
     title: "Before anything else",
     // Shown in a new folder only: nothing has been signed there yet.

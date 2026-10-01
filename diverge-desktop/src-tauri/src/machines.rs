@@ -1,6 +1,6 @@
 //! The second seam: each machine's own volumes.
 //!
-//! Ronald took volumes off the daemon on 2026-09-25 (`87015ef92`, "the
+//! Volumes came off the daemon on 2026-09-25 (`87015ef92`, "the
 //! daemon's volumes are gone"). A volume is a provider's own: named in
 //! that provider's listing, kept on its disk, meaning nothing to any
 //! other. So the ten verbs here are the PROVIDER protocol's

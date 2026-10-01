@@ -72,7 +72,7 @@
    Scrolling to a focused row leaves room for its focus ring. */
 .rail-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-3) var(--space-2); gap: var(--space-4); overflow-y: auto; scroll-padding: var(--space-1) 0; }
 .rail-brand { display: flex; align-items: flex-end; gap: var(--space-2); padding: var(--space-1) var(--space-2) 0; }
-/* The wordmark, as Maya drew it: pink on the plum ground (an approved lockup). Never recoloured. */
+/* The wordmark, as drawn: pink on the plum ground (an approved lockup). Never recoloured. */
 .brand-wordmark { height: 22px; width: auto; display: block; }
 .brand-draft { font-size: var(--text-xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .rail-section { display: flex; flex-direction: column; gap: 0; }

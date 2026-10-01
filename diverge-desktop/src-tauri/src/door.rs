@@ -693,7 +693,7 @@ mod tests {
 
     /// The stand-in's daemon and rooms, and a door over them that keeps its allowances in `allowances`.
     fn door_over(allowances: Option<PathBuf>) -> (Arc<Door>, StubSpaces) {
-        let identity = Arc::new(Identity::stand_in("maya"));
+        let identity = Arc::new(Identity::stand_in("juno"));
         let root = std::env::temp_dir().join(format!("diverge-desktop-test-door-{}-{}", std::process::id(), Utc::now().timestamp_nanos_opt().unwrap_or(0)));
         let stub = StubSpaces::new(identity.clone(), root.join("tables"));
         let daemon = StubDaemon::new(root.join("host"));

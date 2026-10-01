@@ -372,33 +372,33 @@ mod tests {
 
     #[test]
     fn a_room_id_belongs_to_one_host() {
-        let (maya, ren) = (Keypair::from_seed("maya"), Keypair::from_seed("ren"));
-        let id = room_id("workshop", &maya.key());
-        assert!(id_holds(&id, &maya.key()));
-        assert!(!id_holds(&id, &ren.key()), "ren can't host maya's id");
-        assert!(!id_holds("workshop", &maya.key()), "a bare label names no host");
-        assert!(!id_holds(&room_id("../x", &maya.key()), &maya.key()), "a label is plain");
+        let (juno, ren) = (Keypair::from_seed("juno"), Keypair::from_seed("ren"));
+        let id = room_id("workshop", &juno.key());
+        assert!(id_holds(&id, &juno.key()));
+        assert!(!id_holds(&id, &ren.key()), "ren can't host juno's id");
+        assert!(!id_holds("workshop", &juno.key()), "a bare label names no host");
+        assert!(!id_holds(&room_id("../x", &juno.key()), &juno.key()), "a label is plain");
         // An account's room id is its own: a key's mark never stands for an account's, nor the other way.
         let account = digest(b"an account's genesis");
         let theirs = account_room_id("workshop", &account);
         assert!(account_id_holds(&theirs, &account));
         assert!(!account_id_holds(&theirs, &digest(b"another genesis")));
         assert!(!id_holds(&theirs, &account), "an account's id isn't a key's");
-        assert!(!account_id_holds(&room_id("workshop", &maya.key()), &maya.key()), "nor a key's an account's");
+        assert!(!account_id_holds(&room_id("workshop", &juno.key()), &juno.key()), "nor a key's an account's");
         let hash = digest(b"a move");
-        assert!(countersigned(&maya.key(), &hash, &maya.countersign(&hash)));
-        assert!(!countersigned(&ren.key(), &hash, &maya.countersign(&hash)));
+        assert!(countersigned(&juno.key(), &hash, &juno.countersign(&hash)));
+        assert!(!countersigned(&ren.key(), &hash, &juno.countersign(&hash)));
         let body = json!({ "title": "x" });
-        assert!(statement_holds(&maya.key(), "room", &body, &Statement::make(&maya, "room", body.clone()).sig));
-        assert!(!statement_holds(&maya.key(), "vouch", &body, &Statement::make(&maya, "room", body.clone()).sig), "kinds don't cross");
+        assert!(statement_holds(&juno.key(), "room", &body, &Statement::make(&juno, "room", body.clone()).sig));
+        assert!(!statement_holds(&juno.key(), "vouch", &body, &Statement::make(&juno, "room", body.clone()).sig), "kinds don't cross");
     }
 
     #[test]
     fn statements_and_keys_round_trip() {
-        let maya = Keypair::from_seed("maya");
-        assert_eq!(maya.key(), Keypair::from_seed("maya").key(), "stand-in keys are stable");
-        assert_eq!(Keypair::from_secret_hex(&maya.secret_hex()).unwrap().key(), maya.key());
-        let t = tether(&maya, "abc", "site-fixes");
+        let juno = Keypair::from_seed("juno");
+        assert_eq!(juno.key(), Keypair::from_seed("juno").key(), "stand-in keys are stable");
+        assert_eq!(Keypair::from_secret_hex(&juno.secret_hex()).unwrap().key(), juno.key());
+        let t = tether(&juno, "abc", "site-fixes");
         assert!(t.holds());
         let mut forged = t.clone();
         forged.body = json!({ "agent": "xyz", "name": "site-fixes" });

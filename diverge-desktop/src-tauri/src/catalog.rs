@@ -2,7 +2,7 @@
 //!
 //! Each agentic-loop crate's `agent` module is self-contained (serde,
 //! schemars, indexmap and the provider SDK's `Tool`), so it is compiled in
-//! here straight from Ronald's source: the schema is `schema_for!(Agent)`,
+//! here straight from the SDK's source: the schema is `schema_for!(Agent)`,
 //! exactly what the image's own `GET /schema` serves. When he changes an
 //! image's settings, this app's form changes with it at the next build.
 //! Nothing is run and nothing is installed to get them.

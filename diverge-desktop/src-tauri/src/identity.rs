@@ -1,6 +1,6 @@
 //! Who you are in rooms: ours, not the wire's.
 //!
-//! Ronald's protocol has no person: identities are opaque per provider,
+//! The provider protocol has no person: identities are opaque per provider,
 //! a room's program can't tell its members apart, and nothing on the wire
 //! names a person. So the app keeps keys:
 //!
@@ -878,8 +878,8 @@ mod tests {
         let file = std::env::temp_dir().join(format!("diverge-desktop-identity-{}.json", std::process::id()));
         let _ = std::fs::remove_file(&file);
         let me = Identity::open(file.clone());
-        let usual = me.finish_first_run("maya", true).unwrap();
-        assert_eq!(usual.name, "maya");
+        let usual = me.finish_first_run("juno", true).unwrap();
+        assert_eq!(usual.name, "juno");
         let fresh = me.fresh("lamp person").unwrap();
         assert_ne!(fresh.key, usual.key, "a fresh persona is a different key");
         me.set_room("room-1", &fresh.id);
@@ -968,7 +968,7 @@ mod tests {
         let dir = store::tests::folder("keys-remove-local");
         let file = dir.join("identity.json");
         let me = Identity::open(file.clone());
-        me.finish_first_run("maya", true).unwrap();
+        me.finish_first_run("juno", true).unwrap();
         let local = me.add_local("claude", "Claude Code").unwrap();
         let key = me.agent_in(&local, None).unwrap().key;
         assert!(!me.local_id_free("claude") && me.local_id_free("other"));
@@ -992,7 +992,7 @@ mod tests {
         let (usual, fresh, plain, helper) = (Keypair::generate(), Keypair::generate(), Keypair::generate(), Keypair::generate());
         let old = json!({ "file": "keys", "version": 2, "data": {
             "personas": [
-                { "id": "usual", "name": "maya", "secret": usual.secret_hex(), "created": Utc::now(), "usual": true },
+                { "id": "usual", "name": "juno", "secret": usual.secret_hex(), "created": Utc::now(), "usual": true },
                 { "id": "persona-2", "name": "lamp person", "secret": fresh.secret_hex(), "created": Utc::now(), "usual": false }
             ],
             "agents": {
@@ -1016,7 +1016,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("identity.json");
         let me = Identity::open(file.clone());
-        let usual = me.finish_first_run("maya", true).unwrap();
+        let usual = me.finish_first_run("juno", true).unwrap();
         me.fresh("lamp person").unwrap();
         // Damaged, with a good backup: the backup carries on, the damaged one is kept aside.
         std::fs::write(&file, "{ not json").unwrap();
@@ -1032,7 +1032,7 @@ mod tests {
         let broken = Identity::open(file.clone());
         assert_eq!(broken.broken(), Some((file.as_path(), false)));
         assert_eq!(broken.first_run(), FirstRun::Blocked(UNREADABLE), "and the first-run page can't make new keys over it");
-        assert_eq!(broken.finish_first_run("maya", true).unwrap_err(), UNREADABLE);
+        assert_eq!(broken.finish_first_run("juno", true).unwrap_err(), UNREADABLE);
         let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
         assert_eq!(broken.seal(&Actor::Persona("usual".into()), "room-1", &mut params).unwrap_err(), UNREADABLE);
         assert!(broken.state(&usual.key, "vouch", json!({})).is_err());
@@ -1046,7 +1046,7 @@ mod tests {
         let dir = store::tests::folder("keys-unversioned");
         let file = dir.join("identity.json");
         let keypair = Keypair::generate();
-        let old = json!({ "personas": [{ "id": "usual", "name": "maya", "secret": keypair.secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
+        let old = json!({ "personas": [{ "id": "usual", "name": "juno", "secret": keypair.secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
         std::fs::write(&file, old.to_string()).unwrap();
         let me = Identity::open(file.clone());
         assert_eq!(me.usual().unwrap().key, keypair.key(), "the same keys");
@@ -1095,7 +1095,7 @@ mod tests {
         let dir = store::tests::folder("keys-newer-older-backup");
         let file = dir.join("identity.json");
         let older = Identity::open(file.clone());
-        older.finish_first_run("maya", true).unwrap();
+        older.finish_first_run("juno", true).unwrap();
         older.fresh("lamp person").unwrap();
         drop(older);
         std::fs::rename(&file, store::previous_of(&file)).unwrap();
@@ -1114,7 +1114,7 @@ mod tests {
         let dir = store::tests::folder("keys-unread");
         let file = dir.join("identity.json");
         let older = Identity::open(file.clone());
-        older.finish_first_run("maya", true).unwrap();
+        older.finish_first_run("juno", true).unwrap();
         older.fresh("lamp person").unwrap();
         drop(older);
         std::fs::rename(&file, store::previous_of(&file)).unwrap();
@@ -1134,7 +1134,7 @@ mod tests {
         let dir = store::tests::folder("keys-untouched");
         let file = dir.join("identity.json");
         let mine = Identity::open(file.clone());
-        let usual = mine.finish_first_run("maya", true).unwrap();
+        let usual = mine.finish_first_run("juno", true).unwrap();
         mine.fresh("lamp person").unwrap();
         let before = snapshot(&dir);
         let other = Identity::untouched(&file, store::IN_USE);
@@ -1257,7 +1257,7 @@ mod tests {
         let fresh = Keypair::from_seed("lamp person from before");
         let v1 = json!({ "file": "keys", "version": 1, "data": {
             "personas": [
-                { "id": "usual", "name": "maya", "secret": Keypair::from_seed("maya from before").secret_hex(), "created": Utc::now(), "usual": true },
+                { "id": "usual", "name": "juno", "secret": Keypair::from_seed("juno from before").secret_hex(), "created": Utc::now(), "usual": true },
                 { "id": "persona-2", "name": "lamp person", "secret": fresh.secret_hex(), "created": Utc::now(), "usual": false }
             ],
             "agents": {}, "rooms": {}
@@ -1265,7 +1265,7 @@ mod tests {
         std::fs::write(&file, v1.to_string()).unwrap();
         let me = Identity::open(file.clone());
         assert_eq!(me.proof_of("persona-2").unwrap_err(), NOT_NAMED, "nothing is signed before the first-run page");
-        me.finish_first_run("maya", true).unwrap();
+        me.finish_first_run("juno", true).unwrap();
         let first = me.proof_of("persona-2").unwrap();
         assert!(first.names(&fresh.key()));
         assert_eq!(me.proof_of("persona-2").unwrap(), first, "made once");
@@ -1278,12 +1278,12 @@ mod tests {
         use diverge_desktop_room::{Args, NoHost, Room};
         let dir = store::tests::folder("keys-v1");
         let file = dir.join("identity.json");
-        let (usual, fresh, agent) = (Keypair::from_seed("maya"), Keypair::from_seed("lamp person"), Keypair::from_seed("agent site-fixes"));
+        let (usual, fresh, agent) = (Keypair::from_seed("juno"), Keypair::from_seed("lamp person"), Keypair::from_seed("agent site-fixes"));
         // A room hosted under the usual key, from before accounts.
         let room_key = Keypair::from_seed("room from before");
         let args: Args = serde_json::from_value(json!({
             "id": diverge_desktop_room::room_id("workshop", &usual.key()), "title": "Saturday Workshop", "kind": "board",
-            "host_key": usual.key(), "host_name": "maya", "charter": "", "open_door": false, "continues": null,
+            "host_key": usual.key(), "host_name": "juno", "charter": "", "open_door": false, "continues": null,
             "room_key": room_key.key(), "at": Utc::now(), "sig": ""
         }))
         .unwrap();
@@ -1291,7 +1291,7 @@ mod tests {
         let rooms: BTreeMap<String, String> = [(room.id().to_owned(), "usual".to_owned()), ("elsewhere".to_owned(), "persona-2".to_owned())].into();
         let v1 = json!({ "file": "keys", "version": 1, "data": {
             "personas": [
-                { "id": "usual", "name": "maya", "secret": usual.secret_hex(), "created": Utc::now(), "usual": true },
+                { "id": "usual", "name": "juno", "secret": usual.secret_hex(), "created": Utc::now(), "usual": true },
                 { "id": "persona-2", "name": "lamp person", "secret": fresh.secret_hex(), "created": Utc::now(), "usual": false }
             ],
             "agents": { "site-fixes": { "secret": agent.secret_hex(), "persona": "usual" } },
@@ -1300,7 +1300,7 @@ mod tests {
         .to_string();
         std::fs::write(&file, &v1).unwrap();
         let me = Identity::open(file.clone());
-        assert_eq!(me.first_run(), FirstRun::Earlier { name: "maya".into() }, "the page shows, naming the name this folder has");
+        assert_eq!(me.first_run(), FirstRun::Earlier { name: "juno".into() }, "the page shows, naming the name this folder has");
         assert_signs_nothing(&me, NOT_NAMED);
         assert_eq!(std::fs::read_to_string(dir.join(BEFORE_ACCOUNTS)).unwrap(), v1, "the old file, kept as it was");
         assert_eq!(store::header(&file).map(|h| h.version), Some(store::KEYS.version), "upgraded in place");

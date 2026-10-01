@@ -1,6 +1,6 @@
 //! The room as a tool container image: the HTTP server a room program is,
 //! on the container's loopback, answering the proxy beside it exactly as
-//! Ronald's contract states (`diverge_sdk::container_proxy::inside::tool`):
+//! the SDK's contract states (`diverge_sdk::container_proxy::inside::tool`):
 //!
 //! | the proxy calls | the program answers |
 //! |-----------------|---------------------|
@@ -300,7 +300,7 @@ mod tests {
         }
     }
 
-    /// The program answers the proxy's three calls as Ronald's contract
+    /// The program answers the proxy's three calls as the SDK's contract
     /// states, and a sealed call over real MCP lands in the room.
     #[tokio::test(flavor = "multi_thread")]
     async fn the_program_answers_the_proxys_three_calls() {
@@ -316,7 +316,7 @@ mod tests {
             title: "A workshop".into(),
             kind: Kind::Board,
             host_key: host.key(),
-            host_name: "maya".into(),
+            host_name: "juno".into(),
             charter: "# Rules".into(),
             open_door: false,
             continues: None,

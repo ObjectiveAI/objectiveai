@@ -2,7 +2,7 @@
 //!
 //! Every type here writes its own TypeScript (`cargo test` exports them to
 //! `src/bindings/`). Every conversion from a daemon type is an exhaustive
-//! `match` with no catch-all, so a variant Ronald adds fails this build
+//! `match` with no catch-all, so a variant the SDK adds fails this build
 //! instead of drifting past the screen.
 
 use serde::{Deserialize, Serialize};
@@ -66,7 +66,7 @@ pub struct ImageKindView {
     pub key: String,
     pub image_name: String,
     pub digest: String,
-    /// JSON Schema of the image's settings, from Ronald's source.
+    /// JSON Schema of the image's settings, from the SDK's source.
     #[ts(type = "Record<string, unknown>")]
     pub schema: Value,
 }
@@ -173,7 +173,7 @@ pub struct MountView {
     pub container_path: String,
 }
 
-/// What becomes of a change to a volume: Ronald's three modes.
+/// What becomes of a change to a volume: the provider's three modes.
 #[derive(Serialize, Deserialize, TS, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "../../src/bindings/")]
@@ -310,7 +310,7 @@ fn components(path: &str) -> Vec<String> {
 }
 
 impl CreateAgentInput {
-    /// Into the daemon's own create. Every field named, so a field Ronald
+    /// Into the daemon's own create. Every field named, so a field the SDK
     /// adds fails this build.
     pub fn into_request(self) -> Result<agents::create::client::request::Frame, String> {
         use agents::create::client::request::{Frame, Image, Provider};
@@ -1242,7 +1242,7 @@ impl From<rmcp::model::ServerNotification> for SpaceEvent {
         match n {
             ServerNotification::ResourceUpdatedNotification(n) => SpaceEvent::Updated { uri: n.params.uri },
             ServerNotification::ResourceListChangedNotification(_) | ServerNotification::ToolListChangedNotification(_) => SpaceEvent::Updated { uri: "*".into() },
-            // rmcp's enum, not Ronald's: it grows with the MCP spec, and
+            // rmcp's enum, not the SDK's: it grows with the MCP spec, and
             // anything else is not something the screen re-reads for.
             _ => SpaceEvent::Updated { uri: "".into() },
         }
@@ -1514,7 +1514,7 @@ pub struct AppInfo {
     /// Whether anything answers for the daemon, machines and rooms. A build
     /// without the stand-in has nothing there yet, and the screens say so.
     pub network: bool,
-    /// The commit of Ronald's branch the seam was built against.
+    /// The commit of the SDK's branch the seam was built against.
     pub contract_pin: String,
     /// Where the stand-in keeps its host's files.
     pub stand_in_host: Option<String>,

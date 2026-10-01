@@ -42,7 +42,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("diverge-desktop-preview-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let daemon = StubDaemon::new(root.clone());
-        let identity = std::sync::Arc::new(crate::identity::Identity::stand_in("maya"));
+        let identity = std::sync::Arc::new(crate::identity::Identity::stand_in("juno"));
         let _ = std::fs::remove_dir_all(root.join("tables"));
         let spaces = StubSpaces::new(identity.clone(), root.join("tables"));
         // Let the long job get part of the way through (virtual time).

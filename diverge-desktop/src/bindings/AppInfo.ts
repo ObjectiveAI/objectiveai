@@ -12,7 +12,7 @@ stand_in: boolean,
  */
 network: boolean, 
 /**
- * The commit of Ronald's branch the seam was built against.
+ * The commit of the SDK's branch the seam was built against.
  */
 contract_pin: string, 
 /**

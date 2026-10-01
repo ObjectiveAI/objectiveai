@@ -6,7 +6,7 @@ description = "The Diverge desktop app's room program: one room's verbs, seals a
 publish = false
 
 [dependencies]
-# The MCP model the room speaks, at the version Ronald's workspace pins.
+# The MCP model the room speaks, at the version the workspace pins.
 rmcp = { version = "3.1.2", default-features = false }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151" }
@@ -29,7 +29,7 @@ curve25519-dalek = "4"
 hkdf = "0.12"
 chacha20poly1305 = "0.10"
 # The room as a tool container image (feature `image`): an HTTP server on
-# the container's loopback, answering Ronald's proxy.
+# the container's loopback, answering the provider's proxy.
 diverge-sdk = { path = "../../diverge-sdk-rs", optional = true }
 axum = { version = "0.8.9", optional = true }
 

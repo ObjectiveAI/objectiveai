@@ -44,7 +44,7 @@ export function NewAgent(props: { tabKey: string }) {
     if (next) setSettings(initial(next.schema as Schema, next.schema as Schema) as Record<string, unknown>);
   };
 
-  // Checked with the image's own types (Ronald's source), as you type.
+  // Checked with the image's own types (the SDK's source), as you type.
   useEffect(() => {
     let live = true;
     const timer = setTimeout(() => {

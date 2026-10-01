@@ -2,7 +2,7 @@
 //!
 //! One trait, one method per verb `diverge_sdk::daemon` defines, taking and
 //! returning that module's own types. `stub::StubDaemon` (feature
-//! `stand-in`) stands in until Ronald ships a daemon; a `WireDaemon` over
+//! `stand-in`) stands in until a daemon ships; a `WireDaemon` over
 //! the SDK's caller half is the whole of meeting up with him. Nothing above
 //! this module knows which one it holds.
 //!
@@ -10,7 +10,7 @@
 //! behind the other seam, [`crate::machines`].
 //!
 //! Three methods are **ours until the wire has them** — `providers_*`. The
-//! app adds machines inside itself (Maya, 2026-09-25); today a peer is a
+//! app adds machines inside itself (a product ruling, 2026-09-25); today a peer is a
 //! `config.yaml` entry and the daemon has no verb for it.
 
 use std::pin::Pin;

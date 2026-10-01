@@ -1,5 +1,5 @@
 // One form system for all six agent images. It renders whatever JSON
-// Schema an image publishes (compiled from Ronald's source), so when he
+// Schema an image publishes (compiled from the SDK's source), so when the SDK
 // changes an image's settings the form changes with it. Nothing here is
 // specific to one image.
 

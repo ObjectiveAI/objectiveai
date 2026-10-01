@@ -579,9 +579,9 @@ mod tests {
     fn open_in(data: &Path) -> Here {
         let keys = data.join("identity.json");
         if !keys.exists() {
-            let seeded = json!({ "personas": [{ "id": "usual", "name": "maya", "secret": Keypair::from_seed("maya").secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
+            let seeded = json!({ "personas": [{ "id": "usual", "name": "juno", "secret": Keypair::from_seed("juno").secret_hex(), "created": Utc::now(), "usual": true }], "agents": {}, "rooms": {} });
             crate::store::save(&keys, crate::store::KEYS, &seeded).unwrap();
-            Identity::open(keys.clone()).finish_first_run("maya", true).unwrap();
+            Identity::open(keys.clone()).finish_first_run("juno", true).unwrap();
         }
         let identity = Arc::new(Identity::open(keys));
         let stub = StubSpaces::new(identity.clone(), data.join("tables"));

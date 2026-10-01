@@ -1,4 +1,4 @@
-//! The Diverge desktop app's room program. Ours, not Ronald's.
+//! The Diverge desktop app's room program. Ours, not the SDK's.
 //!
 //! A Space is a tool container a host runs on their own provider
 //! (`containers::tools::run`); members join it by id (`tools::connect`) and
@@ -87,7 +87,7 @@ pub(crate) mod tests {
             title: title.into(),
             kind,
             host_key: host.key(),
-            host_name: "maya".into(),
+            host_name: "juno".into(),
             charter: format!("# {title}"),
             open_door: kind == Kind::Profile,
             continues: None,
@@ -103,37 +103,37 @@ pub(crate) mod tests {
         (args, room_key)
     }
 
-    pub fn board(maya: &Person) -> Room {
-        let (args, key) = settings("board-1", maya, "Saturday Workshop", Kind::Board);
+    pub fn board(juno: &Person) -> Room {
+        let (args, key) = settings("board-1", juno, "Saturday Workshop", Kind::Board);
         Room::new(args, key).unwrap()
     }
 
-    pub fn host_for(maya: &Person) -> TestHost {
-        TestHost { keypair: maya.keypair.clone(), hires: Mutex::new(Vec::new()) }
+    pub fn host_for(juno: &Person) -> TestHost {
+        TestHost { keypair: juno.keypair.clone(), hires: Mutex::new(Vec::new()) }
     }
 
     #[test]
     fn a_room_opens_only_with_settings_its_host_signed() {
-        let (maya, ren) = (Person::new("maya"), Person::new("ren"));
-        let (args, key) = settings("board-1", &maya, "Saturday Workshop", Kind::Board);
+        let (juno, ren) = (Person::new("juno"), Person::new("ren"));
+        let (args, key) = settings("board-1", &juno, "Saturday Workshop", Kind::Board);
         let mut changed = args.clone();
         changed.title = "Ren's workshop".into();
         assert!(Room::new(changed, key.clone()).is_err(), "settings changed after signing");
         let mut taken = args.clone();
         taken.host_key = ren.key();
         taken = taken.signed(&ren.keypair);
-        assert!(Room::new(taken, key.clone()).is_err(), "ren can't run a room by maya's id");
+        assert!(Room::new(taken, key.clone()).is_err(), "ren can't run a room by juno's id");
         assert!(Room::new(args.clone(), Keypair::from_seed("another")).is_err(), "not the room's key");
         assert!(Room::new(args, key).is_ok());
     }
 
     #[test]
     fn members_speak_and_nobody_else_does() {
-        let (mut maya, mut ren, mut stranger) = (Person::new("maya"), Person::new("ren"), Person::new("stranger"));
-        let host = host_for(&maya);
-        let mut room = board(&maya);
+        let (mut juno, mut ren, mut stranger) = (Person::new("juno"), Person::new("ren"), Person::new("stranger"));
+        let host = host_for(&juno);
+        let mut room = board(&juno);
         assert!(stranger.call(&mut room, &host, "show", json!({ "title": "hi" })).is_err(), "not admitted");
-        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        juno.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
         ren.call(&mut room, &host, "show", json!({ "title": "a lamp" })).unwrap();
         assert!(ren.call(&mut room, &host, "admit", json!({ "key": stranger.key(), "name": "x" })).is_err(), "host only");
         // The same sealed call can't be sent twice.
@@ -149,18 +149,18 @@ pub(crate) mod tests {
 
     #[test]
     fn an_agent_comes_in_tethered_to_its_person() {
-        let (mut maya, ren) = (Person::new("maya"), Person::new("ren"));
+        let (mut juno, ren) = (Person::new("juno"), Person::new("ren"));
         let mut helper = Person::new("ren's helper");
-        let host = host_for(&maya);
-        let mut room = board(&maya);
+        let host = host_for(&juno);
+        let mut room = board(&juno);
         let untethered = json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key() });
-        assert!(maya.call(&mut room, &host, "admit", untethered).is_err(), "no tether");
+        assert!(juno.call(&mut room, &host, "admit", untethered).is_err(), "no tether");
         let t = tether(&ren.keypair, &helper.key(), "helper");
-        assert!(maya.call(&mut room, &host, "admit", json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key(), "tether": t })).is_err(), "its person isn't a member yet");
-        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
-        let forged = tether(&maya.keypair, &helper.key(), "helper");
-        assert!(maya.call(&mut room, &host, "admit", json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key(), "tether": forged })).is_err(), "someone else's tether");
-        maya.call(&mut room, &host, "admit", json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key(), "tether": t })).unwrap();
+        assert!(juno.call(&mut room, &host, "admit", json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key(), "tether": t })).is_err(), "its person isn't a member yet");
+        juno.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        let forged = tether(&juno.keypair, &helper.key(), "helper");
+        assert!(juno.call(&mut room, &host, "admit", json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key(), "tether": forged })).is_err(), "someone else's tether");
+        juno.call(&mut room, &host, "admit", json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key(), "tether": t })).unwrap();
         helper.call(&mut room, &host, "show", json!({ "title": "done" })).unwrap();
         let shown = feed(&room).into_iter().find(|m| m["kind"] == "show").unwrap();
         assert_eq!(shown["agent_of"], "ren", "the room knows whose agent it is");
@@ -168,20 +168,20 @@ pub(crate) mod tests {
 
     #[test]
     fn a_task_ends_in_one_receipt_the_host_sealed_and_both_sides_settle_once() {
-        let (mut maya, mut ren) = (Person::new("maya"), Person::new("ren"));
-        let host = host_for(&maya);
-        let mut room = board(&maya);
-        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
-        maya.call(&mut room, &host, "post_task", json!({ "title": "Fix the lamp", "spec": "It turns on.", "pledge": "a coffee" })).unwrap();
+        let (mut juno, mut ren) = (Person::new("juno"), Person::new("ren"));
+        let host = host_for(&juno);
+        let mut room = board(&juno);
+        juno.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        juno.call(&mut room, &host, "post_task", json!({ "title": "Fix the lamp", "spec": "It turns on.", "pledge": "a coffee" })).unwrap();
         assert!(ren.call(&mut room, &host, "settle", json!({ "task_id": "task-2", "agree": true })).is_err(), "nothing to settle yet");
         ren.call(&mut room, &host, "claim", json!({ "task_id": "task-2" })).unwrap();
-        assert!(maya.call(&mut room, &host, "deliver", json!({ "task_id": "task-2", "summary": "x" })).is_err(), "only who claimed it delivers");
+        assert!(juno.call(&mut room, &host, "deliver", json!({ "task_id": "task-2", "summary": "x" })).is_err(), "only who claimed it delivers");
         ren.call(&mut room, &host, "deliver", json!({ "task_id": "task-2", "summary": "New switch.", "files": ["lamp/switch.jpg"] })).unwrap();
         ren.call(&mut room, &host, "deliver", json!({ "task_id": "task-2", "summary": "New switch, and a new bulb." })).unwrap();
         assert!(ren.call(&mut room, &host, "accept", json!({ "task_id": "task-2" })).is_err(), "only who posted it accepts");
-        maya.call(&mut room, &host, "accept", json!({ "task_id": "task-2" })).unwrap();
+        juno.call(&mut room, &host, "accept", json!({ "task_id": "task-2" })).unwrap();
         assert!(ren.call(&mut room, &host, "deliver", json!({ "task_id": "task-2", "summary": "again" })).is_err(), "done is done");
-        assert!(maya.call(&mut room, &host, "accept", json!({ "task_id": "task-2" })).is_err(), "one receipt");
+        assert!(juno.call(&mut room, &host, "accept", json!({ "task_id": "task-2" })).is_err(), "one receipt");
         let moves = feed(&room);
         assert_eq!(moves.iter().filter(|m| m["kind"] == "receipt").count(), 1);
         let task = moves.iter().find(|m| m["id"] == "task-2").unwrap();
@@ -189,11 +189,11 @@ pub(crate) mod tests {
         let receipt = moves.iter().find(|m| m["kind"] == "receipt").unwrap();
         let statement: Statement = serde_json::from_value(receipt["fields"]["statement"].clone()).unwrap();
         assert!(statement.holds());
-        assert_eq!(statement.key, maya.key(), "sealed by the host");
+        assert_eq!(statement.key, juno.key(), "sealed by the host");
         assert_eq!(statement.field("to_person"), Some(ren.key().as_str()));
         ren.call(&mut room, &host, "settle", json!({ "task_id": "task-2", "agree": true })).unwrap();
         assert!(ren.call(&mut room, &host, "settle", json!({ "task_id": "task-2", "agree": false })).is_err(), "each side says once");
-        maya.call(&mut room, &host, "settle", json!({ "task_id": "task-2", "agree": false, "note": "coffee next week" })).unwrap();
+        juno.call(&mut room, &host, "settle", json!({ "task_id": "task-2", "agree": false, "note": "coffee next week" })).unwrap();
         let task = feed(&room).into_iter().find(|m| m["id"] == "task-2").unwrap();
         assert_eq!(task["fields"]["doer_says"]["agree"], true);
         assert_eq!(task["fields"]["poster_says"]["agree"], false, "both reports stand");
@@ -201,14 +201,14 @@ pub(crate) mod tests {
 
     #[test]
     fn a_removed_member_is_refused_and_their_agent_goes_with_them_in_the_same_move() {
-        let (mut maya, mut ren) = (Person::new("maya"), Person::new("ren"));
+        let (mut juno, mut ren) = (Person::new("juno"), Person::new("ren"));
         let mut helper = Person::new("helper");
-        let host = host_for(&maya);
-        let mut room = board(&maya);
-        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        let host = host_for(&juno);
+        let mut room = board(&juno);
+        juno.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
         let t = tether(&ren.keypair, &helper.key(), "helper");
-        maya.call(&mut room, &host, "admit", json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key(), "tether": t })).unwrap();
-        maya.call(&mut room, &host, "remove", json!({ "key": ren.key(), "reason": "spam" })).unwrap();
+        juno.call(&mut room, &host, "admit", json!({ "key": helper.key(), "name": "helper", "is_agent": true, "agent_of": ren.key(), "tether": t })).unwrap();
+        juno.call(&mut room, &host, "remove", json!({ "key": ren.key(), "reason": "spam" })).unwrap();
         assert!(ren.call(&mut room, &host, "show", json!({ "title": "x" })).unwrap_err().contains("removed"));
         assert!(helper.call(&mut room, &host, "show", json!({ "title": "x" })).is_err());
         let removal = room.moves().last().unwrap();
@@ -218,13 +218,13 @@ pub(crate) mod tests {
 
     #[test]
     fn someone_unlisted_is_a_mark_in_the_record_until_they_act() {
-        let (mut maya, mut ren, mut ada) = (Person::new("maya"), Person::new("ren"), Person::new("ada"));
-        let host = host_for(&maya);
-        let mut room = board(&maya);
+        let (mut juno, mut ren, mut ada) = (Person::new("juno"), Person::new("ren"), Person::new("ada"));
+        let host = host_for(&juno);
+        let mut room = board(&juno);
         let id = room.id().to_owned();
-        assert!(maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren", "listed": false })).is_err(), "never by key");
-        maya.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &ren.key()), "name": "ren", "listed": false })).unwrap();
-        maya.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &ada.key()), "name": "ada", "listed": false })).unwrap();
+        assert!(juno.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren", "listed": false })).is_err(), "never by key");
+        juno.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &ren.key()), "name": "ren", "listed": false })).unwrap();
+        juno.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &ada.key()), "name": "ada", "listed": false })).unwrap();
         let record = serde_json::to_string(&room.record()).unwrap();
         assert!(!record.contains(&ren.key()), "the record doesn't name ren's key");
         assert!(room.may_read(&ren.key()));
@@ -235,7 +235,7 @@ pub(crate) mod tests {
         assert_eq!(feed(&room).into_iter().find(|m| m["kind"] == "show").unwrap()["author"], "ren", "once they act, their moves are theirs");
         assert!(Room::check(&room.record()).is_ok(), "and a copy replays it");
         // ada never acted: she's removed by her mark, and her key is never named.
-        maya.call(&mut room, &host, "remove", json!({ "key": key_mark(&id, &ada.key()) })).unwrap();
+        juno.call(&mut room, &host, "remove", json!({ "key": key_mark(&id, &ada.key()) })).unwrap();
         assert!(!serde_json::to_string(&room.record()).unwrap().contains(&ada.key()));
         assert!(!room.may_read(&ada.key()));
         assert!(ada.call(&mut room, &host, "show", json!({ "title": "x" })).is_err());
@@ -244,16 +244,16 @@ pub(crate) mod tests {
 
     #[test]
     fn where_someone_stands_is_read_from_the_record() {
-        let (mut maya, mut ren, mut ada, mut sam, bo) = (Person::new("maya"), Person::new("ren"), Person::new("ada"), Person::new("sam"), Person::new("bo"));
-        let host = host_for(&maya);
-        let mut room = board(&maya);
+        let (mut juno, mut ren, mut ada, mut sam, bo) = (Person::new("juno"), Person::new("ren"), Person::new("ada"), Person::new("sam"), Person::new("bo"));
+        let host = host_for(&juno);
+        let mut room = board(&juno);
         let id = room.id().to_owned();
-        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
-        maya.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &ada.key()), "name": "ada", "listed": false })).unwrap();
-        maya.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &sam.key()), "name": "sam", "listed": false })).unwrap();
+        juno.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        juno.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &ada.key()), "name": "ada", "listed": false })).unwrap();
+        juno.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &sam.key()), "name": "sam", "listed": false })).unwrap();
         sam.call(&mut room, &host, "show", json!({ "title": "a stool" })).unwrap();
-        maya.call(&mut room, &host, "admit", json!({ "key": bo.key(), "name": "bo" })).unwrap();
-        maya.call(&mut room, &host, "remove", json!({ "key": bo.key() })).unwrap();
+        juno.call(&mut room, &host, "admit", json!({ "key": bo.key(), "name": "bo" })).unwrap();
+        juno.call(&mut room, &host, "remove", json!({ "key": bo.key() })).unwrap();
         let copy = Room::check(&room.record()).unwrap();
         for r in [&room, &copy] {
             assert_eq!(r.standing(&ren.key()), Standing::Member, "listed");
@@ -261,10 +261,10 @@ pub(crate) mod tests {
             assert_eq!(r.standing(&ada.key()), Standing::Unlisted { mark: key_mark(&id, &ada.key()) }, "unlisted, never acted: by mark");
             assert_eq!(r.standing(&bo.key()), Standing::Removed);
             assert_eq!(r.standing(&Person::new("a stranger").key()), Standing::Stranger);
-            assert_eq!(r.standing(&maya.key()), Standing::Member, "the host");
+            assert_eq!(r.standing(&juno.key()), Standing::Member, "the host");
         }
         // Someone let in unlisted and removed before they ever acted reads as removed, by mark.
-        maya.call(&mut room, &host, "remove", json!({ "key": key_mark(&id, &ada.key()) })).unwrap();
+        juno.call(&mut room, &host, "remove", json!({ "key": key_mark(&id, &ada.key()) })).unwrap();
         assert_eq!(room.standing(&ada.key()), Standing::Removed);
         assert_eq!(Room::check(&room.record()).unwrap().standing(&ada.key()), Standing::Removed, "and a copy agrees");
         assert!(ada.call(&mut room, &host, "show", json!({ "title": "x" })).is_err());
@@ -273,9 +273,9 @@ pub(crate) mod tests {
 
     #[test]
     fn under_rules_two_standing_is_by_account_and_by_any_current_device() {
-        let (mut maya, ren_mac, desktop) = (Person::new("maya's mac"), Person::new("ren's laptop"), Person::new("ren's desktop"));
-        let root = Keypair::from_seed("maya's root");
-        let mine = account::Proof::first(&root, long_ago(), &[maya.key()]);
+        let (mut juno, ren_mac, desktop) = (Person::new("juno's mac"), Person::new("ren's laptop"), Person::new("ren's desktop"));
+        let root = Keypair::from_seed("juno's root");
+        let mine = account::Proof::first(&root, long_ago(), &[juno.key()]);
         let ren_root = Keypair::from_seed("ren's root");
         let ren = account::Proof::first(&ren_root, long_ago(), &[ren_mac.key()]);
         let room_key = Keypair::from_seed("room v2");
@@ -283,8 +283,8 @@ pub(crate) mod tests {
             id: seal::account_room_id("board", &mine.id()),
             title: "Saturday Workshop".into(),
             kind: Kind::Board,
-            host_key: maya.key(),
-            host_name: "maya".into(),
+            host_key: juno.key(),
+            host_name: "juno".into(),
             charter: "#".into(),
             open_door: false,
             continues: None,
@@ -296,29 +296,29 @@ pub(crate) mod tests {
             notes_key: None,
             sig: String::new(),
         }
-        .signed(&maya.keypair);
-        let host = host_for(&maya);
+        .signed(&juno.keypair);
+        let host = host_for(&juno);
         let mut room = Room::new(args, room_key).unwrap();
-        maya.call(&mut room, &host, "admit", json!({ "account": ren, "name": "ren" })).unwrap();
+        juno.call(&mut room, &host, "admit", json!({ "account": ren, "name": "ren" })).unwrap();
         assert_eq!(room.standing(&ren.id()), Standing::Member);
         assert_eq!(room.standing(&ren_mac.key()), Standing::Member, "a current device stands for its account");
         assert_eq!(room.standing(&desktop.key()), Standing::Stranger, "a device the room hasn't been shown");
         assert_eq!(room.standing(&mine.id()), Standing::Member, "the host, by account");
-        maya.call(&mut room, &host, "remove", json!({ "key": ren_mac.key() })).unwrap();
+        juno.call(&mut room, &host, "remove", json!({ "key": ren_mac.key() })).unwrap();
         assert_eq!(room.standing(&ren.id()), Standing::Removed, "removed by a device, it's the account that's out");
         assert_eq!(room.standing(&ren_mac.key()), Standing::Removed);
     }
 
     #[test]
     fn an_offer_taken_on_a_board_becomes_a_task_that_ends_in_a_receipt() {
-        let (mut maya, mut ren) = (Person::new("maya"), Person::new("ren"));
-        let host = host_for(&maya);
-        let mut room = board(&maya);
-        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
-        maya.call(&mut room, &host, "ask", json!({ "what": "Fix the lamp" })).unwrap();
+        let (mut juno, mut ren) = (Person::new("juno"), Person::new("ren"));
+        let host = host_for(&juno);
+        let mut room = board(&juno);
+        juno.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        juno.call(&mut room, &host, "ask", json!({ "what": "Fix the lamp" })).unwrap();
         ren.call(&mut room, &host, "offer", json!({ "ask_id": "ask-2", "body": "New switch, Saturday." })).unwrap();
         assert!(ren.call(&mut room, &host, "take_offer", json!({ "offer_id": "offer-3" })).is_err(), "only who asked takes");
-        maya.call(&mut room, &host, "take_offer", json!({ "offer_id": "offer-3" })).unwrap();
+        juno.call(&mut room, &host, "take_offer", json!({ "offer_id": "offer-3" })).unwrap();
         assert!(ren.call(&mut room, &host, "offer", json!({ "ask_id": "ask-2", "body": "me too" })).is_err(), "taken asks take no offers");
         let moves = feed(&room);
         assert_eq!(moves.iter().find(|m| m["id"] == "ask-2").unwrap()["state"], "taken");
@@ -326,26 +326,26 @@ pub(crate) mod tests {
         assert_eq!((task["state"].as_str(), task["body"].as_str()), (Some("claimed"), Some("New switch, Saturday.")));
         let id = task["id"].as_str().unwrap().to_owned();
         ren.call(&mut room, &host, "deliver", json!({ "task_id": id, "summary": "Done." })).unwrap();
-        maya.call(&mut room, &host, "accept", json!({ "task_id": id })).unwrap();
+        juno.call(&mut room, &host, "accept", json!({ "task_id": id })).unwrap();
         assert!(feed(&room).iter().any(|m| m["kind"] == "receipt"));
-        maya.call(&mut room, &host, "ask", json!({ "what": "A ladder" })).unwrap();
+        juno.call(&mut room, &host, "ask", json!({ "what": "A ladder" })).unwrap();
         let ask = feed(&room).into_iter().rev().find(|m| m["kind"] == "ask").unwrap()["id"].as_str().unwrap().to_owned();
-        maya.call(&mut room, &host, "close_ask", json!({ "ask_id": ask, "note": "found one" })).unwrap();
+        juno.call(&mut room, &host, "close_ask", json!({ "ask_id": ask, "note": "found one" })).unwrap();
         assert!(ren.call(&mut room, &host, "offer", json!({ "ask_id": ask, "body": "mine?" })).is_err(), "closed");
         assert!(Room::check(&room.record()).is_ok());
     }
 
     #[test]
     fn a_room_restarts_from_its_record() {
-        let (mut maya, mut ren) = (Person::new("maya"), Person::new("ren"));
-        let host = host_for(&maya);
-        let mut room = board(&maya);
-        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
-        maya.call(&mut room, &host, "post_task", json!({ "title": "Fix the lamp", "spec": "It turns on." })).unwrap();
+        let (mut juno, mut ren) = (Person::new("juno"), Person::new("ren"));
+        let host = host_for(&juno);
+        let mut room = board(&juno);
+        juno.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        juno.call(&mut room, &host, "post_task", json!({ "title": "Fix the lamp", "spec": "It turns on." })).unwrap();
         ren.call(&mut room, &host, "claim", json!({ "task_id": "task-2" })).unwrap();
         ren.call(&mut room, &host, "deliver", json!({ "task_id": "task-2", "summary": "New switch." })).unwrap();
-        maya.call(&mut room, &host, "accept", json!({ "task_id": "task-2" })).unwrap();
-        maya.call(&mut room, &host, "set_charter", json!({ "text": "# v2" })).unwrap();
+        juno.call(&mut room, &host, "accept", json!({ "task_id": "task-2" })).unwrap();
+        juno.call(&mut room, &host, "set_charter", json!({ "text": "# v2" })).unwrap();
         let key = Keypair::from_seed("room board-1");
         let mut again = Room::from_record(room.record(), Some(key)).unwrap();
         assert_eq!(feed(&again), feed(&room), "the same room");
@@ -362,14 +362,14 @@ pub(crate) mod tests {
 
     #[test]
     fn a_member_continues_a_room_whose_host_is_gone_and_its_past_reads_as_it_was() {
-        let (mut maya, mut ren) = (Person::new("maya"), Person::new("ren"));
-        let host = host_for(&maya);
-        let mut room = board(&maya);
-        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
-        maya.call(&mut room, &host, "post_task", json!({ "title": "Fix the lamp", "spec": "It turns on." })).unwrap();
+        let (mut juno, mut ren) = (Person::new("juno"), Person::new("ren"));
+        let host = host_for(&juno);
+        let mut room = board(&juno);
+        juno.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        juno.call(&mut room, &host, "post_task", json!({ "title": "Fix the lamp", "spec": "It turns on." })).unwrap();
         ren.call(&mut room, &host, "claim", json!({ "task_id": "task-2" })).unwrap();
         ren.call(&mut room, &host, "deliver", json!({ "task_id": "task-2", "summary": "New switch." })).unwrap();
-        maya.call(&mut room, &host, "accept", json!({ "task_id": "task-2" })).unwrap();
+        juno.call(&mut room, &host, "accept", json!({ "task_id": "task-2" })).unwrap();
         let old = room.record();
         let ren_host = host_for(&ren);
         let (mut args, key) = settings("board-2", &ren, "Saturday Workshop, continued", Kind::Board);
@@ -390,17 +390,17 @@ pub(crate) mod tests {
         assert!(Room::from_record(Record { args, before: Some(Box::new(cut)), moves: Vec::new() }, Some(key)).is_err(), "a history that stops short");
     }
 
-    /// A profile under rules 2, hosted by maya's account, sealing what visitors leave to her notes key.
-    pub fn sealed_profile(maya: &Person, notes: &envelope::OpenKey) -> (Room, account::Proof) {
-        let root = Keypair::from_seed("maya's root");
-        let mine = account::Proof::first(&root, long_ago(), &[maya.key()]);
+    /// A profile under rules 2, hosted by juno's account, sealing what visitors leave to her notes key.
+    pub fn sealed_profile(juno: &Person, notes: &envelope::OpenKey) -> (Room, account::Proof) {
+        let root = Keypair::from_seed("juno's root");
+        let mine = account::Proof::first(&root, long_ago(), &[juno.key()]);
         let room_key = Keypair::from_seed("profile v2");
         let args = Args {
             id: seal::account_room_id("profile", &mine.id()),
-            title: "maya".into(),
+            title: "juno".into(),
             kind: Kind::Profile,
-            host_key: maya.key(),
-            host_name: "maya".into(),
+            host_key: juno.key(),
+            host_name: "juno".into(),
             charter: "#".into(),
             open_door: true,
             continues: None,
@@ -412,7 +412,7 @@ pub(crate) mod tests {
             notes_key: Some(notes.public()),
             sig: String::new(),
         }
-        .signed(&maya.keypair);
+        .signed(&juno.keypair);
         (Room::new(args, room_key).unwrap(), mine)
     }
 
@@ -428,13 +428,13 @@ pub(crate) mod tests {
 
     #[test]
     fn what_visitors_leave_on_a_profile_stays_between_them_and_its_owner() {
-        let (mut maya, mut ren, mut ada) = (Person::new("maya's mac"), Person::new("ren's laptop"), Person::new("ada's pc"));
-        let notes = envelope::OpenKey::from_seed(b"maya's words");
-        let host = host_for(&maya);
-        let (mut profile, _) = sealed_profile(&maya, &notes);
+        let (mut juno, mut ren, mut ada) = (Person::new("juno's mac"), Person::new("ren's laptop"), Person::new("ada's pc"));
+        let notes = envelope::OpenKey::from_seed(b"juno's words");
+        let host = host_for(&juno);
+        let (mut profile, _) = sealed_profile(&juno, &notes);
         let id = profile.id().to_owned();
-        maya.call(&mut profile, &host, "admit", json!({ "account": one_device(&ren, "ren's root"), "name": "ren" })).unwrap();
-        maya.call(&mut profile, &host, "admit", json!({ "account": one_device(&ada, "ada's root"), "name": "ada" })).unwrap();
+        juno.call(&mut profile, &host, "admit", json!({ "account": one_device(&ren, "ren's root"), "name": "ren" })).unwrap();
+        juno.call(&mut profile, &host, "admit", json!({ "account": one_device(&ada, "ada's root"), "name": "ada" })).unwrap();
         let ren_reads = envelope::OpenKey::for_author(&ren.keypair, &id);
         let to_maya = [notes.public(), ren_reads.public()];
 
@@ -464,15 +464,15 @@ pub(crate) mod tests {
         // Taken and delivered, sealed to the owner and whoever asked.
         let reply_to = open(asked, "hire", &notes).unwrap()["reply_to"].as_str().unwrap().to_owned();
         let back = [notes.public(), reply_to];
-        assert!(maya.call(&mut profile, &host, "answer_hire", json!({ "hire_id": hire, "take": true, "note": "Saturday" })).is_err(), "an answer's note is sealed too");
-        sealed_call(&mut maya, &mut profile, &host, "answer_hire", json!({ "hire_id": hire, "take": true, "note": "Saturday" }), &back).unwrap();
-        assert!(maya.call(&mut profile, &host, "deliver_hire", json!({ "hire_id": hire, "summary": "Two broken links." })).is_err(), "a plain result");
-        sealed_call(&mut maya, &mut profile, &host, "deliver_hire", json!({ "hire_id": hire, "summary": "Two broken links.", "result": "/old-page and /zine are broken." }), &back).unwrap();
+        assert!(juno.call(&mut profile, &host, "answer_hire", json!({ "hire_id": hire, "take": true, "note": "Saturday" })).is_err(), "an answer's note is sealed too");
+        sealed_call(&mut juno, &mut profile, &host, "answer_hire", json!({ "hire_id": hire, "take": true, "note": "Saturday" }), &back).unwrap();
+        assert!(juno.call(&mut profile, &host, "deliver_hire", json!({ "hire_id": hire, "summary": "Two broken links." })).is_err(), "a plain result");
+        sealed_call(&mut juno, &mut profile, &host, "deliver_hire", json!({ "hire_id": hire, "summary": "Two broken links.", "result": "/old-page and /zine are broken." }), &back).unwrap();
         let moves = feed(&profile);
         let result = moves.iter().find(|m| m["kind"] == "hire_delivery").unwrap();
         assert_eq!(moves.iter().find(|m| m["id"] == hire.as_str()).unwrap()["state"], "delivered", "its state is the room's to keep, in the clear");
         assert_eq!(open(result, "deliver_hire", &ren_reads).unwrap()["result"], "/old-page and /zine are broken.", "ren reads the result");
-        assert_eq!(open(result, "deliver_hire", &notes).unwrap()["summary"], "Two broken links.", "so does maya");
+        assert_eq!(open(result, "deliver_hire", &notes).unwrap()["summary"], "Two broken links.", "so does juno");
         assert!(open(result, "deliver_hire", &ada_reads).is_none(), "ada doesn't");
 
         // ada can't change any of it, answer it in the open, or pass ren's words off as hers.
@@ -501,16 +501,16 @@ pub(crate) mod tests {
 
     #[test]
     fn only_a_profile_under_rules_two_names_a_notes_key() {
-        let maya = Person::new("maya's mac");
-        let notes = envelope::OpenKey::from_seed(b"maya's words");
-        let (profile, _) = sealed_profile(&maya, &notes);
+        let juno = Person::new("juno's mac");
+        let notes = envelope::OpenKey::from_seed(b"juno's words");
+        let (profile, _) = sealed_profile(&juno, &notes);
         let mut args = profile.args.clone();
         args.kind = Kind::Board;
-        assert!(args.signed(&maya.keypair).holds().is_err(), "a board with one");
+        assert!(args.signed(&juno.keypair).holds().is_err(), "a board with one");
         let mut args = profile.args.clone();
         args.notes_key = Some("abcd".into());
-        assert!(args.signed(&maya.keypair).holds().is_err(), "not a key");
-        let (rules_one, _) = settings("p1", &maya, "maya", Kind::Profile);
+        assert!(args.signed(&juno.keypair).holds().is_err(), "not a key");
+        let (rules_one, _) = settings("p1", &juno, "juno", Kind::Profile);
         assert!(rules_one.notes_key.is_none() && rules_one.holds().is_ok(), "rules 1 are as they were");
     }
 
@@ -518,18 +518,18 @@ pub(crate) mod tests {
     /// holds, replays and takes what visitors leave plainly, as it did.
     #[test]
     fn a_rules_two_profile_without_a_notes_key_replays_and_stays_plain() {
-        let (mut maya, mut ren) = (Person::new("maya's mac"), Person::new("ren's laptop"));
-        let notes = envelope::OpenKey::from_seed(b"maya's words");
-        let host = host_for(&maya);
-        let (sealed, _) = sealed_profile(&maya, &notes);
+        let (mut juno, mut ren) = (Person::new("juno's mac"), Person::new("ren's laptop"));
+        let notes = envelope::OpenKey::from_seed(b"juno's words");
+        let host = host_for(&juno);
+        let (sealed, _) = sealed_profile(&juno, &notes);
         let mut args = sealed.args.clone();
         args.notes_key = None;
-        let args = args.signed(&maya.keypair);
+        let args = args.signed(&juno.keypair);
         assert!(args.holds().is_ok(), "its settings hold");
         let room_key = Keypair::from_seed("profile v2");
         let mut profile = Room::new(args, room_key.clone()).unwrap();
         assert!(!profile.seals_notes(), "and it doesn't seal");
-        maya.call(&mut profile, &host, "admit", json!({ "account": one_device(&ren, "ren's root"), "name": "ren" })).unwrap();
+        juno.call(&mut profile, &host, "admit", json!({ "account": one_device(&ren, "ren's root"), "name": "ren" })).unwrap();
         ren.call(&mut profile, &host, "leave_note", json!({ "body": "love the lamp" })).unwrap();
         ren.call(&mut profile, &host, "hire", json!({ "agent": "site-fixes", "what": "check my links", "pledge": "a coffee" })).unwrap();
         let again = Room::from_record(profile.record(), Some(room_key)).expect("its record replays");
@@ -544,30 +544,30 @@ pub(crate) mod tests {
 
     #[test]
     fn a_visitor_hires_through_a_profile_and_the_host_decides_once() {
-        let (mut maya, mut ren) = (Person::new("maya"), Person::new("ren"));
-        let host = host_for(&maya);
-        let (args, key) = settings("profile", &maya, "maya", Kind::Profile);
+        let (mut juno, mut ren) = (Person::new("juno"), Person::new("ren"));
+        let host = host_for(&juno);
+        let (args, key) = settings("profile", &juno, "juno", Kind::Profile);
         let mut profile = Room::new(args, key).unwrap();
-        maya.call(&mut profile, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        juno.call(&mut profile, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
         assert!(ren.call(&mut profile, &host, "show", json!({ "title": "x" })).is_err(), "only the owner shows here");
         ren.call(&mut profile, &host, "leave_note", json!({ "body": "love the lamp" })).unwrap();
         ren.call(&mut profile, &host, "hire", json!({ "agent": "site-fixes", "what": "check my links", "pledge": "a coffee" })).unwrap();
         assert_eq!(host.hires.lock().unwrap().len(), 1, "the host hears about it");
-        assert!(maya.call(&mut profile, &host, "deliver_hire", json!({ "hire_id": "hire-3", "summary": "x" })).is_err(), "not taken yet");
-        maya.call(&mut profile, &host, "answer_hire", json!({ "hire_id": "hire-3", "take": true })).unwrap();
-        assert!(maya.call(&mut profile, &host, "answer_hire", json!({ "hire_id": "hire-3", "take": false })).is_err(), "answered once");
-        maya.call(&mut profile, &host, "deliver_hire", json!({ "hire_id": "hire-3", "summary": "Two broken links.", "files": ["for-ren/links.md"] })).unwrap();
+        assert!(juno.call(&mut profile, &host, "deliver_hire", json!({ "hire_id": "hire-3", "summary": "x" })).is_err(), "not taken yet");
+        juno.call(&mut profile, &host, "answer_hire", json!({ "hire_id": "hire-3", "take": true })).unwrap();
+        assert!(juno.call(&mut profile, &host, "answer_hire", json!({ "hire_id": "hire-3", "take": false })).is_err(), "answered once");
+        juno.call(&mut profile, &host, "deliver_hire", json!({ "hire_id": "hire-3", "summary": "Two broken links.", "files": ["for-ren/links.md"] })).unwrap();
         assert_eq!(feed(&profile).into_iter().find(|m| m["id"] == "hire-3").unwrap()["state"], "delivered");
-        // A receipt from elsewhere, issued to maya by that room's host, pins.
+        // A receipt from elsewhere, issued to juno by that room's host, pins.
         let issuer = Keypair::from_seed("some host");
         let workshop = room_id("workshop", &issuer.key());
-        let mine = Statement::make(&issuer, "receipt", json!({ "title": "Fix the lamp", "room": workshop, "room_title": "Saturday Workshop", "to_person": maya.key() }));
+        let mine = Statement::make(&issuer, "receipt", json!({ "title": "Fix the lamp", "room": workshop, "room_title": "Saturday Workshop", "to_person": juno.key() }));
         let theirs = Statement::make(&issuer, "receipt", json!({ "title": "x", "room": workshop, "to_person": ren.key() }));
-        let elsewhere = Statement::make(&issuer, "receipt", json!({ "title": "x", "room": room_id("workshop", &ren.key()), "to_person": maya.key() }));
-        let self_made = Statement::make(&maya.keypair, "receipt", json!({ "title": "x", "room": room_id("mine", &maya.key()), "to_person": maya.key() }));
-        maya.call(&mut profile, &host, "pin_receipt", json!({ "statement": mine })).unwrap();
-        assert!(maya.call(&mut profile, &host, "pin_receipt", json!({ "statement": theirs })).is_err(), "issued to someone else");
-        assert!(maya.call(&mut profile, &host, "pin_receipt", json!({ "statement": elsewhere })).is_err(), "not that room's host");
-        assert!(maya.call(&mut profile, &host, "pin_receipt", json!({ "statement": self_made })).is_err(), "sealed by yourself");
+        let elsewhere = Statement::make(&issuer, "receipt", json!({ "title": "x", "room": room_id("workshop", &ren.key()), "to_person": juno.key() }));
+        let self_made = Statement::make(&juno.keypair, "receipt", json!({ "title": "x", "room": room_id("mine", &juno.key()), "to_person": juno.key() }));
+        juno.call(&mut profile, &host, "pin_receipt", json!({ "statement": mine })).unwrap();
+        assert!(juno.call(&mut profile, &host, "pin_receipt", json!({ "statement": theirs })).is_err(), "issued to someone else");
+        assert!(juno.call(&mut profile, &host, "pin_receipt", json!({ "statement": elsewhere })).is_err(), "not that room's host");
+        assert!(juno.call(&mut profile, &host, "pin_receipt", json!({ "statement": self_made })).is_err(), "sealed by yourself");
     }
 }

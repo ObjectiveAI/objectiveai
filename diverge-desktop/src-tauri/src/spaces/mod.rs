@@ -9,7 +9,7 @@
 //! room's MCP tools, reads its resources and hears its notifications —
 //! the same exchanges an agent has with the caller's MCP.
 //!
-//! The wire's types are Ronald's: the SDK's `Container`, `Connect`, `Id`,
+//! The wire's types are the SDK's: `Container`, `Connect`, `Id`,
 //! `Authorize` and its answer, the filetree's `Node`, and `rmcp`'s MCP
 //! model at the version his workspace pins. What rides inside them is ours:
 //! the room program (`diverge-desktop-room`), the seal on every call, the

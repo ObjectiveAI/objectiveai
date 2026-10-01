@@ -218,7 +218,7 @@ mod tests {
     async fn a_hire_taken_runs_and_is_delivered() {
         let root = std::env::temp_dir().join(format!("diverge-desktop-test-hire-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        let identity = Arc::new(Identity::stand_in("maya"));
+        let identity = Arc::new(Identity::stand_in("juno"));
         let daemon = Arc::new(StubDaemon::new(root.join("host")));
         let stub = StubSpaces::new(identity.clone(), root.join("tables"));
         let spaces: Arc<dyn Spaces> = Arc::new(stub.clone());
@@ -269,7 +269,7 @@ mod tests {
     #[tokio::test]
     async fn a_hire_from_someone_sharing_a_name_carries_their_mark() {
         let root = std::env::temp_dir().join(format!("diverge-desktop-test-hire-mark-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)));
-        let identity = Arc::new(Identity::stand_in("maya"));
+        let identity = Arc::new(Identity::stand_in("juno"));
         let stub = StubSpaces::new(identity.clone(), root.join("tables"));
         let spaces: Arc<dyn Spaces> = Arc::new(stub.clone());
         let profile = Id { id: stub.id_of("profile-me") };

@@ -1,4 +1,4 @@
-//! The stand-in daemon: Ronald's verbs, answered locally, with his types.
+//! The stand-in daemon: the daemon's verbs, answered locally, with the SDK's types.
 //!
 //! It keeps agents and their logs in memory, runs scripted "runs" (see
 //! [`script`]), and answers for every machine it knows as well: each
@@ -620,7 +620,7 @@ mod tests {
         assert_eq!(daemon.held(&studio(), "media"), None);
     }
 
-    /// Tools follow Ronald's rules: attach while an agent works, detach only
+    /// Tools follow the daemon's rules: attach while an agent works, detach only
     /// once it stops, delete only when attached nowhere, edit only your own.
     #[tokio::test]
     async fn tools_are_created_connected_attached_and_let_go() {
@@ -668,7 +668,7 @@ mod tests {
         use futures::StreamExt;
         let root = std::env::temp_dir().join(format!("diverge-desktop-test-door-{}", std::process::id()));
         let daemon = StubDaemon::new(root);
-        let identity = Arc::new(crate::identity::Identity::stand_in("maya"));
+        let identity = Arc::new(crate::identity::Identity::stand_in("juno"));
         let tables = std::env::temp_dir().join(format!("diverge-desktop-test-door-tables-{}", std::process::id()));
         let spaces: Arc<dyn Spaces> = Arc::new(crate::spaces::stub::StubSpaces::new(identity.clone(), tables));
         let door = Arc::new(Door::new(spaces.clone(), identity, Arc::new(daemon.clone()), None));
@@ -706,7 +706,7 @@ mod tests {
         let open = crate::spaces::stub::open_task();
         let claim = moves.iter().find(|m| m["kind"] == "claim" && m["parent"] == open.as_str()).expect("claimed");
         assert_eq!(claim["author"], "research-notes", "the agent claimed it as itself");
-        assert_eq!(claim["agent_of"], "maya", "and the room knows whose agent it is");
+        assert_eq!(claim["agent_of"], "juno", "and the room knows whose agent it is");
         cancel.cancel();
     }
 

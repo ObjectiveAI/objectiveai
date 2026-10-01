@@ -971,7 +971,7 @@ mod tests {
     use rmcp::model::ResourceContents;
 
     pub fn stub() -> (StubSpaces, Arc<Keys>) {
-        let me = Arc::new(Keys::stand_in("maya"));
+        let me = Arc::new(Keys::stand_in("juno"));
         let tables = std::env::temp_dir().join(format!("diverge-desktop-tables-{}-{}", std::process::id(), Utc::now().timestamp_nanos_opt().unwrap_or(0)));
         (StubSpaces::new(me.clone(), tables), me)
     }
@@ -1000,7 +1000,7 @@ mod tests {
         let task = inner.rooms[&board()].room.moves().iter().find(|m| m.id == open_task()).unwrap().clone();
         assert_eq!((task.kind.as_str(), task.author.as_str()), ("task", "ada"));
         let report = inner.rooms[&inner.labels["home-me"]].room.moves().iter().find(|m| m.kind == "run").unwrap().clone();
-        assert_eq!((report.author.as_str(), report.agent_of.as_deref()), ("site-fixes", Some("maya")), "an agent's move names its person");
+        assert_eq!((report.author.as_str(), report.agent_of.as_deref()), ("site-fixes", Some("juno")), "an agent's move names its person");
     }
 
     #[tokio::test]
@@ -1049,7 +1049,7 @@ mod tests {
         let Joined::Joined(id) = spaces.join(&invite, &knocking).await else { panic!("let in") };
         me.set_room(&id.id, "usual");
         spaces.call(&id, sealed(&me, Actor::Persona("usual".into()), &id.id, "show", json!({ "title": "hello" }))).await.unwrap();
-        assert!(feed(&spaces, &spaces.id_of("music-ren")).iter().any(|m| m["author"] == "maya" && m["title"] == "hello"));
+        assert!(feed(&spaces, &spaces.id_of("music-ren")).iter().any(|m| m["author"] == "juno" && m["title"] == "hello"));
         let about = spaces.read(&id, program::ABOUT).await.unwrap();
         let ResourceContents::TextResourceContents { text, .. } = &about.contents[0] else { panic!() };
         let about: Value = serde_json::from_str(text).unwrap();
@@ -1093,7 +1093,7 @@ mod tests {
 
     #[tokio::test]
     async fn what_happened_in_the_rooms_is_there_next_launch() {
-        let me = Arc::new(Keys::stand_in("maya"));
+        let me = Arc::new(Keys::stand_in("juno"));
         let tables = std::env::temp_dir().join(format!("diverge-desktop-relaunch-{}-{}", std::process::id(), Utc::now().timestamp_nanos_opt().unwrap_or(0)));
         let first = StubSpaces::new(me.clone(), tables.clone());
         let board = board();
@@ -1109,7 +1109,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_rooms_file_that_wont_parse_is_set_aside_not_written_over() {
-        let me = Arc::new(Keys::stand_in("maya"));
+        let me = Arc::new(Keys::stand_in("juno"));
         let tables = std::env::temp_dir().join(format!("diverge-desktop-rooms-damaged-{}-{}", std::process::id(), Utc::now().timestamp_nanos_opt().unwrap_or(0)));
         std::fs::create_dir_all(&tables).unwrap();
         std::fs::write(tables.join(".stand-in-rooms.json"), "{ \"file\": \"stand-in rooms\", \"vers").unwrap();
@@ -1149,7 +1149,7 @@ mod tests {
         // Kept across a launch: the new invite, not the old.
         let tables = spaces.tables.clone();
         drop(spaces);
-        let again = StubSpaces::new(Arc::new(Keys::stand_in("maya")), tables);
+        let again = StubSpaces::new(Arc::new(Keys::stand_in("juno")), tables);
         assert_eq!(again.invite(&board).await.unwrap().secret, after.secret);
         // Only the host restarts a room.
         assert!(again.restart_with_new_invite(&Id { id: again.id_of("idea-ada") }).await.is_err());
