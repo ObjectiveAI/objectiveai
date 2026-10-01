@@ -1117,6 +1117,20 @@ pub struct KnockView {
     /// A member who vouches for them, if any.
     pub vouch: Option<VouchView>,
     pub at: String,
+    /// When the door answered it from the room's own record, without a
+    /// card: what you did before decides.
+    pub answered: Option<KnockAnswered>,
+}
+
+/// A knock the door answered from the room's record.
+#[derive(Serialize, TS, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum KnockAnswered {
+    /// Let in before and still in: let back in, with nothing new admitted.
+    LetBackIn,
+    /// Removed before: turned away.
+    TurnedAway,
 }
 
 /// A room another room vouches for: its host minted this invite for the list.

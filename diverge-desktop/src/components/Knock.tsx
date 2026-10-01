@@ -3,7 +3,8 @@ import { ago } from "../lib/format";
 import { t } from "../strings";
 import { Button } from "./ui";
 
-/** Someone at the door of a room you host: who they say they are, their note, and who vouches. */
+/** Someone at the door of a room you host: who they say they are, their note, and who vouches. A knock the door
+ *  answered from the room's record (someone let in before, or removed) says so instead of asking. */
 export function KnockCard(props: { knock: KnockView; onAnswer: (yes: boolean) => void; compact?: boolean }) {
   const k = props.knock;
   const vouch = k.vouch;
@@ -25,10 +26,14 @@ export function KnockCard(props: { knock: KnockView; onAnswer: (yes: boolean) =>
           </div>
         ) : null}
       </div>
-      <div className="row-actions">
-        <Button small kind="primary" disabled={!k.checked} onClick={() => props.onAnswer(true)}>{t.spaces.letIn}</Button>
-        <Button small kind="tertiary" onClick={() => props.onAnswer(false)}>{t.spaces.notNow}</Button>
-      </div>
+      {k.answered ? (
+        <div className={k.answered === "let_back_in" ? "ok small" : "muted small"}>{k.answered === "let_back_in" ? t.spaces.letBackIn : t.spaces.turnedAway}</div>
+      ) : (
+        <div className="row-actions">
+          <Button small kind="primary" disabled={!k.checked} onClick={() => props.onAnswer(true)}>{t.spaces.letIn}</Button>
+          <Button small kind="tertiary" onClick={() => props.onAnswer(false)}>{t.spaces.notNow}</Button>
+        </div>
+      )}
     </div>
   );
 }

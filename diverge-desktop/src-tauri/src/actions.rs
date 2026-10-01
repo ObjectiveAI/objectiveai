@@ -284,7 +284,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("spaces_join", "Knock with an invite, as your usual self or a fresh persona"),
     ("spaces_leave", "Leave a Space (or end one you host)"),
     ("spaces_invite", "The invite to hand a friend"),
-    ("knocks_watch", "Hear who is at the door of Spaces you host"),
+    ("knocks_watch", "Hear who is at the door of Spaces you host; someone already in is let back in, someone you removed turned away"),
     ("knocks_answer", "Let someone in, or not"),
     ("asks_send", "Send one ask to several rooms at once, followed as one thread"),
     ("asks_close", "Close one of your asks in every room it went to"),
@@ -1214,7 +1214,74 @@ pub fn knock_view_of(k: &spaces::Knock, title: String, secret: Option<&str>, mem
         checked,
         vouch,
         at: k.at.to_rfc3339(),
+        answered: None,
     }
+}
+
+/// What the door does with a knock before the host sees it, from the
+/// host's own record of the room.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KnockVerdict {
+    /// Let in before and still in (listed or not): yes, with no admit and no card.
+    LetBackIn,
+    /// Removed before: no.
+    TurnedAway,
+    /// Anyone else, or a knock that doesn't check: a card, for the host.
+    Card,
+}
+
+/// Where the knocker stands in the room, by the key that signed the knock,
+/// or by the account it carries: a member's device the room hasn't been
+/// shown counts only on a list newer than the one the room holds.
+pub fn knock_verdict(room: &diverge_desktop_room::Room, k: &spaces::Knock, now: chrono::DateTime<chrono::Utc>) -> KnockVerdict {
+    use diverge_desktop_room::Standing;
+    let Some(w) = spaces::Knocking::from_authorization(&k.authorize.authorization).filter(|w| w.check(room.id(), now).is_ok()) else { return KnockVerdict::Card };
+    let by_key = room.standing(&w.key);
+    let standing = match (&by_key, w.account_id()) {
+        (Standing::Stranger, Some(account)) => match room.standing(&account) {
+            Standing::Member => {
+                let held = room.member(&account).and_then(|m| m.account.as_ref()).and_then(|p| p.check().ok()).map(|a| a.sequence);
+                let shown = w.account.as_ref().and_then(|p| p.check().ok()).map(|a| a.sequence);
+                if shown > held { Standing::Member } else { Standing::Stranger }
+            }
+            other => other,
+        },
+        _ => by_key,
+    };
+    match standing {
+        Standing::Member | Standing::Unlisted { .. } => KnockVerdict::LetBackIn,
+        Standing::Removed => KnockVerdict::TurnedAway,
+        Standing::Stranger => KnockVerdict::Card,
+    }
+}
+
+/// The room as its host's app replays it now: read whole from the room,
+/// or from your copy when it can't be reached.
+async fn host_copy(state: &AppState, id: &spaces::Id) -> Option<diverge_desktop_room::Room> {
+    match read_json::<diverge_desktop_room::Record>(state, id, diverge_desktop_room::room::RECORD).await {
+        Some(record) if record.args.id == id.id => diverge_desktop_room::Room::check(&record).ok(),
+        _ => copy_room(state, &id.id),
+    }
+}
+
+/// A knock arriving at the door: someone the record says is in is let back
+/// in, someone it says you removed is turned away, and the list says so;
+/// anyone else is a card for you.
+async fn arrive(state: &AppState, k: &spaces::Knock) -> KnockView {
+    let mut view = knock_view(state, k).await;
+    let verdict = match host_copy(state, &k.space).await {
+        Some(room) => knock_verdict(&room, k, chrono::Utc::now()),
+        None => KnockVerdict::Card,
+    };
+    let (answer, answered) = match verdict {
+        KnockVerdict::LetBackIn => (spaces::Answer::Authorized, KnockAnswered::LetBackIn),
+        KnockVerdict::TurnedAway => (spaces::Answer::Denied, KnockAnswered::TurnedAway),
+        KnockVerdict::Card => return view,
+    };
+    if state.spaces.answer(k.knock_id, answer).await.is_ok() {
+        view.answered = Some(answered);
+    }
+    view
 }
 
 /// What the host's `admit` says for a knock: under rules 2 a person comes
@@ -1240,7 +1307,7 @@ pub fn knocks_watch(app: AppHandle, state: State<'_, AppState>, on_event: Channe
     tauri::async_runtime::spawn(async move {
         let state = app.state::<AppState>();
         while let Some(k) = frames.next().await {
-            let view = knock_view(&state, &k).await;
+            let view = arrive(&state, &k).await;
             if on_event.send(KnockEvent::Knock { knock: view }).is_err() {
                 token.cancel();
                 return;
@@ -1270,6 +1337,11 @@ async fn answer_knock(state: &AppState, knock_id: u64, yes: bool) -> Result<(), 
         state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
         return Err("that knock doesn't check, so it wasn't let in".into());
     };
+    // Someone the room already has in is let in as they are: nothing new to admit.
+    if host_copy(state, &knock.space).await.is_some_and(|room| knock_verdict(&room, &knock, chrono::Utc::now()) == KnockVerdict::LetBackIn) {
+        state.spaces.answer(knock_id, spaces::Answer::Authorized).await?;
+        return Ok(());
+    }
     let Some(args) = admit_args(rules_of(state, &knock.space).await, &knock.space.id, &knocking) else {
         state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
         return Err("that knock carries no account, and this room lets people in by their account".into());
@@ -1925,6 +1997,105 @@ mod tests {
         let agent = members.iter().find(|m| m.is_agent).unwrap();
         assert_eq!(agent.agent_of_key.as_deref(), Some(you.as_str()), "its person is your account");
         assert_eq!(rooms.rooms.lock().unwrap()[&id].moves().last().unwrap().agent_of.as_deref(), Some("maya"));
+    }
+
+    /// A returning member's knock: today's door let them in once; their next knock comes back.
+    #[tokio::test]
+    async fn a_members_knock_is_answered_yes_with_no_admit_and_no_card() {
+        let (state, rooms) = app("actions-back-in");
+        let id = board(&state, "Saturday Workshop").await;
+        let (ren, ada) = (Keypair::from_seed("ren"), Keypair::from_seed("ada"));
+        rooms.knocks.lock().unwrap().push(knock(1, &id, &ren, "ren", None));
+        answer_knock(&state, 1, true).await.unwrap();
+        // ren comes back: a restart, a new connection. The door answers from the record.
+        let back = knock(2, &id, &ren, "ren", None);
+        rooms.knocks.lock().unwrap().push(back.clone());
+        let view = arrive(&state, &back).await;
+        assert_eq!(view.answered, Some(KnockAnswered::LetBackIn));
+        assert_eq!(rooms.log(), ["call admit", "answer 1 yes", "answer 2 yes"], "no second admit, and no card");
+        // And a yes on a card for someone already in is a yes, not the room's 'already a member' turned into no.
+        rooms.knocks.lock().unwrap().push(knock(3, &id, &ren, "ren", None));
+        answer_knock(&state, 3, true).await.unwrap();
+        assert_eq!(rooms.log()[3..], ["answer 3 yes"]);
+        // Someone let in unlisted is let back in too.
+        rooms.knocks.lock().unwrap().push(knock_with(4, &id, &ada, "ada", None, false, Some(account_of(&ada))));
+        answer_knock(&state, 4, true).await.unwrap();
+        let again = knock_with(5, &id, &ada, "ada", None, false, Some(account_of(&ada)));
+        rooms.knocks.lock().unwrap().push(again.clone());
+        assert_eq!(arrive(&state, &again).await.answered, Some(KnockAnswered::LetBackIn));
+        assert_eq!(rooms.log()[4..], ["call admit", "answer 4 yes", "answer 5 yes"]);
+    }
+
+    #[tokio::test]
+    async fn a_removed_persons_knock_is_turned_away_and_a_strangers_is_a_card() {
+        let (state, rooms) = app("actions-turned-away");
+        let id = board(&state, "Saturday Workshop").await;
+        let (ren, sam) = (Keypair::from_seed("ren"), Keypair::from_seed("sam"));
+        rooms.knocks.lock().unwrap().push(knock(1, &id, &ren, "ren", None));
+        answer_knock(&state, 1, true).await.unwrap();
+        call_as_you(&state, &space_id(&id), "remove", json!({ "key": account_of(&ren).id() })).await.unwrap();
+        let back = knock(2, &id, &ren, "ren", None);
+        rooms.knocks.lock().unwrap().push(back.clone());
+        assert_eq!(arrive(&state, &back).await.answered, Some(KnockAnswered::TurnedAway));
+        assert_eq!(rooms.log()[2..], ["call remove", "answer 2 no"]);
+        let stranger = knock(3, &id, &sam, "sam", None);
+        rooms.knocks.lock().unwrap().push(stranger.clone());
+        let card = arrive(&state, &stranger).await;
+        assert_eq!(card.answered, None, "a card for the host");
+        assert_eq!(rooms.log().len(), 4, "nothing answered");
+        assert!(rooms.pending(3).await.is_some(), "still at the door");
+    }
+
+    #[test]
+    fn the_door_answers_from_the_record_by_key_by_account_and_by_a_newer_device_list() {
+        let host = Keypair::from_seed("maya");
+        let host_account = account_of(&host);
+        let room_key = Keypair::from_seed("room");
+        let args = Args {
+            id: diverge_desktop_room::account_room_id("board", &host_account.id()),
+            title: "Saturday Workshop".into(),
+            kind: diverge_desktop_room::Kind::Board,
+            host_key: host.key(),
+            host_name: "maya".into(),
+            charter: "#".into(),
+            open_door: false,
+            continues: None,
+            room_key: room_key.key(),
+            at: Utc::now(),
+            rules: 2,
+            host_account: Some(host_account),
+            sig: String::new(),
+        }
+        .signed(&host);
+        let mut room = Room::new(args, room_key).unwrap();
+        let id = room.id().to_owned();
+        let (laptop, desktop) = (Keypair::from_seed("ren's laptop"), Keypair::from_seed("ren's desktop"));
+        let root = Keypair::from_seed("ren's root");
+        let first = Proof::first(&root, Utc::now(), &[laptop.key()]);
+        let newer = Proof { genesis: first.genesis.clone(), devices: diverge_desktop_room::account::device_list(&root, &first.id(), 2, &[laptop.key(), desktop.key()]) };
+        let mut counter = 0;
+        let mut admit = |room: &mut Room, verb: &'static str, args: Value| {
+            counter += 1;
+            let mut p = CallToolRequestParams::new(verb).with_arguments(args.as_object().cloned().unwrap());
+            diverge_desktop_room::seal_call(&host, &id, &mut p, counter);
+            room.call(p, &diverge_desktop_room::NoHost).unwrap();
+        };
+        admit(&mut room, "admit", json!({ "account": first, "name": "ren" }));
+        let at_door = |who: &Keypair, account: Option<Proof>| knock_with(1, &id, who, "ren", None, true, account);
+        let now = Utc::now();
+        assert_eq!(knock_verdict(&room, &at_door(&laptop, Some(first.clone())), now), KnockVerdict::LetBackIn, "a current device");
+        assert_eq!(knock_verdict(&room, &at_door(&desktop, Some(newer.clone())), now), KnockVerdict::LetBackIn, "a new device, on a newer list");
+        assert_eq!(knock_verdict(&room, &at_door(&desktop, None), now), KnockVerdict::Card, "a key the room doesn't know, and no list naming it");
+        let unsigned = Knock { space: Id { id: id.clone() }, ..knock_with(1, "another room", &laptop, "ren", None, true, Some(first.clone())) };
+        assert_eq!(knock_verdict(&room, &unsigned, now), KnockVerdict::Card, "a knock that doesn't check is the host's to read");
+        // ren drops the laptop; the old list no longer brings it in.
+        let only_desktop = Proof { genesis: first.genesis.clone(), devices: diverge_desktop_room::account::device_list(&root, &first.id(), 3, &[desktop.key()]) };
+        let mut keys = CallToolRequestParams::new("keys").with_arguments(json!({ "account": only_desktop }).as_object().cloned().unwrap());
+        diverge_desktop_room::seal_call(&desktop, &id, &mut keys, 1);
+        room.call(keys, &diverge_desktop_room::NoHost).unwrap();
+        assert_eq!(knock_verdict(&room, &at_door(&laptop, Some(newer)), now), KnockVerdict::Card, "an older list naming a dropped device");
+        admit(&mut room, "remove", json!({ "key": first.id() }));
+        assert_eq!(knock_verdict(&room, &at_door(&desktop, Some(only_desktop)), now), KnockVerdict::TurnedAway);
     }
 
     #[tokio::test]

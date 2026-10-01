@@ -549,6 +549,8 @@ export const t = {
     doorNote: "Someone asked to join a room you host. Their address is what your machine saw; the rest is what they typed.",
     letIn: "Let in",
     notNow: "Not now",
+    letBackIn: "Let back in: you let them in before, and they're still in this room.",
+    turnedAway: "Turned away: you removed them from this room.",
     presented: "presented",
     host: "Host a Space",
     hostNote: "It runs on your machine. Friends join with the invite you hand them.",
