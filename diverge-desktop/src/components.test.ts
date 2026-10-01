@@ -164,5 +164,7 @@ describe("the 28px floor", () => {
     expect(theme.get(":root")?.get("--hit-min")).toBe("28px");
     for (const sel of [".btn", ".chip-press", ".nav-row", ".card-press"]) expect(app.get(sel)?.get("min-height"), sel).toBe("var(--hit-min)");
     expect(app.get(".btn-icon")?.get("min-width")).toBe("var(--hit-min)");
+    // A checkbox or radio is pressed by its words too, so the line that holds both meets the floor.
+    for (const sel of [".switch", ".radio-line"]) expect(app.get(sel)?.get("min-height"), sel).toBe("var(--hit-min)");
   });
 });

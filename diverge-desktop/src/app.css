@@ -213,7 +213,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .more > summary { cursor: pointer; font-size: var(--text-sm); font-weight: 550; color: var(--text-2); padding: var(--space-1) 0; }
 .more[open] > summary { margin-bottom: var(--space-2); }
 .switch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-1) var(--space-3); }
-.switch { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; }
+.switch { display: flex; align-items: center; gap: var(--space-2); min-height: var(--hit-min); font-size: var(--text-sm); cursor: pointer; }
 .switch-line { flex-wrap: wrap; }
 .switch-line .field-hint { flex-basis: 100%; padding-left: var(--space-5); }
 .switch input { margin: 0; }
@@ -441,7 +441,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .door-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: var(--space-3) 0; }
 .door-head strong { font-size: var(--text-lg); }
 .door-verbs { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
-.radio-line { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0; cursor: pointer; }
+.radio-line { display: flex; align-items: center; gap: var(--space-2); min-height: var(--hit-min); padding: var(--space-1) 0; cursor: pointer; }
 .radio-line input { margin: 0; }
 .knock { flex-direction: column; align-items: stretch; gap: var(--space-2); }
 .knock-compact { padding: var(--space-2); }
