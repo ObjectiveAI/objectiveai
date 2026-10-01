@@ -1036,6 +1036,7 @@ fn new_room(state: &AppState, you: &crate::identity::Persona, title: String, kin
         rules: 2,
         host_account: Some(account),
         keepers: Vec::new(),
+        notes_key: None,
         sig: String::new(),
     })
 }
@@ -2098,6 +2099,7 @@ mod tests {
             rules: 2,
             host_account: Some(host_account),
             keepers: Vec::new(),
+            notes_key: None,
             sig: String::new(),
         }
         .signed(&host);
@@ -2192,6 +2194,7 @@ mod tests {
             rules: 2,
             host_account: Some(ada_account),
             keepers: Vec::new(),
+            notes_key: None,
             sig: String::new(),
         }
         .signed(&ada);

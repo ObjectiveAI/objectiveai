@@ -86,8 +86,8 @@ impl Host for Noting<'_> {
         *self.wanted.lock().unwrap_or_else(|p| p.into_inner()) = Some((kind.to_owned(), body));
         Err(NEEDS_SEAL.into())
     }
-    fn hire(&self, room: &str, hire_id: &str, from: &str, agent: &str, what: &str, pledge: Option<&str>) {
-        self.host.hire(room, hire_id, from, agent, what, pledge)
+    fn hire(&self, room: &str, hire_id: &str, from: &str, ask: &Value) {
+        self.host.hire(room, hire_id, from, ask)
     }
 }
 
@@ -101,8 +101,8 @@ impl Host for Sealed<'_> {
     fn seal(&self, _kind: &str, _body: Value) -> Result<Statement, String> {
         Ok(self.statement.clone())
     }
-    fn hire(&self, room: &str, hire_id: &str, from: &str, agent: &str, what: &str, pledge: Option<&str>) {
-        self.host.hire(room, hire_id, from, agent, what, pledge)
+    fn hire(&self, room: &str, hire_id: &str, from: &str, ask: &Value) {
+        self.host.hire(room, hire_id, from, ask)
     }
 }
 
@@ -123,9 +123,13 @@ impl Host for ProxyHost {
         serde_json::from_str(&text).map_err(|_| "the host's app answered with something that isn't a seal".to_string())
     }
 
-    fn hire(&self, room: &str, hire_id: &str, from: &str, agent: &str, what: &str, pledge: Option<&str>) {
-        let params = CallToolRequestParams::new(HOST_HIRE)
-            .with_arguments(json!({ "room": room, "hire_id": hire_id, "from": from, "agent": agent, "what": what, "pledge": pledge }).as_object().cloned().unwrap_or_default());
+    fn hire(&self, room: &str, hire_id: &str, from: &str, ask: &Value) {
+        // The ask as the room has it: plain, or sealed to the host's notes key, which only the host's app opens.
+        let mut arguments = json!({ "room": room, "hire_id": hire_id, "from": from });
+        if let (Some(a), Some(ask)) = (arguments.as_object_mut(), ask.as_object()) {
+            a.extend(ask.clone());
+        }
+        let params = CallToolRequestParams::new(HOST_HIRE).with_arguments(arguments.as_object().cloned().unwrap_or_default());
         let client = diverge_sdk::container_proxy::inside::Client::new();
         tokio::spawn(async move {
             let _ = client.mcp_call_tool(params).await;
@@ -321,6 +325,7 @@ mod tests {
             rules: 1,
             host_account: None,
             keepers: Vec::new(),
+            notes_key: None,
             sig: String::new(),
         }
         .signed(&host);

@@ -22,6 +22,12 @@ hmac = "0.12"
 zeroize = "1"
 hex = "0.4"
 getrandom = "0.2"
+# Words sealed to someone (a profile's notes and hires): X25519 to agree a
+# key, HKDF to draw it, ChaCha20-Poly1305 to seal. All three were already
+# in the build; curve25519-dalek is what ed25519-dalek stands on.
+curve25519-dalek = "4"
+hkdf = "0.12"
+chacha20poly1305 = "0.10"
 # The room as a tool container image (feature `image`): an HTTP server on
 # the container's loopback, answering Ronald's proxy.
 diverge-sdk = { path = "../../diverge-sdk-rs", optional = true }

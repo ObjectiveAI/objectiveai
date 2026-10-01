@@ -1958,11 +1958,14 @@ name = "diverge-desktop-room"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "chacha20poly1305",
  "chrono",
+ "curve25519-dalek",
  "diverge-sdk",
  "ed25519-dalek",
  "getrandom 0.2.17",
  "hex",
+ "hkdf",
  "hmac",
  "indexmap 2.14.0",
  "reqwest 0.12.28",

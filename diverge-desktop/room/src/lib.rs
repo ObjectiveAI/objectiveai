@@ -10,6 +10,7 @@
 //! for rooms, and as a tool container image. Nothing in it knows which.
 
 pub mod account;
+pub mod envelope;
 #[cfg(feature = "image")]
 pub mod image;
 pub mod room;
@@ -37,8 +38,12 @@ pub(crate) mod tests {
         fn seal(&self, kind: &str, body: Value) -> Result<Statement, String> {
             Ok(Statement::make(&self.keypair, kind, body))
         }
-        fn hire(&self, _room: &str, hire_id: &str, from: &str, agent: &str, what: &str, _pledge: Option<&str>) {
-            self.hires.lock().unwrap().push(format!("{hire_id} {from} {agent} {what}"));
+        fn hire(&self, _room: &str, hire_id: &str, from: &str, ask: &Value) {
+            let line = match ask.get("sealed") {
+                Some(_) => format!("{hire_id} {from} sealed"),
+                None => format!("{hire_id} {from} {} {}", ask["agent"].as_str().unwrap_or_default(), ask["what"].as_str().unwrap_or_default()),
+            };
+            self.hires.lock().unwrap().push(line);
         }
     }
 
@@ -91,6 +96,7 @@ pub(crate) mod tests {
             rules: 1,
             host_account: None,
             keepers: Vec::new(),
+            notes_key: None,
             sig: String::new(),
         }
         .signed(&host.keypair);
@@ -287,6 +293,7 @@ pub(crate) mod tests {
             rules: 2,
             host_account: Some(mine.clone()),
             keepers: Vec::new(),
+            notes_key: None,
             sig: String::new(),
         }
         .signed(&maya.keypair);
@@ -381,6 +388,133 @@ pub(crate) mod tests {
         let mut cut = old.clone();
         cut.moves.pop();
         assert!(Room::from_record(Record { args, before: Some(Box::new(cut)), moves: Vec::new() }, Some(key)).is_err(), "a history that stops short");
+    }
+
+    /// A profile under rules 2, hosted by maya's account, sealing what visitors leave to her notes key.
+    pub fn sealed_profile(maya: &Person, notes: &envelope::OpenKey) -> (Room, account::Proof) {
+        let root = Keypair::from_seed("maya's root");
+        let mine = account::Proof::first(&root, long_ago(), &[maya.key()]);
+        let room_key = Keypair::from_seed("profile v2");
+        let args = Args {
+            id: seal::account_room_id("profile", &mine.id()),
+            title: "maya".into(),
+            kind: Kind::Profile,
+            host_key: maya.key(),
+            host_name: "maya".into(),
+            charter: "#".into(),
+            open_door: true,
+            continues: None,
+            room_key: room_key.key(),
+            at: long_ago(),
+            rules: 2,
+            host_account: Some(mine.clone()),
+            keepers: Vec::new(),
+            notes_key: Some(notes.public()),
+            sig: String::new(),
+        }
+        .signed(&maya.keypair);
+        (Room::new(args, room_key).unwrap(), mine)
+    }
+
+    /// A call with its words sealed to `readers`, as the app sends it.
+    pub fn sealed_call(who: &mut Person, room: &mut Room, host: &TestHost, verb: &'static str, args: Value, readers: &[String]) -> Result<String, String> {
+        let sealed = envelope::seal_args(room.id(), verb, args.as_object().unwrap(), &who.key(), readers).unwrap();
+        who.call(room, host, verb, Value::Object(sealed))
+    }
+
+    fn one_device(person: &Person, root: &str) -> account::Proof {
+        account::Proof::first(&Keypair::from_seed(root), long_ago(), &[person.key()])
+    }
+
+    #[test]
+    fn what_visitors_leave_on_a_profile_stays_between_them_and_its_owner() {
+        let (mut maya, mut ren, mut ada) = (Person::new("maya's mac"), Person::new("ren's laptop"), Person::new("ada's pc"));
+        let notes = envelope::OpenKey::from_seed(b"maya's words");
+        let host = host_for(&maya);
+        let (mut profile, _) = sealed_profile(&maya, &notes);
+        let id = profile.id().to_owned();
+        maya.call(&mut profile, &host, "admit", json!({ "account": one_device(&ren, "ren's root"), "name": "ren" })).unwrap();
+        maya.call(&mut profile, &host, "admit", json!({ "account": one_device(&ada, "ada's root"), "name": "ada" })).unwrap();
+        let ren_reads = envelope::OpenKey::for_author(&ren.keypair, &id);
+        let to_maya = [notes.public(), ren_reads.public()];
+
+        // Nothing a visitor leaves reaches the room in the clear.
+        assert!(ren.call(&mut profile, &host, "leave_note", json!({ "body": "love the lamp" })).is_err(), "a plain note");
+        assert!(ren.call(&mut profile, &host, "hire", json!({ "agent": "site-fixes", "what": "check my links" })).is_err(), "a plain hire");
+        let mixed = envelope::seal_args(&id, "hire", json!({ "what": "check my links" }).as_object().unwrap(), &ren.key(), &to_maya).unwrap();
+        let mut mixed = Value::Object(mixed);
+        mixed["agent"] = json!("site-fixes");
+        assert!(ren.call(&mut profile, &host, "hire", mixed).unwrap_err().contains("travels sealed"), "nor any part of one");
+        sealed_call(&mut ren, &mut profile, &host, "leave_note", json!({ "body": "love the lamp" }), &to_maya).unwrap();
+        let asked = sealed_call(&mut ren, &mut profile, &host, "hire", json!({ "agent": "site-fixes", "what": "check my links", "pledge": "a coffee", "reply_to": ren_reads.public() }), &to_maya).unwrap();
+        let hire = asked.rsplit_once('(').and_then(|(_, h)| h.strip_suffix(')')).unwrap().to_owned();
+        assert_eq!(host.hires.lock().unwrap().last().unwrap(), &format!("{hire} ren sealed"), "the host hears of it, sealed");
+
+        // The owner opens them; so does their author; ada can't.
+        let moves = feed(&profile);
+        let note = moves.iter().find(|m| m["kind"] == "note").unwrap();
+        let asked = moves.iter().find(|m| m["kind"] == "hire").unwrap();
+        let open = |m: &Value, verb: &str, key: &envelope::OpenKey| envelope::open(&envelope::shape(&m["fields"]["sealed"]).unwrap(), key, &id, verb, m["by"].as_str().unwrap());
+        assert_eq!(open(note, "leave_note", &notes).unwrap()["body"], "love the lamp");
+        assert_eq!(open(asked, "hire", &notes).unwrap()["pledge"], "a coffee");
+        assert_eq!(open(note, "leave_note", &ren_reads).unwrap()["body"], "love the lamp", "ren reads his own");
+        let ada_reads = envelope::OpenKey::for_author(&ada.keypair, &id);
+        assert!(open(note, "leave_note", &ada_reads).is_none() && open(asked, "hire", &ada_reads).is_none(), "ada reads neither");
+
+        // Taken and delivered, sealed to the owner and whoever asked.
+        let reply_to = open(asked, "hire", &notes).unwrap()["reply_to"].as_str().unwrap().to_owned();
+        let back = [notes.public(), reply_to];
+        assert!(maya.call(&mut profile, &host, "answer_hire", json!({ "hire_id": hire, "take": true, "note": "Saturday" })).is_err(), "an answer's note is sealed too");
+        sealed_call(&mut maya, &mut profile, &host, "answer_hire", json!({ "hire_id": hire, "take": true, "note": "Saturday" }), &back).unwrap();
+        assert!(maya.call(&mut profile, &host, "deliver_hire", json!({ "hire_id": hire, "summary": "Two broken links." })).is_err(), "a plain result");
+        sealed_call(&mut maya, &mut profile, &host, "deliver_hire", json!({ "hire_id": hire, "summary": "Two broken links.", "result": "/old-page and /zine are broken." }), &back).unwrap();
+        let moves = feed(&profile);
+        let result = moves.iter().find(|m| m["kind"] == "hire_delivery").unwrap();
+        assert_eq!(moves.iter().find(|m| m["id"] == hire.as_str()).unwrap()["state"], "delivered", "its state is the room's to keep, in the clear");
+        assert_eq!(open(result, "deliver_hire", &ren_reads).unwrap()["result"], "/old-page and /zine are broken.", "ren reads the result");
+        assert_eq!(open(result, "deliver_hire", &notes).unwrap()["summary"], "Two broken links.", "so does maya");
+        assert!(open(result, "deliver_hire", &ada_reads).is_none(), "ada doesn't");
+
+        // ada can't change any of it, answer it in the open, or pass ren's words off as hers.
+        let note_id = note["id"].as_str().unwrap().to_owned();
+        assert!(ada.call(&mut profile, &host, "withdraw", json!({ "move_id": note_id })).is_err());
+        assert!(ada.call(&mut profile, &host, "reply", json!({ "move_id": note_id, "body": "me too" })).is_err());
+        let copied = json!({ "sealed": note["fields"]["sealed"] });
+        ada.call(&mut profile, &host, "leave_note", copied).unwrap();
+        let theirs = feed(&profile).into_iter().rev().find(|m| m["kind"] == "note").unwrap();
+        assert!(open(&theirs, "leave_note", &notes).is_none(), "an envelope carried to another author opens for nobody");
+        let ada_reads_to = [notes.public(), ada_reads.public()];
+        sealed_call(&mut ada, &mut profile, &host, "leave_note", json!({ "body": "hello from ada" }), &ada_reads_to).unwrap();
+        let mut changed = profile.record();
+        let ada_note = changed.moves.last().unwrap().args.clone();
+        changed.moves.iter_mut().find(|m| m.id == note_id).unwrap().args = ada_note;
+        assert!(Room::check(&changed).is_err(), "nor can ren's note be swapped in a copy");
+
+        // A copy held by someone who isn't the owner holds only ciphertext.
+        let copy = serde_json::to_string(&Room::check(&profile.record()).unwrap().record()).unwrap();
+        for words in ["love the lamp", "check my links", "site-fixes", "a coffee", "Saturday", "Two broken links", "/old-page"] {
+            assert!(!copy.contains(words), "a copy holds \"{words}\" in the clear");
+        }
+        let served = serde_json::to_string(&feed(&profile)).unwrap();
+        assert!(!served.contains("love the lamp") && !served.contains("a coffee"), "nor does the feed every member is served");
+    }
+
+    #[test]
+    fn a_profile_under_rules_two_names_its_owners_notes_key_and_nothing_else_does() {
+        let maya = Person::new("maya's mac");
+        let notes = envelope::OpenKey::from_seed(b"maya's words");
+        let (profile, _) = sealed_profile(&maya, &notes);
+        let mut args = profile.args.clone();
+        args.notes_key = None;
+        assert!(args.signed(&maya.keypair).holds().is_err(), "a rules-2 profile without one");
+        let mut args = profile.args.clone();
+        args.kind = Kind::Board;
+        assert!(args.signed(&maya.keypair).holds().is_err(), "a board with one");
+        let mut args = profile.args.clone();
+        args.notes_key = Some("abcd".into());
+        assert!(args.signed(&maya.keypair).holds().is_err(), "not a key");
+        let (rules_one, _) = settings("p1", &maya, "maya", Kind::Profile);
+        assert!(rules_one.notes_key.is_none() && rules_one.holds().is_ok(), "rules 1 are as they were");
     }
 
     #[test]

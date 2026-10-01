@@ -133,14 +133,15 @@ impl Host for RoomHost<'_> {
         }
     }
 
-    fn hire(&self, room: &str, hire_id: &str, from: &str, agent: &str, what: &str, pledge: Option<&str>) {
+    fn hire(&self, room: &str, hire_id: &str, from: &str, ask: &Value) {
+        let text = |k: &str| ask.get(k).and_then(Value::as_str).unwrap_or_default().to_owned();
         let _ = self.calls.send(HostCall::Hire {
             room: Id { id: room.into() },
             hire_id: hire_id.into(),
             from: from.into(),
-            agent: agent.into(),
-            what: what.into(),
-            pledge: pledge.map(str::to_owned),
+            agent: text("agent"),
+            what: text("what"),
+            pledge: ask.get("pledge").and_then(Value::as_str).map(str::to_owned),
         });
     }
 }
@@ -376,6 +377,7 @@ impl StubSpaces {
             rules: 1,
             host_account: None,
             keepers: Vec::new(),
+            notes_key: None,
             sig: String::new(),
         };
         args = match stand_in_host.and_then(|n| inner.people.get(n)) {

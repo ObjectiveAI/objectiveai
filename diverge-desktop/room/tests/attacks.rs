@@ -72,6 +72,7 @@ fn settings(label: &str, host: &P, name: &str) -> (Args, Keypair) {
         rules: 1,
         host_account: None,
         keepers: Vec::new(),
+        notes_key: None,
         sig: String::new(),
     }
     .signed(&host.k);
@@ -276,6 +277,7 @@ fn settings_v2(label: &str, host: &A, device: &P, name: &str) -> (Args, Keypair)
         rules: 2,
         host_account: Some(host.proof.clone()),
         keepers: Vec::new(),
+        notes_key: None,
         sig: String::new(),
     }
     .signed(&device.k);
@@ -505,6 +507,7 @@ fn a_receipt_from_a_rules_two_room_proves_its_room_wherever_it_is_pinned() {
         rules: 2,
         host_account: Some(ren.proof.clone()),
         keepers: Vec::new(),
+        notes_key: Some(diverge_desktop_room::envelope::OpenKey::from_seed(b"ren's words").public()),
         sig: String::new(),
     }
     .signed(&ren_mac.k);

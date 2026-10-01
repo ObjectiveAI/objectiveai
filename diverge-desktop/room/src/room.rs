@@ -68,6 +68,7 @@ use serde_json::{Map, Value, json};
 use tokio::sync::broadcast;
 
 use crate::account::Proof;
+use crate::envelope::{self, SEALED_VERBS, clear_keys};
 use crate::seal::{Key, Keypair, Seal, Statement, account_id_holds, canonical, check_call, check_words, countersigned, digest, fingerprint, id_holds, recheck, recheck_words, seal_of, statement_holds};
 
 pub const FEED: &str = "space://feed";
@@ -225,6 +226,11 @@ pub struct Args {
     /// Under rules 2: keys the host names to let people in for them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub keepers: Vec<Keeper>,
+    /// Under rules 2, a profile's: the public half of its owner's notes key
+    /// (X25519, hex; see [`crate::envelope`]). What visitors leave here is
+    /// sealed to it, and the room takes it no other way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notes_key: Option<String>,
     /// The host's signature over everything above.
     #[serde(default)]
     pub sig: String,
@@ -280,6 +286,14 @@ impl Args {
         }
         if !self.keepers.is_empty() && self.rules != 2 {
             return Err("only a room under rules 2 has doorkeepers".into());
+        }
+        // Under rules 2 a profile names its owner's notes key, and nothing else does.
+        let profile_two = self.rules == 2 && self.kind == Kind::Profile;
+        match &self.notes_key {
+            None if profile_two => return Err("a profile under rules 2 names its owner's notes key".into()),
+            Some(_) if !profile_two => return Err("only a profile under rules 2 names a notes key".into()),
+            Some(k) if hex::decode(k).map(|b| b.len()) != Ok(32) => return Err("a notes key is 32 bytes, as hex".into()),
+            _ => {}
         }
         if !statement_holds(&self.host_key, "room", &self.body(), &self.sig) {
             return Err("this room's settings aren't signed by its host".into());
@@ -426,7 +440,9 @@ impl Move {
 /// In-process, the app itself; on the wire, the room's calls to its runner.
 pub trait Host: Send + Sync {
     fn seal(&self, kind: &str, body: Value) -> Result<Statement, String>;
-    fn hire(&self, _room: &str, _hire_id: &str, _from: &str, _agent: &str, _what: &str, _pledge: Option<&str>) {}
+    /// A hire asked here. `ask` is `{ agent, what, pledge }`, or in a profile
+    /// that seals what visitors leave, `{ sealed }`: only its owner opens it.
+    fn hire(&self, _room: &str, _hire_id: &str, _from: &str, _ask: &Value) {}
 }
 
 /// The mark a record keeps for someone let in unlisted: of their key and
@@ -738,6 +754,30 @@ impl Room {
     /// The keys a person's list names, when one of them already acts for someone else here.
     fn taken(&self, id: &str, devices: &[Key]) -> bool {
         devices.iter().any(|d| self.devices.get(d).is_some_and(|m| m != id) || (self.members.contains_key(d) && d != id) || self.is_keeper(d))
+    }
+
+    /// Whether what visitors leave here is sealed to the owner: a profile
+    /// under rules 2, whose settings name the owner's notes key.
+    pub fn seals_notes(&self) -> bool {
+        self.rules == Rules::Two && self.args.notes_key.is_some()
+    }
+
+    /// A sealed verb's arguments, checked, in a room that seals them: only
+    /// what stays in the clear, and the words in an envelope. The room can't
+    /// read the envelope; it checks its shape and keeps it as it came.
+    fn sealed_words(&self, name: &str, args: &JsonObject) -> Result<Option<Value>, ErrorData> {
+        if !self.seals_notes() || !SEALED_VERBS.contains(&name) {
+            return Ok(None);
+        }
+        let clear = clear_keys(name);
+        if let Some(k) = args.keys().find(|k| k.as_str() != "sealed" && !clear.contains(&k.as_str())) {
+            return Err(refused(format!("here, {k} travels sealed to {}: this room never holds it in the clear", self.args.host_name)));
+        }
+        match args.get("sealed") {
+            Some(v) => envelope::shape(v).map(|_| Some(v.clone())).map_err(bad),
+            None if name == "answer_hire" => Ok(None),
+            None => Err(bad(format!("here, what you leave is sealed to {}: the words are needed sealed", self.args.host_name))),
+        }
     }
 
     /// Whether a key is one of the doorkeepers the settings name (dropped or not).
@@ -1077,6 +1117,7 @@ impl Room {
                     "id": self.args.id, "title": self.args.title, "kind": self.args.kind, "host_name": self.args.host_name, "host_key": self.args.host_key,
                     "charter": self.charter_fingerprint(), "open_door": self.args.open_door, "continues": self.args.continues,
                     "room_key": self.args.room_key, "at": self.args.at, "rules": self.args.rules, "host_id": self.args.host_id(), "keepers": self.args.keepers,
+                    "notes_key": self.args.notes_key,
                 })
                 .to_string(),
                 "application/json",
@@ -1369,6 +1410,9 @@ impl Room {
         // A move holds only its own words when it or the move it's about is sealed by the digest of its words:
         // what it's about is named, not repeated, so erasing that move's words leaves nothing of them behind.
         let own = |of: &Move, words: &str| if seal.is_by_words() || of.seal.is_by_words() { String::new() } else { words.to_owned() };
+        // In a profile that seals what visitors leave: the envelope, checked for its shape only.
+        let sealing = self.seals_notes() && SEALED_VERBS.contains(&name);
+        let sealed = self.sealed_words(name, args)?;
         Ok(match name {
             "show" => {
                 let title = need(args, "title")?;
@@ -1435,8 +1479,12 @@ impl Room {
             }
             "reply" => {
                 let parent = need(args, "move_id")?.to_owned();
-                if !self.moves.iter().any(|m| m.id == parent) {
+                let Some(p) = self.moves.iter().find(|m| m.id == parent) else {
                     return Err(bad(format!("no move called {parent}")));
+                };
+                // Sealed words stay between their two people: nobody answers them in the open.
+                if p.fields.contains_key("sealed") {
+                    return Err(refused(format!("{parent} is sealed between its author and {}; it isn't answered in the room", self.args.host_name)));
                 }
                 let id = push(self, "reply", "", need(args, "body")?, Some(&parent), fields)?;
                 format!("Replied to {parent} ({id})")
@@ -1592,19 +1640,31 @@ impl Room {
                 format!("Pinned: {title} ({id})")
             }
             "leave_note" => {
-                let id = push(self, "note", "", need(args, "body")?, None, fields)?;
-                format!("Left a note ({id})")
+                let body = if sealing { "" } else { need(args, "body")? };
+                if let Some(e) = &sealed {
+                    fields.insert("sealed".into(), e.clone());
+                }
+                let id = push(self, "note", "", body, None, fields)?;
+                if sealing { format!("Left a note, sealed to {} ({id})", self.args.host_name) } else { format!("Left a note ({id})") }
             }
             "hire" => {
                 if who.key == self.args.host_id() {
                     return Err(refused("you can't hire your own agents here; message them"));
+                }
+                if let Some(e) = &sealed {
+                    fields.insert("sealed".into(), e.clone());
+                    let id = push(self, "hire", "", "", None, fields)?;
+                    if replaying.is_none() {
+                        host.hire(&self.args.id, &id, &who.name, &json!({ "sealed": e }));
+                    }
+                    return Ok(format!("Asked {}, sealed to them ({id})", self.args.host_name));
                 }
                 let agent = need(args, "agent")?.to_owned();
                 let what = need(args, "what")?.to_owned();
                 pick(&mut fields, &["agent", "pledge"]);
                 let id = push(self, "hire", &what, "", None, fields)?;
                 if replaying.is_none() {
-                    host.hire(&self.args.id, &id, &who.name, &agent, &what, arg(args, "pledge"));
+                    host.hire(&self.args.id, &id, &who.name, &json!({ "agent": agent, "what": what, "pledge": arg(args, "pledge") }));
                 }
                 format!("Asked {} for: {what} ({id})", self.args.host_name)
             }
@@ -1616,11 +1676,16 @@ impl Room {
                     return Err(refused(format!("{hire} was already {state}")));
                 }
                 let take = args.get("take").and_then(Value::as_bool).ok_or_else(|| bad("take is needed"))?;
-                pick(&mut fields, &["note"]);
+                if let Some(e) = &sealed {
+                    fields.insert("sealed".into(), e.clone());
+                } else {
+                    pick(&mut fields, &["note"]);
+                }
                 fields.insert("take".into(), json!(take));
-                push(self, "hire_answer", &own(&h, &h.title), arg(args, "note").unwrap_or_default(), Some(&hire), fields)?;
+                let note = if sealing { "" } else { arg(args, "note").unwrap_or_default() };
+                push(self, "hire_answer", &own(&h, &h.title), note, Some(&hire), fields)?;
                 self.derive(&hire, Some(if take { "taken" } else { "declined" }), &[]);
-                format!("{}: {}", if take { "Taken" } else { "Declined" }, h.title)
+                format!("{}: {}", if take { "Taken" } else { "Declined" }, if h.title.is_empty() { &hire } else { &h.title })
             }
             "deliver_hire" => {
                 let hire = need(args, "hire_id")?.to_owned();
@@ -1628,10 +1693,19 @@ impl Room {
                 if self.state_of(&hire).as_deref() != Some("taken") {
                     return Err(refused(format!("{hire} isn't taken")));
                 }
-                pick(&mut fields, &["files"]);
-                push(self, "hire_delivery", &own(&h, &h.title), need(args, "summary")?, Some(&hire), fields)?;
+                let summary = match &sealed {
+                    Some(e) => {
+                        fields.insert("sealed".into(), e.clone());
+                        ""
+                    }
+                    None => {
+                        pick(&mut fields, &["files"]);
+                        need(args, "summary")?
+                    }
+                };
+                push(self, "hire_delivery", &own(&h, &h.title), summary, Some(&hire), fields)?;
                 self.derive(&hire, Some("delivered"), &[]);
-                format!("Delivered: {}", h.title)
+                format!("Delivered: {}", if h.title.is_empty() { &hire } else { &h.title })
             }
             "admit" => {
                 // A doorkeeper lets in by a knock alone, and the room checks it (see `knock_evidence`).
