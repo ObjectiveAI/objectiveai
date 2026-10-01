@@ -433,7 +433,7 @@ async fn create_agent(state: &AppState, input: CreateAgentInput) -> Result<Creat
     // A new agent of yours is a member of your Home, so it can report there.
     if matches!(outcome, CreateOutcome::Created) {
         if let Some(home) = state.spaces.home().await {
-            let _ = admit_agent(state, &home, &name).await;
+            let _ = admit_agent(state, &home, &crate::identity::AgentId::Daemon(name.clone())).await;
         }
     }
     Ok(outcome)
@@ -627,7 +627,7 @@ async fn call_as_you(state: &AppState, id: &spaces::Id, tool: &str, arguments: s
 }
 
 /// Let one of your agents into a room you host, tethered to who you are there.
-pub async fn admit_agent(state: &AppState, room: &spaces::Id, agent: &str) -> Result<(), String> {
+pub async fn admit_agent(state: &AppState, room: &spaces::Id, agent: &crate::identity::AgentId) -> Result<(), String> {
     let a = state.identity.agent_in(agent, Some(&room.id))?;
     let person = state.identity.who_in(&room.id)?;
     call_as_you(state, room, "admit", serde_json::json!({ "key": a.key, "name": a.name, "is_agent": true, "agent_of": person.key, "tether": a.tether })).await.map(|_| ())

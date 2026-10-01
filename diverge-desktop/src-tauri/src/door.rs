@@ -29,7 +29,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
 use crate::daemon::Frames;
-use crate::identity::{Actor, AgentIn, Identity};
+use crate::identity::{Actor, AgentId, Identity};
 use crate::spaces::{Id, Spaces};
 use crate::view::{CardCall, CardEvent, CardHire, CardKind, CardView};
 
@@ -327,7 +327,7 @@ impl Door {
                     return Ok(CallToolResult::success(vec![ContentBlock::text("Your person said no. Nothing was done.")]));
                 }
                 let mut inner = CallToolRequestParams::new(tool).with_arguments(call_args);
-                let actor = Actor::Agent(agent.to_owned());
+                let actor = Actor::Agent(AgentId::daemon(agent));
                 let result = {
                     let turn = self.identity.turn(&actor, &id.id);
                     let _held = turn.lock().await;
@@ -357,7 +357,8 @@ impl Door {
                 }
                 let mut open = Vec::new();
                 for e in readable {
-                    let Ok(AgentIn { key, .. }) = self.identity.agent_in(agent, Some(&e.id.id)) else { continue };
+                    // The key it already holds there: nothing is made for a room it was never let into.
+                    let Some(key) = self.identity.agent_key(&AgentId::daemon(agent), &e.id.id) else { continue };
                     let Ok(r) = self.spaces.read(&e.id, diverge_desktop_room::room::FEED).await else { continue };
                     let Some(text) = r.contents.iter().find_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }) else { continue };
                     let Ok(moves) = serde_json::from_str::<Vec<Value>>(&text) else { continue };

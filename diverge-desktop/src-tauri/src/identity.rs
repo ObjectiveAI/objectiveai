@@ -62,10 +62,89 @@ struct PersonaRecord {
     usual: bool,
 }
 
+/// What kind of agent: one the daemon runs, or one you already run
+/// yourself on this computer, which reaches the app's door directly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum AgentKind {
+    #[default]
+    Daemon,
+    Local,
+}
+
+/// One of your agents: a daemon agent by the name the daemon holds it
+/// under, a local one by the id it was added with. Two agents of different
+/// kinds are never the same agent, whatever they're called.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AgentId {
+    Daemon(String),
+    Local(String),
+}
+
+const LOCAL_SLOT: &str = "local/";
+const DAEMON_SLOT: &str = "daemon/";
+
+impl AgentId {
+    pub fn daemon(name: &str) -> Self {
+        AgentId::Daemon(name.to_owned())
+    }
+
+    pub fn kind(&self) -> AgentKind {
+        match self {
+            AgentId::Daemon(_) => AgentKind::Daemon,
+            AgentId::Local(_) => AgentKind::Local,
+        }
+    }
+
+    /// The daemon's name for it, or a local agent's id.
+    fn name(&self) -> &str {
+        match self {
+            AgentId::Daemon(name) | AgentId::Local(name) => name,
+        }
+    }
+
+    /// Its slot: one string per agent, never the same for two. A local
+    /// agent's is `local/<id>`; a daemon agent's is its name, or
+    /// `daemon/<name>` when the name itself starts like a slot.
+    pub fn slot(&self) -> String {
+        match self {
+            AgentId::Local(id) => format!("{LOCAL_SLOT}{id}"),
+            AgentId::Daemon(name) if name.starts_with(LOCAL_SLOT) || name.starts_with(DAEMON_SLOT) => format!("{DAEMON_SLOT}{name}"),
+            AgentId::Daemon(name) => name.clone(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 struct AgentRecord {
     secret: String,
     persona: String,
+    /// A file from before local agents holds daemon agents only.
+    #[serde(default)]
+    kind: AgentKind,
+    /// The daemon's name for it, or a local agent's id. A file from before
+    /// says it only in the entry's name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    /// What a local agent is called, on screen and in rooms where you're your usual self.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    display: Option<String>,
+}
+
+impl AgentRecord {
+    /// Which agent this record is a key of. `entry` is the record's name in
+    /// the file: in a file from before, the agent's name, then `@persona`
+    /// for a persona other than the usual one.
+    fn agent(&self, entry: &str) -> AgentId {
+        let name = self.name.clone().unwrap_or_else(|| {
+            if self.persona == "usual" { entry.to_owned() } else { entry.strip_suffix(&format!("@{}", self.persona)).unwrap_or(entry).to_owned() }
+        });
+        match self.kind {
+            AgentKind::Daemon => AgentId::Daemon(name),
+            AgentKind::Local => AgentId::Local(name),
+        }
+    }
 }
 
 /// Your account, as this Mac keeps it.
@@ -93,11 +172,32 @@ struct Keys {
     account: Option<AccountRecord>,
 }
 
+impl Keys {
+    /// The record of an agent's key for one persona, found by what it is,
+    /// never by the entry's name: an entry's name only has to be unique.
+    fn agent_entry(&self, agent: &AgentId, persona: &str) -> Option<(&String, &AgentRecord)> {
+        self.agents.iter().find(|(entry, a)| a.persona == persona && &a.agent(entry) == agent)
+    }
+
+    /// A name for a new entry: the agent's slot, then `@persona`, and a
+    /// number when an entry from before already goes by that.
+    fn new_entry(&self, agent: &AgentId, persona: &str) -> String {
+        let base = if persona == "usual" { agent.slot() } else { format!("{}@{persona}", agent.slot()) };
+        let mut entry = base.clone();
+        let mut n = 2;
+        while self.agents.contains_key(&entry) {
+            entry = format!("{base}#{n}");
+            n += 1;
+        }
+        entry
+    }
+}
+
 /// Who is acting: one of your personas, or one of your agents.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Actor {
     Persona(String),
-    Agent(String),
+    Agent(AgentId),
 }
 
 /// One of your agents as it appears in one room.
@@ -172,6 +272,8 @@ pub const NOT_ADULT: &str = "Diverge is for adults. Confirm that you're 18 or ol
 /// What finishing the first-run page gets with no name.
 /// The same words are the screen's, in `src/strings.ts`.
 pub const NO_NAME: &str = "Type the name people should call you.";
+/// What anything gets for a local agent nobody added: no key is made for one.
+pub const NO_SUCH_LOCAL: &str = "No local agent goes by that id here.";
 
 /// Where a keys file from before accounts is kept, as it was, once it's upgraded.
 pub const BEFORE_ACCOUNTS: &str = "identity.v1.json";
@@ -451,18 +553,72 @@ impl Identity {
         self.lock().personas.iter().find(|p| p.id == id).and_then(|p| Keypair::from_secret_hex(&p.secret).ok())
     }
 
-    /// An agent's key, made on first use and tethered to the usual persona.
-    /// In a room where you're someone else, `agent_in` tethers a key per persona.
-    fn agent_keypair(&self, agent: &str, persona: &str) -> Keypair {
-        let slot = if persona == "usual" { agent.to_owned() } else { format!("{agent}@{persona}") };
+    /// An agent's key for the persona it acts for, made on first use. In a
+    /// room where you're someone else, `agent_in` tethers a key per persona.
+    /// A local agent gets keys only once it's been added ([`Identity::add_local`]):
+    /// nothing makes one for an id nobody added.
+    fn agent_keypair(&self, agent: &AgentId, persona: &str) -> Result<Keypair, String> {
         let mut keys = self.lock();
-        if let Some(k) = keys.agents.get(&slot).and_then(|a| Keypair::from_secret_hex(&a.secret).ok()) {
-            return k;
+        let found = keys.agent_entry(agent, persona).map(|(entry, a)| (entry.clone(), Keypair::from_secret_hex(&a.secret)));
+        if let Some((_, Ok(k))) = found {
+            return Ok(k);
         }
-        let keypair = if self.seeded { Keypair::from_seed(&format!("agent {slot}")) } else { Keypair::generate() };
-        keys.agents.insert(slot, AgentRecord { secret: keypair.secret_hex(), persona: persona.into() });
+        if matches!(agent, AgentId::Local(_)) && keys.agent_entry(agent, "usual").is_none() {
+            return Err(NO_SUCH_LOCAL.into());
+        }
+        let entry = found.map(|(entry, _)| entry).unwrap_or_else(|| keys.new_entry(agent, persona));
+        let seed = if persona == "usual" { agent.slot() } else { format!("{}@{persona}", agent.slot()) };
+        let keypair = if self.seeded { Keypair::from_seed(&format!("agent {seed}")) } else { Keypair::generate() };
+        let display = keys.agent_entry(agent, persona).and_then(|(_, a)| a.display.clone());
+        keys.agents.insert(entry, AgentRecord { secret: keypair.secret_hex(), persona: persona.into(), kind: agent.kind(), name: Some(agent.name().to_owned()), display });
         self.save(&keys);
-        keypair
+        Ok(keypair)
+    }
+
+    /// Add a local agent: one you already run yourself, which reaches the
+    /// app's door directly, under an id and a name to call it by. Its slot
+    /// is `local/<id>`, and its keys are its own: never a daemon agent's,
+    /// whatever that one is called. Adding it again renames it.
+    #[allow(dead_code)] // tests; nothing on the page adds a local agent yet
+    pub fn add_local(&self, id: &str, display: &str) -> Result<AgentId, String> {
+        self.ready()?;
+        let (id, display) = (id.trim(), display.trim());
+        if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c)) {
+            return Err("a local agent's id is letters, digits, dots, dashes and underscores".into());
+        }
+        if display.is_empty() {
+            return Err("a local agent needs a name".into());
+        }
+        let agent = AgentId::Local(id.to_owned());
+        let mut keys = self.lock();
+        let entry = keys.agent_entry(&agent, "usual").map(|(entry, _)| entry.clone());
+        match entry {
+            Some(entry) => {
+                if let Some(a) = keys.agents.get_mut(&entry) {
+                    a.display = Some(display.to_owned());
+                }
+            }
+            None => {
+                let keypair = if self.seeded { Keypair::from_seed(&format!("agent {}", agent.slot())) } else { Keypair::generate() };
+                let entry = keys.new_entry(&agent, "usual");
+                keys.agents.insert(entry, AgentRecord { secret: keypair.secret_hex(), persona: "usual".into(), kind: AgentKind::Local, name: Some(id.to_owned()), display: Some(display.to_owned()) });
+            }
+        }
+        self.save(&keys);
+        Ok(agent)
+    }
+
+    /// Whether a local agent by this id has been added.
+    pub fn is_local(&self, id: &str) -> bool {
+        self.lock().agent_entry(&AgentId::Local(id.to_owned()), "usual").is_some()
+    }
+
+    /// The key an agent already holds in a room, if it holds one there.
+    /// Nothing is made: an agent with no key there isn't in it.
+    pub fn agent_key(&self, agent: &AgentId, room: &str) -> Option<Key> {
+        let persona = self.lock().rooms.get(room).cloned().unwrap_or_else(|| "usual".into());
+        let keys = self.lock();
+        keys.agent_entry(agent, &persona).and_then(|(_, a)| Keypair::from_secret_hex(&a.secret).ok()).map(|k| k.key())
     }
 
     /// The key an agent acts under in a room, its tether to the persona you
@@ -470,21 +626,31 @@ impl Identity {
     /// fresh name, your agent gets a fresh key and a plain name ("lamp
     /// person's helper"), never the name it has with you. Nothing, before
     /// the first-run page is finished: a tether is signed.
-    pub fn agent_in(&self, agent: &str, room: Option<&str>) -> Result<AgentIn, String> {
+    pub fn agent_in(&self, agent: &AgentId, room: Option<&str>) -> Result<AgentIn, String> {
         self.ready()?;
         let persona = room.and_then(|r| self.lock().rooms.get(r).cloned()).unwrap_or_else(|| "usual".into());
-        let keypair = self.agent_keypair(agent, &persona);
+        let keypair = self.agent_keypair(agent, &persona)?;
         let person = self.persona_keypair(&persona).or_else(|| self.persona_keypair("usual")).ok_or(NOT_NAMED)?;
         let name = if persona == "usual" {
-            agent.to_owned()
+            self.lock().agent_entry(agent, "usual").and_then(|(_, a)| a.display.clone()).unwrap_or_else(|| agent.name().to_owned())
         } else {
             let keys = self.lock();
             let who = keys.personas.iter().find(|p| p.id == persona).map(|p| p.name.clone()).unwrap_or_default();
-            // The helpers of one fresh name, numbered by name.
-            let n = keys.agents.iter().filter(|(_, a)| a.persona == persona).position(|(slot, _)| slot.split('@').next() == Some(agent)).unwrap_or(0);
+            // The helpers of one fresh name, numbered in the order the file keeps them.
+            let n = keys.agents.iter().filter(|(_, a)| a.persona == persona).position(|(entry, a)| &a.agent(entry) == agent).unwrap_or(0);
             if n == 0 { format!("{who}'s helper") } else { format!("{who}'s helper {}", n + 1) }
         };
         Ok(AgentIn { key: keypair.key(), tether: tether(&person, &keypair.key(), &name), name })
+    }
+
+    /// Which of your agents holds this key, in whichever room.
+    fn agent_by_key(&self, key: &str) -> Option<(AgentId, Option<String>)> {
+        let keys = self.lock();
+        keys.agents.iter().find(|(_, a)| Keypair::from_secret_hex(&a.secret).map(|k| k.key() == key).unwrap_or(false)).map(|(entry, a)| {
+            let agent = a.agent(entry);
+            let display = keys.agent_entry(&agent, "usual").and_then(|(_, u)| u.display.clone());
+            (agent, display)
+        })
     }
 
     /// Whose key it is, if it's one of yours: a persona's name or an agent's.
@@ -492,16 +658,20 @@ impl Identity {
         if let Some(p) = self.persona_by_key(key) {
             return Some(p.name);
         }
-        let keys = self.lock();
-        keys.agents.iter().find(|(_, a)| Keypair::from_secret_hex(&a.secret).map(|k| k.key() == key).unwrap_or(false)).map(|(slot, _)| slot.split('@').next().unwrap_or(slot).to_owned())
+        self.agent_by_key(key).map(|(agent, display)| display.unwrap_or_else(|| agent.name().to_owned()))
+    }
+
+    /// The slot of the agent of yours that holds this key, if one does.
+    pub fn slot_of(&self, key: &str) -> Option<String> {
+        self.agent_by_key(key).map(|(agent, _)| agent.slot())
     }
 
     fn keypair_for(&self, actor: &Actor, room: &str) -> Result<Keypair, String> {
         match actor {
             Actor::Persona(id) => self.persona_keypair(id).ok_or_else(|| "no such persona".into()),
-            Actor::Agent(name) => {
+            Actor::Agent(agent) => {
                 let persona = self.lock().rooms.get(room).cloned().unwrap_or_else(|| "usual".into());
-                Ok(self.agent_keypair(name, &persona))
+                self.agent_keypair(agent, &persona)
             }
         }
     }
@@ -575,8 +745,8 @@ mod tests {
         assert_ne!(fresh.key, usual.key, "a fresh persona is a different key");
         me.set_room("room-1", &fresh.id);
         assert_eq!(me.you_in("room-1"), Actor::Persona(fresh.id.clone()));
-        let there = me.agent_in("site-fixes", Some("room-1")).unwrap();
-        let usual_agent = me.agent_in("site-fixes", None).unwrap();
+        let there = me.agent_in(&AgentId::daemon("site-fixes"), Some("room-1")).unwrap();
+        let usual_agent = me.agent_in(&AgentId::daemon("site-fixes"), None).unwrap();
         let agent_there = there.key.clone();
         assert_ne!(agent_there, usual_agent.key, "anonymous there, anonymous agent there");
         assert!(there.tether.holds() && there.tether.key == fresh.key);
@@ -602,6 +772,81 @@ mod tests {
             assert_eq!(std::fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o600, "owner-only");
         }
         let _ = std::fs::remove_file(&file);
+    }
+
+    /// A local agent and a daemon agent are never one agent, whatever
+    /// they're called: each holds its own key, in every room, after a
+    /// restart too. And a daemon agent named like another's slot, or like
+    /// a fresh name's helper, holds its own as well.
+    #[test]
+    fn local_and_daemon_agents_of_one_name_hold_different_keys_that_survive_a_reopen() {
+        let dir = store::tests::folder("keys-local-agents");
+        let file = dir.join("identity.json");
+        let me = Identity::open(file.clone());
+        me.finish_first_run("Ada", true).unwrap();
+        let local = AgentId::Local("claude".into());
+        assert_eq!(me.agent_in(&local, None).unwrap_err(), NO_SUCH_LOCAL, "no key for a local agent nobody added");
+        assert!(me.agent_key(&local, "room-1").is_none());
+        assert_eq!(me.add_local("claude", "Claude Code").unwrap(), local);
+        assert_eq!(local.slot(), "local/claude");
+        let daemon = AgentId::daemon("claude");
+        assert_eq!(daemon.slot(), "claude");
+        let (d, l) = (me.agent_in(&daemon, None).unwrap(), me.agent_in(&local, None).unwrap());
+        assert_ne!(d.key, l.key, "one name, two agents, two keys");
+        assert_eq!((d.name.as_str(), l.name.as_str()), ("claude", "Claude Code"), "a local agent goes by the name it was added with");
+        // A daemon agent whose name looks like the local one's slot is still a daemon agent.
+        let lookalike = AgentId::daemon("local/claude");
+        assert_eq!(lookalike.slot(), "daemon/local/claude");
+        let x = me.agent_in(&lookalike, None).unwrap();
+        assert!(x.key != d.key && x.key != l.key);
+        // In a room where you're a fresh name, each gets a key of its own there.
+        let fresh = me.fresh("lamp person").unwrap();
+        me.set_room("room-1", &fresh.id);
+        let (d1, l1) = (me.agent_in(&daemon, Some("room-1")).unwrap(), me.agent_in(&local, Some("room-1")).unwrap());
+        assert!(d1.key != l1.key && d1.key != d.key && l1.key != l.key);
+        // A daemon agent called "claude@persona-2" isn't "claude" in that fresh name's rooms.
+        let at = AgentId::daemon(&format!("claude@{}", fresh.id));
+        assert_ne!(me.agent_in(&at, None).unwrap().key, d1.key);
+        assert_eq!(me.slot_of(&l1.key).as_deref(), Some("local/claude"));
+        assert_eq!(me.owner_of(&l.key).as_deref(), Some("Claude Code"));
+        // After a restart: the same keys, each the same agent's.
+        let again = Identity::open(file.clone());
+        assert!(again.is_local("claude") && !again.is_local("someone"));
+        assert_eq!(again.agent_key(&daemon, "elsewhere"), Some(d.key.clone()));
+        assert_eq!(again.agent_key(&local, "elsewhere"), Some(l.key.clone()));
+        assert_eq!(again.agent_key(&daemon, "room-1"), Some(d1.key.clone()));
+        assert_eq!(again.agent_key(&local, "room-1"), Some(l1.key.clone()));
+        assert_eq!(again.agent_in(&lookalike, None).unwrap().key, x.key);
+        assert_eq!(again.slot_of(&d.key).as_deref(), Some("claude"));
+        assert_eq!(again.slot_of(&x.key).as_deref(), Some("daemon/local/claude"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A keys file from before local agents names agents only by entry,
+    /// with no kind: each is read as the daemon agent it was.
+    #[test]
+    fn agents_from_before_local_agents_are_the_daemon_agents_they_were() {
+        let dir = store::tests::folder("keys-agents-before-kinds");
+        let file = dir.join("identity.json");
+        let (usual, fresh, plain, helper) = (Keypair::generate(), Keypair::generate(), Keypair::generate(), Keypair::generate());
+        let old = json!({ "file": "keys", "version": store::KEYS.version, "data": {
+            "personas": [
+                { "id": "usual", "name": "maya", "secret": usual.secret_hex(), "created": Utc::now(), "usual": true },
+                { "id": "persona-2", "name": "lamp person", "secret": fresh.secret_hex(), "created": Utc::now(), "usual": false }
+            ],
+            "agents": {
+                "site-fixes": { "secret": plain.secret_hex(), "persona": "usual" },
+                "site-fixes@persona-2": { "secret": helper.secret_hex(), "persona": "persona-2" }
+            },
+            "rooms": { "room-1": "persona-2" }
+        } });
+        std::fs::write(&file, old.to_string()).unwrap();
+        let me = Identity::open(file.clone());
+        let agent = AgentId::daemon("site-fixes");
+        assert_eq!(me.agent_key(&agent, "elsewhere"), Some(plain.key()));
+        assert_eq!(me.agent_key(&agent, "room-1"), Some(helper.key()));
+        assert!(me.agent_key(&AgentId::Local("site-fixes".into()), "elsewhere").is_none(), "and none of them is a local agent");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -663,7 +908,7 @@ mod tests {
         }
         me.fresh("anyone").ok();
         me.set_room("room-1", "usual");
-        me.agent_in("site-fixes", Some("room-1")).ok();
+        me.agent_in(&AgentId::daemon("site-fixes"), Some("room-1")).ok();
     }
 
     #[test]
@@ -785,7 +1030,7 @@ mod tests {
         assert_eq!(me.seal(&Actor::Persona("usual".into()), "room-1", &mut params).unwrap(), you.key, "now it signs");
         assert!(me.finish_first_run("someone else", true).is_err(), "once");
         me.fresh("lamp person").unwrap();
-        me.agent_in("site-fixes", None).unwrap();
+        me.agent_in(&AgentId::daemon("site-fixes"), None).unwrap();
         let mut files = Vec::new();
         every_file(&dir, &mut files);
         assert!(files.iter().any(|f| f.ends_with("identity.json")), "{files:?}");
@@ -856,7 +1101,7 @@ mod tests {
         // Nothing lost: the fresh name, the agent, the rooms.
         assert_eq!(me.persona("persona-2").map(|p| p.key), Some(fresh.key()));
         assert_eq!(me.in_room("elsewhere").map(|p| p.key), Some(fresh.key()));
-        assert_eq!(me.agent_in("site-fixes", Some(room.id())).unwrap().key, agent.key());
+        assert_eq!(me.agent_in(&AgentId::daemon("site-fixes"), Some(room.id())).unwrap().key, agent.key());
         // And the room it hosts takes its seals, as it did.
         let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "still me" }).as_object().cloned().unwrap());
         me.seal(&me.you_in(room.id()), room.id(), &mut params).unwrap();
@@ -877,7 +1122,7 @@ mod tests {
         // Everything that writes keys, once more.
         let fresh = me.fresh("lamp person").unwrap();
         me.set_room("room-1", &fresh.id);
-        me.agent_in("site-fixes", Some("room-1")).unwrap();
+        me.agent_in(&AgentId::daemon("site-fixes"), Some("room-1")).unwrap();
         let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
         me.seal(&Actor::Persona("usual".into()), "room-1", &mut params).unwrap();
         let words = me.words().unwrap();
