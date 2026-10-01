@@ -6,8 +6,8 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them all; change what one mounts; make, list and delete the templates agents are made from |
-//! | [`tools`] | create a tool under a name; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them all; make, list and delete the templates tools are made from |
+//! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them all; change what one mounts; tag one and untag one; make, list, delete, tag and untag the templates agents are made from |
+//! | [`tools`] | create a tool under a name; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them all; tag one and untag one; make, list, delete, tag and untag the templates tools are made from |
 //! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
 //!
 //! # The tags
@@ -25,24 +25,32 @@
 //! | `3` | [`agents::logs`] |
 //! | `4` | [`agents::list`] |
 //! | `5` | [`agents::edit`] |
-//! | `6` | [`agents::templates::create`] |
-//! | `7` | [`agents::templates::list`] |
-//! | `8` | [`agents::templates::delete`] |
-//! | `9` | [`tools::create`] |
-//! | `10` | [`tools::edit`] |
-//! | `11` | [`tools::connect`] |
-//! | `12` | [`tools::attach`] |
-//! | `13` | [`tools::detach`] |
-//! | `14` | [`tools::delete`] |
-//! | `15` | [`tools::list`] |
-//! | `16` | [`tools::templates::create`] |
-//! | `17` | [`tools::templates::list`] |
-//! | `18` | [`tools::templates::delete`] |
-//! | `19` | [`resources::upload`] |
-//! | `20` | [`resources::list`] |
-//! | `21` | [`resources::delete`] |
+//! | `6` | [`agents::tag`] |
+//! | `7` | [`agents::untag`] |
+//! | `8` | [`agents::templates::create`] |
+//! | `9` | [`agents::templates::list`] |
+//! | `10` | [`agents::templates::delete`] |
+//! | `11` | [`agents::templates::tag`] |
+//! | `12` | [`agents::templates::untag`] |
+//! | `13` | [`tools::create`] |
+//! | `14` | [`tools::edit`] |
+//! | `15` | [`tools::connect`] |
+//! | `16` | [`tools::attach`] |
+//! | `17` | [`tools::detach`] |
+//! | `18` | [`tools::delete`] |
+//! | `19` | [`tools::list`] |
+//! | `20` | [`tools::tag`] |
+//! | `21` | [`tools::untag`] |
+//! | `22` | [`tools::templates::create`] |
+//! | `23` | [`tools::templates::list`] |
+//! | `24` | [`tools::templates::delete`] |
+//! | `25` | [`tools::templates::tag`] |
+//! | `26` | [`tools::templates::untag`] |
+//! | `27` | [`resources::upload`] |
+//! | `28` | [`resources::list`] |
+//! | `29` | [`resources::delete`] |
 //!
-//! Twenty-two, so far. Tags are handed out in the order scopes are defined
+//! Thirty, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

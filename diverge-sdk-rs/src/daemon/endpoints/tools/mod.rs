@@ -5,9 +5,9 @@
 //! holds under a name of the caller's choosing. It comes to be one of
 //! two ways: a [`create`] makes it from a [`template`](templates) —
 //! the image, the limits, the resources and the arguments, held by
-//! its hash — with the provider it is pinned to, the mounts and the
-//! tags that are its own, exactly as an [`agent`](super::agents) is,
-//! and the daemon runs it; or a [`connect`] names a container somebody
+//! its hash — with the provider it is pinned to and the mounts that
+//! are its own, exactly as an [`agent`](super::agents) is, and the
+//! daemon runs it; or a [`connect`] names a container somebody
 //! else runs, by its provider, its id and an authorization, and the
 //! daemon joins it with the provider protocol's
 //! `containers::tools::connect` and never runs it. Whom a daemon
@@ -35,7 +35,8 @@
 //! put it on an agent and take it off, the attach allowed while the
 //! agent is active and the detach only while it is not; [`delete`]
 //! removes a tool that is attached nowhere; [`list`] names every one
-//! the caller has, with the agents each is attached to.
+//! the caller has, with the agents each is attached to and its tags;
+//! [`tag`] and [`untag`] change a tool's tags.
 
 pub mod attach;
 pub mod connect;
@@ -44,4 +45,6 @@ pub mod delete;
 pub mod detach;
 pub mod edit;
 pub mod list;
+pub mod tag;
 pub mod templates;
+pub mod untag;

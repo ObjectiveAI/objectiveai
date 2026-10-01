@@ -12,8 +12,8 @@ use super::{FuseMount, Provider};
 /// limits, the resources, the arguments — is the
 /// [`template`](Self::template), named by its id; what is this
 /// agent's own is here: the provider it runs on with the volumes it
-/// mounts there, its FUSE mounts of providers' volumes, the name
-/// the agent is held under from then on, and its tags. The provider is the agent's
+/// mounts there, its FUSE mounts of providers' volumes, and the name
+/// the agent is held under from then on. The provider is the agent's
 /// and not the template's so that a template can be shared. What a caller may not choose is not here at
 /// all rather than here and ignored: the container's name, its
 /// ports, its entrypoint and its environment are the provider's,
@@ -81,11 +81,6 @@ pub struct Frame {
     pub fuse_directory_mounts: Vec<FuseMount>,
     /// The name, unique among the caller's agents.
     pub name: String,
-    /// Tags: strings of the caller's choosing, in the order given,
-    /// the agent's for its life. Nothing here constrains a tag's form; the daemon compares
-    /// a tag and does not read it. Absent when empty.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
 }
 
 /// This frame's tag among the scope-opening requests.

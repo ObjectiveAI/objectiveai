@@ -4,9 +4,9 @@
 //! A template is everything about an agent or a tool that is not its
 //! name, not the provider it runs on and not its own mounts: the
 //! image, the limits, the [resources](crate::daemon::endpoints::resources)
-//! it serves over FUSE into every container made from it, the
-//! arguments, and its tags — so that a template is shareable, the
-//! same template on any daemon hashing the same, tags included. The shape is one, [`Template`],
+//! it serves over FUSE into every container made from it, and the
+//! arguments — so that a template is shareable, the same template on
+//! any daemon hashing the same. The shape is one, [`Template`],
 //! written once here; which of the two it is for is its `type`, the
 //! first member, `"agent"` for an
 //! [agent template](crate::daemon::endpoints::agents::templates) and

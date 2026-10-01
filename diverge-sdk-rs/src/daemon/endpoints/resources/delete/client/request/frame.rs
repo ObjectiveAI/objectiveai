@@ -32,7 +32,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 21;
+const TAG: u8 = 29;
 
 /// JSON, as the rest of the daemon's requests are: one string.
 impl Encode for Frame {

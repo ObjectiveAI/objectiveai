@@ -64,11 +64,6 @@ pub struct Frame {
     pub fuse_directory_mounts: Vec<FuseMount>,
     /// The name, unique among the caller's tools.
     pub name: String,
-    /// Tags: strings of the caller's choosing, in the order given,
-    /// the tool's for its life. Nothing here constrains a tag's form; the daemon compares
-    /// a tag and does not read it. Absent when empty.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -83,7 +78,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 9;
+const TAG: u8 = 13;
 
 /// JSON, as every request of the daemon's is.
 impl Encode for Frame {

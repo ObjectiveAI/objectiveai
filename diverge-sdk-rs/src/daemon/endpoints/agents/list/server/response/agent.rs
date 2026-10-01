@@ -47,7 +47,8 @@ pub struct Agent {
     /// from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<String>,
-    /// Its tags, as its create gave them. Absent when empty.
+    /// Its tags, sorted bytewise: what [`tag`](crate::daemon::endpoints::agents::tag) put on it and
+    /// [`untag`](crate::daemon::endpoints::agents::untag) has not taken off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
 }

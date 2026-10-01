@@ -36,8 +36,8 @@ pub struct Tool {
     /// list reports the same attachments from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<String>,
-    /// Its tags, as its create or its connect gave them. Absent when
-    /// empty.
+    /// Its tags, sorted bytewise: what [`tag`](crate::daemon::endpoints::tools::tag) put on it and
+    /// [`untag`](crate::daemon::endpoints::tools::untag) has not taken off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
 }
