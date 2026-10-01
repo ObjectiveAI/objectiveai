@@ -983,6 +983,8 @@ pub async fn spaces_continue(state: State<'_, AppState>, id: String) -> Result<H
         continues: Some(diverge_desktop_room::Continues { room: old.args.id.clone(), title: old.args.title.clone(), last: old.last_hash() }),
         room_key: room_key.key(),
         at: chrono::Utc::now(),
+        rules: 1,
+        host_account: None,
         sig: String::new(),
     };
     let arguments = room_arguments(&state, args, &room_key, Some(copy))?;
@@ -1044,6 +1046,8 @@ async fn host_space(state: &AppState, input: HostSpaceInput) -> Result<HostOutco
         continues: None,
         room_key: room_key.key(),
         at: chrono::Utc::now(),
+        rules: 1,
+        host_account: None,
         sig: String::new(),
     };
     let arguments = room_arguments(state, args, &room_key, None)?;

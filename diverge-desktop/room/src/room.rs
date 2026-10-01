@@ -27,10 +27,17 @@
 //!   matched against the same key elsewhere. Their moves name their key, as
 //!   everyone's do.
 //!
+//! - **Rules have versions.** A room's settings say which rules it runs
+//!   under, and a replay picks them by that number. Under rules 1 a member
+//!   is a key. Under rules 2 a person is their account (see
+//!   [`crate::account`]): any key on its newest device list acts for them, a
+//!   `keys` move brings a newer list, and the room's id names the host's
+//!   account, so the host can act from any of its devices.
+//!
 //! One thing no record can show is what came after it: a copy that stops
 //! early is a true copy of an earlier moment. Copies say when they end.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -43,7 +50,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use tokio::sync::broadcast;
 
-use crate::seal::{Key, Keypair, Seal, Statement, canonical, check_call, countersigned, digest, fingerprint, id_holds, recheck, statement_holds};
+use crate::account::Proof;
+use crate::seal::{Key, Keypair, Seal, Statement, account_id_holds, canonical, check_call, countersigned, digest, fingerprint, id_holds, recheck, statement_holds};
 
 pub const FEED: &str = "space://feed";
 pub const CHARTER: &str = "space://charter";
@@ -55,6 +63,50 @@ pub const RECORD: &str = "space://record";
 
 /// The `_meta` key that marks a verb only the host may use.
 pub const META_HOST_ONLY: &str = "network.diverge.desktop/host_only";
+
+/// What a call from a key the room doesn't know gets. Under rules 2 it may
+/// be a member's device the room hasn't been shown: their `keys` move first.
+pub const NOT_A_MEMBER: &str = "that key is not a member here";
+
+/// The rules a room runs under, by the number its settings carry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Rules {
+    /// The first rules: a member is a key.
+    One,
+    /// A person is their account: any key on its newest device list acts for them.
+    Two,
+}
+
+impl Rules {
+    pub fn of(number: u32) -> Result<Rules, String> {
+        match number {
+            1 => Ok(Rules::One),
+            2 => Ok(Rules::Two),
+            n => Err(format!("this room runs under rules number {n}, and this program knows only rules 1 and 2, so it won't run or check it")),
+        }
+    }
+}
+
+fn rules_one() -> u32 {
+    1
+}
+
+fn is_rules_one(number: &u32) -> bool {
+    *number == 1
+}
+
+/// Where someone stands in a room, as its record has it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Standing {
+    /// Let in, and on the list or acted since; not removed.
+    Member,
+    /// Let in unlisted and never acted: the record knows them by this mark only.
+    Unlisted { mark: String },
+    /// Let in once, then removed.
+    Removed,
+    /// Never let in.
+    Stranger,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -105,6 +157,14 @@ pub struct Args {
     pub room_key: Key,
     /// When the host made the room.
     pub at: DateTime<Utc>,
+    /// The rules the room runs under. Rules 1 aren't written down, so
+    /// settings from before rules had numbers read and sign as they did.
+    #[serde(default = "rules_one", skip_serializing_if = "is_rules_one")]
+    pub rules: u32,
+    /// Under rules 2: the host's account, which names `host_key` as one of
+    /// its devices. The room's id names this account, not the key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_account: Option<Proof>,
     /// The host's signature over everything above.
     #[serde(default)]
     pub sig: String,
@@ -127,15 +187,42 @@ impl Args {
         self
     }
 
-    /// Whether these are settings their host made: the id is theirs and they signed it all.
+    /// Whether these are settings their host made, under rules this program
+    /// knows: the id is theirs and they signed it all. Under rules 2 the id
+    /// is their account's, and the key that signed is one of its devices.
     pub fn holds(&self) -> Result<(), String> {
-        if !id_holds(&self.id, &self.host_key) {
-            return Err(format!("{} isn't an id its host could have made", self.id));
+        match Rules::of(self.rules)? {
+            Rules::One => {
+                if self.host_account.is_some() {
+                    return Err("settings under rules 1 name no account".into());
+                }
+                if !id_holds(&self.id, &self.host_key) {
+                    return Err(format!("{} isn't an id its host could have made", self.id));
+                }
+            }
+            Rules::Two => {
+                let account = self.host_account.as_ref().ok_or("settings under rules 2 name their host's account")?.check()?;
+                if !account_id_holds(&self.id, &account.id) {
+                    return Err(format!("{} isn't an id its host's account could have made", self.id));
+                }
+                if !account.devices.contains(&self.host_key) {
+                    return Err("the key that signed these settings isn't on its host's device list".into());
+                }
+            }
         }
         if !statement_holds(&self.host_key, "room", &self.body(), &self.sig) {
             return Err("this room's settings aren't signed by its host".into());
         }
         Ok(())
+    }
+
+    /// Who hosts the room, as its members are keyed: the host's key under
+    /// rules 1, their account under rules 2.
+    pub fn host_id(&self) -> String {
+        match &self.host_account {
+            Some(account) if self.rules == 2 => account.id(),
+            _ => self.host_key.clone(),
+        }
     }
 }
 
@@ -170,6 +257,10 @@ pub struct Member {
     pub listed: bool,
     pub joined: DateTime<Utc>,
     pub removed: bool,
+    /// Under rules 2, a person's account: its genesis and the newest device
+    /// list the room has been shown. `key` is then the account's id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<Proof>,
 }
 
 /// One move, as it was made. Never changed afterwards.
@@ -180,6 +271,10 @@ pub struct Move {
     pub kind: String,
     /// The key that made it.
     pub by: Key,
+    /// Under rules 2, the member it acts for when that isn't the key: a
+    /// person's account, acting from one of its devices.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub member: Option<String>,
     /// The name that key was admitted under.
     pub author: String,
     /// For an agent: the name of the person it acts for.
@@ -206,6 +301,11 @@ pub struct Move {
 }
 
 impl Move {
+    /// The member who made it: their account under rules 2, their key otherwise.
+    pub fn actor(&self) -> &str {
+        self.member.as_deref().unwrap_or(&self.by)
+    }
+
     fn content_hash(&self) -> String {
         let mut v = serde_json::to_value(self).unwrap_or_default();
         if let Some(o) = v.as_object_mut() {
@@ -229,6 +329,24 @@ pub fn key_mark(room: &str, key: &str) -> String {
     digest(format!("diverge-desktop member\n{room}\n{key}").as_bytes())[..32].to_owned()
 }
 
+/// Who sealed a receipt, if the room it names is theirs: the sealing key,
+/// for a room under rules 1; for a room under rules 2, the account the
+/// receipt carries, which must name that key and be the one the id names.
+pub fn receipt_issuer(s: &Statement) -> Option<String> {
+    let room = s.field("room")?;
+    match s.body.get("host_account") {
+        None => id_holds(room, &s.key).then(|| s.key.clone()),
+        Some(v) => {
+            let account = serde_json::from_value::<Proof>(v.clone()).ok()?.check().ok()?;
+            (account_id_holds(room, &account.id) && account.devices.contains(&s.key)).then_some(account.id)
+        }
+    }
+}
+
+fn proof_arg(args: &JsonObject) -> Result<Proof, ErrorData> {
+    serde_json::from_value(args.get("account").cloned().unwrap_or_default()).map_err(|_| bad("account needs an account's genesis and device list"))
+}
+
 /// No host at all: for replaying a record, which never asks one.
 pub struct NoHost;
 
@@ -247,6 +365,7 @@ struct Charter {
 
 pub struct Room {
     pub args: Args,
+    rules: Rules,
     /// The room's own key, when this is the room itself; `None` for a copy
     /// someone is checking, which can't make new moves.
     room_key: Option<Keypair>,
@@ -258,6 +377,12 @@ pub struct Room {
     counters: HashMap<Key, u64>,
     /// Let in unlisted, not yet acted: their key's mark → the name they gave, and when.
     unlisted: HashMap<String, (String, DateTime<Utc>)>,
+    /// Marks of people let in unlisted and removed before they acted.
+    gone: HashSet<String>,
+    /// Under rules 2: each key on a person's current device list → their account.
+    devices: HashMap<Key, String>,
+    /// Under rules 2: keys a newer device list left off → the account they were on.
+    retired: HashMap<Key, String>,
     /// The room this one continues, rebuilt from its record by replay.
     old: Option<Box<Room>>,
     live: broadcast::Sender<ServerNotification>,
@@ -324,6 +449,7 @@ impl Room {
     /// whoever starts it was still in that room.
     pub fn open(args: Args, room_key: Option<Keypair>, before: Option<Record>) -> Result<Room, String> {
         args.holds()?;
+        let rules = Rules::of(args.rules)?;
         if let Some(k) = &room_key {
             if k.key() != args.room_key {
                 return Err("that isn't this room's key".into());
@@ -339,7 +465,9 @@ impl Room {
                 if old.last_hash() != c.last {
                     return Err("that record doesn't end where the room it continues ended".into());
                 }
-                let still_in = args.host_key == b.args.host_key || old.members.get(&args.host_key).is_some_and(|m| !m.removed && !m.is_agent);
+                // Whoever starts it, as the old room knew them: by key, by account, or by any key on their list.
+                let devices = args.host_account.as_ref().and_then(|p| p.check().ok()).map(|a| a.devices).unwrap_or_default();
+                let still_in = std::iter::once(args.host_id()).chain(std::iter::once(args.host_key.clone())).chain(devices).any(|who| old.person_in(&who));
                 if !still_in {
                     return Err("only someone still in a room may continue it".into());
                 }
@@ -350,12 +478,30 @@ impl Room {
         };
         let (live, _) = broadcast::channel(256);
         let charter = Charter { fingerprint: fingerprint(&args.charter), text: args.charter.clone(), at: args.at };
+        let host = args.host_id();
+        let account = if rules == Rules::Two { args.host_account.clone() } else { None };
+        let mut devices = HashMap::new();
+        for device in account.as_ref().and_then(|p| p.check().ok()).map(|a| a.devices).unwrap_or_default() {
+            devices.insert(device, host.clone());
+        }
         let mut members = IndexMap::new();
-        members.insert(
-            args.host_key.clone(),
-            Member { key: args.host_key.clone(), name: args.host_name.clone(), is_agent: false, agent_of: None, agent_of_name: None, listed: true, joined: args.at, removed: false },
-        );
-        Ok(Room { args, room_key, charters: vec![charter], members, moves: Vec::new(), derived: HashMap::new(), counters: HashMap::new(), unlisted: HashMap::new(), old, live })
+        members.insert(host.clone(), Member { key: host, name: args.host_name.clone(), is_agent: false, agent_of: None, agent_of_name: None, listed: true, joined: args.at, removed: false, account });
+        Ok(Room {
+            args,
+            rules,
+            room_key,
+            charters: vec![charter],
+            members,
+            moves: Vec::new(),
+            derived: HashMap::new(),
+            counters: HashMap::new(),
+            unlisted: HashMap::new(),
+            gone: HashSet::new(),
+            devices,
+            retired: HashMap::new(),
+            old,
+            live,
+        })
     }
 
     /// A room rebuilt from its record, every move replayed under the rules a
@@ -403,9 +549,65 @@ impl Room {
         self.members.get(key)
     }
 
-    /// Whether this key may still read the room: someone let in, not removed.
-    pub fn may_read(&self, key: &str) -> bool {
-        self.members.get(key).is_some_and(|m| !m.removed) || self.unlisted.contains_key(&key_mark(&self.args.id, key))
+    pub fn rules(&self) -> Rules {
+        self.rules
+    }
+
+    /// The member a key acts for: under rules 2, the account whose current
+    /// device list names it; otherwise the key itself.
+    pub fn member_id(&self, who: &str) -> String {
+        self.devices.get(who).cloned().unwrap_or_else(|| who.to_owned())
+    }
+
+    /// Whether someone (a key, or under rules 2 an account) may still read
+    /// the room: let in, not removed.
+    pub fn may_read(&self, who: &str) -> bool {
+        let id = self.member_id(who);
+        self.members.get(&id).is_some_and(|m| !m.removed) || self.unlisted.contains_key(&key_mark(&self.args.id, &id))
+    }
+
+    /// Where someone stands here (a key, or under rules 2 an account or any
+    /// key on its current list), as the record has it. Reads; changes nothing.
+    pub fn standing(&self, who: &str) -> Standing {
+        let id = self.member_id(who);
+        let mark = key_mark(&self.args.id, &id);
+        match self.members.get(&id) {
+            Some(m) if m.removed => Standing::Removed,
+            Some(_) => Standing::Member,
+            None if self.unlisted.contains_key(&mark) => Standing::Unlisted { mark },
+            None if self.gone.contains(&mark) => Standing::Removed,
+            None => Standing::Stranger,
+        }
+    }
+
+    /// Whether someone is a person still in the room (not an agent).
+    fn person_in(&self, who: &str) -> bool {
+        self.members.get(&self.member_id(who)).is_some_and(|m| !m.removed && !m.is_agent)
+    }
+
+    /// Whether a key is the host's: theirs under rules 1, on their account's current list under rules 2.
+    fn host_holds(&self, key: &str) -> bool {
+        self.member_id(key) == self.args.host_id()
+    }
+
+    /// A person's current devices: those before that the list leaves off retire.
+    fn set_devices(&mut self, id: &str, devices: &[Key]) {
+        let before: Vec<Key> = self.devices.iter().filter(|(_, m)| m.as_str() == id).map(|(k, _)| k.clone()).collect();
+        for k in before {
+            if !devices.contains(&k) {
+                self.devices.remove(&k);
+                self.retired.insert(k, id.to_owned());
+            }
+        }
+        for d in devices {
+            self.retired.remove(d);
+            self.devices.insert(d.clone(), id.to_owned());
+        }
+    }
+
+    /// The keys a person's list names, when one of them already acts for someone else here.
+    fn taken(&self, id: &str, devices: &[Key]) -> bool {
+        devices.iter().any(|d| self.devices.get(d).is_some_and(|m| m != id) || (self.members.contains_key(d) && d != id))
     }
 
     pub fn last_hash(&self) -> String {
@@ -526,19 +728,28 @@ impl Room {
             ]),
             Kind::Dm | Kind::Profile => {}
         }
+        if self.rules == Rules::Two {
+            tools.push(verb(
+                "keys",
+                "Bring your account's newest device list: the keys that act for you now. A key it leaves off can't act here any more.",
+                json!({ "account": { "type": "object", "description": "Your account's genesis and its newest device list." } }),
+                &["account"],
+            ));
+        }
         // The host's own verbs.
         tools.push(host_only(verb(
             "admit",
             "Let someone in: a person you said yes to at the door, or an agent tethered to a member.",
             json!({
-                "key": { "type": "string" },
+                "key": { "type": "string", "description": "An agent's key; under rules 1, a person's too." },
+                "account": { "type": "object", "description": "Under rules 2: the person's account, its genesis and newest device list." },
                 "name": { "type": "string" },
                 "is_agent": { "type": "boolean" },
                 "agent_of": { "type": "string", "description": "For an agent: its person's key." },
                 "tether": { "type": "object", "description": "For an agent: its person's statement that the key is theirs." },
                 "listed": { "type": "boolean", "description": "Whether they asked to be on the room's list." }
             }),
-            &["key", "name"],
+            &["name"],
         )));
         tools.push(host_only(verb(
             "remove",
@@ -576,8 +787,11 @@ impl Room {
         let (text, mime) = match uri {
             FEED => {
                 // Someone who asked not to be listed isn't announced, nor a removal the host kept quiet; the record holds both.
+                // Nor a member bringing their device list: that's for the room to check, not to announce.
                 let shown = |m: &&Move| {
-                    !(m.kind == "admitted" && m.args.get("listed").and_then(Value::as_bool) == Some(false)) && !(m.kind == "removed" && m.args.get("quiet").and_then(Value::as_bool) == Some(true))
+                    !(m.kind == "admitted" && m.args.get("listed").and_then(Value::as_bool) == Some(false))
+                        && !(m.kind == "removed" && m.args.get("quiet").and_then(Value::as_bool) == Some(true))
+                        && m.kind != "keys"
                 };
                 // The room it continues, as that room had it: a task finished there reads finished here.
                 let history: Vec<Value> = match &self.old {
@@ -594,8 +808,10 @@ impl Room {
                     // An agent is listed only if its person is: listing it would name them.
                     .filter(|m| m.listed && !m.removed && m.agent_of.as_ref().is_none_or(|p| self.members.get(p).is_some_and(|o| o.listed)))
                     .map(|m| {
-                        let last = self.moves.iter().rev().find(|x| x.by == m.key).map(|x| x.at);
-                        json!({ "name": m.name, "key": m.key, "is_agent": m.is_agent, "agent_of": m.agent_of_name, "agent_of_key": m.agent_of, "joined": m.joined, "last_acted": last })
+                        let last = self.moves.iter().rev().find(|x| x.actor() == m.key).map(|x| x.at);
+                        let mut devices: Vec<&Key> = self.devices.iter().filter(|(_, id)| **id == m.key).map(|(k, _)| k).collect();
+                        devices.sort();
+                        json!({ "name": m.name, "key": m.key, "is_agent": m.is_agent, "agent_of": m.agent_of_name, "agent_of_key": m.agent_of, "joined": m.joined, "last_acted": last, "devices": devices })
                     })
                     .collect();
                 (serde_json::to_string(&listed).unwrap_or_default(), "application/json")
@@ -613,7 +829,7 @@ impl Room {
                 json!({
                     "id": self.args.id, "title": self.args.title, "kind": self.args.kind, "host_name": self.args.host_name, "host_key": self.args.host_key,
                     "charter": self.charter_fingerprint(), "open_door": self.args.open_door, "continues": self.args.continues,
-                    "room_key": self.args.room_key, "at": self.args.at,
+                    "room_key": self.args.room_key, "at": self.args.at, "rules": self.args.rules, "host_id": self.args.host_id(),
                 })
                 .to_string(),
                 "application/json",
@@ -634,8 +850,8 @@ impl Room {
         let name = params.name.to_string();
         self.has_verb(&name).ok_or_else(|| bad(format!("this room has no verb called {name}")))?;
         let seal = check_call(&self.args.id, &params).map_err(refused)?;
-        let who = self.gate(&name, &seal)?;
         let args = params.arguments.clone().unwrap_or_default();
+        let who = self.gate(&name, &seal, &args)?;
         let line = self.apply(&name, &args, &seal, &who, at, host, None)?;
         self.settle(&who);
         self.counters.insert(seal.key.clone(), seal.counter);
@@ -644,25 +860,61 @@ impl Room {
     }
 
     /// Whether this sealed key may use this verb now: the rules every call
-    /// meets, live or replayed.
-    fn gate(&self, name: &str, seal: &Seal) -> Result<Member, ErrorData> {
+    /// meets, live or replayed, by the room's rules number.
+    fn gate(&self, name: &str, seal: &Seal, args: &JsonObject) -> Result<Member, ErrorData> {
         let host_verb = self.has_verb(name).ok_or_else(|| bad(format!("this room has no verb called {name}")))?;
         if seal.counter <= self.counters.get(&seal.key).copied().unwrap_or(0) {
             return Err(refused("this call was already made"));
         }
-        let who = match self.members.get(&seal.key) {
-            Some(m) if m.removed => return Err(refused(format!("{} was removed from this room", m.name))),
-            Some(m) => m.clone(),
-            // Someone let in unlisted, acting for the first time: their key matches the mark.
-            None => match self.unlisted.get(&key_mark(&self.args.id, &seal.key)) {
-                Some((name, joined)) => Member { key: seal.key.clone(), name: name.clone(), is_agent: false, agent_of: None, agent_of_name: None, listed: false, joined: *joined, removed: false },
-                None => return Err(refused("that key is not a member here")),
+        let who = match self.rules {
+            Rules::One => match self.members.get(&seal.key) {
+                Some(m) if m.removed => return Err(refused(format!("{} was removed from this room", m.name))),
+                Some(m) => m.clone(),
+                // Someone let in unlisted, acting for the first time: their key matches the mark.
+                None => match self.unlisted.get(&key_mark(&self.args.id, &seal.key)) {
+                    Some((name, joined)) => Member { key: seal.key.clone(), name: name.clone(), is_agent: false, agent_of: None, agent_of_name: None, listed: false, joined: *joined, removed: false, account: None },
+                    None => return Err(refused(NOT_A_MEMBER)),
+                },
             },
+            Rules::Two => self.gate_two(name, seal, args)?,
         };
-        if host_verb && seal.key != self.args.host_key {
+        if host_verb && who.key != self.args.host_id() {
             return Err(refused("only the host may do that"));
         }
         Ok(who)
+    }
+
+    /// Rules 2: a person acts from any key on their account's current list,
+    /// an agent from its own key. A key the room doesn't know may bring a
+    /// device list that names it (`keys`): a member's new device, or someone
+    /// let in unlisted, acting for the first time.
+    fn gate_two(&self, name: &str, seal: &Seal, args: &JsonObject) -> Result<Member, ErrorData> {
+        if let Some(m) = self.members.get(&self.member_id(&seal.key)) {
+            if m.removed {
+                return Err(refused(format!("{} was removed from this room", m.name)));
+            }
+            return Ok(m.clone());
+        }
+        if name == "keys" {
+            let proof = proof_arg(args)?;
+            let account = proof.check().map_err(refused)?;
+            if !account.devices.contains(&seal.key) {
+                return Err(refused("that device list doesn't name the key that brought it"));
+            }
+            match self.members.get(&account.id) {
+                Some(m) if m.removed => return Err(refused(format!("{} was removed from this room", m.name))),
+                Some(m) => return Ok(m.clone()),
+                None => {
+                    if let Some((name, joined)) = self.unlisted.get(&key_mark(&self.args.id, &account.id)) {
+                        return Ok(Member { key: account.id, name: name.clone(), is_agent: false, agent_of: None, agent_of_name: None, listed: false, joined: *joined, removed: false, account: Some(proof) });
+                    }
+                }
+            }
+        }
+        if let Some(m) = self.retired.get(&seal.key).and_then(|id| self.members.get(id)) {
+            return Err(refused(format!("that key no longer acts for {}: a newer device list left it off", m.name)));
+        }
+        Err(refused(NOT_A_MEMBER))
     }
 
     /// One move from a record, replayed: its seal re-checked, the call gated
@@ -671,7 +923,7 @@ impl Room {
         if m.seal.key != m.by || !recheck(&self.args.id, &m.verb, &m.args, &m.seal) {
             return Err(format!("{}'s seal does not hold", m.id));
         }
-        let who = self.gate(&m.verb, &m.seal).map_err(|e| format!("{} would have been refused: {}", m.id, e.message))?;
+        let who = self.gate(&m.verb, &m.seal, &m.args).map_err(|e| format!("{} would have been refused: {}", m.id, e.message))?;
         self.apply(&m.verb, &m.args, &m.seal, &who, m.at, &NoHost, Some(m)).map_err(|e| format!("{} does not replay: {}", m.id, e.message))?;
         self.settle(&who);
         self.counters.insert(m.seal.key.clone(), m.seal.counter);
@@ -684,6 +936,9 @@ impl Room {
     /// After someone's first move lands: if they were a mark, they're a member now.
     fn settle(&mut self, who: &Member) {
         if !self.members.contains_key(&who.key) && self.unlisted.remove(&key_mark(&self.args.id, &who.key)).is_some() {
+            if let Some(account) = who.account.as_ref().and_then(|p| p.check().ok()) {
+                self.set_devices(&who.key, &account.devices);
+            }
             self.members.insert(who.key.clone(), who.clone());
         }
     }
@@ -709,7 +964,8 @@ impl Room {
             seq,
             id: id.clone(),
             kind: kind.into(),
-            by: who.key.clone(),
+            by: seal.key.clone(),
+            member: (who.key != seal.key).then(|| who.key.clone()),
             author: who.name.clone(),
             agent_of: who.agent_of_name.clone(),
             at,
@@ -766,7 +1022,7 @@ impl Room {
 
     /// Whether a receipt is one this room's host sealed, for this task and this doer.
     fn receipt_holds(&self, s: &Statement, task: &str, to: &str) -> bool {
-        s.kind == "receipt" && s.holds() && s.key == self.args.host_key && s.field("room") == Some(self.args.id.as_str()) && s.field("task") == Some(task) && s.field("to") == Some(to)
+        s.kind == "receipt" && s.holds() && self.host_holds(&s.key) && s.field("room") == Some(self.args.id.as_str()) && s.field("task") == Some(task) && s.field("to") == Some(to)
     }
 
     /// One verb, applied. Everything a move records comes from `args` and the
@@ -812,7 +1068,7 @@ impl Room {
                 let o = self.find(&offer, "offer")?;
                 let ask = o.parent.clone().ok_or_else(|| bad("that offer isn't on an ask"))?;
                 let a = self.find(&ask, "ask")?;
-                if a.by != who.key {
+                if a.actor() != who.key {
                     return Err(refused("only who asked may take an offer on it"));
                 }
                 let state = self.state_of(&ask).unwrap_or_default();
@@ -835,7 +1091,7 @@ impl Room {
             "close_ask" => {
                 let ask = need(args, "ask_id")?.to_owned();
                 let a = self.find(&ask, "ask")?;
-                if a.by != who.key {
+                if a.actor() != who.key {
                     return Err(refused("only who asked may close it"));
                 }
                 let state = self.state_of(&ask).unwrap_or_default();
@@ -907,7 +1163,7 @@ impl Room {
             "accept" => {
                 let task = need(args, "task_id")?.to_owned();
                 let t = self.find(&task, "task")?;
-                if t.by != who.key {
+                if t.actor() != who.key {
                     return Err(refused("only who posted a task may accept its delivery"));
                 }
                 let state = self.state_of(&task).unwrap_or_default();
@@ -921,12 +1177,14 @@ impl Room {
                 // On a replay the receipt is the one the record holds; nothing is sealed again.
                 let statement: Statement = match replaying {
                     Some(m) => m.fields.get("statement").and_then(|v| serde_json::from_value(v.clone()).ok()).ok_or_else(|| refused("the record's receipt is missing"))?,
-                    None => host
-                        .seal(
-                            "receipt",
-                            json!({ "room": self.args.id, "room_title": self.args.title, "host": self.args.host_name, "task": task, "title": t.title, "to": to_key, "to_name": to_name, "to_person": to_person, "issued": at }),
-                        )
-                        .map_err(refused)?,
+                    None => {
+                        let mut body = json!({ "room": self.args.id, "room_title": self.args.title, "host": self.args.host_name, "task": task, "title": t.title, "to": to_key, "to_name": to_name, "to_person": to_person, "issued": at });
+                        // Under rules 2 the room's id names the host's account: the receipt carries it, so it proves its room anywhere.
+                        if let Some(account) = self.members.get(&self.args.host_id()).and_then(|h| h.account.clone()) {
+                            body["host_account"] = serde_json::to_value(account).unwrap_or_default();
+                        }
+                        host.seal("receipt", body).map_err(refused)?
+                    }
                 };
                 if !self.receipt_holds(&statement, &task, &to_key) {
                     return Err(refused("that receipt isn't sealed by this room's host, for this task"));
@@ -945,7 +1203,7 @@ impl Room {
                     return Err(refused(format!("{task} isn't done, so there's nothing to settle yet")));
                 }
                 let claimer = self.field_of(&task, "claimed_by_key").and_then(|v| v.as_str().map(str::to_owned));
-                let side = if t.by == who.key {
+                let side = if t.actor() == who.key {
                     "poster_says"
                 } else if claimer.as_deref() == Some(who.key.as_str()) || self.members.get(claimer.as_deref().unwrap_or_default()).and_then(|m| m.agent_of.clone()).as_deref() == Some(who.key.as_str()) {
                     "doer_says"
@@ -988,12 +1246,13 @@ impl Room {
                 if statement.kind != "receipt" || !statement.holds() {
                     return Err(refused("that receipt's seal does not hold"));
                 }
-                if statement.field("to_person") != Some(self.args.host_key.as_str()) {
+                if self.member_id(statement.field("to_person").unwrap_or_default()) != self.args.host_id() {
                     return Err(refused("that receipt was issued to someone else"));
                 }
-                // A receipt proves its room only if it was sealed by the host that room's id names.
-                if statement.key == self.args.host_key || !statement.field("room").is_some_and(|room| id_holds(room, &statement.key)) {
-                    return Err(refused("that receipt wasn't sealed by the host of the room it names"));
+                // A receipt proves its room only if it was sealed by the host that room's id names, and that isn't you.
+                match receipt_issuer(&statement) {
+                    Some(issuer) if issuer != self.args.host_id() && !self.host_holds(&statement.key) => {}
+                    _ => return Err(refused("that receipt wasn't sealed by the host of the room it names")),
                 }
                 let title = statement.field("title").unwrap_or_default().to_owned();
                 fields.insert("statement".into(), serde_json::to_value(&statement).unwrap_or_default());
@@ -1005,7 +1264,7 @@ impl Room {
                 format!("Left a note ({id})")
             }
             "hire" => {
-                if who.key == self.args.host_key {
+                if who.key == self.args.host_id() {
                     return Err(refused("you can't hire your own agents here; message them"));
                 }
                 let agent = need(args, "agent")?.to_owned();
@@ -1046,9 +1305,9 @@ impl Room {
                 let member_name = need(args, "name")?.to_owned();
                 let is_agent = args.get("is_agent").and_then(Value::as_bool).unwrap_or(false);
                 let listed = args.get("listed").and_then(Value::as_bool).unwrap_or(true);
-                // Unlisted: let in by a mark of their key, which the record keeps instead of the key.
+                // Unlisted: let in by a mark of their key (under rules 2, their account), which the record keeps instead.
                 if !listed {
-                    if is_agent || args.contains_key("key") {
+                    if is_agent || args.contains_key("key") || args.contains_key("account") {
                         return Err(bad("someone unlisted is let in by their key's mark, never their key"));
                     }
                     let mark = need(args, "key_mark")?.to_owned();
@@ -1060,12 +1319,35 @@ impl Room {
                     self.unlisted.insert(mark, (member_name.clone(), at));
                     return Ok(format!("Let in, unlisted: {member_name}"));
                 }
-                let key = need(args, "key")?.to_owned();
+                // Under rules 2 a person comes in as their account, an agent as its own key.
+                let (key, account) = if self.rules == Rules::Two && !is_agent {
+                    if args.contains_key("key") {
+                        return Err(bad("under these rules a person is let in with their account, not a key"));
+                    }
+                    let proof = proof_arg(args)?;
+                    let account = proof.check().map_err(refused)?;
+                    // Someone let back in brings a list no older than the one the room last held for them.
+                    if let Some(held) = self.members.get(&account.id).and_then(|m| m.account.as_ref()).and_then(|p| p.check().ok()) {
+                        if account.sequence < held.sequence || (account.sequence == held.sequence && account.devices != held.devices) {
+                            return Err(refused(format!("this device list is number {}, and number {} is already held", account.sequence, held.sequence)));
+                        }
+                    }
+                    if self.taken(&account.id, &account.devices) {
+                        return Err(refused("a key on that device list already acts for someone else here"));
+                    }
+                    (account.id.clone(), Some((proof, account.devices)))
+                } else {
+                    (need(args, "key")?.to_owned(), None)
+                };
                 let (agent_of, agent_of_name) = if is_agent {
-                    let person = need(args, "agent_of")?.to_owned();
+                    // Its person, by key or (under rules 2) by account or any key on its list.
+                    let person = self.member_id(need(args, "agent_of")?);
                     let tether: Statement = serde_json::from_value(args.get("tether").cloned().unwrap_or_default()).map_err(|_| bad("an agent needs its person's tether"))?;
-                    if tether.kind != "tether" || !tether.holds() || tether.key != person || tether.field("agent") != Some(key.as_str()) {
+                    if tether.kind != "tether" || !tether.holds() || self.member_id(&tether.key) != person || tether.field("agent") != Some(key.as_str()) {
                         return Err(refused("that agent's tether does not hold"));
+                    }
+                    if self.devices.contains_key(&key) {
+                        return Err(refused("that key already acts for someone else here"));
                     }
                     let owner = self.members.get(&person).filter(|m| !m.removed).ok_or_else(|| refused("an agent's person must be a member first"))?;
                     (Some(person), Some(owner.name.clone()))
@@ -1077,13 +1359,18 @@ impl Room {
                 }
                 fields.insert("key".into(), json!(key));
                 push(self, "admitted", &member_name, "", None, fields)?;
-                self.members.insert(key.clone(), Member { key, name: member_name.clone(), is_agent, agent_of, agent_of_name, listed, joined: at, removed: false });
+                let proof = account.map(|(proof, devices)| {
+                    self.set_devices(&key, &devices);
+                    proof
+                });
+                self.members.insert(key.clone(), Member { key, name: member_name.clone(), is_agent, agent_of, agent_of_name, listed, joined: at, removed: false, account: proof });
                 self.notify(MEMBERS);
                 format!("Admitted: {member_name}")
             }
             "remove" => {
-                let key = need(args, "key")?.to_owned();
-                if key == self.args.host_key {
+                // A person by key, or under rules 2 by account or any key on its list.
+                let key = self.member_id(need(args, "key")?);
+                if key == self.args.host_id() {
                     return Err(refused("the host can't remove themselves; end the room instead"));
                 }
                 // Someone let in unlisted who never acted is removed by their mark, which never names them.
@@ -1092,6 +1379,7 @@ impl Room {
                     fields.insert("key_mark".into(), json!(key));
                     push(self, "removed", &gone, arg(args, "reason").unwrap_or_default(), None, fields)?;
                     self.unlisted.remove(&key);
+                    self.gone.insert(key);
                     self.notify(MEMBERS);
                     return Ok(format!("Removed: {gone}"));
                 }
@@ -1111,6 +1399,33 @@ impl Room {
                 }
                 self.notify(MEMBERS);
                 format!("Removed: {gone}")
+            }
+            "keys" => {
+                // Who brings it was settled at the gate: a key on their current list, or on this one.
+                let proof = proof_arg(args)?;
+                let account = proof.check().map_err(refused)?;
+                if account.id != who.key {
+                    return Err(refused("that device list is for another account"));
+                }
+                if let Some(held) = self.members.get(&who.key).and_then(|m| m.account.as_ref()).and_then(|p| p.check().ok()) {
+                    if account.sequence <= held.sequence {
+                        return Err(refused(format!("this device list is number {}, and number {} is already held", account.sequence, held.sequence)));
+                    }
+                }
+                if !account.devices.contains(&seal.key) && self.member_id(&seal.key) != who.key {
+                    return Err(refused("that device list doesn't name the key that brought it"));
+                }
+                if self.taken(&who.key, &account.devices) {
+                    return Err(refused("a key on that device list already acts for someone else here"));
+                }
+                fields.insert("sequence".into(), json!(account.sequence));
+                push(self, "keys", &who.name, "", None, fields)?;
+                self.set_devices(&who.key, &account.devices);
+                if let Some(m) = self.members.get_mut(&who.key) {
+                    m.account = Some(proof);
+                }
+                self.notify(MEMBERS);
+                format!("Device list number {} for {}", account.sequence, who.name)
             }
             "set_charter" => {
                 let text = need(args, "text")?.to_owned();

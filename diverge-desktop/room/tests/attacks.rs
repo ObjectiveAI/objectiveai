@@ -2,8 +2,9 @@
 //! tests: each one must be refused.
 
 use chrono::{TimeDelta, Utc};
+use diverge_desktop_room::account::{Proof, device_list};
 use diverge_desktop_room::room::FEED;
-use diverge_desktop_room::seal::{canonical, digest};
+use diverge_desktop_room::seal::{account_room_id, canonical, digest};
 use diverge_desktop_room::*;
 use rmcp::model::{CallToolRequestParams, RequestMetaObject, ResourceContents};
 use serde_json::{Value, json};
@@ -60,6 +61,8 @@ fn settings(label: &str, host: &P, name: &str) -> (Args, Keypair) {
         continues: None,
         room_key: room_key.key(),
         at: Utc::now() - TimeDelta::days(1),
+        rules: 1,
+        host_account: None,
         sig: String::new(),
     }
     .signed(&host.k);
@@ -221,4 +224,281 @@ fn a_host_only_move_by_a_member_in_a_copy_is_refused() {
     relink(&mut rec.moves);
     let err = Room::check(&rec).err().unwrap();
     assert!(err.contains("only the host"), "{err}");
+}
+
+// --- rules versions, and rules 2: members are accounts -----------------------
+
+
+/// Someone with an account: its root (kept here only to sign newer lists), and a device key per Mac.
+struct A {
+    root: Keypair,
+    proof: Proof,
+}
+
+impl A {
+    fn new(seed: &str, devices: &[&P]) -> Self {
+        let root = Keypair::from_seed(&format!("{seed}'s root"));
+        let proof = Proof::first(&root, Utc::now() - TimeDelta::days(2), &devices.iter().map(|d| d.k.key()).collect::<Vec<_>>());
+        A { root, proof }
+    }
+    fn id(&self) -> String {
+        self.proof.id()
+    }
+    /// The root's list number `n`, naming these devices.
+    fn list(&self, n: u64, devices: &[&P]) -> Proof {
+        Proof { genesis: self.proof.genesis.clone(), devices: device_list(&self.root, &self.id(), n, &devices.iter().map(|d| d.k.key()).collect::<Vec<_>>()) }
+    }
+}
+
+/// A rules-2 room hosted by `host`'s account, signed on `device`.
+fn settings_v2(label: &str, host: &A, device: &P, name: &str) -> (Args, Keypair) {
+    let room_key = Keypair::from_seed(&format!("room {label} {name} v2"));
+    let args = Args {
+        id: account_room_id(label, &host.id()),
+        title: "W".into(),
+        kind: Kind::Board,
+        host_key: device.k.key(),
+        host_name: name.into(),
+        charter: "#".into(),
+        open_door: false,
+        continues: None,
+        room_key: room_key.key(),
+        at: Utc::now() - TimeDelta::days(1),
+        rules: 2,
+        host_account: Some(host.proof.clone()),
+        sig: String::new(),
+    }
+    .signed(&device.k);
+    (args, room_key)
+}
+
+#[test]
+fn a_record_from_before_rules_had_numbers_replays_and_its_signature_holds() {
+    let (room, ..) = workshop();
+    let json = serde_json::to_value(room.record()).unwrap();
+    assert!(json["args"].get("rules").is_none(), "a version-1 room's settings don't say rules");
+    assert!(json["args"].get("host_account").is_none());
+    let back: Record = serde_json::from_value(json).unwrap();
+    assert_eq!(back.args.rules, 1, "no rules number reads as the first rules");
+    back.args.holds().unwrap();
+    let again = Room::check(&back).unwrap();
+    assert_eq!(feed(&again), feed(&room));
+}
+
+#[test]
+fn version_one_settings_sign_the_same_bytes_as_before_there_were_versions() {
+    let maya = P::new("maya");
+    let (args, _) = settings("workshop", &maya, "maya");
+    // Exactly the fields a room's settings had before rules were numbered.
+    let before = json!({
+        "id": args.id, "title": args.title, "kind": "board", "host_key": args.host_key, "host_name": args.host_name,
+        "charter": args.charter, "open_door": false, "room_key": args.room_key, "at": args.at,
+    });
+    assert_eq!(canonical(&args.body()), canonical(&before));
+    let text = serde_json::to_string(&args).unwrap();
+    assert!(!text.contains("rules") && !text.contains("host_account"), "{text}");
+}
+
+#[test]
+fn a_rules_number_this_program_doesnt_know_is_refused_in_words() {
+    let maya = P::new("maya");
+    let (mut args, key) = settings("workshop", &maya, "maya");
+    args.rules = 99;
+    let args = args.signed(&maya.k);
+    let err = Room::new(args.clone(), key).err().unwrap();
+    assert!(err.contains("99") && err.contains("rules"), "{err}");
+    let err = Room::check(&Record { args, before: None, moves: Vec::new() }).err().unwrap();
+    assert!(err.contains("99"), "{err}");
+}
+
+/// maya hosts a rules-2 room from her Mac; ren's account is let in.
+fn workshop_v2() -> (Room, P, A, P, A, H) {
+    let (maya_mac, ren_mac) = (P::new("maya's mac"), P::new("ren's laptop"));
+    let (maya, ren) = (A::new("maya", &[&maya_mac]), A::new("ren", &[&ren_mac]));
+    let h = H(maya_mac.k.clone());
+    let (args, key) = settings_v2("workshop", &maya, &maya_mac, "maya");
+    let mut room = Room::new(args, key).unwrap();
+    let mut m = maya_mac;
+    m.call(&mut room, &h, "admit", json!({ "account": ren.proof, "name": "ren" })).unwrap();
+    (room, m, maya, ren_mac, ren, h)
+}
+
+#[test]
+fn under_rules_two_a_member_is_their_account() {
+    let (mut room, mut maya_mac, maya, mut ren_mac, ren, h) = workshop_v2();
+    assert_eq!(room.id(), account_room_id("workshop", &maya.id()));
+    assert!(room.member(&ren.id()).is_some(), "keyed by the account");
+    assert!(room.member(&ren_mac.k.key()).is_none(), "not by the key");
+    ren_mac.call(&mut room, &h, "show", json!({ "title": "a radio" })).unwrap();
+    let shown = room.moves().last().unwrap().clone();
+    assert_eq!((shown.by.as_str(), shown.actor()), (ren_mac.k.key().as_str(), ren.id().as_str()), "the move names the key that sealed it and the member it acts for");
+    // A person is let in by their account, never a bare key.
+    let ada = P::new("ada");
+    assert!(maya_mac.call(&mut room, &h, "admit", json!({ "key": ada.k.key(), "name": "ada" })).is_err());
+    assert!(Room::check(&room.record()).is_ok());
+}
+
+#[test]
+fn a_v2_admit_with_a_forged_device_list_is_refused() {
+    let (mut room, mut maya_mac, _, _, _, h) = workshop_v2();
+    let (ada_mac, mallory) = (P::new("ada's mac"), P::new("mallory"));
+    let ada = A::new("ada", &[&ada_mac]);
+    // mallory writes a list adding her own key to ada's account, signed by herself.
+    let forged = Proof { genesis: ada.proof.genesis.clone(), devices: device_list(&mallory.k, &ada.id(), 2, &[ada_mac.k.key(), mallory.k.key()]) };
+    let err = maya_mac.call(&mut room, &h, "admit", json!({ "account": forged, "name": "ada" })).unwrap_err();
+    assert!(err.contains("root"), "{err}");
+    // A list ada's root signed for another account doesn't carry over.
+    let elsewhere = Proof { genesis: ada.proof.genesis.clone(), devices: device_list(&ada.root, "another account", 2, &[mallory.k.key()]) };
+    assert!(maya_mac.call(&mut room, &h, "admit", json!({ "account": elsewhere, "name": "ada" })).is_err());
+    maya_mac.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap();
+    // Nor can mallory bring a forged newer list into the room herself.
+    let mut m = mallory;
+    let err = m.call(&mut room, &h, "keys", json!({ "account": forged })).unwrap_err();
+    assert!(err.contains("root"), "{err}");
+}
+
+#[test]
+fn a_device_list_no_newer_than_the_one_held_is_refused() {
+    let (mut room, _, _, mut ren_mac, ren, h) = workshop_v2();
+    let second = P::new("ren's desktop");
+    ren_mac.call(&mut room, &h, "keys", json!({ "account": ren.list(2, &[&ren_mac, &second]) })).unwrap();
+    let err = ren_mac.call(&mut room, &h, "keys", json!({ "account": ren.list(1, &[&ren_mac]) })).unwrap_err();
+    assert!(err.contains("number 1") && err.contains("number 2"), "{err}");
+    assert!(ren_mac.call(&mut room, &h, "keys", json!({ "account": ren.list(2, &[&ren_mac]) })).is_err(), "the same number, saying something else");
+    assert!(Room::check(&room.record()).is_ok());
+}
+
+#[test]
+fn letting_someone_back_in_with_an_older_device_list_is_refused() {
+    let (mut room, mut maya_mac, _, mut ren_mac, ren, h) = workshop_v2();
+    let desktop = P::new("ren's desktop");
+    // ren drops the laptop; then maya removes ren.
+    ren_mac.call(&mut room, &h, "keys", json!({ "account": ren.list(2, &[&desktop]) })).unwrap();
+    maya_mac.call(&mut room, &h, "remove", json!({ "key": ren.id() })).unwrap();
+    // Letting ren back in with the list from before would bring the dropped laptop back.
+    let err = maya_mac.call(&mut room, &h, "admit", json!({ "account": ren.proof, "name": "ren" })).unwrap_err();
+    assert!(err.contains("number 1") && err.contains("number 2"), "{err}");
+    assert!(maya_mac.call(&mut room, &h, "admit", json!({ "account": ren.list(2, &[&ren_mac]), "name": "ren" })).is_err(), "nor the same number saying something else");
+    maya_mac.call(&mut room, &h, "admit", json!({ "account": ren.list(2, &[&desktop]), "name": "ren" })).unwrap();
+    assert!(ren_mac.call(&mut room, &h, "show", json!({ "title": "x" })).is_err(), "the laptop stays off");
+    assert!(Room::check(&room.record()).is_ok());
+}
+
+#[test]
+fn a_device_taken_off_the_list_is_refused_from_then_on_and_its_earlier_moves_still_replay() {
+    let (mut room, _, _, mut ren_mac, ren, h) = workshop_v2();
+    let mut desktop = P::new("ren's desktop");
+    ren_mac.call(&mut room, &h, "show", json!({ "title": "from the laptop" })).unwrap();
+    // The laptop is gone: the root's list number 2 names only the desktop, which brings it.
+    desktop.call(&mut room, &h, "keys", json!({ "account": ren.list(2, &[&desktop]) })).unwrap();
+    let err = ren_mac.call(&mut room, &h, "show", json!({ "title": "from the lost laptop" })).unwrap_err();
+    assert!(err.contains("no longer acts for ren"), "{err}");
+    desktop.call(&mut room, &h, "show", json!({ "title": "from the desktop" })).unwrap();
+    let copy = Room::check(&room.record()).unwrap();
+    let titles: Vec<Value> = feed(&copy).iter().filter(|m| m["kind"] == "show").map(|m| m["title"].clone()).collect();
+    assert_eq!(titles, [json!("from the laptop"), json!("from the desktop")], "the laptop's move still replays; its later one never landed");
+    // A copy where the laptop's late move is spliced in after the newer list is refused.
+    let mut late = P::new("x");
+    late.k = Keypair::from_seed("ren's laptop");
+    late.c = 99;
+    let (args, key) = settings_v2("scratch", &A::new("scratch", &[&late]), &late, "x");
+    let mut scratch = Room::new(args, key).unwrap();
+    late.call(&mut scratch, &H(late.k.clone()), "show", json!({ "title": "spliced" })).unwrap();
+    let mut spliced = scratch.moves()[0].clone();
+    let mut p = CallToolRequestParams::new("show").with_arguments(spliced.args.clone());
+    seal_call(&late.k, room.id(), &mut p, 100);
+    spliced.seal = diverge_desktop_room::seal::seal_of(&p).unwrap();
+    spliced.member = Some(ren.id());
+    let mut rec = room.record();
+    spliced.seq = rec.moves.len() as u64 + 1;
+    spliced.id = format!("show-{}", spliced.seq);
+    rec.moves.push(spliced);
+    relink(&mut rec.moves);
+    let err = Room::check(&rec).err().unwrap();
+    assert!(err.contains("would have been refused"), "{err}");
+}
+
+#[test]
+fn a_host_on_a_second_device_of_the_same_account_hosts_the_same_room() {
+    let (room, _, maya, _, ren, h) = workshop_v2();
+    let id = room.id().to_owned();
+    let mut desk = P::new("maya's desk");
+    let mut room = room;
+    // The host's root names a second device; that device brings the list and acts as host.
+    desk.call(&mut room, &h, "keys", json!({ "account": maya.list(2, &[&P::new("maya's mac"), &desk]) })).unwrap();
+    let ada_mac = P::new("ada's mac");
+    let ada = A::new("ada", &[&ada_mac]);
+    desk.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap();
+    desk.call(&mut room, &h, "remove", json!({ "key": ren.id() })).unwrap();
+    // The room's id names the account, so the same id from either device.
+    assert_eq!(account_room_id("workshop", &maya.list(2, &[&desk]).id()), id);
+    // Restarted from its record, it's the same room, and the desk still hosts it.
+    let key = Keypair::from_seed("room workshop maya v2");
+    let mut again = Room::from_record(room.record(), Some(key)).unwrap();
+    assert_eq!(again.id(), id);
+    desk.call(&mut again, &h, "set_charter", json!({ "text": "# from the desk" })).unwrap();
+    // Someone else's account can't host by that id, whatever device signs.
+    let (mallory_mac, mallory) = (P::new("mallory"), A::new("mallory", &[&P::new("mallory")]));
+    let (mut taken, k) = settings_v2("workshop", &mallory, &mallory_mac, "mallory");
+    taken.id = id;
+    assert!(Room::new(taken.signed(&mallory_mac.k), k).is_err());
+}
+
+#[test]
+fn under_rules_two_someone_unlisted_is_a_mark_of_their_account_until_they_bring_their_list() {
+    let (mut room, mut maya_mac, _, _, _, h) = workshop_v2();
+    let mut ada_mac = P::new("ada's mac");
+    let ada = A::new("ada", &[&ada_mac]);
+    let rid = room.id().to_owned();
+    maya_mac.call(&mut room, &h, "admit", json!({ "key_mark": key_mark(&rid, &ada.id()), "name": "ada", "listed": false })).unwrap();
+    let record = serde_json::to_string(&room.record()).unwrap();
+    assert!(!record.contains(&ada.id()) && !record.contains(&ada_mac.k.key()), "the record names neither her account nor her key");
+    assert!(room.may_read(&ada.id()));
+    assert!(ada_mac.call(&mut room, &h, "show", json!({ "title": "x" })).unwrap_err().contains("not a member"), "the room doesn't know her key yet");
+    ada_mac.call(&mut room, &h, "keys", json!({ "account": ada.proof })).unwrap();
+    ada_mac.call(&mut room, &h, "show", json!({ "title": "a radio" })).unwrap();
+    assert_eq!(feed(&room).iter().find(|m| m["kind"] == "show").unwrap()["author"], "ada");
+    assert!(room.member(&ada.id()).is_some());
+    assert!(Room::check(&room.record()).is_ok());
+}
+
+#[test]
+fn a_receipt_from_a_rules_two_room_proves_its_room_wherever_it_is_pinned() {
+    let (mut room, mut maya_mac, maya, mut ren_mac, ren, h) = workshop_v2();
+    maya_mac.call(&mut room, &h, "post_task", json!({ "title": "T", "spec": "S" })).unwrap();
+    let task = room.moves().last().unwrap().id.clone();
+    ren_mac.call(&mut room, &h, "claim", json!({ "task_id": task })).unwrap();
+    ren_mac.call(&mut room, &h, "deliver", json!({ "task_id": task, "summary": "x" })).unwrap();
+    maya_mac.call(&mut room, &h, "accept", json!({ "task_id": task })).unwrap();
+    let receipt = room.moves().last().unwrap().clone();
+    let statement: Statement = serde_json::from_value(receipt.fields["statement"].clone()).unwrap();
+    assert_eq!(receipt_issuer(&statement), Some(maya.id()), "the room's id names the account the receipt carries");
+    assert_eq!(statement.field("to_person"), Some(ren.id().as_str()));
+    assert!(Room::check(&room.record()).is_ok());
+    // Sealed by a key the account doesn't name, it proves nothing.
+    let mallory = Keypair::from_seed("mallory");
+    let forged = Statement::make(&mallory, "receipt", statement.body.clone());
+    assert_eq!(receipt_issuer(&forged), None);
+    // ren pins it on a profile ren's account hosts.
+    let room_key = Keypair::from_seed("ren's profile");
+    let args = Args {
+        id: account_room_id("profile", &ren.id()),
+        title: "ren".into(),
+        kind: Kind::Profile,
+        host_key: ren_mac.k.key(),
+        host_name: "ren".into(),
+        charter: "#".into(),
+        open_door: true,
+        continues: None,
+        room_key: room_key.key(),
+        at: Utc::now() - TimeDelta::days(1),
+        rules: 2,
+        host_account: Some(ren.proof.clone()),
+        sig: String::new(),
+    }
+    .signed(&ren_mac.k);
+    let mut profile = Room::new(args, room_key).unwrap();
+    let ren_h = H(ren_mac.k.clone());
+    assert!(ren_mac.call(&mut profile, &ren_h, "pin_receipt", json!({ "statement": forged })).is_err());
+    ren_mac.call(&mut profile, &ren_h, "pin_receipt", json!({ "statement": statement })).unwrap();
 }

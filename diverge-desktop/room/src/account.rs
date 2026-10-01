@@ -118,6 +118,14 @@ fn is_key(v: &Value) -> bool {
 }
 
 impl Proof {
+    /// A new account's proof: `root` signs the genesis and a first device
+    /// list naming `devices`. Whoever calls this drops the root afterwards.
+    pub fn first(root: &Keypair, at: DateTime<Utc>, devices: &[Key]) -> Proof {
+        let genesis = genesis(root, at);
+        let id = account_id(&genesis);
+        Proof { devices: device_list(root, &id, 1, devices), genesis }
+    }
+
     /// The account's id.
     pub fn id(&self) -> String {
         account_id(&self.genesis)

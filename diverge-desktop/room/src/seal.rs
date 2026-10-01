@@ -97,6 +97,27 @@ pub fn id_holds(id: &str, host_key: &str) -> bool {
     }
 }
 
+/// The part of a room's id that names its host's account: the start of a
+/// digest of the account's id, kept apart from a key's mark so neither can
+/// stand for the other.
+fn account_mark(account: &str) -> String {
+    digest(format!("diverge-desktop account\n{account}").as_bytes())[..12].to_owned()
+}
+
+/// A room's id under rules 2: a label, then the host's account's mark. Any
+/// device of that account hosts the same id.
+pub fn account_room_id(label: &str, account: &str) -> String {
+    format!("{label}.{}", account_mark(account))
+}
+
+/// Whether an id is one an account could have made: a plain label, then its mark.
+pub fn account_id_holds(id: &str, account: &str) -> bool {
+    match id.rsplit_once('.') {
+        Some((label, mark)) => !label.is_empty() && label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') && mark == account_mark(account),
+        None => false,
+    }
+}
+
 /// A label nobody else will pick: for a new room's id.
 pub fn fresh_label() -> String {
     let mut bytes = [0u8; 8];
@@ -250,6 +271,13 @@ mod tests {
         assert!(!id_holds(&id, &ren.key()), "ren can't host maya's id");
         assert!(!id_holds("workshop", &maya.key()), "a bare label names no host");
         assert!(!id_holds(&room_id("../x", &maya.key()), &maya.key()), "a label is plain");
+        // An account's room id is its own: a key's mark never stands for an account's, nor the other way.
+        let account = digest(b"an account's genesis");
+        let theirs = account_room_id("workshop", &account);
+        assert!(account_id_holds(&theirs, &account));
+        assert!(!account_id_holds(&theirs, &digest(b"another genesis")));
+        assert!(!id_holds(&theirs, &account), "an account's id isn't a key's");
+        assert!(!account_id_holds(&room_id("workshop", &maya.key()), &maya.key()), "nor a key's an account's");
         let hash = digest(b"a move");
         assert!(countersigned(&maya.key(), &hash, &maya.countersign(&hash)));
         assert!(!countersigned(&ren.key(), &hash, &maya.countersign(&hash)));

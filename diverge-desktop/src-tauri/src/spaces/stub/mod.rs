@@ -373,6 +373,8 @@ impl StubSpaces {
             continues: None,
             room_key: room_key.key(),
             at: since,
+            rules: 1,
+            host_account: None,
             sig: String::new(),
         };
         args = match stand_in_host.and_then(|n| inner.people.get(n)) {

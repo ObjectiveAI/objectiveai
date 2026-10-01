@@ -15,8 +15,8 @@ pub mod image;
 pub mod room;
 pub mod seal;
 
-pub use room::{Args, Continues, Host, Kind, Member, Move, NoHost, Record, Room, key_mark};
-pub use seal::{Key, Keypair, Seal, Statement, fresh_label, id_holds, room_id, seal_call, tether};
+pub use room::{Args, Continues, Host, Kind, Member, Move, NOT_A_MEMBER, NoHost, Record, Room, Rules, Standing, key_mark, receipt_issuer};
+pub use seal::{Key, Keypair, Seal, Statement, account_id_holds, account_room_id, fresh_label, id_holds, room_id, seal_call, tether};
 
 #[cfg(test)]
 pub(crate) mod tests {
@@ -88,6 +88,8 @@ pub(crate) mod tests {
             continues: None,
             room_key: room_key.key(),
             at: long_ago(),
+            rules: 1,
+            host_account: None,
             sig: String::new(),
         }
         .signed(&host.keypair);
@@ -231,6 +233,71 @@ pub(crate) mod tests {
         assert!(!room.may_read(&ada.key()));
         assert!(ada.call(&mut room, &host, "show", json!({ "title": "x" })).is_err());
         assert!(Room::check(&room.record()).is_ok());
+    }
+
+    #[test]
+    fn where_someone_stands_is_read_from_the_record() {
+        let (mut maya, mut ren, mut ada, mut sam, bo) = (Person::new("maya"), Person::new("ren"), Person::new("ada"), Person::new("sam"), Person::new("bo"));
+        let host = host_for(&maya);
+        let mut room = board(&maya);
+        let id = room.id().to_owned();
+        maya.call(&mut room, &host, "admit", json!({ "key": ren.key(), "name": "ren" })).unwrap();
+        maya.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &ada.key()), "name": "ada", "listed": false })).unwrap();
+        maya.call(&mut room, &host, "admit", json!({ "key_mark": key_mark(&id, &sam.key()), "name": "sam", "listed": false })).unwrap();
+        sam.call(&mut room, &host, "show", json!({ "title": "a stool" })).unwrap();
+        maya.call(&mut room, &host, "admit", json!({ "key": bo.key(), "name": "bo" })).unwrap();
+        maya.call(&mut room, &host, "remove", json!({ "key": bo.key() })).unwrap();
+        let copy = Room::check(&room.record()).unwrap();
+        for r in [&room, &copy] {
+            assert_eq!(r.standing(&ren.key()), Standing::Member, "listed");
+            assert_eq!(r.standing(&sam.key()), Standing::Member, "unlisted, and acted since");
+            assert_eq!(r.standing(&ada.key()), Standing::Unlisted { mark: key_mark(&id, &ada.key()) }, "unlisted, never acted: by mark");
+            assert_eq!(r.standing(&bo.key()), Standing::Removed);
+            assert_eq!(r.standing(&Person::new("a stranger").key()), Standing::Stranger);
+            assert_eq!(r.standing(&maya.key()), Standing::Member, "the host");
+        }
+        // Someone let in unlisted and removed before they ever acted reads as removed, by mark.
+        maya.call(&mut room, &host, "remove", json!({ "key": key_mark(&id, &ada.key()) })).unwrap();
+        assert_eq!(room.standing(&ada.key()), Standing::Removed);
+        assert_eq!(Room::check(&room.record()).unwrap().standing(&ada.key()), Standing::Removed, "and a copy agrees");
+        assert!(ada.call(&mut room, &host, "show", json!({ "title": "x" })).is_err());
+        let _ = (&mut ren, &mut sam);
+    }
+
+    #[test]
+    fn under_rules_two_standing_is_by_account_and_by_any_current_device() {
+        let (mut maya, ren_mac, desktop) = (Person::new("maya's mac"), Person::new("ren's laptop"), Person::new("ren's desktop"));
+        let root = Keypair::from_seed("maya's root");
+        let mine = account::Proof::first(&root, long_ago(), &[maya.key()]);
+        let ren_root = Keypair::from_seed("ren's root");
+        let ren = account::Proof::first(&ren_root, long_ago(), &[ren_mac.key()]);
+        let room_key = Keypair::from_seed("room v2");
+        let args = Args {
+            id: seal::account_room_id("board", &mine.id()),
+            title: "Saturday Workshop".into(),
+            kind: Kind::Board,
+            host_key: maya.key(),
+            host_name: "maya".into(),
+            charter: "#".into(),
+            open_door: false,
+            continues: None,
+            room_key: room_key.key(),
+            at: long_ago(),
+            rules: 2,
+            host_account: Some(mine.clone()),
+            sig: String::new(),
+        }
+        .signed(&maya.keypair);
+        let host = host_for(&maya);
+        let mut room = Room::new(args, room_key).unwrap();
+        maya.call(&mut room, &host, "admit", json!({ "account": ren, "name": "ren" })).unwrap();
+        assert_eq!(room.standing(&ren.id()), Standing::Member);
+        assert_eq!(room.standing(&ren_mac.key()), Standing::Member, "a current device stands for its account");
+        assert_eq!(room.standing(&desktop.key()), Standing::Stranger, "a device the room hasn't been shown");
+        assert_eq!(room.standing(&mine.id()), Standing::Member, "the host, by account");
+        maya.call(&mut room, &host, "remove", json!({ "key": ren_mac.key() })).unwrap();
+        assert_eq!(room.standing(&ren.id()), Standing::Removed, "removed by a device, it's the account that's out");
+        assert_eq!(room.standing(&ren_mac.key()), Standing::Removed);
     }
 
     #[test]

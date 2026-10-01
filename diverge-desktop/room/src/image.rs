@@ -183,6 +183,8 @@ pub fn args_schema() -> Value {
             "continues": { "type": "object", "description": "The room this one continues: its id, title, and the hash of its last move." },
             "room_key": { "type": "string", "description": "The public key the room countersigns its moves with." },
             "at": { "type": "string", "format": "date-time", "description": "When the host made the room." },
+            "rules": { "type": "integer", "enum": [1, 2], "description": "The rules the room runs under. Left out: rules 1." },
+            "host_account": { "type": "object", "description": "Under rules 2: the host's account, its genesis and newest device list, naming host_key." },
             "sig": { "type": "string", "description": "The host's signature over the settings." },
             "room_secret": { "type": "string", "description": "The room's own key, for the program alone." },
             "before": { "type": "object", "description": "The whole record of the room this one continues." },
@@ -315,6 +317,8 @@ mod tests {
             continues: None,
             room_key: room_key.key(),
             at: chrono::Utc::now(),
+            rules: 1,
+            host_account: None,
             sig: String::new(),
         }
         .signed(&host);
