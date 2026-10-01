@@ -1,12 +1,12 @@
 //! Agents: what the daemon runs on a caller's behalf, and names.
 //!
 //! An agent is an agent container the daemon spawns on a provider —
-//! one the daemon chooses, or the one its template pins it to, with
+//! one the daemon chooses, or the one its create pins it to, with
 //! that provider's volumes mounted — from what the [`create`] names:
 //! a [`template`](templates), which is the image, the limits, the
-//! provider pin, the resources served over FUSE and the arguments,
-//! held by its hash, and the mounts of providers' volumes that are
-//! the agent's own. The daemon holds it
+//! resources served over FUSE and the arguments, held by its hash,
+//! and what is the agent's own: the provider it runs on, and the
+//! mounts of providers' volumes. The daemon holds it
 //! under a name of the caller's choosing. The name is how the caller reaches the agent
 //! after: one name, one agent, for as long as the agent exists.
 //!

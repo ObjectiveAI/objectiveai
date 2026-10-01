@@ -5,14 +5,22 @@ use serde_json::Value;
 
 use crate::daemon::endpoints::agents::create::client::request::Image;
 use super::ResourceMount;
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
 
 /// Everything an agent is made from that is the same for every agent
-/// made from it: the image, the limits, the provider pin, the
-/// resources mounted over FUSE, the arguments. What is not here is
-/// what differs agent to agent — the name, and the mounts of
-/// providers' volumes — which the agent's
+/// made from it: the image, the limits, the resources mounted over
+/// FUSE, the arguments. What is not here is what differs agent to
+/// agent — the name, the provider it runs on, and the mounts of that
+/// provider's volumes — which the agent's
 /// [`create`](crate::daemon::endpoints::agents::create) states.
+///
+/// # No provider, so that it travels
+///
+/// A template is meant to be shared: handed from one caller to
+/// another, published, made again anywhere and hashed the same. A
+/// provider is one daemon's acquaintance, named by how that daemon
+/// came to know it, and a template that named one would be that
+/// daemon's alone. So the provider is the real agent's, chosen at its
+/// create, and a template says nothing about where it runs.
 ///
 /// Its id is its hash: see [`templates`](super). What a caller may
 /// not choose is not here at all rather than here and ignored: the
@@ -45,15 +53,6 @@ pub struct Template {
     /// Bytes rather than megabytes, for the reason
     /// [`memory`](Self::memory) gives.
     pub disk: u64,
-    /// The one provider every agent made from this runs on, by its
-    /// [`Identity`] as the daemon knows it. Absent, an agent runs on
-    /// whichever provider the daemon chooses, and can mount no
-    /// volume: a volume is a provider's own and does not carry
-    /// across, so an agent with state on a provider's disk is an
-    /// agent of that provider. Which volumes of that provider an
-    /// agent mounts is the agent's create's to say.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider: Option<Identity>,
     /// File resources served live into every agent made from this,
     /// mounted one each over FUSE: see [`ResourceMount`]. Each names a
     /// file resource and its path in the container. Absent from the

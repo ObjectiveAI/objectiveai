@@ -26,10 +26,10 @@ use crate::wire::encode::{Encode, Writer};
 pub struct Frame {
     /// The agent's name, as its create gave it.
     pub name: String,
-    /// Volumes of the provider the agent's template pins it to: see
-    /// [`VolumeMount`]. An agent whose template pins no provider
-    /// mounts no volume, and a request that names one for such an
-    /// agent is the edit's error. Ordered, and applied in
+    /// Volumes of the provider the agent's create pinned it to: see
+    /// [`VolumeMount`]. An agent pinned to no provider mounts no
+    /// volume, and a request that names one for such an agent is the
+    /// edit's error. Ordered, and applied in
     /// order; no mount's path, in any list, is a prefix of another's.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub volume_mounts: Vec<VolumeMount>,

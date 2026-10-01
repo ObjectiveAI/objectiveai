@@ -4,15 +4,17 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-use super::{FuseMount, VolumeMount};
+use super::{FuseMount, Provider};
 
 /// Ask the daemon to create an agent under a name, from a template.
 ///
 /// What every agent made from the template shares — the image, the
-/// limits, the provider pin, the arguments — is the
+/// limits, the resources, the arguments — is the
 /// [`template`](Self::template), named by its id; what is this
-/// agent's own is here: the mounts, and the name the agent is held
-/// under from then on. What a caller may not choose is not here at
+/// agent's own is here: the provider it runs on with the volumes it
+/// mounts there, its FUSE mounts of providers' volumes, and the name
+/// the agent is held under from then on. The provider is the agent's
+/// and not the template's so that a template can be shared. What a caller may not choose is not here at
 /// all rather than here and ignored: the container's name, its
 /// ports, its entrypoint and its environment are the provider's,
 /// because they are how the provider reaches the container and how
@@ -34,18 +36,19 @@ pub struct Frame {
     /// The template the agent is made from, by its id — the hash a
     /// [`templates::create`](crate::daemon::endpoints::agents::templates::create)
     /// answered. An id no template of the caller's has is the
-    /// create's error. The template's provider pin, if any, is the
-    /// agent's; its image, limits and arguments are the agent's for
-    /// its life.
+    /// create's error. The template's image, limits, resources and
+    /// arguments are the agent's for its life.
     pub template: String,
-    /// Volumes of the provider the template pins the agent to, made
-    /// visible inside the container: see [`VolumeMount`]. Ordered,
-    /// and applied in order; no mount's path, in any list of the
-    /// create, is a prefix of another's. A template that pins no
-    /// provider admits none here: a request that names one for such
-    /// a template is the create's error.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub volume_mounts: Vec<VolumeMount>,
+    /// The one provider the agent runs on, and the volumes of that
+    /// provider made visible inside the container. See [`Provider`].
+    ///
+    /// Absent, the agent runs on whichever provider the daemon
+    /// chooses, and mounts no volume: a volume is a provider's own
+    /// and does not carry across, so an agent with state on a
+    /// provider's disk is an agent of that provider. The agent's for
+    /// its life, and never the template's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<Provider>,
     /// Files of providers' volumes served LIVE across the daemon,
     /// mounted one each over FUSE.
     ///

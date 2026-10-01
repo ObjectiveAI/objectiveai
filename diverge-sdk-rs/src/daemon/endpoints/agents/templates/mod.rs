@@ -1,10 +1,11 @@
 //! Templates: what an agent is made from, held by its hash.
 //!
-//! A template is everything about an agent that is not its name and
-//! not its own mounts: the image, the limits, the provider it is
-//! pinned to, if any, the [resources](crate::daemon::endpoints::resources)
-//! it serves over FUSE into every agent made from it, and the
-//! arguments. A caller makes one with [`create`]
+//! A template is everything about an agent that is not its name, not
+//! the provider it runs on and not its own mounts: the image, the
+//! limits, the [resources](crate::daemon::endpoints::resources) it
+//! serves over FUSE into every agent made from it, and the arguments
+//! — so that a template is shareable, the same template on any
+//! daemon hashing the same. A caller makes one with [`create`]
 //! and names it afterwards by its id — the hash of the template, so
 //! the same template made twice is one template, and a caller that
 //! holds the template's text knows its id without asking. An
