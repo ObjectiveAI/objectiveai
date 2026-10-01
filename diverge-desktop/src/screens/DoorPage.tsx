@@ -3,7 +3,7 @@ import type { DoorView } from "../bindings/DoorView";
 import { Markdown } from "../components/Markdown";
 import { Button, Chip, Empty, Field, Section } from "../components/ui";
 import { useShared } from "../lib/context";
-import { providerName } from "../lib/format";
+import { providerName, time } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
 
@@ -41,6 +41,21 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
     }
   };
   const ready = (!fresh || freshName.trim() !== "") && (door.invited || note.trim() !== "");
+  const as = door.sends.usual;
+  /** What one field of the knock will say, from what's on this page now. */
+  const sent = (field: string): string => {
+    switch (field) {
+      case "name": return fresh ? freshName.trim() || t.door.sendsFreshName : as.name;
+      case "key": return fresh ? t.door.sendsFreshKey : as.key_mark;
+      case "account": return fresh ? t.door.sendsFreshAccount : `${t.door.sendsMade} ${time(as.account_made)}, ${t.door.sendsListNumber} ${as.list_number}, ${as.devices} ${t.door.sendsDevices}`;
+      case "note": return note.trim() ? `“${note.trim()}”` : t.door.sendsNoNote;
+      case "listed": return listed ? t.door.sendsYes : t.door.sendsNo;
+      case "invite": return door.sends.invite_mark ? t.door.sendsYes : t.door.sendsNoInvite;
+      case "vouch": return vouch.trim() ? t.door.sendsYes : t.door.sendsNoVouch;
+      case "room": return door.sends.room;
+      default: return "";
+    }
+  };
 
   return (
     <div className="page">
@@ -64,13 +79,15 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
             ))}
           </ul>
         </Section>
-        <Section title={t.door.theyllSee}>
-          <ul className="door-verbs">
-            <li>{t.door.seeAddress}</li>
-            <li>{t.door.seeName}</li>
-            <li>{t.door.seeNote}</li>
-          </ul>
-        </Section>
+        {door.already_in || state.kind === "in" ? null : (
+          <Section title={t.door.sendsTitle} note={t.door.sendsNote}>
+            <ul className="door-verbs">
+              {door.sends.fields.map((field) => (
+                <li key={field}><strong>{t.door.sends[field] ?? field}</strong>{sent(field) ? `: ${sent(field)}` : null}</li>
+              ))}
+            </ul>
+          </Section>
+        )}
 
         {state.kind === "in" ? (
           <Section title={t.door.in}>

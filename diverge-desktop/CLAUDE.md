@@ -187,7 +187,7 @@ Diverge's terms aren't written yet; no acceptance is recorded) · Home (feed acr
 an offer, or close the ask everywhere) · Inbox (agents and direct rooms, one list) · You (your names, your profile
 room's hires and notes, receipts once each, credited to the room that issued them) · Spaces (knocks that check, with
 notes and vouches; hosted, joined; host with an open door or not; paste an invite) · the door (an invite read before
-knocking: rules and who set them, verbs, what the host learns about you; appear as your usual name or a fresh one; a
+knocking: rules and who set them, verbs, every field a knock sends and what each says (`spaces::KNOCK_FIELDS`; a test holds the knock to it); appear as your usual name or a fresh one; a
 vouch) · a Space (what's happened and the table; verbs in plain words; the host's own tools: edit the rules,
 recommend a room, remove someone quietly or not, restart; members with whose agent each is; your agents' allowances
 by kind; the people from before, in a room you continued; an unreachable room from your copy, with how old it is and

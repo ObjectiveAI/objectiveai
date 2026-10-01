@@ -100,6 +100,11 @@ pub struct Knocking {
     pub sig: String,
 }
 
+/// Every field a knock carries, in the order the door page lists them. A
+/// knock is these and nothing else: a test holds [`Knocking`] to it, and
+/// the page words each one from `src/strings.ts`.
+pub const KNOCK_FIELDS: [&str; 10] = ["name", "key", "account", "note", "listed", "invite", "vouch", "room", "at", "sig"];
+
 fn listed_by_default() -> bool {
     true
 }
@@ -295,4 +300,33 @@ pub trait Spaces: Send + Sync + 'static {
     /// room gets a new invite secret, so a knock with an invite handed out
     /// before no longer comes with this room's invite. Returns the new invite.
     async fn restart_with_new_invite(&self, id: &Id) -> Result<Invite, WireError>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Whatever a knock holds, it holds only the fields the door page lists.
+    #[test]
+    fn a_knock_carries_exactly_the_fields_the_door_lists() {
+        let ren = Keypair::from_seed("ren");
+        let vouch = Statement::make(&Keypair::from_seed("ada"), "vouch", serde_json::json!({ "for": ren.key(), "room": "r" }));
+        let account = Proof::first(&Keypair::from_seed("ren root"), Utc::now(), &[ren.key()]);
+        let whole = Knocking { room: "r".into(), invite: Some("m".into()), key: ren.key(), name: "ren".into(), note: "hi".into(), listed: false, vouch: Some(vouch), account: Some(account), at: Utc::now(), sig: String::new() }.signed(&ren);
+        let fields = |k: &Knocking| -> Vec<String> {
+            let mut f: Vec<String> = serde_json::to_value(k).unwrap().as_object().unwrap().keys().cloned().collect();
+            f.sort();
+            f
+        };
+        let mut listed: Vec<String> = KNOCK_FIELDS.iter().map(|f| f.to_string()).collect();
+        listed.sort();
+        assert_eq!(fields(&whole), listed, "every field, when every one is there");
+        let bare = Knocking { invite: None, vouch: None, account: None, ..whole.clone() };
+        assert!(fields(&bare).iter().all(|f| KNOCK_FIELDS.contains(&f.as_str())), "and never one more");
+        // What travels is the authorization string the wire carries: the knock, and nothing beside it.
+        let travelled: serde_json::Value = serde_json::from_str(&whole.to_authorization()).unwrap();
+        let mut sent: Vec<String> = travelled.as_object().unwrap().keys().cloned().collect();
+        sent.sort();
+        assert_eq!(sent, listed);
+    }
 }

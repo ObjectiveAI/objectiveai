@@ -411,7 +411,12 @@ export function installPreview() {
         case "spaces_door": {
           const inv = decodeInvite(args.invite);
           if (!inv) throw new Error("that isn't an invite");
-          return { usual_name: you.name, title: inv.title, kind: inv.kind, host_name: inv.host_name, host: inv.host, charter: inv.charter, verbs: inv.verbs, invited: Boolean(inv.secret), already_in: spaceRecs.some((r) => r.view.summary.id === inv.id) };
+          // A key's mark in one room, as the app makes it (marks.rs): the start of a digest of the room and the key.
+          const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`diverge-desktop name mark\n${inv.id}\n${you.key}`)));
+          const keyMark = Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 6);
+          const k = fixture.knock;
+          const sends = { fields: k.fields, room: inv.id, invite_mark: Boolean(inv.secret), usual: { name: you.name, key_mark: keyMark, account_made: k.account_made, list_number: k.list_number, devices: k.devices } };
+          return { usual_name: you.name, title: inv.title, kind: inv.kind, host_name: inv.host_name, host: inv.host, charter: inv.charter, verbs: inv.verbs, invited: Boolean(inv.secret), already_in: spaceRecs.some((r) => r.view.summary.id === inv.id), sends };
         }
         case "spaces_join": {
           const inv = decodeInvite(args.invite);

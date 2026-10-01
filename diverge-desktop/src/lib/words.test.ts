@@ -26,3 +26,13 @@ describe("the first-run page", () => {
     }
   });
 });
+
+describe("the door page", () => {
+  // Every field a knock carries (spaces::KNOCK_FIELDS, held to the knock by a Rust test).
+  const fields = fixture.knock.fields as string[];
+  it("words every field a knock sends, and lists them from the knock's own list", () => {
+    expect(fields.length).toBeGreaterThan(0);
+    for (const f of fields) expect(t.door.sends[f], f).toBeTruthy();
+    expect(Object.keys(t.door.sends).sort()).toEqual([...fields].sort());
+  });
+});

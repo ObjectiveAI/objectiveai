@@ -1033,6 +1033,12 @@ async fn restart_room(state: &AppState, id: &str) -> Result<InviteView, String> 
 /// `you` are (its id names it), signed on this Mac by your key.
 fn new_room(state: &AppState, you: &crate::identity::Persona, title: String, kind: diverge_desktop_room::Kind, charter: String, open_door: bool, continues: Option<diverge_desktop_room::Continues>, room_key: &diverge_desktop_room::Keypair) -> Result<diverge_desktop_room::Args, String> {
     let account = state.identity.proof_of(&you.id)?;
+    // A profile names your notes key, drawn from your words: what visitors leave there is sealed to it.
+    let notes_key = match kind {
+        diverge_desktop_room::Kind::Profile if you.usual => Some(state.identity.notes_public()?),
+        diverge_desktop_room::Kind::Profile => return Err("a profile is hosted under your usual name: its notes key comes from your recovery words".into()),
+        _ => None,
+    };
     Ok(diverge_desktop_room::Args {
         id: diverge_desktop_room::account_room_id(&diverge_desktop_room::fresh_label(), &account.id()),
         title,
@@ -1047,7 +1053,7 @@ fn new_room(state: &AppState, you: &crate::identity::Persona, title: String, kin
         rules: 2,
         host_account: Some(account),
         keepers: Vec::new(),
-        notes_key: None,
+        notes_key,
         sig: String::new(),
     })
 }
@@ -1144,8 +1150,24 @@ pub async fn spaces_door(state: State<'_, AppState>, invite: String) -> Result<D
 async fn door_of(state: &AppState, invite: &str) -> Result<DoorView, String> {
     let invite = spaces::Invite::from_text(invite)?;
     let already_in = state.spaces.list().await.iter().any(|e| e.id.id == invite.id);
+    let usual = state.identity.usual()?;
+    let proof = state.identity.proof_of(&usual.id)?;
+    let account = proof.check()?;
+    let sends = crate::view::KnockSends {
+        fields: spaces::KNOCK_FIELDS.iter().map(|f| f.to_string()).collect(),
+        room: invite.id.clone(),
+        invite_mark: invite.secret.is_some(),
+        usual: crate::view::KnockAs {
+            name: usual.name.clone(),
+            key_mark: crate::marks::mark(&invite.id, &usual.key, crate::marks::SHORTEST),
+            account_made: proof.genesis.body["at"].as_str().unwrap_or_default().to_owned(),
+            list_number: account.sequence,
+            devices: account.devices.len() as u32,
+        },
+    };
     Ok(DoorView {
-        usual_name: state.identity.usual()?.name,
+        sends,
+        usual_name: usual.name,
         title: invite.title,
         kind: invite.kind,
         host_name: invite.host_name,
@@ -1157,18 +1179,9 @@ async fn door_of(state: &AppState, invite: &str) -> Result<DoorView, String> {
     })
 }
 
-#[tauri::command]
-pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: AppearAs, note: String, listed: bool, vouch: Option<String>) -> Result<JoinOutcome, String> {
-    let invite = spaces::Invite::from_text(&invite)?;
-    let vouch = match vouch.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
-        Some(text) => Some(parse_vouch(text)?),
-        None => None,
-    };
-    let persona = match appear_as {
-        AppearAs::Usual => state.identity.usual()?,
-        AppearAs::Fresh { name } => state.identity.fresh(&name)?,
-    };
-    let now = chrono::Utc::now();
+/// A knock at `invite`'s room as `persona`, signed: exactly the fields the
+/// door page lists (`spaces::KNOCK_FIELDS`), nothing else.
+fn knock_of(state: &AppState, invite: &spaces::Invite, persona: &crate::identity::Persona, note: String, listed: bool, vouch: Option<diverge_desktop_room::Statement>, now: chrono::DateTime<chrono::Utc>) -> Result<spaces::Knocking, String> {
     let account = state.identity.proof_of(&persona.id)?;
     let knocking = spaces::Knocking {
         room: invite.id.clone(),
@@ -1188,7 +1201,21 @@ pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: 
         }
     }
     let knocking = spaces::Knocking { vouch, ..knocking };
-    let knocking = spaces::Knocking { sig: state.identity.state(&persona.key, "knock", knocking.body())?.sig, ..knocking };
+    Ok(spaces::Knocking { sig: state.identity.state(&persona.key, "knock", knocking.body())?.sig, ..knocking })
+}
+
+#[tauri::command]
+pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: AppearAs, note: String, listed: bool, vouch: Option<String>) -> Result<JoinOutcome, String> {
+    let invite = spaces::Invite::from_text(&invite)?;
+    let vouch = match vouch.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+        Some(text) => Some(parse_vouch(text)?),
+        None => None,
+    };
+    let persona = match appear_as {
+        AppearAs::Usual => state.identity.usual()?,
+        AppearAs::Fresh { name } => state.identity.fresh(&name)?,
+    };
+    let knocking = knock_of(&state, &invite, &persona, note, listed, vouch, chrono::Utc::now())?;
     Ok(match state.spaces.join(&invite, &knocking).await {
         spaces::Joined::Joined(id) => {
             state.identity.set_room(&id.id, &persona.id);
@@ -2616,6 +2643,46 @@ mod tests {
         assert_eq!(finish_first_run(&state, "Sam Lee", true).unwrap(), FirstRunView::Done);
         assert_eq!(state.identity.usual().unwrap().key, usual.key(), "the same key as before");
         assert_eq!(door_of(&state, &invite).await.unwrap().usual_name, "Sam Lee", "under the name typed on the page");
+    }
+
+    /// The door page lists every field a knock carries, with what each says
+    /// as your usual self, and a knock carries exactly those.
+    #[tokio::test]
+    async fn the_door_lists_everything_a_knock_sends_and_a_knock_sends_nothing_else() {
+        let (state, _rooms) = app("actions-door-sends");
+        let invite = spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: "workshop.abc".into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new() };
+        let door = door_of(&state, &invite.to_text()).await.unwrap();
+        assert_eq!(door.sends.fields, spaces::KNOCK_FIELDS.to_vec());
+        let usual = state.identity.usual().unwrap();
+        let now = Utc::now();
+        let vouch = Statement::make(&Keypair::from_seed("ada"), "vouch", json!({ "for": usual.key, "for_name": usual.name, "by_name": "ada", "room": invite.id, "until": (now + chrono::TimeDelta::days(1)).to_rfc3339() }));
+        let knock = knock_of(&state, &invite, &usual, "ada sent me".into(), false, Some(vouch), now).unwrap();
+        let sent: serde_json::Value = serde_json::from_str(&knock.to_authorization()).unwrap();
+        let mut keys: Vec<&str> = sent.as_object().unwrap().keys().map(String::as_str).collect();
+        let mut listed = door.sends.fields.iter().map(String::as_str).collect::<Vec<_>>();
+        keys.sort();
+        listed.sort();
+        assert_eq!(keys, listed, "every field it carries is listed, and nothing else goes");
+        // Each says what the page says it does.
+        let s = &door.sends;
+        assert_eq!((sent["name"].as_str(), s.usual.name.as_str()), (Some(usual.name.as_str()), usual.name.as_str()), "the exact name");
+        assert_eq!(crate::marks::mark(&invite.id, sent["key"].as_str().unwrap(), crate::marks::SHORTEST), s.usual.key_mark, "the key the mark is of");
+        let proof: Proof = serde_json::from_value(sent["account"].clone()).unwrap();
+        let account = proof.check().unwrap();
+        assert_eq!((account.devices.len() as u32, account.sequence), (s.usual.devices, s.usual.list_number), "the account's device list, as the page counts it");
+        assert_eq!(proof.genesis.body["at"].as_str(), Some(s.usual.account_made.as_str()), "and when it was made");
+        assert_eq!((sent["room"].as_str(), sent["invite"].is_string()), (Some(s.room.as_str()), s.invite_mark), "the room, and a mark of the invite's key");
+        assert!(!knock.to_authorization().contains("\"s\""), "never the invite's key itself");
+        assert_eq!((sent["note"].as_str(), sent["listed"].as_bool()), (Some("ada sent me"), Some(false)));
+    }
+
+    /// A profile you host names your notes key, so what visitors leave is sealed to you.
+    #[tokio::test]
+    async fn a_profile_you_host_names_your_notes_key() {
+        let (state, _rooms) = app("actions-profile-notes");
+        let HostOutcome::Hosted { id } = host_space(&state, HostSpaceInput { title: "me".into(), kind: "profile".into(), charter: String::new(), open_door: true }).await.unwrap() else { panic!("hosted") };
+        let about: serde_json::Value = read_json(&state, &space_id(&id), diverge_desktop_room::room::ABOUT).await.unwrap();
+        assert_eq!(about["notes_key"].as_str(), Some(state.identity.notes_public().unwrap().as_str()));
     }
 
     #[tokio::test]

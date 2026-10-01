@@ -1079,6 +1079,36 @@ pub struct DoorView {
     pub invited: bool,
     /// You already have a persona here, or you host it.
     pub already_in: bool,
+    /// Everything a knock here sends: the page lists each field, and nothing else goes.
+    pub sends: KnockSends,
+}
+
+/// What a knock at one door carries, field by field (`spaces::KNOCK_FIELDS`).
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct KnockSends {
+    /// Every field, in the order the page lists them.
+    pub fields: Vec<String>,
+    /// The room's id, as the knock names it.
+    pub room: String,
+    /// Whether it carries a mark of the invite's key (never the key itself).
+    pub invite_mark: bool,
+    /// As your usual self.
+    pub usual: KnockAs,
+}
+
+/// Who a knock says you are, as one of your names.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct KnockAs {
+    /// The name, exactly.
+    pub name: String,
+    /// The key's mark in this room: the knock carries the whole key.
+    pub key_mark: String,
+    /// What the account's proof shows: when it was made, its device list's number, and how many devices it names.
+    pub account_made: String,
+    pub list_number: u64,
+    pub devices: u32,
 }
 
 #[derive(Serialize, TS, Clone, Debug)]
