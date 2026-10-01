@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { LogEvent } from "../bindings/LogEvent";
 import type { LogsQuery } from "../bindings/LogsQuery";
 import type { SavedView } from "../bindings/SavedView";
-import { Button, Field, Section } from "../components/ui";
+import { Button, Field, Row, Section, SectionHead } from "../components/ui";
 import { useShared } from "../lib/context";
 import { argsLine } from "../lib/conversation";
 import { time } from "../lib/format";
@@ -114,16 +114,16 @@ export function Views() {
           <h1>{t.views.title}</h1>
           <p className="muted small">{t.views.note}</p>
         </header>
-        <Button small kind="quiet" onClick={() => { setId(""); setTitle(""); setQuery(blank(agents[0]?.name ?? "")); setRows([]); setState("idle"); }}>+ {t.views.new}</Button>
-        <h3 className="list-head">{t.views.saved}</h3>
+        <Button small kind="tertiary" onClick={() => { setId(""); setTitle(""); setQuery(blank(agents[0]?.name ?? "")); setRows([]); setState("idle"); }}>+ {t.views.new}</Button>
+        <SectionHead small level={3} title={t.views.saved} />
         {saved.length === 0 ? <p className="muted small">{t.views.none}</p> : null}
         <ul>
           {saved.map((v) => (
             <li key={v.id}>
-              <button className={`list-row${v.id === id ? " on" : ""}`} onClick={() => load(v)}>
+              <Row className="list-row" on={v.id === id} onClick={() => load(v)}>
                 <span>{v.title}</span>
                 <span className="muted small">{v.query.name}{v.query.item_type ? ` · ${t.itemTypes[v.query.item_type] ?? v.query.item_type}` : ""}</span>
-              </button>
+              </Row>
             </li>
           ))}
         </ul>
@@ -131,7 +131,7 @@ export function Views() {
       <section className="views-main">
         <div className="page-inner">
           <Section title={title || t.views.untitled}>
-            <div className="presets"><span className="muted small">{t.views.presets}</span>{PRESETS.map((p) => <Button key={p.title} small kind="quiet" onClick={() => { const q = p.query(query.name || agents[0]?.name || ""); setTitle(p.title); setId(""); setQuery(q); run(q); }}>{p.title}</Button>)}</div>
+            <div className="presets"><span className="muted small">{t.views.presets}</span>{PRESETS.map((p) => <Button key={p.title} small kind="tertiary" onClick={() => { const q = p.query(query.name || agents[0]?.name || ""); setTitle(p.title); setId(""); setQuery(q); run(q); }}>{p.title}</Button>)}</div>
             <div className="row">
               <Field label={t.views.titleLabel}>
                 <input value={title} placeholder={t.views.untitled} onChange={(e) => setTitle(e.target.value)} />
@@ -168,8 +168,8 @@ export function Views() {
                 <span>{t.views.watch}</span>
               </label>
               <span className="spacer" />
-              {id ? <Button small kind="quiet" onClick={async () => { await api.viewDelete(id); setId(""); setSaved(await api.views()); }}>{t.views.delete}</Button> : null}
-              <Button kind="quiet" onClick={save} disabled={!query.name}>{t.views.save}</Button>
+              {id ? <Button small kind="tertiary" onClick={async () => { await api.viewDelete(id); setId(""); setSaved(await api.views()); }}>{t.views.delete}</Button> : null}
+              <Button kind="tertiary" onClick={save} disabled={!query.name}>{t.views.save}</Button>
               <Button kind="primary" onClick={() => run()} disabled={!query.name}>{t.views.run}</Button>
             </div>
           </Section>

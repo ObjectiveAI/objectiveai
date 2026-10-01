@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { MoveView } from "../bindings/MoveView";
 import type { ProfileView } from "../bindings/ProfileView";
 import { Markdown } from "../components/Markdown";
-import { Button, Chip, Empty, Section } from "../components/ui";
+import { Button, Chip, Empty, Row, Section, SectionHead } from "../components/ui";
 import { useShared } from "../lib/context";
 import { ago, bytes, kindTitle, providerName, providerWay, time, spaceTitle } from "../lib/format";
 import { api } from "../lib/ipc";
@@ -33,12 +33,12 @@ export function Profile() {
           <ul className="personas">
             {p.personas.map((q) => <PersonaRow key={q.id} id={q.id} name={q.name} usual={q.usual} rooms={q.rooms} onChanged={() => api.profile().then(setP)} />)}
           </ul>
-          {p.profile ? <Button small kind="quiet" onClick={() => open({ kind: "space", id: p.profile! })}>{t.profile.visit}</Button> : null}
+          {p.profile ? <Button small kind="tertiary" onClick={() => open({ kind: "space", id: p.profile! })}>{t.profile.visit}</Button> : null}
         </Section>
 
         {p.profile ? (
           <Section title={t.profile.visit} note={t.profile.visitNote}>
-            <h3 className="list-head">{t.profile.hires}</h3>
+            <SectionHead small level={3} title={t.profile.hires} />
             {room.filter((m) => m.kind === "hire").length === 0 ? <p className="muted small">{t.profile.noHires}</p> : null}
             <ul className="member-list">
               {room.filter((m) => m.kind === "hire").map((m) => (
@@ -48,7 +48,7 @@ export function Profile() {
                 </li>
               ))}
             </ul>
-            <h3 className="list-head">{t.profile.notes}</h3>
+            <SectionHead small level={3} title={t.profile.notes} />
             {room.filter((m) => m.kind === "note").length === 0 ? <p className="muted small">{t.profile.noNotes}</p> : null}
             <ul className="member-list">
               {room.filter((m) => m.kind === "note").map((m) => (
@@ -68,13 +68,13 @@ export function Profile() {
               <li key={i} className="receipt">
                 <span className="receipt-name">✓ {b.title}</span>
                 {p.profile && b.holds && b.earned_as_usual ? (
-                  <button className="link small" onClick={() => api.spaceCall(p.profile!, "pin_receipt", { statement: b.statement }).then((out) => setPinned(out.outcome === "ok" ? b.title : out.message))}>
+                  <Button small kind="tertiary" onClick={() => api.spaceCall(p.profile!, "pin_receipt", { statement: b.statement }).then((out) => setPinned(out.outcome === "ok" ? b.title : out.message))}>
                     {pinned === b.title ? t.profile.pinned : t.profile.pin}
-                  </button>
+                  </Button>
                 ) : null}
                 <span className="muted small">
                   {t.profile.earnedBy} <strong>{b.to}</strong> · {t.profile.issuedBy}{" "}
-                  {b.space ? <button className="space-chip" onClick={() => open({ kind: "space", id: b.space!.id })}>{b.room_title}</button> : <strong>{b.room_title}</strong>} ·{" "}
+                  {b.space ? <Chip onClick={() => open({ kind: "space", id: b.space!.id })}>{b.room_title}</Chip> : <strong>{b.room_title}</strong>} ·{" "}
                   {b.holds ? `${t.profile.holds} ${b.issued_by}, ${b.known ? t.profile.someoneYouKnow : t.profile.someoneNew}` : t.profile.doesntHold} · {time(b.at)}
                 </span>
                 {b.holds && !b.earned_as_usual ? <span className="muted small">{t.profile.earnedAsFresh} {b.earned_as}{t.profile.earnedAsFreshNote}</span> : null}
@@ -98,11 +98,11 @@ export function Profile() {
           <ul className="space-list">
             {p.agents.map((a) => (
               <li key={a.name}>
-                <button className="space-row" onClick={() => open({ kind: "agent", name: a.name })}>
+                <Row className="space-row" onClick={() => open({ kind: "agent", name: a.name })}>
                   <span className="space-row-title">{a.name}</span>
                   <Chip>{kindTitle(a.image_name)}</Chip>
                   <span className="muted small">{a.active ? t.status.working : a.last_active ? `${t.status.idle} · ${ago(a.last_active)}` : t.status.never}</span>
-                </button>
+                </Row>
               </li>
             ))}
           </ul>
@@ -112,11 +112,11 @@ export function Profile() {
           <ul className="space-list">
             {p.machines.map((m, i) => (
               <li key={i}>
-                <button className="space-row" onClick={() => open({ kind: "machines" })}>
+                <Row className="space-row" onClick={() => open({ kind: "machines" })}>
                   <span className="space-row-title mono">{providerName(m.identity)}</span>
                   <span className="muted small">{providerWay(m.identity)}</span>
                   {m.volumes.map((v) => <Chip key={v.name}>{v.name}</Chip>)}
-                </button>
+                </Row>
               </li>
             ))}
           </ul>
@@ -142,7 +142,7 @@ function PersonaRow(props: { id: string; name: string; usual: boolean; rooms: st
         <>
           <strong>{props.name}</strong>
           {props.usual ? <Chip>{t.profile.usualTag}</Chip> : null}
-          <button className="link small" onClick={() => setEditing(true)}>{t.profile.rename}</button>
+          <Button small kind="tertiary" onClick={() => setEditing(true)}>{t.profile.rename}</Button>
         </>
       )}
       <span className="muted small">{props.rooms.length ? `${t.profile.inRooms} ${props.rooms.map((id) => { const r = spaces.find((x) => x.id === id); return r ? spaceTitle(r) : id; }).join(", ")}` : t.profile.noRooms}</span>

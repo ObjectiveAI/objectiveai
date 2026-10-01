@@ -4,7 +4,7 @@ import type { SpaceSummary } from "../bindings/SpaceSummary";
 import { bytes as fmtBytes, spaceTitle } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
-import { Button, Empty, Icon } from "./ui";
+import { Button, Empty, Icon, Row } from "./ui";
 
 type Open = { path: string; text: string; saved: string; binary: boolean; size: number; state: "idle" | "saving" | "saved" | "error"; error?: string };
 
@@ -105,21 +105,21 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
           const isOpen = expanded.has(path);
           return (
             <li key={path}>
-              <button className="tree-row" onClick={() => toggle(path)}>
+              <Row className="tree-row" onClick={() => toggle(path)}>
                 <span className={`chev${isOpen ? " open" : ""}`}><Icon name="chevron" /></span>
                 <Icon name="folder" /> <span>{node.name}</span>
-              </button>
+              </Row>
               {isOpen ? <ul>{render(node.children, path)}</ul> : null}
             </li>
           );
         }
         return (
           <li key={path}>
-            <button className={`tree-row${file?.path === path ? " on" : ""}`} onClick={() => open(path)}>
+            <Row className="tree-row" on={file?.path === path} onClick={() => open(path)}>
               <span className="chev" />
               <Icon name="file" /> <span>{node.name}</span>
               {node.kind === "file" && node.size !== null ? <span className="tree-size muted">{fmtBytes(node.size)}</span> : null}
-            </button>
+            </Row>
           </li>
         );
       });
@@ -135,11 +135,11 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
         <ul className="tree">{nodes ? render(nodes, "") : null}</ul>
         <div className="new-file">
           <input className="mono" value={newPath} placeholder={t.spaces.newFilePlaceholder} onChange={(e) => setNewPath(e.target.value)} spellCheck={false} />
-          <Button small kind="quiet" onClick={create} disabled={!newPath.trim()}>{t.spaces.create}</Button>
+          <Button small kind="tertiary" onClick={create} disabled={!newPath.trim()}>{t.spaces.create}</Button>
           {exists ? (
             <span className="warn small">
               {exists} {t.spaces.alreadyThere}{" "}
-              <button className="link small" onClick={() => { open(exists); setExists(null); setNewPath(""); }}>{t.spaces.openIt}</button>
+              <Button small kind="tertiary" onClick={() => { open(exists); setExists(null); setNewPath(""); }}>{t.spaces.openIt}</Button>
             </span>
           ) : null}
         </div>
@@ -168,12 +168,12 @@ export function Table(props: { space: SpaceSummary; rooms: SpaceSummary[] }) {
                   <option value="">{t.spaces.copyTo}…</option>
                   {others.map((r) => <option key={r.id} value={r.id}>{spaceTitle(r)}</option>)}
                 </select>
-                <Button small kind="quiet" onClick={() => copy()} disabled={!moveTo}>{t.spaces.copyTo.split(" ")[0]}</Button>
+                <Button small kind="tertiary" onClick={() => copy()} disabled={!moveTo}>{t.spaces.copyTo.split(" ")[0]}</Button>
                 {replacing ? (
                   <span className="warn small">
                     {t.spaces.replaceThere}{" "}
                     <Button small kind="danger" onClick={() => copy(true)}>{t.spaces.replaceIt}</Button>
-                    <Button small kind="quiet" onClick={() => setReplacing(false)}>{t.spaces.keepTheirs}</Button>
+                    <Button small kind="tertiary" onClick={() => setReplacing(false)}>{t.spaces.keepTheirs}</Button>
                   </span>
                 ) : null}
                 {moved ? <span className={moved === t.spaces.copied2 ? "ok small" : "warn small"}>{moved}</span> : null}

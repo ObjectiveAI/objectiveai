@@ -4,7 +4,7 @@ import type { MachineView } from "../bindings/MachineView";
 import type { ProviderView } from "../bindings/ProviderView";
 import type { VolumeMode } from "../bindings/VolumeMode";
 import type { VolumeView } from "../bindings/VolumeView";
-import { Button, Chip, Empty, Field, Icon } from "../components/ui";
+import { Button, Chip, Empty, Field, Icon, Row, SectionHead } from "../components/ui";
 import { bytes as fmtBytes, identityKey, providerName } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
@@ -93,19 +93,19 @@ export function Storage() {
             const u = used[v.name];
             return (
               <li key={v.name}>
-                <button className={`volume-row${selected === v.name ? " on" : ""}`} onClick={() => setSelected(v.name)}>
+                <Row className="volume-row" on={selected === v.name} onClick={() => setSelected(v.name)}>
                   <span className="volume-name">{v.name} <span className="muted small">· {t.storage.modes[v.mode]}</span></span>
                   <span className="muted small">
                     {u === "in-use" ? t.storage.inUse.split(",")[0] : `${fmtBytes(u ?? 0)} ${t.storage.of} ${fmtBytes(v.bytes)}`}
                   </span>
                   {u !== "in-use" && typeof u === "number" ? <span className="meter"><span style={{ width: `${Math.min(100, (u / v.bytes) * 100)}%` }} /></span> : null}
-                </button>
+                </Row>
               </li>
             );
           })}
         </ul>
         <div className="new-volume">
-          <h3 className="list-head">{t.storage.newVolume}</h3>
+          <SectionHead small level={3} title={t.storage.newVolume} />
           <Field label={t.storage.name}>
             <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} spellCheck={false} />
           </Field>
@@ -204,21 +204,21 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
           const isOpen = expanded.has(path);
           return (
             <li key={path}>
-              <button className="tree-row" onClick={() => toggle(path)}>
+              <Row className="tree-row" onClick={() => toggle(path)}>
                 <span className={`chev${isOpen ? " open" : ""}`}><Icon name="chevron" /></span>
                 <Icon name="folder" /> <span>{node.name}</span>
-              </button>
+              </Row>
               {isOpen ? <ul>{render(node.children, path)}</ul> : null}
             </li>
           );
         }
         return (
           <li key={path}>
-            <button className={`tree-row${file?.path === path ? " on" : ""}`} onClick={() => open(path)}>
+            <Row className="tree-row" on={file?.path === path} onClick={() => open(path)}>
               <span className="chev" />
               <Icon name={node.kind === "symlink" ? "link" : "file"} /> <span>{node.name}</span>
               {node.kind === "file" && node.size !== null ? <span className="tree-size muted">{fmtBytes(node.size)}</span> : null}
-            </button>
+            </Row>
           </li>
         );
       });
@@ -236,14 +236,14 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
             {MODES.map((m) => <option key={m} value={m}>{t.storage.modes[m]}</option>)}
           </select>
           <input className="size-input" type="number" min={0.25} step={0.25} value={gb} onChange={(e) => setGb(Number(e.target.value))} aria-label={t.storage.size} />
-          <Button small kind="quiet" onClick={() => edit(Math.round(gb * GB), null)} disabled={Math.round(gb * GB) === volume.bytes}>{t.storage.resize}</Button>
+          <Button small kind="tertiary" onClick={() => edit(Math.round(gb * GB), null)} disabled={Math.round(gb * GB) === volume.bytes}>{t.storage.resize}</Button>
           {confirm ? (
             <>
               <Button small kind="danger" onClick={async () => { const out = await api.volumeDelete(on, volume.name); say(out.outcome, out.outcome === "error" ? out.message : undefined); setConfirm(false); props.onChanged(); }}>{t.storage.deleteConfirm}</Button>
-              <Button small kind="quiet" onClick={() => setConfirm(false)}>{t.storage.keep}</Button>
+              <Button small kind="tertiary" onClick={() => setConfirm(false)}>{t.storage.keep}</Button>
             </>
           ) : (
-            <Button small kind="quiet" onClick={() => setConfirm(true)}>{t.storage.delete}</Button>
+            <Button small kind="tertiary" onClick={() => setConfirm(true)}>{t.storage.delete}</Button>
           )}
         </div>
       </header>
@@ -253,14 +253,14 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
         <div className="volume-tree">
           <div className="volume-tree-head">
             <span className="muted small">{t.storage.snapshot}</span>
-            <Button small kind="quiet" onClick={refresh}>{t.storage.refresh}</Button>
+            <Button small kind="tertiary" onClick={refresh}>{t.storage.refresh}</Button>
           </div>
           {treeProblem ? <p className="bad small">{treeProblem}</p> : null}
           {tree && tree.length === 0 ? <p className="muted small">{t.storage.empty}</p> : null}
           <ul className="tree">{tree ? render(tree, "") : null}</ul>
           <div className="new-file">
             <input className="mono" value={newPath} placeholder={t.storage.newFilePlaceholder} onChange={(e) => setNewPath(e.target.value)} spellCheck={false} />
-            <Button small kind="quiet" onClick={createFile} disabled={!newPath.trim()}>{t.storage.createFile}</Button>
+            <Button small kind="tertiary" onClick={createFile} disabled={!newPath.trim()}>{t.storage.createFile}</Button>
           </div>
         </div>
         <div className="volume-file">

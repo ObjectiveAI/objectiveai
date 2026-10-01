@@ -8,7 +8,7 @@ import type { VolumeMountInput } from "../bindings/VolumeMountInput";
 import { identityKey, providerName } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
-import { Button, Field } from "./ui";
+import { Button, Field, SectionHead } from "./ui";
 
 /** One mount as a form holds it. `machine` is an identity key; a pinned machine's own rows ignore it. */
 export type MountRow = { machine: string; volume: string; inVolume: string; to: string; scratch?: string };
@@ -111,7 +111,7 @@ export function MountRows(props: { rows: MountRow[]; onChange: (rows: MountRow[]
                 </select>
               </Field>
             ) : null}
-            <Button small kind="quiet" onClick={() => onChange(rows.filter((_, j) => j !== i))}>{t.create.remove}</Button>
+            <Button small kind="tertiary" onClick={() => onChange(rows.filter((_, j) => j !== i))}>{t.create.remove}</Button>
           </div>
         );
       })}
@@ -129,8 +129,8 @@ export function LiveMounts(props: { draft: MountsDraft; onChange: (d: MountsDraf
       <MountRows live rows={draft.files} onChange={(files) => onChange({ ...draft, files })} machines={machines} inPlaceholder="notes/ideas.md" />
       {scratchMissing(draft, machines) ? <p className="warn small">{t.create.scratchNote}</p> : null}
       <div className="row-actions">
-        <Button small kind="quiet" onClick={() => onChange({ ...draft, folders: [...draft.folders, newRow(machines)] })} disabled={!any}>+ {t.create.addShare}</Button>
-        <Button small kind="quiet" onClick={() => onChange({ ...draft, files: [...draft.files, { ...newRow(machines), to: "" }] })} disabled={!any}>+ {t.create.addFileShare}</Button>
+        <Button small kind="tertiary" onClick={() => onChange({ ...draft, folders: [...draft.folders, newRow(machines)] })} disabled={!any}>+ {t.create.addShare}</Button>
+        <Button small kind="tertiary" onClick={() => onChange({ ...draft, files: [...draft.files, { ...newRow(machines), to: "" }] })} disabled={!any}>+ {t.create.addFileShare}</Button>
       </div>
     </>
   );
@@ -174,27 +174,27 @@ export function MountsPanel(props: { name: string; active: boolean; onClose: () 
     <section className="mounts-panel">
       <header className="mounts-head">
         <h2>{t.mounts.title}</h2>
-        <Button small kind="quiet" onClick={props.onClose}>{t.mounts.close}</Button>
+        <Button small kind="tertiary" onClick={props.onClose}>{t.mounts.close}</Button>
       </header>
       {!view ? (
         <p className="muted small">{t.mounts.unknown}</p>
       ) : (
         <>
-          <h3 className="list-head">{t.mounts.own}</h3>
+          <SectionHead small level={3} title={t.mounts.own} />
           {pinned ? (
             <>
               <p className="muted small">{t.mounts.pinnedTo} {providerName(pinned)}</p>
               <MountRows rows={draft.own} onChange={(own) => setDraft({ ...draft, own })} machines={machines} fixed={home} inPlaceholder="(all of it)" />
               {home && home.volumes.length > 0 ? (
                 <div className="row-actions">
-                  <Button small kind="quiet" onClick={() => setDraft({ ...draft, own: [...draft.own, newRow(machines, home)] })}>+ {t.create.addStorage}</Button>
+                  <Button small kind="tertiary" onClick={() => setDraft({ ...draft, own: [...draft.own, newRow(machines, home)] })}>+ {t.create.addStorage}</Button>
                 </div>
               ) : null}
             </>
           ) : (
             <p className="muted small">{t.mounts.anywhere}</p>
           )}
-          <h3 className="list-head">{t.mounts.live}</h3>
+          <SectionHead small level={3} title={t.mounts.live} />
           <LiveMounts draft={draft} onChange={setDraft} machines={machines} />
           <footer className="mounts-foot">
             <span className="muted small">{props.active ? t.mounts.active : t.mounts.replaces}</span>

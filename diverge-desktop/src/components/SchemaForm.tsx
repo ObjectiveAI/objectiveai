@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { t } from "../strings";
-import { Segmented } from "./ui";
+import { Button, Segmented } from "./ui";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Schema = Record<string, any>;
@@ -428,10 +428,10 @@ function ArrayField(props: FieldProps) {
       {arr.map((item, i) => (
         <div className="array-item" key={i}>
           <SchemaField name={`${name.replace(/s$/, "")} ${i + 1}`} schema={items} root={root} value={item} onChange={(v) => set(i, v)} required depth={props.depth + 1} />
-          <button type="button" className="btn btn-quiet btn-small" onClick={() => props.onChange(arr.filter((_, j) => j !== i))}>{t.create.remove}</button>
+          <Button small kind="tertiary" onClick={() => props.onChange(arr.filter((_, j) => j !== i))}>{t.create.remove}</Button>
         </div>
       ))}
-      <button type="button" className="btn btn-quiet btn-small" onClick={() => props.onChange([...arr, initial(items, root)])}>+ {t.create.add}</button>
+      <Button small kind="tertiary" onClick={() => props.onChange([...arr, initial(items, root)])}>+ {t.create.add}</Button>
     </fieldset>
   );
 }
@@ -456,12 +456,12 @@ function MapField(props: FieldProps) {
           <div className="map-value">
             <SchemaField name={t.create.value} schema={valueSchema} root={root} value={v} onChange={(nv) => props.onChange({ ...obj, [k]: nv })} required depth={props.depth + 1} />
           </div>
-          <button type="button" className="btn btn-quiet btn-small" onClick={() => { const next = { ...obj }; delete next[k]; props.onChange(next); }}>{t.create.remove}</button>
+          <Button small kind="tertiary" onClick={() => { const next = { ...obj }; delete next[k]; props.onChange(next); }}>{t.create.remove}</Button>
         </div>
       ))}
       <div className="map-row">
         <input className="map-key" value={draft} placeholder={t.create.key} onChange={(e) => setDraft(e.target.value)} spellCheck={false} />
-        <button type="button" className="btn btn-quiet btn-small" disabled={!draft || draft in obj} onClick={() => { props.onChange({ ...obj, [draft]: initial(valueSchema, root) }); setDraft(""); }}>+ {t.create.add}</button>
+        <Button small kind="tertiary" disabled={!draft || draft in obj} onClick={() => { props.onChange({ ...obj, [draft]: initial(valueSchema, root) }); setDraft(""); }}>+ {t.create.add}</Button>
       </div>
     </fieldset>
   );

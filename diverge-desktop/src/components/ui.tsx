@@ -1,17 +1,30 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
-export function Button(props: {
-  children: ReactNode;
+/** How a button looks: the one action that goes ahead (primary), an ordinary one (secondary), a quiet one
+ *  (tertiary), one that can't be undone (danger), or an icon alone, which must carry a label. */
+export type ButtonKind = "primary" | "secondary" | "tertiary" | "danger" | "icon";
+
+type ButtonProps = {
   onClick?: () => void;
-  kind?: "primary" | "quiet" | "danger" | "plain";
+  onMouseDown?: (e: MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   small?: boolean;
   title?: string;
   type?: "button" | "submit";
-}) {
-  const { kind = "plain", small, ...rest } = props;
+} & ({ kind: Exclude<ButtonKind, "icon">; children: ReactNode } | { kind: "icon"; label: string; children?: ReactNode });
+
+export function Button(props: ButtonProps) {
+  const label = props.kind === "icon" ? props.label : undefined;
   return (
-    <button type={props.type ?? "button"} className={`btn btn-${kind}${small ? " btn-small" : ""}`} onClick={rest.onClick} disabled={rest.disabled} title={rest.title}>
+    <button
+      type={props.type ?? "button"}
+      className={`btn btn-${props.kind}${props.small ? " btn-small" : ""}`}
+      onClick={props.onClick}
+      onMouseDown={props.onMouseDown}
+      disabled={props.disabled}
+      title={props.title ?? label}
+      aria-label={label}
+    >
       {props.children}
     </button>
   );
@@ -22,6 +35,19 @@ export function Segmented<T extends string>(props: { value: T; options: { value:
     <div className="segmented" role="radiogroup">
       {props.options.map((o) => (
         <button type="button" key={o.value} role="radio" aria-checked={props.value === o.value} className={props.value === o.value ? "on" : ""} onClick={() => props.onChange(o.value)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** A row of views over one place (Home's filters): each a tab, the one you're on marked. */
+export function Tabs<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; className?: string }) {
+  return (
+    <div className={`view-tabs${props.className ? ` ${props.className}` : ""}`} role="tablist">
+      {props.options.map((o) => (
+        <button type="button" key={o.value} role="tab" aria-selected={props.value === o.value} className={`view-tab${props.value === o.value ? " on" : ""}`} onClick={() => props.onChange(o.value)}>
           {o.label}
         </button>
       ))}
@@ -42,17 +68,26 @@ export function Field(props: { label: string; hint?: string; children: ReactNode
   );
 }
 
+/** The head of a section: its title (and step number, note, and anything beside it). The small form
+ *  heads a list inside a column or a section. */
+export function SectionHead(props: { title: ReactNode; note?: string; step?: number; aside?: ReactNode; level?: 2 | 3; small?: boolean }) {
+  const H = props.level === 3 ? "h3" : "h2";
+  return (
+    <header className={`section-head${props.small ? " section-head-small" : ""}`}>
+      {props.step !== undefined ? <span className="step">{props.step}</span> : null}
+      <div className="section-titles">
+        <H>{props.title}</H>
+        {props.note ? <p className="muted">{props.note}</p> : null}
+      </div>
+      {props.aside}
+    </header>
+  );
+}
+
 export function Section(props: { step?: number; title: string; note?: string; children: ReactNode; aside?: ReactNode }) {
   return (
     <section className="section">
-      <header className="section-head">
-        {props.step !== undefined ? <span className="step">{props.step}</span> : null}
-        <div className="section-titles">
-          <h2>{props.title}</h2>
-          {props.note ? <p className="muted">{props.note}</p> : null}
-        </div>
-        {props.aside}
-      </header>
+      <SectionHead step={props.step} title={props.title} note={props.note} aside={props.aside} />
       <div className="section-body">{props.children}</div>
     </section>
   );
@@ -62,11 +97,49 @@ export function Dot(props: { state: "working" | "idle" | "never" | "bad" }) {
   return <span className={`dot dot-${props.state}`} aria-hidden />;
 }
 
-export function Chip(props: { children: ReactNode; tone?: "ok" | "warn" | "bad" | "plain" | "accent"; title?: string }) {
+/** A chip: a label (a state, a kind) with a tint and no edge, or, given onClick, a pressable one (a room)
+ *  with an edge. */
+export function Chip(props: { children: ReactNode; title?: string } & ({ tone?: "ok" | "warn" | "bad" | "plain" | "accent"; onClick?: undefined } | { onClick: () => void; tone?: undefined })) {
+  if (props.onClick) {
+    return (
+      <button type="button" className="chip chip-press" title={props.title} onClick={props.onClick}>
+        {props.children}
+      </button>
+    );
+  }
   return (
     <span className={`chip chip-${props.tone ?? "plain"}`} title={props.title}>
       {props.children}
     </span>
+  );
+}
+
+/** A card: one padding, one rhythm inside. Given onClick, the whole card is a button. */
+export function Card(props: { children: ReactNode; tone?: "bad" | "warn" | "quiet"; className?: string; onClick?: () => void }) {
+  if (props.onClick) {
+    return (
+      <button type="button" className={`card card-press${props.tone ? ` card-${props.tone}` : ""}${props.className ? ` ${props.className}` : ""}`} onClick={props.onClick}>
+        {props.children}
+      </button>
+    );
+  }
+  return <div className={`card${props.tone ? ` card-${props.tone}` : ""}${props.className ? ` ${props.className}` : ""}`}>{props.children}</div>;
+}
+
+/** A row you press to go somewhere (the rail, a list, a tree). `on` marks the one where you are; with
+ *  `choice`, it marks the one picked among several instead. */
+export function Row(props: { children: ReactNode; onClick: () => void; on?: boolean; choice?: boolean; className?: string; title?: string }) {
+  return (
+    <button
+      type="button"
+      className={`nav-row${props.className ? ` ${props.className}` : ""}${props.on ? " on" : ""}`}
+      onClick={props.onClick}
+      title={props.title}
+      aria-current={!props.choice && props.on ? "true" : undefined}
+      aria-pressed={props.choice ? !!props.on : undefined}
+    >
+      {props.children}
+    </button>
   );
 }
 

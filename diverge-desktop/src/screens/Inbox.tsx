@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MoveView } from "../bindings/MoveView";
 import type { PersonView } from "../bindings/PersonView";
 import { Markdown } from "../components/Markdown";
-import { Button, Chip, Dot, Empty } from "../components/ui";
+import { Button, Card, Chip, Dot, Empty, Row, SectionHead } from "../components/ui";
 import { useShared } from "../lib/context";
 import { ago, kindTitle, time, dmWith } from "../lib/format";
 import { api } from "../lib/ipc";
@@ -69,24 +69,24 @@ export function Inbox() {
           <p className="muted small">{t.inbox.note}{waiting ? ` · ${waiting} ${t.home.waitingOnYou.toLowerCase()}` : ""}</p>
         </header>
         <div className="inbox-new">
-          <Button small kind="quiet" onClick={() => setPicking((p) => !p)}>+ {t.inbox.newDm}</Button>
+          <Button small kind="tertiary" onClick={() => setPicking((p) => !p)}>+ {t.inbox.newDm}</Button>
           {picking ? (
             <div className="inbox-pick">
               <span className="muted small">{t.inbox.pick}</span>
               {people.filter((p) => !p.is_agent).map((p) => (
-                <button key={p.name} className="list-row" onClick={() => startDm(p)}><span>{p.name}</span><span className="muted small">{p.spaces.length} {t.spaces.title.toLowerCase()}</span></button>
+                <Row key={p.name} className="list-row" onClick={() => startDm(p)}><span>{p.name}</span><span className="muted small">{p.spaces.length} {t.spaces.title.toLowerCase()}</span></Row>
               ))}
             </div>
           ) : null}
         </div>
         {waiting ? (
           <div className="inbox-waiting">
-            <h3 className="list-head">{t.home.waitingOnYou}</h3>
+            <SectionHead small level={3} title={t.home.waitingOnYou} />
             {cards.map((c) => (
-              <button key={c.id} className="waiting" onClick={() => setSelected(`agent:${c.agent}`)}>
+              <Card key={c.id} className="waiting" onClick={() => setSelected(`agent:${c.agent}`)}>
                 <span className="waiting-who">{c.agent}</span>
                 <span className="waiting-what">{cardLine(c)}</span>
-              </button>
+              </Card>
             ))}
             {knocks.map((k) => (
               <KnockCard key={k.knock_id} knock={k} compact onAnswer={(yes) => answerKnock(k.knock_id, yes)} />
@@ -100,13 +100,13 @@ export function Inbox() {
             const asks = th.kind === "agent" && cards.some((c) => c.agent === th.name);
             return (
               <li key={th.key}>
-                <button className={`thread${selected === th.key ? " on" : ""}`} onClick={() => setSelected(th.key)}>
+                <Row className="thread" on={selected === th.key} onClick={() => setSelected(th.key)}>
                   <Dot state={agent ? (agent.active ? "working" : agent.last_active ? "idle" : "never") : "idle"} />
                   <span className="thread-name">{th.name}</span>
                   {asks ? <span className="rail-count">{t.cards.railTag}</span> : th.kind === "agent" ? <Chip>{t.spaces.agent}</Chip> : null}
                   <span className="thread-sub muted small">{th.sub}</span>
                   <span className="thread-at muted small">{th.at ? ago(th.at) : ""}</span>
-                </button>
+                </Row>
               </li>
             );
           })}

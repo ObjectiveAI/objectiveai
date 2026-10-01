@@ -4,7 +4,7 @@ import type { CardView } from "../bindings/CardView";
 import type { LogEntry } from "../bindings/LogEntry";
 import { Markdown } from "../components/Markdown";
 import { MountsPanel } from "../components/Mounts";
-import { Button, Chip, Dot } from "../components/ui";
+import { Button, Card, Chip, Dot } from "../components/ui";
 import { useShared } from "../lib/context";
 import { argsLine, fold, pretty, shown, type Block, type Part, type WorkSummary } from "../lib/conversation";
 import { ago, kindTitle, number, providerName, time } from "../lib/format";
@@ -134,23 +134,23 @@ export function Conversation(props: { name: string; tabKey: string }) {
           {status}
         </div>
         <div className="convo-actions">
-          <Button small kind="quiet" onClick={() => setMountsOpen((o) => !o)}>{t.mounts.button}</Button>
-          <Button small kind="quiet" onClick={() => setWatching((w) => !w)} title={watching ? t.convo.watching : t.convo.notWatching}>
+          <Button small kind="tertiary" onClick={() => setMountsOpen((o) => !o)}>{t.mounts.button}</Button>
+          <Button small kind="tertiary" onClick={() => setWatching((w) => !w)} title={watching ? t.convo.watching : t.convo.notWatching}>
             {watching ? t.convo.stopWatching : t.convo.watch}
           </Button>
           {removing === "confirm" ? (
             <>
               <Button small kind="danger" onClick={remove}>{t.convo.removeConfirm}</Button>
-              <Button small kind="quiet" onClick={() => setRemoving("idle")}>{t.convo.removeCancel}</Button>
+              <Button small kind="tertiary" onClick={() => setRemoving("idle")}>{t.convo.removeCancel}</Button>
             </>
           ) : (
-            <Button small kind="quiet" onClick={() => setRemoving("confirm")}>{t.convo.remove}</Button>
+            <Button small kind="tertiary" onClick={() => setRemoving("confirm")}>{t.convo.remove}</Button>
           )}
         </div>
       </header>
       {removing === "refused" ? (
         <div className="banner banner-warn">
-          {t.convo.removeActive} <button className="link" onClick={() => setRemoving("idle")}>{t.common.ok}</button>
+          {t.convo.removeActive} <Button small kind="tertiary" onClick={() => setRemoving("idle")}>{t.common.ok}</Button>
         </div>
       ) : null}
       {problem ? <div className="banner banner-bad">{problem}</div> : null}
@@ -189,7 +189,7 @@ export function Conversation(props: { name: string; tabKey: string }) {
                 {p.state === "waiting" ? (
                   <>
                     <span className="muted">{t.convo.waiting}</span>
-                    <Button small kind="quiet" onClick={() => takeBack(p.ticket)}>{t.convo.takeBack}</Button>
+                    <Button small kind="tertiary" onClick={() => takeBack(p.ticket)}>{t.convo.takeBack}</Button>
                   </>
                 ) : p.state === "taken" ? (
                   <span className="muted">{t.convo.takenBack}</span>
@@ -261,9 +261,9 @@ function AskCard({ card, onAnswer }: { card: CardView; onAnswer: (answer: string
       ) : (
         <div className="ask-card-options">
           {card.options.map((o) => (
-            <Button key={o} kind={card.kind === "credential" ? "plain" : o === "no" || o === "decline" ? "quiet" : "primary"} onClick={() => onAnswer(o)}>{answerLabel(o)}</Button>
+            <Button key={o} kind={card.kind === "credential" ? "secondary" : o === "no" || o === "decline" ? "tertiary" : "primary"} onClick={() => onAnswer(o)}>{answerLabel(o)}</Button>
           ))}
-          {card.kind === "credential" ? <Button kind="quiet" onClick={() => onAnswer("")}>{t.cards.none}</Button> : null}
+          {card.kind === "credential" ? <Button kind="tertiary" onClick={() => onAnswer("")}>{t.cards.none}</Button> : null}
         </div>
       )}
     </div>
@@ -296,13 +296,13 @@ function BlockView({ block, agentName, live }: { block: Block; agentName: string
     case "finished":
       return <div className="marker"><span>{t.convo.finished} · {time(block.at)}</span></div>;
     case "error":
-      return <div className="card card-bad selectable"><strong>{t.common.error}</strong><p>{block.message}</p></div>;
+      return <Card tone="bad" className="selectable"><strong>{t.common.error}</strong><p>{block.message}</p></Card>;
     case "notice":
       return (
-        <div className={`card ${block.fatal ? "card-bad" : "card-quiet"} selectable`}>
+        <Card tone={block.fatal ? "bad" : "quiet"} className="selectable">
           <strong>{block.fatal ? t.convo.fatal : t.convo.notice}</strong>
           <p className="mono">{typeof block.message === "string" ? block.message : JSON.stringify(block.message)}</p>
-        </div>
+        </Card>
       );
   }
 }
@@ -363,7 +363,7 @@ function Parts({ parts, flat }: { parts: Part[]; flat?: boolean }) {
               </details>
             );
           case "refusal":
-            return <div key={i} className="card card-warn"><strong>{t.convo.refusal}</strong><p>{part.text}</p></div>;
+            return <Card key={i} tone="warn"><strong>{t.convo.refusal}</strong><p>{part.text}</p></Card>;
           case "image":
             return <img key={i} className="agent-image" alt="" src={`data:${part.mime};base64,${part.data}`} />;
           case "audio":

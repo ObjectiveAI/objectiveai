@@ -76,10 +76,10 @@ export function Machines() {
                   {confirm === id ? (
                     <>
                       <Button small kind="danger" onClick={() => remove(m)}>{t.machines.confirm}</Button>
-                      <Button small kind="quiet" onClick={() => setConfirm(null)}>{t.machines.keep}</Button>
+                      <Button small kind="tertiary" onClick={() => setConfirm(null)}>{t.machines.keep}</Button>
                     </>
                   ) : (
-                    <Button small kind="quiet" onClick={() => setConfirm(id)}>{t.machines.remove}</Button>
+                    <Button small kind="tertiary" onClick={() => setConfirm(id)}>{t.machines.remove}</Button>
                   )}
                 </div>
               </li>

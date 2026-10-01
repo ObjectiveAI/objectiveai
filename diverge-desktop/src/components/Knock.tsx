@@ -27,7 +27,7 @@ export function KnockCard(props: { knock: KnockView; onAnswer: (yes: boolean) =>
       </div>
       <div className="row-actions">
         <Button small kind="primary" disabled={!k.checked} onClick={() => props.onAnswer(true)}>{t.spaces.letIn}</Button>
-        <Button small kind="quiet" onClick={() => props.onAnswer(false)}>{t.spaces.notNow}</Button>
+        <Button small kind="tertiary" onClick={() => props.onAnswer(false)}>{t.spaces.notNow}</Button>
       </div>
     </div>
   );

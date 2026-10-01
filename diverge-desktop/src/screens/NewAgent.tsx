@@ -3,7 +3,7 @@ import type { ImageKindView } from "../bindings/ImageKindView";
 import type { MachineView } from "../bindings/MachineView";
 import { LiveMounts, MountRows, emptyDraft, inputsOf, newRow, type MountsDraft, scratchMissing } from "../components/Mounts";
 import { SchemaForm, initial, missing, type Schema } from "../components/SchemaForm";
-import { Button, Field, Section, Segmented } from "../components/ui";
+import { Button, Field, Row, Section, Segmented } from "../components/ui";
 import { useShared } from "../lib/context";
 import { providerName, providerWay } from "../lib/format";
 import { api, errorText, ticket } from "../lib/ipc";
@@ -102,10 +102,10 @@ export function NewAgent(props: { tabKey: string }) {
         <Section step={1} title={t.create.kind}>
           <div className="kinds">
             {catalog.map((c) => (
-              <button key={c.key} className={`kind${kind === c.key ? " on" : ""}`} onClick={() => pick(c.key)}>
+              <Row key={c.key} className="kind" choice on={kind === c.key} onClick={() => pick(c.key)}>
                 <span className="kind-title">{t.create.kinds[c.key]?.title ?? c.key}</span>
                 <span className="kind-blurb">{t.create.kinds[c.key]?.blurb}</span>
-              </button>
+              </Row>
             ))}
           </div>
         </Section>
@@ -140,7 +140,7 @@ export function NewAgent(props: { tabKey: string }) {
               </Field>
               <MountRows rows={mounts.own} onChange={(own) => setMounts({ ...mounts, own })} machines={machines} fixed={chosen} inPlaceholder="(all of it)" />
               {chosen && chosen.volumes.length > 0 ? (
-                <Button small kind="quiet" onClick={() => setMounts({ ...mounts, own: [...mounts.own, newRow(machines, chosen)] })}>+ {t.create.addStorage}</Button>
+                <Button small kind="tertiary" onClick={() => setMounts({ ...mounts, own: [...mounts.own, newRow(machines, chosen)] })}>+ {t.create.addStorage}</Button>
               ) : null}
             </div>
           ) : null}

@@ -4,7 +4,7 @@ import type { TabKind } from "../bindings/TabKind";
 import type { TabsSnapshot } from "../bindings/TabsSnapshot";
 import { useShared } from "../lib/context";
 import { t } from "../strings";
-import { Dot, Icon } from "./ui";
+import { Button, Dot, Icon } from "./ui";
 
 /** An invite's title, for its tab only: the app reads invites properly in Rust. */
 function inviteTitle(text: string): string {
@@ -65,9 +65,9 @@ export function TabStrip(props: { snapshot: TabsSnapshot; onFocus: (key: string)
           <div key={key} role="tab" aria-selected={props.snapshot.focused === key} className={`tab${props.snapshot.focused === key ? " on" : ""}`} onMouseDown={() => props.onFocus(key)}>
             {agent ? <Dot state={agent.active ? "working" : agent.last_active ? "idle" : "never"} /> : null}
             <span className="tab-title">{title(tab)}</span>
-            <button className="tab-close" title={t.common.close} onMouseDown={(e) => e.stopPropagation()} onClick={() => props.onClose(key)}>
+            <Button kind="icon" label={t.common.close} onMouseDown={(e) => e.stopPropagation()} onClick={() => props.onClose(key)}>
               <Icon name="close" />
-            </button>
+            </Button>
           </div>
         );
       })}

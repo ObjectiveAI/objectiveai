@@ -60,6 +60,9 @@
   --radius-md: 4px;
   --radius-lg: 4px;
 
+  /* The least height of anything you press, and the least width of an icon button. */
+  --hit-min: 28px;
+
   --rail-width: 244px;
   --strip-height: 38px;
 

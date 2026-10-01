@@ -11,7 +11,60 @@
 .warn { color: var(--warn); }
 .bad { color: var(--bad); }
 .spacer { flex: 1; }
-.link { background: none; border: 0; color: var(--pink); padding: 0 var(--space-1); cursor: pointer; }
+
+/* --- the parts in ui.tsx --------------------------------------------------- */
+/* Buttons. Anything pressed is at least --hit-min tall; each kind has one look. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--hit-min); border: 1px solid transparent; background: none; color: var(--text); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn-small { padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-secondary { background: var(--surface); border-color: var(--line-strong); }
+.btn-secondary:hover:not(:disabled) { background: var(--surface-2); }
+.btn-tertiary { color: var(--text-2); }
+.btn-tertiary:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
+.btn-danger { background: var(--bad); border-color: var(--bad); color: var(--plum); }
+.btn-danger:hover:not(:disabled) { background: var(--bad-hover); border-color: var(--bad-hover); color: var(--plum); }
+/* An icon alone: a square at the floor, quiet until pointed at. */
+.btn-icon { min-width: var(--hit-min); padding: 0; color: var(--text-3); }
+.btn-icon:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
+
+/* Chips. A chip that names a state or a kind has a tint and no edge; a chip you press (a room) has an edge. */
+.chip { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); border: 1px solid transparent; white-space: nowrap; }
+.chip-ok { background: var(--ok-soft); color: var(--ok); }
+.chip-warn { background: var(--warn-soft); color: var(--warn); }
+.chip-bad { background: var(--bad-soft); color: var(--bad); }
+.chip-accent { background: var(--accent-soft); color: var(--pink); }
+.chip-press { border-color: var(--line); min-height: var(--hit-min); cursor: pointer; }
+.chip-press:hover { color: var(--text); }
+
+/* Cards: one padding, one rhythm inside. A card you press is a button as a whole. */
+.card { border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
+.card-bad { background: var(--bad-soft); color: var(--bad); }
+.card-warn { background: var(--note); color: var(--text); border-left: 3px solid var(--pink); }
+.card-quiet { background: var(--surface-2); color: var(--text-2); }
+.card-press { width: 100%; min-height: var(--hit-min); border: 1px solid var(--pink); background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
+
+/* Rows you press to go somewhere. Each list below lays its rows out, and marks the one you're on. */
+.nav-row { width: 100%; min-height: var(--hit-min); border: 0; background: none; color: var(--text); padding: var(--space-2); border-radius: var(--radius-sm); text-align: left; cursor: pointer; }
+.nav-row:hover { background: var(--surface-2); }
+
+/* Section heads. The small form heads a list inside a column or a section; a room's rules toggle looks the same. */
+.section-head { display: flex; align-items: flex-start; gap: var(--space-3); }
+.section-titles { flex: 1; }
+.section-head h2, .section-head h3 { font-size: var(--text-md); font-weight: 650; }
+.section-head p { font-size: var(--text-sm); }
+.section-head-small, .charter-head { margin-top: var(--space-3); }
+.section-head-small h2, .section-head-small h3, .charter-head { font-size: var(--text-xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+/* The toggle's line is the floor's height, so it's as easy to press as a button. */
+.charter-head { line-height: var(--hit-min); }
+
+/* Tabs over one place's views (Home's filters). */
+.view-tabs { display: flex; gap: var(--space-1); }
+.view-tab { border: 0; background: none; color: var(--text-2); padding: var(--space-2) var(--space-3); cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; }
+.view-tab:hover { color: var(--text); }
+.view-tab.on { color: var(--here); border-bottom-color: var(--here); font-weight: 600; }
 
 /* --- rail --------------------------------------------------------------- */
 .rail { background: var(--rail); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
@@ -25,42 +78,25 @@
 .rail-section { display: flex; flex-direction: column; gap: 0; }
 .rail-head { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-2) var(--space-1); font-size: var(--text-xs); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
-.rail-item { width: 100%; display: flex; align-items: center; gap: var(--space-2); border: 0; background: none; padding: var(--space-2); border-radius: var(--radius-sm); text-align: left; cursor: pointer; color: var(--text); }
+.rail-item { display: flex; align-items: center; gap: var(--space-2); }
 .rail-item:hover { background: var(--surface-3); }
 .rail-item.on { background: var(--surface); color: var(--here); font-weight: 600; }
 .rail-item.on .rail-item-kind { color: var(--text-3); font-weight: 400; }
 .rail-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail-item-kind { font-size: var(--text-xs); color: var(--text-3); }
 .rail-empty { padding: 0 var(--space-2); font-size: var(--text-sm); }
-/* An action, not a place: a real button, with an edge and a press. */
-.rail-new { display: flex; align-items: center; gap: var(--space-2); border: 1px solid var(--line-strong); background: var(--surface); color: var(--text-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; margin-top: var(--space-2); width: fit-content; font-weight: 500; }
-.rail-new:hover { color: var(--text); background: var(--surface-2); }
-.rail-new:active { transform: translateY(1px); }
+/* New agent is an action, not a place: a button under the rows, as wide as its words. */
+.rail-section > .btn { align-self: flex-start; margin-top: var(--space-2); }
 .rail-places .rail-item { color: var(--text-2); }
 .rail-places .rail-item.on { color: var(--here); }
 
-/* --- dots, chips, buttons ----------------------------------------------- */
+/* --- dots, segmented controls ------------------------------------------- */
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; }
 .dot-working { background: var(--ok); animation: pulse 1.6s ease-in-out infinite; }
 .dot-idle { background: var(--line-strong); }
 .dot-never { border: 1.5px solid var(--line-strong); }
 .dot-bad { background: var(--bad); }
 @keyframes pulse { 50% { opacity: 0.55; } }
-.chip { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); white-space: nowrap; }
-.chip-ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
-.chip-warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
-.chip-bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
-.btn { border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; font-weight: 500; white-space: nowrap; }
-.btn:hover:not(:disabled) { background: var(--surface-2); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-.btn-quiet { background: none; border-color: transparent; color: var(--text-2); }
-.btn-quiet:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
-.btn-danger { background: var(--bad); border-color: var(--bad); color: var(--plum); }
-.btn-danger:hover:not(:disabled) { background: var(--bad-hover); border-color: var(--bad-hover); color: var(--plum); }
-.btn:active:not(:disabled) { transform: translateY(1px); }
-.btn-small { padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
 .segmented { align-self: flex-start; display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-1); gap: var(--space-1); flex-wrap: wrap; }
 .segmented button { border: 0; background: none; padding: var(--space-1) var(--space-3); border-radius: 4px; cursor: pointer; color: var(--text-2); font-size: var(--text-sm); }
 .segmented button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow), 0 0 0 1px var(--line); }
@@ -69,25 +105,22 @@
 /* A focused tab overlaps the strip's rule by a pixel, which made the strip scroll vertically — the stray scrollbar. */
 .strip { height: var(--strip-height); flex: none; display: flex; align-items: flex-end; gap: var(--space-1); padding: 0 var(--space-2); border-bottom: 1px solid var(--line); background: var(--rail); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .strip::-webkit-scrollbar { display: none; }
-.tab { display: flex; align-items: center; gap: var(--space-2); height: 30px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-2); flex: 0 1 200px; min-width: 124px; cursor: pointer; border: 1px solid transparent; border-bottom: 0; }
+/* A tab holds its close button (28px), that button's 2px focus ring above and below, and its own 1px top edge,
+   so the strip, which clips, never cuts the ring. */
+.tab { display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-2); flex: 0 1 200px; min-width: 124px; cursor: pointer; border: 1px solid transparent; border-bottom: 0; }
 .tab-title { flex: 1; min-width: 0; }
 .tab:hover { color: var(--text); }
 .tab.on { background: var(--bg); color: var(--here); border-color: var(--line); font-weight: 600; }
 .tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
-.tab-close { border: 0; background: none; color: var(--text-3); width: 20px; height: 20px; padding: 0; border-radius: 4px; display: grid; place-items: center; cursor: pointer; opacity: 0; }
-.tab:hover .tab-close, .tab.on .tab-close { opacity: 1; }
-.tab-close:hover { background: var(--surface-3); color: var(--text); }
+.tab .btn-icon { opacity: 0; }
+.tab:hover .btn-icon, .tab.on .btn-icon { opacity: 1; }
 
-/* --- empty, banners, cards ------------------------------------------------- */
+/* --- empty, banners -------------------------------------------------------- */
 .empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); text-align: center; padding: var(--space-6); }
 .empty h3 { font-size: var(--text-lg); font-weight: 600; }
 .banner { padding: var(--space-2) var(--space-4); font-size: var(--text-sm); }
 .banner-warn { background: var(--note); color: var(--text); border-left: 3px solid var(--pink); }
 .banner-bad { background: var(--bad-soft); color: var(--bad); }
-.card { border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
-.card-bad { background: var(--bad-soft); color: var(--bad); }
-.card-warn { background: var(--note); color: var(--text); border-left: 3px solid var(--pink); }
-.card-quiet { background: var(--surface-2); color: var(--text-2); }
 
 /* --- conversation ------------------------------------------------------------ */
 .convo { display: flex; flex-direction: column; height: 100%; }
@@ -155,10 +188,7 @@
 .page-title { font-size: var(--text-xl); font-weight: 650; letter-spacing: -0.01em; }
 .page-foot { position: sticky; bottom: 0; display: flex; justify-content: flex-end; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; background: var(--bg); border-top: 1px solid var(--line); }
 .section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
-.section-head { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4) 0; }
-.section-titles { flex: 1; }
-.section-head h2 { font-size: var(--text-md); font-weight: 650; }
-.section-head p { font-size: var(--text-sm); }
+.section > .section-head { padding: var(--space-3) var(--space-4) 0; }
 .step { width: 20px; height: 20px; border-radius: 50%; background: var(--surface-3); color: var(--text-2); font-size: var(--text-xs); font-weight: 650; display: grid; place-items: center; flex: none; }
 .section-body { padding: var(--space-3) var(--space-4) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
 /* A button in a section is as wide as its words. */
@@ -193,8 +223,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .map-key { max-width: 180px; }
 .check-bad { color: var(--text); background: var(--note); border-left: 3px solid var(--pink); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); word-break: break-word; }
 .kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
-.kind { display: flex; flex-direction: column; gap: var(--space-1); text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: var(--radius-md); padding: var(--space-3); cursor: pointer; }
-.kind:hover { border-color: var(--line-strong); }
+.kind { display: flex; flex-direction: column; gap: var(--space-1); border: 1px solid var(--line); background: var(--bg); border-radius: var(--radius-md); padding: var(--space-3); }
+.kind:hover { background: var(--bg); border-color: var(--line-strong); }
 .kind.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
 .kind-title { font-weight: 650; }
 .kind-blurb { font-size: var(--text-sm); color: var(--text-2); line-height: 1.35; }
@@ -211,8 +241,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* Each level of a tree sits one step in from the level above it. */
 .tree ul { padding-left: var(--space-4); }
 .tree { flex: 1; overflow-y: auto; padding: 0 var(--space-2); }
-.tree-row { width: 100%; display: flex; align-items: center; gap: var(--space-2); border: 0; background: none; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; text-align: left; font-size: var(--text-sm); color: var(--text); }
-.tree-row:hover { background: var(--surface-2); }
+.tree-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
 .tree-row.on { background: var(--surface-2); color: var(--here); font-weight: 600; }
 .chev { width: 12px; display: grid; place-items: center; color: var(--text-3); transition: transform 0.1s; }
 .chev.open { transform: rotate(90deg); }
@@ -234,10 +263,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* --- views ---------------------------------------------------------------------- */
 .views-main { overflow-y: auto; min-width: 0; }
-.list-head { font-size: var(--text-xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-top: var(--space-3); font-weight: 600; }
 .views-list ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; }
-.list-row { width: 100%; text-align: left; border: 0; background: none; padding: var(--space-2); border-radius: var(--radius-sm); cursor: pointer; display: flex; flex-direction: column; }
-.list-row:hover { background: var(--surface-2); }
+.list-row { display: flex; flex-direction: column; }
 .list-row.on { background: var(--surface-2); color: var(--here); font-weight: 600; }
 .presets { display: flex; gap: var(--space-1); align-items: center; flex-wrap: wrap; }
 .row > .field-narrow { flex: 0 1 110px; }
@@ -255,8 +282,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* --- storage ---------------------------------------------------------------- */
 .volume-list { list-style: none; margin: 0; padding: 0 var(--space-2); display: flex; flex-direction: column; gap: var(--space-1); }
-.volume-row { width: 100%; text-align: left; border: 0; background: none; padding: var(--space-2); border-radius: var(--radius-sm); cursor: pointer; display: flex; flex-direction: column; gap: var(--space-1); color: var(--text); }
-.volume-row:hover { background: var(--surface-2); }
+.volume-row { display: flex; flex-direction: column; gap: var(--space-1); }
 .volume-row.on { background: var(--surface-2); color: var(--here); font-weight: 600; }
 .volume-row.on .muted { font-weight: 400; }
 .meter { display: block; height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden; }
@@ -290,8 +316,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* --- Spaces ---------------------------------------------------------------------- */
 .rail-count { margin-left: auto; font-size: var(--text-xs); color: var(--accent); font-weight: 600; }
 .space-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.space-row { width: 100%; display: flex; align-items: center; gap: var(--space-2); border: 0; background: none; padding: var(--space-2); border-radius: var(--radius-sm); cursor: pointer; color: var(--text); text-align: left; }
-.space-row:hover { background: var(--surface-2); }
+.space-row { display: flex; align-items: center; gap: var(--space-2); }
 .space-row-title { font-weight: 600; }
 .knocks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .knock { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--note); border-left: 3px solid var(--pink); }
@@ -335,7 +360,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .move-ask { border-left: 3px solid var(--pink); }
 .move-task { border-left: 3px solid var(--accent); }
 .move-run { border-left: 3px solid var(--line-strong); }
-.chip-accent { background: var(--accent-soft); color: var(--pink); border-color: transparent; }
 
 /* --- ask cards: an agent asks its person ------------------------------------------ */
 .ask-card { border: 1px solid var(--pink); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
@@ -347,27 +371,21 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .rail-home { font-weight: 600; }
 .home { display: grid; grid-template-columns: minmax(0, 1fr) 300px; height: 100%; }
 .home-main { display: flex; flex-direction: column; min-height: 0; }
-.home-views { display: flex; gap: var(--space-1); padding: var(--space-2) var(--space-5) 0; border-bottom: 1px solid var(--line); background: var(--surface); }
-.home-view { border: 0; background: none; color: var(--text-2); padding: var(--space-2) var(--space-3); cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; }
-.home-view:hover { color: var(--text); }
-.home-view.on { color: var(--here); border-bottom-color: var(--here); font-weight: 600; }
+.home-views { padding: var(--space-2) var(--space-5) 0; border-bottom: 1px solid var(--line); background: var(--surface); }
 .home-compose { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-5) 0; }
 .home-compose textarea { resize: none; }
 .home-compose-actions { display: flex; gap: var(--space-2); }
 .home-feed { flex: 1; overflow-y: auto; padding: var(--space-3) var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); }
 .feed-card { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
 .feed-body { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.space-chip { border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); font-size: var(--text-xs); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
-.space-chip:hover { color: var(--text); }
 .home-side { border-left: 1px solid var(--line); background: var(--surface); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-5); overflow-y: auto; }
 .fleet { list-style: none; padding: 0; margin: var(--space-2) 0 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.fleet-row { width: 100%; display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "dot name kind" ". status status"; column-gap: var(--space-2); align-items: center; border: 0; background: none; color: var(--text); padding: var(--space-2); border-radius: var(--radius-sm); cursor: pointer; text-align: left; }
-.fleet-row:hover { background: var(--surface-2); }
+.fleet-row { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "dot name kind" ". status status"; column-gap: var(--space-2); align-items: center; }
 .fleet-row .dot { grid-area: dot; }
 .fleet-name { grid-area: name; font-weight: 600; }
 .fleet-status { grid-area: status; }
 .fleet-kind { grid-area: kind; margin: 0; }
-.waiting { width: 100%; display: flex; flex-direction: column; gap: var(--space-1); border: 1px solid var(--pink); background: var(--bg); color: var(--text); text-align: left; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); cursor: pointer; margin-top: var(--space-2); }
+.waiting { margin-top: var(--space-2); }
 .waiting-who { font-weight: 600; font-size: var(--text-sm); }
 .waiting-what { font-size: var(--text-sm); color: var(--text-2); }
 .done-list { list-style: none; padding: 0; margin: var(--space-2) 0 0; display: flex; flex-direction: column; gap: var(--space-1); }
@@ -378,8 +396,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .inbox-new { padding: 0 var(--space-3) var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
 .inbox-pick { display: flex; flex-direction: column; gap: var(--space-1); width: 100%; }
 .threads { list-style: none; margin: 0; padding: 0 var(--space-2); display: flex; flex-direction: column; gap: var(--space-1); }
-.thread { width: 100%; display: grid; grid-template-columns: auto 1fr auto auto; grid-template-areas: "dot name chip at" ". sub sub sub"; column-gap: var(--space-2); align-items: center; border: 0; background: none; color: var(--text); text-align: left; padding: var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
-.thread:hover { background: var(--surface-2); }
+.thread { display: grid; grid-template-columns: auto 1fr auto auto; grid-template-areas: "dot name chip at" ". sub sub sub"; column-gap: var(--space-2); align-items: center; }
 .thread.on { background: var(--surface-2); }
 .thread.on .thread-name { color: var(--here); }
 .thread .dot { grid-area: dot; }
@@ -394,7 +411,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .receipts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .receipt { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: var(--radius-md); background: var(--bg); }
 .receipt-name { font-weight: 650; color: var(--text); }
-.receipt > .link { align-self: flex-start; }
+.receipt > .btn { align-self: flex-start; }
 .synthesis-pin { border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
 .md h3 { font-size: var(--text-lg); font-weight: 650; margin-top: var(--space-2); }
 .md h4 { font-size: var(--text-md); font-weight: 650; margin-top: var(--space-2); }

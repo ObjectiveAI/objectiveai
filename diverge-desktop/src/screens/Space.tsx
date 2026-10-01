@@ -9,7 +9,7 @@ import type { ToolView } from "../bindings/ToolView";
 import { Markdown } from "../components/Markdown";
 import { SchemaForm, initial, missing, type Schema } from "../components/SchemaForm";
 import { Table } from "../components/Table";
-import { Button, Chip, Dot, Empty, Segmented } from "../components/ui";
+import { Button, Chip, Dot, Empty, SectionHead, Segmented } from "../components/ui";
 import { useShared } from "../lib/context";
 import { ago, providerName, time, spaceTitle } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
@@ -211,14 +211,14 @@ export function Space(props: { id: string; tabKey: string }) {
         </div>
         <div className="space-actions">
           <span className="muted small">{t.spaces.youAreHere} <strong>{s.you_are}</strong>{s.fresh ? ` · ${t.spaces.freshHere}` : ""}</span>
-          {s.mine ? <Button small kind="quiet" onClick={showInvite}>{t.spaces.invite}</Button> : null}
+          {s.mine ? <Button small kind="tertiary" onClick={showInvite}>{t.spaces.invite}</Button> : null}
           {confirm ? (
             <>
               <Button small kind="danger" onClick={leave}>{s.mine ? t.spaces.confirmEnd : t.spaces.confirmLeave}</Button>
-              <Button small kind="quiet" onClick={() => setConfirm(false)}>{t.spaces.keep}</Button>
+              <Button small kind="tertiary" onClick={() => setConfirm(false)}>{t.spaces.keep}</Button>
             </>
           ) : (
-            <Button small kind="quiet" onClick={() => setConfirm(true)}>{s.mine ? t.spaces.end : t.spaces.leave}</Button>
+            <Button small kind="tertiary" onClick={() => setConfirm(true)}>{s.mine ? t.spaces.end : t.spaces.leave}</Button>
           )}
         </div>
       </header>
@@ -226,8 +226,8 @@ export function Space(props: { id: string; tabKey: string }) {
         <div className="banner banner-quiet">
           <span className="muted small">{t.spaces.inviteNote}</span>
           <code className="selectable invite-text">{invite}</code>
-          <Button small kind="quiet" onClick={() => navigator.clipboard?.writeText(invite).then(() => setCopied(true))}>{copied ? t.spaces.copied : t.spaces.copy}</Button>
-          <button className="link" onClick={() => setInvite(null)}>{t.common.close}</button>
+          <Button small kind="tertiary" onClick={() => navigator.clipboard?.writeText(invite).then(() => setCopied(true))}>{copied ? t.spaces.copied : t.spaces.copy}</Button>
+          <Button small kind="tertiary" onClick={() => setInvite(null)}>{t.common.close}</Button>
         </div>
       ) : null}
       {problem ? <div className="banner banner-bad">{problem}</div> : null}
@@ -248,7 +248,7 @@ export function Space(props: { id: string; tabKey: string }) {
         <div className="banner banner-quiet">
           <span>{moderation}</span>
           {moderation === t.spaces.removedNote ? <Button small kind="primary" onClick={restart}>{t.spaces.restartNow}</Button> : null}
-          <button className="link" onClick={() => setModeration(null)}>{t.common.close}</button>
+          <Button small kind="tertiary" onClick={() => setModeration(null)}>{t.common.close}</Button>
         </div>
       ) : null}
       {vouchText ? (
@@ -256,8 +256,8 @@ export function Space(props: { id: string; tabKey: string }) {
           <strong>{t.spaces.vouchTitle} {vouchText.name} → {vouchText.room}</strong>
           <span className="muted small">{t.spaces.vouchNote}</span>
           <code className="selectable invite-text">{vouchText.text}</code>
-          <Button small kind="quiet" onClick={() => navigator.clipboard?.writeText(vouchText.text)}>{t.spaces.copy}</Button>
-          <button className="link" onClick={() => setVouchText(null)}>{t.common.close}</button>
+          <Button small kind="tertiary" onClick={() => navigator.clipboard?.writeText(vouchText.text)}>{t.spaces.copy}</Button>
+          <Button small kind="tertiary" onClick={() => setVouchText(null)}>{t.common.close}</Button>
         </div>
       ) : null}
 
@@ -289,11 +289,11 @@ export function Space(props: { id: string; tabKey: string }) {
         <aside className="space-side">
           {verbs.length ? (
           <section className="verbs">
-            <h2 className="list-head">{t.spaces.verbs}</h2>
+            <SectionHead small title={t.spaces.verbs} />
             <p className="muted small">{t.spaces.verbsNote}</p>
             <div className="verb-buttons">
               {verbs.map((x) => (
-                <Button key={x.name} small kind={active?.tool.name === x.name ? "primary" : "plain"} onClick={() => begin(x)} title={x.description}>{t.spaces.verbNames[x.name] ?? x.title}</Button>
+                <Button key={x.name} small kind={active?.tool.name === x.name ? "primary" : "secondary"} onClick={() => begin(x)} title={x.description}>{t.spaces.verbNames[x.name] ?? x.title}</Button>
               ))}
             </div>
             {active ? (
@@ -305,7 +305,7 @@ export function Space(props: { id: string; tabKey: string }) {
                 <SchemaForm key={active.tool.name} schema={active.tool.schema as Schema} value={active.values} onChange={(v) => setActive({ ...active, values: v as Record<string, unknown> })} />
                 <div className="row-actions">
                   <Button kind="primary" onClick={submit} disabled={incomplete.length > 0}>{t.spaces.do}</Button>
-                  <Button kind="quiet" onClick={() => setActive(null)}>{t.spaces.cancel}</Button>
+                  <Button kind="tertiary" onClick={() => setActive(null)}>{t.spaces.cancel}</Button>
                   {incomplete.length ? <span className="muted small">{t.create.fillIn} {incomplete.join(", ")}</span> : null}
                 </div>
               </div>
@@ -315,10 +315,10 @@ export function Space(props: { id: string; tabKey: string }) {
           ) : null}
           {s.mine && s.online ? (
             <section>
-              <h2 className="list-head">{t.spaces.yourRoom}</h2>
+              <SectionHead small title={t.spaces.yourRoom} />
               <div className="row-actions">
-                <Button small kind="plain" onClick={() => setEditing(editing === null ? space.charter : null)}>{t.spaces.editRules}</Button>
-                {recommendable.length ? <Button small kind="plain" onClick={() => setRecommending(recommending ? null : recommendable[0].id)}>{t.spaces.recommendRoom}</Button> : null}
+                <Button small kind="secondary" onClick={() => setEditing(editing === null ? space.charter : null)}>{t.spaces.editRules}</Button>
+                {recommendable.length ? <Button small kind="secondary" onClick={() => setRecommending(recommending ? null : recommendable[0].id)}>{t.spaces.recommendRoom}</Button> : null}
               </div>
               {editing !== null ? (
                 <div className="verb-form">
@@ -327,7 +327,7 @@ export function Space(props: { id: string; tabKey: string }) {
                   <RulesChange before={space.charter} after={editing} />
                   <div className="row-actions">
                     <Button kind="primary" onClick={saveRules} disabled={editing.trim() === space.charter.trim() || !editing.trim()}>{t.spaces.saveRules}</Button>
-                    <Button kind="quiet" onClick={() => setEditing(null)}>{t.common.cancel}</Button>
+                    <Button kind="tertiary" onClick={() => setEditing(null)}>{t.common.cancel}</Button>
                   </div>
                 </div>
               ) : null}
@@ -339,7 +339,7 @@ export function Space(props: { id: string; tabKey: string }) {
                   </select>
                   <div className="row-actions">
                     <Button kind="primary" onClick={recommend}>{t.spaces.recommendIt}</Button>
-                    <Button kind="quiet" onClick={() => setRecommending(null)}>{t.common.cancel}</Button>
+                    <Button kind="tertiary" onClick={() => setRecommending(null)}>{t.common.cancel}</Button>
                   </div>
                 </div>
               ) : null}
@@ -347,13 +347,13 @@ export function Space(props: { id: string; tabKey: string }) {
           ) : null}
           {myAgents.length ? (
             <section>
-              <h2 className="list-head">{t.spaces.yourAgents}</h2>
+              <SectionHead small title={t.spaces.yourAgents} />
               <p className="muted small">{t.spaces.allowanceNote}</p>
               {myAgents.map((a) => <AllowanceRow key={a.key || a.name} room={s.id} agent={a.name} />)}
             </section>
           ) : null}
           <section>
-            <h2 className="list-head">{space.members.length} {s.online ? t.spaces.members : t.spaces.membersWhenSeen}</h2>
+            <SectionHead small title={`${space.members.length} ${s.online ? t.spaces.members : t.spaces.membersWhenSeen}`} />
             <ul className="member-list">
               {space.members.map((m) => (
                 <li key={m.key || m.name} className="member">
@@ -361,7 +361,7 @@ export function Space(props: { id: string; tabKey: string }) {
                   {m.is_agent ? <Chip>{m.agent_of_key === s.you_key ? t.spaces.yourAgent : `${t.spaces.runBy} ${m.agent_of ?? "?"}`}</Chip> : null}
                   <span className="muted small">{m.last_acted ? `${t.spaces.lastActed} ${ago(m.last_acted)}` : ago(m.joined)}</span>
                   {m.key && m.key !== s.you_key && !m.is_agent && vouchRooms.length > 0 ? (
-                    <button className="link small" onClick={() => setVouching({ key: m.key, name: m.name, room: vouchRooms[0].id })}>{t.spaces.vouch}</button>
+                    <Button small kind="tertiary" onClick={() => setVouching({ key: m.key, name: m.name, room: vouchRooms[0].id })}>{t.spaces.vouch}</Button>
                   ) : null}
                   {vouching?.key === m.key ? (
                     <div className="vouch-pick">
@@ -372,7 +372,7 @@ export function Space(props: { id: string; tabKey: string }) {
                         </select>
                       </label>
                       <Button small kind="primary" onClick={vouch}>{t.spaces.vouchMake}</Button>
-                      <button className="link small" onClick={() => setVouching(null)}>{t.common.cancel}</button>
+                      <Button small kind="tertiary" onClick={() => setVouching(null)}>{t.common.cancel}</Button>
                     </div>
                   ) : null}
                 </li>
@@ -381,13 +381,13 @@ export function Space(props: { id: string; tabKey: string }) {
           </section>
           {space.before.length > 0 ? (
             <section>
-              <h2 className="list-head">{t.spaces.fromBefore}</h2>
+              <SectionHead small title={t.spaces.fromBefore} />
               <p className="muted small">{t.spaces.fromBeforeNote}</p>
               <ul className="member-list">
                 {space.before.map((b) => (
                   <li key={b.key} className="member">
                     <span>{b.name}</span>
-                    {sentTo.includes(b.key) ? <Chip tone="ok">{t.spaces.inviteSent}</Chip> : b.dm ? <button className="link small" onClick={() => sendInvite(b.key, b.dm!)}>{t.spaces.sendInvite}</button> : <span className="muted small">{t.spaces.noDm}</span>}
+                    {sentTo.includes(b.key) ? <Chip tone="ok">{t.spaces.inviteSent}</Chip> : b.dm ? <Button small kind="tertiary" onClick={() => sendInvite(b.key, b.dm!)}>{t.spaces.sendInvite}</Button> : <span className="muted small">{t.spaces.noDm}</span>}
                   </li>
                 ))}
               </ul>
@@ -395,7 +395,7 @@ export function Space(props: { id: string; tabKey: string }) {
           ) : null}
           {s.mine && admitted.some((a) => a.key !== s.you_key && !a.yours) ? (
             <section>
-              <h2 className="list-head">{t.spaces.everyone}</h2>
+              <SectionHead small title={t.spaces.everyone} />
               <p className="muted small">{t.spaces.everyoneNote}</p>
               <ul className="member-list">
                 {admitted.filter((a) => a.key !== s.you_key && !a.yours).map((a) => (
@@ -409,10 +409,10 @@ export function Space(props: { id: string; tabKey: string }) {
                           <span>{t.spaces.sayItInRoom}</span>
                         </label>
                         <Button small kind="danger" onClick={() => remove(a.key)}>{t.spaces.removeConfirm} {a.name}</Button>
-                        <Button small kind="quiet" onClick={() => setRemoving(null)}>{t.spaces.keep}</Button>
+                        <Button small kind="tertiary" onClick={() => setRemoving(null)}>{t.spaces.keep}</Button>
                       </div>
                     ) : (
-                      <button className="link small" onClick={() => setRemoving(a.key)}>{t.spaces.remove} {a.name}</button>
+                      <Button small kind="tertiary" onClick={() => setRemoving(a.key)}>{t.spaces.remove} {a.name}</Button>
                     )}
                   </li>
                 ))}
@@ -421,19 +421,19 @@ export function Space(props: { id: string; tabKey: string }) {
           ) : null}
           {doorways.length ? (
             <section>
-              <h2 className="list-head">{t.spaces.doorways}</h2>
+              <SectionHead small title={t.spaces.doorways} />
               <ul className="member-list">
                 {doorways.map((d) => (
                   <li key={d.invite} className="member">
                     <span>{d.title}</span>
-                    <button className="link small" onClick={() => open({ kind: "door", invite: d.invite })}>{t.door.openInvite}</button>
+                    <Button small kind="tertiary" onClick={() => open({ kind: "door", invite: d.invite })}>{t.door.openInvite}</Button>
                   </li>
                 ))}
               </ul>
             </section>
           ) : null}
           <details className="charter">
-            <summary className="list-head">{t.spaces.charter}</summary>
+            <summary className="charter-head">{t.spaces.charter}</summary>
             <p className="muted small">{s.mine ? t.spaces.rulesYours : `${t.spaces.rulesSetBy} ${s.host_name}. ${t.spaces.rulesKeep}`}</p>
             <Markdown text={space.charter} />
           </details>
@@ -524,7 +524,7 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
       </header>
       {m.title ? <h3 className="move-title selectable">{m.title}</h3> : null}
       {m.body ? <div className="move-body"><Markdown text={invite ? m.body.replace(invite, "").trim() : m.body} /></div> : null}
-      {invite ? <Button small kind="plain" onClick={() => props.onOpenInvite(invite)}>{t.door.openInvite}</Button> : null}
+      {invite ? <Button small kind="secondary" onClick={() => props.onOpenInvite(invite)}>{t.door.openInvite}</Button> : null}
       {fieldRows(m).length ? (
         <dl className="move-fields">
           {fieldRows(m).map(([k, v]) => (
@@ -539,23 +539,23 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
         </div>
       ) : null}
       <div className="move-actions">
-        {has("reply") && m.kind !== "reply" ? <Button small kind="quiet" onClick={() => props.onVerb("reply", { move_id: m.id })}>{t.spaces.reply}</Button> : null}
-        {m.kind === "ask" && !isMe && has("offer") ? <Button small kind="quiet" onClick={() => props.onVerb("offer", { ask_id: m.id })}>{t.spaces.moveKinds.offer}</Button> : null}
-        {m.kind === "task" && m.state === "open" && !isMe && has("claim") ? <Button small kind="quiet" onClick={() => props.onVerb("claim", { task_id: m.id })}>{t.spaces.claim}</Button> : null}
-        {m.kind === "task" && m.state === "claimed" && claimedByMe && has("deliver") ? <Button small kind="quiet" onClick={() => props.onVerb("deliver", { task_id: m.id })}>{t.spaces.deliver}</Button> : null}
-        {m.kind === "task" && m.state === "delivered" && isMe && has("accept") ? <Button small kind="quiet" onClick={() => props.onVerb("accept", { task_id: m.id })}>{t.spaces.accept}</Button> : null}
+        {has("reply") && m.kind !== "reply" ? <Button small kind="tertiary" onClick={() => props.onVerb("reply", { move_id: m.id })}>{t.spaces.reply}</Button> : null}
+        {m.kind === "ask" && !isMe && has("offer") ? <Button small kind="tertiary" onClick={() => props.onVerb("offer", { ask_id: m.id })}>{t.spaces.moveKinds.offer}</Button> : null}
+        {m.kind === "task" && m.state === "open" && !isMe && has("claim") ? <Button small kind="tertiary" onClick={() => props.onVerb("claim", { task_id: m.id })}>{t.spaces.claim}</Button> : null}
+        {m.kind === "task" && m.state === "claimed" && claimedByMe && has("deliver") ? <Button small kind="tertiary" onClick={() => props.onVerb("deliver", { task_id: m.id })}>{t.spaces.deliver}</Button> : null}
+        {m.kind === "task" && m.state === "delivered" && isMe && has("accept") ? <Button small kind="tertiary" onClick={() => props.onVerb("accept", { task_id: m.id })}>{t.spaces.accept}</Button> : null}
         {canSettle ? (
           <>
             <span className="muted small">{t.spaces.settle}</span>
-            <Button small kind="quiet" onClick={() => props.onVerb("settle", { task_id: m.id, agree: true })}>{t.spaces.settledYes}</Button>
-            <Button small kind="quiet" onClick={() => props.onVerb("settle", { task_id: m.id, agree: false })}>{t.spaces.settledNo}</Button>
+            <Button small kind="tertiary" onClick={() => props.onVerb("settle", { task_id: m.id, agree: true })}>{t.spaces.settledYes}</Button>
+            <Button small kind="tertiary" onClick={() => props.onVerb("settle", { task_id: m.id, agree: false })}>{t.spaces.settledNo}</Button>
           </>
         ) : null}
         {m.kind === "direction" && has("steer") ? (
           <>
-            <Button small kind="quiet" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "prefer" })}>{t.spaces.prefer}</Button>
-            <Button small kind="quiet" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "reject" })}>{t.spaces.reject}</Button>
-            <Button small kind="quiet" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "note" })}>{t.spaces.noteVerb}</Button>
+            <Button small kind="tertiary" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "prefer" })}>{t.spaces.prefer}</Button>
+            <Button small kind="tertiary" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "reject" })}>{t.spaces.reject}</Button>
+            <Button small kind="tertiary" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "note" })}>{t.spaces.noteVerb}</Button>
           </>
         ) : null}
       </div>

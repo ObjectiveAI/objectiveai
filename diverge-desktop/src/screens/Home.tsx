@@ -2,7 +2,7 @@ import { cardLine } from "../lib/cards";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HomeMove } from "../bindings/HomeMove";
 import { Markdown } from "../components/Markdown";
-import { Button, Chip, Dot } from "../components/ui";
+import { Button, Card, Chip, Dot, Row, SectionHead, Tabs } from "../components/ui";
 import { useShared } from "../lib/context";
 import { ago, kindTitle, providerName, time, spaceTitle } from "../lib/format";
 import { api } from "../lib/ipc";
@@ -89,17 +89,13 @@ export function Home() {
   return (
     <div className="home">
       <section className="home-main">
-        <div className="home-views" role="tablist">
-          {Object.keys(VIEWS).map((k) => (
-            <button key={k} role="tab" aria-selected={view === k} className={`home-view${view === k ? " on" : ""}`} onClick={() => setView(k)}>{t.home.views[k]}</button>
-          ))}
-        </div>
+        <Tabs className="home-views" value={view} options={Object.keys(VIEWS).map((k) => ({ value: k, label: t.home.views[k] }))} onChange={setView} />
         {homeId ? (
           <div className="home-compose">
             <textarea rows={2} value={draft} placeholder={t.home.composePlaceholder} onChange={(e) => setDraft(e.target.value)} />
             <div className="home-compose-actions">
               <Button small kind="primary" onClick={() => post("show")} disabled={!draft.trim()}>{t.home.show}</Button>
-              <Button small kind="plain" onClick={startAsk} disabled={!draft.trim()}>{t.home.ask}</Button>
+              <Button small kind="secondary" onClick={startAsk} disabled={!draft.trim()}>{t.home.ask}</Button>
             </div>
             {asking ? (
               <div className="ask-to">
@@ -111,7 +107,7 @@ export function Home() {
                   </label>
                 ))}
                 <Button small kind="primary" onClick={sendAsk} disabled={askTo.size === 0 || !draft.trim()}>{t.home.askSend} {askTo.size} {askTo.size === 1 ? t.home.room : t.home.rooms}</Button>
-                <Button small kind="quiet" onClick={() => setAsking(false)}>{t.spaces.cancel}</Button>
+                <Button small kind="tertiary" onClick={() => setAsking(false)}>{t.spaces.cancel}</Button>
               </div>
             ) : null}
             {sent ? <p className="ok small">{sent}</p> : null}
@@ -133,38 +129,38 @@ export function Home() {
 
       <aside className="home-side">
         <section>
-          <h2 className="list-head">{t.home.fleet}</h2>
+          <SectionHead small title={t.home.fleet} />
           <ul className="fleet">
             {agents.map((a) => {
               const asks = cards.some((c) => c.agent === a.name);
               return (
                 <li key={a.name}>
-                  <button className="fleet-row" onClick={() => open({ kind: "agent", name: a.name })}>
+                  <Row className="fleet-row" onClick={() => open({ kind: "agent", name: a.name })}>
                     <Dot state={a.active ? "working" : a.last_active ? "idle" : "never"} />
                     <span className="fleet-name">{a.name}</span>
                     <span className="fleet-status muted small">{a.active ? `${t.home.working}${a.provider ? ` · ${providerName(a.provider)}` : ""}` : a.last_active ? `${t.home.idle} · ${ago(a.last_active)}` : t.home.never}</span>
                     {asks ? <span className="fleet-kind rail-count">{t.cards.railTag}</span> : <span className="fleet-kind muted small">{kindTitle(a.image_name)}</span>}
-                  </button>
+                  </Row>
                 </li>
               );
             })}
           </ul>
         </section>
         <section>
-          <h2 className="list-head">{t.home.waitingOnYou}</h2>
+          <SectionHead small title={t.home.waitingOnYou} />
           {cards.length === 0 && knocks.length === 0 ? <p className="muted small">{t.home.nothingWaiting}</p> : null}
           {cards.map((c) => (
-            <button key={c.id} className="waiting" onClick={() => open({ kind: "agent", name: c.agent })}>
+            <Card key={c.id} className="waiting" onClick={() => open({ kind: "agent", name: c.agent })}>
               <span className="waiting-who">{c.agent}</span>
               <span className="waiting-what">{cardLine(c)}</span>
-            </button>
+            </Card>
           ))}
           {knocks.map((k) => (
             <KnockCard key={k.knock_id} knock={k} compact onAnswer={(yes) => answerKnock(k.knock_id, yes)} />
           ))}
         </section>
         <section>
-          <h2 className="list-head">{t.home.doneToday}</h2>
+          <SectionHead small title={t.home.doneToday} />
           {doneToday.length === 0 ? <p className="muted small">{t.home.empty}</p> : null}
           <ul className="done-list">
             {doneToday.map((m) => (
@@ -189,7 +185,7 @@ function FeedCard({ item, onOpen }: { item: HomeMove; onOpen: () => void }) {
         {kind ? <span className="move-kind">{kind}</span> : null}
         <span className="move-who">{who}</span>
         <span className="muted small">{t.home.in}</span>
-        <button className="space-chip" onClick={onOpen}>{spaceTitle(space)}</button>
+        <Chip onClick={onOpen}>{spaceTitle(space)}</Chip>
         <span className="muted small">{time(m.at)}</span>
         {state ? <Chip tone={m.state === "done" || m.state === "issued" ? "ok" : m.state === "open" ? "accent" : "plain"}>{state}</Chip> : null}
       </header>
@@ -250,7 +246,7 @@ function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onO
   const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   return (
     <>
-      <h2 className="list-head">{t.home.yourAsks}</h2>
+      <SectionHead small title={t.home.yourAsks} />
       {mine.length === 0 ? <p className="muted small">{t.home.noAsks}</p> : null}
       {problem ? <p className="warn small">{problem}</p> : null}
       {mine.map((th) => {
@@ -265,14 +261,14 @@ function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onO
               <span className="move-kind">{t.spaces.moveKinds.ask}</span>
               <span className="muted small">{time(th.at)}</span>
               <Chip tone={answered || taken ? "ok" : "plain"}>{status}</Chip>
-              {open ? <button className="link small" onClick={() => closeAll(th)}>{t.home.gotIt}</button> : null}
+              {open ? <Button small kind="tertiary" onClick={() => closeAll(th)}>{t.home.gotIt}</Button> : null}
             </header>
             <h3 className="move-title">{th.what}</h3>
             <ul className="ask-places">
               {th.places.map((p) => (
                 <li key={p.space.id}>
                   <span>
-                    <button className="space-chip" onClick={() => props.onOpen(p.space.id)}>{spaceTitle(p.space)}</button>{" "}
+                    <Chip onClick={() => props.onOpen(p.space.id)}>{spaceTitle(p.space)}</Chip>{" "}
                     <span className="muted small">
                       {[p.offers.length ? count(p.offers.length, t.home.offer, t.home.offersWord) : null, p.replies.length ? count(p.replies.length, t.home.reply, t.home.replies) : null].filter(Boolean).join(" · ") || t.home.nothingYet}
                     </span>
@@ -291,7 +287,7 @@ function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onO
           </article>
         );
       })}
-      <h2 className="list-head">{t.home.theirAsks}</h2>
+      <SectionHead small title={t.home.theirAsks} />
       {theirs.length === 0 ? <p className="muted small">{t.home.noTheirAsks}</p> : null}
       {theirs.map((th) => (
         <article key={th.key} className="feed-card">
@@ -302,7 +298,7 @@ function AskThreads(props: { feed: HomeMove[]; askable: HomeMove["space"][]; onO
           </header>
           <h3 className="move-title">{th.what}</h3>
           <div className="row-actions">
-            {th.places.map((p) => <button key={p.space.id} className="space-chip" onClick={() => props.onOpen(p.space.id)}>{spaceTitle(p.space)}</button>)}
+            {th.places.map((p) => <Chip key={p.space.id} onClick={() => props.onOpen(p.space.id)}>{spaceTitle(p.space)}</Chip>)}
           </div>
         </article>
       ))}
