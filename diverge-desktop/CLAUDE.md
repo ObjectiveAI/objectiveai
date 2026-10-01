@@ -69,7 +69,8 @@ inherits it.
 - **The stand-in keeps its rooms** between launches (`tables/.stand-in-rooms.json`), rebuilt by replaying their
   records.
 - **The menu** (main.rs): ⌘N new agent, ⌘W closes a TAB (never the window), ⌘1 Home, ⌘2 Inbox; the page handles ⌘3–9
-  and ⌘[ ⌘].
+  and ⌘[ ⌘]. ⌘+ ⌘− ⌘0 (Ctrl on Windows and Linux) zoom the whole window: the window's `zoomHotkeysEnabled` and the
+  `core:webview:allow-set-webview-zoom` permission. Keep those keys off the menu (`src/window.test.ts`).
 - The webview never holds a daemon connection, address or credential. Rust owns them.
 - View types in `src-tauri/src/view.rs` generate `src/bindings/*.ts` (`cargo test -p diverge-desktop`).
 - Never edit Ronald's crates. Blocked? Note it for Ronald in the private questions list (kept outside this repo) and

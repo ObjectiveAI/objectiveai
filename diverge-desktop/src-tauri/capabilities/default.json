@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "The main window may call the app's own commands and listen to its events.",
+  "description": "The main window may call the app's own commands, listen to its events, and zoom itself (the zoom keys).",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:webview:allow-set-webview-zoom"]
 }
