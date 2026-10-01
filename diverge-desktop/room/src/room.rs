@@ -465,9 +465,10 @@ impl Room {
                 if old.last_hash() != c.last {
                     return Err("that record doesn't end where the room it continues ended".into());
                 }
-                // Whoever starts it, as the old room knew them: by key, by account, or by any key on their list.
-                let devices = args.host_account.as_ref().and_then(|p| p.check().ok()).map(|a| a.devices).unwrap_or_default();
-                let still_in = std::iter::once(args.host_id()).chain(std::iter::once(args.host_key.clone())).chain(devices).any(|who| old.person_in(&who));
+                // Whoever starts it, as the old room knew them, by what they prove: the key that
+                // signed these settings, or under rules 2 the account whose root named that key.
+                // Other keys on that account's list are only the root's word, so they count for nothing here.
+                let still_in = old.person_in(&args.host_key) || (rules == Rules::Two && old.person_in(&args.host_id()));
                 if !still_in {
                     return Err("only someone still in a room may continue it".into());
                 }

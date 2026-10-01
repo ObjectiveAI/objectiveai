@@ -502,3 +502,56 @@ fn a_receipt_from_a_rules_two_room_proves_its_room_wherever_it_is_pinned() {
     assert!(ren_mac.call(&mut profile, &ren_h, "pin_receipt", json!({ "statement": forged })).is_err());
     ren_mac.call(&mut profile, &ren_h, "pin_receipt", json!({ "statement": statement })).unwrap();
 }
+
+/// Continue `old` under rules 2, from an account naming `devices`, signed on `signer`.
+fn continue_as(old: &Room, label: &str, account: &A, signer: &P) -> Result<Room, String> {
+    let (mut args, key) = settings_v2(label, account, signer, "eve");
+    args.continues = Some(Continues { room: old.id().into(), title: "W".into(), last: old.last_hash() });
+    let args = args.signed(&signer.k);
+    Room::from_record(Record { args, before: Some(Box::new(old.record())), moves: Vec::new() }, Some(key))
+}
+
+#[test]
+fn a_removed_member_whose_list_names_a_current_members_key_cannot_continue_a_rules_one_room() {
+    // ren was removed; maya is still in. ren's root may name maya's key, but ren doesn't hold it.
+    let (room, maya, ren, _) = workshop();
+    let eve = A::new("ren's other account", &[&ren, &maya]);
+    let err = continue_as(&room, "next", &eve, &ren).err().unwrap();
+    assert!(err.contains("still in"), "{err}");
+    // maya, signing herself, still can.
+    let hers = A::new("maya", &[&maya]);
+    continue_as(&room, "next", &hers, &maya).unwrap();
+}
+
+#[test]
+fn a_removed_member_whose_list_names_a_current_members_key_cannot_continue_a_rules_two_room() {
+    let (mut room, mut maya_mac, maya, ren_mac, ren, h) = workshop_v2();
+    maya_mac.call(&mut room, &h, "remove", json!({ "key": ren.id() })).unwrap();
+    let maya_key = P::new("maya's mac");
+    // A fresh account naming ren's laptop and maya's Mac…
+    let eve = A::new("eve", &[&ren_mac, &maya_key]);
+    let err = continue_as(&room, "next", &eve, &ren_mac).err().unwrap();
+    assert!(err.contains("still in"), "{err}");
+    // …or ren's own account with a newer list that adds maya's Mac.
+    let ren_next = A { root: Keypair::from_seed("ren's root"), proof: ren.list(2, &[&ren_mac, &maya_key]) };
+    let err = continue_as(&room, "next", &ren_next, &ren_mac).err().unwrap();
+    assert!(err.contains("still in"), "{err}");
+    // maya, from her account, still can.
+    continue_as(&room, "next", &maya, &maya_key).unwrap();
+}
+
+#[test]
+fn a_key_named_on_one_members_list_cant_be_let_in_for_anyone_else() {
+    // A device list is its root's word alone: nothing shows the keys on it agreed.
+    // So a key one member lists, held or not, is refused for anyone else, its holder included.
+    let (mut room, mut maya_mac, _, mut ren_mac, ren, h) = workshop_v2();
+    let ada_mac = P::new("ada's mac");
+    ren_mac.call(&mut room, &h, "keys", json!({ "account": ren.list(2, &[&ren_mac, &ada_mac]) })).unwrap();
+    let ada = A::new("ada", &[&ada_mac]);
+    let err = maya_mac.call(&mut room, &h, "admit", json!({ "account": ada.proof, "name": "ada" })).unwrap_err();
+    assert!(err.contains("already acts for someone else"), "{err}");
+    // It can't seal a move for ren without the key itself.
+    let mut fake = P::new("mallory");
+    fake.c = 50;
+    assert!(fake.call(&mut room, &h, "show", json!({ "title": "x" })).is_err());
+}

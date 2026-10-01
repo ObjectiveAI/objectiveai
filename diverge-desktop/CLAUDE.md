@@ -38,7 +38,8 @@ inherits it.
       the account id, and any key on the list acts for them; `keys` brings a newer list (a lower number is refused),
       and a key it leaves off is refused from then on while its earlier moves still replay. The id names the host's
       account (`account_room_id`), so the host acts from any of its devices. Agents stay keys, tethered to a key on
-      their person's list. A receipt from a rules-2 room carries the host's account (`receipt_issuer`). Rooms the app
+      their person's list. A list is its root's word alone (no key on it countersigns), so continuing a room counts only the
+      key that signed the settings or, under rules 2, its account; and a key one member lists can't be let in for anyone else. A receipt from a rules-2 room carries the host's account (`receipt_issuer`). Rooms the app
       makes are rules 2; a fresh name is a one-device account of its own (`Identity::proof_of`), never yours.
     - Every call is sealed under the `_meta` key `network.diverge.desktop/seal` for that id, and checked against keys
       the host admitted. Someone let in unlisted is a mark of their key (`key_mark`) until they first act.
