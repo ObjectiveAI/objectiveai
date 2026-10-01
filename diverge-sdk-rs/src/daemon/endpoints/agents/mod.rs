@@ -4,8 +4,9 @@
 //! one the daemon chooses, or the one its template pins it to, with
 //! that provider's volumes mounted — from what the [`create`] names:
 //! a [`template`](templates), which is the image, the limits, the
-//! provider pin and the arguments, held by its hash, and the mounts
-//! that are the agent's own. The daemon holds it
+//! provider pin, the resources served over FUSE and the arguments,
+//! held by its hash, and the mounts of providers' volumes that are
+//! the agent's own. The daemon holds it
 //! under a name of the caller's choosing. The name is how the caller reaches the agent
 //! after: one name, one agent, for as long as the agent exists.
 //!

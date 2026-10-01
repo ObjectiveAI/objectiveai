@@ -8,6 +8,7 @@
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them all; change what one mounts; make, list and delete the templates agents are made from |
 //! | [`tools`] | create a tool under a name; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them all |
+//! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
 //!
 //! # The tags
 //!
@@ -34,8 +35,11 @@
 //! | `13` | [`tools::detach`] |
 //! | `14` | [`tools::delete`] |
 //! | `15` | [`tools::list`] |
+//! | `16` | [`resources::upload`] |
+//! | `17` | [`resources::list`] |
+//! | `18` | [`resources::delete`] |
 //!
-//! Sixteen, so far. Tags are handed out in the order scopes are defined
+//! Nineteen, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,
@@ -59,4 +63,5 @@ mod client_request;
 pub use client_request::*;
 
 pub mod agents;
+pub mod resources;
 pub mod tools;

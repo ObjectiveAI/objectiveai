@@ -4,12 +4,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::daemon::endpoints::agents::create::client::request::Image;
+use super::ResourceMount;
 use crate::daemon::endpoints::agents::logs::server::response::Identity;
 
 /// Everything an agent is made from that is the same for every agent
 /// made from it: the image, the limits, the provider pin, the
-/// arguments. What is not here is what differs agent to agent — the
-/// name, and the mounts — which the agent's
+/// resources mounted over FUSE, the arguments. What is not here is
+/// what differs agent to agent — the name, and the mounts of
+/// providers' volumes — which the agent's
 /// [`create`](crate::daemon::endpoints::agents::create) states.
 ///
 /// Its id is its hash: see [`templates`](super). What a caller may
@@ -52,6 +54,18 @@ pub struct Template {
     /// agent mounts is the agent's create's to say.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<Identity>,
+    /// File resources served live into every agent made from this,
+    /// mounted one each over FUSE: see [`ResourceMount`]. Each names a
+    /// file resource and its path in the container. Absent from the
+    /// hashed JSON when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fuse_file_mounts: Vec<ResourceMount>,
+    /// Directory resources served live into every agent made from
+    /// this, mounted one each over FUSE: see [`ResourceMount`]. Each
+    /// names a directory resource and its path in the container.
+    /// Absent from the hashed JSON when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fuse_directory_mounts: Vec<ResourceMount>,
     /// What the image is told once, as the image defines it, for the
     /// agent's life.
     ///

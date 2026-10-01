@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{agents, tools};
+use super::{agents, resources, tools};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -59,6 +59,12 @@ pub enum ClientRequest<'a> {
     ToolsDelete(tools::delete::client::request::Frame),
     /// Tag `15`. List the caller's tools.
     ToolsList(tools::list::client::request::Frame),
+    /// Tag `16`. Upload a file or a directory.
+    ResourcesUpload(resources::upload::client::request::Frame),
+    /// Tag `17`. List the caller's resources.
+    ResourcesList(resources::list::client::request::Frame),
+    /// Tag `18`. Delete a resource by id.
+    ResourcesDelete(resources::delete::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -95,6 +101,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsDetach(frame) => frame.encode(out),
             ClientRequest::ToolsDelete(frame) => frame.encode(out),
             ClientRequest::ToolsList(frame) => frame.encode(out),
+            ClientRequest::ResourcesUpload(frame) => frame.encode(out),
+            ClientRequest::ResourcesList(frame) => frame.encode(out),
+            ClientRequest::ResourcesDelete(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -167,6 +176,15 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             15 => tools::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsList)
                 .ok(),
+            16 => resources::upload::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ResourcesUpload)
+                .ok(),
+            17 => resources::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ResourcesList)
+                .ok(),
+            18 => resources::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ResourcesDelete)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -192,6 +210,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsDetach(_) => f.write_str("tools detach"),
             ClientRequest::ToolsDelete(_) => f.write_str("tools delete"),
             ClientRequest::ToolsList(_) => f.write_str("tools list"),
+            ClientRequest::ResourcesUpload(_) => f.write_str("resources upload"),
+            ClientRequest::ResourcesList(_) => f.write_str("resources list"),
+            ClientRequest::ResourcesDelete(_) => f.write_str("resources delete"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

@@ -58,7 +58,8 @@ pub struct Frame {
     /// volume's file in place. The file is
     /// overwritten in place only; a program that replaces its file by
     /// rename needs a directory mount. Its container path is no other
-    /// mount's and lies inside none, as every mount's.
+    /// mount's — the template's resource mounts included — and lies
+    /// inside none, as every mount's.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of providers' volumes served LIVE across the
