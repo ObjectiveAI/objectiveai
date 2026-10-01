@@ -1,6 +1,6 @@
 import type { AllowanceView } from "../bindings/AllowanceView";
 import type { Reach } from "../bindings/Reach";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AdmittedView } from "../bindings/AdmittedView";
 import type { DoorwayView } from "../bindings/DoorwayView";
 import type { MoveView } from "../bindings/MoveView";
@@ -9,22 +9,24 @@ import type { ToolView } from "../bindings/ToolView";
 import { Markdown } from "../components/Markdown";
 import { SchemaForm, initial, missing, type Schema } from "../components/SchemaForm";
 import { Table } from "../components/Table";
-import { Button, Chip, Dot, Empty, SectionHead, Segmented } from "../components/ui";
+import { Button, Chip, Dot, Empty, Escapes, SectionHead, Segmented } from "../components/ui";
 import { KeyMark } from "../components/KeyMark";
 import { useShared } from "../lib/context";
 import { ago, providerName, time, spaceTitle } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
+import { useEscape } from "../lib/keys";
+import { cardVerbs, isYou, replyVerbs, withoutKnown, type CardVerb, type Here } from "../lib/moves";
 import { t } from "../strings";
 
-type Active = { tool: ToolView; values: Record<string, unknown> };
+/** A verb's form, open: in the side column, or on the card of the move it acts on (`on`), where it leaves out
+ *  what the card already knows. */
+type Active = { tool: ToolView; values: Record<string, unknown>; on: string | null; shown: Schema };
 
 /** Verbs that have their own place, never a raw form: letting in is at the door; removing is on a member's row;
  * rules and recommendations are under "Your room"; hires are answered on cards; a receipt is pinned from You;
  * taking back and erasing are on the move itself. */
 const ELSEWHERE = new Set(["admit", "remove", "set_charter", "vouch_room", "answer_hire", "deliver_hire", "pin_receipt", "keys", "withdraw", "erase", "mark_invite", "drop_keeper"]);
 
-/** Whether a member's key is you here: the key you seal with, or, in a room under rules 2, the account it's on. */
-const isYou = (s: { you_key: string; you_account: string | null }, key?: string | null) => !!key && (key === s.you_key || key === s.you_account);
 
 /** Moves the room makes about itself: shown as quiet lines, not cards. */
 const SYSTEM = new Set(["admitted", "removed", "charter", "doorway", "keeper_dropped"]);
@@ -37,7 +39,7 @@ export function Space(props: { id: string; tabKey: string }) {
   const [moves, setMoves] = useState<MoveView[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
   const [active, setActive] = useState<Active | null>(null);
-  const [said, setSaid] = useState<string | null>(null);
+  const [said, setSaid] = useState<{ text: string; on: string | null } | null>(null);
   const [invite, setInvite] = useState<string | null>(null);
   const [inviteIsNew, setInviteIsNew] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -62,6 +64,10 @@ export function Space(props: { id: string; tabKey: string }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [recommending, setRecommending] = useState<string | null>(null);
   const [moderation, setModeration] = useState<string | null>(null);
+  // Escape closes whichever of these inline forms opened last.
+  const endConfirm = useEscape<HTMLSpanElement>(confirm, () => setConfirm(false));
+  const rulesForm = useEscape<HTMLDivElement>(editing !== null, () => setEditing(null));
+  const recommendForm = useEscape<HTMLDivElement>(recommending !== null, () => setRecommending(null));
 
   const load = useCallback(async () => {
     try {
@@ -97,9 +103,11 @@ export function Space(props: { id: string; tabKey: string }) {
     };
   }, [props.id, load]);
 
-  const begin = (tool: ToolView, prefill: Record<string, unknown> = {}) => {
+  /** Open a verb's form: from the side column, or on the card of the move it's about (`on`). */
+  const begin = (tool: ToolView, prefill: Record<string, unknown> = {}, on: string | null = null) => {
     const base = initial(tool.schema as Schema, tool.schema as Schema);
-    setActive({ tool, values: { ...(base && typeof base === "object" ? (base as Record<string, unknown>) : {}), ...prefill } });
+    const shown = on ? withoutKnown(tool.schema as Schema, prefill) : (tool.schema as Schema);
+    setActive({ tool, values: { ...(base && typeof base === "object" ? (base as Record<string, unknown>) : {}), ...prefill }, on, shown });
     setSaid(null);
   };
 
@@ -107,10 +115,10 @@ export function Space(props: { id: string; tabKey: string }) {
     if (!active) return;
     const out = await api.spaceCall(props.id, active.tool.name, active.values);
     if (out.outcome === "ok") {
-      setSaid(`${t.spaces.did} ${out.text}`);
+      setSaid({ text: `${t.spaces.did} ${out.text}`, on: active.on });
       setActive(null);
       load();
-    } else setSaid(wordsFor(out.message));
+    } else setSaid({ text: wordsFor(out.message), on: active.on });
   };
 
   const leave = async () => {
@@ -210,6 +218,23 @@ export function Space(props: { id: string; tabKey: string }) {
   // Your agents here: the app gives each its slot, which their allowances go by.
   const myAgents = space.members.filter((m) => m.is_agent && m.slot);
   const who = (m: { by: string; author: string }) => (m.by === s.you_key ? t.spaces.you : m.author);
+  const here: Here = { you_key: s.you_key, you_account: s.you_account, mine: s.mine, tools: s.online ? space.tools.map((x) => x.name) : [] };
+  /** A verb's form, wherever it's open, and what the room said to the last one sent from there. */
+  const formAt = (on: string | null): ReactNode => (
+    <>
+      {active && active.on === on ? (
+        <VerbForm
+          key={`${active.tool.name}/${on ?? ""}`}
+          active={active}
+          incomplete={incomplete}
+          onChange={(v) => setActive({ ...active, values: v })}
+          onSubmit={submit}
+          onCancel={() => setActive(null)}
+        />
+      ) : null}
+      {said && said.on === on ? <p className={said.text.startsWith(t.spaces.did) ? "ok small" : "warn small"}>{said.text}</p> : null}
+    </>
+  );
 
   return (
     <div className="space">
@@ -224,10 +249,10 @@ export function Space(props: { id: string; tabKey: string }) {
           <span className="muted small">{t.spaces.youAreHere} <strong>{s.you_are}</strong>{s.fresh ? ` · ${t.spaces.freshHere}` : ""}</span>
           {s.mine ? <Button small kind="tertiary" onClick={showInvite}>{t.spaces.invite}</Button> : null}
           {confirm ? (
-            <>
+            <span className="confirm-pair" ref={endConfirm}>
               <Button small kind="danger" onClick={leave}>{s.mine ? t.spaces.confirmEnd : t.spaces.confirmLeave}</Button>
               <Button small kind="tertiary" onClick={() => setConfirm(false)}>{t.spaces.keep}</Button>
-            </>
+            </span>
           ) : (
             <Button small kind="tertiary" onClick={() => setConfirm(true)}>{s.mine ? t.spaces.end : t.spaces.leave}</Button>
           )}
@@ -244,15 +269,11 @@ export function Space(props: { id: string; tabKey: string }) {
       {problem ? <div className="banner banner-bad">{problem}</div> : null}
       {!s.online ? (
         <div className="banner banner-warn">
-          <span>
+          <span className="banner-text">
             {[t.spaces.quiet, fromCopy && lastSeen ? `${t.spaces.copyAsOf} ${time(lastSeen)}.` : "", fromCopy ? t.spaces.fromCopy : ""].filter(Boolean).join(" ")}
+            {fromCopy && !s.mine ? <span className="muted small"> {t.spaces.continueNote}</span> : null}
           </span>
-          {fromCopy && !s.mine ? (
-            <>
-              <span className="muted small"> {t.spaces.continueNote}</span>
-              <Button small kind="primary" onClick={continueIt}>{t.spaces.continueIt}</Button>
-            </>
-          ) : null}
+          {fromCopy && !s.mine ? <Button small kind="primary" onClick={continueIt}>{t.spaces.continueIt}</Button> : null}
         </div>
       ) : null}
       {moderation ? (
@@ -291,7 +312,7 @@ export function Space(props: { id: string; tabKey: string }) {
                 SYSTEM.has(m.kind) ? (
                   <SystemLine key={m.id} move={m} you={s.you_key} />
                 ) : (
-                  <MoveCard key={m.id} move={m} replies={childrenOf(m.id)} space={space} onOpenInvite={(text) => open({ kind: "door", invite: text })} onVerb={(name, prefill) => { const x = tool(name); if (x) begin(x, prefill); }} />
+                  <MoveCard key={m.id} move={m} replies={childrenOf(m.id)} space={space} here={here} form={formAt(m.id)} onOpenInvite={(text) => open({ kind: "door", invite: text })} onVerb={(v) => { const x = tool(v.verb); if (x) begin(x, v.prefill, m.id); }} />
                 ),
               )}
             </>
@@ -304,24 +325,10 @@ export function Space(props: { id: string; tabKey: string }) {
             <p className="muted small">{t.spaces.verbsNote}</p>
             <div className="verb-buttons">
               {verbs.map((x) => (
-                <Button key={x.name} small kind={active?.tool.name === x.name ? "primary" : "secondary"} onClick={() => begin(x)} title={x.description}>{t.spaces.verbNames[x.name] ?? x.title}</Button>
+                <Button key={x.name} small kind={active && !active.on && active.tool.name === x.name ? "primary" : "secondary"} onClick={() => begin(x)} title={x.description}>{t.spaces.verbNames[x.name] ?? x.title}</Button>
               ))}
             </div>
-            {active ? (
-              <div className="verb-form">
-                <div className="verb-form-head">
-                  <strong>{t.spaces.verbNames[active.tool.name] ?? active.tool.title}</strong>
-                  <span className="muted small">{active.tool.description}</span>
-                </div>
-                <SchemaForm key={active.tool.name} schema={active.tool.schema as Schema} value={active.values} onChange={(v) => setActive({ ...active, values: v as Record<string, unknown> })} />
-                <div className="row-actions">
-                  <Button kind="primary" onClick={submit} disabled={incomplete.length > 0}>{t.spaces.do}</Button>
-                  <Button kind="tertiary" onClick={() => setActive(null)}>{t.spaces.cancel}</Button>
-                  {incomplete.length ? <span className="muted small">{t.create.fillIn} {incomplete.join(", ")}</span> : null}
-                </div>
-              </div>
-            ) : null}
-            {said ? <p className={said.startsWith(t.spaces.did) ? "ok small" : "warn small"}>{said}</p> : null}
+            {formAt(null)}
           </section>
           ) : null}
           {s.mine && s.online ? (
@@ -332,7 +339,7 @@ export function Space(props: { id: string; tabKey: string }) {
                 {recommendable.length ? <Button small kind="secondary" onClick={() => setRecommending(recommending ? null : recommendable[0].id)}>{t.spaces.recommendRoom}</Button> : null}
               </div>
               {editing !== null ? (
-                <div className="verb-form">
+                <div className="verb-form" ref={rulesForm}>
                   <p className="muted small">{t.spaces.rulesNote}</p>
                   <textarea className="rules-edit" rows={10} value={editing} onChange={(e) => setEditing(e.target.value)} />
                   <RulesChange before={space.charter} after={editing} />
@@ -343,7 +350,7 @@ export function Space(props: { id: string; tabKey: string }) {
                 </div>
               ) : null}
               {recommending ? (
-                <div className="verb-form">
+                <div className="verb-form" ref={recommendForm}>
                   <p className="muted small">{t.spaces.recommendNote}</p>
                   <select value={recommending} onChange={(e) => setRecommending(e.target.value)}>
                     {recommendable.map((r) => <option key={r.id} value={r.id}>{spaceTitle(r)}</option>)}
@@ -376,7 +383,7 @@ export function Space(props: { id: string; tabKey: string }) {
                     <Button small kind="tertiary" onClick={() => setVouching({ key: m.key, name: m.name, room: vouchRooms[0].id })}>{t.spaces.vouch}</Button>
                   ) : null}
                   {vouching?.key === m.key ? (
-                    <div className="vouch-pick">
+                    <Escapes className="vouch-pick" onEscape={() => setVouching(null)}>
                       <label className="muted small">
                         {t.spaces.vouchInto}{" "}
                         <select value={vouching.room} onChange={(e) => setVouching({ ...vouching, room: e.target.value })}>
@@ -385,7 +392,7 @@ export function Space(props: { id: string; tabKey: string }) {
                       </label>
                       <Button small kind="primary" onClick={vouch}>{t.spaces.vouchMake}</Button>
                       <Button small kind="tertiary" onClick={() => setVouching(null)}>{t.common.cancel}</Button>
-                    </div>
+                    </Escapes>
                   ) : null}
                 </li>
               ))}
@@ -416,14 +423,14 @@ export function Space(props: { id: string; tabKey: string }) {
                     <KeyMark mark={a.mark} />
                     {a.listed ? null : <Chip>{t.spaces.notListed}</Chip>}
                     {removing === a.key ? (
-                      <div className="remove-confirm">
+                      <Escapes className="remove-confirm" onEscape={() => setRemoving(null)}>
                         <label className="switch small">
                           <input type="checkbox" checked={sayIt} onChange={(e) => setSayIt(e.target.checked)} />
                           <span>{t.spaces.sayItInRoom}</span>
                         </label>
                         <Button small kind="danger" onClick={() => remove(a.key)}>{t.spaces.removeConfirm} {a.name}</Button>
                         <Button small kind="tertiary" onClick={() => setRemoving(null)}>{t.spaces.keep}</Button>
-                      </div>
+                      </Escapes>
                     ) : (
                       <Button small kind="tertiary" onClick={() => setRemoving(a.key)}>{t.spaces.remove} {a.name}</Button>
                     )}
@@ -509,33 +516,59 @@ function fieldRows(m: MoveView) {
   return Object.entries(f).filter(([k, v]) => !HIDDEN.has(k) && v !== null && v !== "" && v !== undefined && typeof v !== "object");
 }
 
-function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView; onVerb: (name: string, prefill: Record<string, unknown>) => void; onOpenInvite: (text: string) => void }) {
-  const { move: m, replies, space } = props;
+/** A verb's form, open on a card or in the side column: its fields (on a card, only those it doesn't already
+ *  know), send, and cancel. Focus goes into it as it opens and back to what opened it as it closes. */
+function VerbForm(props: { active: Active; incomplete: string[]; onChange: (v: Record<string, unknown>) => void; onSubmit: () => void; onCancel: () => void }) {
+  const { active } = props;
+  const ref = useEscape<HTMLDivElement>(true, props.onCancel);
+  const opener = useRef<Element | null>(null);
+  useEffect(() => {
+    opener.current = document.activeElement;
+    ref.current?.querySelector<HTMLElement>("input, textarea, select, .row-actions .btn-primary")?.focus({ preventScroll: true });
+    return () => {
+      const back = opener.current;
+      if (back instanceof HTMLElement && back.isConnected) back.focus({ preventScroll: true });
+    };
+  }, [ref]);
+  return (
+    <div className="verb-form" ref={ref}>
+      <div className="verb-form-head">
+        <strong>{t.spaces.verbNames[active.tool.name] ?? active.tool.title}</strong>
+        <span className="muted small">{active.tool.description}</span>
+      </div>
+      <SchemaForm schema={active.shown} value={active.values} onChange={(v) => props.onChange(v as Record<string, unknown>)} />
+      <div className="row-actions">
+        <Button kind="primary" onClick={props.onSubmit} disabled={props.incomplete.length > 0}>{t.spaces.do}</Button>
+        <Button kind="tertiary" onClick={props.onCancel}>{t.spaces.cancel}</Button>
+        {props.incomplete.length ? <span className="muted small">{t.create.fillIn} {props.incomplete.join(", ")}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView; here: Here; form: ReactNode; onVerb: (v: CardVerb) => void; onOpenInvite: (text: string) => void }) {
+  const { move: m, replies, space, here } = props;
   const s = space.summary;
-  const isMe = isYou(s, m.member ?? m.by);
   const f = m.fields as Record<string, unknown>;
   const kind = t.spaces.moveKinds[m.kind] ?? m.kind;
   const state = t.spaces.states[m.state] ?? m.state;
-  const has = (name: string) => space.tools.some((x) => x.name === name);
-  const claimedByMe = isYou(s, f.claimed_by_key as string | undefined);
   const invite = m.body.match(INVITE)?.[0];
   const said = (side: unknown) => (side && typeof side === "object" ? ((side as { agree?: boolean }).agree ? t.spaces.settledWord : t.spaces.notSettledWord) : null);
   const note = (side: unknown) => (side && typeof side === "object" && typeof (side as { note?: unknown }).note === "string" ? `: “${(side as { note: string }).note}”` : "");
   const posterSays = said(f.poster_says);
   const doerSays = said(f.doer_says);
-  const canSettle = m.kind === "task" && typeof f.pledge === "string" && (m.state === "delivered" || m.state === "done") && (isMe || claimedByMe) && has("settle");
   /** Under rules 2 a move names its maker's account, so it's yours from any of your devices. */
   const mine = (x: MoveView) => isYou(s, x.member ?? x.by);
   const who = (x: MoveView) => (mine(x) ? t.spaces.you : x.author);
   const agentLine = (x: MoveView) => (x.agent_of ? (x.agent_of === s.you_are ? t.spaces.yourAgent : `${t.spaces.runBy} ${x.agent_of}`) : null);
-  /** Taking back your own words, or, for the host, erasing someone else's with a reason. */
-  const erasing = (x: MoveView) => {
-    // The room says which moves it would erase now.
-    if (!x.erasable) return null;
-    if (mine(x) && has("withdraw")) return <Button small kind="tertiary" onClick={() => props.onVerb("withdraw", { move_id: x.id })}>{t.spaces.takeBack}</Button>;
-    if (!mine(x) && s.mine && has("erase")) return <Button small kind="tertiary" onClick={() => props.onVerb("erase", { move_id: x.id })}>{t.spaces.erase}</Button>;
-    return null;
-  };
+  /** A verb's button; a settle verb comes after the question it answers. */
+  const verbButtons = (verbs: CardVerb[]) =>
+    verbs.map((v, i) => (
+      <span key={`${v.verb}/${i}`} className="confirm-pair">
+        {v.verb === "settle" && verbs.findIndex((x) => x.verb === "settle") === i ? <span className="muted small">{t.spaces.settle}</span> : null}
+        <Button small kind={v.verb === "take_offer" ? "primary" : "tertiary"} onClick={() => props.onVerb(v)}>{v.label}</Button>
+      </span>
+    ));
   const erasedNote = (x: MoveView) => ((x.fields as Record<string, unknown>).erased ? <p className="muted small">{t.spaces.wordsErased} {t.spaces.erasedCopies}</p> : null);
   return (
     <article className={`move move-${m.kind}`}>
@@ -565,28 +598,7 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
           {doerSays ? <span>{String(f.claimed_by ?? "")} {t.spaces.says} {doerSays}{note(f.doer_says)}</span> : null}
         </div>
       ) : null}
-      <div className="move-actions">
-        {has("reply") && m.kind !== "reply" && f.sealed !== true ? <Button small kind="tertiary" onClick={() => props.onVerb("reply", { move_id: m.id })}>{t.spaces.reply}</Button> : null}
-        {m.kind === "ask" && !isMe && has("offer") ? <Button small kind="tertiary" onClick={() => props.onVerb("offer", { ask_id: m.id })}>{t.spaces.moveKinds.offer}</Button> : null}
-        {m.kind === "task" && m.state === "open" && !isMe && has("claim") ? <Button small kind="tertiary" onClick={() => props.onVerb("claim", { task_id: m.id })}>{t.spaces.claim}</Button> : null}
-        {m.kind === "task" && m.state === "claimed" && claimedByMe && has("deliver") ? <Button small kind="tertiary" onClick={() => props.onVerb("deliver", { task_id: m.id })}>{t.spaces.deliver}</Button> : null}
-        {m.kind === "task" && m.state === "delivered" && isMe && has("accept") ? <Button small kind="tertiary" onClick={() => props.onVerb("accept", { task_id: m.id })}>{t.spaces.accept}</Button> : null}
-        {canSettle ? (
-          <>
-            <span className="muted small">{t.spaces.settle}</span>
-            <Button small kind="tertiary" onClick={() => props.onVerb("settle", { task_id: m.id, agree: true })}>{t.spaces.settledYes}</Button>
-            <Button small kind="tertiary" onClick={() => props.onVerb("settle", { task_id: m.id, agree: false })}>{t.spaces.settledNo}</Button>
-          </>
-        ) : null}
-        {m.kind === "direction" && has("steer") ? (
-          <>
-            <Button small kind="tertiary" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "prefer" })}>{t.spaces.prefer}</Button>
-            <Button small kind="tertiary" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "reject" })}>{t.spaces.reject}</Button>
-            <Button small kind="tertiary" onClick={() => props.onVerb("steer", { direction_id: m.id, move: "note" })}>{t.spaces.noteVerb}</Button>
-          </>
-        ) : null}
-        {erasing(m)}
-      </div>
+      <div className="move-actions">{verbButtons(cardVerbs(m, here))}</div>
       {replies.length ? (
         <div className="move-replies">
           {replies.map((r) => (
@@ -595,11 +607,12 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
               {agentLine(r) ? <Chip>{agentLine(r)}</Chip> : null}
               {t.spaces.moveKinds[r.kind] ? <span className="move-kind">{t.spaces.moveKinds[r.kind]}</span> : null}
               {r.kind === "steer" ? <Chip>{t.spaces.states[r.state] ?? r.state}</Chip> : null}
+              {r.kind === "offer" && r.state === "taken" ? <Chip tone="ok">{t.home.taken}</Chip> : null}
               <span className="muted small">{time(r.at)}</span>
               {r.body && r.kind !== "receipt" ? <div className="move-body"><Markdown text={r.body} /></div> : null}
               {r.kind === "erased" ? <p className="muted small">{t.spaces.erasedCopies}</p> : null}
               {erasedNote(r)}
-              {erasing(r)}
+              {verbButtons(replyVerbs(r, m, here))}
               {Array.isArray((r.fields as Record<string, unknown>).files) ? <div className="muted small mono">{((r.fields as Record<string, unknown>).files as string[]).join(" · ")}</div> : null}
               {r.kind === "receipt" ? (
                 <div className="receipt-line">✓ {r.title} → {String((r.fields as Record<string, unknown>).to ?? "")} <span className="muted small">· {t.spaces.receiptSealed} {s.title}</span></div>
@@ -608,6 +621,7 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
           ))}
         </div>
       ) : null}
+      {props.form}
     </article>
   );
 }
