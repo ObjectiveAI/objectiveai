@@ -3,7 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::agents::create::client::request::Image;
 use crate::daemon::endpoints::agents::logs::server::response::{Identity, Provider};
 
 /// The two ways a tool comes to be, and what the daemon knows of
@@ -17,9 +16,10 @@ use crate::daemon::endpoints::agents::logs::server::response::{Identity, Provide
 pub enum Origin {
     /// Made by this caller's create: the daemon runs its container.
     Created {
-        /// The image it runs: the name and the digest the create
-        /// named.
-        image: Image,
+        /// The template it was made from, by id: the hash a
+        /// [`templates::create`](crate::daemon::endpoints::tools::templates::create)
+        /// answered.
+        template: String,
         /// The provider the container runs on, if it runs, or last
         /// ran on; absent for a tool that has never run. See
         /// [`Provider`].

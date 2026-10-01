@@ -1,4 +1,5 @@
-//! A file resource served over FUSE into every agent a template makes.
+//! A file resource served over FUSE into every container a template
+//! makes.
 
 use serde::{Deserialize, Serialize};
 
@@ -6,12 +7,13 @@ use super::ResourceMode;
 
 /// One file [resource](crate::daemon::endpoints::resources) of the
 /// caller's, mounted over FUSE as one file at a container path in
-/// every agent made from the template, read-only or ephemeral. The
+/// every agent or tool made from the template, read-only or
+/// ephemeral. The
 /// resource named is a file resource; a directory resource here is
-/// the agent create's error.
+/// the agent's or tool's create's error.
 ///
 /// The daemon serves the mount itself, from the bytes it holds, as
-/// the caller's FUSE server on the agent's run scope: no provider
+/// the caller's FUSE server on the container's run scope: no provider
 /// volume stands behind it. The file is overwritten in place only,
 /// as every FUSE file mount is; a program that replaces its file by
 /// rename needs a [directory mount](super::ResourceDirectoryMount).
@@ -20,7 +22,7 @@ pub struct ResourceFileMount {
     /// The resource, by its id — its hash, as an
     /// [`upload`](crate::daemon::endpoints::resources::upload)
     /// answered it. A resource the caller does not hold when an agent
-    /// is made from the template is that create's error; the template
+    /// or a tool is made from the template is that create's error; the template
     /// itself is made whether or not the resource is held yet.
     pub resource: String,
     /// Read-only, or ephemeral with its cap: see [`ResourceMode`].

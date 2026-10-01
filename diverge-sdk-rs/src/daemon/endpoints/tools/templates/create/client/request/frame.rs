@@ -1,32 +1,23 @@
-//! What a client's request frame carries for an upload.
+//! What a client's request frame carries for a create.
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::endpoints::tools::templates::Template;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to hold a resource: a file, or a directory of the
-/// files named.
+/// Ask the daemon to make a template.
 ///
-/// JSON-tagged by `kind`. A [`File`](Self::File) carries nothing
-/// more: the daemon opens one content channel, and the file's bytes
-/// answer it. A [`Directory`](Self::Directory) names every file in
-/// it, by path from the directory's root, `/`-separated, no component
-/// empty, `.` or `..`, no path twice, and at least one; the daemon
-/// opens one content channel per path. No name is chosen here: the
-/// resource's id is its hash, which the daemon answers once it holds
-/// the bytes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Frame {
-    /// One file.
-    File,
-    /// One directory of files.
-    Directory {
-        /// The paths of its files, from the directory's root.
-        files: Vec<String>,
-    },
-}
+/// The template and nothing else: there is no name to choose, since
+/// the template's id is its hash, and no mounts, since those are an
+/// tool's. The daemon answers the id whether the template is new or
+/// was made before, so a caller that creates the same template twice
+/// holds one.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Frame(
+    /// The template.
+    pub Template,
+);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -40,9 +31,10 @@ pub enum Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 19;
+const TAG: u8 = 16;
 
-/// JSON, as every request of the daemon's is.
+/// JSON, as every request of the daemon's is: the template's own JSON,
+/// the very bytes its id is the hash of, after the tag.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
@@ -66,7 +58,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A resources upload request frame that could not be read.
+/// A tools templates create request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -84,12 +76,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("resources upload request frame is empty"),
+            FrameError::Empty => f.write_str("tools templates create request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected resources upload request tag {TAG}, found {tag}")
+                write!(f, "expected tools templates create request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "resources upload request did not parse: {error}")
+                write!(f, "tools templates create request did not parse: {error}")
             }
         }
     }

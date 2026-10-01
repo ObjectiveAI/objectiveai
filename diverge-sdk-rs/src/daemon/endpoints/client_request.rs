@@ -59,11 +59,17 @@ pub enum ClientRequest<'a> {
     ToolsDelete(tools::delete::client::request::Frame),
     /// Tag `15`. List the caller's tools.
     ToolsList(tools::list::client::request::Frame),
-    /// Tag `16`. Upload a file or a directory.
+    /// Tag `16`. Make a tool template.
+    ToolsTemplatesCreate(tools::templates::create::client::request::Frame),
+    /// Tag `17`. List the caller's tool templates.
+    ToolsTemplatesList(tools::templates::list::client::request::Frame),
+    /// Tag `18`. Delete a tool template by id.
+    ToolsTemplatesDelete(tools::templates::delete::client::request::Frame),
+    /// Tag `19`. Upload a file or a directory.
     ResourcesUpload(resources::upload::client::request::Frame),
-    /// Tag `17`. List the caller's resources.
+    /// Tag `20`. List the caller's resources.
     ResourcesList(resources::list::client::request::Frame),
-    /// Tag `18`. Delete a resource by id.
+    /// Tag `21`. Delete a resource by id.
     ResourcesDelete(resources::delete::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -101,6 +107,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsDetach(frame) => frame.encode(out),
             ClientRequest::ToolsDelete(frame) => frame.encode(out),
             ClientRequest::ToolsList(frame) => frame.encode(out),
+            ClientRequest::ToolsTemplatesCreate(frame) => frame.encode(out),
+            ClientRequest::ToolsTemplatesList(frame) => frame.encode(out),
+            ClientRequest::ToolsTemplatesDelete(frame) => frame.encode(out),
             ClientRequest::ResourcesUpload(frame) => frame.encode(out),
             ClientRequest::ResourcesList(frame) => frame.encode(out),
             ClientRequest::ResourcesDelete(frame) => frame.encode(out),
@@ -176,13 +185,22 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             15 => tools::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsList)
                 .ok(),
-            16 => resources::upload::client::request::Frame::decode(bytes)
+            16 => tools::templates::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsTemplatesCreate)
+                .ok(),
+            17 => tools::templates::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsTemplatesList)
+                .ok(),
+            18 => tools::templates::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsTemplatesDelete)
+                .ok(),
+            19 => resources::upload::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesUpload)
                 .ok(),
-            17 => resources::list::client::request::Frame::decode(bytes)
+            20 => resources::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesList)
                 .ok(),
-            18 => resources::delete::client::request::Frame::decode(bytes)
+            21 => resources::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesDelete)
                 .ok(),
             _ => None,
@@ -210,6 +228,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsDetach(_) => f.write_str("tools detach"),
             ClientRequest::ToolsDelete(_) => f.write_str("tools delete"),
             ClientRequest::ToolsList(_) => f.write_str("tools list"),
+            ClientRequest::ToolsTemplatesCreate(_) => f.write_str("tools templates create"),
+            ClientRequest::ToolsTemplatesList(_) => f.write_str("tools templates list"),
+            ClientRequest::ToolsTemplatesDelete(_) => f.write_str("tools templates delete"),
             ClientRequest::ResourcesUpload(_) => f.write_str("resources upload"),
             ClientRequest::ResourcesList(_) => f.write_str("resources list"),
             ClientRequest::ResourcesDelete(_) => f.write_str("resources delete"),

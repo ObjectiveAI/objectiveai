@@ -1,32 +1,19 @@
-//! What a client's request frame carries for an upload.
+//! What a client's request frame carries for a list.
 
 use serde::{Deserialize, Serialize};
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to hold a resource: a file, or a directory of the
-/// files named.
+/// Ask the daemon for every template of the caller's.
 ///
-/// JSON-tagged by `kind`. A [`File`](Self::File) carries nothing
-/// more: the daemon opens one content channel, and the file's bytes
-/// answer it. A [`Directory`](Self::Directory) names every file in
-/// it, by path from the directory's root, `/`-separated, no component
-/// empty, `.` or `..`, no path twice, and at least one; the daemon
-/// opens one content channel per path. No name is chosen here: the
-/// resource's id is its hash, which the daemon answers once it holds
-/// the bytes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Frame {
-    /// One file.
-    File,
-    /// One directory of files.
-    Directory {
-        /// The paths of its files, from the directory's root.
-        files: Vec<String>,
-    },
-}
+/// Carries nothing: the caller is the connection's identity, and
+/// the daemon lists everything held under it. On the wire the body
+/// is the empty object, `{}`, so that the request is JSON after its
+/// tag as every request of the daemon's is, and so that a member has
+/// somewhere to land the day one is wanted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct Frame {}
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -40,9 +27,9 @@ pub enum Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 19;
+const TAG: u8 = 17;
 
-/// JSON, as every request of the daemon's is.
+/// JSON, as the rest of the daemon's requests are.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
@@ -66,7 +53,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A resources upload request frame that could not be read.
+/// A tools templates list request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -84,12 +71,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("resources upload request frame is empty"),
+            FrameError::Empty => f.write_str("tools templates list request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected resources upload request tag {TAG}, found {tag}")
+                write!(f, "expected tools templates list request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "resources upload request did not parse: {error}")
+                write!(f, "tools templates list request did not parse: {error}")
             }
         }
     }

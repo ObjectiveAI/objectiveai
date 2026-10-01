@@ -3,10 +3,11 @@
 //! A tool is a tool container — an MCP server in a container, the
 //! provider protocol's `containers::tools::run` — that the daemon
 //! holds under a name of the caller's choosing. It comes to be one of
-//! two ways: a [`create`] makes it from what it names — the image,
-//! the limits, the mounts, the arguments, and the provider it is
-//! pinned to, if any, exactly as an [`agent`](super::agents) is — and
-//! the daemon runs it; or a [`connect`] names a container somebody
+//! two ways: a [`create`] makes it from a [`template`](templates) —
+//! the image, the limits, the resources and the arguments, held by
+//! its hash — with the provider it is pinned to and the mounts that
+//! are its own, exactly as an [`agent`](super::agents) is, and the
+//! daemon runs it; or a [`connect`] names a container somebody
 //! else runs, by its provider, its id and an authorization, and the
 //! daemon joins it with the provider protocol's
 //! `containers::tools::connect` and never runs it. Whom a daemon
@@ -27,7 +28,8 @@
 //! it, and stops it when no attached agent is active. A tool attached
 //! nowhere runs nowhere. A create runs nothing.
 //!
-//! [`create`] makes a tool under a name; [`edit`] changes what a
+//! [`templates`] holds what tools are made from; [`create`] makes a
+//! tool under a name from one; [`edit`] changes what a
 //! created one mounts; [`connect`] holds somebody else's under a
 //! name; [`attach`] and [`detach`]
 //! put it on an agent and take it off, the attach allowed while the
@@ -42,3 +44,4 @@ pub mod delete;
 pub mod detach;
 pub mod edit;
 pub mod list;
+pub mod templates;

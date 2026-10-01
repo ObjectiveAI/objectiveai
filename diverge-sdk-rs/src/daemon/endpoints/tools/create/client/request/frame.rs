@@ -1,25 +1,26 @@
 //! What a client's request frame carries for a create.
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
-use super::{FuseMount, Image, Provider};
+use super::{FuseMount, Provider};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to create a tool under a name.
+/// Ask the daemon to create a tool under a name, from a template.
 ///
-/// Everything the tool container is made from — the image, the
-/// limits, the mounts, the arguments, and the provider it is pinned
-/// to, if any — and the name the tool is held under from then on.
-/// Member for member what an agent's template and create name
-/// between them, because a tool container is made of what an agent
-/// container is made of; what makes it a
-/// tool is the image, which runs an MCP server, and what the daemon
-/// does with it, which is to serve it to the agents it is attached
-/// to. What a caller may not choose is not here at all rather than
-/// here and ignored: the container's name, its ports, its entrypoint
-/// and its environment are the provider's.
+/// What every tool made from the template shares — the image, the
+/// limits, the resources, the arguments — is the
+/// [`template`](Self::template), named by its id; what is this
+/// tool's own is here: the provider it runs on with the volumes it
+/// mounts there, its FUSE mounts of providers' volumes, and the name
+/// the tool is held under from then on. The agents create's shape
+/// member for member, because a tool container is made of what an
+/// agent container is made of; what makes it a tool is the image,
+/// which runs an MCP server, and what the daemon does with it, which
+/// is to serve it to the agents it is attached to. What a caller may
+/// not choose is not here at all rather than here and ignored: the
+/// container's name, its ports, its entrypoint and its environment
+/// are the provider's.
 ///
 /// # The name
 ///
@@ -30,19 +31,14 @@ use crate::wire::encode::{Encode, Writer};
 /// because a caller acts on it differently from a failure — use the
 /// tool it has, or choose another name. Nothing here constrains the
 /// string's form; the daemon compares it and does not read it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The image: a name and a digest. See [`Image`]. It runs an MCP
-    /// server, as a tool container's image does.
-    pub image: Image,
-    /// How much memory the container may have, in BYTES: a ceiling,
-    /// as a template's
-    /// [`memory`](crate::daemon::endpoints::agents::templates::Template::memory).
-    pub memory: u64,
-    /// How much the container may WRITE, in BYTES: a ceiling, as a
-    /// template's
-    /// [`disk`](crate::daemon::endpoints::agents::templates::Template::disk).
-    pub disk: u64,
+    /// The tool template the tool is made from, by its id — the hash
+    /// a [`templates::create`](crate::daemon::endpoints::tools::templates::create)
+    /// answered. An id no tool template of the caller's has is the
+    /// create's error. The template's image, limits, resources and
+    /// arguments are the tool's for its life.
+    pub template: String,
     /// The one provider the tool runs on, and the volumes of that
     /// provider made visible inside the container. See [`Provider`].
     ///
@@ -50,7 +46,8 @@ pub struct Frame {
     /// chooses, and mounts no volume. A tool pinned to a provider is
     /// served to an agent on any provider: the daemon speaks to the
     /// tool container over the provider it runs on, and answers the
-    /// agent's calls on the agent's.
+    /// agent's calls on the agent's. The tool's for its life, and
+    /// never the template's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<Provider>,
     /// Files of providers' volumes served live across the daemon,
@@ -65,14 +62,6 @@ pub struct Frame {
     /// [`fuse_directory_mounts`](crate::daemon::endpoints::agents::create::client::request::Frame::fuse_directory_mounts).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// What the image is told once, as the image defines it, for the
-    /// tool's life.
-    ///
-    /// A JSON value, because this crate does not know what an image
-    /// takes — a tool server's own knobs — and a wire that typed it
-    /// would have to be revised for every image that ever ran. It is
-    /// handed to the container and not read here.
-    pub arguments: Value,
     /// The name, unique among the caller's tools.
     pub name: String,
 }
@@ -91,8 +80,7 @@ pub struct Frame {
 /// at once.
 const TAG: u8 = 9;
 
-/// JSON, as the agents create is: the arguments are a JSON value,
-/// and a value cannot come back out of postcard at all.
+/// JSON, as every request of the daemon's is.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;

@@ -9,9 +9,9 @@ use super::Origin;
 ///
 /// Everything here the daemon holds for the tool's life, so a list
 /// costs no more than the tools it names. What a created tool was
-/// made from beyond the image — its limits, its mounts, its
-/// arguments — is the create's, and is not repeated here; what a
-/// connected tool is made from is its runner's, and unknown here.
+/// made from is its template's, named by id, and its mounts are the
+/// create's, and neither is repeated here; what a connected tool is
+/// made from is its runner's, and unknown here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tool {
     /// The name, as its create gave it.

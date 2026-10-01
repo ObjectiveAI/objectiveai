@@ -15,14 +15,14 @@ use serde::{Deserialize, Serialize};
 pub enum ResourceMode {
     /// No change is made: every mutation inside the container answers
     /// the read-only byte, and the resource is the same bytes for
-    /// every agent.
+    /// every container.
     ReadOnly,
-    /// Every change lands in a layer of the agent's own, kept by the
-    /// daemon for the agent's life: the agent starts from the
-    /// resource as it is, its changes land in the layer, and the
-    /// layer goes with the agent.
+    /// Every change lands in a layer of the container's own, kept by
+    /// the daemon for the agent's or tool's life: the container
+    /// starts from the resource as it is, its changes land in the
+    /// layer, and the layer goes with the agent or tool.
     Ephemeral {
-        /// The most bytes the agent's layer may hold. A change that
+        /// The most bytes the container's layer may hold. A change that
         /// would take the layer past it is answered with an error, and
         /// the layer is as it was.
         overlay_disk: u64,

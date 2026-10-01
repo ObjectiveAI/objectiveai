@@ -1,4 +1,5 @@
-//! What an agent is made from, less its name and its mounts.
+//! What an agent or a tool is made from, less its name, its
+//! provider and its own mounts.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -6,12 +7,22 @@ use serde_json::Value;
 use crate::daemon::endpoints::agents::create::client::request::Image;
 use super::{ResourceDirectoryMount, ResourceFileMount};
 
-/// Everything an agent is made from that is the same for every agent
-/// made from it: the image, the limits, the resources mounted over
-/// FUSE, the arguments. What is not here is what differs agent to
-/// agent — the name, the provider it runs on, and the mounts of that
-/// provider's volumes — which the agent's
-/// [`create`](crate::daemon::endpoints::agents::create) states.
+/// Everything an agent or a tool is made from that is the same for
+/// every one made from it: what it is for, the image, the limits, the
+/// resources mounted over FUSE, the arguments. What is not here is
+/// what differs one to the next — the name, the provider it runs on,
+/// and the mounts of that provider's volumes — which the
+/// [agent's](crate::daemon::endpoints::agents::create) or the
+/// [tool's](crate::daemon::endpoints::tools::create) create states.
+///
+/// # One shape, typed
+///
+/// `Type` is the family's own single-value enum —
+/// [`AgentType`](crate::daemon::endpoints::agents::templates::AgentType)
+/// or [`ToolType`](crate::daemon::endpoints::tools::templates::ToolType)
+/// — so an agent template is `{"type":"agent",…}` and a tool template
+/// `{"type":"tool",…}`, neither decoding as the other, and the two
+/// hashing apart however alike the rest.
 ///
 /// # No provider, so that it travels
 ///
@@ -19,15 +30,20 @@ use super::{ResourceDirectoryMount, ResourceFileMount};
 /// another, published, made again anywhere and hashed the same. A
 /// provider is one daemon's acquaintance, named by how that daemon
 /// came to know it, and a template that named one would be that
-/// daemon's alone. So the provider is the real agent's, chosen at its
-/// create, and a template says nothing about where it runs.
+/// daemon's alone. So the provider is the real agent's or tool's,
+/// chosen at its create, and a template says nothing about where it
+/// runs.
 ///
-/// Its id is its hash: see [`templates`](super). What a caller may
+/// Its id is its hash: see [`template`](super). What a caller may
 /// not choose is not here at all rather than here and ignored: the
 /// container's name, its ports, its entrypoint and its environment
 /// are the provider's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Template {
+pub struct Template<Type> {
+    /// What the template is for: the one value the family's type
+    /// admits, `agent` or `tool`. First, so the hashed JSON leads
+    /// with it.
+    pub r#type: Type,
     /// The image: a name and a digest. See [`Image`].
     pub image: Image,
     /// How much memory the container may have, in BYTES.
@@ -53,24 +69,24 @@ pub struct Template {
     /// Bytes rather than megabytes, for the reason
     /// [`memory`](Self::memory) gives.
     pub disk: u64,
-    /// File resources served live into every agent made from this,
+    /// File resources served live into every container made from this,
     /// mounted one each over FUSE: see [`ResourceFileMount`]. Each
     /// names a file resource, its mode, and its path in the
     /// container. Absent from the hashed JSON when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_file_mounts: Vec<ResourceFileMount>,
     /// Directory resources, or subtrees of them, served live into
-    /// every agent made from this, mounted one each over FUSE: see
+    /// every container made from this, mounted one each over FUSE: see
     /// [`ResourceDirectoryMount`]. Each names a directory resource, a
     /// path in it, its mode, and its path in the container. Absent
     /// from the hashed JSON when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<ResourceDirectoryMount>,
     /// What the image is told once, as the image defines it, for the
-    /// agent's life.
+    /// container's life.
     ///
     /// A JSON value, because this crate does not know what an image
-    /// takes — a model, tools, an image's own knobs — and a wire that
+    /// takes — a model, tools, a tool server's own knobs — and a wire that
     /// typed it would have to be revised for every image that ever
     /// ran. It is handed to the container and not read here.
     pub arguments: Value,
