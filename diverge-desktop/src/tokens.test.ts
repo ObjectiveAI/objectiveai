@@ -79,6 +79,28 @@ describe("tokens", () => {
     expect(inline).toEqual([]);
   });
 
+  it("font sizes come only from --text-*", () => {
+    const ok = (v: string) => /^var\(--text-[a-z0-9-]+\)$/.test(v) && defined.has(v.slice(4, -1));
+    const off = decls.filter((d) => d.prop === "font-size" && !ok(d.value));
+    expect(off.map(where)).toEqual([]);
+  });
+
+  it("native controls take the theme's accent once, on :root", () => {
+    const set = decls.filter((d) => d.prop === "accent-color");
+    expect(set.map((d) => `${d.at} ${d.selector} ${d.value}`)).toEqual(["theme.css :root var(--accent)"]);
+  });
+
+  it("every endless animation stops when the system asks for less motion", () => {
+    const calm = new Set(
+      decls
+        .filter((d) => d.within.some((w) => /^@media\b.*prefers-reduced-motion:\s*reduce/.test(w)) && /^animation(-name)?$/.test(d.prop) && d.value === "none")
+        .flatMap((d) => d.selector.split(",").map((s) => s.trim())),
+    );
+    const endless = decls.filter((d) => /^animation(-iteration-count)?$/.test(d.prop) && /\binfinite\b/.test(d.value));
+    expect(endless.length).toBeGreaterThan(0);
+    expect(endless.filter((d) => !d.selector.split(",").every((s) => calm.has(s.trim()))).map(where)).toEqual([]);
+  });
+
   it("every class app.css styles is named in the screens", () => {
     // Class words: the strings inside each className={…} in a .tsx file. A template there
     // like `chip-${tone}` names chip-<word> for any word the code spells as a string.

@@ -29,6 +29,8 @@
 
 :root {
   color-scheme: dark;
+  /* Checkboxes, radios and other native controls take the theme's accent. */
+  accent-color: var(--accent);
 
   --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
@@ -38,6 +40,8 @@
   --text-md: 14px;
   --text-lg: 16px;
   --text-xl: 21px;
+  /* Code, addresses and paths: 0.92 of the words around them, never under --text-xs. */
+  --text-mono: max(var(--text-xs), 0.92em);
   --leading: 1.6;
 
   --space-1: 4px;
@@ -109,6 +113,6 @@ body {
 }
 button, input, textarea, select { font: inherit; color: inherit; }
 input, textarea, [contenteditable], .selectable { user-select: text; cursor: auto; }
-code, pre, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+code, pre, .mono { font-family: var(--font-mono); font-size: var(--text-mono); }
 :focus-visible { outline: none; box-shadow: var(--focus); }
 h1, h2, h3, p { margin: 0; }

@@ -111,7 +111,7 @@
 .thinking p { margin-top: var(--space-1); padding-left: var(--space-3); border-left: 2px solid var(--line); color: var(--text-2); font-size: var(--text-sm); white-space: pre-wrap; }
 .tool { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
 .tool summary { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); cursor: pointer; list-style: none; font-size: var(--text-sm); }
-.tool summary::before { content: "▸"; color: var(--text-3); font-size: 10px; }
+.tool summary::before { content: "▸"; color: var(--text-3); font-size: var(--text-xs); }
 .tool[open] > summary::before { content: "▾"; }
 .tool-name { font-weight: 600; }
 .tool-args { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
@@ -131,6 +131,10 @@
 .working-dots i:nth-child(2) { animation-delay: 0.2s; }
 .working-dots i:nth-child(3) { animation-delay: 0.4s; }
 @keyframes blink { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+/* When the system asks for less motion, the endless pulse and blink hold still. */
+@media (prefers-reduced-motion: reduce) {
+  .dot-working, .working-dots i { animation: none; }
+}
 .agent-image { max-width: 100%; border-radius: var(--radius-md); }
 .composer { border-top: 1px solid var(--line); background: var(--surface); padding: var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
 .composer > * { width: 100%; max-width: 780px; margin: 0 auto; }
@@ -179,7 +183,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .switch { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; }
 .switch-line { flex-wrap: wrap; }
 .switch-line .field-hint { flex-basis: 100%; padding-left: var(--space-5); }
-.switch input { accent-color: var(--accent); margin: 0; }
+.switch input { margin: 0; }
 .optional-body, .variant-body { padding-left: var(--space-3); border-left: 2px solid var(--line); margin-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-3); }
 .array-item, .map-row { display: flex; gap: var(--space-2); align-items: flex-start; }
 .array-item > .field, .array-item > .group, .map-value { flex: 1; min-width: 0; }
@@ -269,7 +273,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .work { border-left: 2px solid var(--line); padding-left: var(--space-3); }
 .work > summary { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; list-style: none; font-size: var(--text-sm); color: var(--text-3); padding: var(--space-1) 0; }
 .work > summary::-webkit-details-marker { display: none; }
-.work > summary::before { content: "▸"; font-size: 10px; }
+.work > summary::before { content: "▸"; font-size: var(--text-xs); }
 .work[open] > summary::before { content: "▾"; }
 .work.live { border-left-color: var(--ok); }
 .work.live > summary { color: var(--text-2); }
@@ -400,7 +404,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .inbox-waiting { padding: 0 var(--space-3) var(--space-3); display: flex; flex-direction: column; }
 .mounts-panel { margin: 0 var(--space-4) var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: var(--space-2); max-height: 50vh; overflow-y: auto; }
 .mounts-head { display: flex; align-items: center; justify-content: space-between; }
-.mounts-head h2 { font-size: 1rem; margin: 0; }
+.mounts-head h2 { font-size: var(--text-lg); margin: 0; }
 .mounts-foot { display: flex; align-items: center; gap: var(--space-3); justify-content: flex-end; flex-wrap: wrap; padding-top: var(--space-2); border-top: 1px solid var(--line); }
 .mounts-foot .muted { margin-right: auto; }
 .machine-pick { padding: 0 var(--space-3) var(--space-2); }
