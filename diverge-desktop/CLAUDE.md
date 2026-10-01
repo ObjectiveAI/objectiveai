@@ -46,7 +46,8 @@ inherits it.
   - `src-tauri/src/identity.rs`: your usual self and fresh personas, and your agents' keys tethered to the persona they
     act for, named plainly in a fresh name's rooms. One owner-only file (`identity.json`), written whole and swapped
     in through `store.rs`, with a backup kept beside it; never the keychain (it can prompt in a popup). If it and its backup are both
-    unreadable, the app signs nothing and says so; it never makes new keys over them. Counters live in
+    unreadable, the app signs nothing and says so; it never makes new keys over them. A keys file a newer version wrote, or one the
+    system won't read, is left exactly as it is with its backup, whatever the backup holds, and nothing is signed. Counters live in
     `counters.json` and never fall behind the clock. One call at a time per key per room (`Identity::turn`).
   - A knock's opaque authorization carries a `Knocking`, signed by the key it names, for one room, good for a day,
     with a mark of the invite it came with. A vouch names the room it vouches someone into and runs out after a week.
@@ -72,9 +73,14 @@ inherits it.
 - **Files** (`src-tauri/src/store.rs`): every JSON file the app keeps says what it is and its version
   (`{"file", "version", "data"}`); one from before versions is read as it is. A write goes to a new owner-only file,
   synced, then renamed over the old one, which becomes `<file>.bak` where the format keeps a last good copy. A file
-  that won't parse, or that a newer version wrote, is set aside under a new name beside it and never written over;
-  the app carries on from the last good copy, or starts that file empty, and every screen says so
-  (`files_set_aside`, words in `src/strings.ts`).
+  that won't parse, doesn't check, or that a newer version wrote, is set aside under a new name beside it and never
+  written over; the app carries on from the last good copy, or starts that file empty. A file the system won't open or
+  read this time is left where it is, and the app neither reads nor writes it until it starts again. Every screen says
+  which file (a record copy by its room's title), why, and what the app carried on from (`files_set_aside`, words in
+  `src/strings.ts`).
+- **One copy of the app per folder** (`store::hold`): the app holds `.in-use` in its folder with the system's file lock
+  while it runs; the system lets go when it exits, crash or not. A second copy on the same folder (or one that can't
+  tell) reads your keys and files as they are, writes nothing, answers nothing, and the screens say why.
 - **The stand-in is a feature** (`stand-in`, on by default for now): `StubDaemon`, `StubSpaces`, their seeded past
   and staged scenes. Built without it (`--no-default-features`), nothing answers the seams (`absent.rs`): every list
   is empty, everything else says the network part isn't there yet, and so do the screens. A test checks the
@@ -131,7 +137,8 @@ came from them. Seed content is invented and everyday.
 ## Run it
 `pnpm install` (from the repo root) then `cd diverge-desktop && pnpm tauri dev`. Every test, in one command:
 `pnpm test:all` (the app's Rust tests, again without the stand-in, the room crate with its container program, and
-vitest). A second copy with its own files: `DIVERGE_DATA_DIR=/some/folder pnpm tauri dev`.
+vitest). A second copy with its own files: `DIVERGE_DATA_DIR=/some/folder pnpm tauri dev`. A build from before files
+carried versions reads them all as damaged and writes over them: give it a copy of the folder, never this one.
 
 ## Browser preview (reviews, cloud sessions — no Mac window needed)
 `pnpm dev` and open http://localhost:1430 in any browser. Outside Tauri the page plays back

@@ -92,7 +92,15 @@ export function installPreview() {
     async (cmd: string, args: Args = {}) => {
       switch (cmd) {
         case "app_info":
-          return { stand_in: true, network: true, contract_pin: fixture.contract_pin, stand_in_host: PREVIEW_HOST };
+          // Preview only: add ?folder-in-use to the address to see how a second copy of the app says so.
+          return {
+            stand_in: true,
+            network: true,
+            contract_pin: fixture.contract_pin,
+            stand_in_host: PREVIEW_HOST,
+            folder: "~/Library/Application Support/network.diverge.desktop.draft",
+            folder_held: new URLSearchParams(location.search).has("folder-in-use") ? { state: "in_use" } : { state: "yes" },
+          };
         case "actions_list":
           return fixture.actions;
         case "catalog_images":
@@ -288,13 +296,14 @@ export function installPreview() {
         }
         case "identity_broken":
           // Preview only: add ?keys-unreadable to the address to see how the app says so.
-          return new URLSearchParams(location.search).has("keys-unreadable") ? "~/Library/Application Support/network.diverge.desktop.draft/identity.json" : null;
+          return new URLSearchParams(location.search).has("keys-unreadable") ? { file: "~/Library/Application Support/network.diverge.desktop.draft/identity.json", newer: false } : null;
         case "files_set_aside":
           // Preview only: add ?files-set-aside to the address to see how the app says so.
           return new URLSearchParams(location.search).has("files-set-aside")
             ? [
-                { file: "~/Library/Application Support/network.diverge.desktop.draft/views.json", kept_as: "~/Library/Application Support/network.diverge.desktop.draft/views.newer-v2-20260930120000.json", why: "newer" },
-                { file: "~/Library/Application Support/network.diverge.desktop.draft/records/5f1c0e.json", kept_as: "~/Library/Application Support/network.diverge.desktop.draft/records/5f1c0e.damaged-20260930120000.json", why: "damaged" },
+                { kind: "views", room: null, last_good_copy: false, file: "~/Library/Application Support/network.diverge.desktop.draft/views.json", why: "newer", kept_as: "~/Library/Application Support/network.diverge.desktop.draft/views.newer-v2-20260930120000.json", error: null, carried_on: "last_good" },
+                { kind: "record copy", room: "Saturday Workshop", last_good_copy: false, file: "~/Library/Application Support/network.diverge.desktop.draft/records/5f1c0e.json", why: "refused", kept_as: "~/Library/Application Support/network.diverge.desktop.draft/records/5f1c0e.refused-20260930120000.json", error: null, carried_on: "last_good" },
+                { kind: "machine names", room: null, last_good_copy: false, file: "~/Library/Application Support/network.diverge.desktop.draft/machine_names.json", why: "unread", kept_as: null, error: "Permission denied (os error 13)", carried_on: "nothing_this_launch" },
               ]
             : [];
         case "asks_close":

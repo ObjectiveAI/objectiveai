@@ -3,7 +3,8 @@ import type { AgentView } from "./bindings/AgentView";
 import type { AppInfo } from "./bindings/AppInfo";
 import type { CardView } from "./bindings/CardView";
 import type { KnockView } from "./bindings/KnockView";
-import type { SetAsideView } from "./bindings/SetAsideView";
+import type { FileNoticeView } from "./bindings/FileNoticeView";
+import type { KeysBrokenView } from "./bindings/KeysBrokenView";
 import type { SpaceSummary } from "./bindings/SpaceSummary";
 import type { TabKind } from "./bindings/TabKind";
 import type { TabsSnapshot } from "./bindings/TabsSnapshot";
@@ -57,8 +58,8 @@ export function App() {
     setListedAt(Date.now());
   }, []);
 
-  // Files the app couldn't use, set aside untouched: said on every screen, as they turn up.
-  const [setAside, setSetAside] = useState<SetAsideView[]>([]);
+  // Files the app couldn't use, set aside untouched or left where they are: said on every screen, as they turn up.
+  const [setAside, setSetAside] = useState<FileNoticeView[]>([]);
   const refreshSetAside = useCallback(() => {
     api.filesSetAside().then(setSetAside).catch(() => setSetAside([]));
   }, []);
@@ -135,7 +136,7 @@ export function App() {
   }, [tabs, open, close, focus]);
 
   // Whether your keys file could be read: if not, nothing is signed, and the app says so everywhere.
-  const [keysBroken, setKeysBroken] = useState<string | null>(null);
+  const [keysBroken, setKeysBroken] = useState<KeysBrokenView | null>(null);
   useEffect(() => {
     api.identityBroken().then(setKeysBroken).catch(() => setKeysBroken(null));
   }, []);
@@ -151,20 +152,33 @@ export function App() {
         <Rail focused={tabs.focused} />
         <main className="stage">
           <TabStrip snapshot={tabs} onFocus={focus} onClose={close} />
-          {info && !info.network ? (
+          {info && info.folder_held.state !== "yes" ? (
+            <div className="banner banner-warn">
+              <strong>{info.folder_held.state === "in_use" ? t.folder.inUse : t.folder.unchecked}</strong> {t.folder.where}{" "}
+              <span className="mono selectable">{info.folder}</span>.
+              {info.folder_held.state === "unchecked" ? <> {t.folder.systemSaid} <span className="mono selectable">{info.folder_held.error}</span>.</> : null}
+            </div>
+          ) : info && !info.network ? (
             <div className="banner banner-warn">
               <strong>{t.network.absent}</strong>
             </div>
           ) : null}
           {keysBroken ? (
             <div className="banner banner-warn">
-              <strong>{t.keys.unreadable}</strong> {t.keys.where} <span className="mono selectable">{keysBroken}</span>. {t.keys.untouched}
+              <strong>{keysBroken.newer ? t.keys.newer : t.keys.unreadable}</strong> {t.keys.where}{" "}
+              <span className="mono selectable">{keysBroken.file}</span>. {t.keys.untouched}
             </div>
           ) : null}
           {setAside.map((f) => (
-            <div key={f.kept_as} className="banner banner-warn">
-              <strong>{f.file.split(/[\\/]/).pop()}</strong> {f.why === "newer" ? t.files.newer : t.files.damaged}{" "}
-              <span className="mono selectable">{f.kept_as}</span>. {t.files.untouched}
+            <div key={f.kept_as ?? f.file} className="banner banner-warn">
+              <strong>
+                {f.room ? `${t.files.recordOf} ${f.room}` : (t.files.kinds[f.kind] ?? f.kind)}
+                {f.last_good_copy ? ` ${t.files.lastGoodCopy}` : ""}
+              </strong>{" "}
+              {f.why === "refused" && f.kind === "record copy" ? t.files.refusedRecord : t.files.why[f.why]}
+              {f.kept_as ? <>, {t.files.setAsideAs} <span className="mono selectable">{f.kept_as}</span>.</> : <>, {t.files.leftInPlace}</>}
+              {f.error ? <> {t.files.systemSaid} <span className="mono selectable">{f.error}</span>.</> : null} {t.files.carriedOn[f.carried_on]}{" "}
+              {t.files.untouched}
             </div>
           ))}
           <div className="panes">

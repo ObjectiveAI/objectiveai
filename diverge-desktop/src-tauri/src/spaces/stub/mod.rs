@@ -1033,9 +1033,9 @@ mod tests {
         std::fs::write(tables.join(".stand-in-rooms.json"), "{ \"file\": \"stand-in rooms\", \"vers").unwrap();
         let spaces = StubSpaces::new(me, tables.clone());
         assert!(!spaces.list().await.is_empty(), "the stand-in starts again from its own past");
-        let aside = crate::store::set_aside_under(&tables);
-        assert_eq!(aside.len(), 1);
-        assert_eq!(std::fs::read_to_string(&aside[0].kept_as).unwrap(), "{ \"file\": \"stand-in rooms\", \"vers", "kept as it was");
+        let aside = crate::store::notices_under(&tables);
+        assert_eq!((aside.len(), aside[0].kind, aside[0].carried_on), (1, "stand-in rooms", crate::store::CarriedOn::Empty));
+        assert_eq!(std::fs::read_to_string(aside[0].kept_as().unwrap()).unwrap(), "{ \"file\": \"stand-in rooms\", \"vers", "kept as it was");
         let _ = std::fs::remove_dir_all(&tables);
     }
 

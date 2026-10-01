@@ -20,7 +20,10 @@
 //! popup, and this app has none. The keys file is written whole to a new
 //! file and swapped in, with the last good one kept beside it (see
 //! [`crate::store`]). If it can't be read and neither can its backup, the
-//! app signs nothing and says so; it never makes new keys over it.
+//! app signs nothing and says so; it never makes new keys over it. A keys
+//! file a newer version of the app wrote, or one the system won't read
+//! this time, is left exactly as it is, and so is its backup, whatever the
+//! backup holds: the app signs nothing until it can read the file again.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
@@ -33,7 +36,7 @@ use serde_json::Value;
 
 use diverge_desktop_room::{Key, Keypair, Statement, seal_call, tether};
 
-use crate::store::{self, Read};
+use crate::store::{self, Read, Why};
 
 #[derive(Serialize, Deserialize, Clone)]
 struct PersonaRecord {
@@ -87,17 +90,45 @@ pub struct Persona {
 }
 
 pub struct Identity {
+    /// Where your keys are saved; `None`: nowhere.
     file: Option<PathBuf>,
+    /// Keys made from fixed seeds: tests and the browser preview's snapshot.
+    seeded: bool,
     keys: Mutex<Keys>,
     counters: Mutex<BTreeMap<Key, u64>>,
-    /// Where the keys file is, when it couldn't be read: then nothing is signed.
-    broken: Option<PathBuf>,
+    /// Why nothing is signed, when nothing is.
+    refused: Option<Refused>,
     /// One call at a time from one key to one room.
     turns: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
 }
 
+/// Why nothing is signed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refused {
+    /// Your keys file can't be used, and is left exactly as it is: it and
+    /// its backup won't parse, a newer version of the app wrote it, or the
+    /// system won't read it this time.
+    Keys { file: PathBuf, newer: bool },
+    /// This copy of the app doesn't hold its folder; the words say why.
+    Folder(&'static str),
+}
+
 /// What a call gets when the keys file couldn't be read.
+/// The same words are the screen's, in `src/strings.ts`.
 pub const UNREADABLE: &str = "Your keys file can't be read, so nothing is sent as you.";
+/// What a call gets when a newer version of the app wrote the keys file.
+/// The same words are the screen's, in `src/strings.ts`.
+pub const NEWER: &str = "Your keys file was written by a newer version of this app, so nothing is sent as you.";
+
+impl Refused {
+    pub fn words(&self) -> &'static str {
+        match self {
+            Refused::Keys { newer: false, .. } => UNREADABLE,
+            Refused::Keys { newer: true, .. } => NEWER,
+            Refused::Folder(words) => words,
+        }
+    }
+}
 
 fn counters_of(file: &Path) -> PathBuf {
     file.with_file_name("counters.json")
@@ -110,31 +141,46 @@ fn persona_view(p: &PersonaRecord) -> Persona {
 
 impl Identity {
     /// Keys kept in `file`, made on first use under `usual_name`. A damaged
-    /// file falls back to its backup; if both are unreadable, the app runs
-    /// signing nothing, and neither file is touched.
+    /// file falls back to its backup, and is set aside. If both are
+    /// unusable, or a newer version of the app wrote the file, or the
+    /// system won't read it, the app runs signing nothing, and neither file
+    /// is touched.
     pub fn open(file: PathBuf, usual_name: &str) -> Self {
-        let main = store::read::<Keys>(&file, store::KEYS);
-        let backup = store::read::<Keys>(&store::previous_of(&file), store::KEYS);
-        let (keys, broken, damaged) = match (main, backup) {
-            (Read::Good(k), _) => (k, None, None),
-            // The file is missing or can't be used, and the last good one holds: carry on from it.
-            (main, Read::Good(k)) => (k, None, Some(main)),
-            (Read::Missing, Read::Missing) => (Keys::default(), None, None),
-            _ => (Keys::default(), Some(file.clone()), None),
+        let backup = || store::read::<Keys>(&store::previous_of(&file), store::KEYS);
+        let refuse = |newer| (Keys::default(), Some(Refused::Keys { file: file.clone(), newer }), false, None);
+        // The keys, why nothing is signed, whether to write them back, and why the file is set aside.
+        let (keys, refused, restore, set_aside) = match store::read::<Keys>(&file, store::KEYS) {
+            Read::Good(k) => (k, None, false, None),
+            // Whatever the backup holds: going back to it would leave the newer keys behind.
+            Read::Unusable(Why::Newer(_)) => refuse(true),
+            // Nothing is known about what it holds, so nothing may replace it.
+            Read::Failed(_) => refuse(false),
+            Read::Missing => match backup() {
+                Read::Missing => (Keys::default(), None, false, None),
+                Read::Good(k) => (k, None, true, None),
+                Read::Unusable(Why::Newer(_)) => refuse(true),
+                Read::Unusable(_) | Read::Failed(_) => refuse(false),
+            },
+            Read::Unusable(why) => match backup() {
+                // The last good one holds: carry on from it, and keep the damaged one aside.
+                Read::Good(k) => (k, None, true, Some(why)),
+                Read::Unusable(Why::Newer(_)) => refuse(true),
+                Read::Missing | Read::Unusable(_) | Read::Failed(_) => refuse(false),
+            },
         };
-        let restore = damaged.is_some();
-        if let Some(Read::Unusable(why)) = damaged {
-            // Keep the one that can't be used for whoever wants to look at it.
-            let _ = store::set_aside(&file, &why);
+        if let Some(why) = set_aside {
+            let _ = store::set_aside_noting(&file, &file, store::KEYS, why, store::CarriedOn::LastGood);
         }
-        let saved: BTreeMap<Key, u64> = store::load(&counters_of(&file), store::COUNTERS).unwrap_or_default();
         let mut counters = keys.counters.clone();
-        counters.extend(saved);
+        if refused.is_none() {
+            counters.extend(store::load::<BTreeMap<Key, u64>>(&counters_of(&file), store::COUNTERS).unwrap_or_default());
+        }
         let identity = Identity {
-            file: if broken.is_some() { None } else { Some(file) },
+            file: if refused.is_some() { None } else { Some(file) },
+            seeded: false,
             keys: Mutex::new(keys),
             counters: Mutex::new(counters),
-            broken,
+            refused,
             turns: Mutex::new(HashMap::new()),
         };
         identity.ensure_usual(usual_name, None);
@@ -144,18 +190,39 @@ impl Identity {
         identity
     }
 
+    /// Your keys as `file` (or its backup) holds them, touching nothing:
+    /// for a copy of the app that doesn't hold its folder. It saves
+    /// nothing and signs nothing, and `says` why.
+    pub fn untouched(file: &Path, usual_name: &str, says: &'static str) -> Self {
+        let keys = store::peek::<Keys>(file, store::KEYS).unwrap_or_default();
+        let identity = Identity {
+            file: None,
+            seeded: false,
+            keys: Mutex::new(keys),
+            counters: Mutex::new(BTreeMap::new()),
+            refused: Some(Refused::Folder(says)),
+            turns: Mutex::new(HashMap::new()),
+        };
+        identity.ensure_usual(usual_name, None);
+        identity
+    }
+
     /// Keys that live only in memory, made from fixed seeds: tests and the
     /// browser preview's snapshot, so they come out the same every run.
     #[allow(dead_code)] // tests and the browser preview's snapshot
     pub fn stand_in(usual_name: &str) -> Self {
-        let identity = Identity { file: None, keys: Mutex::new(Keys::default()), counters: Mutex::new(BTreeMap::new()), broken: None, turns: Mutex::new(HashMap::new()) };
+        let identity = Identity { file: None, seeded: true, keys: Mutex::new(Keys::default()), counters: Mutex::new(BTreeMap::new()), refused: None, turns: Mutex::new(HashMap::new()) };
         identity.ensure_usual(usual_name, Some(Keypair::from_seed(usual_name)));
         identity
     }
 
-    /// Where the keys file is, if it couldn't be read.
-    pub fn broken(&self) -> Option<&Path> {
-        self.broken.as_deref()
+    /// Your keys file, when it can't be used: where it is, and whether a
+    /// newer version of the app wrote it.
+    pub fn broken(&self) -> Option<(&Path, bool)> {
+        match &self.refused {
+            Some(Refused::Keys { file, newer }) => Some((file, *newer)),
+            _ => None,
+        }
     }
 
     /// A turn for one key in one room: hold it while sealing and sending, so
@@ -260,7 +327,7 @@ impl Identity {
         if let Some(k) = keys.agents.get(&slot).and_then(|a| Keypair::from_secret_hex(&a.secret).ok()) {
             return k;
         }
-        let keypair = if self.file.is_none() { Keypair::from_seed(&format!("agent {slot}")) } else { Keypair::generate() };
+        let keypair = if self.seeded { Keypair::from_seed(&format!("agent {slot}")) } else { Keypair::generate() };
         keys.agents.insert(slot, AgentRecord { secret: keypair.secret_hex(), persona: persona.into() });
         self.save(&keys);
         keypair
@@ -314,8 +381,8 @@ impl Identity {
     /// saved before the call goes. Hold [`Identity::turn`] across sealing and
     /// sending so the room gets that key's calls in order.
     pub fn seal(&self, actor: &Actor, room: &str, params: &mut CallToolRequestParams) -> Result<Key, String> {
-        if self.broken.is_some() {
-            return Err(UNREADABLE.into());
+        if let Some(refused) = &self.refused {
+            return Err(refused.words().into());
         }
         let keypair = self.keypair_for(actor, room)?;
         let key = keypair.key();
@@ -336,8 +403,8 @@ impl Identity {
     /// A statement as one of your personas: a receipt for a room you host,
     /// a vouch, a settlement.
     pub fn state(&self, persona_key: &str, kind: &str, body: Value) -> Result<Statement, String> {
-        if self.broken.is_some() {
-            return Err(UNREADABLE.into());
+        if let Some(refused) = &self.refused {
+            return Err(refused.words().into());
         }
         let id = self.persona_by_key(persona_key).map(|p| p.id).ok_or("that key isn't one of yours")?;
         let keypair = self.persona_keypair(&id).ok_or("no such persona")?;
@@ -403,11 +470,13 @@ mod tests {
         assert!(back.broken().is_none());
         assert_eq!(back.usual().key, usual.key, "the same keys, from the backup");
         assert!(std::fs::read_dir(&dir).unwrap().any(|e| e.unwrap().file_name().to_string_lossy().contains("damaged")));
+        let aside = store::notices_under(&dir);
+        assert_eq!((aside.len(), aside[0].kind, aside[0].carried_on), (1, "keys", store::CarriedOn::LastGood), "{aside:?}");
         // Damaged, and the backup too: nothing is signed, and neither file is touched.
         std::fs::write(&file, "{ not json").unwrap();
         std::fs::write(store::previous_of(&file), "also not json").unwrap();
         let broken = Identity::open(file.clone(), "maya");
-        assert!(broken.broken().is_some());
+        assert_eq!(broken.broken(), Some((file.as_path(), false)));
         let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
         assert_eq!(broken.seal(&Actor::Persona("usual".into()), "room-1", &mut params).unwrap_err(), UNREADABLE);
         assert!(broken.state(&broken.usual().key, "vouch", json!({})).is_err());
@@ -430,6 +499,20 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Every file in a folder and what it holds.
+    fn snapshot(dir: &Path) -> BTreeMap<String, Vec<u8>> {
+        std::fs::read_dir(dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.is_file()).map(|p| (p.file_name().unwrap().to_string_lossy().into_owned(), std::fs::read(&p).unwrap())).collect()
+    }
+
+    fn assert_signs_nothing(me: &Identity, words: &str) {
+        let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
+        assert_eq!(me.seal(&Actor::Persona("usual".into()), "room-1", &mut params).unwrap_err(), words);
+        assert_eq!(me.state(&me.usual().key, "vouch", json!({})).unwrap_err(), words);
+        me.fresh("anyone").ok();
+        me.set_room("room-1", "usual");
+        me.agent_in("site-fixes", Some("room-1"));
+    }
+
     #[test]
     fn a_keys_file_from_a_newer_version_is_left_alone() {
         let dir = store::tests::folder("keys-newer");
@@ -438,10 +521,74 @@ mod tests {
         std::fs::write(&file, newer).unwrap();
         std::fs::write(store::previous_of(&file), newer).unwrap();
         let me = Identity::open(file.clone(), "maya");
-        assert!(me.broken().is_some(), "nothing is signed");
-        me.fresh("anyone").ok();
+        assert_eq!(me.broken(), Some((file.as_path(), true)), "nothing is signed");
+        assert_signs_nothing(&me, NEWER);
         assert_eq!(std::fs::read_to_string(&file).unwrap(), newer, "never written over");
         assert_eq!(std::fs::read_to_string(store::previous_of(&file)).unwrap(), newer);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A newer version moves the old keys file to the backup when it first
+    /// saves its own. This build must not go back to that backup: the
+    /// newer keys would be left behind.
+    #[test]
+    fn a_newer_keys_file_with_an_older_backup_is_left_alone_and_the_backup_too() {
+        let dir = store::tests::folder("keys-newer-older-backup");
+        let file = dir.join("identity.json");
+        let older = Identity::open(file.clone(), "maya");
+        older.fresh("lamp person").unwrap();
+        drop(older);
+        std::fs::rename(&file, store::previous_of(&file)).unwrap();
+        std::fs::write(&file, r#"{"file":"keys","version":99,"data":{"what":"keys this build can't read"}}"#).unwrap();
+        let before = snapshot(&dir);
+        let me = Identity::open(file.clone(), "maya");
+        assert_eq!(me.broken(), Some((file.as_path(), true)), "nothing is signed");
+        assert_signs_nothing(&me, NEWER);
+        assert_eq!(snapshot(&dir), before, "both files exactly as they were, and nothing new");
+        assert!(store::notices_under(&dir).is_empty(), "nothing set aside");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_keys_file_the_system_wont_read_is_left_alone() {
+        let dir = store::tests::folder("keys-unread");
+        let file = dir.join("identity.json");
+        let older = Identity::open(file.clone(), "maya");
+        older.fresh("lamp person").unwrap();
+        drop(older);
+        std::fs::rename(&file, store::previous_of(&file)).unwrap();
+        // A folder where the file should be: the system won't read it as one.
+        std::fs::create_dir_all(file.join("inside")).unwrap();
+        let before = snapshot(&dir);
+        let me = Identity::open(file.clone(), "maya");
+        assert_eq!(me.broken(), Some((file.as_path(), false)));
+        assert_signs_nothing(&me, UNREADABLE);
+        assert_eq!(snapshot(&dir), before);
+        assert!(file.join("inside").is_dir());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_copy_of_the_app_without_its_folder_reads_your_keys_and_changes_nothing() {
+        let dir = store::tests::folder("keys-untouched");
+        let file = dir.join("identity.json");
+        let mine = Identity::open(file.clone(), "maya");
+        mine.fresh("lamp person").unwrap();
+        let usual = mine.usual();
+        let before = snapshot(&dir);
+        let other = Identity::untouched(&file, "someone else", store::IN_USE);
+        assert_eq!(other.usual().key, usual.key, "the same you");
+        assert!(other.broken().is_none(), "the keys file is fine");
+        assert_signs_nothing(&other, store::IN_USE);
+        assert_eq!(snapshot(&dir), before);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn its_words_are_the_screens_words() {
+        let screen = include_str!("../../src/strings.ts");
+        for words in [UNREADABLE, NEWER, store::IN_USE, store::UNCHECKED] {
+            assert!(screen.contains(words), "src/strings.ts holds: {words}");
+        }
     }
 }

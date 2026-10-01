@@ -90,7 +90,12 @@ export function Rail(props: { focused: string | null }) {
           <span className="mono">{info.contract_pin.slice(0, 9)}</span>
         </div>
       ) : null}
-      {info && !info.network ? (
+      {info && info.folder_held.state !== "yes" ? (
+        <div className="stand-in-line" title={info.folder_held.state === "in_use" ? t.folder.inUse : t.folder.unchecked}>
+          <span>{info.folder_held.state === "in_use" ? t.folder.inUseShort : t.folder.uncheckedShort}</span>
+          <span className="mono">{info.contract_pin.slice(0, 9)}</span>
+        </div>
+      ) : info && !info.network ? (
         <div className="stand-in-line" title={t.network.absent}>
           <span>{t.network.absentShort}</span>
           <span className="mono">{info.contract_pin.slice(0, 9)}</span>

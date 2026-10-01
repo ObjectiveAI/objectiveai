@@ -38,6 +38,9 @@ pub struct AppState {
     pub network: bool,
     /// The folder every file the app keeps is in.
     pub data: PathBuf,
+    /// Whether this copy of the app holds that folder. One that doesn't
+    /// changes nothing in it: it saves nothing and sends nothing.
+    pub folder: crate::store::Hold,
     pub scopes: Mutex<HashMap<String, CancellationToken>>,
     pub next_scope: AtomicU64,
     pub tabs: Mutex<Tabs>,
@@ -102,16 +105,31 @@ impl AppState {
     /// whatever answers the seams — the stand-in, in a build with it;
     /// nothing, otherwise, and the screens say so. Starts the reporter and
     /// the hires. Call it inside the runtime the app keeps.
+    ///
+    /// One copy of the app at a time uses a folder. A copy that finds it
+    /// held by another (or can't tell) reads your keys and files as they
+    /// are, changes nothing there, and answers nothing; the screens say why.
     pub async fn open(data: PathBuf) -> AppState {
-        let _ = std::fs::create_dir_all(&data);
-        let identity = Arc::new(crate::identity::Identity::open(data.join(KEYS_FILE), &usual_name()));
-        #[cfg(feature = "stand-in")]
-        let state = Self::with_stand_in(data, identity);
-        #[cfg(not(feature = "stand-in"))]
-        let state = {
-            let absent = Arc::new(crate::absent::Absent);
-            let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
-            Self::assemble(data, identity, seams)
+        let folder = crate::store::hold(&data);
+        let state = match folder.refusal() {
+            Some(says) => {
+                let identity = Arc::new(crate::identity::Identity::untouched(&data.join(KEYS_FILE), &usual_name(), says));
+                let absent = Arc::new(crate::absent::Absent::saying(says));
+                let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
+                return Self::assemble(data, identity, seams, folder);
+            }
+            None => {
+                let identity = Arc::new(crate::identity::Identity::open(data.join(KEYS_FILE), &usual_name()));
+                #[cfg(feature = "stand-in")]
+                let state = Self::with_stand_in(data, identity, folder);
+                #[cfg(not(feature = "stand-in"))]
+                let state = {
+                    let absent = Arc::new(crate::absent::Absent::not_yet());
+                    let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
+                    Self::assemble(data, identity, seams, folder)
+                };
+                state
+            }
         };
         crate::reporter::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone());
         crate::hires::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone(), state.door.clone());
@@ -120,7 +138,7 @@ impl AppState {
 
     /// The stand-in daemon and rooms, their past, and their scenes.
     #[cfg(feature = "stand-in")]
-    fn with_stand_in(data: PathBuf, identity: Arc<crate::identity::Identity>) -> AppState {
+    fn with_stand_in(data: PathBuf, identity: Arc<crate::identity::Identity>, folder: crate::store::Hold) -> AppState {
         use crate::daemon::stub::StubDaemon;
         use crate::spaces::stub::StubSpaces;
         let host = data.join("stand-in-host");
@@ -130,7 +148,7 @@ impl AppState {
         let first_mounts = daemon.creates().iter().map(|c| (c.name.clone(), AgentMounts::of_create(c))).collect();
         // The stand-in answers both seams: it knows every agent's mounts, so it keeps every machine's holds.
         let seams = Seams { daemon: daemon.clone(), machines: daemon.clone(), spaces: Arc::new(stub.clone()), stand_in_host: Some(host), network: true, first_mounts };
-        let state = Self::assemble(data, identity, seams);
+        let state = Self::assemble(data, identity, seams, folder);
         daemon.set_door(state.door.clone());
         // The stand-in's past: copies you'd already hold of rooms that have since gone quiet.
         for (id, record) in stub.records_you_hold() {
@@ -145,12 +163,21 @@ impl AppState {
     }
 
     /// The app over its folder and these seams, every file it keeps read
-    /// back. Call it inside a tokio runtime: the door keeps that one.
-    pub fn assemble(data: PathBuf, identity: Arc<crate::identity::Identity>, seams: Seams) -> AppState {
+    /// back. Call it inside a tokio runtime: the door keeps that one. In a
+    /// folder this copy doesn't hold, files are read as they are, touching
+    /// nothing, and nothing is written.
+    pub fn assemble(data: PathBuf, identity: Arc<crate::identity::Identity>, seams: Seams, folder: crate::store::Hold) -> AppState {
         use crate::store;
-        let door = Arc::new(Door::new(seams.spaces.clone(), identity.clone(), Some(data.join(ALLOWANCES_FILE))));
+        let held = folder.held();
+        fn kept<T: serde::de::DeserializeOwned>(held: bool, file: &std::path::Path, format: store::Format) -> Option<T> {
+            if held { store::load(file, format) } else { store::peek(file, format) }
+        }
+        // An allowance lets an agent act without asking: a copy that can't save one starts with none.
+        let door = Arc::new(Door::new(seams.spaces.clone(), identity.clone(), held.then(|| data.join(ALLOWANCES_FILE))));
         let records_dir = data.join(RECORDS_DIR);
-        let _ = std::fs::create_dir_all(&records_dir);
+        if held {
+            let _ = std::fs::create_dir_all(&records_dir);
+        }
         AppState {
             daemon: seams.daemon,
             identity,
@@ -162,19 +189,23 @@ impl AppState {
             scopes: Mutex::new(HashMap::new()),
             next_scope: AtomicU64::new(1),
             tabs: Mutex::new(Tabs::default()),
-            views: Mutex::new(store::load(&data.join(VIEWS_FILE), store::VIEWS).unwrap_or_default()),
-            machine_names: Mutex::new(store::load(&data.join(MACHINE_NAMES_FILE), store::MACHINE_NAMES).unwrap_or_default()),
+            views: Mutex::new(kept(held, &data.join(VIEWS_FILE), store::VIEWS).unwrap_or_default()),
+            machine_names: Mutex::new(kept(held, &data.join(MACHINE_NAMES_FILE), store::MACHINE_NAMES).unwrap_or_default()),
             records_dir,
             record_heads: Mutex::new(HashMap::new()),
-            threads: Mutex::new(store::load(&data.join(THREADS_FILE), store::THREADS).unwrap_or_default()),
-            agent_mounts: Mutex::new(store::load(&data.join(AGENT_MOUNTS_FILE), store::AGENT_MOUNTS).unwrap_or(seams.first_mounts)),
+            threads: Mutex::new(kept(held, &data.join(THREADS_FILE), store::THREADS).unwrap_or_default()),
+            agent_mounts: Mutex::new(kept(held, &data.join(AGENT_MOUNTS_FILE), store::AGENT_MOUNTS).unwrap_or(seams.first_mounts)),
             data,
+            folder,
         }
     }
 
-    /// Write one of the app's files, whole or not at all.
+    /// Write one of the app's files, whole or not at all; nothing, in a
+    /// folder this copy doesn't hold.
     fn keep<T: serde::Serialize + serde::de::DeserializeOwned>(&self, name: &str, format: crate::store::Format, data: &T) {
-        let _ = crate::store::save(&self.data.join(name), format, data);
+        if self.folder.held() {
+            let _ = crate::store::save(&self.data.join(name), format, data);
+        }
     }
 
     fn remember_mounts(&self, name: &str, mounts: Option<AgentMounts>) {
@@ -249,7 +280,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("asks_close", "Close one of your asks in every room it went to"),
     ("spaces_doorways", "The rooms a room vouches for"),
     ("vouch_for", "Vouch for someone into a room you're in: your word, for that room, for a week, to hand them"),
-    ("identity_broken", "Whether your keys file could be read; if not, where it is"),
+    ("identity_broken", "Whether your keys file can be used; if not, where it is and whether a newer version wrote it"),
     ("spaces_admitted", "Everyone a room you host let in, listed or not"),
     ("spaces_restart", "Run a room you host again from its record"),
     ("spaces_continue", "Continue a room whose host is gone, from your copy of its record"),
@@ -280,7 +311,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("tabs_focus", "Focus a tab"),
     ("actions_list", "This list"),
     ("app_info", "Whether the daemon is the stand-in, whether there's a network part at all, and the contract pin"),
-    ("files_set_aside", "Files the app couldn't use and set aside, untouched: where each was and where it is now"),
+    ("files_set_aside", "Files the app couldn't use since it started: each set aside untouched, or left where it is; what it carried on from"),
 ];
 
 #[tauri::command]
@@ -299,17 +330,33 @@ fn info(state: &AppState) -> AppInfo {
         network: state.network,
         contract_pin: include_str!("../../CONTRACT_PIN").lines().next().unwrap_or_default().to_owned(),
         stand_in_host: state.stand_in_host.as_ref().map(|p| p.display().to_string()),
+        folder: state.data.display().to_string(),
+        folder_held: (&state.folder).into(),
     }
 }
 
-/// Files the app couldn't use since it started: each set aside, untouched, under a new name.
+/// Files the app couldn't use since it started: each set aside, untouched,
+/// under a new name, or left where it is; and what the app carried on from.
 #[tauri::command]
-pub fn files_set_aside(state: State<'_, AppState>) -> Vec<SetAsideView> {
-    set_aside_views(&state)
+pub async fn files_set_aside(state: State<'_, AppState>) -> Result<Vec<FileNoticeView>, String> {
+    Ok(file_notices(&state).await)
 }
 
-fn set_aside_views(state: &AppState) -> Vec<SetAsideView> {
-    crate::store::set_aside_under(&state.data).iter().map(SetAsideView::from).collect()
+async fn file_notices(state: &AppState) -> Vec<FileNoticeView> {
+    let notices = crate::store::notices_under(&state.data);
+    // A record copy is named for a digest of its room's id: name the room, where the app knows it.
+    let rooms: HashMap<String, String> = if notices.iter().any(|n| n.kind == crate::store::RECORD_COPY.name) {
+        state.spaces.list().await.into_iter().map(|e| (record_file_name(&e.id.id), e.title)).collect()
+    } else {
+        HashMap::new()
+    };
+    notices
+        .iter()
+        .map(|n| {
+            let room = (n.kind == crate::store::RECORD_COPY.name).then(|| n.slot.file_name().and_then(|f| rooms.get(f.to_string_lossy().as_ref())).cloned()).flatten();
+            FileNoticeView::of(n, room)
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -527,10 +574,11 @@ fn text_of(result: &rmcp::model::CallToolResult) -> String {
     result.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n")
 }
 
-/// Where your keys file is, if it couldn't be read: the app then signs nothing.
+/// Your keys file, if it can't be used: where it is, and whether a newer
+/// version of the app wrote it. The app then signs nothing.
 #[tauri::command]
-pub fn identity_broken(state: State<'_, AppState>) -> Option<String> {
-    state.identity.broken().map(|p| p.display().to_string())
+pub fn identity_broken(state: State<'_, AppState>) -> Option<KeysBrokenView> {
+    state.identity.broken().map(|(file, newer)| KeysBrokenView { file: file.display().to_string(), newer })
 }
 
 /// Your call to a room: sealed as whoever you are there, one call at a time for that key and room.
@@ -568,7 +616,7 @@ async fn keep_copy(state: &AppState, id: &spaces::Id) {
     if state.record_heads.lock().unwrap().get(&id.id) == Some(&head) {
         return;
     }
-    if record.args.id != id.id || diverge_desktop_room::Room::check(&record).is_err() {
+    if !state.folder.held() || record.args.id != id.id || diverge_desktop_room::Room::check(&record).is_err() {
         return;
     }
     if crate::store::save(&record_file(state, &id.id), crate::store::RECORD_COPY, &record).is_ok() {
@@ -580,12 +628,17 @@ async fn keep_copy(state: &AppState, id: &spaces::Id) {
 /// replays whole. One that doesn't is set aside, and the copy before it
 /// carries on.
 fn copy_of(state: &AppState, id: &str) -> Option<diverge_desktop_room::Record> {
-    crate::store::load_with(&record_file(state, id), crate::store::RECORD_COPY, |record: &diverge_desktop_room::Record| {
+    let check = |record: &diverge_desktop_room::Record| {
         if record.args.id != id {
             return Err("another room's record".into());
         }
         diverge_desktop_room::Room::check(record).map(|_| ())
-    })
+    };
+    if state.folder.held() {
+        crate::store::load_with(&record_file(state, id), crate::store::RECORD_COPY, check)
+    } else {
+        crate::store::peek_with(&record_file(state, id), crate::store::RECORD_COPY, check)
+    }
 }
 
 /// Your copy of a room, rebuilt by replay: what it served when you last saw it.
@@ -1617,9 +1670,10 @@ mod tests {
     fn app_in(data: PathBuf) -> (AppState, Arc<Rooms>) {
         let identity = Arc::new(Keys::open(data.join(KEYS_FILE), "maya"));
         let rooms = Rooms::new(identity.clone());
-        let absent = Arc::new(crate::absent::Absent);
+        let absent = Arc::new(crate::absent::Absent::not_yet());
         let seams = Seams { daemon: absent.clone(), machines: absent, spaces: rooms.clone(), stand_in_host: None, network: true, first_mounts: HashMap::new() };
-        (AppState::assemble(data, identity, seams), rooms)
+        let folder = store::hold(&data);
+        (AppState::assemble(data, identity, seams, folder), rooms)
     }
 
     fn app(what: &str) -> (AppState, Arc<Rooms>) {
@@ -1732,10 +1786,33 @@ mod tests {
         assert!(from_copy, "the room can't be reached, so your copy is read");
         assert_eq!(moves.len(), first.len(), "the copy before the damaged one");
         assert!(copy_room(&state, &id).is_some(), "and it replays");
-        let aside = set_aside_views(&state);
+        let aside = file_notices(&state).await;
         assert_eq!(aside.len(), 1, "{aside:?}");
-        assert_eq!((aside[0].file.clone(), aside[0].why.clone()), (file.display().to_string(), SetAsideWhy::Damaged));
-        assert_eq!(std::fs::read(&aside[0].kept_as).unwrap(), cut, "kept exactly as it was");
+        let n = &aside[0];
+        assert_eq!((n.file.clone(), n.why.clone(), n.kind.as_str()), (file.display().to_string(), FileWhy::Damaged, "record copy"));
+        assert_eq!(n.room.as_deref(), Some("Saturday Workshop"), "named for its room, not its file");
+        assert_eq!((n.carried_on.clone(), n.last_good_copy), (CarriedOnView::LastGood, false));
+        assert_eq!(std::fs::read(n.kept_as.as_ref().unwrap()).unwrap(), cut, "kept exactly as it was");
+    }
+
+    #[tokio::test]
+    async fn a_copy_that_parses_but_isnt_its_rooms_is_refused_not_called_unreadable() {
+        let (state, rooms) = app("actions-copy-refused");
+        let (a, b) = (board(&state, "Saturday Workshop").await, board(&state, "Tuesday repair café").await);
+        for room in [&a, &b] {
+            call_as_you(&state, &space_id(room), "show", json!({ "title": "a shelf I built" })).await.unwrap();
+            moves_of(&state, &space_id(room)).await;
+        }
+        // Only one copy each, so nothing to carry on from.
+        let _ = std::fs::remove_file(crate::store::previous_of(&record_file(&state, &b)));
+        std::fs::copy(record_file(&state, &a), record_file(&state, &b)).unwrap();
+        rooms.offline.lock().unwrap().insert(b.clone());
+        let (moves, from_copy) = moves_of(&state, &space_id(&b)).await;
+        assert!(!from_copy && moves.is_empty(), "another room's record is never shown as this one");
+        let aside = file_notices(&state).await;
+        assert_eq!(aside.len(), 1, "{aside:?}");
+        assert_eq!((aside[0].why.clone(), aside[0].carried_on.clone()), (FileWhy::Refused, CarriedOnView::Empty));
+        assert_eq!(aside[0].room.as_deref(), Some("Tuesday repair café"));
     }
 
     #[tokio::test]
@@ -1745,12 +1822,12 @@ mod tests {
         std::fs::write(data.join(VIEWS_FILE), newer).unwrap();
         let (state, _) = app_in(data);
         assert!(state.views.lock().unwrap().is_empty());
-        let aside = set_aside_views(&state);
+        let aside = file_notices(&state).await;
         assert_eq!(aside.len(), 1, "{aside:?}");
-        assert_eq!(aside[0].why, SetAsideWhy::Newer);
+        assert_eq!((aside[0].why.clone(), aside[0].kind.as_str(), aside[0].room.clone()), (FileWhy::Newer, "views", None));
         let view: SavedView = serde_json::from_value(json!({ "id": "", "title": "What it said", "query": { "name": "site-fixes", "logs_index_from": null, "logs_index_to": null, "created_from": null, "created_to": null, "item_type": null, "jq": null, "count": null, "watch": false }, "saved": "" })).unwrap();
         save_view(&state, view).unwrap();
-        assert_eq!(std::fs::read_to_string(&aside[0].kept_as).unwrap(), newer, "untouched");
+        assert_eq!(std::fs::read_to_string(aside[0].kept_as.as_ref().unwrap()).unwrap(), newer, "untouched");
         assert_eq!(store::header(&state.data.join(VIEWS_FILE)).map(|h| h.version), Some(store::VIEWS.version));
     }
 
@@ -1758,9 +1835,10 @@ mod tests {
     async fn with_nothing_answering_the_app_says_the_network_part_isnt_there() {
         let data = store::tests::folder("actions-absent");
         let identity = Arc::new(Keys::open(data.join(KEYS_FILE), "maya"));
-        let absent = Arc::new(crate::absent::Absent);
+        let absent = Arc::new(crate::absent::Absent::not_yet());
         let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
-        let state = AppState::assemble(data, identity, seams);
+        let folder = store::hold(&data);
+        let state = AppState::assemble(data, identity, seams, folder);
         let about = info(&state);
         assert!(!about.network && !about.stand_in);
         assert!(listed(state.daemon.agents_list(agents::list::client::request::Frame {}).collect().await).agents.is_empty(), "no agents made up");
@@ -1779,13 +1857,78 @@ mod tests {
         assert_eq!(data, dir);
         assert_eq!(data_dir::<()>(Some("".into()), || Ok(PathBuf::from("/the/system/folder"))), Ok(PathBuf::from("/the/system/folder")), "an empty one names nothing");
         assert_eq!(data_dir::<()>(Some("second-copy".into()), || unreachable!()), Ok(std::env::current_dir().unwrap().join("second-copy")), "a relative one is from where the app started");
+        // The stand-in's rooms need the keys every other test has; without it, the app makes its own.
+        #[cfg(feature = "stand-in")]
         seeded_keys(&data);
         let state = AppState::open(data.clone()).await;
         assert_eq!(state.network, cfg!(feature = "stand-in"));
-        assert!(data.join(KEYS_FILE).is_file());
+        assert!(state.folder.held());
+        #[cfg(not(feature = "stand-in"))]
+        assert_eq!(store::header(&data.join(KEYS_FILE)).map(|h| (h.file, h.version)), Some(("keys".into(), 1)), "your keys, made and kept there");
+        save_view(&state, a_view()).unwrap();
+        assert_eq!(store::header(&data.join(VIEWS_FILE)).map(|h| (h.file, h.version)), Some(("views".into(), 1)), "what you keep, kept there");
         assert!(data.join(RECORDS_DIR).is_dir());
         #[cfg(feature = "stand-in")]
         assert!(std::fs::read_dir(data.join(RECORDS_DIR)).unwrap().next().is_some(), "the stand-in's copies are there too");
+    }
+
+    fn a_view() -> SavedView {
+        serde_json::from_value(json!({ "id": "", "title": "What it said", "query": { "name": "site-fixes", "logs_index_from": null, "logs_index_to": null, "created_from": null, "created_to": null, "item_type": null, "jq": null, "count": null, "watch": false }, "saved": "" })).unwrap()
+    }
+
+    /// Every file under a folder, and what it holds.
+    fn snapshot(dir: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+        let mut files = Vec::new();
+        walk(dir, &mut files);
+        files.into_iter().map(|f| { let bytes = std::fs::read(&f).unwrap(); (f, bytes) }).collect()
+    }
+
+    #[tokio::test]
+    async fn a_second_copy_on_a_folder_in_use_changes_nothing_and_says_so() {
+        let data = store::tests::folder("actions-in-use");
+        seeded_keys(&data);
+        store::save(&data.join(VIEWS_FILE), store::VIEWS, &vec![a_view()]).unwrap();
+        store::save(&data.join(THREADS_FILE), store::THREADS, &HashMap::from([("t-1".to_owned(), "t".to_owned())])).unwrap();
+        std::fs::write(data.join(MACHINE_NAMES_FILE), "{ damaged").unwrap();
+        // Another copy of the app, holding the folder.
+        let other = store::hold(&data);
+        assert!(other.held());
+        let before = snapshot(&data);
+        let state = AppState::open(data.clone()).await;
+        assert_eq!(info(&state).folder_held, FolderHeld::InUse);
+        assert!(!state.network);
+        assert_eq!(state.identity.usual().key, Keypair::from_seed("maya").key(), "your keys, read as they are");
+        assert_eq!(state.views.lock().unwrap().len(), 1, "your files, read as they are");
+        // Whatever it's asked to do, it changes nothing there.
+        save_view(&state, a_view()).unwrap();
+        rename_machine(&state, &(&Identity::Outgoing { address: "127.0.0.1:4640".into() }).into(), "the desk upstairs");
+        state.door.set_allowance("room-1", "site-fixes", crate::door::Reach::Talk, 2);
+        state.identity.fresh("lamp person").ok();
+        let mut params = rmcp::model::CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
+        assert_eq!(state.identity.seal(&crate::identity::Actor::Persona("usual".into()), "room-1", &mut params).unwrap_err(), store::IN_USE);
+        match host_space(&state, HostSpaceInput { title: "Saturday Workshop".into(), kind: "board".into(), charter: String::new(), open_door: false }).await {
+            Ok(HostOutcome::Error { message }) | Err(message) => assert_eq!(message, store::IN_USE, "and says why"),
+            other => panic!("{other:?}"),
+        }
+        assert!(moves_of(&state, &space_id("room-1")).await.0.is_empty());
+        assert_eq!(snapshot(&data), before, "not one file written, moved or made");
+        assert!(file_notices(&state).await.is_empty(), "nothing set aside: the damaged file is the other copy's to deal with");
+        drop(state);
+        drop(other);
+        // Once the other copy closes, the folder is this one's.
+        let again = AppState::open(data.clone()).await;
+        assert_eq!(info(&again).folder_held, FolderHeld::Yes);
+        assert_eq!(again.identity.usual().key, Keypair::from_seed("maya").key());
+    }
+
+    #[tokio::test]
+    async fn two_copies_opened_on_one_folder_and_the_second_finds_it_in_use() {
+        let data = store::tests::folder("actions-two-copies");
+        seeded_keys(&data);
+        let first = AppState::open(data.clone()).await;
+        let second = AppState::open(data.clone()).await;
+        assert_eq!((info(&first).folder_held, info(&second).folder_held), (FolderHeld::Yes, FolderHeld::InUse));
+        assert!(second.identity.broken().is_none(), "its keys are fine; the folder is the other copy's");
     }
 
     /// The stand-in's own words are in the program only in a build that asked for it.
@@ -1800,7 +1943,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "stand-in")]
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         for entry in std::fs::read_dir(dir).unwrap() {
             let path = entry.unwrap().path();
@@ -1816,8 +1958,7 @@ mod tests {
         let state = AppState::open(data.clone()).await;
         // Everything that keeps a file, once.
         state.remember_mounts("site-fixes", Some(AgentMounts::default()));
-        let view: SavedView = serde_json::from_value(json!({ "id": "", "title": "What it said", "query": { "name": "site-fixes", "logs_index_from": null, "logs_index_to": null, "created_from": null, "created_to": null, "item_type": null, "jq": null, "count": null, "watch": false }, "saved": "" })).unwrap();
-        save_view(&state, view).unwrap();
+        save_view(&state, a_view()).unwrap();
         let machine = state.daemon.providers_list().await.into_iter().next().expect("the stand-in has a machine");
         rename_machine(&state, &(&machine.identity).into(), "the desk upstairs");
         let entries = state.spaces.list().await;
@@ -1843,12 +1984,16 @@ mod tests {
             if name.starts_with('.') && name.ends_with(".tmp") {
                 continue; // a write still under way when the folder was read
             }
+            if parts.len() == 1 && name == store::IN_USE_FILE {
+                assert_eq!(std::fs::metadata(&file).unwrap().len(), 0, "holds the folder, says nothing");
+                continue;
+            }
             let header = store::header(&file).unwrap_or_else(|| panic!("{} carries no version", parts.join("/")));
             kinds.insert(header.file);
         }
         for kind in ["keys", "counters", "allowances", "views", "machine names", "agent mounts", "threads", "record copy", "stand-in rooms", "stand-in volumes"] {
             assert!(kinds.contains(kind), "a {kind} file was kept: {kinds:?}");
         }
-        assert!(set_aside_views(&state).is_empty(), "nothing set aside on a clean run");
+        assert!(file_notices(&state).await.is_empty(), "nothing set aside on a clean run");
     }
 }

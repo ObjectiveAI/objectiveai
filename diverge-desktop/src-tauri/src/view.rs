@@ -1410,37 +1410,122 @@ pub struct AppInfo {
     pub contract_pin: String,
     /// Where the stand-in keeps its host's files.
     pub stand_in_host: Option<String>,
+    /// The folder the app keeps its files in.
+    pub folder: String,
+    /// Whether this copy of the app holds that folder. One that doesn't
+    /// changes nothing in it, and the screens say so.
+    pub folder_held: FolderHeld,
 }
 
-/// A file the app couldn't use, set aside untouched under a new name.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "state", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum FolderHeld {
+    /// This copy holds it, for as long as it runs.
+    Yes,
+    /// Another copy of the app holds it.
+    InUse,
+    /// The system couldn't say whether another copy does, in its own words.
+    Unchecked { error: String },
+}
+
+impl From<&crate::store::Hold> for FolderHeld {
+    fn from(h: &crate::store::Hold) -> Self {
+        match h {
+            crate::store::Hold::Held(_) => FolderHeld::Yes,
+            crate::store::Hold::Elsewhere => FolderHeld::InUse,
+            crate::store::Hold::Unchecked(error) => FolderHeld::Unchecked { error: error.clone() },
+        }
+    }
+}
+
+/// Your keys file, when it can't be used: nothing is signed, and it is left as it is.
 #[derive(Serialize, TS, Clone, Debug, PartialEq)]
 #[ts(export, export_to = "../../src/bindings/")]
-pub struct SetAsideView {
+pub struct KeysBrokenView {
+    pub file: String,
+    /// A newer version of the app wrote it (otherwise, it can't be read).
+    pub newer: bool,
+}
+
+/// A file the app couldn't use since it started, and what it did about it.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct FileNoticeView {
+    /// What kind of file it is: `keys`, `views`, `record copy`… The
+    /// screen words it from `src/strings.ts`.
+    pub kind: String,
+    /// For your copy of a room's record: the room's title, when the app knows the room.
+    pub room: Option<String>,
+    /// Whether it's the last good copy kept beside the file, not the file itself.
+    pub last_good_copy: bool,
     /// Where it was.
     pub file: String,
-    /// Where it is now.
-    pub kept_as: String,
-    pub why: SetAsideWhy,
+    pub why: FileWhy,
+    /// Where it is now, when it was set aside; none when it was left where it is.
+    pub kept_as: Option<String>,
+    /// What the system said, when it wouldn't read the file.
+    pub error: Option<String>,
+    pub carried_on: CarriedOnView,
 }
 
 #[derive(Serialize, TS, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "../../src/bindings/")]
-pub enum SetAsideWhy {
-    /// It won't parse, it's another kind of file, or what it holds doesn't check.
+pub enum FileWhy {
+    /// It won't parse, or it's another kind of file.
     Damaged,
+    /// It parses, but what it holds doesn't check: a room's record that isn't that room's, or doesn't replay.
+    Refused,
     /// A newer version of the app wrote it.
     Newer,
+    /// The system wouldn't open or read it this time.
+    Unread,
 }
 
-impl From<&crate::store::SetAside> for SetAsideView {
-    fn from(s: &crate::store::SetAside) -> Self {
-        SetAsideView {
-            file: s.file.display().to_string(),
-            kept_as: s.kept_as.display().to_string(),
-            why: match s.why {
-                crate::store::Why::Damaged => SetAsideWhy::Damaged,
-                crate::store::Why::Newer(_) => SetAsideWhy::Newer,
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum CarriedOnView {
+    /// The last good copy, kept beside it.
+    LastGood,
+    /// Nothing: the app started that file empty.
+    Empty,
+    /// What the app had open: the file went bad after it was read.
+    WhatItHad,
+    /// Nothing, and nothing is written there until the app starts again.
+    NothingThisLaunch,
+}
+
+impl FileNoticeView {
+    /// A notice as the screen shows it; `room` names the room, for a record copy.
+    pub fn of(n: &crate::store::Notice, room: Option<String>) -> Self {
+        use crate::store::{CarriedOn, Done, Why};
+        let (why, kept_as, error) = match &n.done {
+            Done::SetAside { kept_as, why } => (
+                match why {
+                    Why::Damaged => FileWhy::Damaged,
+                    Why::Refused => FileWhy::Refused,
+                    Why::Newer(_) => FileWhy::Newer,
+                },
+                Some(kept_as.display().to_string()),
+                None,
+            ),
+            Done::LeftInPlace { error } => (FileWhy::Unread, None, Some(error.clone())),
+        };
+        FileNoticeView {
+            kind: n.kind.to_owned(),
+            room,
+            last_good_copy: n.last_good_copy(),
+            file: n.file.display().to_string(),
+            why,
+            kept_as,
+            error,
+            carried_on: match n.carried_on {
+                CarriedOn::LastGood => CarriedOnView::LastGood,
+                CarriedOn::Empty => CarriedOnView::Empty,
+                CarriedOn::WhatItHad => CarriedOnView::WhatItHad,
+                CarriedOn::NothingThisLaunch => CarriedOnView::NothingThisLaunch,
             },
         }
     }
