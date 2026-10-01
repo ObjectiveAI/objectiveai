@@ -15,6 +15,6 @@ pub enum AgentType {
 }
 
 /// An agent template: the daemon's one
-/// [`Template`](crate::daemon::endpoints::template::Template), typed
+/// [`Template`](crate::daemon::template::Template), typed
 /// [`AgentType`].
-pub type Template = crate::daemon::endpoints::template::Template<AgentType>;
+pub type Template = crate::daemon::template::Template<AgentType>;

@@ -1,7 +1,7 @@
 //! Tool templates: what a tool is made from, held by its hash.
 //!
 //! The shape and the id are the daemon's one
-//! [`template`](crate::daemon::endpoints::template), typed `"tool"`
+//! [`template`](crate::daemon::template), typed `"tool"`
 //! here: everything about a tool that is not its name, not the
 //! provider it runs on and not its own mounts. A caller makes one
 //! with [`create`] and names it afterwards by its id, so the same

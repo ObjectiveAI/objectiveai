@@ -15,6 +15,6 @@ pub enum ToolType {
 }
 
 /// A tool template: the daemon's one
-/// [`Template`](crate::daemon::endpoints::template::Template), typed
+/// [`Template`](crate::daemon::template::Template), typed
 /// [`ToolType`].
-pub type Template = crate::daemon::endpoints::template::Template<ToolType>;
+pub type Template = crate::daemon::template::Template<ToolType>;

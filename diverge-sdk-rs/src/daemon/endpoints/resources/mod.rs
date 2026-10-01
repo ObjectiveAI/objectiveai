@@ -28,8 +28,8 @@
 //!
 //! Over FUSE, from the daemon, and no other way: a template's —
 //! an agent's or a tool's —
-//! [`ResourceFileMount`](crate::daemon::endpoints::template::ResourceFileMount)
-//! or [`ResourceDirectoryMount`](crate::daemon::endpoints::template::ResourceDirectoryMount)
+//! [`ResourceFileMount`](crate::daemon::template::ResourceFileMount)
+//! or [`ResourceDirectoryMount`](crate::daemon::template::ResourceDirectoryMount)
 //! names a resource at a container path, read-only or ephemeral, and
 //! the daemon answers the mount's asks from the bytes it holds. A
 //! resource is not a provider's volume and is mounted as none; nothing

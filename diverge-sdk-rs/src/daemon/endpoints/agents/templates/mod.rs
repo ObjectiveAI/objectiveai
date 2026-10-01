@@ -1,7 +1,7 @@
 //! Agent templates: what an agent is made from, held by its hash.
 //!
 //! The shape and the id are the daemon's one
-//! [`template`](crate::daemon::endpoints::template), typed `"agent"`
+//! [`template`](crate::daemon::template), typed `"agent"`
 //! here: everything about an agent that is not its name, not the
 //! provider it runs on and not its own mounts. A caller makes one
 //! with [`create`] and names it afterwards by its id, so the same

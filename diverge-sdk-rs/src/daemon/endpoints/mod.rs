@@ -67,5 +67,4 @@ pub use client_request::*;
 
 pub mod agents;
 pub mod resources;
-pub mod template;
 pub mod tools;

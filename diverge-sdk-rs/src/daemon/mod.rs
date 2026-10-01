@@ -8,7 +8,9 @@
 //! the frame-level cores of each half — and defines its own
 //! [`endpoints`] on top, as the [`provider`](crate::provider) defines
 //! its own: agents, the tools attached to them, the templates both
-//! are made from, and the resources served into them. The provider's endpoints are not the daemon's, and nothing
+//! are made from — one shape, [`template`], shared by the two
+//! families' endpoints — and the resources served into them. The provider's endpoints are not the daemon's, and nothing
 //! here names them but what a daemon spawns an agent from.
 
 pub mod endpoints;
+pub mod template;
