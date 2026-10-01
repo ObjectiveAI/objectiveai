@@ -742,8 +742,11 @@ export const t = {
   // The first-run page. Plain working words: the naming pass is Maya's.
   firstRun: {
     title: "Before anything else",
+    // Shown in a new folder only: nothing has been signed there yet.
     nothingYet: "Nothing has been signed or sent as you, and nothing will be until this page is finished.",
-    earlier: "An earlier version of this app named you from this Mac's login. This folder has you as",
+    // Shown in a folder an earlier version made, which may already have signed and sent as you.
+    nothingMore: "Nothing more is signed or sent as you until this page is finished.",
+    earlier: "An earlier version of this app made this folder; it has you as",
     earlierKeeps: "Everything else in it stays as it is: your rooms know you by the same key.",
     nameTitle: "Your name",
     nameLabel: "What should people call you?",
@@ -752,9 +755,12 @@ export const t = {
     adult: "I'm 18 or older.",
     termsTitle: "Diverge's terms",
     termsNotYet: "Diverge's own terms aren't written yet. There's nothing to agree to here, and nothing is recorded as agreed.",
-    account: "Going on makes your account on this Mac: twelve recovery words, and a key for this Mac that acts for you. Your recovery words are kept sealed on this Mac; this version of the app doesn't show them yet.",
+    account: "Going on makes your account on this computer: twelve recovery words, and a key for this computer that acts for you. Your recovery words are kept sealed on this computer; this version of the app doesn't show them yet.",
     finish: "Go on",
     finishing: "Making your account…",
+    // When the app can't be asked whether this page is finished.
+    unknown: "This window couldn't ask the app whether this page is finished. The app said:",
+    askAgain: "Ask again",
     // The same words as the app's own refusals (identity.rs).
     notNamed: "Nothing is sent as you until you've said what people should call you.",
     notAdult: "Diverge is for adults. Confirm that you're 18 or older to go on.",

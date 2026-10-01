@@ -1419,8 +1419,8 @@ pub struct TabsSnapshot {
 pub enum FirstRunView {
     Done,
     New,
-    /// A folder from before accounts: it has you under a name an earlier
-    /// version of the app took from this Mac's login.
+    /// A folder from before accounts: it has you under the name an earlier
+    /// version of the app gave you.
     Earlier { name: String },
     /// The page can't be finished in this copy of the app; the words say why.
     Blocked { words: String },

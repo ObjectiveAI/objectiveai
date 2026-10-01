@@ -7,7 +7,8 @@ import { t } from "../strings";
 /**
  * The first-run page: what people should call you, the 18-or-older line,
  * and the terms slot. A page in the window, never a popup. Until it's
- * finished there's no you here, and nothing is signed or sent.
+ * finished nothing is signed or sent as you: in a new folder nothing ever
+ * has been, and in one an earlier version made, nothing more is.
  */
 export function FirstRun(props: { state: FirstRunView; onDone: (next: FirstRunView) => void }) {
   const [name, setName] = useState("");
@@ -31,12 +32,16 @@ export function FirstRun(props: { state: FirstRunView; onDone: (next: FirstRunVi
     <div className="page">
       <div className="page-inner">
         <h1 className="page-title">{t.firstRun.title}</h1>
-        <p className="muted">{t.firstRun.nothingYet}</p>
         {props.state.state === "earlier" ? (
-          <div className="banner banner-warn">
-            {t.firstRun.earlier} <strong>{props.state.name}</strong>. {t.firstRun.earlierKeeps}
-          </div>
-        ) : null}
+          <>
+            <p className="muted">{t.firstRun.nothingMore}</p>
+            <div className="banner banner-warn">
+              {t.firstRun.earlier} <strong>{props.state.name}</strong>. {t.firstRun.earlierKeeps}
+            </div>
+          </>
+        ) : (
+          <p className="muted">{t.firstRun.nothingYet}</p>
+        )}
         <Section title={t.firstRun.nameTitle} note={t.firstRun.nameNote}>
           <Field label={t.firstRun.nameLabel}>
             <input value={name} onChange={(e) => setName(e.target.value)} spellCheck={false} />
