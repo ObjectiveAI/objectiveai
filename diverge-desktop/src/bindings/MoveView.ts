@@ -9,6 +9,14 @@ export type MoveView = { id: string, kind: string, author: string,
  */
 by: string, 
 /**
+ * Who made it, where that isn't the key that sealed it: under rules 2, the person's account.
+ */
+member: string | null, 
+/**
+ * Whether the room would erase its words now (what someone said, sealed so it can be erased, not erased yet).
+ */
+erasable: boolean, 
+/**
  * For an agent: the person it acts for.
  */
 agent_of: string | null, at: string, title: string, body: string, state: string, parent: string | null, fields: Record<string, unknown>, 

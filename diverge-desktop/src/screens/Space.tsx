@@ -23,9 +23,6 @@ type Active = { tool: ToolView; values: Record<string, unknown> };
  * taking back and erasing are on the move itself. */
 const ELSEWHERE = new Set(["admit", "remove", "set_charter", "vouch_room", "answer_hire", "deliver_hire", "pin_receipt", "keys", "withdraw", "erase", "mark_invite", "drop_keeper"]);
 
-/** Moves whose words can be taken back or erased: what someone said. The room has the last word on each. */
-const ERASABLE = new Set(["show", "ask", "offer", "reply", "say", "run", "note", "direction", "synthesis", "offering", "task", "delivery", "hire_delivery", "hire"]);
-
 /** Whether a member's key is you here: the key you seal with, or, in a room under rules 2, the account it's on. */
 const isYou = (s: { you_key: string; you_account: string | null }, key?: string | null) => !!key && (key === s.you_key || key === s.you_account);
 
@@ -513,7 +510,7 @@ function fieldRows(m: MoveView) {
 function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView; onVerb: (name: string, prefill: Record<string, unknown>) => void; onOpenInvite: (text: string) => void }) {
   const { move: m, replies, space } = props;
   const s = space.summary;
-  const isMe = m.by === s.you_key;
+  const isMe = isYou(s, m.member ?? m.by);
   const f = m.fields as Record<string, unknown>;
   const kind = t.spaces.moveKinds[m.kind] ?? m.kind;
   const state = t.spaces.states[m.state] ?? m.state;
@@ -525,13 +522,16 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
   const posterSays = said(f.poster_says);
   const doerSays = said(f.doer_says);
   const canSettle = m.kind === "task" && typeof f.pledge === "string" && (m.state === "delivered" || m.state === "done") && (isMe || claimedByMe) && has("settle");
-  const who = (x: MoveView) => (x.by === s.you_key ? t.spaces.you : x.author);
+  /** Under rules 2 a move names its maker's account, so it's yours from any of your devices. */
+  const mine = (x: MoveView) => isYou(s, x.member ?? x.by);
+  const who = (x: MoveView) => (mine(x) ? t.spaces.you : x.author);
   const agentLine = (x: MoveView) => (x.agent_of ? (x.agent_of === s.you_are ? t.spaces.yourAgent : `${t.spaces.runBy} ${x.agent_of}`) : null);
   /** Taking back your own words, or, for the host, erasing someone else's with a reason. */
   const erasing = (x: MoveView) => {
-    if (!ERASABLE.has(x.kind) || (x.fields as Record<string, unknown>).erased) return null;
-    if (x.by === s.you_key && has("withdraw")) return <Button small kind="tertiary" onClick={() => props.onVerb("withdraw", { move_id: x.id })}>{t.spaces.takeBack}</Button>;
-    if (x.by !== s.you_key && s.mine && has("erase")) return <Button small kind="tertiary" onClick={() => props.onVerb("erase", { move_id: x.id })}>{t.spaces.erase}</Button>;
+    // The room says which moves it would erase now.
+    if (!x.erasable) return null;
+    if (mine(x) && has("withdraw")) return <Button small kind="tertiary" onClick={() => props.onVerb("withdraw", { move_id: x.id })}>{t.spaces.takeBack}</Button>;
+    if (!mine(x) && s.mine && has("erase")) return <Button small kind="tertiary" onClick={() => props.onVerb("erase", { move_id: x.id })}>{t.spaces.erase}</Button>;
     return null;
   };
   const erasedNote = (x: MoveView) => ((x.fields as Record<string, unknown>).erased ? <p className="muted small">{t.spaces.wordsErased} {t.spaces.erasedCopies}</p> : null);

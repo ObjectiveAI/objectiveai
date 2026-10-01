@@ -979,6 +979,12 @@ pub struct MoveView {
     /// The key that sealed it.
     #[serde(default)]
     pub by: String,
+    /// Who made it, where that isn't the key that sealed it: under rules 2, the person's account.
+    #[serde(default)]
+    pub member: Option<String>,
+    /// Whether the room would erase its words now (what someone said, sealed so it can be erased, not erased yet).
+    #[serde(default)]
+    pub erasable: bool,
     /// For an agent: the person it acts for.
     #[serde(default)]
     pub agent_of: Option<String>,

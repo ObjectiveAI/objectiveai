@@ -345,7 +345,7 @@ export function installPreview() {
           const now = new Date().toISOString();
           const push = (kind: string, title: string, body: string, state: string, parent: string | null, fields: Record<string, unknown> = {}) => {
             const id = `${kind}-${++moveN}`;
-            r.moves.push({ id, kind, author: r.view.summary.you_are, by: r.view.summary.you_key, agent_of: null, at: now, title, body, state, parent, fields, charter: "", hash: "" });
+            r.moves.push({ id, kind, author: r.view.summary.you_are, by: r.view.summary.you_key, member: null, erasable: false, agent_of: null, at: now, title, body, state, parent, fields, charter: "", hash: "" });
             return id;
           };
           const find = (id: string) => r.moves.find((m) => m.id === id);
@@ -383,11 +383,11 @@ export function installPreview() {
             const r = spaceOf(id);
             if (!r) { out.push({ room: id, outcome: { outcome: "error", message: "no such Space" } }); continue; }
             const moveId = `ask-${++moveN}`;
-            r.moves.push({ id: moveId, kind: "ask", author: r.view.summary.you_are, by: r.view.summary.you_key, agent_of: null, at: new Date().toISOString(), title: args.what, body: "", state: "open", parent: null, fields: { thread, needs: args.needs, ceiling: args.ceiling }, charter: "", hash: "" });
+            r.moves.push({ id: moveId, kind: "ask", author: r.view.summary.you_are, by: r.view.summary.you_key, member: null, erasable: false, agent_of: null, at: new Date().toISOString(), title: args.what, body: "", state: "open", parent: null, fields: { thread, needs: args.needs, ceiling: args.ceiling }, charter: "", hash: "" });
             out.push({ room: id, outcome: { outcome: "ok", text: `Asked (${moveId})` } });
             if (r.view.members.some((m) => m.name === "ada")) {
               setTimeout(() => {
-                r.moves.push({ id: `offer-${++moveN}`, kind: "offer", author: "ada", by: "ada", agent_of: null, at: new Date().toISOString(), title: args.what, body: "I can look at that tomorrow. Say a bit more about what done looks like?", state: "offered", parent: moveId, fields: {}, charter: "", hash: "" });
+                r.moves.push({ id: `offer-${++moveN}`, kind: "offer", author: "ada", by: "ada", member: null, erasable: false, agent_of: null, at: new Date().toISOString(), title: args.what, body: "I can look at that tomorrow. Say a bit more about what done looks like?", state: "offered", parent: moveId, fields: {}, charter: "", hash: "" });
                 bump(id);
               }, 4000);
             }
@@ -424,7 +424,7 @@ export function installPreview() {
             const now = new Date().toISOString();
             spaceRecs.push({
               view: { summary, charter: inv.charter, members: [{ name: inv.host_name, key: `host-${inv.id}`, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null, mark: null, devices: [] }, { name, key, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null, mark: null, devices: [] }], tools: spaceRecs[0]?.view.tools ?? [], before: [] },
-              moves: [{ id: "admitted-1", kind: "admitted", author: inv.host_name, by: `host-${inv.id}`, agent_of: null, at: now, title: name, body: "", state: "said", parent: null, fields: {}, charter: "", hash: "" }],
+              moves: [{ id: "admitted-1", kind: "admitted", author: inv.host_name, by: `host-${inv.id}`, member: null, erasable: false, agent_of: null, at: now, title: name, body: "", state: "said", parent: null, fields: {}, charter: "", hash: "" }],
               invite: null,
             });
           }
@@ -455,7 +455,7 @@ export function installPreview() {
             const now = new Date().toISOString();
             if (args.yes && r) {
               r.view.members.push({ name: k.name, key: `knock-${k.knock_id}`, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null, mark: null, devices: [] });
-              r.moves.push({ id: `admitted-${++moveN}`, kind: "admitted", author: you.name, by: you.key, agent_of: null, at: now, title: k.name, body: "", state: "said", parent: null, fields: {}, charter: "", hash: "" });
+              r.moves.push({ id: `admitted-${++moveN}`, kind: "admitted", author: you.name, by: you.key, member: null, erasable: false, agent_of: null, at: now, title: k.name, body: "", state: "said", parent: null, fields: {}, charter: "", hash: "" });
               later(() => bump(k.space));
             }
           }
