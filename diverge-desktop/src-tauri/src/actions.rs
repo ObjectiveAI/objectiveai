@@ -617,13 +617,36 @@ pub fn identity_broken(state: State<'_, AppState>) -> Option<KeysBrokenView> {
 }
 
 /// Your call to a room: sealed as whoever you are there, one call at a time for that key and room.
+/// A room under rules 2 that doesn't know this key yet (you were let in unlisted and haven't acted,
+/// or you're on a device it hasn't been shown) gets your account's device list first, then the call again.
 async fn call_as_you(state: &AppState, id: &spaces::Id, tool: &str, arguments: serde_json::Value) -> Result<rmcp::model::CallToolResult, String> {
-    let mut params = rmcp::model::CallToolRequestParams::new(tool.to_owned()).with_arguments(arguments.as_object().cloned().unwrap_or_default());
     let actor = state.identity.you_in(&id.id);
     let turn = state.identity.turn(&actor, &id.id);
     let _held = turn.lock().await;
-    state.identity.seal(&actor, &id.id, &mut params)?;
-    state.spaces.call(id, params).await.map_err(|e| e.message.to_string())
+    let send = |tool: &str, arguments: &serde_json::Value| {
+        let mut params = rmcp::model::CallToolRequestParams::new(tool.to_owned()).with_arguments(arguments.as_object().cloned().unwrap_or_default());
+        let sealed = state.identity.seal(&actor, &id.id, &mut params);
+        async move {
+            sealed?;
+            state.spaces.call(id, params).await.map_err(|e| e.message.to_string())
+        }
+    };
+    let first = send(tool, &arguments).await;
+    let unknown = matches!(&first, Err(e) if e == diverge_desktop_room::NOT_A_MEMBER);
+    let crate::identity::Actor::Persona(persona) = &actor else { return first };
+    if !unknown || tool == "keys" || rules_of(state, id).await != diverge_desktop_room::Rules::Two {
+        return first;
+    }
+    let Ok(proof) = state.identity.proof_of(persona) else { return first };
+    send("keys", &serde_json::json!({ "account": proof })).await?;
+    send(tool, &arguments).await
+}
+
+/// The rules a room runs under, as it says: rules 1 when it doesn't say.
+async fn rules_of(state: &AppState, id: &spaces::Id) -> diverge_desktop_room::Rules {
+    let about: Option<serde_json::Value> = read_json(state, id, diverge_desktop_room::room::ABOUT).await;
+    let number = about.and_then(|a| a["rules"].as_u64()).unwrap_or(1);
+    diverge_desktop_room::Rules::of(number as u32).unwrap_or(diverge_desktop_room::Rules::One)
 }
 
 /// Let one of your agents into a room you host, tethered to who you are there.
@@ -748,6 +771,10 @@ fn personas(state: &AppState, entries: &[spaces::SpaceEntry]) -> Vec<PersonaView
 
 #[tauri::command]
 pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, String> {
+    profile_of(&state).await
+}
+
+async fn profile_of(state: &AppState) -> Result<ProfileView, String> {
     let agents = listed(state.daemon.agents_list(agents::list::client::request::Frame {}).collect::<Vec<_>>().await).agents;
     let mine = state.identity.personas();
     let home = state.spaces.home().await.map(|id| id.id);
@@ -756,18 +783,21 @@ pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, Stri
     // Everyone you've met: members of rooms you're in.
     let mut met = std::collections::HashSet::new();
     for e in &entries {
-        let members: Vec<MemberView> = read_json(&state, &e.id, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
-        met.extend(members.into_iter().map(|m| m.key));
+        let members: Vec<MemberView> = read_json(state, &e.id, diverge_desktop_room::room::MEMBERS).await.unwrap_or_default();
+        // By key, and under rules 2 by every key on a member's list.
+        met.extend(members.into_iter().flat_map(|m| std::iter::once(m.key).chain(m.devices)));
     }
     let mut receipts = Vec::new();
     let mut seen = std::collections::HashSet::new();
     let mut shows = Vec::new();
     for e in &entries {
-        let (moves, _) = moves_of(&state, &e.id).await;
+        let (moves, _) = moves_of(state, &e.id).await;
         for m in moves {
             if m.kind == "receipt" {
                 let Some(statement) = m.fields.get("statement").and_then(|v| serde_json::from_value::<diverge_desktop_room::Statement>(v.clone()).ok()) else { continue };
-                let Some(earned_as) = mine.iter().find(|p| Some(p.key.as_str()) == statement.field("to_person")) else { continue };
+                // Issued to one of your names: by its key, or under rules 2 by its account.
+                let to = statement.field("to_person");
+                let Some(earned_as) = mine.iter().find(|p| Some(p.key.as_str()) == to || (p.account.is_some() && p.account.as_deref() == to)) else { continue };
                 // One receipt, once: a continued room carries its old receipts too.
                 if !seen.insert(statement.sig.clone()) {
                     continue;
@@ -782,7 +812,7 @@ pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, Stri
                     at: m.at.clone(),
                     issued_by: statement.field("host").unwrap_or_default().to_owned(),
                     known: met.contains(&statement.key),
-                    holds: statement.holds() && diverge_desktop_room::id_holds(&room, &statement.key),
+                    holds: statement.holds() && diverge_desktop_room::receipt_issuer(&statement).is_some(),
                     earned_as: earned_as.name.clone(),
                     earned_as_usual: earned_as.usual,
                     statement: serde_json::to_value(&statement).unwrap_or_default(),
@@ -794,9 +824,9 @@ pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, Stri
     }
     receipts.sort_by(|a, b| b.at.cmp(&a.at));
     shows.sort_by(|a, b| b.at.cmp(&a.at));
-    let machines = machines_with_volumes(&state).await;
+    let machines = machines_with_volumes(state).await;
     let volumes: Vec<VolumeView> = machines.iter().flat_map(|m| m.volumes.clone()).collect();
-    let personas = personas(&state, &entries);
+    let personas = personas(state, &entries);
     Ok(ProfileView { receipts, shows, agents, machines, volumes, home, profile, personas })
 }
 
@@ -925,10 +955,11 @@ pub async fn spaces_admitted(state: State<'_, AppState>, id: String) -> Result<V
 async fn admitted(state: &AppState, id: &str) -> Result<Vec<AdmittedView>, String> {
     let record: diverge_desktop_room::Record = read_json(state, &space_id(id), diverge_desktop_room::room::RECORD).await.ok_or("the room can't be reached")?;
     let mut people: IndexMap<String, AdmittedView> = IndexMap::new();
-    // Someone let in unlisted is known by a mark until they act; then by their key.
-    let acted: HashMap<String, String> = record.moves.iter().map(|m| (diverge_desktop_room::key_mark(&record.args.id, &m.by), m.by.clone())).collect();
+    // Someone let in unlisted is known by a mark until they act; then by their key (under rules 2, their account).
+    let acted: HashMap<String, String> = record.moves.iter().map(|m| (diverge_desktop_room::key_mark(&record.args.id, m.actor()), m.actor().to_owned())).collect();
     for m in record.moves {
-        let key = m.args.get("key").or_else(|| m.args.get("key_mark")).and_then(serde_json::Value::as_str).unwrap_or_default().to_owned();
+        // Who the room says it let in or removed: their key or account, or a mark.
+        let key = m.fields.get("key").or_else(|| m.fields.get("key_mark")).or_else(|| m.args.get("key")).and_then(serde_json::Value::as_str).unwrap_or_default().to_owned();
         let key = acted.get(&key).cloned().unwrap_or(key);
         match m.kind.as_str() {
             "admitted" => {
@@ -963,31 +994,43 @@ pub async fn spaces_restart(state: State<'_, AppState>, id: String) -> Result<()
     state.spaces.restart(&space_id(&id)).await.map_err(|e| error_text(&e))
 }
 
+/// The settings of a room you make now: under rules 2, hosted by the account
+/// `you` are (its id names it), signed on this Mac by your key.
+fn new_room(state: &AppState, you: &crate::identity::Persona, title: String, kind: diverge_desktop_room::Kind, charter: String, open_door: bool, continues: Option<diverge_desktop_room::Continues>, room_key: &diverge_desktop_room::Keypair) -> Result<diverge_desktop_room::Args, String> {
+    let account = state.identity.proof_of(&you.id)?;
+    Ok(diverge_desktop_room::Args {
+        id: diverge_desktop_room::account_room_id(&diverge_desktop_room::fresh_label(), &account.id()),
+        title,
+        kind,
+        host_key: you.key.clone(),
+        host_name: you.name.clone(),
+        charter,
+        open_door,
+        continues,
+        room_key: room_key.key(),
+        at: chrono::Utc::now(),
+        rules: 2,
+        host_account: Some(account),
+        sig: String::new(),
+    })
+}
+
 /// Continue a room whose host is gone, on your machine, from your copy of
 /// its record. The old moves keep their seals; you host what comes next.
 #[tauri::command]
 pub async fn spaces_continue(state: State<'_, AppState>, id: String) -> Result<HostOutcome, String> {
+    continue_room(&state, &id).await
+}
+
+async fn continue_room(state: &AppState, id: &str) -> Result<HostOutcome, String> {
     use diverge_sdk::shared::containers::request::{Container, Image};
-    let copy = copy_of(&state, &id).ok_or("you hold no copy of that room")?;
+    let copy = copy_of(state, id).ok_or("you hold no copy of that room")?;
     let old = diverge_desktop_room::Room::check(&copy)?;
-    let you = state.identity.who_in(&id)?;
+    let you = state.identity.who_in(id)?;
     let room_key = diverge_desktop_room::Keypair::generate();
-    let args = diverge_desktop_room::Args {
-        id: diverge_desktop_room::room_id(&diverge_desktop_room::fresh_label(), &you.key),
-        title: format!("{}, continued", old.args.title),
-        kind: old.args.kind,
-        host_key: you.key.clone(),
-        host_name: you.name.clone(),
-        charter: old.charter().to_owned(),
-        open_door: old.args.open_door,
-        continues: Some(diverge_desktop_room::Continues { room: old.args.id.clone(), title: old.args.title.clone(), last: old.last_hash() }),
-        room_key: room_key.key(),
-        at: chrono::Utc::now(),
-        rules: 1,
-        host_account: None,
-        sig: String::new(),
-    };
-    let arguments = room_arguments(&state, args, &room_key, Some(copy))?;
+    let continues = diverge_desktop_room::Continues { room: old.args.id.clone(), title: old.args.title.clone(), last: old.last_hash() };
+    let args = new_room(state, &you, format!("{}, continued", old.args.title), old.args.kind, old.charter().to_owned(), old.args.open_door, Some(continues), &room_key)?;
+    let arguments = room_arguments(state, args, &room_key, Some(copy))?;
     let container = Container { image: Image { name: "diverge-desktop-room".into(), digest: catalog::UNBUILT_DIGEST.into() }, memory: 1 << 30, disk: 1 << 30, volume_mounts: Vec::new(), fuse_file_mounts: Vec::new(), fuse_directory_mounts: Vec::new(), arguments };
     Ok(match state.spaces.host(container).await {
         Ok(new) => {
@@ -1035,21 +1078,7 @@ async fn host_space(state: &AppState, input: HostSpaceInput) -> Result<HostOutco
     let Some(kind) = diverge_desktop_room::Kind::parse(&input.kind) else { return Ok(HostOutcome::Error { message: "no such kind of Space".into() }) };
     let you = state.identity.usual()?;
     let room_key = diverge_desktop_room::Keypair::generate();
-    let args = diverge_desktop_room::Args {
-        id: diverge_desktop_room::room_id(&diverge_desktop_room::fresh_label(), &you.key),
-        title: input.title,
-        kind,
-        host_key: you.key,
-        host_name: you.name,
-        charter: input.charter,
-        open_door: input.open_door,
-        continues: None,
-        room_key: room_key.key(),
-        at: chrono::Utc::now(),
-        rules: 1,
-        host_account: None,
-        sig: String::new(),
-    };
+    let args = new_room(state, &you, input.title, kind, input.charter, input.open_door, None, &room_key)?;
     let arguments = room_arguments(state, args, &room_key, None)?;
     let container = Container {
         image: Image { name: "diverge-desktop-room".into(), digest: catalog::UNBUILT_DIGEST.into() },
@@ -1103,11 +1132,7 @@ pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: 
         AppearAs::Fresh { name } => state.identity.fresh(&name)?,
     };
     let now = chrono::Utc::now();
-    if let Some(v) = &vouch {
-        if !spaces::vouch_holds(v, &persona.key, &invite.id, now) {
-            return Err("that vouch isn't for you at this room, or it has run out".into());
-        }
-    }
+    let account = state.identity.proof_of(&persona.id)?;
     let knocking = spaces::Knocking {
         room: invite.id.clone(),
         invite: invite.secret.as_deref().map(|s| spaces::Knocking::invite_mark(&invite.id, s)),
@@ -1115,10 +1140,17 @@ pub async fn spaces_join(state: State<'_, AppState>, invite: String, appear_as: 
         name: persona.name.clone(),
         note,
         listed,
-        vouch,
+        vouch: None,
+        account: Some(account),
         at: now,
         sig: String::new(),
     };
+    if let Some(v) = &vouch {
+        if !knocking.vouched(v, &invite.id, now) {
+            return Err("that vouch isn't for you at this room, or it has run out".into());
+        }
+    }
+    let knocking = spaces::Knocking { vouch, ..knocking };
     let knocking = spaces::Knocking { sig: state.identity.state(&persona.key, "knock", knocking.body())?.sig, ..knocking };
     Ok(match state.spaces.join(&invite, &knocking).await {
         spaces::Joined::Joined(id) => {
@@ -1164,9 +1196,11 @@ pub fn knock_view_of(k: &spaces::Knock, title: String, secret: Option<&str>, mem
     let checked = knocking.as_ref().is_some_and(|w| w.check(&k.space.id, now).is_ok());
     let invited = checked && knocking.as_ref().and_then(|w| w.invite.as_deref()).is_some_and(|mark| secret.is_some_and(|s| mark == spaces::Knocking::invite_mark(&k.space.id, s)));
     let vouch = knocking.as_ref().and_then(|w| w.vouch.as_ref().map(|v| {
-        let holds = checked && spaces::vouch_holds(v, &w.key, &k.space.id, now);
-        let by = members.iter().find(|m| m.key == v.key).map(|m| m.name.clone()).or_else(|| v.field("by_name").map(str::to_owned)).unwrap_or_else(|| "someone".into());
-        VouchView { by, member_here: members.iter().any(|m| m.key == v.key), holds }
+        let holds = checked && w.vouched(v, &k.space.id, now);
+        // The voucher, by their key, or under rules 2 by any key on their list.
+        let voucher = members.iter().find(|m| m.key == v.key || m.devices.contains(&v.key));
+        let by = voucher.map(|m| m.name.clone()).or_else(|| v.field("by_name").map(str::to_owned)).unwrap_or_else(|| "someone".into());
+        VouchView { by, member_here: voucher.is_some(), holds }
     }));
     KnockView {
         knock_id: k.knock_id,
@@ -1181,6 +1215,22 @@ pub fn knock_view_of(k: &spaces::Knock, title: String, secret: Option<&str>, mem
         vouch,
         at: k.at.to_rfc3339(),
     }
+}
+
+/// What the host's `admit` says for a knock: under rules 2 a person comes
+/// in by their account (unlisted: a mark of it), under rules 1 by their key
+/// (unlisted: a mark of it). None: a knock without an account, at a room
+/// that lets people in by theirs.
+pub fn admit_args(rules: diverge_desktop_room::Rules, room: &str, knocking: &spaces::Knocking) -> Option<serde_json::Value> {
+    let (by, account) = match rules {
+        diverge_desktop_room::Rules::One => (knocking.key.clone(), None),
+        diverge_desktop_room::Rules::Two => (knocking.account_id()?, knocking.account.clone()),
+    };
+    Some(match (knocking.listed, account) {
+        (false, _) => serde_json::json!({ "key_mark": diverge_desktop_room::key_mark(room, &by), "name": knocking.name, "listed": false }),
+        (true, Some(account)) => serde_json::json!({ "account": account, "name": knocking.name }),
+        (true, None) => serde_json::json!({ "key": by, "name": knocking.name }),
+    })
 }
 
 #[tauri::command]
@@ -1220,10 +1270,9 @@ async fn answer_knock(state: &AppState, knock_id: u64, yes: bool) -> Result<(), 
         state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
         return Err("that knock doesn't check, so it wasn't let in".into());
     };
-    let args = if knocking.listed {
-        serde_json::json!({ "key": knocking.key, "name": knocking.name })
-    } else {
-        serde_json::json!({ "key_mark": diverge_desktop_room::key_mark(&knock.space.id, &knocking.key), "name": knocking.name, "listed": false })
+    let Some(args) = admit_args(rules_of(state, &knock.space).await, &knock.space.id, &knocking) else {
+        state.spaces.answer(knock_id, spaces::Answer::Denied).await?;
+        return Err("that knock carries no account, and this room lets people in by their account".into());
     };
     let admitted = call_as_you(state, &knock.space, "admit", args).await;
     match admitted {
@@ -1551,6 +1600,7 @@ mod tests {
     use rmcp::model::{CallToolRequestParams, CallToolResult, ErrorData, ListToolsResult, ReadResourceResult, ServerNotification};
     use serde_json::{Value, json};
 
+    use diverge_desktop_room::account::Proof;
     use diverge_desktop_room::{Args, Keypair, Record, Room, Statement, room as program};
     use diverge_sdk::shared::error::Error as WireError;
     use diverge_sdk::shared::filetree::response::Node;
@@ -1569,6 +1619,10 @@ mod tests {
     struct Rooms {
         me: Arc<Keys>,
         rooms: Mutex<IndexMap<String, Room>>,
+        /// Each room's key, so it can be rebuilt from its record.
+        room_keys: Mutex<HashMap<String, Keypair>>,
+        /// Each room's invite secret.
+        secrets: Mutex<HashMap<String, String>>,
         offline: Mutex<HashSet<String>>,
         knocks: Mutex<Vec<Knock>>,
         log: Mutex<Vec<String>>,
@@ -1588,7 +1642,7 @@ mod tests {
 
     impl Rooms {
         fn new(me: Arc<Keys>) -> Arc<Rooms> {
-            Arc::new(Rooms { me, rooms: Mutex::default(), offline: Mutex::default(), knocks: Mutex::default(), log: Mutex::default() })
+            Arc::new(Rooms { me, rooms: Mutex::default(), room_keys: Mutex::default(), secrets: Mutex::default(), offline: Mutex::default(), knocks: Mutex::default(), log: Mutex::default() })
         }
 
         fn log(&self) -> Vec<String> {
@@ -1630,10 +1684,13 @@ mod tests {
             let o = arguments.as_object_mut().ok_or_else(|| wire("a room's settings are an object"))?;
             let secret = o.remove("room_secret").and_then(|v| v.as_str().map(str::to_owned)).ok_or_else(|| wire("a room needs its key"))?;
             let key = Keypair::from_secret_hex(&secret).map_err(wire)?;
+            let before: Option<Record> = o.remove("before").filter(|v| !v.is_null()).map(serde_json::from_value).transpose().map_err(|e| wire(e.to_string()))?;
             let args: Args = serde_json::from_value(arguments).map_err(|e| wire(e.to_string()))?;
-            let room = Room::from_record(Record { args, before: None, moves: Vec::new() }, Some(key)).map_err(wire)?;
+            let room = Room::from_record(Record { args, before: before.map(Box::new), moves: Vec::new() }, Some(key.clone())).map_err(wire)?;
             let id = room.id().to_owned();
             self.rooms.lock().unwrap().insert(id.clone(), room);
+            self.room_keys.lock().unwrap().insert(id.clone(), key);
+            self.secrets.lock().unwrap().insert(id.clone(), diverge_desktop_room::fresh_label());
             Ok(Id { id })
         }
 
@@ -1688,8 +1745,11 @@ mod tests {
             Box::pin(stream::empty())
         }
 
-        async fn invite(&self, _: &Id) -> Option<Invite> {
-            None
+        async fn invite(&self, id: &Id) -> Option<Invite> {
+            let secret = self.secrets.lock().unwrap().get(&id.id).cloned()?;
+            let rooms = self.rooms.lock().unwrap();
+            let r = rooms.get(&id.id)?;
+            Some(Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: id.id.clone(), secret: Some(secret), title: r.args.title.clone(), kind: r.args.kind.key().into(), host_name: r.args.host_name.clone(), charter: r.charter().into(), verbs: Vec::new() })
         }
 
         async fn home(&self) -> Option<Id> {
@@ -1720,9 +1780,15 @@ mod tests {
             Err(wire("no tables here"))
         }
 
-        async fn restart(&self, _: &Id) -> Result<(), WireError> {
-            Err(wire("not here"))
+        async fn restart(&self, id: &Id) -> Result<(), WireError> {
+            self.note(format!("restart {}", id.id));
+            let key = self.room_keys.lock().unwrap().get(&id.id).cloned().ok_or_else(|| wire("no such room"))?;
+            let mut rooms = self.rooms.lock().unwrap();
+            let again = Room::from_record(rooms.get(&id.id).ok_or_else(|| wire("no such room"))?.record(), Some(key)).map_err(wire)?;
+            rooms.insert(id.id.clone(), again);
+            Ok(())
         }
+
     }
 
     /// The app over a folder of its own, with rooms in process and no daemon.
@@ -1761,15 +1827,26 @@ mod tests {
         }
     }
 
+    /// Someone invented's account: one device, `who`; the same every call.
+    fn account_of(who: &Keypair) -> Proof {
+        let root = Keypair::from_seed(&format!("root of {}", who.key()));
+        Proof::first(&root, chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z").unwrap().with_timezone(&Utc), &[who.key()])
+    }
+
     fn knock(knock_id: u64, room: &str, who: &Keypair, name: &str, invite: Option<&str>) -> Knock {
+        knock_with(knock_id, room, who, name, invite, true, Some(account_of(who)))
+    }
+
+    fn knock_with(knock_id: u64, room: &str, who: &Keypair, name: &str, invite: Option<&str>, listed: bool, account: Option<Proof>) -> Knock {
         let knocking = Knocking {
             room: room.into(),
             invite: invite.map(|secret| Knocking::invite_mark(room, secret)),
             key: who.key(),
             name: name.into(),
             note: "I fix lamps and radios.".into(),
-            listed: true,
+            listed,
             vouch: None,
+            account,
             at: Utc::now(),
             sig: String::new(),
         }
@@ -1800,14 +1877,112 @@ mod tests {
         rooms.knocks.lock().unwrap().push(knock(7, &id, &ren, "ren", None));
         answer_knock(&state, 7, true).await.unwrap();
         assert_eq!(rooms.log(), ["call admit", "answer 7 yes"], "the room lets them in, then the door opens");
-        assert!(rooms.rooms.lock().unwrap()[&id].member(&ren.key()).is_some_and(|m| !m.removed));
+        assert!(rooms.rooms.lock().unwrap()[&id].member(&account_of(&ren).id()).is_some_and(|m| !m.removed), "by their account");
         // A knock made for another room is turned away, and nobody is let in.
         let ada = Keypair::from_seed("ada");
         let elsewhere = Knock { space: Id { id: id.clone() }, ..knock(8, "another room", &ada, "ada", None) };
         rooms.knocks.lock().unwrap().push(elsewhere);
         assert!(answer_knock(&state, 8, true).await.is_err());
         assert_eq!(rooms.log()[2..], ["answer 8 no"]);
-        assert!(rooms.rooms.lock().unwrap()[&id].member(&ada.key()).is_none());
+        assert!(rooms.rooms.lock().unwrap()[&id].member(&account_of(&ada).id()).is_none());
+        // A knock with no account can't be let into a room that lets people in by their account.
+        rooms.knocks.lock().unwrap().push(knock_with(9, &id, &ada, "ada", None, true, None));
+        assert!(answer_knock(&state, 9, true).await.is_err());
+        assert_eq!(rooms.log()[3..], ["answer 9 no"]);
+    }
+
+    #[tokio::test]
+    async fn a_new_room_runs_under_rules_two_keyed_by_your_account() {
+        let (state, rooms) = app("actions-rules-two");
+        let id = board(&state, "Saturday Workshop").await;
+        let (account, _) = state.identity.account().unwrap();
+        {
+            let rooms = rooms.rooms.lock().unwrap();
+            let room = &rooms[&id];
+            assert_eq!(room.args.rules, 2);
+            assert_eq!(room.args.host_id(), account, "hosted by your account");
+            assert!(diverge_desktop_room::account_id_holds(&id, &account), "its id names your account, not this Mac's key");
+            assert_eq!(room.args.host_key, state.identity.usual().unwrap().key, "signed on this Mac");
+        }
+        // Continued from your copy, the new room is too.
+        call_as_you(&state, &space_id(&id), "show", json!({ "title": "a shelf" })).await.unwrap();
+        moves_of(&state, &space_id(&id)).await;
+        let HostOutcome::Hosted { id: next } = continue_room(&state, &id).await.unwrap() else { panic!("hosted") };
+        let rooms = rooms.rooms.lock().unwrap();
+        assert_eq!((rooms[&next].args.rules, rooms[&next].args.host_id()), (2, account));
+    }
+
+    #[tokio::test]
+    async fn your_agent_comes_into_a_rules_two_room_tethered_to_your_account() {
+        let (state, rooms) = app("actions-agent-v2");
+        let id = board(&state, "Saturday Workshop").await;
+        admit_agent(&state, &space_id(&id), "site-fixes").await.unwrap();
+        let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "Went through the site" }).as_object().cloned().unwrap());
+        state.identity.seal(&crate::identity::Actor::Agent("site-fixes".into()), &id, &mut params).unwrap();
+        state.spaces.call(&space_id(&id), params).await.unwrap();
+        let (you, _) = state.identity.account().unwrap();
+        let members: Vec<MemberView> = read_json(&state, &space_id(&id), program::MEMBERS).await.unwrap();
+        let agent = members.iter().find(|m| m.is_agent).unwrap();
+        assert_eq!(agent.agent_of_key.as_deref(), Some(you.as_str()), "its person is your account");
+        assert_eq!(rooms.rooms.lock().unwrap()[&id].moves().last().unwrap().agent_of.as_deref(), Some("maya"));
+    }
+
+    #[tokio::test]
+    async fn a_receipt_from_a_room_under_rules_two_is_yours_and_holds() {
+        let (state, _) = app("actions-receipt");
+        let id = board(&state, "Saturday Workshop").await;
+        let sid = space_id(&id);
+        call_as_you(&state, &sid, "post_task", json!({ "title": "Fix the lamp", "spec": "It turns on." })).await.unwrap();
+        let task = asks_or(&state, &id, "task").await;
+        call_as_you(&state, &sid, "claim", json!({ "task_id": task })).await.unwrap();
+        call_as_you(&state, &sid, "deliver", json!({ "task_id": task, "summary": "New switch." })).await.unwrap();
+        call_as_you(&state, &sid, "accept", json!({ "task_id": task })).await.unwrap();
+        let profile = profile_of(&state).await.unwrap();
+        assert_eq!(profile.receipts.len(), 1, "issued to your account, so yours");
+        let r = &profile.receipts[0];
+        assert!(r.holds, "sealed by a key on the account the room's id names");
+        assert!(r.known, "by someone you've met: the host's key is on its list");
+        assert!(r.earned_as_usual);
+    }
+
+    async fn asks_or(state: &AppState, room: &str, kind: &str) -> String {
+        read_json::<Vec<MoveView>>(state, &space_id(room), program::FEED).await.unwrap().into_iter().find(|m| m.kind == kind).unwrap().id
+    }
+
+    #[tokio::test]
+    async fn a_member_on_a_device_the_room_hasnt_seen_brings_their_list_first() {
+        let (state, rooms) = app("actions-keys");
+        // ada hosts a room under rules 2 and lets you in unlisted, by a mark of your account.
+        let ada = Keypair::from_seed("ada");
+        let ada_account = account_of(&ada);
+        let room_key = Keypair::from_seed("ada's room");
+        let args = Args {
+            id: diverge_desktop_room::account_room_id("zine", &ada_account.id()),
+            title: "A zine".into(),
+            kind: diverge_desktop_room::Kind::Idea,
+            host_key: ada.key(),
+            host_name: "ada".into(),
+            charter: "#".into(),
+            open_door: false,
+            continues: None,
+            room_key: room_key.key(),
+            at: Utc::now(),
+            rules: 2,
+            host_account: Some(ada_account),
+            sig: String::new(),
+        }
+        .signed(&ada);
+        let mut room = Room::new(args, room_key).unwrap();
+        let id = room.id().to_owned();
+        let (you, _) = state.identity.account().unwrap();
+        let mut p = CallToolRequestParams::new("admit").with_arguments(json!({ "key_mark": diverge_desktop_room::key_mark(&id, &you), "name": "maya", "listed": false }).as_object().cloned().unwrap());
+        diverge_desktop_room::seal_call(&ada, &id, &mut p, 1);
+        room.call(p, &diverge_desktop_room::NoHost).unwrap();
+        rooms.rooms.lock().unwrap().insert(id.clone(), room);
+        call_as_you(&state, &space_id(&id), "propose", json!({ "direction": "A map drawn by kids" })).await.unwrap();
+        assert_eq!(rooms.log(), ["call propose", "call keys", "call propose"], "refused, then your list, then the call again");
+        let rooms = rooms.rooms.lock().unwrap();
+        assert_eq!(rooms[&id].moves().last().unwrap().actor(), you, "it lands as your account");
     }
 
     #[tokio::test]
@@ -2186,16 +2361,25 @@ mod tests {
         let id = board(&state, "Saturday Workshop").await;
         let (one, other) = (Keypair::from_seed("one ada"), Keypair::from_seed("another ada"));
         for who in [&one, &other] {
-            call_as_you(&state, &space_id(&id), "admit", json!({ "key": who.key(), "name": "ada" })).await.unwrap();
+            call_as_you(&state, &space_id(&id), "admit", json!({ "account": account_of(who), "name": "ada" })).await.unwrap();
         }
+        let (one_id, other_id) = (account_of(&one).id(), account_of(&other).id());
         let view = space_view(&state, id.clone()).await.unwrap();
         let mark = |key: &str| view.members.iter().find(|m| m.key == key).and_then(|m| m.mark.clone());
-        let (a, b) = (mark(&one.key()).expect("marked"), mark(&other.key()).expect("marked"));
+        let (a, b) = (mark(&one_id).expect("marked"), mark(&other_id).expect("marked"));
         assert_ne!(a, b);
-        let you = state.identity.usual().unwrap().key;
+        assert_eq!(view.members.iter().find(|m| m.key == one_id).map(|m| m.devices.clone()), Some(vec![one.key()]), "with the keys that act for them");
+        let you = state.identity.account().unwrap().0;
         assert_eq!(mark(&you), None, "a name nobody else here has needs none");
         let let_in = admitted(&state, &id).await.unwrap();
-        assert_eq!(let_in.iter().filter(|p| p.mark.is_some()).map(|p| p.key.clone()).collect::<HashSet<_>>(), HashSet::from([one.key(), other.key()]), "the host's list of everyone let in is marked too");
-        assert_eq!(let_in.iter().find(|p| p.key == one.key()).and_then(|p| p.mark.clone()), Some(a), "with the same marks");
+        assert_eq!(let_in.iter().filter(|p| p.mark.is_some()).map(|p| p.key.clone()).collect::<HashSet<_>>(), HashSet::from([one_id.clone(), other_id]), "the host's list of everyone let in is marked too");
+        assert_eq!(let_in.iter().find(|p| p.key == one_id).and_then(|p| p.mark.clone()), Some(a), "with the same marks");
+        // Someone let in unlisted is on it by name, then by account once they act; someone removed is off it.
+        let sam = Keypair::from_seed("sam");
+        call_as_you(&state, &space_id(&id), "admit", json!({ "key_mark": diverge_desktop_room::key_mark(&id, &account_of(&sam).id()), "name": "sam", "listed": false })).await.unwrap();
+        call_as_you(&state, &space_id(&id), "remove", json!({ "key": one.key() })).await.unwrap();
+        let let_in = admitted(&state, &id).await.unwrap();
+        assert!(let_in.iter().any(|p| p.name == "sam" && !p.listed));
+        assert!(!let_in.iter().any(|p| p.key == one_id), "removed by a key on their list, the account is off");
     }
 }

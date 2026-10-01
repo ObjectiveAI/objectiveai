@@ -20,7 +20,10 @@ type Active = { tool: ToolView; values: Record<string, unknown> };
 
 /** Verbs that have their own place, never a raw form: letting in is at the door; removing is on a member's row;
  * rules and recommendations are under "Your room"; hires are answered on cards; a receipt is pinned from You. */
-const ELSEWHERE = new Set(["admit", "remove", "set_charter", "vouch_room", "answer_hire", "deliver_hire", "pin_receipt"]);
+const ELSEWHERE = new Set(["admit", "remove", "set_charter", "vouch_room", "answer_hire", "deliver_hire", "pin_receipt", "keys"]);
+
+/** Whether a member's key is you here: the key you seal with, or, in a room under rules 2, the account it's on. */
+const isYou = (s: { you_key: string; you_account: string | null }, key?: string | null) => !!key && (key === s.you_key || key === s.you_account);
 
 /** Moves the room makes about itself: shown as quiet lines, not cards. */
 const SYSTEM = new Set(["admitted", "removed", "charter", "doorway"]);
@@ -198,7 +201,7 @@ export function Space(props: { id: string; tabKey: string }) {
   const recommendable = tool("vouch_room") ? spaces.filter((r) => r.mine && r.id !== props.id && r.kind !== "dm") : [];
   const lastSeen = moves.reduce<string | null>((a, m) => (!a || m.at > a ? m.at : a), null);
   const incomplete = active ? missing(active.tool.schema as Schema, active.values) : [];
-  const myAgents = space.members.filter((m) => m.is_agent && m.agent_of_key === s.you_key);
+  const myAgents = space.members.filter((m) => m.is_agent && isYou(s, m.agent_of_key));
   const who = (m: { by: string; author: string }) => (m.by === s.you_key ? t.spaces.you : m.author);
 
   return (
@@ -358,11 +361,11 @@ export function Space(props: { id: string; tabKey: string }) {
             <ul className="member-list">
               {space.members.map((m) => (
                 <li key={m.key || m.name} className="member">
-                  <span>{m.key === s.you_key ? t.spaces.you : m.name}</span>
+                  <span>{isYou(s, m.key) ? t.spaces.you : m.name}</span>
                   <KeyMark mark={m.mark} />
-                  {m.is_agent ? <Chip>{m.agent_of_key === s.you_key ? t.spaces.yourAgent : `${t.spaces.runBy} ${m.agent_of ?? "?"}`}</Chip> : null}
+                  {m.is_agent ? <Chip>{isYou(s, m.agent_of_key) ? t.spaces.yourAgent : `${t.spaces.runBy} ${m.agent_of ?? "?"}`}</Chip> : null}
                   <span className="muted small">{m.last_acted ? `${t.spaces.lastActed} ${ago(m.last_acted)}` : ago(m.joined)}</span>
-                  {m.key && m.key !== s.you_key && !m.is_agent && vouchRooms.length > 0 ? (
+                  {m.key && !isYou(s, m.key) && !m.is_agent && vouchRooms.length > 0 ? (
                     <Button small kind="tertiary" onClick={() => setVouching({ key: m.key, name: m.name, room: vouchRooms[0].id })}>{t.spaces.vouch}</Button>
                   ) : null}
                   {vouching?.key === m.key ? (
@@ -395,12 +398,12 @@ export function Space(props: { id: string; tabKey: string }) {
               </ul>
             </section>
           ) : null}
-          {s.mine && admitted.some((a) => a.key !== s.you_key && !a.yours) ? (
+          {s.mine && admitted.some((a) => !isYou(s, a.key) && !a.yours) ? (
             <section>
               <SectionHead small title={t.spaces.everyone} />
               <p className="muted small">{t.spaces.everyoneNote}</p>
               <ul className="member-list">
-                {admitted.filter((a) => a.key !== s.you_key && !a.yours).map((a) => (
+                {admitted.filter((a) => !isYou(s, a.key) && !a.yours).map((a) => (
                   <li key={a.key} className="member">
                     <span>{a.name}</span>
                     <KeyMark mark={a.mark} />
@@ -506,7 +509,7 @@ function MoveCard(props: { move: MoveView; replies: MoveView[]; space: SpaceView
   const kind = t.spaces.moveKinds[m.kind] ?? m.kind;
   const state = t.spaces.states[m.state] ?? m.state;
   const has = (name: string) => space.tools.some((x) => x.name === name);
-  const claimedByMe = f.claimed_by_key === s.you_key;
+  const claimedByMe = isYou(s, f.claimed_by_key as string | undefined);
   const invite = m.body.match(INVITE)?.[0];
   const said = (side: unknown) => (side && typeof side === "object" ? ((side as { agree?: boolean }).agree ? t.spaces.settledWord : t.spaces.notSettledWord) : null);
   const note = (side: unknown) => (side && typeof side === "object" && typeof (side as { note?: unknown }).note === "string" ? `: “${(side as { note: string }).note}”` : "");

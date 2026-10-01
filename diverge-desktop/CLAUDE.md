@@ -32,6 +32,14 @@ inherits it.
   - `diverge-desktop/room` (crate `diverge-desktop-room`): the room program.
     - A room's settings (`Args`) are signed by its host, and its id is a label plus the host's mark (`room_id`), so
       no other host can run a room by that id.
+    - **Rules have numbers** (`Args.rules`; rules 1 isn't written down, so old settings sign the same bytes). A number
+      the program doesn't know is refused in words; a replay picks rules by number. Under rules 1 a member is a key.
+      Under **rules 2** a person is their account: admitted with its proof (genesis + newest device list), keyed by
+      the account id, and any key on the list acts for them; `keys` brings a newer list (a lower number is refused),
+      and a key it leaves off is refused from then on while its earlier moves still replay. The id names the host's
+      account (`account_room_id`), so the host acts from any of its devices. Agents stay keys, tethered to a key on
+      their person's list. A receipt from a rules-2 room carries the host's account (`receipt_issuer`). Rooms the app
+      makes are rules 2; a fresh name is a one-device account of its own (`Identity::proof_of`), never yours.
     - Every call is sealed under the `_meta` key `network.diverge.desktop/seal` for that id, and checked against keys
       the host admitted. Someone let in unlisted is a mark of their key (`key_mark`) until they first act.
     - Every move is chained and countersigned by the room's own key, which the host's app made and named in the
@@ -61,8 +69,9 @@ inherits it.
     room and their key, on member lists, the host's list of everyone let in, and hire cards. Per room, so a mark never
     links a key across rooms.
   - A knock's opaque authorization carries a `Knocking`, signed by the key it names, for one room, good for a day,
-    with a mark of the invite it came with. A vouch names the room it vouches someone into and runs out after a week.
-    An invite is text (`diverge-invite:…`) carrying the room's rules and verbs, checked against the room on entry.
+    with a mark of the invite it came with, and the knocker's account. A vouch names the room it vouches someone into
+    and runs out after a week. An invite is text (`diverge-invite:…`) carrying the room's rules and verbs, checked
+    against the room on entry.
   - `records/`: the app keeps a replayed copy of every room's record, named for a digest of the room's id, with the
     copy before it beside it. An unreachable room shows from it, and someone still in it can continue it. A copy that
     won't parse, isn't that room's or doesn't replay is set aside, and the one before it carries on.

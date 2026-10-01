@@ -872,6 +872,9 @@ pub struct SpaceSummary {
     /// The name you go by there, and the key you seal with.
     pub you_are: String,
     pub you_key: String,
+    /// The account that name is: a room under rules 2 knows you by it, on
+    /// its member list and in what it records.
+    pub you_account: Option<String>,
     /// Whether you're a fresh persona there, not your usual self.
     pub fresh: bool,
 }
@@ -888,6 +891,7 @@ pub fn summary(e: &crate::spaces::SpaceEntry, identity: &crate::identity::Identi
         online: e.online,
         you_are: you.as_ref().map(|p| p.name.clone()).unwrap_or_default(),
         you_key: you.as_ref().map(|p| p.key.clone()).unwrap_or_default(),
+        you_account: you.as_ref().and_then(|p| p.account.clone()),
         fresh: you.is_some_and(|p| !p.usual),
     }
 }
@@ -912,6 +916,10 @@ pub struct MemberView {
     /// same name (see [`crate::marks`]). The room doesn't say it; the app does.
     #[serde(default)]
     pub mark: Option<String>,
+    /// Under rules 2, the keys on a person's current device list: any of
+    /// them acts for them here. Empty under rules 1.
+    #[serde(default)]
+    pub devices: Vec<String>,
 }
 
 /// A room's verb: an MCP tool, rendered as a button with a generated form.

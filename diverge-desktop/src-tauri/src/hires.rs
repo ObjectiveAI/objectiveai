@@ -84,6 +84,8 @@ async fn hirer_mark(spaces: &dyn Spaces, room: &Id, hire_id: &str, from: &str) -
     let feed: Vec<Value> = serde_json::from_str(&read_text(spaces, room, diverge_desktop_room::room::FEED).await?).ok()?;
     let by = feed.iter().find(|m| m["id"] == hire_id && m["kind"] == "hire")?["by"].as_str()?.to_owned();
     let members: Vec<crate::view::MemberView> = read_text(spaces, room, diverge_desktop_room::room::MEMBERS).await.and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+    // Under rules 2 the hire names the key it came from; the member list names the account that key is on.
+    let by = members.iter().find(|m| m.devices.contains(&by)).map(|m| m.key.clone()).unwrap_or(by);
     let mut who: Vec<(&str, &str)> = members.iter().map(|m| (m.name.as_str(), m.key.as_str())).collect();
     if !who.iter().any(|(_, k)| *k == by) {
         who.push((from, &by));

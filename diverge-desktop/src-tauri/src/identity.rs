@@ -60,6 +60,10 @@ struct PersonaRecord {
     secret: String,
     created: DateTime<Utc>,
     usual: bool,
+    /// A fresh name's own account: one device, its own key, and a root
+    /// dropped as soon as it signed. Your usual self's is your account.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    proof: Option<Proof>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -114,6 +118,8 @@ pub struct Persona {
     pub id: String,
     pub name: String,
     pub key: Key,
+    /// The account rooms under rules 2 know them by, once there is one.
+    pub account: Option<String>,
     pub usual: bool,
     pub created: DateTime<Utc>,
 }
@@ -190,9 +196,20 @@ fn counters_of(file: &Path) -> PathBuf {
     file.with_file_name("counters.json")
 }
 
-fn persona_view(p: &PersonaRecord) -> Persona {
+fn persona_view(keys: &Keys, p: &PersonaRecord) -> Persona {
     let key = Keypair::from_secret_hex(&p.secret).map(|k| k.key()).unwrap_or_default();
-    Persona { id: p.id.clone(), name: p.name.clone(), key, usual: p.usual, created: p.created }
+    let account = if p.usual { keys.account.as_ref().map(|a| a.proof.id()) } else { p.proof.as_ref().map(Proof::id) };
+    Persona { id: p.id.clone(), name: p.name.clone(), key, account, usual: p.usual, created: p.created }
+}
+
+/// A one-device account for a fresh name: a root made here, which signs
+/// and is dropped before this returns.
+fn single_account(device: &Key, seeded: Option<&str>, at: DateTime<Utc>) -> Proof {
+    let root = match seeded {
+        Some(seed) => Keypair::from_seed(&format!("fresh root {seed}")),
+        None => Keypair::generate(),
+    };
+    Proof::first(&root, at, std::slice::from_ref(device))
 }
 
 impl Identity {
@@ -323,7 +340,7 @@ impl Identity {
         let now = Utc::now();
         if !keys.personas.iter().any(|p| p.usual) {
             let keypair = if self.seeded { Keypair::from_seed(name) } else { Keypair::generate() };
-            keys.personas.push(PersonaRecord { id: "usual".into(), name: name.into(), secret: keypair.secret_hex(), created: now, usual: true });
+            keys.personas.push(PersonaRecord { id: "usual".into(), name: name.into(), secret: keypair.secret_hex(), created: now, usual: true, proof: None });
         }
         let usual = keys.personas.iter_mut().find(|p| p.usual).expect("there is a usual persona now");
         usual.name = name.into();
@@ -331,7 +348,7 @@ impl Identity {
         let entropy = if self.seeded { crate::account::seeded_entropy(name) } else { crate::account::entropy() };
         let made = crate::account::make(&device, entropy, now);
         keys.account = Some(AccountRecord { proof: made.proof, words: made.words, adult_confirmed: now });
-        let view = keys.personas.iter().find(|p| p.usual).map(persona_view).expect("there is a usual persona now");
+        let view = keys.personas.iter().find(|p| p.usual).map(|p| persona_view(&keys, p)).expect("there is a usual persona now");
         self.save(&keys);
         Ok(view)
     }
@@ -375,15 +392,40 @@ impl Identity {
     /// (or, in a folder from before accounts, the one it had).
     pub fn usual(&self) -> Result<Persona, String> {
         let keys = self.lock();
-        keys.personas.iter().find(|p| p.usual).map(persona_view).ok_or_else(|| NOT_NAMED.to_owned())
+        keys.personas.iter().find(|p| p.usual).map(|p| persona_view(&keys, p)).ok_or_else(|| NOT_NAMED.to_owned())
     }
 
     pub fn personas(&self) -> Vec<Persona> {
-        self.lock().personas.iter().map(persona_view).collect()
+        let keys = self.lock();
+        keys.personas.iter().map(|p| persona_view(&keys, p)).collect()
     }
 
     pub fn persona(&self, id: &str) -> Option<Persona> {
-        self.lock().personas.iter().find(|p| p.id == id).map(persona_view)
+        let keys = self.lock();
+        keys.personas.iter().find(|p| p.id == id).map(|p| persona_view(&keys, p))
+    }
+
+    /// A persona's account, as a room under rules 2 is shown it: your
+    /// account for your usual self; for a fresh name, its own, made the
+    /// first time it's needed and kept. Nothing before the first-run page.
+    pub fn proof_of(&self, persona: &str) -> Result<Proof, String> {
+        self.ready()?;
+        let mut keys = self.lock();
+        let p = keys.personas.iter().find(|p| p.id == persona).ok_or("no such persona")?;
+        if p.usual {
+            return keys.account.as_ref().map(|a| a.proof.clone()).ok_or_else(|| NOT_NAMED.to_owned());
+        }
+        if let Some(proof) = &p.proof {
+            return Ok(proof.clone());
+        }
+        let device = Keypair::from_secret_hex(&p.secret)?.key();
+        let seeded = self.seeded.then(|| p.name.clone());
+        let proof = single_account(&device, seeded.as_deref(), Utc::now());
+        if let Some(p) = keys.personas.iter_mut().find(|p| p.id == persona) {
+            p.proof = Some(proof.clone());
+        }
+        self.save(&keys);
+        Ok(proof)
     }
 
     pub fn persona_by_key(&self, key: &str) -> Option<Persona> {
@@ -400,8 +442,10 @@ impl Identity {
         let keypair = Keypair::generate();
         let mut keys = self.lock();
         let id = format!("persona-{}", keys.personas.len() + 1);
-        let record = PersonaRecord { id, name: name.into(), secret: keypair.secret_hex(), created: Utc::now(), usual: false };
-        let view = persona_view(&record);
+        let now = Utc::now();
+        let proof = single_account(&keypair.key(), self.seeded.then_some(name), now);
+        let record = PersonaRecord { id, name: name.into(), secret: keypair.secret_hex(), created: now, usual: false, proof: Some(proof) };
+        let view = persona_view(&keys, &record);
         keys.personas.push(record);
         self.save(&keys);
         Ok(view)
@@ -488,8 +532,9 @@ impl Identity {
     }
 
     /// Whose key it is, if it's one of yours: a persona's name or an agent's.
+    /// A persona's account is theirs too: a room under rules 2 names it.
     pub fn owner_of(&self, key: &str) -> Option<String> {
-        if let Some(p) = self.persona_by_key(key) {
+        if let Some(p) = self.personas().into_iter().find(|p| p.key == key || p.account.as_deref() == Some(key)) {
             return Some(p.name);
         }
         let keys = self.lock();
@@ -816,6 +861,54 @@ mod tests {
         assert_eq!(again.account().map(|a| a.0), Some(id));
         assert_eq!(again.words().as_deref().map(String::as_str), Some(words.as_str()));
         assert!(!again.lock().account.as_ref().unwrap().words.confirmed);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_fresh_name_is_an_account_of_its_own_with_one_device_and_your_accounts_are_yours() {
+        let dir = store::tests::folder("keys-fresh-account");
+        let file = dir.join("identity.json");
+        let me = Identity::open(file.clone());
+        let you = me.finish_first_run("Ada", true).unwrap();
+        let (id, proof) = me.account().unwrap();
+        assert_eq!(me.proof_of("usual").unwrap(), proof, "your usual self is your account");
+        assert_eq!(you.account.as_deref(), Some(id.as_str()));
+        let fresh = me.fresh("lamp person").unwrap();
+        let theirs = me.proof_of(&fresh.id).unwrap().check().unwrap();
+        assert_eq!((theirs.sequence, theirs.devices.clone()), (1, vec![fresh.key.clone()]), "one device: the fresh name's own key");
+        assert_ne!(theirs.id, id, "never your account");
+        assert_ne!(theirs.root, proof.check().unwrap().root, "nor your root");
+        assert_eq!(fresh.account.as_deref(), Some(theirs.id.as_str()));
+        // Whose they are: an account id is yours like a key is.
+        assert_eq!(me.owner_of(&id).as_deref(), Some("Ada"));
+        assert_eq!(me.owner_of(&theirs.id).as_deref(), Some("lamp person"));
+        assert_eq!(me.owner_of(&diverge_desktop_room::seal::digest(b"someone else's genesis")), None);
+        // Kept: the same account next launch.
+        let again = Identity::open(file.clone());
+        assert_eq!(again.proof_of(&fresh.id).unwrap().id(), theirs.id);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_fresh_name_from_before_accounts_gets_its_own_account_when_first_needed() {
+        let dir = store::tests::folder("keys-fresh-later");
+        let file = dir.join("identity.json");
+        let fresh = Keypair::from_seed("lamp person from before");
+        let v1 = json!({ "file": "keys", "version": 1, "data": {
+            "personas": [
+                { "id": "usual", "name": "maya", "secret": Keypair::from_seed("maya from before").secret_hex(), "created": Utc::now(), "usual": true },
+                { "id": "persona-2", "name": "lamp person", "secret": fresh.secret_hex(), "created": Utc::now(), "usual": false }
+            ],
+            "agents": {}, "rooms": {}
+        } });
+        std::fs::write(&file, v1.to_string()).unwrap();
+        let me = Identity::open(file.clone());
+        assert_eq!(me.proof_of("persona-2").unwrap_err(), NOT_NAMED, "nothing is signed before the first-run page");
+        me.finish_first_run("maya", true).unwrap();
+        let first = me.proof_of("persona-2").unwrap();
+        assert!(first.names(&fresh.key()));
+        assert_eq!(me.proof_of("persona-2").unwrap(), first, "made once");
+        assert_eq!(Identity::open(file).proof_of("persona-2").unwrap(), first, "and kept");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

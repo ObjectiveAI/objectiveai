@@ -521,6 +521,8 @@ export const t = {
       ["not a member here", "You're not in this room, so nothing was posted."],
       ["was removed from this room", "You were removed from this room."],
       ["only the host may", "Only the room's host can do that."],
+      ["no longer acts for", "This device was taken off your account's list, so nothing was posted."],
+      ["this program knows only rules", "This room runs under rules this version of the app doesn't know, so nothing was done."],
       ["can't make new moves", "This is your copy of the room; nothing can be posted to a copy."],
     ] as [string, string][],
     invitedKnock: "came with your invite",

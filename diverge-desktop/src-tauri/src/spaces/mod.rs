@@ -32,6 +32,7 @@ use tokio_util::sync::CancellationToken;
 pub use diverge_sdk::shared::containers::authorize::{request::Authorize, response::Frame as Answer};
 pub use diverge_sdk::shared::containers::request::Container;
 pub use diverge_sdk::shared::containers::response::Id;
+use diverge_desktop_room::account::Proof;
 use diverge_desktop_room::seal::{digest, statement_holds};
 use diverge_desktop_room::{Key, Keypair, Statement};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
@@ -72,7 +73,8 @@ pub struct Knock {
 /// ours to define, and signed by the key it names, so the host can check
 /// that whoever knocked holds that key: the room it's for, a mark of the
 /// invite it came with (none for an open knock), the name they'll go by,
-/// a note, whether to be listed, a member's vouch if they have one, and when.
+/// a note, whether to be listed, a member's vouch if they have one, their
+/// account (a room under rules 2 lets a person in by it), and when.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Knocking {
     /// The room knocked at. A knock is good there only.
@@ -88,6 +90,10 @@ pub struct Knocking {
     pub listed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vouch: Option<Statement>,
+    /// The knocker's account: its genesis and newest device list, which
+    /// names `key`. Left out by a knock from before accounts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<Proof>,
     pub at: DateTime<Utc>,
     /// `key`'s signature over everything above.
     #[serde(default)]
@@ -139,6 +145,17 @@ impl Knocking {
             return Err("too old to trust");
         }
         Ok(())
+    }
+
+    /// The knocker's account, if the knock carries one that holds and names
+    /// the key that signed the knock.
+    pub fn account_id(&self) -> Option<String> {
+        self.account.as_ref().filter(|p| p.names(&self.key)).map(Proof::id)
+    }
+
+    /// Whether a vouch holds for whoever knocked: for their key, or for the account the knock carries.
+    pub fn vouched(&self, vouch: &Statement, room: &str, now: DateTime<Utc>) -> bool {
+        vouch_holds(vouch, &self.key, room, now) || self.account_id().is_some_and(|a| vouch_holds(vouch, &a, room, now))
     }
 
     pub fn to_authorization(&self) -> String {

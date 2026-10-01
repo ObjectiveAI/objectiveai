@@ -7,6 +7,11 @@ export type SpaceSummary = { id: string, title: string, kind: string, host: Prov
  */
 you_are: string, you_key: string, 
 /**
+ * The account that name is: a room under rules 2 knows you by it, on
+ * its member list and in what it records.
+ */
+you_account: string | null, 
+/**
  * Whether you're a fresh persona there, not your usual self.
  */
 fresh: boolean, };

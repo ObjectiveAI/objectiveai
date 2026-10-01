@@ -510,6 +510,7 @@ impl StubSpaces {
             note: "ada said to come by. I fix lamps and radios.".into(),
             listed: true,
             vouch: Some(vouch),
+            account: None,
             at: ago(0, 2),
             sig: String::new(),
         }
@@ -577,11 +578,8 @@ impl StubSpaces {
         tokio::time::sleep(Duration::from_millis(1500)).await;
         let mut inner = self.lock();
         let Some(host) = inner.rooms.get(id).and_then(|h| h.stand_in_host.clone()) else { return Joined::Missing };
-        let args = if knocking.listed {
-            json!({ "key": knocking.key, "name": knocking.name })
-        } else {
-            json!({ "key_mark": diverge_desktop_room::key_mark(id, &knocking.key), "name": knocking.name, "listed": false })
-        };
+        let rules = inner.rooms.get(id).map(|h| h.room.rules()).unwrap_or(diverge_desktop_room::Rules::One);
+        let Some(args) = crate::actions::admit_args(rules, id, knocking) else { return Joined::Denied };
         match self.act(&mut inner, &host, id, "admit", args, Utc::now()) {
             Ok(_) => {
                 if let Some(h) = inner.rooms.get_mut(id) {
@@ -745,8 +743,9 @@ impl Spaces for StubSpaces {
             return Err(ErrorData::internal_error("the room's host is offline", None));
         }
         // Only someone let in and not removed reads a room: here, you, as whoever you are there.
-        let you = self.me.who_in(&id.id).map(|p| p.key).unwrap_or_default();
-        if !h.mine && !h.room.may_read(&you) {
+        let you = self.me.who_in(&id.id).ok();
+        let may = |who: Option<&str>| who.is_some_and(|w| h.room.may_read(w));
+        if !h.mine && !may(you.as_ref().map(|p| p.key.as_str())) && !may(you.as_ref().and_then(|p| p.account.as_deref())) {
             return Err(ErrorData::invalid_request("you're not in that room, or you were removed", None));
         }
         h.room.read(uri)
@@ -965,6 +964,7 @@ mod tests {
             note: String::new(),
             listed: true,
             vouch: None,
+            account: None,
             at: Utc::now(),
             sig: String::new(),
         };
