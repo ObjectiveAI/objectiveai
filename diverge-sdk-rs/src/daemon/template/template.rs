@@ -9,7 +9,8 @@ use super::{ResourceDirectoryMount, ResourceFileMount};
 
 /// Everything an agent or a tool is made from that is the same for
 /// every one made from it: what it is for, the image, the limits, the
-/// resources mounted over FUSE, the arguments. What is not here is
+/// resources mounted over FUSE, the arguments, the tags. What is not
+/// here is
 /// what differs one to the next — the name, the provider it runs on,
 /// and the mounts of that provider's volumes — which the
 /// [agent's](crate::daemon::endpoints::agents::create) or the
@@ -90,4 +91,9 @@ pub struct Template<Type> {
     /// typed it would have to be revised for every image that ever
     /// ran. It is handed to the container and not read here.
     pub arguments: Value,
+    /// Tags: strings of the caller's choosing, in the order given,
+    /// the template's own and part of its hash. Nothing here constrains a tag's form; the daemon compares
+    /// a tag and does not read it. Absent when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
 }

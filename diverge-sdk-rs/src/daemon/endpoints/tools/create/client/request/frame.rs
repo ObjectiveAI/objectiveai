@@ -64,6 +64,11 @@ pub struct Frame {
     pub fuse_directory_mounts: Vec<FuseMount>,
     /// The name, unique among the caller's tools.
     pub name: String,
+    /// Tags: strings of the caller's choosing, in the order given,
+    /// the tool's for its life. Nothing here constrains a tag's form; the daemon compares
+    /// a tag and does not read it. Absent when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
 }
 
 /// This frame's tag among the scope-opening requests.

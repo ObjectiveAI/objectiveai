@@ -7,8 +7,8 @@
 //! resources served over FUSE and the arguments, held by its hash —
 //! the daemon's one [`template`](crate::daemon::template) shape, typed
 //! `"agent"` —
-//! and what is the agent's own: the provider it runs on, and the
-//! mounts of providers' volumes. The daemon holds it
+//! and what is the agent's own: the provider it runs on, the
+//! mounts of providers' volumes, and its tags. The daemon holds it
 //! under a name of the caller's choosing. The name is how the caller reaches the agent
 //! after: one name, one agent, for as long as the agent exists.
 //!
