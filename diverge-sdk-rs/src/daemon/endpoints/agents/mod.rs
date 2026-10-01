@@ -5,7 +5,7 @@
 //! that provider's volumes mounted — from what the [`create`] names:
 //! a [`template`](templates), which is the image, the limits, the
 //! resources served over FUSE and the arguments, held by its hash —
-//! the daemon's one [`template`](super::template) shape, typed
+//! the daemon's one [`template`](crate::daemon::template) shape, typed
 //! `"agent"` —
 //! and what is the agent's own: the provider it runs on, and the
 //! mounts of providers' volumes. The daemon holds it
