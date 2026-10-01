@@ -454,9 +454,9 @@ fn proof_arg(args: &JsonObject) -> Result<Proof, ErrorData> {
 }
 
 /// Verbs whose moves, under rules 1, repeat the words of the move they're
-/// about. Sealed by the digest of their words they don't: each move holds
-/// only its own, so erasing one erases them all.
-const COPIES: [&str; 9] = ["offer", "take_offer", "close_ask", "claim", "deliver", "settle", "steer", "answer_hire", "deliver_hire"];
+/// about. Where either move is sealed by the digest of its words they don't:
+/// each move holds only its own, so erasing one erases them all.
+const COPIES: [&str; 10] = ["offer", "take_offer", "close_ask", "claim", "deliver", "accept", "settle", "steer", "answer_hire", "deliver_hire"];
 
 /// No host at all: for replaying a record, which never asks one.
 pub struct NoHost;
@@ -496,6 +496,8 @@ pub struct Room {
     retired: HashMap<Key, String>,
     /// Locks of the invites the host sealed into the room ([`invite_lock`]).
     invites: HashSet<String>,
+    /// Locks of invites a doorkeeper's let-in used up: their marks are in the record.
+    used_invites: HashSet<String>,
     /// Doorkeepers the host dropped.
     dropped: HashSet<Key>,
     /// Moves whose words were erased → who erased them, how, and why.
@@ -620,6 +622,7 @@ impl Room {
             devices,
             retired: HashMap::new(),
             invites: HashSet::new(),
+            used_invites: HashSet::new(),
             dropped: HashSet::new(),
             erased: HashMap::new(),
             missing: HashSet::new(),
@@ -762,7 +765,8 @@ impl Room {
     /// lately, carrying an account that names that key, asking to be listed),
     /// and either an invite the host sealed here or standing in the room this
     /// one continues. Someone removed here is the host's to let back in.
-    fn knock_evidence(&self, args: &JsonObject, at: DateTime<Utc>) -> Result<(Proof, String), ErrorData> {
+    /// The third part is the lock of the invite it carried, which the let-in uses up.
+    fn knock_evidence(&self, args: &JsonObject, at: DateTime<Utc>) -> Result<(Proof, String, Option<String>), ErrorData> {
         if args.keys().any(|k| k != "knocking") {
             return Err(bad("a doorkeeper's let-in carries the knock, nothing else"));
         }
@@ -792,12 +796,12 @@ impl Room {
         if self.standing(&account.id) == Standing::Removed {
             return Err(refused(format!("{name} was removed from this room; only the host can let them back in")));
         }
-        let invited = knock.get("invite").and_then(Value::as_str).is_some_and(|mark| self.invites.contains(&invite_lock(mark)));
+        let invite = knock.get("invite").and_then(Value::as_str).map(invite_lock).filter(|lock| self.invites.contains(lock));
         let returning = self.old.as_ref().is_some_and(|old| old.person_in(&account.id));
-        if !invited && !returning {
-            return Err(refused("a doorkeeper lets someone in only with an invite the host sealed here, or as someone still in the room this one continues"));
+        if invite.is_none() && !returning {
+            return Err(refused("a doorkeeper lets someone in only with an invite the host sealed here and nobody has used yet, or as someone still in the room this one continues"));
         }
-        Ok((proof, name))
+        Ok((proof, name, invite))
     }
 
     pub fn last_hash(&self) -> String {
@@ -999,14 +1003,27 @@ impl Room {
         let words_of = |id: Option<&String>| id.and_then(|id| self.moves.iter().find(|x| &x.id == id));
         let mut title = m.title.clone();
         let mut body = m.body.clone();
-        if m.seal.is_by_words() && !m.words_gone() && COPIES.contains(&m.verb.as_str()) {
-            title = words_of(m.parent.as_ref()).map(|p| p.title.clone()).unwrap_or_default();
-            if m.verb == "take_offer" {
-                body = words_of(m.fields.get("offer").and_then(Value::as_str).map(str::to_owned).as_ref()).map(|o| o.body.clone()).unwrap_or_default();
+        if !m.words_gone() && COPIES.contains(&m.verb.as_str()) {
+            if m.verb == "accept" {
+                // A receipt shows the title it was issued with, from its sealed statement.
+                if title.is_empty() {
+                    let issued: Option<Statement> = m.fields.get("statement").and_then(|v| serde_json::from_value(v.clone()).ok());
+                    title = issued.and_then(|s| s.field("title").map(str::to_owned)).unwrap_or_default();
+                    body = format!("Completed: {title}");
+                }
+            } else {
+                if title.is_empty() {
+                    title = words_of(m.parent.as_ref()).map(|p| p.title.clone()).unwrap_or_default();
+                }
+                if m.verb == "take_offer" && body.is_empty() {
+                    body = words_of(m.fields.get("offer").and_then(Value::as_str).map(str::to_owned).as_ref()).map(|o| o.body.clone()).unwrap_or_default();
+                }
             }
         }
+        // Whether the room would erase it now: what someone said, sealed by its digest, not erased yet.
+        let can_erase = self.rules == Rules::Two && erasable(&m.verb).is_some() && m.seal.is_by_words() && !self.erased.contains_key(&m.id);
         json!({
-            "id": m.id, "seq": m.seq, "kind": m.kind, "author": m.author, "by": m.by, "agent_of": m.agent_of,
+            "id": m.id, "seq": m.seq, "kind": m.kind, "author": m.author, "by": m.by, "member": m.member, "erasable": can_erase, "agent_of": m.agent_of,
             "at": m.at, "title": title, "body": body, "state": state, "parent": m.parent, "fields": fields,
             "charter": m.charter, "hash": m.hash,
         })
@@ -1349,8 +1366,9 @@ impl Room {
             }
         };
         let push = |room: &mut Room, kind: &str, title: &str, body: &str, parent: Option<&str>, fields: Map<String, Value>| room.push(at, who, name, args, seal, kind, title, body, parent, fields, replaying);
-        // Sealed by the digest of its words, a move holds only its own: what it's about is named, not repeated.
-        let own = |words: &str| if seal.is_by_words() { String::new() } else { words.to_owned() };
+        // A move holds only its own words when it or the move it's about is sealed by the digest of its words:
+        // what it's about is named, not repeated, so erasing that move's words leaves nothing of them behind.
+        let own = |of: &Move, words: &str| if seal.is_by_words() || of.seal.is_by_words() { String::new() } else { words.to_owned() };
         Ok(match name {
             "show" => {
                 let title = need(args, "title")?;
@@ -1371,7 +1389,7 @@ impl Room {
                     return Err(refused(format!("{ask} is {state}")));
                 }
                 let body = need(args, "body")?;
-                let id = push(self, "offer", &own(&a.title), body, Some(&ask), fields)?;
+                let id = push(self, "offer", &own(&a, &a.title), body, Some(&ask), fields)?;
                 let n = self.field_of(&ask, "offers").and_then(|v| v.as_u64()).unwrap_or(0) + 1;
                 self.derive(&ask, None, &[("offers", json!(n))]);
                 format!("Offered to serve {ask} ({id})")
@@ -1392,10 +1410,10 @@ impl Room {
                 fields.insert("offered_by".into(), json!(o.author));
                 if self.args.kind == Kind::Board {
                     // The offer becomes a task its offerer already holds: the spec is what they offered.
-                    let task = push(self, "task", &own(&a.title), &own(&o.body), Some(&ask), fields)?;
+                    let task = push(self, "task", &own(&a, &a.title), &own(&o, &o.body), Some(&ask), fields)?;
                     self.derive(&task, Some("claimed"), &[("claimed_by", json!(o.author)), ("claimed_by_key", json!(o.by))]);
                 } else {
-                    push(self, "taken", &own(&a.title), &own(&o.body), Some(&ask), fields)?;
+                    push(self, "taken", &own(&a, &a.title), &own(&o, &o.body), Some(&ask), fields)?;
                 }
                 self.derive(&ask, Some("taken"), &[("taken_offer", json!(offer))]);
                 self.derive(&offer, Some("taken"), &[]);
@@ -1411,7 +1429,7 @@ impl Room {
                 if state != "open" {
                     return Err(refused(format!("{ask} is {state}")));
                 }
-                push(self, "closed", &own(&a.title), arg(args, "note").unwrap_or_default(), Some(&ask), fields)?;
+                push(self, "closed", &own(&a, &a.title), arg(args, "note").unwrap_or_default(), Some(&ask), fields)?;
                 self.derive(&ask, Some("closed"), &[]);
                 format!("Closed: {}", a.title)
             }
@@ -1453,7 +1471,7 @@ impl Room {
                 if state != "open" {
                     return Err(refused(format!("{task} is {state}")));
                 }
-                push(self, "claim", &own(&t.title), "", Some(&task), fields)?;
+                push(self, "claim", &own(&t, &t.title), "", Some(&task), fields)?;
                 self.derive(&task, Some("claimed"), &[("claimed_by", json!(who.name)), ("claimed_by_key", json!(who.key))]);
                 format!("Claimed: {}", t.title)
             }
@@ -1469,7 +1487,7 @@ impl Room {
                     return Err(refused(format!("{task} is {state}")));
                 }
                 pick(&mut fields, &["files"]);
-                push(self, "delivery", &own(&t.title), need(args, "summary")?, Some(&task), fields)?;
+                push(self, "delivery", &own(&t, &t.title), need(args, "summary")?, Some(&task), fields)?;
                 self.derive(&task, Some("delivered"), &[]);
                 format!("Delivered: {}", t.title)
             }
@@ -1504,7 +1522,8 @@ impl Room {
                 }
                 fields.insert("to".into(), json!(to_name));
                 fields.insert("statement".into(), serde_json::to_value(&statement).unwrap_or_default());
-                push(self, "receipt", &t.title, &format!("Completed: {}", t.title), Some(&task), fields)?;
+                // The title it was issued with stays in the sealed receipt; the move doesn't repeat words that can be erased.
+                push(self, "receipt", &own(&t, &t.title), &own(&t, &format!("Completed: {}", t.title)), Some(&task), fields)?;
                 self.derive(&task, Some("done"), &[]);
                 format!("Accepted: {}", t.title)
             }
@@ -1528,7 +1547,7 @@ impl Room {
                 }
                 pick(&mut fields, &["note"]);
                 fields.insert("agree".into(), json!(agree));
-                push(self, "settle", &own(&t.title), arg(args, "note").unwrap_or_default(), Some(&task), fields)?;
+                push(self, "settle", &own(&t, &t.title), arg(args, "note").unwrap_or_default(), Some(&task), fields)?;
                 self.derive(&task, None, &[(side, json!({ "agree": agree, "note": arg(args, "note") }))]);
                 format!("Said {}: {}", if agree { "settled" } else { "not settled" }, t.title)
             }
@@ -1545,7 +1564,7 @@ impl Room {
                     return Err(bad("a steer is prefer, reject or note"));
                 }
                 fields.insert("move".into(), json!(mv));
-                push(self, "steer", &own(&d.title), arg(args, "note").unwrap_or_default(), Some(&target), fields)?;
+                push(self, "steer", &own(&d, &d.title), arg(args, "note").unwrap_or_default(), Some(&target), fields)?;
                 let n = self.field_of(&target, &mv).and_then(|v| v.as_u64()).unwrap_or(0) + 1;
                 self.derive(&target, None, &[(mv.as_str(), json!(n))]);
                 format!("Steered {}: {mv}", d.title)
@@ -1599,7 +1618,7 @@ impl Room {
                 let take = args.get("take").and_then(Value::as_bool).ok_or_else(|| bad("take is needed"))?;
                 pick(&mut fields, &["note"]);
                 fields.insert("take".into(), json!(take));
-                push(self, "hire_answer", &own(&h.title), arg(args, "note").unwrap_or_default(), Some(&hire), fields)?;
+                push(self, "hire_answer", &own(&h, &h.title), arg(args, "note").unwrap_or_default(), Some(&hire), fields)?;
                 self.derive(&hire, Some(if take { "taken" } else { "declined" }), &[]);
                 format!("{}: {}", if take { "Taken" } else { "Declined" }, h.title)
             }
@@ -1610,7 +1629,7 @@ impl Room {
                     return Err(refused(format!("{hire} isn't taken")));
                 }
                 pick(&mut fields, &["files"]);
-                push(self, "hire_delivery", &own(&h.title), need(args, "summary")?, Some(&hire), fields)?;
+                push(self, "hire_delivery", &own(&h, &h.title), need(args, "summary")?, Some(&hire), fields)?;
                 self.derive(&hire, Some("delivered"), &[]);
                 format!("Delivered: {}", h.title)
             }
@@ -1618,7 +1637,7 @@ impl Room {
                 // A doorkeeper lets in by a knock alone, and the room checks it (see `knock_evidence`).
                 let knocked = if self.is_keeper(&seal.key) { Some(self.knock_evidence(args, at)?) } else { None };
                 let member_name = match &knocked {
-                    Some((_, name)) => name.clone(),
+                    Some((_, name, _)) => name.clone(),
                     None => need(args, "name")?.to_owned(),
                 };
                 let is_agent = knocked.is_none() && args.get("is_agent").and_then(Value::as_bool).unwrap_or(false);
@@ -1643,7 +1662,7 @@ impl Room {
                         return Err(bad("under these rules a person is let in with their account, not a key"));
                     }
                     let proof = match &knocked {
-                        Some((proof, _)) => proof.clone(),
+                        Some((proof, _, _)) => proof.clone(),
                         None => proof_arg(args)?,
                     };
                     let account = proof.check().map_err(refused)?;
@@ -1681,6 +1700,11 @@ impl Room {
                 fields.insert("key".into(), json!(key));
                 let body = if knocked.is_some() { format!("let in by {}'s doorkeeper", self.args.host_name) } else { String::new() };
                 push(self, "admitted", &member_name, &body, None, fields)?;
+                // An invite lets one person in by a doorkeeper: its mark is in the record now, so it's used up.
+                if let Some((_, _, Some(lock))) = &knocked {
+                    self.invites.remove(lock);
+                    self.used_invites.insert(lock.clone());
+                }
                 let proof = account.map(|(proof, devices)| {
                     self.set_devices(&key, &devices);
                     proof
@@ -1779,6 +1803,9 @@ impl Room {
             }
             "mark_invite" => {
                 let mark = need(args, "mark")?.to_owned();
+                if self.used_invites.contains(&mark) {
+                    return Err(refused("that invite was used, and its mark is in the record; seal a new one"));
+                }
                 if self.invites.contains(&mark) {
                     return Err(refused("that invite is already sealed here"));
                 }

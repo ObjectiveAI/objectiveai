@@ -869,3 +869,95 @@ fn a_keeper_lets_back_in_someone_still_in_the_room_this_continues() {
     assert!(keeper.call(&mut next, &h, "admit", json!({ "knocking": knock(&stranger, &theirs.proof, &nid, None, "new") })).is_err());
     assert!(Room::check(&next.record()).is_ok());
 }
+
+/// A call sealed whole, the way a rules-2 room took calls before words could be erased.
+fn call_whole(who: &mut P, r: &mut Room, h: &H, verb: &'static str, a: Value) -> Result<(), String> {
+    who.c += 1;
+    let mut p = CallToolRequestParams::new(verb).with_arguments(a.as_object().cloned().unwrap());
+    seal_call(&who.k, r.id(), &mut p, who.c);
+    let whole = seal_of(&p).unwrap().whole();
+    let mut meta = serde_json::Map::new();
+    meta.insert("network.diverge.desktop/seal".into(), serde_json::to_value(&whole).unwrap());
+    p.meta = Some(RequestMetaObject::from(meta));
+    r.call(p, h).map(|_| ()).map_err(|e| e.message.to_string())
+}
+
+#[test]
+fn erasing_a_task_after_its_receipt_leaves_a_room_that_restarts() {
+    for accept_whole in [false, true] {
+        let (mut room, mut maya_mac, _, mut ren_mac, _, h) = workshop_v2();
+        maya_mac.call(&mut room, &h, "post_task", json!({ "title": "fix the gate on Elm Street", "spec": "the latch" })).unwrap();
+        let task = last_id(&room);
+        ren_mac.call(&mut room, &h, "claim", json!({ "task_id": task })).unwrap();
+        ren_mac.call(&mut room, &h, "deliver", json!({ "task_id": task, "summary": "done" })).unwrap();
+        if accept_whole {
+            call_whole(&mut maya_mac, &mut room, &h, "accept", json!({ "task_id": task })).unwrap();
+        } else {
+            maya_mac.call(&mut room, &h, "accept", json!({ "task_id": task })).unwrap();
+        }
+        let receipt = last_id(&room);
+        // The receipt shows the title it was issued with.
+        let shown = feed(&room).into_iter().find(|m| m["id"] == receipt).unwrap();
+        assert_eq!(shown["title"], "fix the gate on Elm Street");
+        maya_mac.call(&mut room, &h, "erase", json!({ "move_id": task, "reason": "an address" })).unwrap();
+        let record = room.record();
+        let again = Room::from_record(record.clone(), Some(Keypair::from_seed("room workshop maya v2"))).unwrap();
+        assert_eq!(feed(&again), feed(&room));
+        Room::check(&record).unwrap();
+        // Outside the receipt's own sealed statement, no move repeats the task's words.
+        for m in &record.moves {
+            let mut v = serde_json::to_value(m).unwrap();
+            v["fields"].as_object_mut().unwrap().remove("statement");
+            assert!(!v.to_string().contains("Elm Street"), "{}", m.id);
+        }
+    }
+}
+
+#[test]
+fn a_move_sealed_whole_doesnt_repeat_words_that_can_be_erased() {
+    let (mut room, mut maya_mac, _, mut ren_mac, _, h) = workshop_v2();
+    maya_mac.call(&mut room, &h, "post_task", json!({ "title": "a secret", "spec": "S" })).unwrap();
+    let task = last_id(&room);
+    call_whole(&mut ren_mac, &mut room, &h, "claim", json!({ "task_id": task })).unwrap();
+    let claim = last_id(&room);
+    assert_eq!(room.moves().last().unwrap().title, "", "named, not repeated");
+    assert_eq!(feed(&room).into_iter().find(|m| m["id"] == claim).unwrap()["title"], "a secret", "shown with the task's words while they last");
+    maya_mac.call(&mut room, &h, "erase", json!({ "move_id": task, "reason": "x" })).unwrap();
+    Room::check(&room.record()).unwrap();
+    assert_eq!(feed(&room).into_iter().find(|m| m["id"] == claim).unwrap()["title"], "");
+}
+
+#[test]
+fn an_invite_lets_one_person_in_by_a_doorkeeper() {
+    let (mut room, mut maya_mac, _, mut keeper, h) = kept_workshop();
+    let rid = room.id().to_owned();
+    maya_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
+    let (ada_mac, bo_mac) = (P::new("ada's mac"), P::new("bo's mac"));
+    let (ada, bo) = (A::new("ada", &[&ada_mac]), A::new("bo", &[&bo_mac]));
+    keeper.call(&mut room, &h, "admit", json!({ "knocking": knock(&ada_mac, &ada.proof, &rid, Some(MARK), "ada") })).unwrap();
+    // The mark is in the record now; anyone reading it could sign a knock with it.
+    let err = keeper.call(&mut room, &h, "admit", json!({ "knocking": knock(&bo_mac, &bo.proof, &rid, Some(MARK), "bo") })).unwrap_err();
+    assert!(err.contains("invite"), "{err}");
+    assert!(room.member(&bo.id()).is_none());
+    // A copy agrees, and so does the room restarted from its record.
+    let record = room.record();
+    Room::check(&record).unwrap();
+    let mut again = Room::from_record(record, Some(Keypair::from_seed("room kept maya v2"))).unwrap();
+    assert!(keeper.call(&mut again, &h, "admit", json!({ "knocking": knock(&bo_mac, &bo.proof, &rid, Some(MARK), "bo") })).is_err());
+    // The host can seal a new invite for the next person.
+    maya_mac.call(&mut again, &h, "mark_invite", json!({ "mark": invite_lock("bo's invite") })).unwrap();
+    keeper.call(&mut again, &h, "admit", json!({ "knocking": knock(&bo_mac, &bo.proof, &rid, Some("bo's invite"), "bo") })).unwrap();
+    assert!(again.member(&bo.id()).is_some());
+}
+
+#[test]
+fn a_used_invite_cant_be_sealed_again() {
+    let (mut room, mut maya_mac, _, mut keeper, h) = kept_workshop();
+    let rid = room.id().to_owned();
+    maya_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap();
+    let ada_mac = P::new("ada's mac");
+    let ada = A::new("ada", &[&ada_mac]);
+    keeper.call(&mut room, &h, "admit", json!({ "knocking": knock(&ada_mac, &ada.proof, &rid, Some(MARK), "ada") })).unwrap();
+    let err = maya_mac.call(&mut room, &h, "mark_invite", json!({ "mark": invite_lock(MARK) })).unwrap_err();
+    assert!(err.contains("used"), "{err}");
+}

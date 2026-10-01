@@ -46,14 +46,14 @@ inherits it.
       beside the chain; a rules-1 room keeps today's seal and bytes. `withdraw` (the author) and `erase` (the host, with a
       reason) drop a move's words, recorded as "erased by <who> under <reason>". Only what someone said can be erased
       (`erasable` in room.rs); a let-in, removal, rules change, receipt or erasure stays whole, and a move sealed whole
-      before this stays too. Each digest-sealed move holds only its own words (a claim names its task, it doesn't repeat
-      its title). Replay accepts a move without words only when a later erasure covers it and its seal over the digest,
+      before this stays too. A move that is digest-sealed, or is about one, holds only its own words (a claim names its task, it
+      doesn't repeat its title; a receipt's title lives in its sealed statement). The feed says which moves the room would erase now (`erasable`). Replay accepts a move without words only when a later erasure covers it and its seal over the digest,
       place and countersign hold. `keep_copy` saves the replayed record and, on a new erasure, writes over the copy before
-      it too. A receipt keeps the title it was issued with.
+      it too. A receipt keeps the title it was issued with, in its statement, so erasing the task after it leaves a record that replays.
     - **A doorkeeper slot (rules 2).** `Args.keepers` names keys that may only `admit`, signed with the settings. A keeper's
       admit carries only the knocker's signed `Knocking`, which the room checks itself (this room, signed by the key it
       names, under a day old, an account naming that key, listed), plus either an invite the host sealed earlier
-      (`mark_invite` with `invite_lock(mark)`) or standing in the room this one continues. Recorded as "let in by <host>'s
+      (`mark_invite` with `invite_lock(mark)`; a keeper's let-in uses it up, since its mark is then in the record, and it can't be sealed again) or standing in the room this one continues. Recorded as "let in by <host>'s
       doorkeeper", marked as the host's. `drop_keeper` ends it. Nothing in the app runs a keeper yet.
     - Every call is sealed under the `_meta` key `network.diverge.desktop/seal` for that id, and checked against keys
       the host admitted. Someone let in unlisted is a mark of their key (`key_mark`) until they first act.
