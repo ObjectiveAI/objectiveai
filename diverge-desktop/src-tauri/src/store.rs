@@ -515,6 +515,39 @@ pub mod tests {
         dir
     }
 
+    /// The login a test's child process runs under: distinctive, so a file
+    /// that holds it can only have read it from the login.
+    pub const LOGIN: &str = "zz-login-probe";
+    const LOGIN_CHILD: &str = "DIVERGE_DESKTOP_LOGIN_PROBE_CHILD";
+
+    /// Run one test again in a child process whose login is [`LOGIN`]
+    /// (`USER`, `LOGNAME` and `USERNAME` all set to it), so the test sees a
+    /// known login wherever it runs. True in that child, where the test goes
+    /// on; false in the parent once the child has run that test and passed.
+    /// `module` is the test's `module_path!()`, `test` its function's name.
+    pub fn under_a_known_login(module: &str, test: &str) -> bool {
+        if std::env::var_os(LOGIN_CHILD).is_some() {
+            for name in ["USER", "LOGNAME", "USERNAME"] {
+                assert_eq!(std::env::var(name).as_deref(), Ok(LOGIN), "{name} is the login this test set");
+            }
+            return true;
+        }
+        let path = module.split_once("::").map_or(module, |(_, rest)| rest);
+        let name = format!("{path}::{test}");
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([name.as_str(), "--exact", "--nocapture", "--test-threads=1"])
+            .env(LOGIN_CHILD, "1")
+            .env("USER", LOGIN)
+            .env("LOGNAME", LOGIN)
+            .env("USERNAME", LOGIN)
+            .output()
+            .unwrap();
+        let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(out.status.success(), "{name}, under a known login, failed:\n{said}");
+        assert!(said.contains("1 passed"), "{name} ran in the child:\n{said}");
+        false
+    }
+
     fn notes(n: u32) -> BTreeMap<String, u32> {
         (0..n).map(|i| (format!("note {i}"), i)).collect()
     }
@@ -678,6 +711,8 @@ pub mod tests {
     #[test]
     fn every_kind_of_file_has_words_on_screen() {
         let screen = include_str!("../../src/strings.ts");
+        // Only the stand-in adds to the list.
+        #[cfg_attr(not(feature = "stand-in"), allow(unused_mut))]
         let mut formats = FORMATS.to_vec();
         #[cfg(feature = "stand-in")]
         formats.extend([crate::spaces::stub::ROOMS, crate::daemon::stub::store::VOLUMES]);

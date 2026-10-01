@@ -125,8 +125,9 @@ pub enum FirstRun {
     Done,
     /// Nothing yet: no name, and no key that acts for you.
     New,
-    /// A folder from before accounts: it has you under `name`, which an
-    /// earlier version of the app took from this Mac's login.
+    /// A folder from before accounts: it has you under `name`, the name an
+    /// earlier version of the app gave you. Its keys may already have signed
+    /// and sent as you; nothing more is signed until the page is finished.
     Earlier { name: String },
     /// The page can't be finished in this copy of the app: the words say why.
     Blocked(&'static str),
@@ -540,6 +541,13 @@ impl Identity {
         Ok(Statement::make(&keypair, kind, body))
     }
 
+    /// Your recovery words as they're kept, sealed: tests only, to look for
+    /// them in the data folder.
+    #[cfg(test)]
+    pub(crate) fn sealed_words(&self) -> Option<String> {
+        self.lock().account.as_ref().map(|a| a.words.sealed.clone())
+    }
+
     /// Your recovery words, opened: tests only. Nothing else in the app
     /// reads them, and no door can.
     #[cfg(test)]
@@ -754,10 +762,12 @@ mod tests {
 
     #[test]
     fn from_an_empty_folder_nobody_is_named_and_nothing_is_signed_until_a_name_is_typed() {
+        // Run under a known login: it's there to be read, and the app never reads it.
+        if !store::tests::under_a_known_login(module_path!(), "from_an_empty_folder_nobody_is_named_and_nothing_is_signed_until_a_name_is_typed") {
+            return;
+        }
         let dir = store::tests::folder("keys-first-run");
         let file = dir.join("identity.json");
-        // The login this Mac runs under is there to be read; the app never reads it.
-        let login = std::env::var("USER").unwrap_or_default();
         let me = Identity::open(file.clone());
         assert_eq!(me.first_run(), FirstRun::New);
         assert!(me.personas().is_empty(), "no persona");
@@ -774,10 +784,13 @@ mod tests {
         let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
         assert_eq!(me.seal(&Actor::Persona("usual".into()), "room-1", &mut params).unwrap(), you.key, "now it signs");
         assert!(me.finish_first_run("someone else", true).is_err(), "once");
-        if login.len() > 2 && !"Ada".contains(login.as_str()) {
-            let mut files = Vec::new();
-            every_file(&dir, &mut files);
-            assert!(files.iter().all(|f| !holds(&std::fs::read(f).unwrap(), login.as_bytes())), "nothing here came from the login");
+        me.fresh("lamp person").unwrap();
+        me.agent_in("site-fixes", None).unwrap();
+        let mut files = Vec::new();
+        every_file(&dir, &mut files);
+        assert!(files.iter().any(|f| f.ends_with("identity.json")), "{files:?}");
+        for f in &files {
+            assert!(!holds(&std::fs::read(f).unwrap(), store::tests::LOGIN.as_bytes()), "{}: nothing here came from the login", f.display());
         }
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -833,12 +846,12 @@ mod tests {
         .to_string();
         std::fs::write(&file, &v1).unwrap();
         let me = Identity::open(file.clone());
-        assert_eq!(me.first_run(), FirstRun::Earlier { name: "maya".into() }, "the page shows, naming the name the login gave");
+        assert_eq!(me.first_run(), FirstRun::Earlier { name: "maya".into() }, "the page shows, naming the name this folder has");
         assert_signs_nothing(&me, NOT_NAMED);
         assert_eq!(std::fs::read_to_string(dir.join(BEFORE_ACCOUNTS)).unwrap(), v1, "the old file, kept as it was");
         assert_eq!(store::header(&file).map(|h| h.version), Some(store::KEYS.version), "upgraded in place");
-        let you = me.finish_first_run("Maya R", true).unwrap();
-        assert_eq!((you.key, you.name.as_str()), (usual.key(), "Maya R"), "the usual key, now this Mac's device key, under the name typed");
+        let you = me.finish_first_run("Sam Lee", true).unwrap();
+        assert_eq!((you.key, you.name.as_str()), (usual.key(), "Sam Lee"), "the usual key, now this Mac's device key, under the name typed");
         assert!(me.account().unwrap().1.names(&usual.key()));
         // Nothing lost: the fresh name, the agent, the rooms.
         assert_eq!(me.persona("persona-2").map(|p| p.key), Some(fresh.key()));
@@ -872,7 +885,7 @@ mod tests {
         let root = diverge_desktop_room::account::root(&seed);
         let node = diverge_desktop_room::account::derive(&seed, diverge_desktop_room::account::ROOT_PATH).unwrap();
         assert_eq!(root.key(), me.account().unwrap().1.check().unwrap().root, "these are the words the root came from");
-        let sealed = me.lock().account.as_ref().unwrap().words.sealed.clone();
+        let sealed = me.sealed_words().unwrap();
         let mut files = Vec::new();
         every_file(&dir, &mut files);
         assert!(files.len() >= 3, "{files:?}");
@@ -903,8 +916,10 @@ mod tests {
         for f in files.iter().filter(|f| f.extension().is_some_and(|e| e == "rs")) {
             let text = std::fs::read_to_string(f).unwrap();
             // The app's own code: everything before its tests.
-            let code = text.split("#[cfg(test)]\nmod tests").next().unwrap_or_default();
-            let code = code.split("#[cfg(all(test").next().unwrap_or_default();
+            let mut code = text.as_str();
+            for tests in ["#[cfg(test)]\nmod tests", "#[cfg(test)]\npub mod tests", "#[cfg(test)]\npub(crate) mod tests", "#[cfg(all(test"] {
+                code = code.split(tests).next().unwrap_or_default();
+            }
             for needle in looked_for {
                 assert!(!code.contains(needle), "{} reads {needle}", f.display());
             }

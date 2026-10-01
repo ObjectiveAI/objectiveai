@@ -2067,9 +2067,11 @@ mod tests {
 
     #[tokio::test]
     async fn from_an_empty_folder_nobody_is_named_and_nothing_is_signed_until_the_first_run_page_is_finished() {
+        // Run under a known login: it's there to be read, and the app never reads it.
+        if !store::tests::under_a_known_login(module_path!(), "from_an_empty_folder_nobody_is_named_and_nothing_is_signed_until_the_first_run_page_is_finished") {
+            return;
+        }
         let data = store::tests::folder("actions-first-run");
-        // The login this Mac runs under is there to be read; the app never reads it.
-        let login = std::env::var("USER").unwrap_or_default();
         let state = AppState::open(data.clone()).await;
         assert_eq!(FirstRunView::from(state.identity.first_run()), FirstRunView::New);
         assert!(state.identity.personas().is_empty(), "no persona");
@@ -2096,10 +2098,82 @@ mod tests {
             assert_eq!(home.host_name, "Ada", "under the name you typed");
             assert!(std::fs::read_dir(data.join(RECORDS_DIR)).unwrap().next().is_some(), "and the stand-in's copies");
         }
-        if login.len() > 2 && !"Ada".contains(login.as_str()) {
-            let keys = std::fs::read_to_string(data.join(KEYS_FILE)).unwrap();
-            assert!(!keys.contains(login.as_str()), "nothing in your keys came from the login");
+        // Everything the app keeps, after the first run: the recovery words
+        // only sealed, and only in your keys file; never the words in plain,
+        // the seed they make, the root or its chain code; never the login.
+        let words = state.identity.words().expect("an account, and its words");
+        let seed = bip39::Mnemonic::parse(words.as_str()).unwrap().to_seed("");
+        let root = diverge_desktop_room::account::derive(&seed, diverge_desktop_room::account::ROOT_PATH).unwrap();
+        let sealed = state.identity.sealed_words().expect("the words, sealed");
+        let never: Vec<(&str, Vec<u8>)> = vec![
+            ("the words", words.as_bytes().to_vec()),
+            ("the words run together", words.replace(' ', "").into_bytes()),
+            ("the seed", seed.to_vec()),
+            ("the seed", hex::encode(seed).into_bytes()),
+            ("the root's secret", root.key.to_vec()),
+            ("the root's secret", hex::encode(root.key).into_bytes()),
+            ("the root's secret", diverge_desktop_room::account::root(&seed).secret_hex().into_bytes()),
+            ("the root's chain code", root.chain.to_vec()),
+            ("the root's chain code", hex::encode(root.chain).into_bytes()),
+            ("the login", store::tests::LOGIN.as_bytes().to_vec()),
+        ];
+        let holds = |bytes: &[u8], needle: &[u8]| !needle.is_empty() && bytes.windows(needle.len()).any(|w| w == needle);
+        let keys = data.join(KEYS_FILE);
+        let keys_backup = store::previous_of(&keys);
+        let mut files = Vec::new();
+        walk(&data, &mut files);
+        // Without the stand-in, your keys file and the folder's lock; with it, its rooms and their copies too.
+        assert!(files.len() > if cfg!(feature = "stand-in") { 5 } else { 1 }, "the app keeps its files here: {files:?}");
+        let mut sealed_in = Vec::new();
+        for file in &files {
+            // A write under way when the folder was read may be gone by now.
+            let Ok(bytes) = std::fs::read(file) else { continue };
+            let name = file.strip_prefix(&data).unwrap().display().to_string();
+            for (what, needle) in &never {
+                assert!(!holds(&bytes, needle), "{name} holds {what}");
+            }
+            if holds(&bytes, sealed.as_bytes()) {
+                sealed_in.push(file.clone());
+            }
         }
+        assert!(sealed_in.contains(&keys), "your keys file holds the words, sealed");
+        for file in &sealed_in {
+            // The keys file, its backup, or a new copy of it still being written.
+            let name = file.file_name().unwrap().to_string_lossy();
+            let keys_being_written = file.parent() == Some(data.as_path()) && name.starts_with(".identity.json.") && name.ends_with(".tmp");
+            assert!(*file == keys || *file == keys_backup || keys_being_written, "{} holds the sealed words", file.display());
+        }
+    }
+
+    /// A folder an earlier version made has keys that may already have
+    /// signed and sent as you: nothing more is, until the page is finished.
+    #[tokio::test]
+    async fn a_folder_from_before_accounts_sends_nothing_more_until_the_first_run_page_is_finished() {
+        let data = store::tests::folder("actions-earlier");
+        let usual = Keypair::from_seed("sam from before");
+        let v1 = json!({ "file": "keys", "version": 1, "data": {
+            "personas": [{ "id": "usual", "name": "sam", "secret": usual.secret_hex(), "created": Utc::now(), "usual": true }],
+            "agents": {}, "rooms": {}
+        } });
+        std::fs::write(data.join(KEYS_FILE), v1.to_string()).unwrap();
+        let state = AppState::open(data.clone()).await;
+        assert_eq!(FirstRunView::from(state.identity.first_run()), FirstRunView::Earlier { name: "sam".into() });
+        assert!(state.spaces.list().await.is_empty(), "the stand-in's rooms wait for the page here too");
+        match host_space(&state, HostSpaceInput { title: "Saturday Workshop".into(), kind: "board".into(), charter: String::new(), open_door: false }).await {
+            Err(message) => assert_eq!(message, crate::identity::NOT_NAMED),
+            #[cfg(not(feature = "stand-in"))]
+            Ok(HostOutcome::Error { .. }) => {}
+            other => panic!("{other:?}"),
+        }
+        let invite = spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: "workshop.abc".into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new() }.to_text();
+        // A knock is signed as you (spaces_join): not yet.
+        assert_eq!(state.identity.state(&usual.key(), "knock", json!({ "room": "workshop.abc" })).unwrap_err(), crate::identity::NOT_NAMED, "no knock is signed");
+        assert_eq!(state.identity.fresh("lamp person").unwrap_err(), crate::identity::NOT_NAMED, "nor a fresh name to knock as");
+        let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "x" }).as_object().cloned().unwrap());
+        assert_eq!(state.identity.seal(&crate::identity::Actor::Persona("usual".into()), "room-1", &mut params).unwrap_err(), crate::identity::NOT_NAMED, "and no call to a room is sealed");
+        assert_eq!(finish_first_run(&state, "Sam Lee", true).unwrap(), FirstRunView::Done);
+        assert_eq!(state.identity.usual().unwrap().key, usual.key(), "the same key as before");
+        assert_eq!(door_of(&state, &invite).await.unwrap().usual_name, "Sam Lee", "under the name typed on the page");
     }
 
     #[tokio::test]
