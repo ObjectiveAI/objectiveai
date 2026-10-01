@@ -17,6 +17,7 @@ mod actions;
 mod catalog;
 mod daemon;
 mod machines;
+mod marks;
 mod door;
 mod hires;
 mod identity;

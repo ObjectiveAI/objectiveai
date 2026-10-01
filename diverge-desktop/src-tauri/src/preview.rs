@@ -130,7 +130,7 @@ mod tests {
             spaces.act_now("ren", &profile, "hire", json!({ "agent": "research-notes", "what": "Check the links on my music page", "pledge": "a copy of the next track" })).unwrap();
             let door = door.clone();
             tokio::spawn(async move {
-                let hire = crate::view::CardHire { from: "ren".into(), what: "Check the links on my music page".into(), pledge: Some("a copy of the next track".into()) };
+                let hire = crate::view::CardHire { from: "ren".into(), what: "Check the links on my music page".into(), pledge: Some("a copy of the next track".into()), mark: None };
                 door.ask_hire("research-notes", hire, vec![crate::hires::TAKE.into(), crate::hires::DECLINE.into()]).await
             });
         }

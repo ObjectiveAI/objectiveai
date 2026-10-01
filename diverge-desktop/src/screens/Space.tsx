@@ -10,6 +10,7 @@ import { Markdown } from "../components/Markdown";
 import { SchemaForm, initial, missing, type Schema } from "../components/SchemaForm";
 import { Table } from "../components/Table";
 import { Button, Chip, Dot, Empty, Segmented } from "../components/ui";
+import { KeyMark } from "../components/KeyMark";
 import { useShared } from "../lib/context";
 import { ago, providerName, time, spaceTitle } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
@@ -358,6 +359,7 @@ export function Space(props: { id: string; tabKey: string }) {
               {space.members.map((m) => (
                 <li key={m.key || m.name} className="member">
                   <span>{m.key === s.you_key ? t.spaces.you : m.name}</span>
+                  <KeyMark mark={m.mark} />
                   {m.is_agent ? <Chip>{m.agent_of_key === s.you_key ? t.spaces.yourAgent : `${t.spaces.runBy} ${m.agent_of ?? "?"}`}</Chip> : null}
                   <span className="muted small">{m.last_acted ? `${t.spaces.lastActed} ${ago(m.last_acted)}` : ago(m.joined)}</span>
                   {m.key && m.key !== s.you_key && !m.is_agent && vouchRooms.length > 0 ? (
@@ -401,6 +403,7 @@ export function Space(props: { id: string; tabKey: string }) {
                 {admitted.filter((a) => a.key !== s.you_key && !a.yours).map((a) => (
                   <li key={a.key} className="member">
                     <span>{a.name}</span>
+                    <KeyMark mark={a.mark} />
                     {a.listed ? null : <Chip>{t.spaces.notListed}</Chip>}
                     {removing === a.key ? (
                       <div className="remove-confirm">

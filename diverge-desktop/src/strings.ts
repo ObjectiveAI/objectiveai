@@ -760,6 +760,10 @@ export const t = {
     notAdult: "Diverge is for adults. Confirm that you're 18 or older to go on.",
     noName: "Type the name people should call you.",
   },
+  // Key marks: shown beside a name two members of one room share.
+  marks: {
+    title: "A mark of this key in this room, shown because someone else here goes by the same name. The same key has a different mark in every room.",
+  },
   folder: {
     inUse: "Another copy of this app is using this folder, so this one changes nothing in it: nothing is saved or sent from here.",
     unchecked: "This copy of the app couldn't make sure no other copy is using this folder, so it changes nothing in it: nothing is saved or sent from here.",

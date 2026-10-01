@@ -842,6 +842,7 @@ async fn space_view(state: &AppState, id: String) -> Result<SpaceView, String> {
             charter = room.charter().to_owned();
         }
     }
+    crate::marks::members(&id, &mut members);
     let before = if entry.mine { people_from_before(state, &sid, &entries, &members).await } else { Vec::new() };
     Ok(SpaceView { summary: summary(entry, &state.identity), charter, members, tools: tools.tools.iter().map(Into::into).collect(), before })
 }
@@ -934,7 +935,7 @@ async fn admitted(state: &AppState, id: &str) -> Result<Vec<AdmittedView>, Strin
                 let listed = m.args.get("listed").and_then(serde_json::Value::as_bool).unwrap_or(true);
                 let is_agent = m.args.get("is_agent").and_then(serde_json::Value::as_bool).unwrap_or(false);
                 let yours = state.identity.owner_of(&key).is_some();
-                people.insert(key.clone(), AdmittedView { name: m.title, key, listed, is_agent, yours });
+                people.insert(key.clone(), AdmittedView { name: m.title, key, listed, is_agent, yours, mark: None });
             }
             "removed" => {
                 // A person's agents leave in the same move.
@@ -946,7 +947,13 @@ async fn admitted(state: &AppState, id: &str) -> Result<Vec<AdmittedView>, Strin
             _ => {}
         }
     }
-    Ok(people.into_values().collect())
+    let mut people: Vec<AdmittedView> = people.into_values().collect();
+    let who: Vec<(&str, &str)> = people.iter().map(|p| (p.name.as_str(), p.key.as_str())).collect();
+    let marks = crate::marks::shared_names(id, &who);
+    for (p, mark) in people.iter_mut().zip(marks) {
+        p.mark = mark;
+    }
+    Ok(people)
 }
 
 /// Stop a room you host and run it again from its record: the way to close
@@ -2093,5 +2100,24 @@ mod tests {
             let keys = std::fs::read_to_string(data.join(KEYS_FILE)).unwrap();
             assert!(!keys.contains(login.as_str()), "nothing in your keys came from the login");
         }
+    }
+
+    #[tokio::test]
+    async fn two_members_of_a_room_with_the_same_name_show_different_marks() {
+        let (state, _rooms) = app("actions-marks");
+        let id = board(&state, "Saturday Workshop").await;
+        let (one, other) = (Keypair::from_seed("one ada"), Keypair::from_seed("another ada"));
+        for who in [&one, &other] {
+            call_as_you(&state, &space_id(&id), "admit", json!({ "key": who.key(), "name": "ada" })).await.unwrap();
+        }
+        let view = space_view(&state, id.clone()).await.unwrap();
+        let mark = |key: &str| view.members.iter().find(|m| m.key == key).and_then(|m| m.mark.clone());
+        let (a, b) = (mark(&one.key()).expect("marked"), mark(&other.key()).expect("marked"));
+        assert_ne!(a, b);
+        let you = state.identity.usual().unwrap().key;
+        assert_eq!(mark(&you), None, "a name nobody else here has needs none");
+        let let_in = admitted(&state, &id).await.unwrap();
+        assert_eq!(let_in.iter().filter(|p| p.mark.is_some()).map(|p| p.key.clone()).collect::<HashSet<_>>(), HashSet::from([one.key(), other.key()]), "the host's list of everyone let in is marked too");
+        assert_eq!(let_in.iter().find(|p| p.key == one.key()).and_then(|p| p.mark.clone()), Some(a), "with the same marks");
     }
 }

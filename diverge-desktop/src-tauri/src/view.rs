@@ -908,6 +908,10 @@ pub struct MemberView {
     pub joined: String,
     #[serde(default)]
     pub last_acted: Option<String>,
+    /// A mark of their key in this room, when someone else here goes by the
+    /// same name (see [`crate::marks`]). The room doesn't say it; the app does.
+    #[serde(default)]
+    pub mark: Option<String>,
 }
 
 /// A room's verb: an MCP tool, rendered as a button with a generated form.
@@ -1127,6 +1131,9 @@ pub struct AdmittedView {
     pub is_agent: bool,
     /// One of your own agents: its place is your allowances, not the list of people you let in.
     pub yours: bool,
+    /// A mark of their key in this room, when someone else let in goes by
+    /// the same name (see [`crate::marks`]).
+    pub mark: Option<String>,
 }
 
 /// Where one ask went, and what the room said.
@@ -1306,6 +1313,10 @@ pub struct CardHire {
     pub from: String,
     pub what: String,
     pub pledge: Option<String>,
+    /// A mark of their key in that room, when someone else there goes by
+    /// the same name (see [`crate::marks`]).
+    #[serde(default)]
+    pub mark: Option<String>,
 }
 
 #[derive(Serialize, TS, Clone, Debug)]

@@ -3,4 +3,9 @@
 /**
  * A visitor's hire, in their own words: the name is whatever they typed.
  */
-export type CardHire = { from: string, what: string, pledge: string | null, };
+export type CardHire = { from: string, what: string, pledge: string | null, 
+/**
+ * A mark of their key in that room, when someone else there goes by
+ * the same name (see [`crate::marks`]).
+ */
+mark: string | null, };

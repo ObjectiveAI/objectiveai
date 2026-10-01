@@ -57,6 +57,9 @@ inherits it.
     `identity.json` (ChaCha20-Poly1305 under an HKDF key from the device key), unconfirmed; nothing but tests opens them,
     and no door tool reads them. A keys file from before accounts (v1) upgrades in place, is kept as
     `identity.v1.json`, and shows the first-run page naming the name an earlier version took from the login.
+  - **Key marks** (`src-tauri/src/marks.rs`): where two members of one room share a name, each gets a short mark of the
+    room and their key, on member lists, the host's list of everyone let in, and hire cards. Per room, so a mark never
+    links a key across rooms.
   - A knock's opaque authorization carries a `Knocking`, signed by the key it names, for one room, good for a day,
     with a mark of the invite it came with. A vouch names the room it vouches someone into and runs out after a week.
     An invite is text (`diverge-invite:…`) carrying the room's rules and verbs, checked against the room on entry.
