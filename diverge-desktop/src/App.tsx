@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { afterCardEvent, noCards } from "./lib/cards";
+import { afterAnswer, afterCardEvent, noCards } from "./lib/cards";
 import type { AgentView } from "./bindings/AgentView";
 import type { AppInfo } from "./bindings/AppInfo";
 import type { KnockView } from "./bindings/KnockView";
@@ -42,9 +42,9 @@ export function App() {
   // Cards waiting on you, and those withdrawn because their agent stopped waiting.
   const [{ cards, withdrawn }, setCards] = useState(noCards);
   const answerCard = useCallback(async (id: number, answer: string) => {
-    // A card answered or withdrawn meanwhile takes no answer: the app does nothing with it.
-    await api.cardsAnswer(id, answer).catch(() => null);
-    setCards((s) => afterCardEvent(s, { event: "answered", id }));
+    // A card answered or withdrawn meanwhile takes no answer: it stays until the app's event says which.
+    const taken = await api.cardsAnswer(id, answer).then(() => true, () => false);
+    setCards((s) => afterAnswer(s, id, taken));
   }, []);
 
   const refreshSpaces = useCallback(async () => setSpaces(await api.spaces()), []);

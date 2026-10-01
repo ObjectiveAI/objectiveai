@@ -1,4 +1,4 @@
-import { answerLabel, cardDetails, cardLine, cardNote } from "../lib/cards";
+import { answerLabel, cardDetails, cardLine, cardNote, inTimeOrder } from "../lib/cards";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardView } from "../bindings/CardView";
 import type { LogEntry } from "../bindings/LogEntry";
@@ -167,12 +167,13 @@ export function Conversation(props: { name: string; tabKey: string }) {
       >
         <div className="convo-body">
           {blocks.length === 0 ? <p className="muted convo-empty">{t.convo.empty}</p> : null}
-          {blocks.map((block, i) => (
-            <BlockView key={i} block={block} agentName={props.name} live={running && i === blocks.length - 1} />
-          ))}
-          {gone.map((card) => (
-            <WithdrawnCard key={card.id} card={card} />
-          ))}
+          {inTimeOrder(blocks, gone).map((placed) =>
+            "card" in placed ? (
+              <WithdrawnCard key={`withdrawn-${placed.card.id}`} card={placed.card} />
+            ) : (
+              <BlockView key={placed.index} block={placed.item} agentName={props.name} live={running && placed.index === blocks.length - 1} />
+            ),
+          )}
           {mine.map((card) => (
             <AskCard key={card.id} card={card} onAnswer={(a) => answerCard(card.id, a)} />
           ))}
