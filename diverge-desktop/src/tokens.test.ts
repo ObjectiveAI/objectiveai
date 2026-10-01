@@ -48,6 +48,18 @@ function declarations(name: string): Decl[] {
 const decls = SHEETS.flatMap(declarations);
 const where = (d: Decl) => `${d.at}:${d.line} ${d.selector} { ${d.prop}: ${d.value} }`;
 const defined = new Set(decls.filter((d) => d.selector === ":root" && d.prop.startsWith("--")).map((d) => d.prop));
+const rootValue = new Map(decls.filter((d) => d.selector === ":root" && d.prop.startsWith("--")).map((d) => [d.prop, d.value]));
+
+/** A --text-* token on :root whose value is a length, or max()/min()/clamp() of lengths and other size tokens. */
+function isSize(name: string): boolean {
+  const v = rootValue.get(name);
+  if (!name.startsWith("--text-") || v === undefined) return false;
+  const length = (a: string) => /^\d*\.?\d+(px|rem|em)$/.test(a);
+  if (length(v)) return true;
+  const fn = v.match(/^(max|min|clamp)\((.*)\)$/);
+  return !!fn && fn[2].split(/\s*,\s*/).every((a) => length(a) || (/^var\(--text-[\w-]+\)$/.test(a) && a.slice(4, -1) !== name && isSize(a.slice(4, -1))));
+}
+
 const parts = (value: string) => value.replace(/\s*!important$/, "").split(/\s+(?![^(]*\))/);
 
 /** The app's own code under src/ (.ts and .tsx), tests left out. */
@@ -79,10 +91,12 @@ describe("tokens", () => {
     expect(inline).toEqual([]);
   });
 
-  it("font sizes come only from --text-*", () => {
-    const ok = (v: string) => /^var\(--text-[a-z0-9-]+\)$/.test(v) && defined.has(v.slice(4, -1));
-    const off = decls.filter((d) => d.prop === "font-size" && !ok(d.value));
+  it("font sizes come only from the --text-* size tokens", () => {
+    const off = decls.filter((d) => d.prop === "font-size" && !(/^var\(--text-[\w-]+\)$/.test(d.value) && isSize(d.value.slice(4, -1))));
     expect(off.map(where)).toEqual([]);
+    // The --text-* colours are not sizes, so a font size can't borrow one.
+    expect(["--text-xs", "--text-mono"].every(isSize)).toBe(true);
+    expect(["--text", "--text-2", "--text-3"].some(isSize)).toBe(false);
   });
 
   it("app.css names no colour of its own: every colour is a theme role", () => {

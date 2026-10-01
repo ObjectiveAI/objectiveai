@@ -54,9 +54,8 @@ function ratio(fg: string, bg: string): number {
   return contrast(over(f, b), b);
 }
 
-// Every colour of words the app puts on a background, by the tokens app.css names, and
-// where. The screenshot harness lists the pairs it sees on screen; the hover, picked and
-// error states it doesn't reach are added from app.css.
+// Every colour of words app.css puts on a background, by the tokens it names, and where:
+// at rest and in the hover, picked and error states.
 const WORDS: [string, string, string][] = [
   ["--text", "--bg", "the page"],
   ["--text", "--surface", "cards, sections, the side columns"],
@@ -104,6 +103,7 @@ const EDGES: [string, string, string][] = [
   ["--line-strong", "--surface", "buttons and fields on a card"],
   ["--line", "--bg", "the open tab, a room chip"],
   ["--line", "--surface", "a room chip, an agent kind"],
+  ["--line", "--surface-2", "the picked option in a segmented control"],
   ["--accent", "--bg", "the main button, a field being typed in"],
   ["--accent", "--surface", "the main button, the picked kind, a card that waits on you"],
   ["--accent", "--note", "the main button on the knock card"],
@@ -125,6 +125,7 @@ const BREAKS: Record<string, string> = {
   "--line-strong edge on --surface": "the edge that marks a press: --line-strong",
   "--line edge on --bg": "pressables drawn with the quiet rule (the open tab, room chips)",
   "--line edge on --surface": "pressables drawn with the quiet rule (room chips, agent kinds)",
+  "--line edge on --surface-2": "pressables drawn with the quiet rule (the picked option in a segmented control)",
 };
 
 const rows = [
