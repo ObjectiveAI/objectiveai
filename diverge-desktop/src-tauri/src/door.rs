@@ -741,6 +741,36 @@ mod tests {
         assert_ne!(r.is_error, Some(true), "{}", words(&r));
     }
 
+    /// A note your agent leaves on a profile that seals what visitors leave
+    /// goes sealed, through the door as through the screen: the room holds
+    /// ciphertext, and the profile's owner opens it.
+    #[tokio::test]
+    async fn an_agents_note_on_a_sealed_profile_goes_sealed() {
+        let (door, stub) = door();
+        let profile = stub.id_of("profile-me");
+        admit(&door, &stub, &profile, &research()).await;
+        let call = {
+            let door = door.clone();
+            let p = space_call(&profile, "leave_note", json!({ "body": "the zine map is lovely" }));
+            tokio::spawn(async move { door.call(&research(), p, CancellationToken::new()).await })
+        };
+        let card = loop {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            if let Some(c) = door.cards().into_iter().next() {
+                break c;
+            }
+        };
+        assert_eq!(card.call.as_ref().unwrap().arguments["body"], "the zine map is lovely", "your card shows the words as the agent gave them");
+        door.answer(card.id, YES.into()).unwrap();
+        let r = call.await.unwrap().unwrap();
+        assert_ne!(r.is_error, Some(true), "{}", words(&r));
+        let feed = moves(&stub, &profile).await;
+        assert!(!serde_json::to_string(&feed).unwrap().contains("zine map is lovely"), "the room holds only ciphertext");
+        let mut views: Vec<crate::view::MoveView> = serde_json::from_value(json!(feed)).unwrap();
+        crate::notes::open_moves(&door.identity, &profile, crate::notes::notes_key_of(&stub, &Id { id: profile.clone() }).await.as_deref(), &mut views);
+        assert!(views.iter().any(|m| m.kind == "note" && m.body == "the zine map is lovely" && m.author == "research-notes"), "and the owner opens it");
+    }
+
     /// No key is made for an agent the door doesn't know, nothing is read
     /// for it, and nobody is asked: it's refused before anything else.
     #[tokio::test]
