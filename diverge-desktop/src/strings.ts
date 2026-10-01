@@ -514,6 +514,7 @@ export const t = {
       hire: "Hire an agent",
       answer_hire: "Answer a hire",
       deliver_hire: "Deliver a hire",
+      keys: "Your device list",
     } as Record<string, string>,
     refusals: [
       ["seal does not match", "Diverge couldn't confirm this came from you. Nothing was posted."],
