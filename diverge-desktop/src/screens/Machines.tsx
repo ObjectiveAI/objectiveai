@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { MachineView } from "../bindings/MachineView";
+import { LocalAgents } from "../components/LocalAgents";
 import { Button, Chip, Field, Icon, Segmented } from "../components/ui";
 import { useShared } from "../lib/context";
 import { ago, providerName, providerRaw, providerWay, setMachineNames } from "../lib/format";
@@ -110,6 +111,8 @@ export function Machines() {
           </div>
           <p className="muted small">{t.machines.ours}</p>
         </section>
+
+        <LocalAgents />
       </div>
     </div>
   );
