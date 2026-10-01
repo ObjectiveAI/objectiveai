@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 type Decl = { at: string; line: number; selector: string; within: string[]; prop: string; value: string };
 
 const SRC = fileURLToPath(new URL(".", import.meta.url));
+const SHEETS = ["theme.css", "app.css"];
 
 /** A small reader for the app's own sheets: comments blanked (lines kept), blocks nested by braces. */
 function declarations(name: string): Decl[] {
@@ -44,6 +45,11 @@ function declarations(name: string): Decl[] {
   return out;
 }
 
+const decls = SHEETS.flatMap(declarations);
+const where = (d: Decl) => `${d.at}:${d.line} ${d.selector} { ${d.prop}: ${d.value} }`;
+const defined = new Set(decls.filter((d) => d.selector === ":root" && d.prop.startsWith("--")).map((d) => d.prop));
+const parts = (value: string) => value.replace(/\s*!important$/, "").split(/\s+(?![^(]*\))/);
+
 /** The app's own code under src/ (.ts and .tsx), tests left out. */
 function code(): string[] {
   const files: string[] = [];
@@ -57,8 +63,22 @@ function code(): string[] {
   walk(SRC);
   return files;
 }
+const tsx = () => code().filter((f) => f.endsWith(".tsx"));
 
 describe("tokens", () => {
+  it("spacing (padding, margin, gap, inset) comes only from --space-N, 0 or auto", () => {
+    const ok = (p: string) => p === "0" || p === "auto" || (/^var\(--space-\d+\)$/.test(p) && defined.has(p.slice(4, -1)));
+    const off = decls.filter((d) => /^(padding|margin|inset)(-[a-z-]+)?$|^(row-|column-)?gap$/.test(d.prop) && !parts(d.value).every(ok));
+    expect(off.map(where)).toEqual([]);
+    // …and none from a style object in the screens, where the sheet can't see it.
+    const inline = tsx().flatMap((f) =>
+      readFileSync(f, "utf8")
+        .split("\n")
+        .flatMap((l, i) => (/\b(padding|margin|inset)(Top|Right|Bottom|Left|Inline|Block)?\w*\s*:|\b(gap|rowGap|columnGap)\s*:/.test(l) ? [`${f.slice(SRC.length)}:${i + 1}`] : [])),
+    );
+    expect(inline).toEqual([]);
+  });
+
   it("every class app.css styles is named in the screens", () => {
     // Class words: the strings inside each className={…} in a .tsx file. A template there
     // like `chip-${tone}` names chip-<word> for any word the code spells as a string.

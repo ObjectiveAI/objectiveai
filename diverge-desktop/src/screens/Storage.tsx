@@ -195,27 +195,26 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
       return next;
     });
 
-  const render = (nodes: FileNode[], prefix: string, depth: number): React.ReactNode =>
+  const render = (nodes: FileNode[], prefix: string): React.ReactNode =>
     [...nodes]
       .sort((a, b) => (a.kind === "directory" ? 0 : 1) - (b.kind === "directory" ? 0 : 1) || a.name.localeCompare(b.name))
       .map((node) => {
         const path = `${prefix}/${node.name}`;
-        const pad = { paddingLeft: 10 + depth * 14 };
         if (node.kind === "directory") {
           const isOpen = expanded.has(path);
           return (
             <li key={path}>
-              <button className="tree-row" style={pad} onClick={() => toggle(path)}>
+              <button className="tree-row" onClick={() => toggle(path)}>
                 <span className={`chev${isOpen ? " open" : ""}`}><Icon name="chevron" /></span>
                 <Icon name="folder" /> <span>{node.name}</span>
               </button>
-              {isOpen ? <ul>{render(node.children, path, depth + 1)}</ul> : null}
+              {isOpen ? <ul>{render(node.children, path)}</ul> : null}
             </li>
           );
         }
         return (
           <li key={path}>
-            <button className={`tree-row${file?.path === path ? " on" : ""}`} style={pad} onClick={() => open(path)}>
+            <button className={`tree-row${file?.path === path ? " on" : ""}`} onClick={() => open(path)}>
               <span className="chev" />
               <Icon name={node.kind === "symlink" ? "link" : "file"} /> <span>{node.name}</span>
               {node.kind === "file" && node.size !== null ? <span className="tree-size muted">{fmtBytes(node.size)}</span> : null}
@@ -258,7 +257,7 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
           </div>
           {treeProblem ? <p className="bad small">{treeProblem}</p> : null}
           {tree && tree.length === 0 ? <p className="muted small">{t.storage.empty}</p> : null}
-          <ul className="tree">{tree ? render(tree, "", 0) : null}</ul>
+          <ul className="tree">{tree ? render(tree, "") : null}</ul>
           <div className="new-file">
             <input className="mono" value={newPath} placeholder={t.storage.newFilePlaceholder} onChange={(e) => setNewPath(e.target.value)} spellCheck={false} />
             <Button small kind="quiet" onClick={createFile} disabled={!newPath.trim()}>{t.storage.createFile}</Button>
