@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::daemon::endpoints::agents::create::client::request::Image;
-use super::ResourceMount;
+use super::{ResourceDirectoryMount, ResourceFileMount};
 
 /// Everything an agent is made from that is the same for every agent
 /// made from it: the image, the limits, the resources mounted over
@@ -54,17 +54,18 @@ pub struct Template {
     /// [`memory`](Self::memory) gives.
     pub disk: u64,
     /// File resources served live into every agent made from this,
-    /// mounted one each over FUSE: see [`ResourceMount`]. Each names a
-    /// file resource and its path in the container. Absent from the
-    /// hashed JSON when empty.
+    /// mounted one each over FUSE: see [`ResourceFileMount`]. Each
+    /// names a file resource, its mode, and its path in the
+    /// container. Absent from the hashed JSON when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<ResourceMount>,
-    /// Directory resources served live into every agent made from
-    /// this, mounted one each over FUSE: see [`ResourceMount`]. Each
-    /// names a directory resource and its path in the container.
-    /// Absent from the hashed JSON when empty.
+    pub fuse_file_mounts: Vec<ResourceFileMount>,
+    /// Directory resources, or subtrees of them, served live into
+    /// every agent made from this, mounted one each over FUSE: see
+    /// [`ResourceDirectoryMount`]. Each names a directory resource, a
+    /// path in it, its mode, and its path in the container. Absent
+    /// from the hashed JSON when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_directory_mounts: Vec<ResourceMount>,
+    pub fuse_directory_mounts: Vec<ResourceDirectoryMount>,
     /// What the image is told once, as the image defines it, for the
     /// agent's life.
     ///

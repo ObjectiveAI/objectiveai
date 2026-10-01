@@ -27,7 +27,8 @@
 //! # How a resource reaches a container
 //!
 //! Over FUSE, from the daemon, and no other way: a template's
-//! [`ResourceMount`](crate::daemon::endpoints::agents::templates::ResourceMount)
+//! [`ResourceFileMount`](crate::daemon::endpoints::agents::templates::ResourceFileMount)
+//! or [`ResourceDirectoryMount`](crate::daemon::endpoints::agents::templates::ResourceDirectoryMount)
 //! names a resource at a container path, read-only or ephemeral, and
 //! the daemon answers the mount's asks from the bytes it holds. A
 //! resource is not a provider's volume and is mounted as none; nothing

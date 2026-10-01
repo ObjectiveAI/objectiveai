@@ -22,10 +22,14 @@
 //! The daemon computes it on a create and answers it; a caller may
 //! compute it the same way and need not.
 
-mod resource_mount;
+mod resource_directory_mount;
+mod resource_file_mount;
+mod resource_mode;
 mod template;
 
-pub use resource_mount::*;
+pub use resource_directory_mount::*;
+pub use resource_file_mount::*;
+pub use resource_mode::*;
 pub use template::*;
 
 pub mod create;
