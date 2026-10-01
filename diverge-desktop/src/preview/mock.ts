@@ -16,6 +16,7 @@ import type { SpaceView } from "../bindings/SpaceView";
 import type { LogEntry } from "../bindings/LogEntry";
 import type { MachineView } from "../bindings/MachineView";
 import type { SavedView } from "../bindings/SavedView";
+import type { LocalAgentView } from "../bindings/LocalAgentView";
 import type { TabKind } from "../bindings/TabKind";
 import type { TabView } from "../bindings/TabView";
 import fixture from "./fixture.json";
@@ -54,6 +55,7 @@ export function installPreview() {
   const machineOf = (p: { kind: string }) => machines.find((m) => machineKey(m.identity) === machineKey(p));
   const volumesOf = (p: { kind: string }) => machineOf(p)?.volumes ?? [];
   const views: SavedView[] = [];
+  const localAgents: LocalAgentView[] = [];
   type SpaceRec = { view: SpaceView; moves: MoveView[]; invite: string | null; from_copy?: boolean };
   const spaceRecs: SpaceRec[] = structuredClone(fixture.spaces) as SpaceRec[];
   const knocks: KnockView[] = structuredClone(fixture.knocks) as KnockView[];
@@ -511,6 +513,24 @@ export function installPreview() {
         }
         case "door_tools":
           return fixture.door_tools;
+        // Preview only: nothing listens here, and no token or helper file is made.
+        case "local_agents_list":
+          return localAgents;
+        case "local_agents_add": {
+          const id = String(args.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "agent";
+          const a = { id, name: args.name, slot: `local/${id}`, connect_line: `claude mcp add-json diverge-${id} '{"type":"http","url":"http://127.0.0.1:4791/mcp","headersHelper":"\\"/preview/door/${id}-headers\\"","timeout":86400000}' --scope user`, added: new Date().toISOString() };
+          localAgents.push(a);
+          return a;
+        }
+        case "local_agents_new_key":
+          return localAgents.find((a) => a.id === args.id) ?? null;
+        case "local_agents_remove":
+          localAgents.splice(localAgents.findIndex((a) => a.id === args.id), 1);
+          return null;
+        case "door_status":
+          return localAgents.length ? { port: 4791, state: "listening" } : { port: null, state: "no_agents" };
+        case "agent_bring_in":
+          return null;
         case "machines_names":
           return {};
         case "machines_rename":

@@ -1618,3 +1618,44 @@ pub struct ActionInfo {
 
 #[allow(dead_code)]
 const _: &str = OUT;
+
+// --- the door served on this machine, for local agents ---------------------
+
+/// A local agent you already run yourself, reaching the door on this
+/// machine's loopback with a token of its own.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct LocalAgentView {
+    pub id: String,
+    /// What you call it.
+    pub name: String,
+    /// Its slot, as allowances and cards name it.
+    pub slot: String,
+    /// The exact line that adds it to Claude Code. It names the helper
+    /// that prints the token, never the token itself.
+    pub connect_line: Option<String>,
+    pub added: String,
+}
+
+/// Whether the door is listening on this machine, and where.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct DoorStatusView {
+    /// The port the door was given once. It never moves on its own.
+    pub port: Option<u16>,
+    pub state: DoorState,
+}
+
+#[derive(Serialize, TS, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum DoorState {
+    /// No local agent is added, so nothing listens.
+    NoAgents,
+    /// Listening on 127.0.0.1, on its port.
+    Listening,
+    /// Something else holds its port, so the door isn't listening.
+    PortTaken,
+    /// This copy of the app doesn't hold its folder, so it serves nothing.
+    NotThisCopy,
+}

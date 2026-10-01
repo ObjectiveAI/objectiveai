@@ -19,6 +19,7 @@ mod daemon;
 mod machines;
 mod marks;
 mod door;
+mod door_serve;
 mod hires;
 mod identity;
 mod preview;
@@ -113,6 +114,12 @@ fn main() {
             actions::cards_watch,
             actions::cards_answer,
             actions::door_tools,
+            actions::local_agents_list,
+            actions::local_agents_add,
+            actions::local_agents_new_key,
+            actions::local_agents_remove,
+            actions::door_status,
+            actions::agent_bring_in,
             actions::machines_list,
             actions::machines_add,
             actions::machines_remove,

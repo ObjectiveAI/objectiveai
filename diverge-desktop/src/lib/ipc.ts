@@ -57,6 +57,8 @@ import type { MountsView } from "../bindings/MountsView";
 import type { VolumeStat } from "../bindings/VolumeStat";
 import type { VolumeTree } from "../bindings/VolumeTree";
 import type { VolumesListed } from "../bindings/VolumesListed";
+import type { LocalAgentView } from "../bindings/LocalAgentView";
+import type { DoorStatusView } from "../bindings/DoorStatusView";
 
 function channel<T>(onEvent: (event: T) => void): Channel<T> {
   const ch = new Channel<T>();
@@ -134,6 +136,13 @@ export const api = {
   cardsWatch: (onEvent: (e: CardEvent) => void) => invoke<string>("cards_watch", { onEvent: channel(onEvent) }),
   cardsAnswer: (id: number, answer: string) => invoke<null>("cards_answer", { id, answer }),
   doorTools: (kind?: AgentKind) => invoke<ToolView[]>("door_tools", { kind: kind ?? null }),
+  // Agents you run yourself, reaching the door on this Mac. The token never comes to the page.
+  localAgents: () => invoke<LocalAgentView[]>("local_agents_list"),
+  localAgentAdd: (name: string) => invoke<LocalAgentView>("local_agents_add", { name }),
+  localAgentNewKey: (id: string) => invoke<LocalAgentView>("local_agents_new_key", { id }),
+  localAgentRemove: (id: string) => invoke<null>("local_agents_remove", { id }),
+  doorStatus: () => invoke<DoorStatusView>("door_status"),
+  agentBringIn: (room: string, agent: string) => invoke<null>("agent_bring_in", { id: room, agent }),
 
   machines: () => invoke<MachineView[]>("machines_list"),
   machineAdd: (input: NewMachineInput) => invoke<MachineView>("machines_add", { input }),
