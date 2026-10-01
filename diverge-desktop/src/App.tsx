@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { afterAnswer, afterCardEvent, noCards } from "./lib/cards";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { afterAnswer, afterCardEvent, arrivalKeys, arrivals, noCards } from "./lib/cards";
 import type { AgentView } from "./bindings/AgentView";
 import type { AppInfo } from "./bindings/AppInfo";
 import type { KnockView } from "./bindings/KnockView";
@@ -134,6 +134,39 @@ export function App() {
     };
   }, [tabs, open, close, focus]);
 
+  // When a tab opens, focus goes to its page's heading, once the page has one (a room's comes when it's read).
+  const lastFocused = useRef<string | null>(null);
+  useEffect(() => {
+    const key = tabs.focused;
+    if (!key || key === lastFocused.current) return;
+    lastFocused.current = key;
+    let frame = 0;
+    let tries = 0;
+    const find = () => {
+      const pane = document.querySelector<HTMLElement>(`.pane[data-pane="${CSS.escape(key)}"]`);
+      const heading = pane && !pane.hidden ? pane.querySelector<HTMLElement>("h1") : null;
+      if (!heading) {
+        if (tries++ < 90) frame = requestAnimationFrame(find);
+        return;
+      }
+      // Someone already somewhere in the page keeps their place.
+      if (pane!.contains(document.activeElement)) return;
+      if (!heading.hasAttribute("tabindex")) heading.setAttribute("tabindex", "-1");
+      heading.focus({ preventScroll: true });
+    };
+    find();
+    return () => cancelAnimationFrame(frame);
+  }, [tabs.focused]);
+
+  // Cards and knocks, said aloud as they arrive (politely: after whatever is being read).
+  const [heard, setHeard] = useState<{ seen: Set<string>; said: string }>({ seen: new Set(), said: "" });
+  useEffect(() => {
+    setHeard((h) => {
+      const fresh = arrivals(h.seen, cards, knocks);
+      return fresh.length ? { seen: new Set([...h.seen, ...arrivalKeys(cards, knocks)]), said: fresh.join(". ") } : h;
+    });
+  }, [cards, knocks]);
+
   // Whether your keys file could be read: if not, nothing is signed, and the app says so everywhere.
   const [keysBroken, setKeysBroken] = useState<KeysBrokenView | null>(null);
   useEffect(() => {
@@ -149,27 +182,28 @@ export function App() {
     <SharedContext.Provider value={shared}>
       <div className="shell">
         <Rail focused={tabs.focused} />
+        <div className="visually-hidden" role="status" aria-live="polite">{heard.said}</div>
         <main className="stage">
           <TabStrip snapshot={tabs} onFocus={focus} onClose={close} />
           {info && info.folder_held.state !== "yes" ? (
-            <div className="banner banner-warn">
+            <div className="banner banner-warn"><span className="banner-text">
               <strong>{info.folder_held.state === "in_use" ? t.folder.inUse : t.folder.unchecked}</strong> {t.folder.where}{" "}
               <span className="mono selectable">{info.folder}</span>.
               {info.folder_held.state === "unchecked" ? <> {t.folder.systemSaid} <span className="mono selectable">{info.folder_held.error}</span>.</> : null}
-            </div>
+            </span></div>
           ) : info && !info.network ? (
             <div className="banner banner-warn">
               <strong>{t.network.absent}</strong>
             </div>
           ) : null}
           {keysBroken ? (
-            <div className="banner banner-warn">
+            <div className="banner banner-warn"><span className="banner-text">
               <strong>{keysBroken.newer ? t.keys.newer : t.keys.unreadable}</strong> {t.keys.where}{" "}
               <span className="mono selectable">{keysBroken.file}</span>. {t.keys.untouched}
-            </div>
+            </span></div>
           ) : null}
           {setAside.map((f) => (
-            <div key={f.kept_as ?? f.file} className="banner banner-warn">
+            <div key={f.kept_as ?? f.file} className="banner banner-warn"><span className="banner-text">
               <strong>
                 {f.room ? `${t.files.recordOf} ${f.room}` : (t.files.kinds[f.kind] ?? f.kind)}
                 {f.last_good_copy ? ` ${t.files.lastGoodCopy}` : ""}
@@ -178,12 +212,12 @@ export function App() {
               {f.kept_as ? <>, {t.files.setAsideAs} <span className="mono selectable">{f.kept_as}</span>.</> : <>, {t.files.leftInPlace}</>}
               {f.error ? <> {t.files.systemSaid} <span className="mono selectable">{f.error}</span>.</> : null} {t.files.carriedOn[f.carried_on]}{" "}
               {t.files.untouched}
-            </div>
+            </span></div>
           ))}
           <div className="panes">
             {tabs.tabs.length === 0 ? <Empty title={t.emptyState.title} body={t.emptyState.body} /> : null}
             {tabs.tabs.map(({ key, tab }) => (
-              <div key={key} className="pane" hidden={tabs.focused !== key}>
+              <div key={key} className="pane" data-pane={key} hidden={tabs.focused !== key}>
                 {tab.kind === "agent" ? <Conversation name={tab.name} tabKey={key} /> : null}
                 {tab.kind === "new_agent" ? <NewAgent tabKey={key} /> : null}
                 {tab.kind === "storage" ? <Storage /> : null}

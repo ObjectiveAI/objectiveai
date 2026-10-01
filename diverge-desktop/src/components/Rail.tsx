@@ -59,10 +59,10 @@ export function Rail(props: { focused: string | null }) {
           <ul className="rail-list">
             {spaces.map((s) => (
               <li key={s.id}>
-                <Row className="rail-item" on={here(`space:${s.id}`)} onClick={() => open({ kind: "space", id: s.id })} title={s.mine ? t.spaces.youHostIt : `${t.spaces.hostedBy} ${providerName(s.host)}`}>
+                {/* The name gets the whole row; what kind of room it is, and whose, is in the row's title. */}
+                <Row className="rail-item" on={here(`space:${s.id}`)} onClick={() => open({ kind: "space", id: s.id })} title={`${t.spaces.kinds[s.kind] ?? s.kind} · ${s.mine ? t.spaces.youHostIt : `${t.spaces.hostedBy} ${providerName(s.host)}`}`}>
                   <Dot state={s.online ? "idle" : "never"} />
                   <span className="rail-item-name">{spaceTitle(s)}</span>
-                  <span className="rail-item-kind">{t.spaces.kinds[s.kind] ?? s.kind}</span>
                 </Row>
               </li>
             ))}

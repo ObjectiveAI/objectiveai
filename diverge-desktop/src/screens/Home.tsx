@@ -6,6 +6,7 @@ import { Button, Card, Chip, Dot, Row, SectionHead, Tabs } from "../components/u
 import { useShared } from "../lib/context";
 import { ago, kindTitle, providerName, time, spaceTitle } from "../lib/format";
 import { api } from "../lib/ipc";
+import { useEscape } from "../lib/keys";
 import { KnockCard } from "../components/Knock";
 import { t } from "../strings";
 
@@ -26,6 +27,7 @@ export function Home() {
   const [asking, setAsking] = useState(false);
   const [askTo, setAskTo] = useState<Set<string>>(new Set());
   const [sent, setSent] = useState<string | null>(null);
+  const askForm = useEscape<HTMLDivElement>(asking, () => setAsking(false));
   const askable = spaces.filter((x) => ["home", "board", "idea"].includes(x.kind) && x.online);
 
   const load = useCallback(async () => setFeed(await api.homeFeed()), []);
@@ -88,17 +90,21 @@ export function Home() {
 
   return (
     <div className="home">
+      <h1 className="visually-hidden">{t.home.title}</h1>
       <section className="home-main">
         <Tabs className="home-views" value={view} options={Object.keys(VIEWS).map((k) => ({ value: k, label: t.home.views[k] }))} onChange={setView} />
         {homeId ? (
           <div className="home-compose">
-            <textarea rows={2} value={draft} placeholder={t.home.composePlaceholder} onChange={(e) => setDraft(e.target.value)} />
-            <div className="home-compose-actions">
-              <Button small kind="primary" onClick={() => post("show")} disabled={!draft.trim()}>{t.home.show}</Button>
-              <Button small kind="secondary" onClick={startAsk} disabled={!draft.trim()}>{t.home.ask}</Button>
+            {/* One field: the words, with Show and Ask inside it at the bottom right. One line until you write more. */}
+            <div className="home-compose-field">
+              <textarea rows={Math.min(8, draft.split("\n").length)} value={draft} placeholder={t.home.composePlaceholder} onChange={(e) => setDraft(e.target.value)} />
+              <div className="home-compose-actions">
+                <Button small kind="primary" onClick={() => post("show")} disabled={!draft.trim()}>{t.home.show}</Button>
+                <Button small kind="secondary" onClick={startAsk} disabled={!draft.trim()}>{t.home.ask}</Button>
+              </div>
             </div>
             {asking ? (
-              <div className="ask-to">
+              <div className="ask-to" ref={askForm}>
                 <span className="muted small">{t.home.askWhere}</span>
                 {askable.map((x) => (
                   <label key={x.id} className="switch">

@@ -4,7 +4,7 @@ import type { MachineView } from "../bindings/MachineView";
 import type { ProviderView } from "../bindings/ProviderView";
 import type { VolumeMode } from "../bindings/VolumeMode";
 import type { VolumeView } from "../bindings/VolumeView";
-import { Button, Chip, Empty, Field, Icon, Row, SectionHead } from "../components/ui";
+import { Button, Chip, Empty, Escapes, Field, Icon, Row, SectionHead } from "../components/ui";
 import { bytes as fmtBytes, identityKey, providerName } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
@@ -238,10 +238,10 @@ function VolumePane(props: { on: ProviderView; volume: VolumeView; used: number 
           <input className="size-input" type="number" min={0.25} step={0.25} value={gb} onChange={(e) => setGb(Number(e.target.value))} aria-label={t.storage.size} />
           <Button small kind="tertiary" onClick={() => edit(Math.round(gb * GB), null)} disabled={Math.round(gb * GB) === volume.bytes}>{t.storage.resize}</Button>
           {confirm ? (
-            <>
+            <Escapes className="confirm-pair" onEscape={() => setConfirm(false)}>
               <Button small kind="danger" onClick={async () => { const out = await api.volumeDelete(on, volume.name); say(out.outcome, out.outcome === "error" ? out.message : undefined); setConfirm(false); props.onChanged(); }}>{t.storage.deleteConfirm}</Button>
               <Button small kind="tertiary" onClick={() => setConfirm(false)}>{t.storage.keep}</Button>
-            </>
+            </Escapes>
           ) : (
             <Button small kind="tertiary" onClick={() => setConfirm(true)}>{t.storage.delete}</Button>
           )}

@@ -11,6 +11,13 @@
 .warn { color: var(--warn); }
 .bad { color: var(--bad); }
 .spacer { flex: 1; }
+/* Words a screen reader says that the screen shows otherwise: off screen, never display: none. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Two buttons that stand in for one (a confirm and its way back): they sit in the row as if unwrapped. */
+.confirm-pair { display: contents; }
+/* Reading width: lines of text stop at --measure; the cards and pages around them keep their width. */
+p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measure); }
+.banner-text { display: block; }
 
 /* --- the parts in ui.tsx --------------------------------------------------- */
 /* Buttons. Anything pressed is at least --hit-min tall; each kind has one look. */
@@ -100,6 +107,7 @@
 .segmented { align-self: flex-start; display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-1); gap: var(--space-1); flex-wrap: wrap; }
 .segmented button { border: 0; background: none; padding: var(--space-1) var(--space-3); border-radius: 4px; cursor: pointer; color: var(--text-2); font-size: var(--text-sm); }
 .segmented button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow), 0 0 0 1px var(--line); }
+.segmented button.on:focus-visible { box-shadow: var(--focus); }
 
 /* --- tab strip ------------------------------------------------------------ */
 /* A focused tab overlaps the strip's rule by a pixel, which made the strip scroll vertically — the stray scrollbar. */
@@ -107,13 +115,15 @@
 .strip::-webkit-scrollbar { display: none; }
 /* A tab holds its close button (28px), that button's 2px focus ring above and below, and its own 1px top edge,
    so the strip, which clips, never cuts the ring. */
-.tab { display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-2); flex: 0 1 200px; min-width: 124px; cursor: pointer; border: 1px solid transparent; border-bottom: 0; }
+.tab { display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-2); flex: 0 0 auto; min-width: 96px; max-width: 220px; cursor: pointer; border: 1px solid transparent; border-bottom: 0; }
 .tab-title { flex: 1; min-width: 0; }
 .tab:hover { color: var(--text); }
 .tab.on { background: var(--bg); color: var(--here); border-color: var(--line); font-weight: 600; }
 .tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
 .tab .btn-icon { opacity: 0; }
-.tab:hover .btn-icon, .tab.on .btn-icon { opacity: 1; }
+.tab:hover .btn-icon, .tab.on .btn-icon, .tab:focus-within .btn-icon { opacity: 1; }
+/* The strip clips, so a tab's own focus ring is drawn inside it. */
+.tab:focus-visible { box-shadow: var(--focus) inset; }
 
 /* --- empty, banners -------------------------------------------------------- */
 .empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); text-align: center; padding: var(--space-6); }
@@ -226,6 +236,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .kind { display: flex; flex-direction: column; gap: var(--space-1); border: 1px solid var(--line); background: var(--bg); border-radius: var(--radius-md); padding: var(--space-3); }
 .kind:hover { background: var(--bg); border-color: var(--line-strong); }
 .kind.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.kind.on:focus-visible { box-shadow: var(--focus); }
 .kind-title { font-weight: 650; }
 .kind-blurb { font-size: var(--text-sm); color: var(--text-2); line-height: 1.35; }
 
@@ -374,7 +385,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .home-views { padding: var(--space-2) var(--space-5) 0; border-bottom: 1px solid var(--line); background: var(--surface); }
 .home-compose { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-5) 0; }
 .home-compose textarea { resize: none; }
-.home-compose-actions { display: flex; gap: var(--space-2); }
+/* The composer is one field: the words, and Show and Ask inside it at the bottom right. */
+.home-compose-field { display: flex; align-items: flex-end; gap: var(--space-2); padding: var(--space-1); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg); }
+.home-compose-field:focus-within { border-color: var(--accent); }
+.home-compose-field textarea { flex: 1; border: 0; background: none; padding: var(--space-1) var(--space-2); }
+.home-compose-actions { display: flex; gap: var(--space-2); flex: none; }
 .home-feed { flex: 1; overflow-y: auto; padding: var(--space-3) var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); }
 .feed-card { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
 .feed-body { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { MachineView } from "../bindings/MachineView";
 import { LocalAgents } from "../components/LocalAgents";
-import { Button, Chip, Field, Icon, Segmented } from "../components/ui";
+import { Button, Chip, Escapes, Field, Icon, Segmented } from "../components/ui";
 import { useShared } from "../lib/context";
 import { ago, providerName, providerRaw, providerWay, setMachineNames } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
@@ -75,10 +75,10 @@ export function Machines() {
                 </div>
                 <div className="machine-actions">
                   {confirm === id ? (
-                    <>
+                    <Escapes className="confirm-pair" onEscape={() => setConfirm(null)}>
                       <Button small kind="danger" onClick={() => remove(m)}>{t.machines.confirm}</Button>
                       <Button small kind="tertiary" onClick={() => setConfirm(null)}>{t.machines.keep}</Button>
-                    </>
+                    </Escapes>
                   ) : (
                     <Button small kind="tertiary" onClick={() => setConfirm(id)}>{t.machines.remove}</Button>
                   )}

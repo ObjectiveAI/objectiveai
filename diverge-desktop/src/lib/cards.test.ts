@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CardView } from "../bindings/CardView";
-import { afterAnswer, afterCardEvent, inTimeOrder, noCards } from "./cards";
+import type { KnockView } from "../bindings/KnockView";
+import { afterAnswer, afterCardEvent, arrivalKeys, arrivals, inTimeOrder, noCards } from "./cards";
 import { t } from "../strings";
 
 const card = (id: number, agent = "research-notes"): CardView => ({
@@ -86,5 +87,18 @@ describe("withdrawn cards among what happened", () => {
     const placed = inTimeOrder(items, [at(3, "2026-10-01T10:00:00Z")]);
     expect(placed.map((p) => ("card" in p ? `card ${p.card.id}` : p.item.n))).toEqual(["a", "b", "c", "card 3"]);
     expect(inTimeOrder(items, []).map((p) => ("item" in p ? p.index : -1))).toEqual([0, 1, 2]);
+  });
+});
+
+describe("what a screen reader hears", () => {
+  const knock = (knock_id: number): KnockView => ({
+    knock_id, space: "room-1", space_title: "Saturday Workshop", address: "203.0.113.7", name: "ren", note: "", listed: true, invited: true, checked: true, vouch: null, at: "2026-10-01T09:00:00Z", answered: null,
+  });
+  it("each card and knock once, as it arrives, in the screen's words", () => {
+    const first = arrivals(new Set(), [card(1)], [knock(7)]);
+    expect(first).toEqual([`research-notes ${t.cards.asksYou}: ${t.cards.wantsTo} ${t.cards.verbs.claim} “Package the photo resizer as a tool” ${t.cards.inRoom} Saturday Workshop`, `ren ${t.rail.atTheDoor}: Saturday Workshop`]);
+    const seen = new Set(arrivalKeys([card(1)], [knock(7)]));
+    expect(arrivals(seen, [card(1), card(2, "site-fixes")], [knock(7)])).toHaveLength(1);
+    expect(arrivals(seen, [card(1)], [knock(7)])).toEqual([]);
   });
 });

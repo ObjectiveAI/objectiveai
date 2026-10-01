@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { MoveView } from "../bindings/MoveView";
 import type { ProfileView } from "../bindings/ProfileView";
 import { Markdown } from "../components/Markdown";
-import { Button, Chip, Empty, Row, Section, SectionHead } from "../components/ui";
+import { Button, Chip, Empty, Escapes, Row, Section, SectionHead } from "../components/ui";
 import { useShared } from "../lib/context";
 import { ago, bytes, kindTitle, providerName, providerWay, time, spaceTitle } from "../lib/format";
 import { api } from "../lib/ipc";
@@ -137,10 +137,10 @@ function PersonaRow(props: { id: string; name: string; usual: boolean; rooms: st
   return (
     <li className="persona">
       {editing ? (
-        <>
+        <Escapes className="confirm-pair" onEscape={() => { setName(props.name); setEditing(false); }}>
           <input value={name} onChange={(e) => setName(e.target.value)} />
           <Button small kind="primary" onClick={() => api.personaRename(props.id, name).then(() => { setEditing(false); props.onChanged(); })} disabled={!name.trim()}>{t.profile.save}</Button>
-        </>
+        </Escapes>
       ) : (
         <>
           <strong>{props.name}</strong>

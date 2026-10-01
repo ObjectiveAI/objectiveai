@@ -4,7 +4,7 @@ import type { LocalAgentView } from "../bindings/LocalAgentView";
 import { ago } from "../lib/format";
 import { api, errorText } from "../lib/ipc";
 import { t } from "../strings";
-import { Button, Field } from "./ui";
+import { Button, Escapes, Field } from "./ui";
 
 /** Agents you run yourself on this Mac: add one, copy the line that connects it, give it a new key, remove it. */
 export function LocalAgents() {
@@ -72,10 +72,10 @@ export function LocalAgents() {
                 <Button small kind="secondary" onClick={() => copy(a)} disabled={!a.connect_line}>{w.copy}</Button>
                 <Button small kind="tertiary" title={w.newKeyNote} onClick={() => act(() => api.localAgentNewKey(a.id))}>{w.newKey}</Button>
                 {confirm === a.id ? (
-                  <>
+                  <Escapes className="confirm-pair" onEscape={() => setConfirm(null)}>
                     <Button small kind="danger" onClick={() => act(async () => { await api.localAgentRemove(a.id); setConfirm(null); })}>{w.confirm}</Button>
                     <Button small kind="tertiary" onClick={() => setConfirm(null)}>{w.keep}</Button>
-                  </>
+                  </Escapes>
                 ) : (
                   <Button small kind="tertiary" onClick={() => setConfirm(a.id)}>{w.remove}</Button>
                 )}

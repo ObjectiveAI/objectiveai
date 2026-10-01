@@ -4,7 +4,7 @@ import type { CardView } from "../bindings/CardView";
 import type { LogEntry } from "../bindings/LogEntry";
 import { Markdown } from "../components/Markdown";
 import { MountsPanel } from "../components/Mounts";
-import { Button, Card, Chip, Dot } from "../components/ui";
+import { Button, Card, Chip, Dot, Escapes } from "../components/ui";
 import { useShared } from "../lib/context";
 import { argsLine, fold, pretty, shown, type Block, type Part, type WorkSummary } from "../lib/conversation";
 import { ago, kindTitle, number, providerName, time } from "../lib/format";
@@ -140,10 +140,10 @@ export function Conversation(props: { name: string; tabKey: string }) {
             {watching ? t.convo.stopWatching : t.convo.watch}
           </Button>
           {removing === "confirm" ? (
-            <>
+            <Escapes className="confirm-pair" onEscape={() => setRemoving("idle")}>
               <Button small kind="danger" onClick={remove}>{t.convo.removeConfirm}</Button>
               <Button small kind="tertiary" onClick={() => setRemoving("idle")}>{t.convo.removeCancel}</Button>
-            </>
+            </Escapes>
           ) : (
             <Button small kind="tertiary" onClick={() => setRemoving("confirm")}>{t.convo.remove}</Button>
           )}

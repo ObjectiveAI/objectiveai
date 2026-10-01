@@ -1,5 +1,6 @@
 import type { CardEvent } from "../bindings/CardEvent";
 import type { CardView } from "../bindings/CardView";
+import type { KnockView } from "../bindings/KnockView";
 import { t } from "../strings";
 
 /** The cards waiting on you, and those withdrawn because the agent stopped waiting: kept to say so. */
@@ -80,3 +81,14 @@ export function cardDetails(c: CardView): [string, string][] {
 export function answerLabel(o: string): string {
   return t.cards.answers[o] ?? o;
 }
+
+/** What a screen reader says as cards and knocks arrive: one line for each not seen before, in the screen's words. */
+export function arrivals(seen: Set<string>, cards: CardView[], knocks: KnockView[]): string[] {
+  const out: string[] = [];
+  for (const c of cards) if (!seen.has(`card:${c.id}`)) out.push(`${c.agent} ${t.cards.asksYou}: ${cardLine(c)}`);
+  for (const k of knocks) if (!seen.has(`knock:${k.knock_id}`)) out.push(`${k.name} ${t.rail.atTheDoor}: ${k.space_title}`);
+  return out;
+}
+
+/** The keys `arrivals` remembers each card and knock by. */
+export const arrivalKeys = (cards: CardView[], knocks: KnockView[]) => [...cards.map((c) => `card:${c.id}`), ...knocks.map((k) => `knock:${k.knock_id}`)];

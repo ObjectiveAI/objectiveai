@@ -1,4 +1,5 @@
 import type { MouseEvent, ReactNode } from "react";
+import { useEscape } from "../lib/keys";
 
 /** How a button looks: the one action that goes ahead (primary), an ordinary one (secondary), a quiet one
  *  (tertiary), one that can't be undone (danger), or an icon alone, which must carry a label. */
@@ -179,4 +180,10 @@ export function Icon(props: { name: "plus" | "close" | "chevron" | "folder" | "f
     case "home":
       return <svg {...common}><path d="M2.5 8L8 3l5.5 5" /><path d="M4 7v6h8V7" /></svg>;
   }
+}
+
+/** An inline form or confirm, open while it's on screen: Escape closes it (the newest one open, if several). */
+export function Escapes(props: { children: ReactNode; onEscape: () => void; className?: string }) {
+  const ref = useEscape<HTMLDivElement>(true, props.onEscape);
+  return <div className={props.className} ref={ref}>{props.children}</div>;
 }

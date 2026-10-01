@@ -64,6 +64,8 @@
   --hit-min: 28px;
 
   --rail-width: 244px;
+  /* The reading width: a line of text inside a card or a page stops here (well under 90 characters). */
+  --measure: 63ch;
   --strip-height: 38px;
 
   /* the site's */
