@@ -142,7 +142,7 @@ pub fn spawn(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: Arc<Ide
                         args["measured"] = json!(m);
                     }
                     let mut params = CallToolRequestParams::new("report").with_arguments(args.as_object().cloned().unwrap_or_default());
-                    let actor = Actor::Agent(a.name.clone());
+                    let actor = Actor::Agent(crate::identity::AgentId::Daemon(a.name.clone()));
                     let turn = identity.turn(&actor, &home.id);
                     let _held = turn.lock().await;
                     if identity.seal(&actor, &home.id, &mut params).is_ok() {

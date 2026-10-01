@@ -634,6 +634,10 @@ export const t = {
     placeholder: "Your answer",
     send: "Answer",
     railTag: "asks you",
+    // A card whose agent stopped waiting before you answered.
+    stoppedWaiting: "stopped waiting",
+    withdrawn: "Withdrawn",
+    withdrawnNote: "Nothing was done, and answering it now would do nothing.",
     wantsTo: "Wants to",
     inRoom: "in",
     verbs: {

@@ -28,7 +28,7 @@ use diverge_sdk::shared::filetree::response::Node;
 
 use super::{Answer, Authorize, Container, HostCall, Id, Invite, InviteVerb, Joined, Knock, Knocking, SpaceEntry, Spaces};
 use crate::daemon::Frames;
-use crate::identity::{Actor, Identity as Keys};
+use crate::identity::{Actor, AgentId, Identity as Keys};
 
 /// Your own provider, as the stand-in daemon names it.
 pub fn mine() -> Identity {
@@ -398,7 +398,7 @@ impl StubSpaces {
 
     /// Admit one of your agents, tethered to you.
     fn admit_agent(&self, inner: &mut Inner, room: &str, agent: &str, at: DateTime<Utc>) {
-        let (Ok(a), Ok(usual)) = (self.me.agent_in(agent, Some(room)), self.me.usual()) else { return };
+        let (Ok(a), Ok(usual)) = (self.me.agent_in(&AgentId::daemon(agent), Some(room)), self.me.usual()) else { return };
         let (key, t, agent) = (a.key, a.tether, a.name.as_str());
         let _ = self.me_act(inner, Actor::Persona("usual".into()), room, "admit", json!({ "key": key, "name": agent, "is_agent": true, "agent_of": usual.key, "tether": t }), at);
     }
@@ -427,7 +427,7 @@ impl StubSpaces {
         let _ = self.me_act(inner, me.clone(), &home, "ask", json!({ "what": "Who has a GPU free on weekends?", "needs": "a card with 24 GB, reachable from my daemon", "ceiling": "one weekend", "who_may_serve": "anyone" }), ago(3, 10));
         let ask = Self::last_id(inner, &home);
         let _ = self.act(inner, "ada", &home, "offer", json!({ "ask_id": ask, "body": "Mine's free Saturday, the studio PC. Say when and I'll issue you a key." }), ago(2, 20));
-        let _ = self.me_act(inner, Actor::Agent("site-fixes".into()), &home, "report", json!({ "title": "Went through the site", "body": "12 passes. One broken link: “Archive” points at /old-page, which doesn't exist. Nothing changed.", "measured": "1,556 tokens" }), ago(0, 20));
+        let _ = self.me_act(inner, Actor::Agent(AgentId::daemon("site-fixes")), &home, "report", json!({ "title": "Went through the site", "body": "12 passes. One broken link: “Archive” points at /old-page, which doesn't exist. Nothing changed.", "measured": "1,556 tokens" }), ago(0, 20));
 
         // A work board you host.
         let board = self.open(inner, "board-saturday", "Saturday Workshop", Kind::Board, (&usual.key, &usual.name), mine(), BOARD_CHARTER, "saturday-2026", false, None, since);

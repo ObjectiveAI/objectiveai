@@ -17,4 +17,9 @@ mark: string | null,
  * Under rules 2, the keys on a person's current device list: any of
  * them acts for them here. Empty under rules 1.
  */
-devices: Array<string>, };
+devices: Array<string>, 
+/**
+ * For an agent of yours: its slot, which its allowances go by. The
+ * room doesn't say it; the app does.
+ */
+slot: string | null, };

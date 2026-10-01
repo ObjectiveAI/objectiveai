@@ -103,8 +103,23 @@ inherits it.
   open asks, and `ask_person` (question / choice / credential by meaning; the value never reaches the agent). Every
   room move is sealed as the agent. Reading a room and acting in one both ask its person first, unless the person set
   a daily allowance for that agent in that room, for that kind of move (`Reach`: read, talk, work, pledge;
-  `allowances.json`). An allowance is spent only on what the room accepts. A card carries the whole call
-  (`CardCall`, `CardHire`), worded by the screen from `src/strings.ts`. Cards wait on the person; nothing times out.
+  `allowances.json`, keyed by room and the agent's slot). An allowance is spent only on what the room accepts. A card
+  carries the whole call (`CardCall`, `CardHire`), worded by the screen from `src/strings.ts`. Cards wait on the
+  person; nothing times out, but a card whose caller stops waiting (the call's cancellation) is withdrawn
+  (`CardEvent::Withdrawn`) and a late answer does nothing.
+  - Two kinds of agent (`identity::AgentId`): the daemon's, by name, and local ones you already run yourself, added
+    with an id (`Identity::add_local`; nothing on the page adds one yet). A slot names one agent: a daemon agent's name
+    (`daemon/<name>` if it starts like a slot), or `local/<id>`. Keys are found by kind, name and persona, never by an
+    entry's name, so agents of two kinds never share a key.
+  - The door answers only agents it knows (the daemon's list, asked again on a miss, and the local ones added) and
+    refuses any other before a key could be made. An agent reads and acts only in rooms it's in, by the room's own
+    record, checked before any card; `spaces_list` and `asks_open` name only those rooms.
+  - A local agent can't ask for a key (`door_tools` lists tools per kind), and room text reaches it framed as other
+    people's words, the frame marked with a digest of the text so nothing inside can close it. A room's refusal is room
+    text too: it comes back as a refused result, framed.
+  - Known limit: the keys file's version didn't change when agent records gained a kind and a display name. A build
+    from before then reads the file as its own and, writing it back, drops them, so a local agent's entry would read
+    as a daemon agent's. Bump the keys version before anything on the page adds a local agent.
 - **The reporter** (`src-tauri/src/reporter.rs`): when an agent's run ends it `report`s to the person's Home, with the
   run's words only while Home is theirs alone.
 - **The stand-in keeps its rooms** between launches (`tables/.stand-in-rooms.json`), rebuilt by replaying their

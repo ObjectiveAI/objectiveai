@@ -182,7 +182,7 @@ impl AppState {
             if held { store::load(file, format) } else { store::peek(file, format) }
         }
         // An allowance lets an agent act without asking: a copy that can't save one starts with none.
-        let door = Arc::new(Door::new(seams.spaces.clone(), identity.clone(), held.then(|| data.join(ALLOWANCES_FILE))));
+        let door = Arc::new(Door::new(seams.spaces.clone(), identity.clone(), seams.daemon.clone(), held.then(|| data.join(ALLOWANCES_FILE))));
         let records_dir = data.join(RECORDS_DIR);
         if held {
             let _ = std::fs::create_dir_all(&records_dir);
@@ -304,7 +304,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("allowance_set", "Let an agent make some moves in a room each day without asking"),
     ("cards_watch", "Hear when an agent asks you something"),
     ("cards_answer", "Answer an agent's card"),
-    ("door_tools", "What agents can do through the app (the agent door)"),
+    ("door_tools", "What agents can do through the app (the agent door): a daemon agent, or a local one"),
     ("machines_list", "List the machines the daemon can run on"),
     ("machines_add", "Add a machine: one you dial, or one that dials you"),
     ("machines_remove", "Remove a machine"),
@@ -433,7 +433,7 @@ async fn create_agent(state: &AppState, input: CreateAgentInput) -> Result<Creat
     // A new agent of yours is a member of your Home, so it can report there.
     if matches!(outcome, CreateOutcome::Created) {
         if let Some(home) = state.spaces.home().await {
-            let _ = admit_agent(state, &home, &name).await;
+            let _ = admit_agent(state, &home, &crate::identity::AgentId::Daemon(name.clone())).await;
         }
     }
     Ok(outcome)
@@ -650,7 +650,7 @@ async fn rules_of(state: &AppState, id: &spaces::Id) -> diverge_desktop_room::Ru
 }
 
 /// Let one of your agents into a room you host, tethered to who you are there.
-pub async fn admit_agent(state: &AppState, room: &spaces::Id, agent: &str) -> Result<(), String> {
+pub async fn admit_agent(state: &AppState, room: &spaces::Id, agent: &crate::identity::AgentId) -> Result<(), String> {
     let a = state.identity.agent_in(agent, Some(&room.id))?;
     let person = state.identity.who_in(&room.id)?;
     call_as_you(state, room, "admit", serde_json::json!({ "key": a.key, "name": a.name, "is_agent": true, "agent_of": person.key, "tether": a.tether })).await.map(|_| ())
@@ -884,8 +884,16 @@ async fn space_view(state: &AppState, id: String) -> Result<SpaceView, String> {
         }
     }
     crate::marks::members(&id, &mut members);
+    slots(&state.identity, &mut members);
     let before = if entry.mine { people_from_before(state, &sid, &entries, &members).await } else { Vec::new() };
     Ok(SpaceView { summary: summary(entry, &state.identity), charter, members, tools: tools.tools.iter().map(Into::into).collect(), before })
+}
+
+/// Each agent of yours on a room's list, with its slot: its allowances go by that, never by its name there.
+pub fn slots(identity: &crate::identity::Identity, members: &mut [MemberView]) {
+    for m in members.iter_mut().filter(|m| m.is_agent) {
+        m.slot = identity.slot_of(&m.key);
+    }
 }
 
 /// For a room you continued: who was listed in the room before and isn't
@@ -1503,13 +1511,15 @@ pub fn persona_rename(state: State<'_, AppState>, id: String, name: String) -> R
     state.identity.rename(&id, &name)
 }
 
+/// Your agent's allowance in a room. `agent` is its slot, as the room's list gives it.
 #[tauri::command]
 pub fn allowance_get(state: State<'_, AppState>, id: String, agent: String) -> AllowanceView {
     let a = state.door.allowance(&id, &agent);
     AllowanceView { per_day: a.per_day, used_today: a.used }
 }
 
-/// Your agent's allowance in a room, for one kind of move: your setting, nobody else's.
+/// Your agent's allowance in a room, for one kind of move: your setting,
+/// nobody else's. `agent` is its slot, as the room's list gives it.
 #[tauri::command]
 pub fn allowance_set(state: State<'_, AppState>, id: String, agent: String, reach: crate::door::Reach, per_day: u32) -> AllowanceView {
     state.door.set_allowance(&id, &agent, reach, per_day);
@@ -1540,9 +1550,10 @@ pub fn cards_answer(state: State<'_, AppState>, id: u64, answer: String) -> Resu
     state.door.answer(id, answer)
 }
 
+/// What one kind of agent can do through the door: the daemon's, unless another kind is named.
 #[tauri::command]
-pub fn door_tools(state: State<'_, AppState>) -> Vec<ToolView> {
-    state.door.tools().tools.iter().map(Into::into).collect()
+pub fn door_tools(state: State<'_, AppState>, kind: Option<crate::identity::AgentKind>) -> Vec<ToolView> {
+    state.door.tools(kind.unwrap_or_default()).tools.iter().map(Into::into).collect()
 }
 
 // --- machines (ours until the wire has them) -----------------------------
@@ -2010,9 +2021,9 @@ mod tests {
     async fn your_agent_comes_into_a_rules_two_room_tethered_to_your_account() {
         let (state, rooms) = app("actions-agent-v2");
         let id = board(&state, "Saturday Workshop").await;
-        admit_agent(&state, &space_id(&id), "site-fixes").await.unwrap();
+        admit_agent(&state, &space_id(&id), &crate::identity::AgentId::daemon("site-fixes")).await.unwrap();
         let mut params = CallToolRequestParams::new("show").with_arguments(json!({ "title": "Went through the site" }).as_object().cloned().unwrap());
-        state.identity.seal(&crate::identity::Actor::Agent("site-fixes".into()), &id, &mut params).unwrap();
+        state.identity.seal(&crate::identity::Actor::Agent(crate::identity::AgentId::daemon("site-fixes")), &id, &mut params).unwrap();
         state.spaces.call(&space_id(&id), params).await.unwrap();
         let (you, _) = state.identity.account().unwrap();
         let members: Vec<MemberView> = read_json(&state, &space_id(&id), program::MEMBERS).await.unwrap();

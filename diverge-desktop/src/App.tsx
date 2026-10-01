@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { afterAnswer, afterCardEvent, noCards } from "./lib/cards";
 import type { AgentView } from "./bindings/AgentView";
 import type { AppInfo } from "./bindings/AppInfo";
-import type { CardView } from "./bindings/CardView";
 import type { KnockView } from "./bindings/KnockView";
 import type { FileNoticeView } from "./bindings/FileNoticeView";
 import type { KeysBrokenView } from "./bindings/KeysBrokenView";
@@ -39,10 +39,12 @@ export function App() {
   const [spaces, setSpaces] = useState<SpaceSummary[]>([]);
   const [homeId, setHomeId] = useState<string | null>(null);
   const [knocks, setKnocks] = useState<KnockView[]>([]);
-  const [cards, setCards] = useState<CardView[]>([]);
+  // Cards waiting on you, and those withdrawn because their agent stopped waiting.
+  const [{ cards, withdrawn }, setCards] = useState(noCards);
   const answerCard = useCallback(async (id: number, answer: string) => {
-    await api.cardsAnswer(id, answer);
-    setCards((c) => c.filter((x) => x.id !== id));
+    // A card answered or withdrawn meanwhile takes no answer: it stays until the app's event says which.
+    const taken = await api.cardsAnswer(id, answer).then(() => true, () => false);
+    setCards((s) => afterAnswer(s, id, taken));
   }, []);
 
   const refreshSpaces = useCallback(async () => setSpaces(await api.spaces()), []);
@@ -79,10 +81,7 @@ export function App() {
     const knocksScope = api.knocksWatch((event) => {
       if (event.event === "knock") setKnocks((k) => (k.some((x) => x.knock_id === event.knock.knock_id) ? k : [...k, event.knock]));
     });
-    const cardsScope = api.cardsWatch((event) => {
-      if (event.event === "card") setCards((c) => (c.some((x) => x.id === event.card.id) ? c : [...c, event.card]));
-      else if (event.event === "answered") setCards((c) => c.filter((x) => x.id !== event.id));
-    });
+    const cardsScope = api.cardsWatch((event) => setCards((s) => afterCardEvent(s, event)));
     const timer = setInterval(() => {
       refreshAgents();
       refreshSetAside();
@@ -142,8 +141,8 @@ export function App() {
   }, []);
 
   const shared = useMemo(
-    () => ({ agents, listedAt, refreshAgents, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, answerCard }),
-    [agents, listedAt, refreshAgents, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, answerCard],
+    () => ({ agents, listedAt, refreshAgents, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard }),
+    [agents, listedAt, refreshAgents, info, open, close, spaces, homeId, refreshSpaces, knocks, answerKnock, cards, withdrawn, answerCard],
   );
 
   return (
