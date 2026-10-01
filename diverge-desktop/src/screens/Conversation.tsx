@@ -14,8 +14,9 @@ import { t } from "../strings";
 type Pending = { ticket: string; text: string; state: "waiting" | "taken" | "late" | "error"; error?: string };
 
 export function Conversation(props: { name: string; tabKey: string }) {
-  const { agents, refreshAgents, cards, answerCard } = useShared();
+  const { agents, refreshAgents, cards, withdrawn, answerCard } = useShared();
   const mine = cards.filter((c) => c.agent === props.name);
+  const gone = withdrawn.filter((c) => c.agent === props.name);
   const agent = agents.find((a) => a.name === props.name);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [watching, setWatching] = useState(true);
@@ -169,6 +170,9 @@ export function Conversation(props: { name: string; tabKey: string }) {
           {blocks.map((block, i) => (
             <BlockView key={i} block={block} agentName={props.name} live={running && i === blocks.length - 1} />
           ))}
+          {gone.map((card) => (
+            <WithdrawnCard key={card.id} card={card} />
+          ))}
           {mine.map((card) => (
             <AskCard key={card.id} card={card} onAnswer={(a) => answerCard(card.id, a)} />
           ))}
@@ -220,6 +224,20 @@ export function Conversation(props: { name: string; tabKey: string }) {
         </div>
       </footer>
     </div>
+  );
+}
+
+/** A card its agent stopped waiting on: what it asked, said to be withdrawn, with nothing to answer. */
+function WithdrawnCard({ card }: { card: CardView }) {
+  return (
+    <Card tone="quiet">
+      <div className="ask-card-head">
+        <strong>{card.from ?? card.agent}</strong> <span>{t.cards.stoppedWaiting}</span>
+        <Chip>{t.cards.withdrawn}</Chip>
+      </div>
+      <p className="selectable">{cardLine(card)}</p>
+      <p className="muted small">{t.cards.withdrawnNote}</p>
+    </Card>
   );
 }
 

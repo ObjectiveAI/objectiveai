@@ -62,6 +62,8 @@ export function installPreview() {
   const tables = structuredClone(fixture.tables) as Record<string, { nodes: FileNode[]; files: Record<string, string> }>;
   const allowances: Record<string, Record<string, number>> = {};
   const cards: CardView[] = structuredClone(fixture.cards) as CardView[];
+  // Cards withdrawn because their agent stopped waiting: an answer to one does nothing.
+  const withdrawn = new Set<number>();
   let cardCh: Chan | null = null;
   const spaceWatches = new Map<string, { id: string; ch: Chan }>();
   let knockCh: Chan | null = null;
@@ -481,10 +483,21 @@ export function installPreview() {
         case "cards_watch":
           cardCh = args.onEvent as Chan;
           later(() => { for (const c of cards) cardCh?.onmessage({ event: "card", card: c }); });
+          // Preview only: add ?card-withdrawn to the address to see the first card's agent stop waiting, as the app shows it.
+          if (new URLSearchParams(location.search).has("card-withdrawn")) {
+            setTimeout(() => {
+              const c = cards.shift();
+              if (!c) return;
+              withdrawn.add(c.id);
+              cardCh?.onmessage({ event: "withdrawn", id: c.id });
+            }, 1500);
+          }
           return `cards-${++scope}`;
         case "cards_answer": {
+          if (withdrawn.has(args.id)) throw "that card was withdrawn: the agent stopped waiting, and nothing was done";
           const at = cards.findIndex((c) => c.id === args.id);
-          if (at >= 0) cards.splice(at, 1);
+          if (at < 0) throw "that card was already answered";
+          cards.splice(at, 1);
           cardCh?.onmessage({ event: "answered", id: args.id });
           return null;
         }

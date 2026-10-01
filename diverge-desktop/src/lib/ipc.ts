@@ -2,6 +2,7 @@
 // Types come from src/bindings (generated from Rust — never edit them).
 
 import type { Reach } from "../bindings/Reach";
+import type { AgentKind } from "../bindings/AgentKind";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { ActionInfo } from "../bindings/ActionInfo";
@@ -123,15 +124,16 @@ export const api = {
   tableTransfer: (from: string, path: string, to: string) => invoke<FileWritten>("table_transfer", { from, path, to }),
   personas: () => invoke<PersonaView[]>("personas_list"),
   personaRename: (id: string, name: string) => invoke<null>("persona_rename", { id, name }),
-  allowanceGet: (id: string, agent: string) => invoke<AllowanceView>("allowance_get", { id, agent }),
-  allowanceSet: (id: string, agent: string, reach: Reach, perDay: number) => invoke<AllowanceView>("allowance_set", { id, agent, reach, perDay }),
+  // `slot` is the agent's slot, as a room's list gives it for your agents.
+  allowanceGet: (id: string, slot: string) => invoke<AllowanceView>("allowance_get", { id, agent: slot }),
+  allowanceSet: (id: string, slot: string, reach: Reach, perDay: number) => invoke<AllowanceView>("allowance_set", { id, agent: slot, reach, perDay }),
   spaceLeave: (id: string) => invoke<null>("spaces_leave", { id }),
   spaceInvite: (id: string) => invoke<InviteView | null>("spaces_invite", { id }),
   knocksWatch: (onEvent: (e: KnockEvent) => void) => invoke<string>("knocks_watch", { onEvent: channel(onEvent) }),
   knocksAnswer: (knockId: number, yes: boolean) => invoke<null>("knocks_answer", { knockId, yes }),
   cardsWatch: (onEvent: (e: CardEvent) => void) => invoke<string>("cards_watch", { onEvent: channel(onEvent) }),
   cardsAnswer: (id: number, answer: string) => invoke<null>("cards_answer", { id, answer }),
-  doorTools: () => invoke<ToolView[]>("door_tools"),
+  doorTools: (kind?: AgentKind) => invoke<ToolView[]>("door_tools", { kind: kind ?? null }),
 
   machines: () => invoke<MachineView[]>("machines_list"),
   machineAdd: (input: NewMachineInput) => invoke<MachineView>("machines_add", { input }),

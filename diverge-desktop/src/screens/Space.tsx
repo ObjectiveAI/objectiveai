@@ -198,7 +198,8 @@ export function Space(props: { id: string; tabKey: string }) {
   const recommendable = tool("vouch_room") ? spaces.filter((r) => r.mine && r.id !== props.id && r.kind !== "dm") : [];
   const lastSeen = moves.reduce<string | null>((a, m) => (!a || m.at > a ? m.at : a), null);
   const incomplete = active ? missing(active.tool.schema as Schema, active.values) : [];
-  const myAgents = space.members.filter((m) => m.is_agent && m.agent_of_key === s.you_key);
+  // Your agents here: the app gives each its slot, which their allowances go by.
+  const myAgents = space.members.filter((m) => m.is_agent && m.slot);
   const who = (m: { by: string; author: string }) => (m.by === s.you_key ? t.spaces.you : m.author);
 
   return (
@@ -350,7 +351,7 @@ export function Space(props: { id: string; tabKey: string }) {
             <section>
               <SectionHead small title={t.spaces.yourAgents} />
               <p className="muted small">{t.spaces.allowanceNote}</p>
-              {myAgents.map((a) => <AllowanceRow key={a.key || a.name} room={s.id} agent={a.name} />)}
+              {myAgents.map((a) => <AllowanceRow key={a.key} room={s.id} slot={a.slot!} name={a.name} />)}
             </section>
           ) : null}
           <section>
@@ -448,15 +449,16 @@ export function Space(props: { id: string; tabKey: string }) {
 
 const REACHES: Reach[] = ["read", "talk", "work", "pledge"];
 
-function AllowanceRow(props: { room: string; agent: string }) {
+/** One agent's allowance in a room, kept by its slot: never by the name it goes by there. */
+function AllowanceRow(props: { room: string; slot: string; name: string }) {
   const [a, setA] = useState<AllowanceView | null>(null);
   useEffect(() => {
-    api.allowanceGet(props.room, props.agent).then(setA);
-  }, [props.room, props.agent]);
+    api.allowanceGet(props.room, props.slot).then(setA);
+  }, [props.room, props.slot]);
   if (!a) return null;
   return (
     <div className="allowance">
-      <span>{props.agent}</span>
+      <span>{props.name}</span>
       <span className="muted small">{t.spaces.allowance}</span>
       {REACHES.map((r) => (
         <label key={r} className="muted small allowance-kind">
@@ -468,7 +470,7 @@ function AllowanceRow(props: { room: string; agent: string }) {
             onChange={(e) => {
               const n = Math.max(0, Math.min(100, Number(e.target.value) || 0));
               setA({ ...a, per_day: { ...a.per_day, [r]: n } });
-              api.allowanceSet(props.room, props.agent, r, n).then(setA);
+              api.allowanceSet(props.room, props.slot, r, n).then(setA);
             }}
           />{" "}
           {t.spaces.reaches[r]}

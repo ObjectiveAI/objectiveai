@@ -1,5 +1,27 @@
+import type { CardEvent } from "../bindings/CardEvent";
 import type { CardView } from "../bindings/CardView";
 import { t } from "../strings";
+
+/** The cards waiting on you, and those withdrawn because the agent stopped waiting: kept to say so. */
+export type Cards = { cards: CardView[]; withdrawn: CardView[] };
+
+export const noCards: Cards = { cards: [], withdrawn: [] };
+
+/** The cards after one event from the app. A withdrawn card stops waiting; nothing answers it any more. */
+export function afterCardEvent(s: Cards, e: CardEvent): Cards {
+  switch (e.event) {
+    case "card":
+      return s.cards.some((c) => c.id === e.card.id) ? s : { ...s, cards: [...s.cards, e.card] };
+    case "answered":
+      return s.cards.some((c) => c.id === e.id) ? { ...s, cards: s.cards.filter((c) => c.id !== e.id) } : s;
+    case "withdrawn": {
+      const card = s.cards.find((c) => c.id === e.id);
+      return card ? { cards: s.cards.filter((c) => c.id !== e.id), withdrawn: [...s.withdrawn, card] } : s;
+    }
+    case "end":
+      return s;
+  }
+}
 
 /** A card in one line, in the screen's words: what the agent wants to do, or what a visitor asks. */
 export function cardLine(c: CardView): string {

@@ -16,6 +16,8 @@ export type Shared = {
   refreshSpaces: () => Promise<void>;
   knocks: KnockView[];
   cards: CardView[];
+  /** Cards withdrawn because their agent stopped waiting: nothing answers them. */
+  withdrawn: CardView[];
   answerCard: (id: number, answer: string) => Promise<void>;
   answerKnock: (knockId: number, yes: boolean) => Promise<void>;
   open: (tab: TabKind) => void;
