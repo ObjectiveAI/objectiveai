@@ -113,15 +113,15 @@ mod tests {
             machines.push(MachineView { identity, volumes, volumes_problem, added: p.added.to_rfc3339(), name: None });
         }
 
-        let door = std::sync::Arc::new(crate::door::Door::new(std::sync::Arc::new(spaces.clone()), identity.clone(), None));
-        let door_tools: Vec<ToolView> = door.tools().tools.iter().map(Into::into).collect();
+        let door = std::sync::Arc::new(crate::door::Door::new(std::sync::Arc::new(spaces.clone()), identity.clone(), std::sync::Arc::new(daemon.clone()), None));
+        let door_tools: Vec<ToolView> = door.tools(crate::identity::AgentKind::Daemon).tools.iter().map(Into::into).collect();
         {
             let door = door.clone();
             tokio::spawn(async move {
                 let params = rmcp::model::CallToolRequestParams::new("space_call").with_arguments(
                     json!({ "space": crate::spaces::stub::board(), "tool": "claim", "arguments": { "task_id": crate::spaces::stub::open_task() } }).as_object().cloned().unwrap(),
                 );
-                let _ = door.call("site-fixes", params).await;
+                let _ = door.call(&crate::identity::AgentId::daemon("site-fixes"), params, CancellationToken::new()).await;
             });
         }
         // ren hires research-notes through your profile: the hire, and its card, as the app raises them.
@@ -154,14 +154,16 @@ mod tests {
                 let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &room.read(program::FEED).unwrap().contents[0] else { panic!() };
                 let moves: Vec<MoveView> = serde_json::from_str(text).unwrap();
                 let rmcp::model::ResourceContents::TextResourceContents { text: who, .. } = &room.read(program::MEMBERS).unwrap().contents[0] else { panic!() };
-                let members: Vec<MemberView> = serde_json::from_str(who).unwrap();
+                let mut members: Vec<MemberView> = serde_json::from_str(who).unwrap();
+                crate::actions::slots(&identity, &mut members);
                 let view = SpaceView { summary: summary(&e, &identity), charter: room.charter().to_owned(), members, tools: Vec::new(), before: Vec::new() };
                 space_views.push(json!({ "view": view, "moves": moves, "invite": null, "from_copy": true }));
                 continue;
             }
             let text = |r: rmcp::model::ReadResourceResult| r.contents.iter().filter_map(|c| match c { rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text.clone()), _ => None }).next().unwrap_or_default();
             let tools = spaces.tools(&e.id).await.unwrap();
-            let members: Vec<MemberView> = serde_json::from_str(&text(spaces.read(&e.id, program::MEMBERS).await.unwrap())).unwrap();
+            let mut members: Vec<MemberView> = serde_json::from_str(&text(spaces.read(&e.id, program::MEMBERS).await.unwrap())).unwrap();
+            crate::actions::slots(&identity, &mut members);
             let moves: Vec<MoveView> = serde_json::from_str(&text(spaces.read(&e.id, program::FEED).await.unwrap())).unwrap();
             let charter = text(spaces.read(&e.id, program::CHARTER).await.unwrap());
             let view = SpaceView { summary: summary(&e, &identity), charter, members, tools: tools.tools.iter().map(Into::into).collect(), before: Vec::new() };

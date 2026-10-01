@@ -208,7 +208,7 @@ mod tests {
         let daemon = Arc::new(StubDaemon::new(root.join("host")));
         let stub = StubSpaces::new(identity.clone(), root.join("tables"));
         let spaces: Arc<dyn Spaces> = Arc::new(stub.clone());
-        let door = Arc::new(Door::new(spaces.clone(), identity.clone(), None));
+        let door = Arc::new(Door::new(spaces.clone(), identity.clone(), daemon.clone(), None));
         daemon.set_door(door.clone());
         let mut calls = spaces.host_calls(CancellationToken::new());
         let profile = Id { id: stub.id_of("profile-me") };

@@ -307,7 +307,8 @@ impl StubDaemon {
                     let params = rmcp::model::CallToolRequestParams::new(tool).with_arguments(args.as_object().cloned().unwrap_or_default());
                     let (text, is_error) = match self.door.get() {
                         None => ("the app's door is not open".to_owned(), true),
-                        Some(door) => match door.call(name, params).await {
+                        // The run's caller stops waiting if the agent is removed.
+                        Some(door) => match door.call(&crate::identity::AgentId::daemon(name), params, gone.clone()).await {
                             Ok(r) => (r.content.iter().filter_map(|c| c.as_text().map(|t| t.text.clone())).collect::<Vec<_>>().join("\n"), r.is_error == Some(true)),
                             Err(e) => (e.message.to_string(), true),
                         },
@@ -670,7 +671,7 @@ mod tests {
         let identity = Arc::new(crate::identity::Identity::stand_in("maya"));
         let tables = std::env::temp_dir().join(format!("diverge-desktop-test-door-tables-{}", std::process::id()));
         let spaces: Arc<dyn Spaces> = Arc::new(crate::spaces::stub::StubSpaces::new(identity.clone(), tables));
-        let door = Arc::new(Door::new(spaces.clone(), identity, None));
+        let door = Arc::new(Door::new(spaces.clone(), identity, Arc::new(daemon.clone()), None));
         daemon.set_door(door.clone());
         let cancel = CancellationToken::new();
         let mut cards = door.watch(cancel.clone());

@@ -912,6 +912,10 @@ pub struct MemberView {
     /// same name (see [`crate::marks`]). The room doesn't say it; the app does.
     #[serde(default)]
     pub mark: Option<String>,
+    /// For an agent of yours: its slot, which its allowances go by. The
+    /// room doesn't say it; the app does.
+    #[serde(default)]
+    pub slot: Option<String>,
 }
 
 /// A room's verb: an MCP tool, rendered as a button with a generated form.
@@ -1325,6 +1329,11 @@ pub struct CardHire {
 pub enum CardEvent {
     Card { card: CardView },
     Answered {
+        #[ts(type = "number")]
+        id: u64,
+    },
+    /// The agent stopped waiting: the card is taken back, and an answer to it does nothing.
+    Withdrawn {
         #[ts(type = "number")]
         id: u64,
     },

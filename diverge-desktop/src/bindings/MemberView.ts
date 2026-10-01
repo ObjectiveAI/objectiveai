@@ -12,4 +12,9 @@ agent_of_key: string | null, joined: string, last_acted: string | null,
  * A mark of their key in this room, when someone else here goes by the
  * same name (see [`crate::marks`]). The room doesn't say it; the app does.
  */
-mark: string | null, };
+mark: string | null, 
+/**
+ * For an agent of yours: its slot, which its allowances go by. The
+ * room doesn't say it; the app does.
+ */
+slot: string | null, };
