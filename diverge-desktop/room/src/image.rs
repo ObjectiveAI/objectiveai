@@ -185,6 +185,7 @@ pub fn args_schema() -> Value {
             "at": { "type": "string", "format": "date-time", "description": "When the host made the room." },
             "rules": { "type": "integer", "enum": [1, 2], "description": "The rules the room runs under. Left out: rules 1." },
             "host_account": { "type": "object", "description": "Under rules 2: the host's account, its genesis and newest device list, naming host_key." },
+            "keepers": { "type": "array", "description": "Under rules 2: keys the host names to let people in for them, each { key, may: [\"admit\"] }." },
             "sig": { "type": "string", "description": "The host's signature over the settings." },
             "room_secret": { "type": "string", "description": "The room's own key, for the program alone." },
             "before": { "type": "object", "description": "The whole record of the room this one continues." },
@@ -319,6 +320,7 @@ mod tests {
             at: chrono::Utc::now(),
             rules: 1,
             host_account: None,
+            keepers: Vec::new(),
             sig: String::new(),
         }
         .signed(&host);

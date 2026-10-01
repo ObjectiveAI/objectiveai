@@ -34,6 +34,23 @@
 //!   `keys` move brings a newer list, and the room's id names the host's
 //!   account, so the host can act from any of its devices.
 //!
+//! - **Under rules 2, words can be erased.** A member seals a salted digest
+//!   of a call's arguments, not the arguments; the chain holds that digest
+//!   and a salted digest of what the move says, and keeps the words beside
+//!   it. `withdraw` (an author, their own move) and `erase` (the host, any
+//!   move, with a reason) drop a move's words; a replay accepts a move
+//!   without its words only when a later erasure covers it and its seal over
+//!   the digest still holds. Only what someone said can be erased; moves
+//!   that change the room (a let-in, a removal, the rules, a receipt, an
+//!   erasure) stay whole. Each move holds only its own words: a claim names
+//!   its task, it doesn't repeat its title. Copies made before an erasure
+//!   may survive anywhere; a copy brought up to date drops the words.
+//! - **Under rules 2, a host may name doorkeepers** in the settings they
+//!   sign: keys that may let someone in, and do nothing else. A keeper's
+//!   let-in carries the knocker's signed knock, which the room checks
+//!   itself, and either an invite the host sealed into the room earlier or
+//!   standing in the room this one continues. The host can drop a keeper.
+//!
 //! One thing no record can show is what came after it: a copy that stops
 //! early is a true copy of an earlier moment. Copies say when they end.
 
@@ -51,7 +68,7 @@ use serde_json::{Map, Value, json};
 use tokio::sync::broadcast;
 
 use crate::account::Proof;
-use crate::seal::{Key, Keypair, Seal, Statement, account_id_holds, canonical, check_call, countersigned, digest, fingerprint, id_holds, recheck, statement_holds};
+use crate::seal::{Key, Keypair, Seal, Statement, account_id_holds, canonical, check_call, check_words, countersigned, digest, fingerprint, id_holds, recheck, recheck_words, seal_of, statement_holds};
 
 pub const FEED: &str = "space://feed";
 pub const CHARTER: &str = "space://charter";
@@ -60,6 +77,9 @@ pub const MEMBERS: &str = "space://members";
 pub const DOORWAYS: &str = "space://doorways";
 pub const ABOUT: &str = "space://about";
 pub const RECORD: &str = "space://record";
+
+/// How long a knock a doorkeeper lets in by is good for.
+const KNOCK_GOOD_FOR: chrono::TimeDelta = chrono::TimeDelta::hours(24);
 
 /// The `_meta` key that marks a verb only the host may use.
 pub const META_HOST_ONLY: &str = "network.diverge.desktop/host_only";
@@ -93,6 +113,43 @@ fn rules_one() -> u32 {
 
 fn is_rules_one(number: &u32) -> bool {
     *number == 1
+}
+
+/// A key the host named to let people in for them (rules 2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Keeper {
+    pub key: Key,
+    /// What it may do: only `admit`.
+    pub may: Vec<String>,
+}
+
+/// What a room keeps for an invite the host sealed into it, from the mark a
+/// knock carries: the knock's mark opens it, and reading it gives nothing a
+/// knock could carry.
+pub fn invite_lock(mark: &str) -> String {
+    digest(format!("diverge-desktop invite lock\n{mark}").as_bytes())[..32].to_owned()
+}
+
+/// What a verb's move is called, for the verbs whose words can be erased.
+/// Everything else changes the room, and stays whole.
+fn erasable(verb: &str) -> Option<&'static str> {
+    Some(match verb {
+        "show" => "show",
+        "ask" => "ask",
+        "offer" => "offer",
+        "reply" => "reply",
+        "say" => "say",
+        "report" => "run",
+        "leave_note" => "note",
+        "propose" => "direction",
+        "synthesize" => "synthesis",
+        "post_offering" => "offering",
+        "post_task" => "task",
+        "deliver" => "delivery",
+        "deliver_hire" => "hire_delivery",
+        "hire" => "hire",
+        _ => return None,
+    })
 }
 
 /// Where someone stands in a room, as its record has it.
@@ -165,6 +222,9 @@ pub struct Args {
     /// its devices. The room's id names this account, not the key.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub host_account: Option<Proof>,
+    /// Under rules 2: keys the host names to let people in for them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keepers: Vec<Keeper>,
     /// The host's signature over everything above.
     #[serde(default)]
     pub sig: String,
@@ -208,7 +268,18 @@ impl Args {
                 if !account.devices.contains(&self.host_key) {
                     return Err("the key that signed these settings isn't on its host's device list".into());
                 }
+                for (i, k) in self.keepers.iter().enumerate() {
+                    if k.may.is_empty() || k.may.iter().any(|m| m != "admit") {
+                        return Err("a doorkeeper may only let people in".into());
+                    }
+                    if account.devices.contains(&k.key) || self.keepers[..i].iter().any(|o| o.key == k.key) {
+                        return Err("a doorkeeper is a key of its own, named once".into());
+                    }
+                }
             }
+        }
+        if !self.keepers.is_empty() && self.rules != 2 {
+            return Err("only a room under rules 2 has doorkeepers".into());
         }
         if !statement_holds(&self.host_key, "room", &self.body(), &self.sig) {
             return Err("this room's settings aren't signed by its host".into());
@@ -291,8 +362,14 @@ pub struct Move {
     pub charter: String,
     /// What was sealed: the verb, its arguments, and the seal.
     pub verb: String,
+    /// The words: kept beside the chain when sealed by their digest, and
+    /// empty once erased.
     pub args: JsonObject,
     pub seal: Seal,
+    /// Sealed by the digest of its words: a salted digest of what it says
+    /// (title, body, fields), which the chain holds in their place.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub said: Option<String>,
     pub prev: String,
     pub hash: String,
     /// The room's countersign over `hash`.
@@ -306,13 +383,42 @@ impl Move {
         self.member.as_deref().unwrap_or(&self.by)
     }
 
+    /// What the chain holds. A move sealed by the digest of its words chains
+    /// the digests, not the words or their salt, so they can be erased.
     fn content_hash(&self) -> String {
         let mut v = serde_json::to_value(self).unwrap_or_default();
         if let Some(o) = v.as_object_mut() {
             o.remove("hash");
             o.remove("room_sig");
+            if self.seal.is_by_words() {
+                for k in ["args", "title", "body", "fields"] {
+                    o.remove(k);
+                }
+                if let Some(seal) = o.get_mut("seal").and_then(Value::as_object_mut) {
+                    seal.remove("salt");
+                }
+            }
         }
         digest(canonical(&v).as_bytes())
+    }
+
+    /// Whether its words were erased: sealed by their digest, and the salt gone with them.
+    pub fn words_gone(&self) -> bool {
+        self.seal.is_by_words() && self.seal.salt.is_none()
+    }
+
+    /// The salted digest of what a move says.
+    fn said_of(salt: &str, title: &str, body: &str, fields: &Map<String, Value>) -> String {
+        digest(canonical(&json!({ "salt": salt, "title": title, "body": body, "fields": fields })).as_bytes())
+    }
+
+    /// Drop its words, keeping everything the chain holds.
+    fn erase_words(&mut self) {
+        self.args = JsonObject::new();
+        self.title.clear();
+        self.body.clear();
+        self.fields = Map::new();
+        self.seal.salt = None;
     }
 }
 
@@ -346,6 +452,11 @@ pub fn receipt_issuer(s: &Statement) -> Option<String> {
 fn proof_arg(args: &JsonObject) -> Result<Proof, ErrorData> {
     serde_json::from_value(args.get("account").cloned().unwrap_or_default()).map_err(|_| bad("account needs an account's genesis and device list"))
 }
+
+/// Verbs whose moves, under rules 1, repeat the words of the move they're
+/// about. Sealed by the digest of their words they don't: each move holds
+/// only its own, so erasing one erases them all.
+const COPIES: [&str; 9] = ["offer", "take_offer", "close_ask", "claim", "deliver", "settle", "steer", "answer_hire", "deliver_hire"];
 
 /// No host at all: for replaying a record, which never asks one.
 pub struct NoHost;
@@ -383,6 +494,14 @@ pub struct Room {
     devices: HashMap<Key, String>,
     /// Under rules 2: keys a newer device list left off → the account they were on.
     retired: HashMap<Key, String>,
+    /// Locks of the invites the host sealed into the room ([`invite_lock`]).
+    invites: HashSet<String>,
+    /// Doorkeepers the host dropped.
+    dropped: HashSet<Key>,
+    /// Moves whose words were erased → who erased them, how, and why.
+    erased: HashMap<String, Value>,
+    /// While replaying: moves whose words are missing, waiting for the erasure that covers them.
+    missing: HashSet<String>,
     /// The room this one continues, rebuilt from its record by replay.
     old: Option<Box<Room>>,
     live: broadcast::Sender<ServerNotification>,
@@ -500,6 +619,10 @@ impl Room {
             gone: HashSet::new(),
             devices,
             retired: HashMap::new(),
+            invites: HashSet::new(),
+            dropped: HashSet::new(),
+            erased: HashMap::new(),
+            missing: HashSet::new(),
             old,
             live,
         })
@@ -513,6 +636,9 @@ impl Room {
         let mut room = Room::open(args, room_key, before.map(|b| *b))?;
         for m in &moves {
             room.replay(m)?;
+        }
+        if let Some(id) = room.missing.iter().min() {
+            return Err(format!("{id}'s words are missing, and nothing erased them"));
         }
         Ok(room)
     }
@@ -608,7 +734,70 @@ impl Room {
 
     /// The keys a person's list names, when one of them already acts for someone else here.
     fn taken(&self, id: &str, devices: &[Key]) -> bool {
-        devices.iter().any(|d| self.devices.get(d).is_some_and(|m| m != id) || (self.members.contains_key(d) && d != id))
+        devices.iter().any(|d| self.devices.get(d).is_some_and(|m| m != id) || (self.members.contains_key(d) && d != id) || self.is_keeper(d))
+    }
+
+    /// Whether a key is one of the doorkeepers the settings name (dropped or not).
+    fn is_keeper(&self, key: &str) -> bool {
+        self.rules == Rules::Two && self.args.keepers.iter().any(|k| k.key == key)
+    }
+
+    /// A doorkeeper as the record names it: the host's, and marked as acting for them.
+    fn keeper_member(&self, key: &str) -> Member {
+        Member {
+            key: key.to_owned(),
+            name: format!("{}'s doorkeeper", self.args.host_name),
+            is_agent: true,
+            agent_of: Some(self.args.host_id()),
+            agent_of_name: Some(self.args.host_name.clone()),
+            listed: false,
+            joined: self.args.at,
+            removed: false,
+            account: None,
+        }
+    }
+
+    /// What a doorkeeper's let-in rests on, checked by the room itself: the
+    /// knocker's knock (for this room, signed by the key it names, made
+    /// lately, carrying an account that names that key, asking to be listed),
+    /// and either an invite the host sealed here or standing in the room this
+    /// one continues. Someone removed here is the host's to let back in.
+    fn knock_evidence(&self, args: &JsonObject, at: DateTime<Utc>) -> Result<(Proof, String), ErrorData> {
+        if args.keys().any(|k| k != "knocking") {
+            return Err(bad("a doorkeeper's let-in carries the knock, nothing else"));
+        }
+        let knock = args.get("knocking").and_then(Value::as_object).ok_or_else(|| refused("a doorkeeper lets someone in only with their signed knock"))?;
+        let mut body = knock.clone();
+        let sig = body.remove("sig").and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default();
+        let key = knock.get("key").and_then(Value::as_str).unwrap_or_default();
+        if knock.get("room").and_then(Value::as_str) != Some(self.args.id.as_str()) {
+            return Err(refused("that knock is for another room"));
+        }
+        if !statement_holds(key, "knock", &Value::Object(body), &sig) {
+            return Err(refused("that knock isn't signed by the key it names"));
+        }
+        let when: DateTime<Utc> = knock.get("at").cloned().and_then(|v| serde_json::from_value(v).ok()).ok_or_else(|| bad("that knock doesn't say when it was made"))?;
+        if when > at + chrono::TimeDelta::minutes(5) || at - when > KNOCK_GOOD_FOR {
+            return Err(refused("that knock is too old to let anyone in by"));
+        }
+        if knock.get("listed").and_then(Value::as_bool) == Some(false) {
+            return Err(refused("someone who asked not to be listed is let in by the host, not a doorkeeper"));
+        }
+        let proof: Proof = knock.get("account").cloned().and_then(|v| serde_json::from_value(v).ok()).ok_or_else(|| refused("that knock carries no account"))?;
+        if !proof.names(key) {
+            return Err(refused("that knock's account doesn't name the key that signed it"));
+        }
+        let account = proof.check().map_err(refused)?;
+        let name = knock.get("name").and_then(Value::as_str).filter(|n| !n.trim().is_empty()).ok_or_else(|| bad("that knock gives no name"))?.to_owned();
+        if self.standing(&account.id) == Standing::Removed {
+            return Err(refused(format!("{name} was removed from this room; only the host can let them back in")));
+        }
+        let invited = knock.get("invite").and_then(Value::as_str).is_some_and(|mark| self.invites.contains(&invite_lock(mark)));
+        let returning = self.old.as_ref().is_some_and(|old| old.person_in(&account.id));
+        if !invited && !returning {
+            return Err(refused("a doorkeeper lets someone in only with an invite the host sealed here, or as someone still in the room this one continues"));
+        }
+        Ok((proof, name))
     }
 
     pub fn last_hash(&self) -> String {
@@ -737,6 +926,14 @@ impl Room {
                 &["account"],
             ));
         }
+        if self.rules == Rules::Two {
+            tools.push(verb(
+                "withdraw",
+                "Take back something you said here. Its words are erased from the room's record, which says you did. Copies made before may survive.",
+                json!({ "move_id": { "type": "string" }, "reason": { "type": "string" } }),
+                &["move_id"],
+            ));
+        }
         // The host's own verbs.
         tools.push(host_only(verb(
             "admit",
@@ -748,7 +945,8 @@ impl Room {
                 "is_agent": { "type": "boolean" },
                 "agent_of": { "type": "string", "description": "For an agent: its person's key." },
                 "tether": { "type": "object", "description": "For an agent: its person's statement that the key is theirs." },
-                "listed": { "type": "boolean", "description": "Whether they asked to be on the room's list." }
+                "listed": { "type": "boolean", "description": "Whether they asked to be on the room's list." },
+                "knocking": { "type": "object", "description": "From a doorkeeper: the knock it lets in by, and nothing else." }
             }),
             &["name"],
         )));
@@ -759,6 +957,23 @@ impl Room {
             &["key"],
         )));
         tools.push(host_only(verb("set_charter", "Change the room's rules. Moves keep the version they were made under.", json!({ "text": { "type": "string" } }), &["text"])));
+        if self.rules == Rules::Two {
+            tools.push(host_only(verb(
+                "erase",
+                "Erase what someone said here, with a reason. The record keeps that you did and why; the words go. Copies made before may survive.",
+                json!({ "move_id": { "type": "string" }, "reason": { "type": "string" } }),
+                &["move_id", "reason"],
+            )));
+            tools.push(host_only(verb(
+                "mark_invite",
+                "Seal an invite into the room, so a doorkeeper can let in whoever knocks with it.",
+                json!({ "mark": { "type": "string", "description": "The invite's lock: made from the mark a knock with it carries." } }),
+                &["mark"],
+            )));
+            if !self.args.keepers.is_empty() {
+                tools.push(host_only(verb("drop_keeper", "Drop a doorkeeper: it can't let anyone in from now on.", json!({ "key": { "type": "string" } }), &["key"])));
+            }
+        }
         if kind != Kind::Dm {
             tools.push(host_only(verb("vouch_room", "List a room this one vouches for, with an invite to it.", json!({ "title": { "type": "string" }, "invite": { "type": "string" } }), &["title", "invite"])));
         }
@@ -777,9 +992,22 @@ impl Room {
         if let Some(from) = from {
             fields.insert("from".into(), json!(from));
         }
+        if let Some(erased) = self.erased.get(&m.id) {
+            fields.insert("erased".into(), erased.clone());
+        }
+        // A move holding only its own words names what it's about; it's shown with that move's words, while they last.
+        let words_of = |id: Option<&String>| id.and_then(|id| self.moves.iter().find(|x| &x.id == id));
+        let mut title = m.title.clone();
+        let mut body = m.body.clone();
+        if m.seal.is_by_words() && !m.words_gone() && COPIES.contains(&m.verb.as_str()) {
+            title = words_of(m.parent.as_ref()).map(|p| p.title.clone()).unwrap_or_default();
+            if m.verb == "take_offer" {
+                body = words_of(m.fields.get("offer").and_then(Value::as_str).map(str::to_owned).as_ref()).map(|o| o.body.clone()).unwrap_or_default();
+            }
+        }
         json!({
             "id": m.id, "seq": m.seq, "kind": m.kind, "author": m.author, "by": m.by, "agent_of": m.agent_of,
-            "at": m.at, "title": m.title, "body": m.body, "state": state, "parent": m.parent, "fields": fields,
+            "at": m.at, "title": title, "body": body, "state": state, "parent": m.parent, "fields": fields,
             "charter": m.charter, "hash": m.hash,
         })
     }
@@ -793,6 +1021,7 @@ impl Room {
                     !(m.kind == "admitted" && m.args.get("listed").and_then(Value::as_bool) == Some(false))
                         && !(m.kind == "removed" && m.args.get("quiet").and_then(Value::as_bool) == Some(true))
                         && m.kind != "keys"
+                        && m.kind != "invite_marked"
                 };
                 // The room it continues, as that room had it: a task finished there reads finished here.
                 let history: Vec<Value> = match &self.old {
@@ -830,7 +1059,7 @@ impl Room {
                 json!({
                     "id": self.args.id, "title": self.args.title, "kind": self.args.kind, "host_name": self.args.host_name, "host_key": self.args.host_key,
                     "charter": self.charter_fingerprint(), "open_door": self.args.open_door, "continues": self.args.continues,
-                    "room_key": self.args.room_key, "at": self.args.at, "rules": self.args.rules, "host_id": self.args.host_id(),
+                    "room_key": self.args.room_key, "at": self.args.at, "rules": self.args.rules, "host_id": self.args.host_id(), "keepers": self.args.keepers,
                 })
                 .to_string(),
                 "application/json",
@@ -850,7 +1079,9 @@ impl Room {
     pub fn call_at(&mut self, params: CallToolRequestParams, at: DateTime<Utc>, host: &dyn Host) -> Result<CallToolResult, ErrorData> {
         let name = params.name.to_string();
         self.has_verb(&name).ok_or_else(|| bad(format!("this room has no verb called {name}")))?;
-        let seal = check_call(&self.args.id, &params).map_err(refused)?;
+        // A room keeps the seal its rules use: over a digest of the words under rules 2, over the words themselves otherwise.
+        let by_words = self.rules == Rules::Two && seal_of(&params).is_some_and(|s| s.is_by_words());
+        let seal = if by_words { check_words(&self.args.id, &params).map(|s| s.by_words()) } else { check_call(&self.args.id, &params).map(|s| s.whole()) }.map_err(refused)?;
         let args = params.arguments.clone().unwrap_or_default();
         let who = self.gate(&name, &seal, &args)?;
         let line = self.apply(&name, &args, &seal, &who, at, host, None)?;
@@ -879,7 +1110,9 @@ impl Room {
             },
             Rules::Two => self.gate_two(name, seal, args)?,
         };
-        if host_verb && who.key != self.args.host_id() {
+        // A doorkeeper's one host verb: letting someone in, on evidence the room checks.
+        let keeper_admits = name == "admit" && self.is_keeper(&seal.key);
+        if host_verb && who.key != self.args.host_id() && !keeper_admits {
             return Err(refused("only the host may do that"));
         }
         Ok(who)
@@ -890,6 +1123,15 @@ impl Room {
     /// device list that names it (`keys`): a member's new device, or someone
     /// let in unlisted, acting for the first time.
     fn gate_two(&self, name: &str, seal: &Seal, args: &JsonObject) -> Result<Member, ErrorData> {
+        if self.is_keeper(&seal.key) {
+            if self.dropped.contains(&seal.key) {
+                return Err(refused("that doorkeeper was dropped by the host"));
+            }
+            if name != "admit" {
+                return Err(refused("a doorkeeper may only let people in"));
+            }
+            return Ok(self.keeper_member(&seal.key));
+        }
         if let Some(m) = self.members.get(&self.member_id(&seal.key)) {
             if m.removed {
                 return Err(refused(format!("{} was removed from this room", m.name)));
@@ -921,16 +1163,80 @@ impl Room {
     /// One move from a record, replayed: its seal re-checked, the call gated
     /// as it would be live, and what it makes compared with what it says.
     fn replay(&mut self, m: &Move) -> Result<(), String> {
-        if m.seal.key != m.by || !recheck(&self.args.id, &m.verb, &m.args, &m.seal) {
+        let holds = m.seal.key == m.by
+            && match (self.rules, m.seal.is_by_words()) {
+                (Rules::Two, true) => recheck_words(&self.args.id, &m.verb, (!m.words_gone()).then_some(&m.args), &m.seal),
+                (_, false) => m.seal.salt.is_none() && m.seal.words_sig.is_none() && recheck(&self.args.id, &m.verb, &m.args, &m.seal),
+                (Rules::One, true) => false,
+            };
+        if !holds {
             return Err(format!("{}'s seal does not hold", m.id));
         }
+        if m.words_gone() {
+            return self.replay_without_words(m);
+        }
         let who = self.gate(&m.verb, &m.seal, &m.args).map_err(|e| format!("{} would have been refused: {}", m.id, e.message))?;
+        if m.seal.is_by_words() && !m.seal.sig.is_empty() {
+            return Err(format!("{} was changed after it was made", m.id));
+        }
         self.apply(&m.verb, &m.args, &m.seal, &who, m.at, &NoHost, Some(m)).map_err(|e| format!("{} does not replay: {}", m.id, e.message))?;
         self.settle(&who);
         self.counters.insert(m.seal.key.clone(), m.seal.counter);
         if self.moves.last() != Some(m) {
             return Err(format!("{} was changed after it was made", m.id));
         }
+        Ok(())
+    }
+
+    /// A move whose words were erased: what the chain holds is checked (its
+    /// seal over the digest, its place, who made it, the room's countersign),
+    /// and what it did to the room without its words is done again. A later
+    /// erasure must cover it, or the record doesn't replay.
+    fn replay_without_words(&mut self, m: &Move) -> Result<(), String> {
+        let changed = || format!("{} was changed after it was made", m.id);
+        let kind = erasable(&m.verb).ok_or_else(|| format!("{}'s words are missing, and a {} can't be erased", m.id, m.verb))?;
+        if !m.args.is_empty() || !m.title.is_empty() || !m.body.is_empty() || !m.fields.is_empty() || !m.seal.sig.is_empty() || m.said.is_none() {
+            return Err(changed());
+        }
+        let who = self.gate(&m.verb, &m.seal, &JsonObject::new()).map_err(|e| format!("{} would have been refused: {}", m.id, e.message))?;
+        let seq = self.moves.len() as u64 + 1;
+        let parent_kind = |p: &Option<String>| p.as_ref().and_then(|p| self.moves.iter().find(|x| &x.id == p)).map(|x| x.kind.clone());
+        let parent_holds = match m.verb.as_str() {
+            "offer" => parent_kind(&m.parent).as_deref() == Some("ask"),
+            "deliver" => parent_kind(&m.parent).as_deref() == Some("task"),
+            "deliver_hire" => parent_kind(&m.parent).as_deref() == Some("hire"),
+            "reply" => parent_kind(&m.parent).is_some(),
+            _ => m.parent.is_none(),
+        };
+        let frame_holds = parent_holds
+            && m.seq == seq
+            && m.id == format!("{kind}-{seq}")
+            && m.kind == kind
+            && m.member == (who.key != m.seal.key).then(|| who.key.clone())
+            && m.author == who.name
+            && m.agent_of == who.agent_of_name
+            && m.charter == self.charter_fingerprint()
+            && m.prev == self.last_hash()
+            && m.hash == m.content_hash();
+        if !frame_holds {
+            return Err(changed());
+        }
+        if !countersigned(&self.args.room_key, &m.hash, &m.room_sig) {
+            return Err(format!("{} does not replay: the room didn't countersign this move as it stands", m.id));
+        }
+        self.moves.push(m.clone());
+        let parent = m.parent.clone().unwrap_or_default();
+        match m.verb.as_str() {
+            "offer" => {
+                let n = self.field_of(&parent, "offers").and_then(|v| v.as_u64()).unwrap_or(0) + 1;
+                self.derive(&parent, None, &[("offers", json!(n))]);
+            }
+            "deliver" | "deliver_hire" => self.derive(&parent, Some("delivered"), &[]),
+            _ => {}
+        }
+        self.settle(&who);
+        self.counters.insert(m.seal.key.clone(), m.seal.counter);
+        self.missing.insert(m.id.clone());
         Ok(())
     }
 
@@ -978,10 +1284,14 @@ impl Room {
             verb: verb.into(),
             args: args.clone(),
             seal: seal.clone(),
+            said: None,
             prev: self.last_hash(),
             hash: String::new(),
             room_sig: String::new(),
         };
+        if let Some(salt) = seal.salt.as_deref().filter(|_| seal.is_by_words()) {
+            m.said = Some(Move::said_of(salt, &m.title, &m.body, &m.fields));
+        }
         m.hash = m.content_hash();
         m.room_sig = match replaying {
             // A kept move: the room's countersign must be over exactly what the replay made.
@@ -1039,6 +1349,8 @@ impl Room {
             }
         };
         let push = |room: &mut Room, kind: &str, title: &str, body: &str, parent: Option<&str>, fields: Map<String, Value>| room.push(at, who, name, args, seal, kind, title, body, parent, fields, replaying);
+        // Sealed by the digest of its words, a move holds only its own: what it's about is named, not repeated.
+        let own = |words: &str| if seal.is_by_words() { String::new() } else { words.to_owned() };
         Ok(match name {
             "show" => {
                 let title = need(args, "title")?;
@@ -1059,7 +1371,7 @@ impl Room {
                     return Err(refused(format!("{ask} is {state}")));
                 }
                 let body = need(args, "body")?;
-                let id = push(self, "offer", &a.title, body, Some(&ask), fields)?;
+                let id = push(self, "offer", &own(&a.title), body, Some(&ask), fields)?;
                 let n = self.field_of(&ask, "offers").and_then(|v| v.as_u64()).unwrap_or(0) + 1;
                 self.derive(&ask, None, &[("offers", json!(n))]);
                 format!("Offered to serve {ask} ({id})")
@@ -1080,10 +1392,10 @@ impl Room {
                 fields.insert("offered_by".into(), json!(o.author));
                 if self.args.kind == Kind::Board {
                     // The offer becomes a task its offerer already holds: the spec is what they offered.
-                    let task = push(self, "task", &a.title, &o.body, Some(&ask), fields)?;
+                    let task = push(self, "task", &own(&a.title), &own(&o.body), Some(&ask), fields)?;
                     self.derive(&task, Some("claimed"), &[("claimed_by", json!(o.author)), ("claimed_by_key", json!(o.by))]);
                 } else {
-                    push(self, "taken", &a.title, &o.body, Some(&ask), fields)?;
+                    push(self, "taken", &own(&a.title), &own(&o.body), Some(&ask), fields)?;
                 }
                 self.derive(&ask, Some("taken"), &[("taken_offer", json!(offer))]);
                 self.derive(&offer, Some("taken"), &[]);
@@ -1099,7 +1411,7 @@ impl Room {
                 if state != "open" {
                     return Err(refused(format!("{ask} is {state}")));
                 }
-                push(self, "closed", &a.title, arg(args, "note").unwrap_or_default(), Some(&ask), fields)?;
+                push(self, "closed", &own(&a.title), arg(args, "note").unwrap_or_default(), Some(&ask), fields)?;
                 self.derive(&ask, Some("closed"), &[]);
                 format!("Closed: {}", a.title)
             }
@@ -1141,7 +1453,7 @@ impl Room {
                 if state != "open" {
                     return Err(refused(format!("{task} is {state}")));
                 }
-                push(self, "claim", &t.title, "", Some(&task), fields)?;
+                push(self, "claim", &own(&t.title), "", Some(&task), fields)?;
                 self.derive(&task, Some("claimed"), &[("claimed_by", json!(who.name)), ("claimed_by_key", json!(who.key))]);
                 format!("Claimed: {}", t.title)
             }
@@ -1157,7 +1469,7 @@ impl Room {
                     return Err(refused(format!("{task} is {state}")));
                 }
                 pick(&mut fields, &["files"]);
-                push(self, "delivery", &t.title, need(args, "summary")?, Some(&task), fields)?;
+                push(self, "delivery", &own(&t.title), need(args, "summary")?, Some(&task), fields)?;
                 self.derive(&task, Some("delivered"), &[]);
                 format!("Delivered: {}", t.title)
             }
@@ -1216,7 +1528,7 @@ impl Room {
                 }
                 pick(&mut fields, &["note"]);
                 fields.insert("agree".into(), json!(agree));
-                push(self, "settle", &t.title, arg(args, "note").unwrap_or_default(), Some(&task), fields)?;
+                push(self, "settle", &own(&t.title), arg(args, "note").unwrap_or_default(), Some(&task), fields)?;
                 self.derive(&task, None, &[(side, json!({ "agree": agree, "note": arg(args, "note") }))]);
                 format!("Said {}: {}", if agree { "settled" } else { "not settled" }, t.title)
             }
@@ -1233,7 +1545,7 @@ impl Room {
                     return Err(bad("a steer is prefer, reject or note"));
                 }
                 fields.insert("move".into(), json!(mv));
-                push(self, "steer", &d.title, arg(args, "note").unwrap_or_default(), Some(&target), fields)?;
+                push(self, "steer", &own(&d.title), arg(args, "note").unwrap_or_default(), Some(&target), fields)?;
                 let n = self.field_of(&target, &mv).and_then(|v| v.as_u64()).unwrap_or(0) + 1;
                 self.derive(&target, None, &[(mv.as_str(), json!(n))]);
                 format!("Steered {}: {mv}", d.title)
@@ -1287,7 +1599,7 @@ impl Room {
                 let take = args.get("take").and_then(Value::as_bool).ok_or_else(|| bad("take is needed"))?;
                 pick(&mut fields, &["note"]);
                 fields.insert("take".into(), json!(take));
-                push(self, "hire_answer", &h.title, arg(args, "note").unwrap_or_default(), Some(&hire), fields)?;
+                push(self, "hire_answer", &own(&h.title), arg(args, "note").unwrap_or_default(), Some(&hire), fields)?;
                 self.derive(&hire, Some(if take { "taken" } else { "declined" }), &[]);
                 format!("{}: {}", if take { "Taken" } else { "Declined" }, h.title)
             }
@@ -1298,14 +1610,19 @@ impl Room {
                     return Err(refused(format!("{hire} isn't taken")));
                 }
                 pick(&mut fields, &["files"]);
-                push(self, "hire_delivery", &h.title, need(args, "summary")?, Some(&hire), fields)?;
+                push(self, "hire_delivery", &own(&h.title), need(args, "summary")?, Some(&hire), fields)?;
                 self.derive(&hire, Some("delivered"), &[]);
                 format!("Delivered: {}", h.title)
             }
             "admit" => {
-                let member_name = need(args, "name")?.to_owned();
-                let is_agent = args.get("is_agent").and_then(Value::as_bool).unwrap_or(false);
-                let listed = args.get("listed").and_then(Value::as_bool).unwrap_or(true);
+                // A doorkeeper lets in by a knock alone, and the room checks it (see `knock_evidence`).
+                let knocked = if self.is_keeper(&seal.key) { Some(self.knock_evidence(args, at)?) } else { None };
+                let member_name = match &knocked {
+                    Some((_, name)) => name.clone(),
+                    None => need(args, "name")?.to_owned(),
+                };
+                let is_agent = knocked.is_none() && args.get("is_agent").and_then(Value::as_bool).unwrap_or(false);
+                let listed = knocked.is_some() || args.get("listed").and_then(Value::as_bool).unwrap_or(true);
                 // Unlisted: let in by a mark of their key (under rules 2, their account), which the record keeps instead.
                 if !listed {
                     if is_agent || args.contains_key("key") || args.contains_key("account") {
@@ -1325,7 +1642,10 @@ impl Room {
                     if args.contains_key("key") {
                         return Err(bad("under these rules a person is let in with their account, not a key"));
                     }
-                    let proof = proof_arg(args)?;
+                    let proof = match &knocked {
+                        Some((proof, _)) => proof.clone(),
+                        None => proof_arg(args)?,
+                    };
                     let account = proof.check().map_err(refused)?;
                     // Someone let back in brings a list no older than the one the room last held for them.
                     if let Some(held) = self.members.get(&account.id).and_then(|m| m.account.as_ref()).and_then(|p| p.check().ok()) {
@@ -1359,7 +1679,8 @@ impl Room {
                     return Err(refused(format!("{member_name} is already a member")));
                 }
                 fields.insert("key".into(), json!(key));
-                push(self, "admitted", &member_name, "", None, fields)?;
+                let body = if knocked.is_some() { format!("let in by {}'s doorkeeper", self.args.host_name) } else { String::new() };
+                push(self, "admitted", &member_name, &body, None, fields)?;
                 let proof = account.map(|(proof, devices)| {
                     self.set_devices(&key, &devices);
                     proof
@@ -1427,6 +1748,56 @@ impl Room {
                 }
                 self.notify(MEMBERS);
                 format!("Device list number {} for {}", account.sequence, who.name)
+            }
+            "withdraw" | "erase" => {
+                let target = need(args, "move_id")?.to_owned();
+                let reason = if name == "erase" { need(args, "reason")?.to_owned() } else { arg(args, "reason").unwrap_or("withdrawn by its author").to_owned() };
+                let i = self.moves.iter().position(|m| m.id == target).ok_or_else(|| bad(format!("no move called {target}")))?;
+                let t = self.moves[i].clone();
+                if t.kind == "erased" {
+                    return Err(refused("an erasure can't be erased: the record keeps that it happened"));
+                }
+                if self.erased.contains_key(&target) {
+                    return Err(refused(format!("{target} was already erased")));
+                }
+                if name == "withdraw" && t.actor() != who.key {
+                    return Err(refused("only who made it may withdraw it; the host may erase it, with a reason"));
+                }
+                if erasable(&t.verb).is_none() {
+                    return Err(refused(format!("only what someone said can be erased; {target} changed the room, so it stays")));
+                }
+                if !t.seal.is_by_words() {
+                    return Err(refused(format!("{target} was sealed whole, before words could be erased here, so it stays")));
+                }
+                fields.insert("move".into(), json!(target));
+                fields.insert("how".into(), json!(name));
+                let id = push(self, "erased", "", &format!("erased by {} under {reason}", who.name), Some(&target), fields)?;
+                self.moves[i].erase_words();
+                self.missing.remove(&target);
+                self.erased.insert(target.clone(), json!({ "by": who.name, "how": name, "reason": reason, "move": id }));
+                format!("Erased the words of {target}")
+            }
+            "mark_invite" => {
+                let mark = need(args, "mark")?.to_owned();
+                if self.invites.contains(&mark) {
+                    return Err(refused("that invite is already sealed here"));
+                }
+                push(self, "invite_marked", "", "", None, fields)?;
+                self.invites.insert(mark);
+                "Invite sealed".to_owned()
+            }
+            "drop_keeper" => {
+                let key = need(args, "key")?.to_owned();
+                if !self.is_keeper(&key) {
+                    return Err(bad("no doorkeeper has that key"));
+                }
+                if self.dropped.contains(&key) {
+                    return Err(refused("that doorkeeper was already dropped"));
+                }
+                fields.insert("key".into(), json!(key));
+                push(self, "keeper_dropped", &format!("{}'s doorkeeper", self.args.host_name), "", None, fields)?;
+                self.dropped.insert(key);
+                "Doorkeeper dropped".to_owned()
             }
             "set_charter" => {
                 let text = need(args, "text")?.to_owned();

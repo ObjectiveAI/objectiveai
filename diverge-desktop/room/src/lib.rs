@@ -15,7 +15,7 @@ pub mod image;
 pub mod room;
 pub mod seal;
 
-pub use room::{Args, Continues, Host, Kind, Member, Move, NOT_A_MEMBER, NoHost, Record, Room, Rules, Standing, key_mark, receipt_issuer};
+pub use room::{Args, Continues, Host, Keeper, Kind, Member, Move, NOT_A_MEMBER, NoHost, Record, Room, Rules, Standing, invite_lock, key_mark, receipt_issuer};
 pub use seal::{Key, Keypair, Seal, Statement, account_id_holds, account_room_id, fresh_label, id_holds, room_id, seal_call, tether};
 
 #[cfg(test)]
@@ -90,6 +90,7 @@ pub(crate) mod tests {
             at: long_ago(),
             rules: 1,
             host_account: None,
+            keepers: Vec::new(),
             sig: String::new(),
         }
         .signed(&host.keypair);
@@ -285,6 +286,7 @@ pub(crate) mod tests {
             at: long_ago(),
             rules: 2,
             host_account: Some(mine.clone()),
+            keepers: Vec::new(),
             sig: String::new(),
         }
         .signed(&maya.keypair);
