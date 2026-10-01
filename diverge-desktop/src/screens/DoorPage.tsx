@@ -86,6 +86,7 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
                 <li key={field}><strong>{t.door.sends[field] ?? field}</strong>{sent(field) ? `: ${sent(field)}` : null}</li>
               ))}
             </ul>
+            {fresh ? null : <p className="muted small">{t.door.sendsLinks}</p>}
           </Section>
         )}
 

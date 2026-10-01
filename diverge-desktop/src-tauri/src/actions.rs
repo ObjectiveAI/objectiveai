@@ -2678,6 +2678,28 @@ mod tests {
         assert_eq!((sent["note"].as_str(), sent["listed"].as_bool()), (Some("ada sent me"), Some(false)));
     }
 
+    /// Knocking as your usual name sends the same account, and every device key
+    /// on its list, to every room, so hosts can link those knocks; a fresh
+    /// name's account is its own.
+    #[tokio::test]
+    async fn knocks_as_your_usual_name_carry_the_same_account_everywhere_and_a_fresh_names_dont() {
+        let (state, _rooms) = app("actions-door-links");
+        let invite = |id: &str| spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: id.into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new() };
+        let usual = state.identity.usual().unwrap();
+        let now = Utc::now();
+        let account = |persona: &crate::identity::Persona, room: &str| {
+            let knock = knock_of(&state, &invite(room), persona, String::new(), true, None, now).unwrap();
+            serde_json::from_str::<serde_json::Value>(&knock.to_authorization()).unwrap()["account"].clone()
+        };
+        let (here, there) = (account(&usual, "workshop.abc"), account(&usual, "cafe.def"));
+        assert_eq!(here, there, "the same account, in two rooms");
+        let devices = serde_json::from_value::<Proof>(here.clone()).unwrap().check().unwrap().devices;
+        assert!(devices.contains(&usual.key), "with every device key on its list");
+        let (one, other) = (state.identity.fresh("lamp person").unwrap(), state.identity.fresh("lamp person").unwrap());
+        assert_ne!(account(&one, "cafe.def"), here, "a fresh name's isn't yours");
+        assert_ne!(account(&one, "cafe.def"), account(&other, "cafe.def"), "nor another fresh name's");
+    }
+
     /// A profile you host names your notes key, so what visitors leave is sealed to you.
     #[tokio::test]
     async fn a_profile_you_host_names_your_notes_key() {
