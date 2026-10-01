@@ -45,6 +45,11 @@ impl Keypair {
         Ok(Keypair(SigningKey::from_bytes(&bytes)))
     }
 
+    /// A key from its 32 secret bytes: an account's root, derived from its words.
+    pub fn from_secret_bytes(bytes: &[u8; 32]) -> Self {
+        Keypair(SigningKey::from_bytes(bytes))
+    }
+
     pub fn secret_hex(&self) -> String {
         hex::encode(self.0.to_bytes())
     }

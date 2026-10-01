@@ -58,7 +58,6 @@ export const t = {
     seeName: "The name you choose below",
     seeNote: "Your note",
     appearAs: "You'll appear as",
-    usual: "Your usual name",
     fresh: "A fresh name, just for this room",
     freshPlaceholder: "a name for this room",
     freshNote: "A fresh name is a new key: the room can't tell it's you. Your agents there get new keys and plain names too. What you say and do there can still give you away, so the name hides you only as well as you do.",
@@ -696,10 +695,88 @@ export const t = {
     assistant_image_content: "Images it made",
     assistant_audio_content: "Audio it made",
   } as Record<string, string>,
+  network: {
+    absent: "This build has no network part yet: no daemon, no machines, no rooms. Nothing here reaches anyone.",
+    absentShort: "No network part yet",
+  },
+  files: {
+    // What each kind of file the app keeps is, by the name written in it.
+    kinds: {
+      "keys": "Your keys file",
+      "counters": "Your counters file",
+      "allowances": "Your allowances file",
+      "views": "Your Views file",
+      "machine names": "Your machine names file",
+      "agent mounts": "Your agent mounts file",
+      "threads": "Your threads file",
+      "record copy": "Your copy of a room's record",
+      "stand-in rooms": "The stand-in's rooms file",
+      "stand-in volumes": "The stand-in's storage file",
+    } as Record<string, string>,
+    recordOf: "Your copy of the record of",
+    lastGoodCopy: "(its last good copy)",
+    why: {
+      damaged: "couldn't be read",
+      refused: "was read, but didn't hold up when checked",
+      newer: "was written by a newer version of this app",
+      unread: "couldn't be opened just now",
+    },
+    refusedRecord: "was read, but isn't that room's record or doesn't replay",
+    setAsideAs: "so it was set aside as",
+    leftInPlace: "so it was left where it is.",
+    systemSaid: "The system said:",
+    carriedOn: {
+      last_good: "The app carried on from the last good copy.",
+      empty: "The app started it empty.",
+      what_it_had: "The app kept what it had open.",
+      nothing_this_launch: "The app won't read or write it until it starts again.",
+    },
+    untouched: "Nothing has written over it.",
+  },
   keys: {
     unreadable: "Your keys file can't be read, so nothing is sent as you.",
+    newer: "Your keys file was written by a newer version of this app, so nothing is sent as you.",
     where: "It's at",
     untouched: "Nothing has written over it, and nothing will until it can be read again.",
+  },
+  // The first-run page. Plain working words: the naming pass is Maya's.
+  firstRun: {
+    title: "Before anything else",
+    // Shown in a new folder only: nothing has been signed there yet.
+    nothingYet: "Nothing has been signed or sent as you, and nothing will be until this page is finished.",
+    // Shown in a folder an earlier version made, which may already have signed and sent as you.
+    nothingMore: "Nothing more is signed or sent as you until this page is finished.",
+    earlier: "An earlier version of this app made this folder; it has you as",
+    earlierKeeps: "Everything else in it stays as it is: your rooms know you by the same key.",
+    nameTitle: "Your name",
+    nameLabel: "What should people call you?",
+    nameNote: "It's what a room sees when you knock as yourself. In any room you can go by a fresh name instead.",
+    adultTitle: "18 or older",
+    adult: "I'm 18 or older.",
+    termsTitle: "Diverge's terms",
+    termsNotYet: "Diverge's own terms aren't written yet. There's nothing to agree to here, and nothing is recorded as agreed.",
+    account: "Going on makes your account on this computer: twelve recovery words, and a key for this computer that acts for you. Your recovery words are kept sealed on this computer; this version of the app doesn't show them yet.",
+    finish: "Go on",
+    finishing: "Making your account…",
+    // When the app can't be asked whether this page is finished.
+    unknown: "This window couldn't ask the app whether this page is finished. The app said:",
+    askAgain: "Ask again",
+    // The same words as the app's own refusals (identity.rs).
+    notNamed: "Nothing is sent as you until you've said what people should call you.",
+    notAdult: "Diverge is for adults. Confirm that you're 18 or older to go on.",
+    noName: "Type the name people should call you.",
+  },
+  // Key marks: shown beside a name two members of one room share.
+  marks: {
+    title: "A mark of this key in this room, shown because someone else here goes by the same name. The same key has a different mark in every room.",
+  },
+  folder: {
+    inUse: "Another copy of this app is using this folder, so this one changes nothing in it: nothing is saved or sent from here.",
+    unchecked: "This copy of the app couldn't make sure no other copy is using this folder, so it changes nothing in it: nothing is saved or sent from here.",
+    where: "The folder is",
+    systemSaid: "The system said:",
+    inUseShort: "Another copy has this folder",
+    uncheckedShort: "Folder not checked",
   },
   common: {
     close: "Close",

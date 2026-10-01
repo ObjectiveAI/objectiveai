@@ -7,4 +7,9 @@ export type AdmittedView = { name: string, key: string, listed: boolean, is_agen
 /**
  * One of your own agents: its place is your allowances, not the list of people you let in.
  */
-yours: boolean, };
+yours: boolean, 
+/**
+ * A mark of their key in this room, when someone else let in goes by
+ * the same name (see [`crate::marks`]).
+ */
+mark: string | null, };

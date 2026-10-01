@@ -6,8 +6,8 @@ inherits it.
 
 ## The seams
 - `src-tauri/src/daemon/mod.rs` — `Daemon`, one method per daemon verb (`agents::{create, delete, message, logs,
-  list, edit}`, `tools::{create, edit, connect, attach, detach, delete, list}`). `StubDaemon` now; `WireDaemon` when
-  Ronald ships a daemon. The app doesn't use the tools verbs for rooms: a daemon-attached tool bypasses the app, which
+  list, edit}`, `tools::{create, edit, connect, attach, detach, delete, list}`). `StubDaemon` (feature `stand-in`) now;
+  `WireDaemon` when Ronald ships a daemon. The app doesn't use the tools verbs for rooms: a daemon-attached tool bypasses the app, which
   seals agents' calls and asks the person first.
 - `src-tauri/src/machines.rs` — `Machines`: the provider protocol's volume verbs, addressed to one machine. Since
   `87015ef92` a volume is its provider's own; the daemon has none. The wire doesn't say yet how the app reaches a machine's verbs.
@@ -45,14 +45,27 @@ inherits it.
       program re-attaches it before checking the seal. It never waits on its host while holding the room.
   - `src-tauri/src/identity.rs`: your usual self and fresh personas, and your agents' keys tethered to the persona they
     act for, named plainly in a fresh name's rooms. One owner-only file (`identity.json`), written whole and swapped
-    in, with a backup kept beside it; never the keychain (it can prompt in a popup). If it and its backup are both
-    unreadable, the app signs nothing and says so; it never makes new keys over them. Counters live in
+    in through `store.rs`, with a backup kept beside it; never the keychain (it can prompt in a popup). If it and its backup are both
+    unreadable, the app signs nothing and says so; it never makes new keys over them. A keys file a newer version wrote, or one the
+    system won't read, is left exactly as it is with its backup, whatever the backup holds, and nothing is signed. Counters live in
     `counters.json` and never fall behind the clock. One call at a time per key per room (`Identity::turn`).
+  - **Your account** (`src-tauri/src/account.rs`, `room/src/account.rs`): made when the first-run page is finished, never
+    before. Until then there is no persona, and `seal`, `state`, `fresh` and `agent_in` refuse; the stand-in's rooms
+    wait too (`AppState::after_first_run`). Nothing reads the login or the machine's name (a test greps for it). Twelve
+    BIP-39 words make the root (SLIP-10, hardened, `m/0'`), which signs the genesis (account id = its digest) and a
+    device list (sequence 1) naming the usual persona's key as this Mac's, and is dropped. The words stay sealed in
+    `identity.json` (ChaCha20-Poly1305 under an HKDF key from the device key), unconfirmed; nothing but tests opens them,
+    and no door tool reads them. A keys file from before accounts (v1) upgrades in place, is kept as
+    `identity.v1.json`, and shows the first-run page naming the name an earlier version took from the login.
+  - **Key marks** (`src-tauri/src/marks.rs`): where two members of one room share a name, each gets a short mark of the
+    room and their key, on member lists, the host's list of everyone let in, and hire cards. Per room, so a mark never
+    links a key across rooms.
   - A knock's opaque authorization carries a `Knocking`, signed by the key it names, for one room, good for a day,
     with a mark of the invite it came with. A vouch names the room it vouches someone into and runs out after a week.
     An invite is text (`diverge-invite:…`) carrying the room's rules and verbs, checked against the room on entry.
-  - `records/`: the app keeps a replayed copy of every room's record, named for a digest of the room's id. An
-    unreachable room shows from it, and someone still in it can continue it.
+  - `records/`: the app keeps a replayed copy of every room's record, named for a digest of the room's id, with the
+    copy before it beside it. An unreachable room shows from it, and someone still in it can continue it. A copy that
+    won't parse, isn't that room's or doesn't replay is set aside, and the one before it carries on.
 - **Hires** (`src-tauri/src/hires.rs`): a visitor asks one of your agents for something through your profile room; the
   room calls its host (on the wire, its own `mcp-call-tool`); you decide on a card. A hire waits until its agent is
   free, reaches it quoted as the visitor's words, and its result is read from its own run alone
@@ -67,7 +80,24 @@ inherits it.
 - **The reporter** (`src-tauri/src/reporter.rs`): when an agent's run ends it `report`s to the person's Home, with the
   run's words only while Home is theirs alone.
 - **The stand-in keeps its rooms** between launches (`tables/.stand-in-rooms.json`), rebuilt by replaying their
-  records.
+  records. A rooms file that won't parse or replay is set aside, and the stand-in starts again from its own past.
+- **Files** (`src-tauri/src/store.rs`): every JSON file the app keeps says what it is and its version
+  (`{"file", "version", "data"}`); one from before versions is read as it is. A write goes to a new owner-only file,
+  synced, then renamed over the old one, which becomes `<file>.bak` where the format keeps a last good copy. A file
+  that won't parse, doesn't check, or that a newer version wrote, is set aside under a new name beside it and never
+  written over; the app carries on from the last good copy, or starts that file empty. A file the system won't open or
+  read this time is left where it is, and the app neither reads nor writes it until it starts again. Every screen says
+  which file (a record copy by its room's title), why, and what the app carried on from (`files_set_aside`, words in
+  `src/strings.ts`).
+- **One copy of the app per folder** (`store::hold`): the app holds `.in-use` in its folder with the system's file lock
+  while it runs; the system lets go when it exits, crash or not. A second copy on the same folder (or one that can't
+  tell) reads your keys and files as they are, writes nothing, answers nothing, and the screens say why.
+- **The stand-in is a feature** (`stand-in`, on by default for now): `StubDaemon`, `StubSpaces`, their seeded past
+  and staged scenes. Built without it (`--no-default-features`), nothing answers the seams (`absent.rs`): every list
+  is empty, everything else says the network part isn't there yet, and so do the screens. A test checks the
+  stand-in's own words are in the program only when the feature is on.
+- **Setup** is `AppState::open(data)` (actions.rs); main.rs builds the menu and picks the folder: the one
+  `DIVERGE_DATA_DIR` names (tests, a second copy of the app), the system's place for the app otherwise.
 - **The menu** (main.rs): ⌘N new agent, ⌘W closes a TAB (never the window), ⌘1 Home, ⌘2 Inbox; the page handles ⌘3–9
   and ⌘[ ⌘]. ⌘+ ⌘− ⌘0 (Ctrl on Windows and Linux) zoom the whole window: the window's `zoomHotkeysEnabled` and the
   `core:webview:allow-set-webview-zoom` permission. Keep those keys off the menu (`src/window.test.ts`).
@@ -100,7 +130,8 @@ inherits it.
 - Words are tabled: every user-facing string lives in `src/strings.ts`.
 
 ## Screens (draft four)
-Home (feed across Spaces + fleet; tabs are filters; an ask goes to several rooms and is followed as one thread; take
+The first-run page, alone, until it's finished (what people should call you, 18 or older, a terms slot that says
+Diverge's terms aren't written yet; no acceptance is recorded) · Home (feed across Spaces + fleet; tabs are filters; an ask goes to several rooms and is followed as one thread; take
 an offer, or close the ask everywhere) · Inbox (agents and direct rooms, one list) · You (your names, your profile
 room's hires and notes, receipts once each, credited to the room that issued them) · Spaces (knocks that check, with
 notes and vouches; hosted, joined; host with an open door or not; paste an invite) · the door (an invite read before
@@ -123,7 +154,9 @@ came from them. Seed content is invented and everyday.
 
 ## Run it
 `pnpm install` (from the repo root) then `cd diverge-desktop && pnpm tauri dev`. Every test, in one command:
-`pnpm test:all` (the app's Rust tests, the room crate with its container program, and vitest).
+`pnpm test:all` (the app's Rust tests, again without the stand-in, the room crate with its container program, and
+vitest). A second copy with its own files: `DIVERGE_DATA_DIR=/some/folder pnpm tauri dev`. A build from before files
+carried versions reads them all as damaged and writes over them: give it a copy of the folder, never this one.
 
 ## Browser preview (reviews, cloud sessions — no Mac window needed)
 `pnpm dev` and open http://localhost:1430 in any browser. Outside Tauri the page plays back

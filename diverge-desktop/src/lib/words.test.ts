@@ -17,3 +17,12 @@ describe("a move's state", () => {
     for (const s of states) expect(t.spaces.states[s], s).toBeDefined();
   });
 });
+
+describe("the first-run page", () => {
+  // The app runs on more than one kind of computer, and never reads the login.
+  it("names no kind of computer, and says nothing came from a login", () => {
+    for (const [key, words] of Object.entries(t.firstRun)) {
+      expect(words, key).not.toMatch(/\b(mac|macos|windows|linux|login)\b/i);
+    }
+  });
+});

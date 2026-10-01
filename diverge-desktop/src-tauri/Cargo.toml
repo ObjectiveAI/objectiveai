@@ -17,6 +17,16 @@ rmcp = { version = "3.1.2", default-features = false }
 diverge-desktop-room = { path = "../room" }
 # Invites travel as text.
 base64 = "0.22"
+# Your account: twelve BIP-39 recovery words, made at first run and kept
+# sealed in your keys file under a key drawn (HKDF) from this Mac's device
+# key; whatever held them is wiped from memory.
+bip39 = { version = "2.2", default-features = false, features = ["std", "zeroize"] }
+chacha20poly1305 = "0.10"
+hkdf = "0.12"
+sha2 = "0.10"
+zeroize = "1"
+getrandom = "0.2"
+hex = "0.4"
 
 tauri = { version = "2.10.3", features = [] }
 tokio = { version = "1.50.0", features = ["full"] }
@@ -36,6 +46,13 @@ jaq-std = "2.1.2"
 jaq-json = { version = "1.1.3", features = ["serde_json"] }
 # Our view types write their own TypeScript: `cargo test` exports them.
 ts-rs = { version = "11", features = ["serde-json-impl"] }
+
+[features]
+default = ["stand-in"]
+# The stand-in daemon and rooms: their seeded past and staged scenes, so the
+# app runs whole on one computer. Without it the app runs with nothing
+# answering for the daemon, machines or rooms yet, and says so.
+stand-in = []
 
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }

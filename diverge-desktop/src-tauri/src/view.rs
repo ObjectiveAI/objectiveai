@@ -877,7 +877,7 @@ pub struct SpaceSummary {
 }
 
 pub fn summary(e: &crate::spaces::SpaceEntry, identity: &crate::identity::Identity) -> SpaceSummary {
-    let you = identity.in_room(&e.id.id).unwrap_or_else(|| identity.usual());
+    let you = identity.who_in(&e.id.id).ok();
     SpaceSummary {
         id: e.id.id.clone(),
         title: e.title.clone(),
@@ -886,9 +886,9 @@ pub fn summary(e: &crate::spaces::SpaceEntry, identity: &crate::identity::Identi
         host_name: e.host_name.clone(),
         mine: e.mine,
         online: e.online,
-        you_are: you.name,
-        you_key: you.key,
-        fresh: !you.usual,
+        you_are: you.as_ref().map(|p| p.name.clone()).unwrap_or_default(),
+        you_key: you.as_ref().map(|p| p.key.clone()).unwrap_or_default(),
+        fresh: you.is_some_and(|p| !p.usual),
     }
 }
 
@@ -908,6 +908,10 @@ pub struct MemberView {
     pub joined: String,
     #[serde(default)]
     pub last_acted: Option<String>,
+    /// A mark of their key in this room, when someone else here goes by the
+    /// same name (see [`crate::marks`]). The room doesn't say it; the app does.
+    #[serde(default)]
+    pub mark: Option<String>,
 }
 
 /// A room's verb: an MCP tool, rendered as a button with a generated form.
@@ -1045,6 +1049,8 @@ pub enum AppearAs {
 #[derive(Serialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct DoorView {
+    /// The name a knock as your usual self sends, exactly.
+    pub usual_name: String,
     pub title: String,
     pub kind: String,
     pub host_name: String,
@@ -1125,6 +1131,9 @@ pub struct AdmittedView {
     pub is_agent: bool,
     /// One of your own agents: its place is your allowances, not the list of people you let in.
     pub yours: bool,
+    /// A mark of their key in this room, when someone else let in goes by
+    /// the same name (see [`crate::marks`]).
+    pub mark: Option<String>,
 }
 
 /// Where one ask went, and what the room said.
@@ -1304,6 +1313,10 @@ pub struct CardHire {
     pub from: String,
     pub what: String,
     pub pledge: Option<String>,
+    /// A mark of their key in that room, when someone else there goes by
+    /// the same name (see [`crate::marks`]).
+    #[serde(default)]
+    pub mark: Option<String>,
 }
 
 #[derive(Serialize, TS, Clone, Debug)]
@@ -1398,15 +1411,163 @@ pub struct TabsSnapshot {
 
 // --- the app itself --------------------------------------------------------
 
+/// Where the first-run page stands. Until it's finished there's no you
+/// here, and nothing is signed or sent.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "state", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum FirstRunView {
+    Done,
+    New,
+    /// A folder from before accounts: it has you under the name an earlier
+    /// version of the app gave you.
+    Earlier { name: String },
+    /// The page can't be finished in this copy of the app; the words say why.
+    Blocked { words: String },
+}
+
+impl From<crate::identity::FirstRun> for FirstRunView {
+    fn from(f: crate::identity::FirstRun) -> Self {
+        match f {
+            crate::identity::FirstRun::Done => FirstRunView::Done,
+            crate::identity::FirstRun::New => FirstRunView::New,
+            crate::identity::FirstRun::Earlier { name } => FirstRunView::Earlier { name },
+            crate::identity::FirstRun::Blocked(words) => FirstRunView::Blocked { words: words.into() },
+        }
+    }
+}
+
 #[derive(Serialize, TS, Clone, Debug)]
 #[ts(export, export_to = "../../src/bindings/")]
 pub struct AppInfo {
     /// True while the daemon is the stand-in.
     pub stand_in: bool,
+    /// Whether anything answers for the daemon, machines and rooms. A build
+    /// without the stand-in has nothing there yet, and the screens say so.
+    pub network: bool,
     /// The commit of Ronald's branch the seam was built against.
     pub contract_pin: String,
     /// Where the stand-in keeps its host's files.
     pub stand_in_host: Option<String>,
+    /// The folder the app keeps its files in.
+    pub folder: String,
+    /// Whether this copy of the app holds that folder. One that doesn't
+    /// changes nothing in it, and the screens say so.
+    pub folder_held: FolderHeld,
+}
+
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(tag = "state", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum FolderHeld {
+    /// This copy holds it, for as long as it runs.
+    Yes,
+    /// Another copy of the app holds it.
+    InUse,
+    /// The system couldn't say whether another copy does, in its own words.
+    Unchecked { error: String },
+}
+
+impl From<&crate::store::Hold> for FolderHeld {
+    fn from(h: &crate::store::Hold) -> Self {
+        match h {
+            crate::store::Hold::Held(_) => FolderHeld::Yes,
+            crate::store::Hold::Elsewhere => FolderHeld::InUse,
+            crate::store::Hold::Unchecked(error) => FolderHeld::Unchecked { error: error.clone() },
+        }
+    }
+}
+
+/// Your keys file, when it can't be used: nothing is signed, and it is left as it is.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct KeysBrokenView {
+    pub file: String,
+    /// A newer version of the app wrote it (otherwise, it can't be read).
+    pub newer: bool,
+}
+
+/// A file the app couldn't use since it started, and what it did about it.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct FileNoticeView {
+    /// What kind of file it is: `keys`, `views`, `record copy`… The
+    /// screen words it from `src/strings.ts`.
+    pub kind: String,
+    /// For your copy of a room's record: the room's title, when the app knows the room.
+    pub room: Option<String>,
+    /// Whether it's the last good copy kept beside the file, not the file itself.
+    pub last_good_copy: bool,
+    /// Where it was.
+    pub file: String,
+    pub why: FileWhy,
+    /// Where it is now, when it was set aside; none when it was left where it is.
+    pub kept_as: Option<String>,
+    /// What the system said, when it wouldn't read the file.
+    pub error: Option<String>,
+    pub carried_on: CarriedOnView,
+}
+
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum FileWhy {
+    /// It won't parse, or it's another kind of file.
+    Damaged,
+    /// It parses, but what it holds doesn't check: a room's record that isn't that room's, or doesn't replay.
+    Refused,
+    /// A newer version of the app wrote it.
+    Newer,
+    /// The system wouldn't open or read it this time.
+    Unread,
+}
+
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum CarriedOnView {
+    /// The last good copy, kept beside it.
+    LastGood,
+    /// Nothing: the app started that file empty.
+    Empty,
+    /// What the app had open: the file went bad after it was read.
+    WhatItHad,
+    /// Nothing, and nothing is written there until the app starts again.
+    NothingThisLaunch,
+}
+
+impl FileNoticeView {
+    /// A notice as the screen shows it; `room` names the room, for a record copy.
+    pub fn of(n: &crate::store::Notice, room: Option<String>) -> Self {
+        use crate::store::{CarriedOn, Done, Why};
+        let (why, kept_as, error) = match &n.done {
+            Done::SetAside { kept_as, why } => (
+                match why {
+                    Why::Damaged => FileWhy::Damaged,
+                    Why::Refused => FileWhy::Refused,
+                    Why::Newer(_) => FileWhy::Newer,
+                },
+                Some(kept_as.display().to_string()),
+                None,
+            ),
+            Done::LeftInPlace { error } => (FileWhy::Unread, None, Some(error.clone())),
+        };
+        FileNoticeView {
+            kind: n.kind.to_owned(),
+            room,
+            last_good_copy: n.last_good_copy(),
+            file: n.file.display().to_string(),
+            why,
+            kept_as,
+            error,
+            carried_on: match n.carried_on {
+                CarriedOn::LastGood => CarriedOnView::LastGood,
+                CarriedOn::Empty => CarriedOnView::Empty,
+                CarriedOn::WhatItHad => CarriedOnView::WhatItHad,
+                CarriedOn::NothingThisLaunch => CarriedOnView::NothingThisLaunch,
+            },
+        }
+    }
 }
 
 /// One entry in the action registry: everything a person can do here,

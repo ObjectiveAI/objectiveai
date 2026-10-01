@@ -17,9 +17,11 @@
 //! [`Invite`] a host hands out.
 //!
 //! Calls arrive here already sealed by whoever makes them (see
-//! [`crate::identity`]); the room checks the seal. [`stub::StubSpaces`] runs
-//! the same room program in process until rooms are hosted on the wire.
+//! [`crate::identity`]); the room checks the seal. `stub::StubSpaces`
+//! (feature `stand-in`) runs the same room program in process until rooms
+//! are hosted on the wire.
 
+#[cfg(feature = "stand-in")]
 pub mod stub;
 
 use async_trait::async_trait;

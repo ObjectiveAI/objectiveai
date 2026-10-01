@@ -69,6 +69,29 @@ async fn waiting(spaces: &dyn Spaces) -> Vec<HostCall> {
         .collect()
 }
 
+/// A room resource's text, if the room answers.
+async fn read_text(spaces: &dyn Spaces, room: &Id, uri: &str) -> Option<String> {
+    let r = spaces.read(room, uri).await.ok()?;
+    r.contents.into_iter().find_map(|c| match c {
+        rmcp::model::ResourceContents::TextResourceContents { text, .. } => Some(text),
+        _ => None,
+    })
+}
+
+/// The mark of whoever asked, in that room, when someone else there goes
+/// by the same name (see [`crate::marks`]).
+async fn hirer_mark(spaces: &dyn Spaces, room: &Id, hire_id: &str, from: &str) -> Option<String> {
+    let feed: Vec<Value> = serde_json::from_str(&read_text(spaces, room, diverge_desktop_room::room::FEED).await?).ok()?;
+    let by = feed.iter().find(|m| m["id"] == hire_id && m["kind"] == "hire")?["by"].as_str()?.to_owned();
+    let members: Vec<crate::view::MemberView> = read_text(spaces, room, diverge_desktop_room::room::MEMBERS).await.and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+    let mut who: Vec<(&str, &str)> = members.iter().map(|m| (m.name.as_str(), m.key.as_str())).collect();
+    if !who.iter().any(|(_, k)| *k == by) {
+        who.push((from, &by));
+    }
+    let marks = crate::marks::shared_names(&room.id, &who);
+    who.iter().zip(marks).find(|((_, k), _)| *k == by).and_then(|(_, mark)| mark)
+}
+
 /// Whether the agent is running now, as the daemon's list says.
 async fn active(daemon: &dyn Daemon, agent: &str) -> Option<bool> {
     let listed = crate::view::listed(daemon.agents_list(agents::list::client::request::Frame {}).collect::<Vec<_>>().await);
@@ -88,7 +111,8 @@ pub async fn handle(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: 
     let HostCall::Hire { room, hire_id, from, agent, what, pledge } = call;
     let pledge_line = pledge.as_deref().map(|p| format!(" They pledge, in words: {p}.")).unwrap_or_default();
     // The name is whatever they typed; the card says so, in the screen's words.
-    let hire = CardHire { from: from.clone(), what: what.clone(), pledge: pledge.clone() };
+    let mark = hirer_mark(spaces.as_ref(), &room, &hire_id, &from).await;
+    let hire = CardHire { from: from.clone(), what: what.clone(), pledge: pledge.clone(), mark };
     let answer = door.ask_hire(&agent, hire, vec![TAKE.into(), DECLINE.into()]).await;
     let take = answer == TAKE;
     if seal_call(spaces.as_ref(), &identity, &room, "answer_hire", json!({ "hire_id": hire_id, "take": take })).await.is_err() || !take {
@@ -134,7 +158,7 @@ pub async fn handle(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: 
     let _ = seal_call(spaces.as_ref(), &identity, &room, "deliver_hire", json!({ "hire_id": hire_id, "summary": summary, "files": [path.join("/")] })).await;
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "stand-in"))]
 mod tests {
     use super::*;
     use crate::daemon::stub::StubDaemon;
@@ -213,5 +237,31 @@ mod tests {
         let rmcp::model::ResourceContents::TextResourceContents { text, .. } = &feed.contents[0] else { panic!() };
         let moves: Vec<Value> = serde_json::from_str(text).unwrap();
         assert_eq!(moves.iter().find(|m| m["id"] == hire.as_str()).unwrap()["state"], "delivered");
+    }
+
+    /// A hire card marks whoever asked when someone else in the profile room goes by the same name.
+    #[tokio::test]
+    async fn a_hire_from_someone_sharing_a_name_carries_their_mark() {
+        let root = std::env::temp_dir().join(format!("diverge-desktop-test-hire-mark-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        let identity = Arc::new(Identity::stand_in("maya"));
+        let stub = StubSpaces::new(identity.clone(), root.join("tables"));
+        let spaces: Arc<dyn Spaces> = Arc::new(stub.clone());
+        let profile = Id { id: stub.id_of("profile-me") };
+        let hire = |what: &str| stub.act_now("ren", &profile.id, "hire", json!({ "agent": "research-notes", "what": what })).unwrap();
+        // The room answers "Asked … (hire-N)".
+        let hire_of = |text: &str| text.rsplit_once('(').and_then(|(_, id)| id.strip_suffix(')')).map(str::to_owned);
+        // Alone with that name: no mark.
+        let first = hire_of(&hire("Check the links")).expect("a hire id");
+        assert_eq!(hirer_mark(spaces.as_ref(), &profile, &first, "ren").await, None);
+        // Someone else let in as "ren": now each needs telling apart.
+        let other = diverge_desktop_room::Keypair::from_seed("another ren");
+        let mut params = CallToolRequestParams::new("admit").with_arguments(json!({ "key": other.key(), "name": "ren" }).as_object().cloned().unwrap());
+        identity.seal(&identity.you_in(&profile.id), &profile.id, &mut params).unwrap();
+        spaces.call(&profile, params).await.unwrap();
+        let second = hire_of(&hire("Check the links again")).expect("a hire id");
+        let mark = hirer_mark(spaces.as_ref(), &profile, &second, "ren").await.expect("marked");
+        assert_eq!(mark, crate::marks::mark(&profile.id, &stub.stand_in_key("ren"), crate::marks::SHORTEST));
+        assert_ne!(mark, crate::marks::mark(&profile.id, &other.key(), crate::marks::SHORTEST), "not the other ren's");
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

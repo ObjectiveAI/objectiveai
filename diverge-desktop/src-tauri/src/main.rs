@@ -1,34 +1,37 @@
 //! Diverge — the desktop app.
 //!
 //! Rust owns the daemon, its address and its credentials; the page gets
-//! commands (see [`actions`]) and one channel per stream. Today the daemon
-//! is [`daemon::stub::StubDaemon`]; see `diverge-desktop/CLAUDE.md`.
+//! commands (see [`actions`]) and one channel per stream. Built with the
+//! `stand-in` feature (the default for now), the daemon and rooms are
+//! stand-ins; without it, nothing answers yet and the screens say so. See
+//! `diverge-desktop/CLAUDE.md`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// Without the stand-in nothing reaches the agent door or most daemon verbs
+// yet: on the wire, the daemon will.
+#![cfg_attr(not(feature = "stand-in"), allow(dead_code))]
 
+mod absent;
+mod account;
 mod actions;
 mod catalog;
 mod daemon;
 mod machines;
+mod marks;
 mod door;
 mod hires;
 mod identity;
 mod preview;
 mod reporter;
 mod spaces;
+mod store;
 mod tabs;
 mod view;
-
-use std::collections::HashMap;
-use std::sync::atomic::AtomicU64;
-use std::sync::{Arc, Mutex};
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::{Emitter, Manager};
 
 use actions::AppState;
-use daemon::stub::StubDaemon;
-use spaces::stub::StubSpaces;
 
 fn main() {
     tauri::Builder::default()
@@ -49,76 +52,10 @@ fn main() {
                 let _ = app.emit("menu://action", event.id().as_ref().to_owned());
             });
 
-            let data = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&data)?;
-            let host = data.join("stand-in-host");
-            // Your keys: made on first run, under your usual name (your Mac's
-            // account name until you rename it), kept in one owner-only file.
-            let usual_name = std::env::var("USER").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| "you".into());
-            let identity = Arc::new(identity::Identity::open(data.join("identity.json"), &usual_name));
-            let (daemon, spaces, door, stand_in_spaces) = tauri::async_runtime::block_on({
-                let host = host.clone();
-                let identity = identity.clone();
-                let allowances = data.join("allowances.json");
-                async move {
-                    let daemon = StubDaemon::new(host.clone());
-                    let stub = StubSpaces::new(identity.clone(), host.join("tables"));
-                    let spaces: Arc<dyn spaces::Spaces> = Arc::new(stub.clone());
-                    let door = Arc::new(door::Door::new(spaces.clone(), identity, Some(allowances)));
-                    daemon.set_door(door.clone());
-                    (daemon, spaces, door, stub)
-                }
-            });
-            let views_file = data.join("views.json");
-            let machine_names_file = data.join("machine_names.json");
-            let machine_names = std::fs::read_to_string(&machine_names_file).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-            let views = std::fs::read_to_string(&views_file).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-            // What the app last stated each agent mounts. On a first run with
-            // the stand-in, its seeded agents count as made here.
-            let agent_mounts_file = data.join("agent_mounts.json");
-            let agent_mounts: HashMap<String, view::AgentMounts> = match std::fs::read_to_string(&agent_mounts_file).ok().and_then(|s| serde_json::from_str(&s).ok()) {
-                Some(known) => known,
-                None => daemon.creates().iter().map(|c| (c.name.clone(), view::AgentMounts::of_create(c))).collect(),
-            };
-            // The stand-in answers both seams: it knows every agent's mounts,
-            // so it keeps every machine's holds.
-            let daemon = Arc::new(daemon);
-            let machines: Arc<dyn machines::Machines> = daemon.clone();
-            let daemon: Arc<dyn daemon::Daemon> = daemon;
-            reporter::spawn(daemon.clone(), spaces.clone(), identity.clone());
-            hires::spawn(daemon.clone(), spaces.clone(), identity.clone(), door.clone());
-            // The stand-in's own scenes: someone hires one of your agents a little after you open the app.
-            stand_in_spaces.stage();
-            // The stand-in's past: copies you'd already hold of rooms that have since gone quiet.
-            let records = data.join("records");
-            let _ = std::fs::create_dir_all(&records);
-            for (id, record) in stand_in_spaces.records_you_hold() {
-                let file = records.join(actions::record_file_name(&id));
-                if !file.exists() {
-                    let _ = std::fs::write(file, record.to_string());
-                }
-            }
-            app.manage(AppState {
-                stand_in_host: Some(host.clone()),
-                daemon,
-                identity,
-                machines,
-                spaces,
-                door,
-                scopes: Mutex::new(HashMap::new()),
-                next_scope: AtomicU64::new(1),
-                tabs: Mutex::new(tabs::Tabs::default()),
-                views: Mutex::new(views),
-                views_file,
-                machine_names: Mutex::new(machine_names),
-                machine_names_file,
-                agent_mounts: Mutex::new(agent_mounts),
-                records_dir: data.join("records"),
-                record_heads: Mutex::new(HashMap::new()),
-                threads: Mutex::new(std::fs::read_to_string(data.join("threads.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()),
-                threads_file: data.join("threads.json"),
-                agent_mounts_file,
-            });
+            // Every file the app keeps is in one folder: DIVERGE_DATA_DIR's, when it names one.
+            let data = actions::data_dir(std::env::var_os(actions::DATA_DIR_VAR), || app.path().app_data_dir())?;
+            let state = tauri::async_runtime::block_on(AppState::open(data));
+            app.manage(state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -192,6 +129,9 @@ fn main() {
             actions::tabs_focus,
             actions::actions_list,
             actions::app_info,
+            actions::files_set_aside,
+            actions::first_run_get,
+            actions::first_run_finish,
         ])
         .run(tauri::generate_context!())
         .expect("the app could not start");

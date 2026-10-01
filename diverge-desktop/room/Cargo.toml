@@ -16,6 +16,10 @@ tokio = { version = "1.50.0", features = ["sync"] }
 # Seals: a key per person and per agent, made and kept on their own Mac.
 ed25519-dalek = "2"
 sha2 = "0.10"
+# Accounts: SLIP-10 derivation of the root from the recovery words' seed,
+# and wiping what it leaves in memory.
+hmac = "0.12"
+zeroize = "1"
 hex = "0.4"
 getrandom = "0.2"
 # The room as a tool container image (feature `image`): an HTTP server on

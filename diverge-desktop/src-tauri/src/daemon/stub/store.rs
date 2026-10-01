@@ -41,17 +41,18 @@ pub fn components(path: &str) -> Vec<String> {
     path.split('/').filter(|p| !p.is_empty()).map(str::to_owned).collect()
 }
 
+/// One stand-in machine's list of volumes, with each one's size and mode.
+pub const VOLUMES: crate::store::Format = crate::store::Format { name: "stand-in volumes", version: 1, keep_previous: true };
+
 impl VolumeStore {
     pub fn new(root: PathBuf) -> Self {
         let _ = fs::create_dir_all(root.join("volumes"));
-        let meta: BTreeMap<String, Meta> = fs::read_to_string(root.join("volumes.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        let meta: BTreeMap<String, Meta> = crate::store::load(&root.join("volumes.json"), VOLUMES).unwrap_or_default();
         VolumeStore { root, meta: Mutex::new(meta) }
     }
 
     fn save(&self, meta: &BTreeMap<String, Meta>) {
-        if let Ok(json) = serde_json::to_string_pretty(meta) {
-            let _ = fs::write(self.root.join("volumes.json"), json);
-        }
+        let _ = crate::store::save(&self.root.join("volumes.json"), VOLUMES, meta);
     }
 
     fn dir(&self, name: &str) -> PathBuf {

@@ -180,12 +180,15 @@ describe("the stand-in label", () => {
       ts.forEachChild(n, walk);
     };
     walk(source);
-    const label = all.filter((n) => classes(opening(n)!).includes("stand-in-line"));
-    expect(label).toHaveLength(1);
-    const around: string[] = [];
-    for (let n = label[0].parent; n; n = n.parent) if (opening(n)) around.push(...classes(opening(n)!));
-    expect(around).toContain("rail");
-    expect(around.filter((c) => scrolls.has(c))).toEqual([]);
+    // Every line at the rail's foot: the stand-in label, and the folder and network notices beside it.
+    const labels = all.filter((n) => classes(opening(n)!).includes("stand-in-line"));
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      const around: string[] = [];
+      for (let n = label.parent; n; n = n.parent) if (opening(n)) around.push(...classes(opening(n)!));
+      expect(around).toContain("rail");
+      expect(around.filter((c) => scrolls.has(c))).toEqual([]);
+    }
     // …while the rest of the rail still scrolls, so a long list stays reachable.
     expect(all.some((n) => classes(opening(n)!).some((c) => scrolls.has(c)))).toBe(true);
   });

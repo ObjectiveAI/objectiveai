@@ -92,6 +92,12 @@ struct SavedRoom {
     stand_in_host: Option<String>,
 }
 
+/// The stand-in's rooms file: every room it runs, kept between launches.
+pub const ROOMS: crate::store::Format = crate::store::Format { name: "stand-in rooms", version: 1, keep_previous: true };
+
+/// Present in any build the stand-in is part of: the check that it's absent looks for these words.
+pub const BUILT_IN: &str = "diverge-desktop stand-in rooms are built in";
+
 struct Inner {
     rooms: IndexMap<String, Hosted>,
     pending: Vec<Knock>,
@@ -166,19 +172,15 @@ fn text_of(result: &CallToolResult) -> String {
 impl StubSpaces {
     /// The records you'd hold copies of from before the app ever ran: the
     /// stand-in's past. The real app keeps its own copies as it goes.
-    pub fn records_you_hold(&self) -> Vec<(String, Value)> {
+    pub fn records_you_hold(&self) -> Vec<(String, Record)> {
         let inner = self.lock();
-        inner
-            .rooms
-            .iter()
-            .filter(|(_, h)| h.joined && !h.online)
-            .map(|(id, h)| (id.clone(), serde_json::to_value(h.room.record()).unwrap_or_default()))
-            .collect()
+        inner.rooms.iter().filter(|(_, h)| h.joined && !h.online).map(|(id, h)| (id.clone(), h.room.record())).collect()
     }
 
     /// Must be called inside a tokio runtime; that runtime is the one it keeps.
     /// `tables` is where each room's table lives on this Mac.
     pub fn new(me: Arc<Keys>, tables: PathBuf) -> Self {
+        std::hint::black_box(BUILT_IN);
         let (knocks_live, _) = broadcast::channel(64);
         let (calls_live, _) = broadcast::channel(64);
         let mut people = HashMap::new();
@@ -193,12 +195,22 @@ impl StubSpaces {
             calls_live,
             tables,
         };
-        // What happened in the rooms last time, if anything did; the stand-in's own past otherwise.
+        // What happened in the rooms last time, if anything did; the stand-in's own past otherwise,
+        // once there's a you: until the first-run page is finished, nothing is seeded.
         if !s.restore() {
-            s.seed();
-            s.persist();
+            s.begin();
         }
         s
+    }
+
+    /// Seed the stand-in's own past, if there are no rooms yet and the
+    /// first-run page is finished: the seeded rooms are yours too.
+    pub fn begin(&self) {
+        if self.me.ready().is_err() || !self.lock().rooms.is_empty() {
+            return;
+        }
+        self.seed();
+        self.persist();
     }
 
     fn saved_file(&self) -> PathBuf {
@@ -230,27 +242,28 @@ impl StubSpaces {
             board: BOARD_ID.get().cloned(),
         };
         drop(inner);
-        let file = self.saved_file();
-        let tmp = file.with_extension("json.tmp");
-        let _ = std::fs::create_dir_all(&self.tables);
-        if let Ok(json) = serde_json::to_vec(&saved) {
-            if std::fs::write(&tmp, json).is_ok() {
-                let _ = std::fs::rename(&tmp, &file);
-            }
-        }
+        let _ = crate::store::save(&self.saved_file(), ROOMS, &saved);
     }
 
-    /// Rebuild the rooms from what was kept, every record replayed. Anything
-    /// that doesn't check means starting again from the stand-in's past.
-    fn restore(&self) -> bool {
-        let Some(saved) = std::fs::read_to_string(self.saved_file()).ok().and_then(|s| serde_json::from_str::<Saved>(&s).ok()) else { return false };
+    /// Every kept room, rebuilt by replaying its record.
+    fn replay(saved: Saved) -> Result<(IndexMap<String, Hosted>, Saved), String> {
         let mut rooms = IndexMap::new();
-        for r in saved.rooms {
-            let Ok(key) = Keypair::from_secret_hex(&r.room_secret) else { return false };
-            let Ok(room) = Room::from_record(r.record, Some(key.clone())) else { return false };
+        for r in &saved.rooms {
+            let key = Keypair::from_secret_hex(&r.room_secret)?;
+            let room = Room::from_record(r.record.clone(), Some(key.clone()))?;
             let id = room.id().to_owned();
-            rooms.insert(id, Hosted { room, room_key: key, provider: r.provider, online: r.online, secret: r.secret, mine: r.mine, joined: r.joined, stand_in_host: r.stand_in_host });
+            rooms.insert(id, Hosted { room, room_key: key, provider: r.provider.clone(), online: r.online, secret: r.secret.clone(), mine: r.mine, joined: r.joined, stand_in_host: r.stand_in_host.clone() });
         }
+        Ok((rooms, saved))
+    }
+
+    /// Rebuild the rooms from what was kept, every record replayed. A file
+    /// that won't parse or replay is set aside, and the stand-in starts
+    /// again from its own past.
+    fn restore(&self) -> bool {
+        let check = |saved: &Saved| saved.rooms.iter().try_for_each(|r| Keypair::from_secret_hex(&r.room_secret).and_then(|k| Room::from_record(r.record.clone(), Some(k)).map(|_| ())));
+        let Some(saved) = crate::store::load_with::<Saved>(&self.saved_file(), ROOMS, check) else { return false };
+        let Ok((rooms, saved)) = Self::replay(saved) else { return false };
         let mut inner = self.lock();
         // The invented people carry on counting from where their seals got to.
         for person in inner.people.values_mut() {
@@ -382,9 +395,8 @@ impl StubSpaces {
 
     /// Admit one of your agents, tethered to you.
     fn admit_agent(&self, inner: &mut Inner, room: &str, agent: &str, at: DateTime<Utc>) {
-        let a = self.me.agent_in(agent, Some(room));
+        let (Ok(a), Ok(usual)) = (self.me.agent_in(agent, Some(room)), self.me.usual()) else { return };
         let (key, t, agent) = (a.key, a.tether, a.name.as_str());
-        let usual = self.me.usual();
         let _ = self.me_act(inner, Actor::Persona("usual".into()), room, "admit", json!({ "key": key, "name": agent, "is_agent": true, "agent_of": usual.key, "tether": t }), at);
     }
 
@@ -397,7 +409,7 @@ impl StubSpaces {
         let ago = |h: i64, m: i64| now - TimeDelta::hours(h) - TimeDelta::minutes(m);
         // Every seeded room was made before anything happened in it.
         let since = ago(500, 0);
-        let usual = self.me.usual();
+        let Ok(usual) = self.me.usual() else { return };
         let me = Actor::Persona("usual".into());
         let (ada, scout, ren) = (self.stand_in_key("ada"), self.stand_in_key("ada/scout"), self.stand_in_key("ren"));
         let mut guard = self.lock();
@@ -731,7 +743,7 @@ impl Spaces for StubSpaces {
             return Err(ErrorData::internal_error("the room's host is offline", None));
         }
         // Only someone let in and not removed reads a room: here, you, as whoever you are there.
-        let you = self.me.in_room(&id.id).unwrap_or_else(|| self.me.usual()).key;
+        let you = self.me.who_in(&id.id).map(|p| p.key).unwrap_or_default();
         if !h.mine && !h.room.may_read(&you) {
             return Err(ErrorData::invalid_request("you're not in that room, or you were removed", None));
         }
@@ -942,7 +954,7 @@ mod tests {
         let invite = Invite::from_text(said.split_whitespace().find(|w| w.starts_with("diverge-invite:")).unwrap()).unwrap();
         assert_eq!(invite.title, "Ren's music room");
         assert!(invite.verbs.iter().any(|v| v.name == "show"));
-        let usual = me.usual();
+        let usual = me.usual().unwrap();
         let knock = |invite_mark: Option<String>| Knocking {
             room: invite.id.clone(),
             invite: invite_mark,
@@ -1019,6 +1031,20 @@ mod tests {
         assert_eq!(feed(&again, &board), before, "the same room, replayed from its record");
         again.act_now("ada", &board, "show", json!({ "title": "and a stool" })).unwrap();
         assert!(feed(&again, &board).iter().any(|m| m["title"] == "and a stool"), "ada's counter carries on");
+        let _ = std::fs::remove_dir_all(&tables);
+    }
+
+    #[tokio::test]
+    async fn a_rooms_file_that_wont_parse_is_set_aside_not_written_over() {
+        let me = Arc::new(Keys::stand_in("maya"));
+        let tables = std::env::temp_dir().join(format!("diverge-desktop-rooms-damaged-{}-{}", std::process::id(), Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        std::fs::create_dir_all(&tables).unwrap();
+        std::fs::write(tables.join(".stand-in-rooms.json"), "{ \"file\": \"stand-in rooms\", \"vers").unwrap();
+        let spaces = StubSpaces::new(me, tables.clone());
+        assert!(!spaces.list().await.is_empty(), "the stand-in starts again from its own past");
+        let aside = crate::store::notices_under(&tables);
+        assert_eq!((aside.len(), aside[0].kind, aside[0].carried_on), (1, "stand-in rooms", crate::store::CarriedOn::Empty));
+        assert_eq!(std::fs::read_to_string(aside[0].kept_as().unwrap()).unwrap(), "{ \"file\": \"stand-in rooms\", \"vers", "kept as it was");
         let _ = std::fs::remove_dir_all(&tables);
     }
 

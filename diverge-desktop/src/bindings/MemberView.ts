@@ -7,4 +7,9 @@ export type MemberView = { name: string, key: string, is_agent: boolean, agent_o
 /**
  * For an agent: its person's key. Agents are told apart by key, never by name.
  */
-agent_of_key: string | null, joined: string, last_acted: string | null, };
+agent_of_key: string | null, joined: string, last_acted: string | null, 
+/**
+ * A mark of their key in this room, when someone else here goes by the
+ * same name (see [`crate::marks`]). The room doesn't say it; the app does.
+ */
+mark: string | null, };

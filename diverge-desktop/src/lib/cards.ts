@@ -5,7 +5,7 @@ import { t } from "../strings";
 export function cardLine(c: CardView): string {
   if (c.hire) {
     const pledge = c.hire.pledge ? ` ${t.cards.hire.pledge} ${c.hire.pledge}.` : "";
-    return `${t.cards.hire.someone} ${c.hire.from} ${t.cards.hire.asks} ${c.agent}${t.cards.hire.through} “${c.hire.what}”.${pledge}`;
+    return `${t.cards.hire.someone} ${c.hire.from}${c.hire.mark ? ` (${c.hire.mark})` : ""} ${t.cards.hire.asks} ${c.agent}${t.cards.hire.through} “${c.hire.what}”.${pledge}`;
   }
   if (c.call) {
     const verb = t.cards.verbs[c.call.verb] ?? c.call.verb.replace(/_/g, " ");

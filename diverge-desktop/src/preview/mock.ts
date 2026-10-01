@@ -92,7 +92,15 @@ export function installPreview() {
     async (cmd: string, args: Args = {}) => {
       switch (cmd) {
         case "app_info":
-          return { stand_in: true, contract_pin: fixture.contract_pin, stand_in_host: PREVIEW_HOST };
+          // Preview only: add ?folder-in-use to the address to see how a second copy of the app says so.
+          return {
+            stand_in: true,
+            network: true,
+            contract_pin: fixture.contract_pin,
+            stand_in_host: PREVIEW_HOST,
+            folder: "~/Library/Application Support/network.diverge.desktop.draft",
+            folder_held: new URLSearchParams(location.search).has("folder-in-use") ? { state: "in_use" } : { state: "yes" },
+          };
         case "actions_list":
           return fixture.actions;
         case "catalog_images":
@@ -286,16 +294,33 @@ export function installPreview() {
           const r = spaceOf(args.id);
           return (r?.moves ?? []).filter((m) => m.kind === "doorway").map((m) => ({ title: m.title, invite: m.body, by: m.author, at: m.at }));
         }
+        case "first_run_get": {
+          // Preview only: add ?first-run (or ?first-run=earlier) to the address to see the first-run page.
+          const asked = new URLSearchParams(location.search).get("first-run");
+          if (asked === null) return { state: "done" };
+          return asked === "earlier" ? { state: "earlier", name: you.name } : { state: "new" };
+        }
+        case "first_run_finish":
+          return { state: "done" };
         case "identity_broken":
           // Preview only: add ?keys-unreadable to the address to see how the app says so.
-          return new URLSearchParams(location.search).has("keys-unreadable") ? "~/Library/Application Support/network.diverge.desktop.draft/identity.json" : null;
+          return new URLSearchParams(location.search).has("keys-unreadable") ? { file: "~/Library/Application Support/network.diverge.desktop.draft/identity.json", newer: false } : null;
+        case "files_set_aside":
+          // Preview only: add ?files-set-aside to the address to see how the app says so.
+          return new URLSearchParams(location.search).has("files-set-aside")
+            ? [
+                { kind: "views", room: null, last_good_copy: false, file: "~/Library/Application Support/network.diverge.desktop.draft/views.json", why: "newer", kept_as: "~/Library/Application Support/network.diverge.desktop.draft/views.newer-v2-20260930120000.json", error: null, carried_on: "last_good" },
+                { kind: "record copy", room: "Saturday Workshop", last_good_copy: false, file: "~/Library/Application Support/network.diverge.desktop.draft/records/5f1c0e.json", why: "refused", kept_as: "~/Library/Application Support/network.diverge.desktop.draft/records/5f1c0e.refused-20260930120000.json", error: null, carried_on: "last_good" },
+                { kind: "machine names", room: null, last_good_copy: false, file: "~/Library/Application Support/network.diverge.desktop.draft/machine_names.json", why: "unread", kept_as: null, error: "Permission denied (os error 13)", carried_on: "nothing_this_launch" },
+              ]
+            : [];
         case "asks_close":
           return [];
         case "vouch_for":
           return "diverge-vouch:" + btoa(JSON.stringify({ kind: "vouch", body: { for: args.key, for_name: args.name, by_name: you.name }, key: you.key, sig: "preview" })).replace(/=+$/, "");
         case "spaces_admitted": {
           const r = spaceOf(args.id);
-          return (r?.view.members ?? []).map((m) => ({ name: m.name, key: m.key, listed: true, is_agent: m.is_agent, yours: m.is_agent && m.agent_of_key === you.key }));
+          return (r?.view.members ?? []).map((m) => ({ name: m.name, key: m.key, listed: true, is_agent: m.is_agent, yours: m.is_agent && m.agent_of_key === you.key, mark: m.mark ?? null }));
         }
         case "spaces_restart":
           return null;
@@ -304,7 +329,7 @@ export function installPreview() {
           if (!r) return { outcome: "error", message: "you hold no copy of that room" };
           const id = `space-${Date.now()}`;
           const summary = { ...r.view.summary, id, title: `${r.view.summary.title}, continued`, host: { kind: "outgoing", address: "127.0.0.1:4640" }, host_name: you.name, mine: true, online: true } as SpaceView["summary"];
-          spaceRecs.push({ view: { ...r.view, summary, members: [{ name: you.name, key: you.key, is_agent: false, agent_of: null, agent_of_key: null, joined: new Date().toISOString(), last_acted: null }], tools: spaceRecs[0]?.view.tools ?? [], before: [] }, moves: r.moves.map((m) => ({ ...m, fields: { ...(m.fields as object), from: r.view.summary.title } })), invite: null });
+          spaceRecs.push({ view: { ...r.view, summary, members: [{ name: you.name, key: you.key, is_agent: false, agent_of: null, agent_of_key: null, joined: new Date().toISOString(), last_acted: null, mark: null }], tools: spaceRecs[0]?.view.tools ?? [], before: [] }, moves: r.moves.map((m) => ({ ...m, fields: { ...(m.fields as object), from: r.view.summary.title } })), invite: null });
           return { outcome: "hosted", id };
         }
         case "spaces_call": {
@@ -336,7 +361,7 @@ export function installPreview() {
             case "steer": { const d = find(a.direction_id); if (d) { const f = d.fields as Record<string, number>; f[a.move] = (f[a.move] ?? 0) + 1; push("steer", d.title, a.note ?? "", a.move, d.id); line = `Steered ${d.title}: ${a.move}`; } break; }
             case "synthesize": line = `Synthesis written (${push("synthesis", "Where it stands", a.body, "open", null)})`; break;
             case "set_charter": r.view.charter = a.text; push("charter", "The rules changed", "", "said", null); line = "Rules changed"; break;
-            case "admit": r.view.members.push({ name: a.name, key: a.key, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null }); push("admitted", a.name, "", "said", null); line = `Admitted: ${a.name}`; break;
+            case "admit": r.view.members.push({ name: a.name, key: a.key, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null, mark: null }); push("admitted", a.name, "", "said", null); line = `Admitted: ${a.name}`; break;
             case "remove": { const m = r.view.members.find((x) => x.key === a.key); r.view.members = r.view.members.filter((x) => x.key !== a.key); push("removed", m?.name ?? "someone", a.reason ?? "", "said", null); line = "Removed"; break; }
             default: return { outcome: "error", message: `the preview doesn't play ${args.tool}` };
           }
@@ -370,13 +395,13 @@ export function installPreview() {
           const i = args.input;
           const id = `space-${Date.now()}`;
           const summary = { id, title: i.title, kind: i.kind, host: { kind: "outgoing", address: "127.0.0.1:4640" }, host_name: you.name, mine: true, online: true, you_are: you.name, you_key: you.key, fresh: false } as SpaceView["summary"];
-          spaceRecs.push({ view: { summary, charter: i.charter, members: [{ name: you.name, key: you.key, is_agent: false, agent_of: null, agent_of_key: null, joined: new Date().toISOString(), last_acted: null }], tools: spaceRecs[0]?.view.tools ?? [], before: [] }, moves: [], invite: encodeInvite({ host: summary.host, id, secret: `${id}-key`, title: i.title, kind: i.kind, host_name: you.name, charter: i.charter, verbs: [] }) });
+          spaceRecs.push({ view: { summary, charter: i.charter, members: [{ name: you.name, key: you.key, is_agent: false, agent_of: null, agent_of_key: null, joined: new Date().toISOString(), last_acted: null, mark: null }], tools: spaceRecs[0]?.view.tools ?? [], before: [] }, moves: [], invite: encodeInvite({ host: summary.host, id, secret: `${id}-key`, title: i.title, kind: i.kind, host_name: you.name, charter: i.charter, verbs: [] }) });
           return { outcome: "hosted", id };
         }
         case "spaces_door": {
           const inv = decodeInvite(args.invite);
           if (!inv) throw new Error("that isn't an invite");
-          return { title: inv.title, kind: inv.kind, host_name: inv.host_name, host: inv.host, charter: inv.charter, verbs: inv.verbs, invited: Boolean(inv.secret), already_in: spaceRecs.some((r) => r.view.summary.id === inv.id) };
+          return { usual_name: you.name, title: inv.title, kind: inv.kind, host_name: inv.host_name, host: inv.host, charter: inv.charter, verbs: inv.verbs, invited: Boolean(inv.secret), already_in: spaceRecs.some((r) => r.view.summary.id === inv.id) };
         }
         case "spaces_join": {
           const inv = decodeInvite(args.invite);
@@ -390,7 +415,7 @@ export function installPreview() {
             const summary = { id: inv.id, title: inv.title, kind: inv.kind, host: inv.host, host_name: inv.host_name, mine: false, online: true, you_are: name, you_key: key, fresh: as.as === "fresh" } as SpaceView["summary"];
             const now = new Date().toISOString();
             spaceRecs.push({
-              view: { summary, charter: inv.charter, members: [{ name: inv.host_name, key: `host-${inv.id}`, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null }, { name, key, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null }], tools: spaceRecs[0]?.view.tools ?? [], before: [] },
+              view: { summary, charter: inv.charter, members: [{ name: inv.host_name, key: `host-${inv.id}`, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null, mark: null }, { name, key, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null, mark: null }], tools: spaceRecs[0]?.view.tools ?? [], before: [] },
               moves: [{ id: "admitted-1", kind: "admitted", author: inv.host_name, by: `host-${inv.id}`, agent_of: null, at: now, title: name, body: "", state: "said", parent: null, fields: {}, charter: "", hash: "" }],
               invite: null,
             });
@@ -421,7 +446,7 @@ export function installPreview() {
             const r = spaceOf(k.space);
             const now = new Date().toISOString();
             if (args.yes && r) {
-              r.view.members.push({ name: k.name, key: `knock-${k.knock_id}`, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null });
+              r.view.members.push({ name: k.name, key: `knock-${k.knock_id}`, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null, mark: null });
               r.moves.push({ id: `admitted-${++moveN}`, kind: "admitted", author: you.name, by: you.key, agent_of: null, at: now, title: k.name, body: "", state: "said", parent: null, fields: {}, charter: "", hash: "" });
               later(() => bump(k.space));
             }

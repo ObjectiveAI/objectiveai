@@ -50,6 +50,9 @@ use store::VolumeStore;
 use crate::door::Door;
 use std::sync::OnceLock;
 
+/// Present in any build the stand-in is part of: the check that it's absent looks for these words.
+pub const BUILT_IN: &str = "diverge-desktop stand-in daemon is built in";
+
 /// How long a message waits before the agent takes it, when nothing is
 /// ahead of it: long enough to take it back.
 const DELIVERY: Duration = Duration::from_millis(2500);
@@ -221,6 +224,7 @@ pub struct StubDaemon {
 impl StubDaemon {
     /// Must be called inside a tokio runtime; that runtime is the one it keeps.
     pub fn new(host_root: PathBuf) -> Self {
+        std::hint::black_box(BUILT_IN);
         let daemon = StubDaemon {
             inner: Arc::new(Mutex::new(Inner { tools: IndexMap::new(), agents: IndexMap::new(), providers: Vec::new(), next_id: 1 })),
             host_root,
