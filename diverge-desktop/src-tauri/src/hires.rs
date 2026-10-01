@@ -134,7 +134,7 @@ pub async fn handle(daemon: Arc<dyn Daemon>, spaces: Arc<dyn Spaces>, identity: 
     let _ = seal_call(spaces.as_ref(), &identity, &room, "deliver_hire", json!({ "hire_id": hire_id, "summary": summary, "files": [path.join("/")] })).await;
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "stand-in"))]
 mod tests {
     use super::*;
     use crate::daemon::stub::StubDaemon;

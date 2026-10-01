@@ -6,6 +6,11 @@ export type AppInfo = {
  */
 stand_in: boolean, 
 /**
+ * Whether anything answers for the daemon, machines and rooms. A build
+ * without the stand-in has nothing there yet, and the screens say so.
+ */
+network: boolean, 
+/**
  * The commit of Ronald's branch the seam was built against.
  */
 contract_pin: string, 

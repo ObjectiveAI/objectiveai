@@ -151,6 +151,11 @@ export function App() {
         <Rail focused={tabs.focused} />
         <main className="stage">
           <TabStrip snapshot={tabs} onFocus={focus} onClose={close} />
+          {info && !info.network ? (
+            <div className="banner banner-warn">
+              <strong>{t.network.absent}</strong>
+            </div>
+          ) : null}
           {keysBroken ? (
             <div className="banner banner-warn">
               <strong>{t.keys.unreadable}</strong> {t.keys.where} <span className="mono selectable">{keysBroken}</span>. {t.keys.untouched}

@@ -444,7 +444,7 @@ impl Door {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "stand-in"))]
 mod tests {
     use super::*;
     use crate::spaces::stub::{StubSpaces, board};

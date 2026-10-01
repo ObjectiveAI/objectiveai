@@ -1403,6 +1403,9 @@ pub struct TabsSnapshot {
 pub struct AppInfo {
     /// True while the daemon is the stand-in.
     pub stand_in: bool,
+    /// Whether anything answers for the daemon, machines and rooms. A build
+    /// without the stand-in has nothing there yet, and the screens say so.
+    pub network: bool,
     /// The commit of Ronald's branch the seam was built against.
     pub contract_pin: String,
     /// Where the stand-in keeps its host's files.

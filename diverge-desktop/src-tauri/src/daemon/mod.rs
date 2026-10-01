@@ -1,10 +1,10 @@
 //! The seam between this app and the Diverge daemon.
 //!
 //! One trait, one method per verb `diverge_sdk::daemon` defines, taking and
-//! returning that module's own types. [`stub::StubDaemon`] stands in until
-//! Ronald ships a daemon; a `WireDaemon` over the SDK's caller half is the
-//! whole of meeting up with him. Nothing above this module knows which one
-//! it holds.
+//! returning that module's own types. `stub::StubDaemon` (feature
+//! `stand-in`) stands in until Ronald ships a daemon; a `WireDaemon` over
+//! the SDK's caller half is the whole of meeting up with him. Nothing above
+//! this module knows which one it holds.
 //!
 //! Since `87015ef92` the daemon has no volumes: they are each machine's,
 //! behind the other seam, [`crate::machines`].
@@ -24,6 +24,7 @@ use diverge_sdk::daemon::endpoints::{agents, tools};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 
 pub mod jq;
+#[cfg(feature = "stand-in")]
 pub mod stub;
 
 /// What a scope sends, in order, until it finishes.

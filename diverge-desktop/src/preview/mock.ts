@@ -92,7 +92,7 @@ export function installPreview() {
     async (cmd: string, args: Args = {}) => {
       switch (cmd) {
         case "app_info":
-          return { stand_in: true, contract_pin: fixture.contract_pin, stand_in_host: PREVIEW_HOST };
+          return { stand_in: true, network: true, contract_pin: fixture.contract_pin, stand_in_host: PREVIEW_HOST };
         case "actions_list":
           return fixture.actions;
         case "catalog_images":

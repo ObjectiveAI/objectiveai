@@ -280,7 +280,7 @@
     },
     {
       "name": "app_info",
-      "does": "Whether the daemon is the stand-in, and the contract pin"
+      "does": "Whether the daemon is the stand-in, whether there's a network part at all, and the contract pin"
     },
     {
       "name": "files_set_aside",

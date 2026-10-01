@@ -1,11 +1,17 @@
 //! Diverge — the desktop app.
 //!
 //! Rust owns the daemon, its address and its credentials; the page gets
-//! commands (see [`actions`]) and one channel per stream. Today the daemon
-//! is [`daemon::stub::StubDaemon`]; see `diverge-desktop/CLAUDE.md`.
+//! commands (see [`actions`]) and one channel per stream. Built with the
+//! `stand-in` feature (the default for now), the daemon and rooms are
+//! stand-ins; without it, nothing answers yet and the screens say so. See
+//! `diverge-desktop/CLAUDE.md`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// Without the stand-in nothing reaches the agent door or most daemon verbs
+// yet: on the wire, the daemon will.
+#![cfg_attr(not(feature = "stand-in"), allow(dead_code))]
 
+mod absent;
 mod actions;
 mod catalog;
 mod daemon;

@@ -34,6 +34,8 @@ pub struct AppState {
     pub spaces: Arc<dyn Spaces>,
     pub door: Arc<Door>,
     pub stand_in_host: Option<PathBuf>,
+    /// Whether anything answers for the daemon, machines and rooms.
+    pub network: bool,
     /// The folder every file the app keeps is in.
     pub data: PathBuf,
     pub scopes: Mutex<HashMap<String, CancellationToken>>,
@@ -89,25 +91,35 @@ pub struct Seams {
     pub machines: Arc<dyn Machines>,
     pub spaces: Arc<dyn Spaces>,
     pub stand_in_host: Option<PathBuf>,
+    pub network: bool,
     /// What the app counts as having stated each agent mounts, until it
     /// keeps a file of its own.
     pub first_mounts: HashMap<String, AgentMounts>,
 }
 
 impl AppState {
-    /// The app over its folder: your keys, every file it keeps, and the
-    /// stand-in daemon and rooms. Starts the reporter and the hires. Call
-    /// it inside the runtime the app keeps.
+    /// The app over its folder: your keys, every file it keeps, and
+    /// whatever answers the seams — the stand-in, in a build with it;
+    /// nothing, otherwise, and the screens say so. Starts the reporter and
+    /// the hires. Call it inside the runtime the app keeps.
     pub async fn open(data: PathBuf) -> AppState {
         let _ = std::fs::create_dir_all(&data);
         let identity = Arc::new(crate::identity::Identity::open(data.join(KEYS_FILE), &usual_name()));
+        #[cfg(feature = "stand-in")]
         let state = Self::with_stand_in(data, identity);
+        #[cfg(not(feature = "stand-in"))]
+        let state = {
+            let absent = Arc::new(crate::absent::Absent);
+            let seams = Seams { daemon: absent.clone(), machines: absent.clone(), spaces: absent, stand_in_host: None, network: false, first_mounts: HashMap::new() };
+            Self::assemble(data, identity, seams)
+        };
         crate::reporter::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone());
         crate::hires::spawn(state.daemon.clone(), state.spaces.clone(), state.identity.clone(), state.door.clone());
         state
     }
 
     /// The stand-in daemon and rooms, their past, and their scenes.
+    #[cfg(feature = "stand-in")]
     fn with_stand_in(data: PathBuf, identity: Arc<crate::identity::Identity>) -> AppState {
         use crate::daemon::stub::StubDaemon;
         use crate::spaces::stub::StubSpaces;
@@ -117,7 +129,7 @@ impl AppState {
         // On a first run, the stand-in's seeded agents count as made here.
         let first_mounts = daemon.creates().iter().map(|c| (c.name.clone(), AgentMounts::of_create(c))).collect();
         // The stand-in answers both seams: it knows every agent's mounts, so it keeps every machine's holds.
-        let seams = Seams { daemon: daemon.clone(), machines: daemon.clone(), spaces: Arc::new(stub.clone()), stand_in_host: Some(host), first_mounts };
+        let seams = Seams { daemon: daemon.clone(), machines: daemon.clone(), spaces: Arc::new(stub.clone()), stand_in_host: Some(host), network: true, first_mounts };
         let state = Self::assemble(data, identity, seams);
         daemon.set_door(state.door.clone());
         // The stand-in's past: copies you'd already hold of rooms that have since gone quiet.
@@ -146,6 +158,7 @@ impl AppState {
             spaces: seams.spaces,
             door,
             stand_in_host: seams.stand_in_host,
+            network: seams.network,
             scopes: Mutex::new(HashMap::new()),
             next_scope: AtomicU64::new(1),
             tabs: Mutex::new(Tabs::default()),
@@ -266,7 +279,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("tabs_close", "Close a tab"),
     ("tabs_focus", "Focus a tab"),
     ("actions_list", "This list"),
-    ("app_info", "Whether the daemon is the stand-in, and the contract pin"),
+    ("app_info", "Whether the daemon is the stand-in, whether there's a network part at all, and the contract pin"),
     ("files_set_aside", "Files the app couldn't use and set aside, untouched: where each was and where it is now"),
 ];
 
@@ -279,6 +292,7 @@ pub fn actions_list() -> Vec<ActionInfo> {
 pub fn app_info(state: State<'_, AppState>) -> AppInfo {
     AppInfo {
         stand_in: state.stand_in_host.is_some(),
+        network: state.network,
         contract_pin: include_str!("../../CONTRACT_PIN").lines().next().unwrap_or_default().to_owned(),
         stand_in_host: state.stand_in_host.as_ref().map(|p| p.display().to_string()),
     }
@@ -1407,9 +1421,23 @@ mod tests {
         assert_eq!(data_dir::<()>(Some("".into()), || Ok(PathBuf::from("/the/system/folder"))), Ok(PathBuf::from("/the/system/folder")), "an empty one names nothing");
         assert_eq!(data_dir::<()>(Some("second-copy".into()), || unreachable!()), Ok(std::env::current_dir().unwrap().join("second-copy")), "a relative one is from where the app started");
         seeded_keys(&data);
-        let _state = AppState::open(data.clone()).await;
+        let state = AppState::open(data.clone()).await;
+        assert_eq!(state.network, cfg!(feature = "stand-in"));
         assert!(data.join(KEYS_FILE).is_file());
         assert!(data.join(RECORDS_DIR).is_dir());
+        #[cfg(feature = "stand-in")]
         assert!(std::fs::read_dir(data.join(RECORDS_DIR)).unwrap().next().is_some(), "the stand-in's copies are there too");
+    }
+
+    /// The stand-in's own words are in the program only in a build that asked for it.
+    #[test]
+    fn the_stand_in_is_built_in_only_with_its_feature() {
+        let program = String::from_utf8_lossy(&std::fs::read(std::env::current_exe().unwrap()).unwrap()).into_owned();
+        let looked_for = ["diverge-desktop|stand-in|daemon|is|built|in", "diverge-desktop|stand-in|rooms|are|built|in"].map(|w| w.replace('|', " "));
+        #[cfg(feature = "stand-in")]
+        assert_eq!([crate::daemon::stub::BUILT_IN, crate::spaces::stub::BUILT_IN], [looked_for[0].as_str(), looked_for[1].as_str()]);
+        for words in &looked_for {
+            assert_eq!(program.contains(words.as_str()), cfg!(feature = "stand-in"), "{words}");
+        }
     }
 }

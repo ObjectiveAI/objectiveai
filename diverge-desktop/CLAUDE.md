@@ -6,8 +6,8 @@ inherits it.
 
 ## The seams
 - `src-tauri/src/daemon/mod.rs` — `Daemon`, one method per daemon verb (`agents::{create, delete, message, logs,
-  list, edit}`, `tools::{create, edit, connect, attach, detach, delete, list}`). `StubDaemon` now; `WireDaemon` when
-  Ronald ships a daemon. The app doesn't use the tools verbs for rooms: a daemon-attached tool bypasses the app, which
+  list, edit}`, `tools::{create, edit, connect, attach, detach, delete, list}`). `StubDaemon` (feature `stand-in`) now;
+  `WireDaemon` when Ronald ships a daemon. The app doesn't use the tools verbs for rooms: a daemon-attached tool bypasses the app, which
   seals agents' calls and asks the person first.
 - `src-tauri/src/machines.rs` — `Machines`: the provider protocol's volume verbs, addressed to one machine. Since
   `87015ef92` a volume is its provider's own; the daemon has none. The wire doesn't say yet how the app reaches a machine's verbs.
@@ -75,6 +75,10 @@ inherits it.
   that won't parse, or that a newer version wrote, is set aside under a new name beside it and never written over;
   the app carries on from the last good copy, or starts that file empty, and every screen says so
   (`files_set_aside`, words in `src/strings.ts`).
+- **The stand-in is a feature** (`stand-in`, on by default for now): `StubDaemon`, `StubSpaces`, their seeded past
+  and staged scenes. Built without it (`--no-default-features`), nothing answers the seams (`absent.rs`): every list
+  is empty, everything else says the network part isn't there yet, and so do the screens. A test checks the
+  stand-in's own words are in the program only when the feature is on.
 - **Setup** is `AppState::open(data)` (actions.rs); main.rs builds the menu and picks the folder: the one
   `DIVERGE_DATA_DIR` names (tests, a second copy of the app), the system's place for the app otherwise.
 - **The menu** (main.rs): ⌘N new agent, ⌘W closes a TAB (never the window), ⌘1 Home, ⌘2 Inbox; the page handles ⌘3–9
@@ -126,7 +130,8 @@ came from them. Seed content is invented and everyday.
 
 ## Run it
 `pnpm install` (from the repo root) then `cd diverge-desktop && pnpm tauri dev`. Every test, in one command:
-`pnpm test:all` (the app's Rust tests, the room crate with its container program, and vitest). A second copy with its own files: `DIVERGE_DATA_DIR=/some/folder pnpm tauri dev`.
+`pnpm test:all` (the app's Rust tests, again without the stand-in, the room crate with its container program, and
+vitest). A second copy with its own files: `DIVERGE_DATA_DIR=/some/folder pnpm tauri dev`.
 
 ## Browser preview (reviews, cloud sessions — no Mac window needed)
 `pnpm dev` and open http://localhost:1430 in any browser. Outside Tauri the page plays back

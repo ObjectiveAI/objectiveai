@@ -696,6 +696,10 @@ export const t = {
     assistant_image_content: "Images it made",
     assistant_audio_content: "Audio it made",
   } as Record<string, string>,
+  network: {
+    absent: "This build has no network part yet: no daemon, no machines, no rooms. Nothing here reaches anyone.",
+    absentShort: "No network part yet",
+  },
   files: {
     damaged: "couldn't be read, so it was set aside as",
     newer: "was written by a newer version of this app, so it was set aside as",

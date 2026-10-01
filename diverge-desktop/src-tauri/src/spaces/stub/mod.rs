@@ -95,6 +95,9 @@ struct SavedRoom {
 /// The stand-in's rooms file: every room it runs, kept between launches.
 pub const ROOMS: crate::store::Format = crate::store::Format { name: "stand-in rooms", version: 1, keep_previous: true };
 
+/// Present in any build the stand-in is part of: the check that it's absent looks for these words.
+pub const BUILT_IN: &str = "diverge-desktop stand-in rooms are built in";
+
 struct Inner {
     rooms: IndexMap<String, Hosted>,
     pending: Vec<Knock>,
@@ -177,6 +180,7 @@ impl StubSpaces {
     /// Must be called inside a tokio runtime; that runtime is the one it keeps.
     /// `tables` is where each room's table lives on this Mac.
     pub fn new(me: Arc<Keys>, tables: PathBuf) -> Self {
+        std::hint::black_box(BUILT_IN);
         let (knocks_live, _) = broadcast::channel(64);
         let (calls_live, _) = broadcast::channel(64);
         let mut people = HashMap::new();

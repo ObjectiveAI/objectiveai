@@ -37,6 +37,13 @@ jaq-json = { version = "1.1.3", features = ["serde_json"] }
 # Our view types write their own TypeScript: `cargo test` exports them.
 ts-rs = { version = "11", features = ["serde-json-impl"] }
 
+[features]
+default = ["stand-in"]
+# The stand-in daemon and rooms: their seeded past and staged scenes, so the
+# app runs whole on one computer. Without it the app runs with nothing
+# answering for the daemon, machines or rooms yet, and says so.
+stand-in = []
+
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }
 

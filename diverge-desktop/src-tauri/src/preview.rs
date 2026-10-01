@@ -7,7 +7,7 @@
 //! Without it the test still builds the snapshot, so it can't quietly break,
 //! but leaves the committed file alone: seals over times differ every run.
 
-#[cfg(test)]
+#[cfg(all(test, feature = "stand-in"))]
 mod tests {
     use std::collections::BTreeMap;
     use std::time::Duration;

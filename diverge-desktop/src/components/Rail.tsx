@@ -90,6 +90,12 @@ export function Rail(props: { focused: string | null }) {
           <span className="mono">{info.contract_pin.slice(0, 9)}</span>
         </div>
       ) : null}
+      {info && !info.network ? (
+        <div className="stand-in-line" title={t.network.absent}>
+          <span>{t.network.absentShort}</span>
+          <span className="mono">{info.contract_pin.slice(0, 9)}</span>
+        </div>
+      ) : null}
     </nav>
   );
 }
