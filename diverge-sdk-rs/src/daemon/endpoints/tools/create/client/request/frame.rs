@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::daemon_tools::DaemonTools;
+
 use super::{FuseMount, Provider};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
@@ -62,6 +64,11 @@ pub struct Frame {
     /// [`fuse_directory_mounts`](crate::daemon::endpoints::agents::create::client::request::Frame::fuse_directory_mounts).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
+    /// The daemon's own tools the tool holds, and how far each
+    /// reaches: see [`DaemonTools`]. Absent, none. The tool's for
+    /// its life.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub daemon_tools: Option<DaemonTools>,
     /// The name, unique among the caller's tools.
     pub name: String,
 }

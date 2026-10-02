@@ -3,8 +3,8 @@
 //! The shape and the id are the daemon's one
 //! [`template`](crate::daemon::template), typed `"agent"`
 //! here: everything about an agent that is not its name, not the
-//! provider it runs on and not its own mounts, the daemon's own
-//! [tools](crate::daemon::daemon_tools) it holds among them. A caller makes one
+//! provider it runs on, not its own mounts and not the daemon's own
+//! [tools](crate::daemon::daemon_tools) it holds. A caller makes one
 //! with [`create`] and names it afterwards by its id, so the same
 //! template made twice is one template; an [`agent`](super) is
 //! created from a template by that id, with a name, a provider and

@@ -1,16 +1,19 @@
-//! The daemon's own tools, as a template hands them to the agents
-//! and the tools made from it.
+//! The daemon's own tools, as a create hands them to the agent or
+//! the tool it makes.
 //!
 //! Besides the tool containers attached to an agent, an agent — or a
 //! tool container the daemon runs — may call tools the daemon itself
 //! answers: the daemon's own verbs over the caller's agents, tools,
-//! and the templates both are made from. Which of them a container
-//! has, and how far each reaches, is its template's: the
-//! [`DaemonTools`] a [template](crate::daemon::template) carries
-//! names each tool the containers made from it hold, with its
-//! reach, and a container holds exactly the tools named and no
-//! other. A template that carries no `daemon_tools` makes
-//! containers that hold none.
+//! and the templates both are made from, and over its resources.
+//! Which of them a container has, and how far each reaches, is its
+//! create's and not its template's: the [`DaemonTools`] an
+//! [agent's create](crate::daemon::endpoints::agents::create) or a
+//! [tool's create](crate::daemon::endpoints::tools::create) carries
+//! names each tool the container holds, with its reach, for its
+//! life, and a container holds exactly the tools named and no other.
+//! A create that carries no `daemon_tools` makes a container that
+//! holds none, and a connected tool holds none: it is somebody
+//! else's container, and calls nothing of the caller's.
 //!
 //! # The filter as a permission
 //!

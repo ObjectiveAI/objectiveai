@@ -6,17 +6,17 @@ use serde::{Deserialize, Serialize};
 use crate::daemon::endpoints::{agents, tools};
 use super::{AgentsTag, AgentsTemplatesTag, AgentsTemplatesUntag, AgentsUntag, ToolsAttach, ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag, Resources};
 
-/// The daemon's tools an agent, or a tool, made from the template
-/// holds, one member each: one for every endpoint but
+/// The daemon's tools an agent, or a tool, holds, named on its
+/// create, one member each: one for every endpoint but
 /// [`tools::connect`](crate::daemon::endpoints::tools::connect),
 /// which joins somebody else's container on an authorization of the
 /// caller's and is the caller's alone. A member present gives it
 /// that tool, as far as the member says: a filter, the very shape
 /// the list of that family narrows by, read as a test — see
 /// [`daemon_tools`](super) — and `{}` reaches every one. A member
-/// absent withholds the tool. Part of the template, and so of its
-/// hash; every member absent is `{}`, which is not the same bytes as
-/// no `daemon_tools` at all.
+/// absent withholds the tool. The agent's, or the tool's, for its
+/// life, and no template's: one template makes agents of different
+/// reach.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DaemonTools {
     /// The tool that lists agents, and the agents it reaches: those the

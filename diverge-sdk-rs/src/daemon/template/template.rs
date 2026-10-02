@@ -4,14 +4,12 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::daemon::daemon_tools::DaemonTools;
 use crate::daemon::endpoints::agents::create::client::request::Image;
 use super::{ResourceDirectoryMount, ResourceFileMount};
 
 /// Everything an agent or a tool is made from that is the same for
-/// every one made from it: what it is for, the daemon's tools it
-/// holds, the image, the limits, the resources mounted over FUSE,
-/// the arguments. What is not here is
+/// every one made from it: what it is for, the image, the limits, the
+/// resources mounted over FUSE, the arguments. What is not here is
 /// what differs one to the next — the name, the provider it runs on,
 /// and the mounts of that provider's volumes — which the
 /// [agent's](crate::daemon::endpoints::agents::create) or the
@@ -39,17 +37,15 @@ use super::{ResourceDirectoryMount, ResourceFileMount};
 /// Its id is its hash: see [`template`](super). What a caller may
 /// not choose is not here at all rather than here and ignored: the
 /// container's name, its ports, its entrypoint and its environment
-/// are the provider's.
+/// are the provider's. The daemon's own tools an agent or a tool
+/// holds are not here either: they are the create's, so that one
+/// template makes agents of different reach.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Template<Type> {
     /// What the template is for: the one value the family's type
     /// admits, `agent` or `tool`. First, so the hashed JSON leads
     /// with it.
     pub r#type: Type,
-    /// The daemon's own tools every container made from this holds:
-    /// see [`DaemonTools`]. Absent, none.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub daemon_tools: Option<DaemonTools>,
     /// The image: a name and a digest. See [`Image`].
     pub image: Image,
     /// How much memory the container may have, in BYTES.

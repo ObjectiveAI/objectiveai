@@ -10,8 +10,8 @@
 //! its own: agents, the tools attached to them, the templates both
 //! are made from — one shape, [`template`], shared by the two
 //! families' endpoints — and the resources served into them. The
-//! daemon's own tools, which a template hands the agents and tools
-//! made from it, are [`daemon_tools`]. Who
+//! daemon's own tools, which a create hands the agent or the tool it
+//! makes, are [`daemon_tools`]. Who
 //! made each of those, and through whom, is [`creator`], carried by
 //! every list item; how a request names one of them, by name or
 //! once and for all, is [`reference`](mod@reference). The provider's endpoints are

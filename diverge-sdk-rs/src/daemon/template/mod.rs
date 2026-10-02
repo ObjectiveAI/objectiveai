@@ -12,9 +12,9 @@
 //! [agent template](crate::daemon::endpoints::agents::templates) and
 //! `"tool"` for a [tool template](crate::daemon::endpoints::tools::templates),
 //! so the two kinds never hash the same and a template's text says
-//! what it is for; the daemon's own tools it hands out,
-//! [`daemon_tools`](crate::daemon::daemon_tools), follow. Each family
-//! makes, lists and deletes its own.
+//! what it is for. Each family makes, lists and deletes its own. The
+//! daemon's own tools, [`daemon_tools`](crate::daemon::daemon_tools),
+//! are not a template's but a create's.
 //!
 //! # The id is the template's hash
 //!
