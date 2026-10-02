@@ -20,13 +20,13 @@ pub struct Tool {
     /// Where it comes from, and what the daemon knows of its
     /// container: see [`Origin`].
     pub origin: Origin,
-    /// Its number among all tools of the caller's ever made with the
-    /// same fixed origin — from that template, or joined to that
-    /// provider's container of that id — deleted ones included: the
-    /// first made is `1`, each after is one more, and no number is
-    /// given twice. The origin and the count together name the tool
-    /// once and for all, where a name is free again once the tool is
-    /// deleted. See [`ToolOrigin`](crate::daemon::creator::ToolOrigin).
+    /// Its number among all tools of the caller's ever made the same
+    /// way — from that template, for a created tool; joined to that
+    /// provider's container of that id, for a connected one — deleted
+    /// ones included: the first made is `1`, each after is one more,
+    /// and no number is given twice. The origin's fixed part and the
+    /// count together name the tool once and for all, where a name is
+    /// free again once the tool is deleted.
     pub count: u64,
     /// Who made it, and through whom: the chain
     /// [`creator`](crate::daemon::creator) describes, the client

@@ -13,16 +13,23 @@
 //!
 //! A creator is named once and for all, so that the chain stays true
 //! after the creator is deleted and after its name is given to
-//! another: an agent by its template and its count among the agents
-//! ever made from that template, a tool by its origin and its count
-//! among the tools ever made with that origin, the client by its
-//! identity. The name is carried beside, as the create gave it.
+//! another: an [`Agent`] by its template and its count among the
+//! agents ever made from that template, a [`Tool`] by its template
+//! and its count among the tools ever made from that template, the
+//! [`Client`] by its identity. The name is carried beside, as the
+//! create gave it. A connected tool is somebody else's container and
+//! calls nothing of the client's, so it makes nothing and is never
+//! a creator; a tool here is always one the client made.
 //!
 //! Every list narrows by creator: a request naming creators matches
 //! what was made under any one of them, anywhere in its chain.
 
+mod agent;
+mod client;
 mod creator;
-mod tool_origin;
+mod tool;
 
+pub use agent::*;
+pub use client::*;
 pub use creator::*;
-pub use tool_origin::*;
+pub use tool::*;
