@@ -9,10 +9,12 @@
 //! create's and not its template's: the [`DaemonTools`] an
 //! [agent's create](crate::daemon::endpoints::agents::create) or a
 //! [tool's create](crate::daemon::endpoints::tools::create) carries
-//! names each tool the container holds, with its reach, for its
-//! life, and a container holds exactly the tools named and no other.
-//! A create that carries no `daemon_tools` makes a container that
-//! holds none, and a connected tool holds none: it is somebody
+//! names each tool the container holds, with its reach — every
+//! member `disabled`, `any`, or `only` what it names, a [`Reach`] —
+//! and a container holds exactly the tools not `disabled`. Which
+//! tools it holds is fixed for its life; how far each reaches is
+//! edited. A create that carries no `daemon_tools` makes a container
+//! that holds none, and a connected tool holds none: it is somebody
 //! else's container, and calls nothing of the caller's.
 //!
 //! # The filter as a permission
@@ -35,7 +37,8 @@
 //! thing is as it was. A tool that lists answers only what its
 //! filter passes, narrowed further by the request's own filter. A
 //! tool that makes something reaches templates: it makes from a
-//! template its filter passes, and from no other. Each of these is
+//! template its filter passes, and from no other. `any` is every
+//! thing of the caller's with no filter at all. Each of these is
 //! one filter, and is that filter on [`DaemonTools`]; the two tools
 //! that join a tool to an agent carry a filter for each, and are
 //! [`ToolsAttach`] and [`ToolsDetach`]; the eight that tag and untag
@@ -44,9 +47,10 @@
 //! [`AgentsTemplatesTag`], [`AgentsTemplatesUntag`], [`ToolsTag`],
 //! [`ToolsUntag`], [`ToolsTemplatesTag`] and [`ToolsTemplatesUntag`].
 //! The tools that make a template, and the one that uploads a
-//! resource, make something with no subject, and are each a boolean.
-//! Resources have no list filter, so the tools that list and delete
-//! them reach any resource or only those named by id: [`Resources`].
+//! resource, make something with no subject, and are each a
+//! [`Switch`], `disabled` or `any`. Resources have no list filter,
+//! so the tools that list and delete them reach `any` resource or
+//! `only` those named by id.
 //!
 //! What each tool says to its caller, and how the daemon knows who
 //! is calling, is not yet stated here.
@@ -56,7 +60,8 @@ mod agents_templates_tag;
 mod agents_templates_untag;
 mod agents_untag;
 mod daemon_tools;
-mod resources;
+mod reach;
+mod switch;
 mod tags;
 mod tools_attach;
 mod tools_detach;
@@ -70,7 +75,8 @@ pub use agents_templates_tag::*;
 pub use agents_templates_untag::*;
 pub use agents_untag::*;
 pub use daemon_tools::*;
-pub use resources::*;
+pub use reach::*;
+pub use switch::*;
 pub use tags::*;
 pub use tools_attach::*;
 pub use tools_detach::*;

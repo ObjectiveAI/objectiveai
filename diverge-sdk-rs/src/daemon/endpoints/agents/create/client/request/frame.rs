@@ -82,10 +82,11 @@ pub struct Frame {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
     /// The daemon's own tools the agent holds, and how far each
-    /// reaches: see [`DaemonTools`]. Absent, none. The agent's for
-    /// its life.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub daemon_tools: Option<DaemonTools>,
+    /// reaches: see [`DaemonTools`]. Absent, every one `disabled`,
+    /// and left off the wire when every one is. Which it holds is
+    /// the agent's for its life; how far each reaches is edited.
+    #[serde(default, skip_serializing_if = "DaemonTools::all_disabled")]
+    pub daemon_tools: DaemonTools,
     /// The name, unique among the caller's agents.
     pub name: String,
 }
