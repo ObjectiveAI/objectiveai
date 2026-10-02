@@ -2,7 +2,7 @@
 //!
 //! A client asks for its tools, narrowed, and the daemon sends every
 //! one it holds under the caller's identity that the request's
-//! filter lets through — by name, by template, by origin, by
+//! filter lets through — by name, by template, by creator, by origin, by
 //! activity, by the agents it is attached to, by tags, all or any, by when it
 //! was created — one response each, oldest created first, and
 //! finishes: what each is called, where it comes from — the template

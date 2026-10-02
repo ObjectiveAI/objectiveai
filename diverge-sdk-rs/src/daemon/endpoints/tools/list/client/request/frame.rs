@@ -5,6 +5,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::creator::Creator;
+
 use super::Kind;
 
 /// Ask the daemon for the caller's tools, narrowed.
@@ -22,11 +24,12 @@ use super::Kind;
 ///
 /// # Any one of, every one of
 ///
-/// A member that lists candidates — `names`, `templates` — matches a
-/// tool that is any one of them. `agents` matches a tool attached to
-/// every one of them, `all_tags` one that carries every one of them,
-/// and `any_tags` one that carries any one of them. An empty list is
-/// absent, and matches every tool.
+/// A member that lists candidates — `names`, `templates`, `creators` —
+/// matches a tool that is any one of them, or was made under any one of
+/// them. `agents` matches a tool attached to every one of them,
+/// `all_tags` one that carries every one of them, and `any_tags` one
+/// that carries any one of them. An empty list is absent, and matches
+/// every tool.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
     /// Any one of these names, as a create or a connect gave them.
@@ -36,6 +39,12 @@ pub struct Frame {
     /// connected tool matches none of them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
+    /// Made under any one of these, anywhere in its chain: see
+    /// [`creator`](crate::daemon::creator). A creator names everything
+    /// made under it, however far down. Absent when empty, and then
+    /// made by anybody.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub creators: Vec<Creator>,
     /// Created by the daemon, or connected to somebody else's: the
     /// `kind` an
     /// [`Origin`](crate::daemon::endpoints::tools::list::server::response::Origin)

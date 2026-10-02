@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::creator::Creator;
 use super::Origin;
 
 /// One tool of the caller's: what the daemon knows of it.
@@ -19,6 +20,19 @@ pub struct Tool {
     /// Where it comes from, and what the daemon knows of its
     /// container: see [`Origin`].
     pub origin: Origin,
+    /// Its number among all tools of the caller's ever made with the
+    /// same fixed origin — from that template, or joined to that
+    /// provider's container of that id — deleted ones included: the
+    /// first made is `1`, each after is one more, and no number is
+    /// given twice. The origin and the count together name the tool
+    /// once and for all, where a name is free again once the tool is
+    /// deleted. See [`ToolOrigin`](crate::daemon::creator::ToolOrigin).
+    pub count: u64,
+    /// Who made it, and through whom: the chain
+    /// [`creator`](crate::daemon::creator) describes, the client
+    /// first and what made this tool last. Never empty; one link for
+    /// a tool the caller made with a create or a connect.
+    pub creator: Vec<Creator>,
     /// When the create or the connect made it.
     pub created: DateTime<Utc>,
     /// Whether the tool is active now: for a created tool, its

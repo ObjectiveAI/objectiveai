@@ -2,8 +2,8 @@
 //!
 //! A client asks for its templates, narrowed, and the daemon sends
 //! every one it holds under the caller's identity that the request's
-//! filter lets through — by id, by whether any agent was made from
-//! it, by tags, all or any, by when it was made — one response each, oldest
+//! filter lets through — by id, by creator, by whether any agent was made
+//! from it, by tags, all or any, by when it was made — one response each, oldest
 //! made first, and finishes: each by its id, when it was made, its
 //! tags, and the template whole. A jq program on the request runs
 //! over each template the filter lets through, and what it yields

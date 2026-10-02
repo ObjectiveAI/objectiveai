@@ -5,6 +5,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::creator::Creator;
+
 /// Ask the daemon for the caller's agents, narrowed.
 ///
 /// Everything is optional, and a request with none of it — `{}` on the
@@ -20,10 +22,11 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Any one of, every one of
 ///
-/// A member that lists candidates — `names`, `templates` — matches a
-/// agent that is any one of them. `all_tags` matches an agent that
-/// carries every one of them, and `any_tags` one that carries any one
-/// of them. An empty list is absent, and matches every agent.
+/// A member that lists candidates — `names`, `templates`, `creators` —
+/// matches a agent that is any one of them, or was made under any one
+/// of them. `all_tags` matches an agent that carries every one of them,
+/// and `any_tags` one that carries any one of them. An empty list is
+/// absent, and matches every agent.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
     /// Any one of these names, as a create gave them.
@@ -32,6 +35,12 @@ pub struct Frame {
     /// Made from any one of these templates, by id.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
+    /// Made under any one of these, anywhere in its chain: see
+    /// [`creator`](crate::daemon::creator). A creator names everything
+    /// made under it, however far down. Absent when empty, and then
+    /// made by anybody.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub creators: Vec<Creator>,
     /// Whether active — a loop running in it — `true`, or not, `false`;
     /// absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -3,10 +3,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::creator::Creator;
 use crate::daemon::endpoints::tools::templates::Template;
 
-/// One template of the caller's: its id, when it was made, its tags,
-/// and the template whole. The tags are the caller's and not the
+/// One template of the caller's: its id, when it was made, who made
+/// it, its tags, and the template whole. The tags are the caller's and not the
 /// template's: not in it, and not in its hash.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Listed {
@@ -15,6 +16,12 @@ pub struct Listed {
     pub id: String,
     /// When the create made it.
     pub created: DateTime<Utc>,
+    /// Who made it, and through whom: the chain
+    /// [`creator`](crate::daemon::creator) describes, the client
+    /// first and what made this template last. Never empty; one link
+    /// for a template the caller made with a create. A template made
+    /// again is the first maker's still.
+    pub creator: Vec<Creator>,
     /// Its tags, sorted bytewise: what [`tag`](crate::daemon::endpoints::tools::templates::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::tools::templates::untag) has not taken off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

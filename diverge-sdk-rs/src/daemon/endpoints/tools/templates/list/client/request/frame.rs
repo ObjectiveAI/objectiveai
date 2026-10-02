@@ -5,6 +5,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::creator::Creator;
+
 /// Ask the daemon for the caller's templates, narrowed.
 ///
 /// Everything is optional, and a request with none of it — `{}` on the
@@ -20,15 +22,22 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Any one of, every one of
 ///
-/// A member that lists candidates — `ids` — matches a template that is
-/// any one of them. `all_tags` matches a template that carries every
-/// one of them, and `any_tags` one that carries any one of them. An
-/// empty list is absent, and matches every template.
+/// A member that lists candidates — `ids`, `creators` — matches a
+/// template that is any one of them, or was made under any one of them.
+/// `all_tags` matches a template that carries every one of them, and
+/// `any_tags` one that carries any one of them. An empty list is
+/// absent, and matches every template.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
     /// Any one of these ids.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ids: Vec<String>,
+    /// Made under any one of these, anywhere in its chain: see
+    /// [`creator`](crate::daemon::creator). A creator names everything
+    /// made under it, however far down. Absent when empty, and then
+    /// made by anybody.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub creators: Vec<Creator>,
     /// Whether some tool of the caller's was made from it — what a
     /// [`delete`](crate::daemon::endpoints::tools::templates::delete)
     /// answers `InUse` for — `true`, or none, `false`; absent, either.

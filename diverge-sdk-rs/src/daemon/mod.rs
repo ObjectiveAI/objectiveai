@@ -9,8 +9,12 @@
 //! [`endpoints`] on top, as the [`provider`](crate::provider) defines
 //! its own: agents, the tools attached to them, the templates both
 //! are made from — one shape, [`template`], shared by the two
-//! families' endpoints — and the resources served into them. The provider's endpoints are not the daemon's, and nothing
-//! here names them but what a daemon spawns an agent from.
+//! families' endpoints — and the resources served into them. Who
+//! made each of those, and through whom, is [`creator`], carried by
+//! every list item. The provider's endpoints are not the daemon's,
+//! and nothing here names them but what a daemon spawns an agent
+//! from.
 
+pub mod creator;
 pub mod endpoints;
 pub mod template;
