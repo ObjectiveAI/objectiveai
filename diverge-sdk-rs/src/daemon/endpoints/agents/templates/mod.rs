@@ -1,8 +1,10 @@
 //! Agent templates: what an agent is made from, held by its hash.
 //!
 //! The shape and the id are the daemon's one
-//! [`template`](crate::daemon::template), typed `"agent"`
-//! here: everything about an agent that is not its name, not the
+//! [`template`](crate::daemon::template), led by [`AgentKind`] here
+//! — the `type` `"agent"`, and the daemon's
+//! [`builtin`](crate::daemon::builtin) tools every agent made from
+//! it holds: everything about an agent that is not its name, not the
 //! provider it runs on and not its own mounts. A caller makes one
 //! with [`create`] and names it afterwards by its id, so the same
 //! template made twice is one template; an [`agent`](super) is
@@ -12,8 +14,10 @@
 //! [`tag`] and [`untag`] change a template's tags, which are the
 //! caller's and not in the template's hash.
 
+mod agent_kind;
 mod agent_type;
 
+pub use agent_kind::*;
 pub use agent_type::*;
 
 pub mod create;

@@ -15,14 +15,19 @@ use super::{ResourceDirectoryMount, ResourceFileMount};
 /// [agent's](crate::daemon::endpoints::agents::create) or the
 /// [tool's](crate::daemon::endpoints::tools::create) create states.
 ///
-/// # One shape, typed
+/// # One shape, led by the family's own
 ///
-/// `Type` is the family's own single-value enum —
-/// [`AgentType`](crate::daemon::endpoints::agents::templates::AgentType)
-/// or [`ToolType`](crate::daemon::endpoints::tools::templates::ToolType)
-/// — so an agent template is `{"type":"agent",…}` and a tool template
-/// `{"type":"tool",…}`, neither decoding as the other, and the two
-/// hashing apart however alike the rest.
+/// `Kind` is what is the family's own, flattened into the front of
+/// the JSON:
+/// [`AgentKind`](crate::daemon::endpoints::agents::templates::AgentKind),
+/// the `type` `"agent"` and the daemon's
+/// [`builtin`](crate::daemon::builtin) tools the agents made from
+/// the template hold, or
+/// [`ToolKind`](crate::daemon::endpoints::tools::templates::ToolKind),
+/// the `type` `"tool"` alone. So an agent template is
+/// `{"type":"agent",…}` or `{"type":"agent","builtin":{…},…}` and a
+/// tool template `{"type":"tool",…}`, neither decoding as the other,
+/// and the two hashing apart however alike the rest.
 ///
 /// # No provider, so that it travels
 ///
@@ -39,11 +44,12 @@ use super::{ResourceDirectoryMount, ResourceFileMount};
 /// container's name, its ports, its entrypoint and its environment
 /// are the provider's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Template<Type> {
-    /// What the template is for: the one value the family's type
-    /// admits, `agent` or `tool`. First, so the hashed JSON leads
-    /// with it.
-    pub r#type: Type,
+pub struct Template<Kind> {
+    /// The family's own: the `type`, `agent` or `tool`, and whatever
+    /// else is that family's. Flattened, and first, so the hashed
+    /// JSON leads with the `type`.
+    #[serde(flatten)]
+    pub kind: Kind,
     /// The image: a name and a digest. See [`Image`].
     pub image: Image,
     /// How much memory the container may have, in BYTES.
