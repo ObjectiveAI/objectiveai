@@ -13,9 +13,9 @@
 //!
 //! A creator is named once and for all, so that the chain stays true
 //! after the creator is deleted and after its name is given to
-//! another: an [`Agent`] by its template and its count among the
+//! another: an [`Agent`] by its template and its index among the
 //! agents ever made from that template, a [`Tool`] by its template
-//! and its count among the tools ever made from that template, the
+//! and its index among the tools ever made from that template, the
 //! [`Client`] by its identity. The name is carried beside, as the
 //! create gave it. A connected tool is somebody else's container and
 //! calls nothing of the client's, so it makes nothing and is never

@@ -27,9 +27,9 @@ pub struct Agent {
     /// Its number among all agents of the caller's ever made from
     /// that template, deleted ones included: the first made is `1`,
     /// each after is one more, and no number is given twice. The
-    /// template and the count together name the agent once and for
+    /// template and the index together name the agent once and for
     /// all, where a name is free again once the agent is deleted.
-    pub count: u64,
+    pub index: u64,
     /// Who made it, and through whom: the chain
     /// [`creator`](crate::daemon::creator) describes, the client
     /// first and what made this agent last. Never empty; one link

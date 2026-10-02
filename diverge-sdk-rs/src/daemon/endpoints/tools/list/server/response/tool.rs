@@ -25,9 +25,9 @@ pub struct Tool {
     /// provider's container of that id, for a connected one — deleted
     /// ones included: the first made is `1`, each after is one more,
     /// and no number is given twice. The origin's fixed part and the
-    /// count together name the tool once and for all, where a name is
+    /// index together name the tool once and for all, where a name is
     /// free again once the tool is deleted.
-    pub count: u64,
+    pub index: u64,
     /// Who made it, and through whom: the chain
     /// [`creator`](crate::daemon::creator) describes, the client
     /// first and what made this tool last. Never empty; one link for

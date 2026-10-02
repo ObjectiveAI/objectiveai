@@ -6,8 +6,8 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, list, delete, tag and untag the templates agents are made from |
-//! | [`tools`] | create a tool under a name; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; make, list, delete, tag and untag the templates tools are made from |
+//! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from |
+//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; make, get, list, delete, tag and untag the templates tools are made from |
 //! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
 //!
 //! # The tags
@@ -20,37 +20,41 @@
 //! | tag | request |
 //! |-----|---------|
 //! | `0` | [`agents::create`] |
-//! | `1` | [`agents::delete`] |
-//! | `2` | [`agents::message`] |
-//! | `3` | [`agents::logs`] |
-//! | `4` | [`agents::list`] |
-//! | `5` | [`agents::edit`] |
-//! | `6` | [`agents::tag`] |
-//! | `7` | [`agents::untag`] |
-//! | `8` | [`agents::templates::create`] |
-//! | `9` | [`agents::templates::list`] |
-//! | `10` | [`agents::templates::delete`] |
-//! | `11` | [`agents::templates::tag`] |
-//! | `12` | [`agents::templates::untag`] |
-//! | `13` | [`tools::create`] |
-//! | `14` | [`tools::edit`] |
-//! | `15` | [`tools::connect`] |
-//! | `16` | [`tools::attach`] |
-//! | `17` | [`tools::detach`] |
-//! | `18` | [`tools::delete`] |
-//! | `19` | [`tools::list`] |
-//! | `20` | [`tools::tag`] |
-//! | `21` | [`tools::untag`] |
-//! | `22` | [`tools::templates::create`] |
-//! | `23` | [`tools::templates::list`] |
-//! | `24` | [`tools::templates::delete`] |
-//! | `25` | [`tools::templates::tag`] |
-//! | `26` | [`tools::templates::untag`] |
-//! | `27` | [`resources::upload`] |
-//! | `28` | [`resources::list`] |
-//! | `29` | [`resources::delete`] |
+//! | `1` | [`agents::get`] |
+//! | `2` | [`agents::delete`] |
+//! | `3` | [`agents::message`] |
+//! | `4` | [`agents::logs`] |
+//! | `5` | [`agents::list`] |
+//! | `6` | [`agents::edit`] |
+//! | `7` | [`agents::tag`] |
+//! | `8` | [`agents::untag`] |
+//! | `9` | [`agents::templates::create`] |
+//! | `10` | [`agents::templates::get`] |
+//! | `11` | [`agents::templates::list`] |
+//! | `12` | [`agents::templates::delete`] |
+//! | `13` | [`agents::templates::tag`] |
+//! | `14` | [`agents::templates::untag`] |
+//! | `15` | [`tools::create`] |
+//! | `16` | [`tools::get`] |
+//! | `17` | [`tools::edit`] |
+//! | `18` | [`tools::connect`] |
+//! | `19` | [`tools::attach`] |
+//! | `20` | [`tools::detach`] |
+//! | `21` | [`tools::delete`] |
+//! | `22` | [`tools::list`] |
+//! | `23` | [`tools::tag`] |
+//! | `24` | [`tools::untag`] |
+//! | `25` | [`tools::templates::create`] |
+//! | `26` | [`tools::templates::get`] |
+//! | `27` | [`tools::templates::list`] |
+//! | `28` | [`tools::templates::delete`] |
+//! | `29` | [`tools::templates::tag`] |
+//! | `30` | [`tools::templates::untag`] |
+//! | `31` | [`resources::upload`] |
+//! | `32` | [`resources::list`] |
+//! | `33` | [`resources::delete`] |
 //!
-//! Thirty, so far. Tags are handed out in the order scopes are defined
+//! Thirty-four, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

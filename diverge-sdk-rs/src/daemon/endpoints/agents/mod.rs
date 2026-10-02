@@ -15,7 +15,8 @@
 //! [`templates`] holds what agents are made from; [`create`] spawns
 //! an agent under a name from one; [`delete`] removes one by
 //! name; [`edit`] changes what one mounts; [`message`] sends one a message, and may take it back;
-//! [`logs`] reads what one said and what was said to it; [`list`]
+//! [`logs`] reads what one said and what was said to it; [`get`]
+//! answers one as a list would; [`list`]
 //! lists them, narrowed, with their tags; [`tag`] and
 //! [`untag`] change one's tags. The MCP servers an agent calls are
 //! [`tools`](super::tools), attached to it by name.
@@ -23,6 +24,7 @@
 pub mod create;
 pub mod delete;
 pub mod edit;
+pub mod get;
 pub mod list;
 pub mod logs;
 pub mod message;

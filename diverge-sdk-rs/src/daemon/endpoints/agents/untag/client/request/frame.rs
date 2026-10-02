@@ -15,7 +15,7 @@ use crate::daemon::reference;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
-    /// template and its count, which name it once and for all. See
+    /// template and its index, which name it once and for all. See
     /// [`reference::Agent`].
     pub agent: reference::Agent,
     /// The tags to take off, one by one. Empty changes nothing and is
@@ -35,7 +35,7 @@ pub struct Frame {
 /// whole allocation. The values are chosen across modules that do not
 /// know about each other, so the table is the only place they can be
 /// seen at once.
-const TAG: u8 = 7;
+const TAG: u8 = 8;
 
 /// JSON, as every request of the daemon's is.
 impl Encode for Frame {

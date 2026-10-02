@@ -68,7 +68,7 @@ use super::ItemType;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
-    /// template and its count, which name it once and for all. See
+    /// template and its index, which name it once and for all. See
     /// [`reference::Agent`].
     pub agent: reference::Agent,
     /// The first `logs_index` to read, inclusive; absent, the log's
@@ -127,7 +127,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 3;
+const TAG: u8 = 4;
 
 /// JSON, as the rest of the agents family's requests are.
 impl Encode for Frame {

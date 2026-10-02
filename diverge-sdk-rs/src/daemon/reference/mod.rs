@@ -12,11 +12,11 @@
 //! a request naming it that way finds nothing. The two are the
 //! two variants of [`Agent`] and of [`Tool`], one JSON object each,
 //! told apart by their members: `{"name":…}`, or
-//! `{"template":…,"count":…}`. An object carrying members of both
+//! `{"template":…,"index":…}`. An object carrying members of both
 //! is malformed.
 //!
 //! A connected tool has no template, so it is named by its name
-//! alone; a request naming a template and a count finds no
+//! alone; a request naming a template and a index finds no
 //! connected tool.
 
 mod agent;

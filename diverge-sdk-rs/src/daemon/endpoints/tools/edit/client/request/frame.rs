@@ -30,7 +30,7 @@ use crate::wire::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The tool: by its name, as its create or its connect gave it,
-    /// or by its template and its count, which name a created tool
+    /// or by its template and its index, which name a created tool
     /// once and for all. See [`reference::Tool`].
     pub tool: reference::Tool,
     /// Volumes of the provider the tool is pinned to, as the
@@ -67,7 +67,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 14;
+const TAG: u8 = 17;
 
 /// JSON, as the create is: the same mount types, and the same reader
 /// for every request of the daemon's.

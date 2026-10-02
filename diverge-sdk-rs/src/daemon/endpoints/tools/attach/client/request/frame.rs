@@ -21,11 +21,11 @@ use crate::wire::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The tool: by its name, as its create or its connect gave it,
-    /// or by its template and its count, which name a created tool
+    /// or by its template and its index, which name a created tool
     /// once and for all. See [`reference::Tool`].
     pub tool: reference::Tool,
     /// The agent: by its name, as its create gave it, or by its
-    /// template and its count, which name it once and for all. See
+    /// template and its index, which name it once and for all. See
     /// [`reference::Agent`].
     pub agent: reference::Agent,
 }
@@ -42,7 +42,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 16;
+const TAG: u8 = 19;
 
 /// JSON, as the rest of the daemon's requests are: two strings.
 impl Encode for Frame {

@@ -34,7 +34,8 @@
 //! name; [`attach`] and [`detach`]
 //! put it on an agent and take it off, the attach allowed while the
 //! agent is active and the detach only while it is not; [`delete`]
-//! removes a tool that is attached nowhere; [`list`] lists them,
+//! removes a tool that is attached nowhere; [`get`] answers one as
+//! a list would; [`list`] lists them,
 //! narrowed, with the agents each is attached to and its tags;
 //! [`tag`] and [`untag`] change a tool's tags.
 
@@ -44,6 +45,7 @@ pub mod create;
 pub mod delete;
 pub mod detach;
 pub mod edit;
+pub mod get;
 pub mod list;
 pub mod tag;
 pub mod templates;
