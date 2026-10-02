@@ -21,8 +21,9 @@ use serde::{Deserialize, Serialize};
 /// # Any one of, every one of
 ///
 /// A member that lists candidates — `names`, `templates` — matches a
-/// agent that is any one of them. `tags` matches an agent that carries
-/// every one of them. An empty list is absent, and matches every agent.
+/// agent that is any one of them. `all_tags` matches an agent that
+/// carries every one of them, and `any_tags` one that carries any one
+/// of them. An empty list is absent, and matches every agent.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
     /// Any one of these names, as a create gave them.
@@ -39,7 +40,12 @@ pub struct Frame {
     /// [`tag`](crate::daemon::endpoints::agents::tag) put them. Absent
     /// when empty, and then any tags.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
+    pub all_tags: Vec<String>,
+    /// Any one of these among the agent's tags, as
+    /// [`tag`](crate::daemon::endpoints::agents::tag) put them; with
+    /// `all_tags`, both hold. Absent when empty, and then any tags.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub any_tags: Vec<String>,
     /// The earliest `created` to list, inclusive; absent, no earliest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_from: Option<DateTime<Utc>>,

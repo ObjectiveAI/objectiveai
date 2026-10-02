@@ -24,8 +24,9 @@ use super::Kind;
 ///
 /// A member that lists candidates — `names`, `templates` — matches a
 /// tool that is any one of them. `agents` matches a tool attached to
-/// every one of them, and `tags` one that carries every one of them. An
-/// empty list is absent, and matches every tool.
+/// every one of them, `all_tags` one that carries every one of them,
+/// and `any_tags` one that carries any one of them. An empty list is
+/// absent, and matches every tool.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
     /// Any one of these names, as a create or a connect gave them.
@@ -53,7 +54,12 @@ pub struct Frame {
     /// [`tag`](crate::daemon::endpoints::tools::tag) put them. Absent
     /// when empty, and then any tags.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
+    pub all_tags: Vec<String>,
+    /// Any one of these among the tool's tags, as
+    /// [`tag`](crate::daemon::endpoints::tools::tag) put them; with
+    /// `all_tags`, both hold. Absent when empty, and then any tags.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub any_tags: Vec<String>,
     /// The earliest `created` to list, inclusive; absent, no earliest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_from: Option<DateTime<Utc>>,

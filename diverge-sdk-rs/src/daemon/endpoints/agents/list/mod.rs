@@ -3,7 +3,7 @@
 //! A client asks for its agents, narrowed, and the daemon sends
 //! every one it holds under the caller's identity that the request's
 //! filter lets through — by name, by template, by activity, by
-//! tags, by when it was created — one response each, oldest created
+//! tags, all or any, by when it was created — one response each, oldest created
 //! first, and finishes: what each is called, what template it was
 //! made from, whether it is active now, when its activity last
 //! changed and where it ran, how long its log is, which tools are
