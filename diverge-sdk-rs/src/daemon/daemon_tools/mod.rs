@@ -32,48 +32,18 @@
 //! thing is as it was. A tool that lists answers only what its
 //! filter passes, narrowed further by the request's own filter. A
 //! tool that makes something reaches templates: it makes from a
-//! template its filter passes, and from no other. The two tools
-//! that join a tool to an agent carry a filter for each.
+//! template its filter passes, and from no other. Each of these is
+//! one filter, and is that filter on [`DaemonTools`]; the two tools
+//! that join a tool to an agent carry a filter for each, and are
+//! [`ToolsAttach`] and [`ToolsDetach`].
 //!
 //! What each tool says to its caller, and how the daemon knows who
 //! is calling, is not yet stated here.
 
 mod daemon_tools;
-mod agents_list;
-mod agents_message;
-mod agents_logs;
-mod agents_create;
-mod agents_delete;
-mod agents_edit;
-mod agents_tag;
-mod agents_untag;
-mod agents_templates_delete;
-mod tools_list;
-mod tools_create;
-mod tools_edit;
-mod tools_delete;
 mod tools_attach;
 mod tools_detach;
-mod tools_tag;
-mod tools_untag;
-mod tools_templates_delete;
 
 pub use daemon_tools::*;
-pub use agents_list::*;
-pub use agents_message::*;
-pub use agents_logs::*;
-pub use agents_create::*;
-pub use agents_delete::*;
-pub use agents_edit::*;
-pub use agents_tag::*;
-pub use agents_untag::*;
-pub use agents_templates_delete::*;
-pub use tools_list::*;
-pub use tools_create::*;
-pub use tools_edit::*;
-pub use tools_delete::*;
 pub use tools_attach::*;
 pub use tools_detach::*;
-pub use tools_tag::*;
-pub use tools_untag::*;
-pub use tools_templates_delete::*;
