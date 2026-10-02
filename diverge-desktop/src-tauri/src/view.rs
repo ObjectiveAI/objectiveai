@@ -1081,6 +1081,8 @@ pub struct DoorView {
     pub already_in: bool,
     /// Everything a knock here sends: the page lists each field, and nothing else goes.
     pub sends: KnockSends,
+    /// On a profile's door: what its owner put there for anyone with the link. Theirs to say; nothing checks it.
+    pub card: Option<crate::card::DoorCard>,
 }
 
 /// What a knock at one door carries, field by field (`spaces::KNOCK_FIELDS`).
@@ -1127,6 +1129,28 @@ pub struct PersonaView {
     pub usual: bool,
     /// The rooms you're this name in, by id: the screen names them.
     pub rooms: Vec<String>,
+}
+
+/// Your card as you keep it, and where your profile room stands.
+#[derive(Serialize, TS, Clone, Debug)]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ProfileCardView {
+    pub card: crate::card::Card,
+    /// Your profile room, if you have one yet.
+    pub profile: Option<String>,
+    /// When the card the people you let in see was set, if one is up.
+    pub in_room: Option<String>,
+    /// Read back from your profile room, since this folder keeps none: every part shows as for the people you let in.
+    pub from_room: bool,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub enum ProfileCardSaved {
+    /// Kept here. `posted`: a new card went to your profile room. `took_back`: earlier cards whose words were erased.
+    Saved { posted: bool, #[ts(type = "number")] took_back: u32 },
+    Error { message: String },
 }
 
 #[derive(Serialize, TS, Clone, Debug)]

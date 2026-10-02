@@ -19,6 +19,9 @@ import type { SavedView } from "../bindings/SavedView";
 import type { LocalAgentView } from "../bindings/LocalAgentView";
 import type { TabKind } from "../bindings/TabKind";
 import type { TabView } from "../bindings/TabView";
+import type { Card } from "../bindings/Card";
+import type { DoorCard } from "../bindings/DoorCard";
+import type { Who } from "../bindings/Who";
 import fixture from "./fixture.json";
 
 type Chan = { onmessage: (e: unknown) => void };
@@ -27,7 +30,7 @@ type Args = Record<string, any>;
 
 export const PREVIEW_HOST = "browser-preview";
 
-type Invite = { host: { kind: string; address?: string; identity?: string }; id: string; secret?: string; title: string; kind: string; host_name: string; charter: string; verbs: { name: string; does: string }[] };
+type Invite = { host: { kind: string; address?: string; identity?: string }; id: string; secret?: string; title: string; kind: string; host_name: string; charter: string; verbs: { name: string; does: string }[]; card?: DoorCard };
 
 function decodeInvite(text: string): Invite | null {
   try {
@@ -72,6 +75,17 @@ export function installPreview() {
   let moveN = 1000;
   const spaceOf = (id: string) => spaceRecs.find((r) => r.view.summary.id === id);
   // Your own home and profile, by kind: a room's id is its host's, not a fixed name.
+  // Your card as this preview keeps it: none until you save, as in a fresh folder.
+  let savedCard: Card | null = null;
+  const cardPart = (c: Card, place: Who) => {
+    const sees = (w: Who) => (place === "link" ? w === "link" : w !== "you");
+    const o: { picture?: string; about?: string; links?: { title: string; url: string }[] } = {};
+    if (sees(c.picture_who) && c.picture.trim()) o.picture = c.picture.trim();
+    if (sees(c.about_who) && c.about.trim()) o.about = c.about.trim();
+    const links = c.links.filter((l) => l.title.trim() || l.url.trim());
+    if (sees(c.links_who) && links.length) o.links = links;
+    return o;
+  };
   const yours = (kind: string) => spaceRecs.find((r) => r.view.summary.mine && r.view.summary.kind === kind)?.view.summary.id ?? null;
   const bump = (id: string) => {
     for (const w of spaceWatches.values()) if (w.id === id) w.ch.onmessage({ event: "updated", uri: "space://feed" });
@@ -373,6 +387,7 @@ export function installPreview() {
             case "set_charter": r.view.charter = a.text; push("charter", "The rules changed", "", "said", null); line = "Rules changed"; break;
             case "admit": r.view.members.push({ name: a.name, key: a.key, is_agent: false, agent_of: null, agent_of_key: null, joined: now, last_acted: null, mark: null, devices: [], slot: null }); push("admitted", a.name, "", "said", null); line = `Admitted: ${a.name}`; break;
             case "remove": { const m = r.view.members.find((x) => x.key === a.key); r.view.members = r.view.members.filter((x) => x.key !== a.key); push("removed", m?.name ?? "someone", a.reason ?? "", "said", null); line = "Removed"; break; }
+            case "set_card": { const card = a as unknown as { about?: string; links?: unknown; picture?: string }; line = `Card set (${push("card", "", card.about ?? "", "shown", null, { links: card.links, picture: card.picture })})`; break; }
             case "withdraw":
             case "erase": { const b = find(a.move_id); if (b) { const reason = a.reason ?? "withdrawn by its author"; const by = r.view.summary.you_are; Object.assign(b, { title: "", body: "" }); Object.assign(b.fields as object, { erased: { by, how: args.tool, reason } }); push("erased", "", `erased by ${by} under ${reason}`, "said", b.id, { move: b.id, how: args.tool }); line = `Erased the words of ${b.id}`; } break; }
             default: return { outcome: "error", message: `the preview doesn't play ${args.tool}` };
@@ -418,7 +433,7 @@ export function installPreview() {
           const keyMark = Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 6);
           const k = fixture.knock;
           const sends = { fields: k.fields, room: inv.id, invite_mark: Boolean(inv.secret), usual: { name: you.name, key_mark: keyMark, account_made: k.account_made, list_number: k.list_number, devices: k.devices } };
-          return { usual_name: you.name, title: inv.title, kind: inv.kind, host_name: inv.host_name, host: inv.host, charter: inv.charter, verbs: inv.verbs, invited: Boolean(inv.secret), already_in: spaceRecs.some((r) => r.view.summary.id === inv.id), sends };
+          return { usual_name: you.name, title: inv.title, kind: inv.kind, host_name: inv.host_name, host: inv.host, charter: inv.charter, verbs: inv.verbs, invited: Boolean(inv.secret), already_in: spaceRecs.some((r) => r.view.summary.id === inv.id), sends, card: inv.card ?? null };
         }
         case "spaces_join": {
           const inv = decodeInvite(args.invite);
@@ -449,7 +464,43 @@ export function installPreview() {
         }
         case "spaces_invite": {
           const r = spaceOf(args.id);
-          return r?.invite ? { text: r.invite } : null;
+          if (!r?.invite) return null;
+          const inv = decodeInvite(r.invite);
+          if (!inv || args.id !== yours("profile") || !savedCard) return { text: r.invite };
+          const door = cardPart(savedCard, "link");
+          return { text: encodeInvite({ ...inv, card: Object.keys(door).length ? door : undefined }) };
+        }
+        case "profile_card_get": {
+          const id = yours("profile");
+          const live = (id ? spaceOf(id)?.moves ?? [] : []).filter((m) => m.kind === "card" && !(m.fields as Record<string, unknown>).erased);
+          const last = live[live.length - 1];
+          const f = (last?.fields ?? {}) as { picture?: string; links?: { title: string; url: string }[] };
+          const fromRoom: Card = { picture: f.picture ?? "", picture_who: "room", about: last?.body ?? "", about_who: "room", links: f.links ?? [], links_who: "room" };
+          const empty: Card = { picture: "", picture_who: "you", about: "", about_who: "you", links: [], links_who: "you" };
+          return { card: savedCard ?? (last ? fromRoom : empty), profile: id, in_room: last?.at ?? null, from_room: !savedCard && Boolean(last) };
+        }
+        case "profile_card_set": {
+          const card = args.card as Card;
+          if (card.links.some((l) => (l.title.trim() || l.url.trim()) && !/^https?:\/\/\S+$/.test(l.url.trim()))) return { outcome: "error", message: "a link isn't a web address (http or https)" };
+          savedCard = card;
+          const id = yours("profile");
+          const r = id ? spaceOf(id) : undefined;
+          if (!r) return { outcome: "saved", posted: false, took_back: 0 };
+          const live = r.moves.filter((m) => m.kind === "card" && !(m.fields as Record<string, unknown>).erased);
+          const want = cardPart(card, "room");
+          const last = live[live.length - 1];
+          const same = last && live.length === 1 && last.body === (want.about ?? "") && JSON.stringify((last.fields as Record<string, unknown>).picture ?? null) === JSON.stringify(want.picture ?? null) && JSON.stringify((last.fields as Record<string, unknown>).links ?? null) === JSON.stringify(want.links ?? null);
+          if (same) return { outcome: "saved", posted: false, took_back: 0 };
+          const now = new Date().toISOString();
+          const posted = Object.keys(want).length > 0;
+          if (posted) r.moves.push({ id: `card-${++moveN}`, kind: "card", author: r.view.summary.you_are, by: r.view.summary.you_key, member: null, erasable: true, agent_of: null, at: now, title: "", body: want.about ?? "", state: "shown", parent: null, fields: { picture: want.picture, links: want.links }, charter: "", hash: "" });
+          for (const b of live) {
+            Object.assign(b, { title: "", body: "" });
+            b.fields = { erased: { by: r.view.summary.you_are, how: "withdraw", reason: "replaced by a newer card" } };
+            r.moves.push({ id: `erased-${++moveN}`, kind: "erased", author: r.view.summary.you_are, by: r.view.summary.you_key, member: null, erasable: false, agent_of: null, at: now, title: "", body: `erased by ${r.view.summary.you_are} under replaced by a newer card`, state: "said", parent: b.id, fields: { move: b.id, how: "withdraw" }, charter: "", hash: "" });
+          }
+          later(() => bump(r.view.summary.id));
+          return { outcome: "saved", posted, took_back: live.length };
         }
         case "knocks_watch": {
           knockCh = args.onEvent as Chan;

@@ -16,7 +16,7 @@ pub mod image;
 pub mod room;
 pub mod seal;
 
-pub use room::{Args, Continues, Host, Keeper, Kind, Member, Move, NOT_A_MEMBER, NoHost, Record, Room, Rules, Standing, invite_lock, key_mark, receipt_issuer};
+pub use room::{Args, Continues, Host, Keeper, Kind, Member, Move, NOT_A_MEMBER, NoHost, Record, Room, Rules, Standing, check_card, invite_lock, key_mark, receipt_issuer};
 pub use seal::{Key, Keypair, Seal, Statement, account_id_holds, account_room_id, fresh_label, id_holds, room_id, seal_call, tether};
 
 #[cfg(test)]
@@ -540,6 +540,42 @@ pub(crate) mod tests {
         let ren_reads = envelope::OpenKey::for_author(&ren.keypair, profile.id());
         let to_nobody = [ren_reads.public()];
         assert!(sealed_call(&mut ren, &mut profile, &host, "leave_note", json!({ "body": "sealed?" }), &to_nobody).is_err(), "a room that doesn't seal takes no envelopes");
+    }
+
+    #[test]
+    fn a_card_is_its_owners_to_set_and_take_back() {
+        let (mut juno, mut ren) = (Person::new("juno's mac"), Person::new("ren's laptop"));
+        let notes = envelope::OpenKey::from_seed(b"juno's words");
+        let host = host_for(&juno);
+        let (mut profile, _) = sealed_profile(&juno, &notes);
+        juno.call(&mut profile, &host, "admit", json!({ "account": one_device(&ren, "ren's root"), "name": "ren" })).unwrap();
+        let picture = "data:image/png;base64,iVBORw0KGgo=";
+        let card = json!({ "about": "I fix lamps on Saturdays.", "links": [{ "title": "My site", "url": "https://example.org" }], "picture": picture });
+        assert!(ren.call(&mut profile, &host, "set_card", card.clone()).is_err(), "only the owner sets it");
+        juno.call(&mut profile, &host, "set_card", card).unwrap();
+        let shown = feed(&profile).into_iter().find(|m| m["kind"] == "card").unwrap();
+        assert_eq!((shown["body"].as_str(), shown["fields"]["picture"].as_str()), (Some("I fix lamps on Saturdays."), Some(picture)));
+        assert_eq!(shown["fields"]["links"][0]["url"], "https://example.org");
+
+        // What a room won't keep on a card.
+        for (bad, why) in [
+            (json!({}), "an empty card"),
+            (json!({ "links": [{ "title": "x", "url": "javascript:alert(1)" }] }), "a link that isn't to the web"),
+            (json!({ "links": [{ "title": "", "url": "https://example.org" }] }), "a link with no title"),
+            (json!({ "links": vec![json!({ "title": "x", "url": "https://example.org" }); 6] }), "six links"),
+            (json!({ "picture": "https://example.org/me.png" }), "a picture from somewhere else"),
+            (json!({ "picture": format!("data:image/png;base64,{}", "A".repeat(room::CARD_PICTURE)) }), "a picture too big"),
+            (json!({ "about": "x".repeat(room::CARD_ABOUT + 1) }), "too many words"),
+        ] {
+            assert!(juno.call(&mut profile, &host, "set_card", bad).is_err(), "{why}");
+        }
+
+        // Taking it back erases its words from the record and every copy made after.
+        let id = shown["id"].as_str().unwrap().to_owned();
+        juno.call(&mut profile, &host, "withdraw", json!({ "move_id": id, "reason": "replaced" })).unwrap();
+        let copy = serde_json::to_string(&Room::check(&profile.record()).unwrap().record()).unwrap();
+        assert!(!copy.contains("I fix lamps") && !copy.contains("example.org") && !copy.contains("iVBORw0KGgo"), "its words are gone");
+        assert!(Room::check(&profile.record()).is_ok());
     }
 
     #[test]

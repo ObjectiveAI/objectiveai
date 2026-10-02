@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { MoveView } from "../bindings/MoveView";
 import type { ProfileView } from "../bindings/ProfileView";
+import { CardEditor } from "../components/CardEditor";
 import { Markdown } from "../components/Markdown";
 import { Button, Chip, Empty, Escapes, Row, Section, SectionHead } from "../components/ui";
 import { useShared } from "../lib/context";
@@ -38,6 +39,8 @@ export function Profile() {
           </ul>
           {p.profile ? <Button small kind="tertiary" onClick={() => open({ kind: "space", id: p.profile! })}>{t.profile.visit}</Button> : null}
         </Section>
+
+        <CardEditor name={p.personas.find((q) => q.usual)?.name ?? ""} />
 
         {p.profile ? (
           <Section title={t.profile.visit} note={p.profile_sealed ? t.profile.visitNoteSealed : t.profile.visitNote}>

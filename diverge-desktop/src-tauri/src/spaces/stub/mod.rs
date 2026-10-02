@@ -554,6 +554,7 @@ impl StubSpaces {
         // Your profile: a room anyone with the link can knock on.
         let Some(profile) = self.open_profile(inner, "profile-me", since) else { return };
         let _ = self.me_act(inner, me.clone(), &profile, "show", json!({ "title": "The desktop app, draft one", "body": "Agents, storage, machines and saved Views, on a stand-in for the daemon." }), ago(26, 0));
+        let _ = self.me_act(inner, me.clone(), &profile, "set_card", json!({ "about": "I make small tools, and fix lamps at the Saturday Workshop.", "links": [{ "title": "My notes from the workshop", "url": "https://example.org/workshop-notes" }] }), ago(25, 0));
         let _ = self.me_act(inner, me.clone(), &profile, "post_offering", json!({ "title": "A site check-up", "what": "site-fixes goes through a small site and lists what's broken. Nothing is changed without asking.", "pricing": "fixed", "terms": "you get a list, in a day" }), ago(20, 0));
         let _ = self.me_act(inner, me.clone(), &profile, "admit", json!({ "account": stand_in_account("ren"), "name": "ren" }), ago(8, 0));
         let _ = self.act(inner, "ren", &profile, "leave_note", json!({ "body": "Loved the kids' map idea in ada's zine room." }), ago(7, 30));
@@ -628,6 +629,7 @@ impl StubSpaces {
             host_name: h.room.args.host_name.clone(),
             charter: h.room.charter().into(),
             verbs,
+            card: None,
         })
     }
 

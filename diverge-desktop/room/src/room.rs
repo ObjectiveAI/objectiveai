@@ -131,6 +131,49 @@ pub fn invite_lock(mark: &str) -> String {
     digest(format!("diverge-desktop invite lock\n{mark}").as_bytes())[..32].to_owned()
 }
 
+/// The most a card holds: links, the picture as a data: address, and the words about you.
+pub const CARD_LINKS: usize = 5;
+pub const CARD_PICTURE: usize = 96_000;
+pub const CARD_ABOUT: usize = 1_000;
+
+/// Whether a card's parts are ones a room keeps: a few words, up to five
+/// web links, and a small picture carried in the card itself.
+pub fn check_card(args: &JsonObject) -> Result<(), String> {
+    if let Some(about) = args.get("about").filter(|v| !v.is_null()) {
+        let about = about.as_str().ok_or("about is words")?;
+        if about.chars().count() > CARD_ABOUT {
+            return Err(format!("about is at most {CARD_ABOUT} characters"));
+        }
+    }
+    if let Some(links) = args.get("links").filter(|v| !v.is_null()) {
+        let links = links.as_array().ok_or("links are a list")?;
+        if links.len() > CARD_LINKS {
+            return Err(format!("a card holds at most {CARD_LINKS} links"));
+        }
+        for l in links {
+            let title = l.get("title").and_then(Value::as_str).map(str::trim).unwrap_or_default();
+            let url = l.get("url").and_then(Value::as_str).map(str::trim).unwrap_or_default();
+            if title.is_empty() || title.chars().count() > 80 {
+                return Err("each link needs a title of up to 80 characters".into());
+            }
+            let web = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://"));
+            if !web.is_some_and(|rest| !rest.is_empty() && !rest.contains(char::is_whitespace)) || url.len() > 500 {
+                return Err(format!("{url} isn't a web address (http or https)"));
+            }
+        }
+    }
+    if let Some(picture) = args.get("picture").filter(|v| !v.is_null() && v.as_str() != Some("")) {
+        let picture = picture.as_str().ok_or("a picture is a data: address")?;
+        if !["data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,"].iter().any(|p| picture.starts_with(p)) {
+            return Err("a picture is a PNG, JPEG or WebP, as a data: address".into());
+        }
+        if picture.len() > CARD_PICTURE {
+            return Err(format!("that picture is too big for a card: at most {} KB", CARD_PICTURE / 1000));
+        }
+    }
+    Ok(())
+}
+
 /// What a verb's move is called, for the verbs whose words can be erased.
 /// Everything else changes the room, and stays whole.
 fn erasable(verb: &str) -> Option<&'static str> {
@@ -149,6 +192,7 @@ fn erasable(verb: &str) -> Option<&'static str> {
         "deliver" => "delivery",
         "deliver_hire" => "hire_delivery",
         "hire" => "hire",
+        "set_card" => "card",
         _ => return None,
     })
 }
@@ -563,7 +607,7 @@ fn need<'a>(args: &'a JsonObject, key: &str) -> Result<&'a str, ErrorData> {
 /// The state a move starts in.
 fn first_state(kind: &str) -> &'static str {
     match kind {
-        "show" => "shown",
+        "show" | "card" => "shown",
         "ask" | "task" | "direction" | "synthesis" => "open",
         "offering" | "offer" => "offered",
         "claim" => "claimed",
@@ -895,6 +939,16 @@ impl Room {
             }
             Kind::Profile => {
                 tools.push(host_only(show));
+                tools.push(host_only(verb(
+                    "set_card",
+                    "Set what your card shows here: a picture, a few words about you, links. It replaces the card before it; take that one back to erase its words.",
+                    json!({
+                        "about": { "type": "string", "description": "A few words about you." },
+                        "links": { "type": "array", "items": { "type": "object", "properties": { "title": { "type": "string" }, "url": { "type": "string" } }, "required": ["title", "url"] }, "description": "Up to five, each an http or https address." },
+                        "picture": { "type": "string", "description": "A small picture, as a data: address (PNG, JPEG or WebP)." }
+                    }),
+                    &[],
+                )));
                 tools.push(host_only(offering.clone()));
                 tools.push(host_only(verb("pin_receipt", "Show a receipt you were issued elsewhere. It keeps the seal of the room that issued it.", json!({ "statement": { "type": "object" } }), &["statement"])));
                 tools.push(verb("leave_note", "Leave a note for whoever this profile belongs to.", json!({ "body": { "type": "string" } }), &["body"]));
@@ -1621,6 +1675,15 @@ impl Room {
             "synthesize" => {
                 let id = push(self, "synthesis", "Where it stands", need(args, "body")?, None, fields)?;
                 format!("Synthesis written ({id})")
+            }
+            "set_card" => {
+                check_card(args).map_err(bad)?;
+                if arg(args, "about").is_none() && arg(args, "picture").is_none() && args.get("links").and_then(Value::as_array).is_none_or(Vec::is_empty) {
+                    return Err(bad("a card shows something: a picture, about or a link"));
+                }
+                pick(&mut fields, &["links", "picture"]);
+                let id = push(self, "card", "", arg(args, "about").unwrap_or_default(), None, fields)?;
+                format!("Card set ({id})")
             }
             "pin_receipt" => {
                 let statement: Statement = serde_json::from_value(args.get("statement").cloned().unwrap_or_default()).map_err(|_| bad("that is not a receipt"))?;

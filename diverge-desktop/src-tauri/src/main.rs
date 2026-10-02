@@ -14,6 +14,7 @@
 mod absent;
 mod account;
 mod actions;
+mod card;
 mod catalog;
 mod daemon;
 mod machines;
@@ -83,6 +84,8 @@ fn main() {
             actions::home_feed,
             actions::people_list,
             actions::profile_get,
+            actions::profile_card_get,
+            actions::profile_card_set,
             actions::spaces_home,
             actions::spaces_list,
             actions::spaces_get,

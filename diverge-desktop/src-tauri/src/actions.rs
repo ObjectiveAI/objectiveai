@@ -58,6 +58,8 @@ pub struct AppState {
     pub threads: Mutex<HashMap<String, String>>,
     /// What this app last stated each agent mounts: agent name → mounts.
     pub agent_mounts: Mutex<HashMap<String, AgentMounts>>,
+    /// Your card as you keep it; none until you first save one.
+    pub card: Mutex<Option<crate::card::Card>>,
     /// What waits for the first-run page to be finished: anything that acts as you.
     pub after_first_run: Mutex<Vec<AfterFirstRun>>,
 }
@@ -72,6 +74,7 @@ const VIEWS_FILE: &str = "views.json";
 const MACHINE_NAMES_FILE: &str = "machine_names.json";
 const AGENT_MOUNTS_FILE: &str = "agent_mounts.json";
 const THREADS_FILE: &str = "threads.json";
+const CARD_FILE: &str = "profile_card.json";
 const RECORDS_DIR: &str = "records";
 
 /// The variable that puts the app's files in a folder of your choosing:
@@ -208,6 +211,7 @@ impl AppState {
             record_heads: Mutex::new(HashMap::new()),
             threads: Mutex::new(kept(held, &data.join(THREADS_FILE), store::THREADS).unwrap_or_default()),
             agent_mounts: Mutex::new(kept(held, &data.join(AGENT_MOUNTS_FILE), store::AGENT_MOUNTS).unwrap_or(seams.first_mounts)),
+            card: Mutex::new(kept(held, &data.join(CARD_FILE), store::PROFILE_CARD)),
             after_first_run: Mutex::new(Vec::new()),
             data,
             folder,
@@ -277,6 +281,8 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("home_feed", "Everything that happened across your Spaces, newest first"),
     ("people_list", "Everyone you share a Space with"),
     ("profile_get", "You: receipts, what you've shown, your agents, machines and storage"),
+    ("profile_card_get", "Your card: picture, about, links, and who sees each"),
+    ("profile_card_set", "Save your card: each part goes only where you said, and earlier cards in your profile room are taken back"),
     ("spaces_home", "Your own Home Space"),
     ("spaces_list", "The Spaces you host or have joined"),
     ("spaces_get", "A Space: its charter, members and verbs"),
@@ -796,6 +802,62 @@ fn personas(state: &AppState, entries: &[spaces::SpaceEntry]) -> Vec<PersonaView
 }
 
 #[tauri::command]
+pub async fn profile_card_get(state: State<'_, AppState>) -> Result<ProfileCardView, String> {
+    card_of(&state).await
+}
+
+async fn card_of(state: &AppState) -> Result<ProfileCardView, String> {
+    let profile = state.spaces.profile().await;
+    let live: Vec<MoveView> = match &profile {
+        Some(id) => moves_of(state, id).await.0.into_iter().filter(crate::card::live).collect(),
+        None => Vec::new(),
+    };
+    let saved = state.card.lock().unwrap().clone();
+    // Never saved here: the card your profile room shows, as the people you let in see it.
+    let from_room = saved.is_none() && !live.is_empty();
+    let card = saved.unwrap_or_else(|| live.last().map(crate::card::Card::from_room).unwrap_or_default());
+    Ok(ProfileCardView { card, profile: profile.map(|p| p.id), in_room: live.last().map(|m| m.at.clone()), from_room })
+}
+
+#[tauri::command]
+pub async fn profile_card_set(state: State<'_, AppState>, card: crate::card::Card) -> Result<ProfileCardSaved, String> {
+    Ok(save_card(&state, card).await.unwrap_or_else(|message| ProfileCardSaved::Error { message }))
+}
+
+/// Keep your card here, then bring your profile room to what you set: the
+/// new card first, then every earlier one taken back, so its words go.
+async fn save_card(state: &AppState, card: crate::card::Card) -> Result<ProfileCardSaved, String> {
+    card.check()?;
+    if !state.folder.held() {
+        return Err("this copy of the app doesn't hold its folder, so it saves nothing".into());
+    }
+    *state.card.lock().unwrap() = Some(card.clone());
+    state.keep(CARD_FILE, crate::store::PROFILE_CARD, &card);
+    let Some(profile) = state.spaces.profile().await else { return Ok(ProfileCardSaved::Saved { posted: false, took_back: 0 }) };
+    let live: Vec<MoveView> = moves_of(state, &profile).await.0.into_iter().filter(crate::card::live).collect();
+    let want = card.for_room();
+    let posted = match (&want, live.last()) {
+        (Some(w), Some(last)) if live.len() == 1 && crate::card::says(last, w) => return Ok(ProfileCardSaved::Saved { posted: false, took_back: 0 }),
+        (Some(w), _) => {
+            let out = call_as_you(state, &profile, "set_card", serde_json::Value::Object(w.clone())).await?;
+            if out.is_error == Some(true) {
+                return Err(text_of(&out));
+            }
+            true
+        }
+        (None, _) => false,
+    };
+    let mut took_back = 0;
+    for m in live.iter().filter(|m| m.erasable) {
+        let out = call_as_you(state, &profile, "withdraw", serde_json::json!({ "move_id": m.id, "reason": "replaced by a newer card" })).await?;
+        if out.is_error != Some(true) {
+            took_back += 1;
+        }
+    }
+    Ok(ProfileCardSaved::Saved { posted, took_back })
+}
+
+#[tauri::command]
 pub async fn profile_get(state: State<'_, AppState>) -> Result<ProfileView, String> {
     profile_of(&state).await
 }
@@ -1186,6 +1248,7 @@ async fn door_of(state: &AppState, invite: &str) -> Result<DoorView, String> {
         verbs: invite.verbs.into_iter().map(|v| VerbView { name: v.name, does: v.does }).collect(),
         invited: invite.secret.is_some(),
         already_in,
+        card: invite.card,
     })
 }
 
@@ -1250,7 +1313,16 @@ pub async fn spaces_leave(app: AppHandle, state: State<'_, AppState>, id: String
 
 #[tauri::command]
 pub async fn spaces_invite(state: State<'_, AppState>, id: String) -> Result<Option<InviteView>, String> {
-    Ok(state.spaces.invite(&space_id(&id)).await.map(|i| InviteView { text: i.to_text() }))
+    Ok(invite_of(&state, &space_id(&id)).await.map(|i| InviteView { text: i.to_text() }))
+}
+
+/// A room's invite; your profile's carries the parts of your card set to anyone with the link.
+async fn invite_of(state: &AppState, id: &spaces::Id) -> Option<spaces::Invite> {
+    let mut invite = state.spaces.invite(id).await?;
+    if state.spaces.profile().await.as_ref() == Some(id) {
+        invite.card = state.card.lock().unwrap().as_ref().and_then(|c| c.for_door());
+    }
+    Some(invite)
 }
 
 /// A knock as the host reads it: the address the provider saw, and what the
@@ -1949,7 +2021,7 @@ mod tests {
             let secret = self.secrets.lock().unwrap().get(&id.id).cloned()?;
             let rooms = self.rooms.lock().unwrap();
             let r = rooms.get(&id.id)?;
-            Some(Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: id.id.clone(), secret: Some(secret), title: r.args.title.clone(), kind: r.args.kind.key().into(), host_name: r.args.host_name.clone(), charter: r.charter().into(), verbs: Vec::new() })
+            Some(Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: id.id.clone(), secret: Some(secret), title: r.args.title.clone(), kind: r.args.kind.key().into(), host_name: r.args.host_name.clone(), charter: r.charter().into(), verbs: Vec::new(), card: None })
         }
 
         async fn home(&self) -> Option<Id> {
@@ -2634,7 +2706,7 @@ mod tests {
             Ok(HostOutcome::Error { .. }) => {}
             other => panic!("{other:?}"),
         }
-        let invite = spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: "workshop.abc".into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new() }.to_text();
+        let invite = spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: "workshop.abc".into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new(), card: None }.to_text();
         assert_eq!(door_of(&state, &invite).await.unwrap_err(), crate::identity::NOT_NAMED, "no name for a knock to send");
         assert_eq!(finish_first_run(&state, "Ada", false).unwrap_err(), crate::identity::NOT_ADULT);
         assert!(!data.join(KEYS_FILE).exists(), "no keys made");
@@ -2719,7 +2791,7 @@ mod tests {
             Ok(HostOutcome::Error { .. }) => {}
             other => panic!("{other:?}"),
         }
-        let invite = spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: "workshop.abc".into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new() }.to_text();
+        let invite = spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: "workshop.abc".into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new(), card: None }.to_text();
         // A knock is signed as you (spaces_join): not yet.
         assert_eq!(state.identity.state(&usual.key(), "knock", json!({ "room": "workshop.abc" })).unwrap_err(), crate::identity::NOT_NAMED, "no knock is signed");
         assert_eq!(state.identity.fresh("lamp person").unwrap_err(), crate::identity::NOT_NAMED, "nor a fresh name to knock as");
@@ -2735,7 +2807,7 @@ mod tests {
     #[tokio::test]
     async fn the_door_lists_everything_a_knock_sends_and_a_knock_sends_nothing_else() {
         let (state, _rooms) = app("actions-door-sends");
-        let invite = spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: "workshop.abc".into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new() };
+        let invite = spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: "workshop.abc".into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new(), card: None };
         let door = door_of(&state, &invite.to_text()).await.unwrap();
         assert_eq!(door.sends.fields, spaces::KNOCK_FIELDS.to_vec());
         let usual = state.identity.usual().unwrap();
@@ -2767,7 +2839,7 @@ mod tests {
     #[tokio::test]
     async fn knocks_as_your_usual_name_carry_the_same_account_everywhere_and_a_fresh_names_dont() {
         let (state, _rooms) = app("actions-door-links");
-        let invite = |id: &str| spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: id.into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new() };
+        let invite = |id: &str| spaces::Invite { host: Identity::Outgoing { address: "127.0.0.1:4640".into() }, id: id.into(), secret: Some("s".into()), title: "Workshop".into(), kind: "board".into(), host_name: "ren".into(), charter: String::new(), verbs: Vec::new(), card: None };
         let usual = state.identity.usual().unwrap();
         let now = Utc::now();
         let account = |persona: &crate::identity::Persona, room: &str| {
@@ -2790,6 +2862,57 @@ mod tests {
         let HostOutcome::Hosted { id } = host_space(&state, HostSpaceInput { title: "me".into(), kind: "profile".into(), charter: String::new(), open_door: true }).await.unwrap() else { panic!("hosted") };
         let about: serde_json::Value = read_json(&state, &space_id(&id), diverge_desktop_room::room::ABOUT).await.unwrap();
         assert_eq!(about["notes_key"].as_str(), Some(state.identity.notes_public().unwrap().as_str()));
+    }
+
+    async fn live_cards(state: &AppState, id: &str) -> Vec<MoveView> {
+        moves_of(state, &space_id(id)).await.0.into_iter().filter(crate::card::live).collect()
+    }
+
+    /// Each part of your card goes only where you set it: the door's on the
+    /// invite, the room's in your profile room, yours nowhere; narrowing one
+    /// takes the card before back, so its words go.
+    #[tokio::test]
+    async fn your_card_goes_only_where_you_set_it() {
+        use crate::card::{Card, CardLink, Who};
+        let (state, rooms) = app("actions-profile-card");
+        let HostOutcome::Hosted { id } = host_space(&state, HostSpaceInput { title: "me".into(), kind: "profile".into(), charter: String::new(), open_door: true }).await.unwrap() else { panic!("hosted") };
+        *rooms.profile.lock().unwrap() = Some(id.clone());
+        let card = Card {
+            picture: "data:image/png;base64,iVBORw0KGgo=".into(),
+            picture_who: Who::Link,
+            about: "I fix lamps on Saturdays.".into(),
+            about_who: Who::Room,
+            links: vec![CardLink { title: "My site".into(), url: "https://example.org".into() }],
+            links_who: Who::You,
+        };
+        assert!(matches!(save_card(&state, card.clone()).await.unwrap(), ProfileCardSaved::Saved { posted: true, took_back: 0 }));
+        let up = live_cards(&state, &id).await;
+        assert_eq!(up.len(), 1);
+        assert_eq!((up[0].body.as_str(), up[0].fields.get("picture").is_some(), up[0].fields.get("links").is_some()), ("I fix lamps on Saturdays.", true, false), "the room: the door's parts and its own");
+        let door = invite_of(&state, &space_id(&id)).await.unwrap().card.unwrap();
+        assert_eq!((door.picture.is_some(), door.about.is_none(), door.links.is_empty()), (true, true, true), "the door: only what anyone with the link sees");
+        assert!(matches!(save_card(&state, card.clone()).await.unwrap(), ProfileCardSaved::Saved { posted: false, took_back: 0 }), "the same card again changes nothing");
+
+        // About goes to only you: a new card without it, and the one before taken back.
+        let narrower = Card { about_who: Who::You, ..card.clone() };
+        assert!(matches!(save_card(&state, narrower).await.unwrap(), ProfileCardSaved::Saved { posted: true, took_back: 1 }));
+        let up = live_cards(&state, &id).await;
+        assert_eq!((up.len(), up[0].body.as_str()), (1, ""));
+        let feed = serde_json::to_string(&moves_of(&state, &space_id(&id)).await.0).unwrap();
+        assert!(!feed.contains("I fix lamps"), "its words are gone from the room");
+
+        // All of it to only you: nothing in the room, nothing on the door, all of it kept here.
+        let mine = Card { picture_who: Who::You, about_who: Who::You, ..card.clone() };
+        assert!(matches!(save_card(&state, mine.clone()).await.unwrap(), ProfileCardSaved::Saved { posted: false, took_back: 1 }));
+        assert!(live_cards(&state, &id).await.is_empty());
+        assert!(invite_of(&state, &space_id(&id)).await.unwrap().card.is_none());
+        assert_eq!(card_of(&state).await.unwrap().card, mine);
+        assert_eq!(crate::store::load::<Card>(&state.data.join(CARD_FILE), crate::store::PROFILE_CARD), Some(mine), "kept in this folder");
+
+        // Another room's invite never carries your card.
+        let HostOutcome::Hosted { id: board } = host_space(&state, HostSpaceInput { title: "Workshop".into(), kind: "board".into(), charter: String::new(), open_door: true }).await.unwrap() else { panic!("hosted") };
+        save_card(&state, card).await.unwrap();
+        assert!(invite_of(&state, &space_id(&board)).await.unwrap().card.is_none());
     }
 
     /// Your profile reads as sealed only where its settings name your notes

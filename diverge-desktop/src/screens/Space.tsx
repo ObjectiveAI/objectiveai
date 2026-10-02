@@ -1,3 +1,5 @@
+import type { CardLink } from "../bindings/CardLink";
+import { ProfileCard } from "../components/ProfileCard";
 import type { AllowanceView } from "../bindings/AllowanceView";
 import type { Reach } from "../bindings/Reach";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -25,7 +27,7 @@ type Active = { tool: ToolView; values: Record<string, unknown>; on: string | nu
 /** Verbs that have their own place, never a raw form: letting in is at the door; removing is on a member's row;
  * rules and recommendations are under "Your room"; hires are answered on cards; a receipt is pinned from You;
  * taking back and erasing are on the move itself. */
-const ELSEWHERE = new Set(["admit", "remove", "set_charter", "vouch_room", "answer_hire", "deliver_hire", "pin_receipt", "keys", "withdraw", "erase", "mark_invite", "drop_keeper"]);
+const ELSEWHERE = new Set(["admit", "remove", "set_charter", "vouch_room", "answer_hire", "deliver_hire", "pin_receipt", "set_card", "keys", "withdraw", "erase", "mark_invite", "drop_keeper"]);
 
 
 /** Moves the room makes about itself: shown as quiet lines, not cards. */
@@ -203,7 +205,9 @@ export function Space(props: { id: string; tabKey: string }) {
   };
 
   const byId = useMemo(() => new Map(moves.map((m) => [m.id, m])), [moves]);
-  const roots = useMemo(() => [...moves].filter((m) => !m.parent || !byId.has(m.parent)).sort((a, b) => b.at.localeCompare(a.at)), [moves, byId]);
+  const roots = useMemo(() => [...moves].filter((m) => m.kind !== "card" && (!m.parent || !byId.has(m.parent))).sort((a, b) => b.at.localeCompare(a.at)), [moves, byId]);
+  // A profile's card: the newest one that still holds its words.
+  const card = useMemo(() => [...moves].filter((m) => m.kind === "card" && !(m.fields as Record<string, unknown>).erased).sort((a, b) => a.at.localeCompare(b.at)).pop(), [moves]);
   const childrenOf = useCallback((id: string) => moves.filter((m) => m.parent === id).sort((a, b) => a.at.localeCompare(b.at)), [moves]);
   const tool = (name: string) => space?.tools.find((x) => x.name === name);
 
@@ -300,6 +304,12 @@ export function Space(props: { id: string; tabKey: string }) {
             <Table space={s} rooms={spaces} />
           ) : (
             <>
+              {s.kind === "profile" && card ? (
+                <div className="card-seen">
+                  <span className="move-kind">{s.mine ? t.spaces.yourCard : t.spaces.theirCard}</span>
+                  <ProfileCard name={s.host_name} picture={(card.fields as { picture?: string }).picture} about={card.body} links={(card.fields as { links?: CardLink[] }).links} />
+                </div>
+              ) : null}
               {s.kind === "idea" && roots.some((m) => m.kind === "synthesis") ? (() => { const syn = roots.find((m) => m.kind === "synthesis")!; return (
                 <div className="synthesis-pin">
                   <span className="move-kind">{t.spaces.moveKinds.synthesis}</span>

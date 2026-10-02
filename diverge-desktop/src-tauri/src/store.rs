@@ -64,13 +64,16 @@ pub const THREADS: Format = Format { name: "threads", version: 1, keep_previous:
 /// Your copy of one room's record.
 pub const RECORD_COPY: Format = Format { name: "record copy", version: 1, keep_previous: true };
 
+/// Your card, every part with who sees it.
+pub const PROFILE_CARD: Format = Format { name: "profile card", version: 1, keep_previous: true };
+
 /// The local agents the door is served to: each one's token, as a sha256,
 /// and the port the door was given once.
 pub const DOOR_AGENTS: Format = Format { name: "door agents", version: 1, keep_previous: true };
 
 /// Every kind of file the app itself keeps (the stand-in keeps two more of its own).
 #[allow(dead_code)] // read by the test that every kind has words on screen
-pub const FORMATS: &[Format] = &[KEYS, COUNTERS, ALLOWANCES, VIEWS, MACHINE_NAMES, AGENT_MOUNTS, THREADS, RECORD_COPY, DOOR_AGENTS];
+pub const FORMATS: &[Format] = &[KEYS, COUNTERS, ALLOWANCES, VIEWS, MACHINE_NAMES, AGENT_MOUNTS, THREADS, RECORD_COPY, DOOR_AGENTS, PROFILE_CARD];
 
 /// Why a file can't be used.
 #[derive(Debug, Clone, PartialEq, Eq)]

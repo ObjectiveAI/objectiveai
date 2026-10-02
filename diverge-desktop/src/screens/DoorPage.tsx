@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { DoorView } from "../bindings/DoorView";
 import { Markdown } from "../components/Markdown";
+import { ProfileCard } from "../components/ProfileCard";
 import { Button, Chip, Empty, Field, Section } from "../components/ui";
 import { useShared } from "../lib/context";
 import { providerName, time } from "../lib/format";
@@ -68,6 +69,11 @@ export function DoorPage(props: { invite: string; tabKey: string }) {
           <span className="muted small">{t.door.hostedBy} {door.host_name} · {providerName(door.host)}</span>
         </div>
         {door.already_in ? <div className="banner banner-quiet">{t.door.alreadyIn}</div> : null}
+        {door.card ? (
+          <Section title={t.door.cardTitle} note={t.door.cardNote}>
+            <ProfileCard name={door.host_name} picture={door.card.picture} about={door.card.about} links={door.card.links} />
+          </Section>
+        ) : null}
 
         <Section title={t.door.rules} note={`${t.door.rulesSetBy} ${door.host_name}. ${t.door.rulesKeep}`}>
           {door.charter.trim() ? <Markdown text={door.charter} /> : <p className="muted small">{t.door.noCharter}</p>}

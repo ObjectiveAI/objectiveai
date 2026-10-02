@@ -501,3 +501,18 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* "All Spaces" is a place, like the rows above it: it reads as one. */
 .rail-all { margin-top: var(--space-1); color: var(--text-2); gap: var(--space-2); }
+
+/* Your card, and a card as someone sees it. */
+.profile-card { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg); }
+.profile-card-picture { flex: none; width: 64px; height: 64px; border-radius: var(--radius-md); object-fit: cover; }
+.profile-card-initial { display: grid; place-items: center; background: var(--surface-2); color: var(--text-3); font-size: var(--text-xl); }
+.profile-card-text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.profile-card-about { margin: 0; white-space: pre-wrap; max-width: 60ch; }
+.profile-card-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.card-part { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+.card-part-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.card-picture-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.card-picture-row.dropping { box-shadow: var(--focus); }
+.card-link-row { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.card-link-row input { flex: 1 1 12em; min-width: 0; }
+.card-seen { display: flex; flex-direction: column; gap: var(--space-2); }

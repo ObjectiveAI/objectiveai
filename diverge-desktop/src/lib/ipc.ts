@@ -38,6 +38,9 @@ import type { MessageOutcome } from "../bindings/MessageOutcome";
 import type { NewMachineInput } from "../bindings/NewMachineInput";
 import type { PersonView } from "../bindings/PersonView";
 import type { ProfileView } from "../bindings/ProfileView";
+import type { ProfileCardView } from "../bindings/ProfileCardView";
+import type { ProfileCardSaved } from "../bindings/ProfileCardSaved";
+import type { Card } from "../bindings/Card";
 import type { ProviderView } from "../bindings/ProviderView";
 import type { SavedView } from "../bindings/SavedView";
 import type { TabKind } from "../bindings/TabKind";
@@ -105,6 +108,8 @@ export const api = {
   homeFeed: () => invoke<HomeMove[]>("home_feed"),
   people: () => invoke<PersonView[]>("people_list"),
   profile: () => invoke<ProfileView>("profile_get"),
+  profileCard: () => invoke<ProfileCardView>("profile_card_get"),
+  profileCardSet: (card: Card) => invoke<ProfileCardSaved>("profile_card_set", { card }),
   spacesHome: () => invoke<string | null>("spaces_home"),
   spaces: () => invoke<SpaceSummary[]>("spaces_list"),
   space: (id: string) => invoke<SpaceView>("spaces_get", { id }),

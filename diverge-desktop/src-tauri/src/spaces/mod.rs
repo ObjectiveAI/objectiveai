@@ -204,6 +204,9 @@ pub struct Invite {
     pub host_name: String,
     pub charter: String,
     pub verbs: Vec<InviteVerb>,
+    /// On a profile's invite: the parts of its owner's card set to anyone with the link.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<crate::card::DoorCard>,
 }
 
 impl Invite {
