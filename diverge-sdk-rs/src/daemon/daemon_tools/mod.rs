@@ -35,15 +35,28 @@
 //! template its filter passes, and from no other. Each of these is
 //! one filter, and is that filter on [`DaemonTools`]; the two tools
 //! that join a tool to an agent carry a filter for each, and are
-//! [`ToolsAttach`] and [`ToolsDetach`].
+//! [`ToolsAttach`] and [`ToolsDetach`]; the four that tag and untag
+//! carry a filter and the [`Tags`] they may act with, any or only
+//! those named, and are [`AgentsTag`], [`AgentsUntag`], [`ToolsTag`]
+//! and [`ToolsUntag`].
 //!
 //! What each tool says to its caller, and how the daemon knows who
 //! is calling, is not yet stated here.
 
+mod agents_tag;
+mod agents_untag;
 mod daemon_tools;
+mod tags;
 mod tools_attach;
 mod tools_detach;
+mod tools_tag;
+mod tools_untag;
 
+pub use agents_tag::*;
+pub use agents_untag::*;
 pub use daemon_tools::*;
+pub use tags::*;
 pub use tools_attach::*;
 pub use tools_detach::*;
+pub use tools_tag::*;
+pub use tools_untag::*;

@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::{agents, tools};
-use super::{ToolsAttach, ToolsDetach};
+use super::{AgentsTag, AgentsUntag, ToolsAttach, ToolsDetach, ToolsTag, ToolsUntag};
 
 /// The daemon's tools an agent, or a tool, made from the template
 /// holds, one member each. A member present gives it that tool, as
@@ -46,18 +46,14 @@ pub struct DaemonTools {
     /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agents_edit: Option<agents::list::client::request::Filter>,
-    /// The tool that tags agents, and the agents it may put tags on:
-    /// those the filter passes, judged as they are before the change.
-    /// See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
+    /// The tool that tags agents, which agents and with which tags: see
+    /// [`AgentsTag`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_tag: Option<agents::list::client::request::Filter>,
-    /// The tool that untags agents, and the agents it may take tags
-    /// off: those the filter passes, judged as they are before the
-    /// change. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
+    pub agents_tag: Option<AgentsTag>,
+    /// The tool that untags agents, which agents and of which tags: see
+    /// [`AgentsUntag`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_untag: Option<agents::list::client::request::Filter>,
+    pub agents_untag: Option<AgentsUntag>,
     /// The tool that makes agent templates: `true`, it has it; `false`,
     /// or absent, it does not.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -95,18 +91,14 @@ pub struct DaemonTools {
     /// from what: see [`ToolsDetach`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tools_detach: Option<ToolsDetach>,
-    /// The tool that tags tools, and the tools it may put tags on:
-    /// those the filter passes, judged as they are before the change.
-    /// See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
+    /// The tool that tags tools, which tools and with which tags: see
+    /// [`ToolsTag`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_tag: Option<tools::list::client::request::Filter>,
-    /// The tool that untags tools, and the tools it may take tags off:
-    /// those the filter passes, judged as they are before the change.
-    /// See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
+    pub tools_tag: Option<ToolsTag>,
+    /// The tool that untags tools, which tools and of which tags: see
+    /// [`ToolsUntag`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_untag: Option<tools::list::client::request::Filter>,
+    pub tools_untag: Option<ToolsUntag>,
     /// The tool that makes tool templates: `true`, it has it; `false`,
     /// or absent, it does not.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
