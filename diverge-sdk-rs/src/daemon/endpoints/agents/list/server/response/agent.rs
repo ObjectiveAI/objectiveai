@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::agents::logs::server::response::Provider;
+use super::Creator;
 
 /// One agent of the caller's: what the daemon knows of it without
 /// reading its log.
@@ -23,6 +24,17 @@ pub struct Agent {
     /// [`templates::list`](crate::daemon::endpoints::agents::templates::list)
     /// names it by.
     pub template: String,
+    /// Its number among all agents of the caller's ever made from
+    /// that template, deleted ones included: the first made is `1`,
+    /// each after is one more, and no number is given twice. The
+    /// template and the count together name the agent once and for
+    /// all, where a name is free again once the agent is deleted.
+    pub count: u64,
+    /// The agent that made it, if an agent did: see [`Creator`].
+    /// Absent for an agent the caller made with a
+    /// [`create`](crate::daemon::endpoints::agents::create).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub creator: Option<Creator>,
     /// When the create made it.
     pub created: DateTime<Utc>,
     /// Whether the agent is active now: a loop is running in it.
