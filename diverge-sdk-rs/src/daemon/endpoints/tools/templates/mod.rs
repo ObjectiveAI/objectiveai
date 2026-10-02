@@ -7,7 +7,7 @@
 //! with [`create`] and names it afterwards by its id, so the same
 //! template made twice is one template; a [`tool`](super) is created
 //! from a template by that id, with a name, a provider and mounts of
-//! its own; [`list`] names every template the caller has; [`delete`]
+//! its own; [`list`] lists them, narrowed; [`delete`]
 //! removes one no tool was made from; [`tag`] and [`untag`] change a
 //! template's tags, which are the caller's and not in the template's
 //! hash. An agent template and a tool template are two namespaces:

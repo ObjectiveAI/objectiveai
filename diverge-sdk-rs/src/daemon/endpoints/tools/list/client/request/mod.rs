@@ -1,9 +1,12 @@
 //! List request data.
 //!
-//! What a caller hands the daemon to list its tools: nothing but
-//! the ask. There is nothing to establish and nothing to resume,
-//! which is why this is one type and not a module of them.
+//! What a caller hands the daemon to list its tools: the filter, the
+//! program and the count, every one optional, in one [`Frame`];
+//! [`Kind`] is the one value of its own the filter names. There is
+//! nothing to establish and nothing to resume.
 
 mod frame;
+mod kind;
 
 pub use frame::*;
+pub use kind::*;

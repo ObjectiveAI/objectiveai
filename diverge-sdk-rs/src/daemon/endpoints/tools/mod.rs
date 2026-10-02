@@ -34,8 +34,8 @@
 //! name; [`attach`] and [`detach`]
 //! put it on an agent and take it off, the attach allowed while the
 //! agent is active and the detach only while it is not; [`delete`]
-//! removes a tool that is attached nowhere; [`list`] names every one
-//! the caller has, with the agents each is attached to and its tags;
+//! removes a tool that is attached nowhere; [`list`] lists them,
+//! narrowed, with the agents each is attached to and its tags;
 //! [`tag`] and [`untag`] change a tool's tags.
 
 pub mod attach;

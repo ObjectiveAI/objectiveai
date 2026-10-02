@@ -35,7 +35,7 @@ pub enum ClientRequest<'a> {
     AgentsMessage(agents::message::client::request::Frame),
     /// Tag `3`. Read an agent's log, filtered, and perhaps kept open.
     AgentsLogs(agents::logs::client::request::Frame),
-    /// Tag `4`. List the caller's agents.
+    /// Tag `4`. List the caller's agents, narrowed.
     AgentsList(agents::list::client::request::Frame),
     /// Tag `5`. Change what an agent mounts.
     AgentsEdit(agents::edit::client::request::Frame),
@@ -45,7 +45,7 @@ pub enum ClientRequest<'a> {
     AgentsUntag(agents::untag::client::request::Frame),
     /// Tag `8`. Make a template.
     AgentsTemplatesCreate(agents::templates::create::client::request::Frame),
-    /// Tag `9`. List the caller's templates.
+    /// Tag `9`. List the caller's templates, narrowed.
     AgentsTemplatesList(agents::templates::list::client::request::Frame),
     /// Tag `10`. Delete a template by id.
     AgentsTemplatesDelete(agents::templates::delete::client::request::Frame),
@@ -65,7 +65,7 @@ pub enum ClientRequest<'a> {
     ToolsDetach(tools::detach::client::request::Frame),
     /// Tag `18`. Delete a tool by name.
     ToolsDelete(tools::delete::client::request::Frame),
-    /// Tag `19`. List the caller's tools.
+    /// Tag `19`. List the caller's tools, narrowed.
     ToolsList(tools::list::client::request::Frame),
     /// Tag `20`. Put tags on a tool.
     ToolsTag(tools::tag::client::request::Frame),
@@ -73,7 +73,7 @@ pub enum ClientRequest<'a> {
     ToolsUntag(tools::untag::client::request::Frame),
     /// Tag `22`. Make a tool template.
     ToolsTemplatesCreate(tools::templates::create::client::request::Frame),
-    /// Tag `23`. List the caller's tool templates.
+    /// Tag `23`. List the caller's tool templates, narrowed.
     ToolsTemplatesList(tools::templates::list::client::request::Frame),
     /// Tag `24`. Delete a tool template by id.
     ToolsTemplatesDelete(tools::templates::delete::client::request::Frame),

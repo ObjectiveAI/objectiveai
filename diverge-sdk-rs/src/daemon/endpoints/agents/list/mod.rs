@@ -1,14 +1,19 @@
 //! Listing a caller's agents.
 //!
-//! A client asks for its agents and the daemon sends every one it
-//! holds under the caller's identity, one response each, oldest
-//! created first, then finishes: what each is called, what template
-//! it was made from, whether it is active now, when its activity last changed
-//! and where it ran, how long its log is, and which tools are
-//! attached to it. A caller with no
-//! agents sees the finish and nothing before it. The
-//! daemon does not stay open; a caller that wants to know when an
-//! agent's activity changes reads its [`logs`](super::logs).
+//! A client asks for its agents, narrowed, and the daemon sends
+//! every one it holds under the caller's identity that the request's
+//! filter lets through — by name, by template, by activity, by
+//! tags, by when it was created — one response each, oldest created
+//! first, and finishes: what each is called, what template it was
+//! made from, whether it is active now, when its activity last
+//! changed and where it ran, how long its log is, which tools are
+//! attached to it, and its tags. A jq program on the request runs
+//! over each agent the filter lets through, and what it yields is
+//! what comes back; a count caps what comes back. A request that
+//! says nothing is every agent. A caller with no agent that matches
+//! sees the finish and nothing before it. The daemon does not stay
+//! open; a caller that wants to know when an agent's activity
+//! changes reads its [`logs`](super::logs).
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer

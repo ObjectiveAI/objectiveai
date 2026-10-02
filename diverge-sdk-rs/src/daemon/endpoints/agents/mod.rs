@@ -16,7 +16,7 @@
 //! an agent under a name from one; [`delete`] removes one by
 //! name; [`edit`] changes what one mounts; [`message`] sends one a message, and may take it back;
 //! [`logs`] reads what one said and what was said to it; [`list`]
-//! names every one the caller has, with its tags; [`tag`] and
+//! lists them, narrowed, with their tags; [`tag`] and
 //! [`untag`] change one's tags. The MCP servers an agent calls are
 //! [`tools`](super::tools), attached to it by name.
 

@@ -6,8 +6,8 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them all; change what one mounts; tag one and untag one; make, list, delete, tag and untag the templates agents are made from |
-//! | [`tools`] | create a tool under a name; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them all; tag one and untag one; make, list, delete, tag and untag the templates tools are made from |
+//! | [`agents`] | create an agent under a name; delete one by name; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, list, delete, tag and untag the templates agents are made from |
+//! | [`tools`] | create a tool under a name; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; make, list, delete, tag and untag the templates tools are made from |
 //! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
 //!
 //! # The tags

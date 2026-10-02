@@ -1,35 +1,85 @@
 //! What a client's request frame carries for a list.
 
-use serde::{Deserialize, Serialize};
-
+use chrono::{DateTime, Utc};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
+use serde::{Deserialize, Serialize};
 
-/// Ask the daemon for every template of the caller's.
+/// Ask the daemon for the caller's templates, narrowed.
 ///
-/// Carries nothing: the caller is the connection's identity, and
-/// the daemon lists everything held under it. On the wire the body
-/// is the empty object, `{}`, so that the request is JSON after its
-/// tag as every request of the daemon's is, and so that a member has
-/// somewhere to land the day one is wanted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct Frame {}
+/// Everything is optional, and a request with none of it — `{}` on the
+/// wire — is every template of the caller's. The members but `jq` and
+/// `count` together are the filter. The daemon applies the filter
+/// first, oldest created first, so the program sees only what it lets
+/// through, and runs the program over each template of that; what the
+/// program yields is what comes back, and without a program the
+/// templates come back as they are. The count caps what comes back.
+/// [`Listed`](crate::daemon::endpoints::agents::templates::list::server::response::Listed)
+/// is the shape each comes back in without a program, and the reference
+/// for what a program is run over.
+///
+/// # Any one of, every one of
+///
+/// A member that lists candidates — `ids` — matches a template that is
+/// any one of them. `tags` matches a template that carries every one of
+/// them. An empty list is absent, and matches every template.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct Frame {
+    /// Any one of these ids.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ids: Vec<String>,
+    /// Whether some agent of the caller's was made from it — what a
+    /// [`delete`](crate::daemon::endpoints::agents::templates::delete)
+    /// answers `InUse` for — `true`, or none, `false`; absent, either.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub in_use: Option<bool>,
+    /// Every one of these among the template's tags, as
+    /// [`tag`](crate::daemon::endpoints::agents::templates::tag) put
+    /// them. Absent when empty, and then any tags.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    /// The earliest `created` to list, inclusive; absent, no earliest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_from: Option<DateTime<Utc>>,
+    /// The latest `created` to list, inclusive; absent, no latest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_to: Option<DateTime<Utc>>,
+    /// A jq program, as the `jq` command takes one, run with each
+    /// matching template — one
+    /// [`Listed`](crate::daemon::endpoints::agents::templates::list::server::response::Listed)
+    /// as JSON — as its input; everything it yields comes back, in
+    /// order. So `.id` is every matching template's id, as a string.
+    /// Absent, the templates come back as they are. The daemon does not
+    /// read the program beyond running it; one that will not compile,
+    /// or fails while it runs, is the scope's error.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jq: Option<String>,
+    /// How many values to send at most, counting what comes back —
+    /// templates as they are, or what the program yields — and not what
+    /// the filter reads; once that many have been sent the scope
+    /// finishes, whether or not more would have matched. `0` sends
+    /// nothing and finishes at once. Absent, no cap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub count: Option<u64>,
+}
 
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 9;
 
-/// JSON, as the rest of the daemon's requests are.
+/// JSON, as every request of the daemon's is: the filter's members,
+/// each absent when it says nothing, so that a request that says
+/// nothing is `{}`.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
