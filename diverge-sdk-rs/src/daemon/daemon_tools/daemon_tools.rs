@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::{agents, tools};
-use super::{AgentsTag, AgentsTemplatesTag, AgentsTemplatesUntag, AgentsUntag, ToolsAttach, ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag, Reach, Switch};
+use super::{AgentsTag, AgentsTemplatesTag, AgentsTemplatesUntag, AgentsUntag, Held, Reach, Switch, ToolsAttach, ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag};
 
 /// The daemon's tools an agent, or a tool, holds, named on its
 /// create, one member each: one for every endpoint but
@@ -12,7 +12,9 @@ use super::{AgentsTag, AgentsTemplatesTag, AgentsTemplatesUntag, AgentsUntag, To
 /// which joins somebody else's container on an authorization of the
 /// caller's and is the caller's alone. Every member is a [`Reach`] —
 /// `disabled`, `any`, or `only` what it names — or, for a tool with
-/// nothing to narrow, a [`Switch`]; every member is always present,
+/// nothing to narrow, a [`Switch`], or, for one that tags, a
+/// [`Held`], `disabled` or `only` with each side `any` or `only` of
+/// its own; every member is always present,
 /// `disabled` when the container does not hold the tool, so that an
 /// edit replaces a member and never adds or removes one. What `only`
 /// names is a filter, the very shape the list of that family narrows
@@ -52,14 +54,16 @@ pub struct DaemonTools {
     /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
     #[serde(default)]
     pub agents_edit: Reach<agents::list::client::request::Filter>,
-    /// The tool that tags agents; `only`, which agents and with which
-    /// tags: see [`AgentsTag`].
+    /// The tool that tags agents: `disabled`, or `only` which agents
+    /// and with which tags, each side `any` or `only`: see
+    /// [`AgentsTag`].
     #[serde(default)]
-    pub agents_tag: Reach<AgentsTag>,
-    /// The tool that untags agents; `only`, which agents and of which
-    /// tags: see [`AgentsUntag`].
+    pub agents_tag: Held<AgentsTag>,
+    /// The tool that untags agents: `disabled`, or `only` which agents
+    /// and of which tags, each side `any` or `only`: see
+    /// [`AgentsUntag`].
     #[serde(default)]
-    pub agents_untag: Reach<AgentsUntag>,
+    pub agents_untag: Held<AgentsUntag>,
     /// The tool that makes agent templates: see [`Switch`].
     #[serde(default)]
     pub agents_templates_create: Switch,
@@ -73,14 +77,16 @@ pub struct DaemonTools {
     /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
     #[serde(default)]
     pub agents_templates_delete: Reach<agents::templates::list::client::request::Filter>,
-    /// The tool that tags agent templates; `only`, which templates and
-    /// with which tags: see [`AgentsTemplatesTag`].
+    /// The tool that tags agent templates: `disabled`, or `only` which
+    /// templates and with which tags, each side `any` or `only`: see
+    /// [`AgentsTemplatesTag`].
     #[serde(default)]
-    pub agents_templates_tag: Reach<AgentsTemplatesTag>,
-    /// The tool that untags agent templates; `only`, which templates
-    /// and of which tags: see [`AgentsTemplatesUntag`].
+    pub agents_templates_tag: Held<AgentsTemplatesTag>,
+    /// The tool that untags agent templates: `disabled`, or `only`
+    /// which templates and of which tags, each side `any` or `only`:
+    /// see [`AgentsTemplatesUntag`].
     #[serde(default)]
-    pub agents_templates_untag: Reach<AgentsTemplatesUntag>,
+    pub agents_templates_untag: Held<AgentsTemplatesUntag>,
     /// The tool that lists tools; `only`, the tools the filter passes,
     /// and its own list requests narrow within them. See
     /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
@@ -109,14 +115,15 @@ pub struct DaemonTools {
     /// part from what: see [`ToolsDetach`].
     #[serde(default)]
     pub tools_detach: Reach<ToolsDetach>,
-    /// The tool that tags tools; `only`, which tools and with which
-    /// tags: see [`ToolsTag`].
+    /// The tool that tags tools: `disabled`, or `only` which tools and
+    /// with which tags, each side `any` or `only`: see [`ToolsTag`].
     #[serde(default)]
-    pub tools_tag: Reach<ToolsTag>,
-    /// The tool that untags tools; `only`, which tools and of which
-    /// tags: see [`ToolsUntag`].
+    pub tools_tag: Held<ToolsTag>,
+    /// The tool that untags tools: `disabled`, or `only` which tools
+    /// and of which tags, each side `any` or `only`: see
+    /// [`ToolsUntag`].
     #[serde(default)]
-    pub tools_untag: Reach<ToolsUntag>,
+    pub tools_untag: Held<ToolsUntag>,
     /// The tool that makes tool templates: see [`Switch`].
     #[serde(default)]
     pub tools_templates_create: Switch,
@@ -130,14 +137,16 @@ pub struct DaemonTools {
     /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
     #[serde(default)]
     pub tools_templates_delete: Reach<tools::templates::list::client::request::Filter>,
-    /// The tool that tags tool templates; `only`, which templates and
-    /// with which tags: see [`ToolsTemplatesTag`].
+    /// The tool that tags tool templates: `disabled`, or `only` which
+    /// templates and with which tags, each side `any` or `only`: see
+    /// [`ToolsTemplatesTag`].
     #[serde(default)]
-    pub tools_templates_tag: Reach<ToolsTemplatesTag>,
-    /// The tool that untags tool templates; `only`, which templates and
-    /// of which tags: see [`ToolsTemplatesUntag`].
+    pub tools_templates_tag: Held<ToolsTemplatesTag>,
+    /// The tool that untags tool templates: `disabled`, or `only` which
+    /// templates and of which tags, each side `any` or `only`: see
+    /// [`ToolsTemplatesUntag`].
     #[serde(default)]
-    pub tools_templates_untag: Reach<ToolsTemplatesUntag>,
+    pub tools_templates_untag: Held<ToolsTemplatesUntag>,
     /// The tool that uploads resources: see [`Switch`].
     #[serde(default)]
     pub resources_upload: Switch,

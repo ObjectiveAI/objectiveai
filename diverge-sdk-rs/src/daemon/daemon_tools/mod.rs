@@ -42,8 +42,9 @@
 //! one filter, and is that filter on [`DaemonTools`]; the two tools
 //! that join a tool to an agent carry a filter for each, and are
 //! [`ToolsAttach`] and [`ToolsDetach`]; the eight that tag and untag
-//! carry a filter and the [`Tags`] they may act with, any or only
-//! those named, and are [`AgentsTag`], [`AgentsUntag`],
+//! are [`Held`] rather than reached — `disabled`, or `only` with two
+//! sides, which things and which tags, each a [`Within`], `any` or
+//! `only` — and are [`AgentsTag`], [`AgentsUntag`],
 //! [`AgentsTemplatesTag`], [`AgentsTemplatesUntag`], [`ToolsTag`],
 //! [`ToolsUntag`], [`ToolsTemplatesTag`] and [`ToolsTemplatesUntag`].
 //! The tools that make a template, and the one that uploads a
@@ -60,27 +61,29 @@ mod agents_templates_tag;
 mod agents_templates_untag;
 mod agents_untag;
 mod daemon_tools;
+mod held;
 mod reach;
 mod switch;
-mod tags;
 mod tools_attach;
 mod tools_detach;
 mod tools_tag;
 mod tools_templates_tag;
 mod tools_templates_untag;
 mod tools_untag;
+mod within;
 
 pub use agents_tag::*;
 pub use agents_templates_tag::*;
 pub use agents_templates_untag::*;
 pub use agents_untag::*;
 pub use daemon_tools::*;
+pub use held::*;
 pub use reach::*;
 pub use switch::*;
-pub use tags::*;
 pub use tools_attach::*;
 pub use tools_detach::*;
 pub use tools_tag::*;
 pub use tools_templates_tag::*;
 pub use tools_templates_untag::*;
 pub use tools_untag::*;
+pub use within::*;
