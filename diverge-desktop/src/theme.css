@@ -8,7 +8,7 @@
    you are. The mark's plum #280022 stays the mark's; the ground is that plum
    taken to near black, #11000e. Surfaces are tints of it, never neutral
    greys: #22091d raised, #351d30 a rule. A note is #431723 with a pink edge.
-   System fonts, 4px corners, dark, no glows.
+   System fonts, square corners, dark, no glows.
 
    The roles:
      --bg, --rail          the ground everything sits on
@@ -18,16 +18,18 @@
      --text, -2, -3        words, from most to least said
      --accent, --on-accent the one action that goes ahead; words on it
      --accent-hover        that action under the mouse
-     --here                where you are, and nothing else
+     --here                where you are, and nothing else: a --mark-wide bar
+                           under the open tab and down the side of the row
+                           you're on. Never words.
      --warn, --warn-soft   something to know before you act
      --ok, --bad (+ -soft) how something went; --bad-hover is a danger button under the mouse
 
    The one rule every theme keeps: each pair of words-on-background the app
    uses reads at 7:1 or better (WCAG AAA), and each edge of something you can
-   press or type into, and the focus ring, reads at 3:1 against what's around
-   it. src/theme.test.ts checks every pair. The pairs this theme still breaks
-   are named there, each waiting on a colour pick; any other break fails the
-   build.
+   press or type into, each bar that marks where you are, each status dot,
+   and the focus ring, reads at 3:1 against what's around it.
+   src/theme.test.ts checks every pair, for this theme and for every other
+   theme listed there; any break fails the build.
 
    Status colours (ok / bad) are NOT from the site — it never needed them.
    They are the only invented values here, and the product owner's to replace. */
@@ -56,11 +58,17 @@
   --space-5: 24px;
   --space-6: 32px;
 
-  --radius-sm: 4px;
-  --radius-md: 4px;
-  --radius-lg: 4px;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
 
-  /* The least height of anything you press, and the least width of an icon button. */
+  /* The bar that marks where you are, and the coloured edge of a card. */
+  --mark: 4px;
+
+  /* The height of a button, a field or a select: one height, so they line up. Small buttons, chips you press
+     and icon buttons sit at the floor, --hit-min. Controls set their own line-height (1.2): the reading
+     line-height (1.6) is for paragraphs, and inside a square box it reads as padding. */
+  --control: 32px;
   --hit-min: 28px;
 
   --rail-width: 244px;
@@ -85,14 +93,18 @@
   --surface-2: color-mix(in srgb, var(--raised) 55%, var(--rule));
   --surface-3: var(--rule);
   --line: var(--rule);
-  --line-strong: color-mix(in srgb, var(--rule) 80%, var(--ink));
+  /* The edge of anything you can press or type into: 3:1 on every surface. */
+  --line-strong: color-mix(in srgb, var(--rule) 60%, var(--ink));
+  /* Under the mouse, the edge lights up to the ink: one cue for every button, row, tab, chip and field. The
+     fill alone can't show a hover here (the surfaces are 1.1–1.3:1 apart), so the edge does. */
+  --line-hover: var(--ink);
   --text: var(--ink);
-  /* AAA (7:1) on both ground and raised: 84% ≈ 12:1, 70% ≈ 7.6:1 on raised. */
-  --text-2: color-mix(in srgb, var(--ink) 84%, var(--ground));
-  --text-3: color-mix(in srgb, var(--ink) 70%, var(--ground));
+  /* Words step evenly, 100 / 90 / 80. Muted (80%) reads 7:1 on every surface, the rule and a note included. */
+  --text-2: color-mix(in srgb, var(--ink) 90%, var(--ground));
+  --text-3: color-mix(in srgb, var(--ink) 80%, var(--ground));
   --accent: var(--pink);
   --accent-soft: color-mix(in srgb, var(--pink) 14%, var(--ground));
-  --accent-hover: color-mix(in srgb, var(--accent) 88%, var(--ink));
+  --accent-hover: color-mix(in srgb, var(--accent) 78%, var(--ink));
   --on-accent: var(--plum);
   --here: var(--gold);
   --warn: var(--pink);

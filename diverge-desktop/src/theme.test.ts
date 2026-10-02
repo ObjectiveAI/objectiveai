@@ -4,20 +4,30 @@ import { describe, expect, it } from "vitest";
 type RGBA = [number, number, number, number];
 
 const css = readFileSync(new URL("./theme.css", import.meta.url), "utf8");
-const raw = new Map<string, string>();
-for (const m of css.matchAll(/(--[\w-]+):\s*([^;]+);/g)) raw.set(m[1], m[2].trim());
+const appCss = readFileSync(new URL("./app.css", import.meta.url), "utf8");
+const base = new Map<string, string>();
+for (const m of css.matchAll(/(--[\w-]+):\s*([^;]+);/g)) base.set(m[1], m[2].trim());
+
+// Every theme is the eight site colours; every role is mixed from them in theme.css. The first is theme.css
+// as written; the rest swap in their own eight and keep every mix. Each must pass every pair below.
+const THEMES: Record<string, Partial<Record<"--plum" | "--ground" | "--raised" | "--rule" | "--ink" | "--pink" | "--gold" | "--note", string>>> = {
+  "plum and gold (theme.css)": {},
+  "navy and orange (draft of 2026-10-01; rule and note still from the hue formula)": {
+    "--plum": "#000a28", "--ground": "#000411", "--raised": "#090f22", "--rule": "#1d2335", "--ink": "#fbd5cd", "--pink": "#b2c5ff", "--gold": "#eb4a2a", "--note": "#172243",
+  },
+};
 
 /** A theme value, worked out: hex, `transparent`, `var(...)`, and `color-mix(in srgb, …)` (premultiplied, as CSS mixes). */
-function colour(v: string): RGBA | null {
+function colour(raw: Map<string, string>, v: string): RGBA | null {
   v = v.trim();
   if (/^#[0-9a-f]{6}$/i.test(v)) return [parseInt(v.slice(1, 3), 16), parseInt(v.slice(3, 5), 16), parseInt(v.slice(5, 7), 16), 1];
   if (v === "transparent") return [0, 0, 0, 0];
   const ref = v.match(/^var\((--[\w-]+)\)$/);
-  if (ref) return token(ref[1]);
+  if (ref) return token(raw, ref[1]);
   const mix = v.match(/^color-mix\(in srgb,\s*(.+?)\s+(\d+)%,\s*(.+)\)$/);
   if (mix) {
-    const a = colour(mix[1]);
-    const b = colour(mix[3]);
+    const a = colour(raw, mix[1]);
+    const b = colour(raw, mix[3]);
     const p = Number(mix[2]) / 100;
     if (!a || !b) return null;
     const alpha = a[3] * p + b[3] * (1 - p);
@@ -27,9 +37,9 @@ function colour(v: string): RGBA | null {
   }
   return null;
 }
-function token(name: string): RGBA | null {
+function token(raw: Map<string, string>, name: string): RGBA | null {
   const v = raw.get(name);
-  return v === undefined ? null : colour(v);
+  return v === undefined ? null : colour(raw, v);
 }
 
 /** `top` painted over an opaque `under`. */
@@ -47,9 +57,9 @@ function contrast(a: RGBA, b: RGBA): number {
   return (x + 0.05) / (y + 0.05);
 }
 /** How a colour reads painted on a background (both by token). */
-function ratio(fg: string, bg: string): number {
-  const f = token(fg);
-  const b = token(bg);
+function ratio(raw: Map<string, string>, fg: string, bg: string): number {
+  const f = token(raw, fg);
+  const b = token(raw, bg);
   if (!f || !b) throw new Error(`no colour for ${f ? bg : fg}`);
   return contrast(over(f, b), b);
 }
@@ -59,10 +69,10 @@ function ratio(fg: string, bg: string): number {
 const WORDS: [string, string, string][] = [
   ["--text", "--bg", "the page"],
   ["--text", "--surface", "cards, sections, the side columns"],
-  ["--text", "--surface-2", "a hovered button or row; code in a quiet banner"],
-  ["--text", "--surface-3", "a hovered quiet button or rail row"],
+  ["--text", "--surface-2", "the row you're on; code in a quiet banner"],
+  ["--text", "--surface-3", "a hovered row, tab, chip or quiet button"],
   ["--text", "--note", "warning banners and cards, the knock card"],
-  ["--text", "--accent-soft", "the agent kind you picked"],
+  ["--text", "--accent-soft", "the agent kind you picked, the filter you picked"],
   ["--text-2", "--bg", "quieter words on the page"],
   ["--text-2", "--surface", "quieter words on a card"],
   ["--text-2", "--surface-2", "chips, quiet cards"],
@@ -71,12 +81,9 @@ const WORDS: [string, string, string][] = [
   ["--text-2", "--accent-soft", "the picked kind's blurb"],
   ["--text-3", "--bg", "muted words on the page"],
   ["--text-3", "--surface", "muted words on a card"],
-  ["--text-3", "--surface-2", "muted words on a picked or hovered row"],
-  ["--text-3", "--surface-3", "a hovered rail row's kind"],
+  ["--text-3", "--surface-2", "muted words on the row you're on"],
+  ["--text-3", "--surface-3", "muted words on a hovered row"],
   ["--text-3", "--note", "muted words on the knock card"],
-  ["--here", "--bg", "the open tab, the place you are"],
-  ["--here", "--surface", "the rail row you're on"],
-  ["--here", "--surface-2", "the picked row in a list"],
   ["--accent", "--bg", "links and counts on the page"],
   ["--accent", "--surface", "links and counts on a card"],
   ["--accent", "--surface-3", "a count on a hovered rail row"],
@@ -97,51 +104,50 @@ const WORDS: [string, string, string][] = [
   ["--bad", "--bad-soft", "an error card or chip"],
 ];
 
-// The edges of things you can press or type into, against what's around them.
+// The edges of things you can press or type into, the bars that mark where you are, and the status
+// dots, each against what's around it.
 const EDGES: [string, string, string][] = [
-  ["--line-strong", "--bg", "buttons and fields on the page"],
-  ["--line-strong", "--surface", "buttons and fields on a card"],
-  ["--line", "--bg", "the open tab, a room chip"],
-  ["--line", "--surface", "a room chip, an agent kind"],
-  ["--line", "--surface-2", "the picked option in a segmented control"],
+  ["--line-strong", "--bg", "buttons, fields and agent kinds on the page"],
+  ["--line-strong", "--surface", "buttons, fields and chips on a card"],
+  ["--line-strong", "--surface-2", "the picked option in a segmented control"],
+  ["--line-hover", "--surface-3", "the edge of anything under the mouse"],
+  ["--on-accent", "--accent-hover", "the edge of the main button under the mouse (its words' colour: the ink would vanish on pink)"],
+  ["--plum", "--bad-hover", "the edge of a danger button under the mouse"],
+  ["--here", "--bg", "the bar under the open tab"],
+  ["--here", "--surface", "the bar beside the rail row you're on (the rail scrolls over the ground)"],
+  ["--here", "--surface-2", "the bar beside the row you're on"],
   ["--accent", "--bg", "the main button, a field being typed in"],
-  ["--accent", "--surface", "the main button, the picked kind, a card that waits on you"],
+  ["--accent", "--surface", "the main button, the picked kind, the picked filter, a card that waits on you"],
   ["--accent", "--note", "the main button on the knock card"],
-  ["--here", "--surface", "the Home view you're on"],
-  ["--bad", "--surface", "a field that needs fixing, a danger button"],
+  ["--text-3", "--bg", "an idle or never-run agent's dot in the rail"],
+  ["--text-3", "--surface", "an idle or never-run agent's dot in the inbox"],
+  ["--text-3", "--surface-2", "that dot on the thread you're on"],
+  ["--text-3", "--surface-3", "that dot on a hovered row"],
+  ["--ok", "--surface-3", "a working agent's dot on a hovered row"],
+  ["--bad", "--surface", "a field that needs fixing, a danger button, a stopped agent's mark"],
+  ["--bad", "--surface-3", "a stopped agent's mark on a hovered row"],
   ["--bad-hover", "--surface", "a danger button under the mouse"],
 ];
 
 // Everywhere something you can focus sits, so everywhere the ring is drawn.
 const RING_ON = ["--bg", "--surface", "--surface-2", "--surface-3", "--note", "--accent-soft", "--ok-soft", "--bad-soft"];
 
-// Today's breaks. Each waits on a colour pick (or, for --line, on which edge marks what can be
-// pressed), which is not this test's to make. The list is checked both ways: every pair on it
-// must still break, and every pair not on it must hold.
-const BREAKS: Record<string, string> = {
-  "--text-3 on --note": "muted words on the knock card: --text-3 or --note",
-  "--text-3 on --surface-3": "a hovered rail row's kind: --text-3 or --surface-3",
-  "--line-strong edge on --bg": "the edge that marks a press: --line-strong",
-  "--line-strong edge on --surface": "the edge that marks a press: --line-strong",
-  "--line edge on --bg": "pressables drawn with the quiet rule (the open tab, room chips)",
-  "--line edge on --surface": "pressables drawn with the quiet rule (room chips, agent kinds)",
-  "--line edge on --surface-2": "pressables drawn with the quiet rule (the picked option in a segmented control)",
-};
+describe.each(Object.entries(THEMES))("the theme: %s", (_name, swap) => {
+  const raw = new Map(base);
+  for (const [k, v] of Object.entries(swap)) raw.set(k, v!);
+  const rows = [
+    ...WORDS.map(([fg, bg, where]) => ({ name: `${fg} on ${bg}`, where, min: 7, got: ratio(raw, fg, bg) })),
+    ...EDGES.map(([edge, bg, where]) => ({ name: `${edge} edge on ${bg}`, where, min: 3, got: ratio(raw, edge, bg) })),
+  ];
 
-const rows = [
-  ...WORDS.map(([fg, bg, where]) => ({ name: `${fg} on ${bg}`, where, min: 7, got: ratio(fg, bg) })),
-  ...EDGES.map(([edge, bg, where]) => ({ name: `${edge} edge on ${bg}`, where, min: 3, got: ratio(edge, bg) })),
-];
-
-describe("the theme", () => {
   it("has a colour for every token the pairs name", () => {
     for (const [a, b] of [...WORDS, ...EDGES]) {
-      expect(token(a), a).not.toBeNull();
-      expect(token(b), b).not.toBeNull();
+      expect(token(raw, a), a).not.toBeNull();
+      expect(token(raw, b), b).not.toBeNull();
     }
   });
 
-  it.each(rows.filter((r) => !(r.name in BREAKS)).map((r) => [r.name, r.min, r.where, r.got] as const))("%s reads at %d:1 or better (%s)", (_name, min, _where, got) => {
+  it.each(rows.map((r) => [r.name, r.min, r.where, r.got] as const))("%s reads at %d:1 or better (%s)", (_name, min, _where, got) => {
     expect(got).toBeGreaterThanOrEqual(min);
   });
 
@@ -149,18 +155,22 @@ describe("the theme", () => {
     const m = raw.get("--focus")?.match(/^0 0 0 (\d+(?:\.\d+)?)px (.+)$/);
     expect(m, "--focus is a ring: 0 0 0 <width> <colour>").toBeTruthy();
     expect(Number(m![1])).toBeGreaterThanOrEqual(2);
-    const ring = colour(m![2]);
+    const ring = colour(raw, m![2]);
     expect(ring).not.toBeNull();
     for (const bg of RING_ON) {
-      const b = token(bg)!;
+      const b = token(raw, bg)!;
       expect(contrast(over(ring!, b), b), `the ring on ${bg}`).toBeGreaterThanOrEqual(3);
     }
   });
+});
 
-  it("today's breaks are exactly the named ones, and each still breaks", () => {
-    const names = new Set(rows.map((r) => r.name));
-    for (const name of Object.keys(BREAKS)) expect(names.has(name), `${name} is a pair the app draws`).toBe(true);
-    const breaking = rows.filter((r) => r.got < r.min).map((r) => r.name).sort();
-    expect(breaking).toEqual(Object.keys(BREAKS).sort());
+describe("where you are", () => {
+  it("is only ever a bar: app.css never colours words with --here", () => {
+    const asWords = [...appCss.matchAll(/^.*color:\s*var\(--here\).*$/gm)].map((m) => m[0].trim());
+    expect(asWords).toEqual([]);
+  });
+  it("every bar and every card edge is --mark wide", () => {
+    const fixed = [...appCss.matchAll(/^.*border-left:\s*[3-9]px.*$/gm)].map((m) => m[0].trim());
+    expect(fixed).toEqual([]);
   });
 });

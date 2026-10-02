@@ -129,10 +129,10 @@ describe("Chip", () => {
     expect(app.get(".chip")?.get("border")).toBe("1px solid transparent");
   });
 
-  it("a pressable chip is a button with an edge", () => {
+  it("a pressable chip is a button with the strong edge", () => {
     const out = html(Chip, { onClick: () => {} }, "A room");
     expect(out).toMatch(/^<button type="button" class="chip chip-press"/);
-    expect(app.get(".chip-press")?.get("border-color")).toBe("var(--line)");
+    expect(app.get(".chip-press")?.get("border-color")).toBe("var(--line-strong)");
   });
 });
 
@@ -162,7 +162,10 @@ describe("SectionHead", () => {
 describe("the 28px floor", () => {
   it("--hit-min is 28px, and every pressable part is at least that tall", () => {
     expect(theme.get(":root")?.get("--hit-min")).toBe("28px");
-    for (const sel of [".btn", ".chip-press", ".nav-row", ".card-press"]) expect(app.get(sel)?.get("min-height"), sel).toBe("var(--hit-min)");
+    // A button and a field stand at --control, one height, so they line up; the rest sit at the floor.
+    expect(theme.get(":root")?.get("--control")).toBe("32px");
+    expect(app.get(".btn")?.get("min-height")).toBe("var(--control)");
+    for (const sel of [".btn-small", ".btn-icon", ".chip-press", ".nav-row", ".card-press"]) expect(app.get(sel)?.get("min-height"), sel).toBe("var(--hit-min)");
     expect(app.get(".btn-icon")?.get("min-width")).toBe("var(--hit-min)");
     // A checkbox or radio is pressed by its words too, so the line that holds both meets the floor.
     for (const sel of [".switch", ".radio-line"]) expect(app.get(sel)?.get("min-height"), sel).toBe("var(--hit-min)");

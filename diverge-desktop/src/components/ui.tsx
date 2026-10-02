@@ -43,12 +43,13 @@ export function Segmented<T extends string>(props: { value: T; options: { value:
   );
 }
 
-/** A row of views over one place (Home's filters): each a tab, the one you're on marked. */
+/** A row of filters over one place's feed (Home's): chips, the one picked tinted. They narrow a list; they
+ *  don't open anything, so they aren't tabs — the strip is the only tabs. */
 export function Tabs<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; className?: string }) {
   return (
-    <div className={`view-tabs${props.className ? ` ${props.className}` : ""}`} role="tablist">
+    <div className={`filter-chips${props.className ? ` ${props.className}` : ""}`} role="group">
       {props.options.map((o) => (
-        <button type="button" key={o.value} role="tab" aria-selected={props.value === o.value} className={`view-tab${props.value === o.value ? " on" : ""}`} onClick={() => props.onChange(o.value)}>
+        <button type="button" key={o.value} aria-pressed={props.value === o.value} className={`chip chip-press${props.value === o.value ? " on" : ""}`} onClick={() => props.onChange(o.value)}>
           {o.label}
         </button>
       ))}

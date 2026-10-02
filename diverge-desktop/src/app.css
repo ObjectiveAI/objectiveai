@@ -20,42 +20,53 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 .banner-text { display: block; }
 
 /* --- the parts in ui.tsx --------------------------------------------------- */
-/* Buttons. Anything pressed is at least --hit-min tall; each kind has one look. */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--hit-min); border: 1px solid transparent; background: none; color: var(--text); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; font-weight: 500; white-space: nowrap; }
+/* Buttons. A button is --control tall and a small one --hit-min, with twice the room beside its words as above
+   them: a square box with even padding reads as a block. Each kind has one look. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--control); line-height: 1.2; border: 1px solid transparent; background: none; color: var(--text); padding: var(--space-1) var(--space-4); border-radius: var(--radius-sm); cursor: pointer; font-weight: 500; white-space: nowrap; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
-.btn-small { padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
+.btn-small { min-height: var(--hit-min); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+/* Filled buttons light up the other way: a lighter fill and an edge in their words' colour, since the ink would vanish on pink. */
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--on-accent); }
 .btn-secondary { background: var(--surface); border-color: var(--line-strong); }
-.btn-secondary:hover:not(:disabled) { background: var(--surface-2); }
-.btn-tertiary { color: var(--text-2); }
-.btn-tertiary:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
+.btn-secondary:hover:not(:disabled) { background: var(--surface-3); border-color: var(--line-hover); }
+/* A button looks like a button on sight: a box with the strong edge. So the quiet kind is drawn as the bordered
+   kind; only links (pink words, a place to go) are bare words. */
+.btn-tertiary { background: var(--surface); border-color: var(--line-strong); }
+.btn-tertiary:hover:not(:disabled) { background: var(--surface-3); border-color: var(--line-hover); color: var(--text); }
 .btn-danger { background: var(--bad); border-color: var(--bad); color: var(--plum); }
-.btn-danger:hover:not(:disabled) { background: var(--bad-hover); border-color: var(--bad-hover); color: var(--plum); }
+.btn-danger:hover:not(:disabled) { background: var(--bad-hover); border-color: var(--plum); color: var(--plum); }
 /* An icon alone: a square at the floor, quiet until pointed at. */
-.btn-icon { min-width: var(--hit-min); padding: 0; color: var(--text-3); }
-.btn-icon:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
+.btn-icon { min-width: var(--hit-min); min-height: var(--hit-min); padding: 0; color: var(--text-3); }
+.btn-icon:hover:not(:disabled) { background: var(--surface-3); border-color: var(--line-hover); color: var(--text); }
 
-/* Chips. A chip that names a state or a kind has a tint and no edge; a chip you press (a room) has an edge. */
-.chip { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); border: 1px solid transparent; white-space: nowrap; }
+/* Chips. A chip that names a state or a kind has a tint and no edge; a chip you press (a room, a filter) has the
+   strong edge, and the one picked is tinted with the accent. */
+.chip { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); line-height: 1.2; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); border: 1px solid transparent; white-space: nowrap; }
 .chip-ok { background: var(--ok-soft); color: var(--ok); }
 .chip-warn { background: var(--warn-soft); color: var(--warn); }
 .chip-bad { background: var(--bad-soft); color: var(--bad); }
 .chip-accent { background: var(--accent-soft); color: var(--pink); }
-.chip-press { border-color: var(--line); min-height: var(--hit-min); cursor: pointer; }
-.chip-press:hover { color: var(--text); }
+.chip-press { border-color: var(--line-strong); min-height: var(--hit-min); cursor: pointer; }
+.chip-press:hover { color: var(--text); background: var(--surface-3); border-color: var(--line-hover); }
+.chip-press.on { background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); color: var(--text); font-weight: 600; }
+.chip-press.on:focus-visible { box-shadow: var(--focus); }
 
 /* Cards: one padding, one rhythm inside. A card you press is a button as a whole. */
 .card { border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
 .card-bad { background: var(--bad-soft); color: var(--bad); }
-.card-warn { background: var(--note); color: var(--text); border-left: 3px solid var(--pink); }
+.card-warn { background: var(--note); color: var(--text); border-left: var(--mark) solid var(--pink); }
 .card-quiet { background: var(--surface-2); color: var(--text-2); }
 .card-press { width: 100%; min-height: var(--hit-min); border: 1px solid var(--pink); background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
 
-/* Rows you press to go somewhere. Each list below lays its rows out, and marks the one you're on. */
-.nav-row { width: 100%; min-height: var(--hit-min); border: 0; background: none; color: var(--text); padding: var(--space-2); border-radius: var(--radius-sm); text-align: left; cursor: pointer; }
-.nav-row:hover { background: var(--surface-2); }
+/* Rows you press to go somewhere. Each list below lays its rows out; this marks the one you're on, the same way
+   everywhere: cream words in bold, and a --mark-wide bar down the left in the where-you-are colour. The left
+   padding leaves room for that bar in every state, so nothing shifts when a row is picked. Under the mouse a row
+   takes the lightest surface and the strong edge; a picked row keeps its own look under the mouse. */
+.nav-row { width: 100%; min-height: var(--hit-min); border: 0; background: none; color: var(--text); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3); border-radius: var(--radius-sm); text-align: left; cursor: pointer; }
+.nav-row:hover { background: var(--surface-3); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-hover); }
+.nav-row.on, .nav-row.on:hover { background: var(--surface-2); color: var(--text); font-weight: 600; box-shadow: inset var(--mark) 0 0 var(--here); }
 
 /* Section heads. The small form heads a list inside a column or a section; a room's rules toggle looks the same. */
 .section-head { display: flex; align-items: flex-start; gap: var(--space-3); }
@@ -67,11 +78,8 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 /* The toggle's line is the floor's height, so it's as easy to press as a button. */
 .charter-head { line-height: var(--hit-min); }
 
-/* Tabs over one place's views (Home's filters). */
-.view-tabs { display: flex; gap: var(--space-1); }
-.view-tab { border: 0; background: none; color: var(--text-2); padding: var(--space-2) var(--space-3); cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; }
-.view-tab:hover { color: var(--text); }
-.view-tab.on { color: var(--here); border-bottom-color: var(--here); font-weight: 600; }
+/* Filters over one place's feed (Home's): chips, the picked one tinted. Not tabs — the strip is the only tabs. */
+.filter-chips { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 
 /* Every scrolling area: when Tab scrolls something into view, it stops a step short of the edge so the
    focus ring stays whole (the rail-body does the same). */
@@ -91,8 +99,6 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 .rail-head { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-2) var(--space-1); font-size: var(--text-xs); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
 .rail-item { display: flex; align-items: center; gap: var(--space-2); }
-.rail-item:hover { background: var(--surface-3); }
-.rail-item.on { background: var(--surface); color: var(--here); font-weight: 600; }
 .rail-item.on .rail-item-kind { color: var(--text-3); font-weight: 400; }
 .rail-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail-item-kind { font-size: var(--text-xs); color: var(--text-3); }
@@ -100,18 +106,21 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 /* New agent is an action, not a place: a button under the rows, as wide as its words. */
 .rail-section > .btn { align-self: flex-start; margin-top: var(--space-2); }
 .rail-places .rail-item { color: var(--text-2); }
-.rail-places .rail-item.on { color: var(--here); }
+.rail-places .rail-item:hover, .rail-places .rail-item.on { color: var(--text); }
 
 /* --- dots, segmented controls ------------------------------------------- */
+/* An agent's state, by shape as much as colour: a pulsing filled dot is working, a filled dot idle, a ring never
+   run, and a triangle stopped. The quiet two take the muted-words colour, which reads 3:1 wherever words do. */
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; }
 .dot-working { background: var(--ok); animation: pulse 1.6s ease-in-out infinite; }
-.dot-idle { background: var(--line-strong); }
-.dot-never { border: 1.5px solid var(--line-strong); }
-.dot-bad { background: var(--bad); }
+.dot-idle { background: var(--text-3); }
+.dot-never { border: 1.5px solid var(--text-3); }
+.dot-bad { background: var(--bad); border-radius: 0; width: 9px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 @keyframes pulse { 50% { opacity: 0.55; } }
-.segmented { align-self: flex-start; display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-1); gap: var(--space-1); flex-wrap: wrap; }
-.segmented button { border: 0; background: none; padding: var(--space-1) var(--space-3); border-radius: 4px; cursor: pointer; color: var(--text-2); font-size: var(--text-sm); }
-.segmented button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow), 0 0 0 1px var(--line); }
+.segmented { align-self: flex-start; display: inline-flex; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: var(--space-1); gap: var(--space-1); flex-wrap: wrap; }
+.segmented button { border: 0; background: none; padding: var(--space-1) var(--space-3); min-height: calc(var(--hit-min) - var(--space-1)); line-height: 1.2; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-2); font-size: var(--text-sm); }
+.segmented button:hover { background: var(--surface-3); color: var(--text); box-shadow: 0 0 0 1px var(--line-hover); }
+.segmented button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow), 0 0 0 1px var(--line-strong); }
 .segmented button.on:focus-visible { box-shadow: var(--focus); }
 
 /* --- tab strip ------------------------------------------------------------ */
@@ -122,19 +131,21 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
    so the strip, which clips, never cuts the ring. */
 .tab { display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-2); flex: 0 0 auto; min-width: 96px; max-width: 220px; cursor: pointer; border: 1px solid transparent; border-bottom: 0; }
 .tab-title { flex: 1; min-width: 0; }
-.tab:hover { color: var(--text); }
-.tab.on { background: var(--bg); color: var(--here); border-color: var(--line); font-weight: 600; }
+.tab:hover { color: var(--text); background: var(--surface-3); border-color: var(--line-hover); }
+/* The open tab: cream words in bold, the page's own ground, and the where-you-are bar along its foot. */
+.tab.on, .tab.on:hover { background: var(--bg); color: var(--text); border-color: var(--line); font-weight: 600; box-shadow: inset 0 calc(-1 * var(--mark)) 0 var(--here); }
 .tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
 .tab .btn-icon { opacity: 0; }
 .tab:hover .btn-icon, .tab.on .btn-icon, .tab:focus-within .btn-icon { opacity: 1; }
-/* The strip clips, so a tab's own focus ring is drawn inside it. */
+/* The strip clips, so a tab's own focus ring is drawn inside it; on the open tab it joins the bar. */
 .tab:focus-visible { box-shadow: var(--focus) inset; }
+.tab.on:focus-visible { box-shadow: var(--focus) inset, inset 0 calc(-1 * var(--mark)) 0 var(--here); }
 
 /* --- empty, banners -------------------------------------------------------- */
 .empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); text-align: center; padding: var(--space-6); }
 .empty h3 { font-size: var(--text-lg); font-weight: 600; }
 .banner { padding: var(--space-2) var(--space-4); font-size: var(--text-sm); }
-.banner-warn { background: var(--note); color: var(--text); border-left: 3px solid var(--pink); }
+.banner-warn { background: var(--note); color: var(--text); border-left: var(--mark) solid var(--pink); }
 .banner-bad { background: var(--bad-soft); color: var(--bad); }
 
 /* --- conversation ------------------------------------------------------------ */
@@ -154,7 +165,7 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 .md p + p, .md p + ul, .md p + ol, .md ul + p, .md ol + p { margin-top: var(--space-2); }
 .md ul, .md ol { margin: 0; padding-left: var(--space-5); }
 .md li + li { margin-top: var(--space-1); }
-.md code { background: var(--surface); padding: 0 var(--space-1); border-radius: 4px; }
+.md code { background: var(--surface); padding: 0 var(--space-1); border-radius: var(--radius-sm); }
 .md pre, .tool-body pre { background: var(--surface); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); margin: 0; overflow-x: auto; font-size: var(--text-sm); white-space: pre-wrap; word-break: break-word; }
 .thinking summary { font-size: var(--text-sm); color: var(--text-3); cursor: pointer; list-style: none; }
 .thinking summary::before { content: "▸ "; }
@@ -217,8 +228,10 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 .field-label { font-size: var(--text-sm); font-weight: 550; color: var(--text); display: flex; gap: var(--space-2); align-items: baseline; }
 .field-hint { font-size: var(--text-xs); color: var(--text-3); line-height: 1.4; }
 .needed { font-size: var(--text-xs); font-weight: 500; color: var(--warn); }
-input[type="text"], input[type="password"], input[type="number"], input:not([type]), select, textarea { border: 1px solid var(--line-strong); background: var(--bg); border-radius: var(--radius-sm); padding: var(--space-2); width: 100%; min-width: 0; }
-textarea { resize: vertical; line-height: 1.45; }
+/* A field is --control tall, the same as the button beside it. */
+input[type="text"], input[type="password"], input[type="number"], input:not([type]), select, textarea { border: 1px solid var(--line-strong); background: var(--bg); border-radius: var(--radius-sm); min-height: var(--control); line-height: 1.2; padding: var(--space-1) var(--space-2); width: 100%; min-width: 0; }
+textarea { resize: vertical; line-height: 1.45; padding: var(--space-2); }
+input:hover, select:hover, textarea:hover { border-color: var(--line-hover); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus); }
 .invalid { border-color: var(--bad) !important; }
 .row { display: flex; gap: var(--space-3); align-items: flex-start; flex-wrap: wrap; }
@@ -239,10 +252,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .array-item, .map-row { display: flex; gap: var(--space-2); align-items: flex-start; }
 .array-item > .field, .array-item > .group, .map-value { flex: 1; min-width: 0; }
 .map-key { max-width: 180px; }
-.check-bad { color: var(--text); background: var(--note); border-left: 3px solid var(--pink); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); word-break: break-word; }
+.check-bad { color: var(--text); background: var(--note); border-left: var(--mark) solid var(--pink); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); word-break: break-word; }
 .kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
-.kind { display: flex; flex-direction: column; gap: var(--space-1); border: 1px solid var(--line); background: var(--bg); border-radius: var(--radius-md); padding: var(--space-3); }
-.kind:hover { background: var(--bg); border-color: var(--line-strong); }
+.kind { display: flex; flex-direction: column; gap: var(--space-1); border: 1px solid var(--line-strong); background: var(--bg); border-radius: var(--radius-md); padding: var(--space-3); }
+.kind:hover { background: var(--surface-3); border-color: var(--line-hover); }
 .kind.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
 .kind.on:focus-visible { box-shadow: var(--focus); }
 .kind-title { font-weight: 650; }
@@ -261,11 +274,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .tree ul { padding-left: var(--space-4); }
 /* A step above the first row and below the last, so their focus rings aren't cut by the scrolling edge. */
 .tree { flex: 1; overflow-y: auto; padding: var(--space-1) var(--space-2); }
-.tree-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
-.tree-row.on { background: var(--surface-2); color: var(--here); font-weight: 600; }
+.tree-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); font-size: var(--text-sm); }
 .chev { width: 12px; display: grid; place-items: center; color: var(--text-3); transition: transform 0.1s; }
 .chev.open { transform: rotate(90deg); }
-.tree-size { margin-left: auto; font-size: var(--text-xs); }
+/* A file's size is always muted, whichever row is picked. */
+.tree-size { margin-left: auto; font-size: var(--text-xs); color: var(--text-3); font-weight: 400; }
 .new-file { display: flex; gap: var(--space-1); padding: var(--space-2) var(--space-3) 0; border-top: 1px solid var(--line); margin-top: var(--space-2); }
 .files-editor { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .editor-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); background: var(--surface); }
@@ -285,7 +298,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .views-main { overflow-y: auto; min-width: 0; }
 .views-list ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; }
 .list-row { display: flex; flex-direction: column; }
-.list-row.on { background: var(--surface-2); color: var(--here); font-weight: 600; }
 .presets { display: flex; gap: var(--space-1); align-items: center; flex-wrap: wrap; }
 .row > .field-narrow { flex: 0 1 110px; }
 .row > .field-grow { flex: 3 1 260px; }
@@ -303,9 +315,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* --- storage ---------------------------------------------------------------- */
 .volume-list { list-style: none; margin: 0; padding: 0 var(--space-2); display: flex; flex-direction: column; gap: var(--space-1); }
 .volume-row { display: flex; flex-direction: column; gap: var(--space-1); }
-.volume-row.on { background: var(--surface-2); color: var(--here); font-weight: 600; }
 .volume-row.on .muted { font-weight: 400; }
-.meter { display: block; height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+.meter { display: block; height: 3px; background: var(--rule); border-radius: var(--radius-sm); overflow: hidden; }
 .meter > span { display: block; height: 100%; background: var(--text-3); }
 .new-volume { padding: var(--space-3); border-top: 1px solid var(--line); margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); }
 .volume-head { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
@@ -339,7 +350,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .space-row { display: flex; align-items: center; gap: var(--space-2); }
 .space-row-title { font-weight: 600; }
 .knocks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-.knock { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--note); border-left: 3px solid var(--pink); }
+.knock { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--note); border-left: var(--mark) solid var(--pink); }
 .knock-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .space { display: flex; flex-direction: column; height: 100%; }
 .space-head { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
@@ -377,9 +388,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .move-reply { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); font-size: var(--text-sm); }
 .move-reply .move-body { flex-basis: 100%; }
 .receipt-line { flex-basis: 100%; color: var(--ok); font-weight: 600; }
-.move-ask { border-left: 3px solid var(--pink); }
-.move-task { border-left: 3px solid var(--accent); }
-.move-run { border-left: 3px solid var(--line-strong); }
+.move-ask { border-left: var(--mark) solid var(--pink); }
+.move-task { border-left: var(--mark) solid var(--accent); }
+.move-run { border-left: var(--mark) solid var(--line-strong); }
 
 /* --- ask cards: an agent asks its person ------------------------------------------ */
 .ask-card { border: 1px solid var(--pink); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
@@ -391,7 +402,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .rail-home { font-weight: 600; }
 .home { display: grid; grid-template-columns: minmax(0, 1fr) 300px; height: 100%; }
 .home-main { display: flex; flex-direction: column; min-height: 0; }
-.home-views { padding: var(--space-2) var(--space-5) 0; border-bottom: 1px solid var(--line); background: var(--surface); }
+.home-views { padding: var(--space-2) var(--space-5); border-bottom: 1px solid var(--line); background: var(--surface); }
 .home-compose { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-5) 0; }
 .home-compose textarea { resize: none; }
 /* The composer is one field: the words, and Show and Ask inside it at the bottom right. */
@@ -421,8 +432,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .inbox-pick { display: flex; flex-direction: column; gap: var(--space-1); width: 100%; }
 .threads { list-style: none; margin: 0; padding: 0 var(--space-2); display: flex; flex-direction: column; gap: var(--space-1); }
 .thread { display: grid; grid-template-columns: auto 1fr auto auto; grid-template-areas: "dot name chip at" ". sub sub sub"; column-gap: var(--space-2); align-items: center; }
-.thread.on { background: var(--surface-2); }
-.thread.on .thread-name { color: var(--here); }
+/* Thread names are already semibold, so the one you're on goes a step bolder as well as getting the bar. */
+.thread.on .thread-name { font-weight: 700; }
 .thread .dot { grid-area: dot; }
 .thread-name { grid-area: name; font-weight: 600; }
 .thread .chip, .thread .rail-count { grid-area: chip; margin: 0; }
@@ -433,7 +444,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* --- profile, synthesis ---------------------------------------------------------- */
 .receipts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-.receipt { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: var(--radius-md); background: var(--bg); }
+.receipt { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-left: var(--mark) solid var(--ok); border-radius: var(--radius-md); background: var(--bg); }
 .receipt-name { font-weight: 650; color: var(--text); }
 .receipt > .btn { align-self: flex-start; }
 .synthesis-pin { border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
