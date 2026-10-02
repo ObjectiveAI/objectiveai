@@ -2,8 +2,16 @@
 
 use serde::{Deserialize, Serialize};
 
-/// That an agent, or a tool, has the tool that edits agents. An empty object, for now:
-/// what the tool does, and how far it reaches, is not yet stated
-/// here, and a member will land here when it is.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AgentsEdit {}
+use crate::daemon::endpoints::agents;
+
+/// That an agent, or a tool, has the daemon's tool that edits agents,
+/// and how far it reaches: each member is a filter, the same shape the
+/// list of that family narrows by, read here as a test — see
+/// [`daemon_tools`](super). A filter with no member given reaches every
+/// one.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AgentsEdit {
+    /// The agents it may edit: those the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
+    pub agents: agents::list::client::request::Filter,
+}
