@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 
 /// The reach of a tool that makes something from nothing — a
 /// template create, a resource upload — which has nothing to narrow:
-/// the container holds it, or does not. Externally tagged JSON: the
-/// string `"disabled"` or the string `"any"`, the two variants of
-/// [`Reach`](super::Reach) that need no `T`. `Disabled` is the
+/// the container holds it, or does not. On the wire the string
+/// `"disabled"` or the string `"any"`, the two words of
+/// [`Reach`](super::Reach) that name nothing. `Disabled` is the
 /// default, and what a member left out decodes as.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

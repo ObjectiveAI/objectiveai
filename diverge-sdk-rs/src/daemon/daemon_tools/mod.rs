@@ -71,6 +71,7 @@ mod tools_templates_tag;
 mod tools_templates_untag;
 mod tools_untag;
 mod within;
+mod word;
 
 pub use agents_tag::*;
 pub use agents_templates_tag::*;

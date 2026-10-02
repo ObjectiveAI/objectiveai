@@ -11,10 +11,10 @@ use super::{AgentsTag, AgentsTemplatesTag, AgentsTemplatesUntag, AgentsUntag, He
 /// [`tools::connect`](crate::daemon::endpoints::tools::connect),
 /// which joins somebody else's container on an authorization of the
 /// caller's and is the caller's alone. Every member is a [`Reach`] —
-/// `disabled`, `any`, or `only` what it names — or, for a tool with
-/// nothing to narrow, a [`Switch`], or, for one that tags, a
-/// [`Held`], `disabled` or `only` with each side `any` or `only` of
-/// its own; every member is always present,
+/// `"disabled"`, `"any"`, or what it names, flat — or, for a tool
+/// with nothing to narrow, a [`Switch`], or, for one that tags, a
+/// [`Held`], `"disabled"` or its two sides, each `"any"` or what it
+/// names; every member is always present,
 /// `disabled` when the container does not hold the tool, so that an
 /// edit replaces a member and never adds or removes one. What `only`
 /// names is a filter, the very shape the list of that family narrows
