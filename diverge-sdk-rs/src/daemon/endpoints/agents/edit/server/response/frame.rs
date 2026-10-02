@@ -20,7 +20,7 @@ use crate::shared::error::Error;
 ///
 /// [`NotFound`](Self::NotFound) and [`Active`](Self::Active) are
 /// ANSWERS: the daemon looked, and either no agent of the caller's
-/// has the name, or one does and a loop is running in it, and in
+/// is the one named, or one does and a loop is running in it, and in
 /// either case nothing was changed and nothing is retried — the
 /// caller has the wrong name, or waits for the loop to end and asks
 /// again. An [`Error`](Self::Error) is the absence of an answer: the
@@ -31,7 +31,7 @@ pub enum Frame {
     /// The agent mounts what the request stated, and its next run
     /// sees them. Tag `0`.
     Edited,
-    /// No agent of the caller's has the name; nothing was changed.
+    /// No agent of the caller's is the one named; nothing was changed.
     /// Tag `1`.
     NotFound,
     /// The agent is active — a loop is running in it — and was left

@@ -4,6 +4,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::reference;
+
 /// Ask the daemon to delete an agent, by name.
 ///
 /// The name is the one a [`create`](crate::daemon::endpoints::agents::create) gave
@@ -14,8 +16,10 @@ use serde::{Deserialize, Serialize};
 /// and ask again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The agent's name, as its create gave it.
-    pub name: String,
+    /// The agent: by its name, as its create gave it, or by its
+    /// template and its count, which name it once and for all. See
+    /// [`reference::Agent`].
+    pub agent: reference::Agent,
 }
 
 /// This frame's tag among the scope-opening requests.

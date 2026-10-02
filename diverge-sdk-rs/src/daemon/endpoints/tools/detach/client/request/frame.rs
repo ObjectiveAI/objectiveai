@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::reference;
+
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -18,10 +20,14 @@ use crate::wire::encode::{Encode, Writer};
 /// detached from its last active agent has its container stopped.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The tool's name, as its create gave it.
-    pub tool: String,
-    /// The agent's name, as its create gave it.
-    pub agent: String,
+    /// The tool: by its name, as its create or its connect gave it,
+    /// or by its template and its count, which name a created tool
+    /// once and for all. See [`reference::Tool`].
+    pub tool: reference::Tool,
+    /// The agent: by its name, as its create gave it, or by its
+    /// template and its count, which name it once and for all. See
+    /// [`reference::Agent`].
+    pub agent: reference::Agent,
 }
 
 /// This frame's tag among the scope-opening requests.

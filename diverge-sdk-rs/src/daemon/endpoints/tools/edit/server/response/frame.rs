@@ -22,7 +22,7 @@ use crate::shared::error::Error;
 ///
 /// [`NotFound`](Self::NotFound), [`Active`](Self::Active) and
 /// [`NotOwned`](Self::NotOwned) are ANSWERS: the daemon looked, and
-/// either no tool of the caller's has the name, or one does and its
+/// either no tool of the caller's is the one named, or one does and its
 /// container is running, or one does and it is a
 /// [`connect`](crate::daemon::endpoints::tools::connect)ed tool with
 /// no mounts of this caller's, and in every case nothing was changed
@@ -36,7 +36,7 @@ pub enum Frame {
     /// The tool mounts what the request stated, and its next run
     /// sees them. Tag `0`.
     Edited,
-    /// No tool of the caller's has the name; nothing was changed.
+    /// No tool of the caller's is the one named; nothing was changed.
     /// Tag `1`.
     NotFound,
     /// The tool is active — its container is running — and was left

@@ -6,7 +6,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A delete's answer: the agent is deleted, no agent has the name,
+/// A delete's answer: the agent is deleted, no agent is the one named,
 /// the agent is active, or a failure.
 ///
 /// A delete is one question and one reply, so there is exactly one of
@@ -20,7 +20,7 @@ use crate::shared::error::Error;
 ///
 /// [`NotFound`](Self::NotFound) and [`Active`](Self::Active) are
 /// ANSWERS: the daemon looked, and either no agent of the caller's
-/// has the name, or one does and a loop is running in it, and in
+/// is the one named, or one does and a loop is running in it, and in
 /// either case nothing was deleted and nothing is retried — the
 /// caller has the wrong name, or waits for the loop to end and asks
 /// again. An [`Error`](Self::Error) is the absence of an answer: the
@@ -31,7 +31,7 @@ pub enum Frame {
     /// The agent is deleted: its container stopped, its name free.
     /// Tag `0`.
     Deleted,
-    /// No agent of the caller's has the name; nothing was deleted.
+    /// No agent of the caller's is the one named; nothing was deleted.
     /// Tag `1`.
     NotFound,
     /// The agent is active — a loop is running in it — and was left

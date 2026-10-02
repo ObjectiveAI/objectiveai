@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::reference;
+
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, VolumeMount};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
@@ -27,8 +29,10 @@ use crate::wire::encode::{Encode, Writer};
 /// with a variant of its own.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The tool's name, as its create gave it.
-    pub name: String,
+    /// The tool: by its name, as its create or its connect gave it,
+    /// or by its template and its count, which name a created tool
+    /// once and for all. See [`reference::Tool`].
+    pub tool: reference::Tool,
     /// Volumes of the provider the tool is pinned to, as the
     /// create's [`Provider`](crate::daemon::endpoints::agents::create::client::request::Provider)
     /// names them: see [`VolumeMount`]. A tool pinned to no provider

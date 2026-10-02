@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::reference;
+
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, VolumeMount};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
@@ -24,8 +26,10 @@ use crate::wire::encode::{Encode, Writer};
 /// its for its life.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The agent's name, as its create gave it.
-    pub name: String,
+    /// The agent: by its name, as its create gave it, or by its
+    /// template and its count, which name it once and for all. See
+    /// [`reference::Agent`].
+    pub agent: reference::Agent,
     /// Volumes of the provider the agent's create pinned it to: see
     /// [`VolumeMount`]. An agent pinned to no provider mounts no
     /// volume, and a request that names one for such an agent is the

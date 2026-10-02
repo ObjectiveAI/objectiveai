@@ -19,7 +19,7 @@ use crate::shared::error::Error;
 /// # One answer, one failure
 ///
 /// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and
-/// no tool of the caller's has the name, and nothing is retried —
+/// no tool of the caller's is the one named, and nothing is retried —
 /// the caller has the wrong name. An [`Error`](Self::Error) is the
 /// absence of an answer: the daemon could not change the tool's
 /// tags, for whatever reason it knows, and the tags are as they were.
@@ -27,7 +27,7 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The tags are on the tool. Tag `0`.
     Tagged,
-    /// No tool of the caller's has the name; nothing changed.
+    /// No tool of the caller's is the one named; nothing changed.
     /// Tag `1`.
     NotFound,
     /// A failure. Tag `2`.

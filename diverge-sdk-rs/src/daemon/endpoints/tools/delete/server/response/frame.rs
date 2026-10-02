@@ -6,7 +6,7 @@ use crate::shared::error::Error;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// A delete's answer: the tool is deleted, no tool has the name, the
+/// A delete's answer: the tool is deleted, no tool is the one named, the
 /// tool is attached, or a failure.
 ///
 /// A delete is one question and one reply, so there is exactly one of
@@ -28,7 +28,7 @@ use crate::wire::encode::{Encode, Writer};
 pub enum Frame {
     /// The tool is deleted: its name free. Tag `0`.
     Deleted,
-    /// No tool of the caller's has the name; nothing was deleted.
+    /// No tool of the caller's is the one named; nothing was deleted.
     /// Tag `1`.
     NotFound,
     /// The tool is attached to at least one agent, and was left as

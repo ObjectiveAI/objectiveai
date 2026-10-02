@@ -7,7 +7,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// A detach's answer: the tool is detached from the agent, no tool or
-/// no agent has the name, the agent is active, or a failure.
+/// no agent is the one named, the agent is active, or a failure.
 ///
 /// A detach is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads

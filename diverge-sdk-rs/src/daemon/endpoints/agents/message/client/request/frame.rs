@@ -5,6 +5,8 @@ use crate::wire::encode::{Encode, Writer};
 use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::reference;
+
 /// Ask the daemon to send an agent a message.
 ///
 /// The name is the one a [`create`](crate::daemon::endpoints::agents::create)
@@ -16,8 +18,10 @@ use serde::{Deserialize, Serialize};
 /// error carries its words.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Frame {
-    /// The agent's name, as its create gave it.
-    pub name: String,
+    /// The agent: by its name, as its create gave it, or by its
+    /// template and its count, which name it once and for all. See
+    /// [`reference::Agent`].
+    pub agent: reference::Agent,
     /// The message's content, in order.
     pub content: Vec<ContentBlock>,
 }

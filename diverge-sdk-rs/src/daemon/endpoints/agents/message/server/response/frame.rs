@@ -28,7 +28,7 @@ use crate::shared::error::Error;
 /// nothing, and the reply is [`Delivered`](Self::Delivered) all the
 /// same: the response, not the cancel, says which was first. An
 /// [`Error`](Self::Error) is the absence of an answer: no agent of
-/// the client's has the name, the agent refused the message's
+/// the client's is the one named, the agent refused the message's
 /// content, or no run could start on it, in the daemon's or the
 /// agent's own words.
 #[derive(Debug, Clone, PartialEq)]

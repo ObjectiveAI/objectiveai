@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::reference;
+
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -15,8 +17,10 @@ use crate::wire::encode::{Encode, Writer};
 /// again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The tool's name, as its create gave it.
-    pub name: String,
+    /// The tool: by its name, as its create or its connect gave it,
+    /// or by its template and its count, which name a created tool
+    /// once and for all. See [`reference::Tool`].
+    pub tool: reference::Tool,
 }
 
 /// This frame's tag among the scope-opening requests.

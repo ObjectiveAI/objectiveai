@@ -7,7 +7,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// An attach's answer: the tool is attached to the agent, no tool or
-/// no agent has the name, or a failure.
+/// no agent is the one named, or a failure.
 ///
 /// An attach is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads

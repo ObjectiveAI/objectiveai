@@ -1,0 +1,25 @@
+//! One agent of the caller's, named either way.
+
+use serde::{Deserialize, Serialize};
+
+/// One agent of the caller's: by its name, or by its template and
+/// its count. See [`reference`](super) for which names what. Untagged
+/// JSON, one object either way; an object with members of both
+/// variants does not decode.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum Agent {
+    /// By name: `{"name":…}`.
+    Name {
+        /// The agent's name, as its create gave it.
+        name: String,
+    },
+    /// By template and count: `{"template":…,"count":…}`.
+    TemplateCount {
+        /// The template the agent was made from, by id.
+        template: String,
+        /// The agent's number among all agents of the caller's
+        /// ever made from that template, as its list item carries it.
+        count: u64,
+    },
+}

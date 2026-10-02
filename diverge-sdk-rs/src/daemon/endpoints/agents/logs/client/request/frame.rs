@@ -5,6 +5,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::reference;
+
 use super::ItemType;
 
 /// Ask the daemon for an agent's log, narrowed, and perhaps
@@ -65,8 +67,10 @@ use super::ItemType;
 /// [`ItemWrapper`]: crate::daemon::endpoints::agents::logs::server::response::ItemWrapper
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Frame {
-    /// The agent's name, as its create gave it.
-    pub name: String,
+    /// The agent: by its name, as its create gave it, or by its
+    /// template and its count, which name it once and for all. See
+    /// [`reference::Agent`].
+    pub agent: reference::Agent,
     /// The first `logs_index` to read, inclusive; absent, the log's
     /// first.
     #[serde(default, skip_serializing_if = "Option::is_none")]

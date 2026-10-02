@@ -4,6 +4,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::reference;
+
 /// Ask the daemon to put tags on a tool, by name.
 ///
 /// The name is the one a
@@ -12,8 +14,10 @@ use serde::{Deserialize, Serialize};
 /// A tag the tool held already is held still, and is not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The tool's name, as its create or its connect gave it.
-    pub name: String,
+    /// The tool: by its name, as its create or its connect gave it,
+    /// or by its template and its count, which name a created tool
+    /// once and for all. See [`reference::Tool`].
+    pub tool: reference::Tool,
     /// The tags to put on, one by one. Empty changes nothing and is not
     /// a failure.
     pub tags: Vec<String>,
