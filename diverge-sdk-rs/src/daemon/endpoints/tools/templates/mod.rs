@@ -1,8 +1,8 @@
 //! Tool templates: what a tool is made from, held by its hash.
 //!
 //! The shape and the id are the daemon's one
-//! [`template`](crate::daemon::template), led by [`ToolKind`] here,
-//! the `type` `"tool"` and nothing else: everything about a tool that is not its name, not the
+//! [`template`](crate::daemon::template), typed `"tool"`
+//! here: everything about a tool that is not its name, not the
 //! provider it runs on and not its own mounts. A caller makes one
 //! with [`create`] and names it afterwards by its id, so the same
 //! template made twice is one template; a [`tool`](super) is created
@@ -14,10 +14,8 @@
 //! each family lists and deletes its own, and the `type` keeps their
 //! ids apart.
 
-mod tool_kind;
 mod tool_type;
 
-pub use tool_kind::*;
 pub use tool_type::*;
 
 pub mod create;

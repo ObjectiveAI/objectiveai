@@ -4,30 +4,27 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::daemon::daemon_tools::DaemonTools;
 use crate::daemon::endpoints::agents::create::client::request::Image;
 use super::{ResourceDirectoryMount, ResourceFileMount};
 
 /// Everything an agent or a tool is made from that is the same for
-/// every one made from it: what it is for, the image, the limits, the
-/// resources mounted over FUSE, the arguments. What is not here is
+/// every one made from it: what it is for, the daemon's tools it
+/// holds, the image, the limits, the resources mounted over FUSE,
+/// the arguments. What is not here is
 /// what differs one to the next — the name, the provider it runs on,
 /// and the mounts of that provider's volumes — which the
 /// [agent's](crate::daemon::endpoints::agents::create) or the
 /// [tool's](crate::daemon::endpoints::tools::create) create states.
 ///
-/// # One shape, led by the family's own
+/// # One shape, typed
 ///
-/// `Kind` is what is the family's own, flattened into the front of
-/// the JSON:
-/// [`AgentKind`](crate::daemon::endpoints::agents::templates::AgentKind),
-/// the `type` `"agent"` and the daemon's
-/// [`builtin`](crate::daemon::builtin) tools the agents made from
-/// the template hold, or
-/// [`ToolKind`](crate::daemon::endpoints::tools::templates::ToolKind),
-/// the `type` `"tool"` alone. So an agent template is
-/// `{"type":"agent",…}` or `{"type":"agent","builtin":{…},…}` and a
-/// tool template `{"type":"tool",…}`, neither decoding as the other,
-/// and the two hashing apart however alike the rest.
+/// `Type` is the family's own single-value enum —
+/// [`AgentType`](crate::daemon::endpoints::agents::templates::AgentType)
+/// or [`ToolType`](crate::daemon::endpoints::tools::templates::ToolType)
+/// — so an agent template is `{"type":"agent",…}` and a tool template
+/// `{"type":"tool",…}`, neither decoding as the other, and the two
+/// hashing apart however alike the rest.
 ///
 /// # No provider, so that it travels
 ///
@@ -44,12 +41,15 @@ use super::{ResourceDirectoryMount, ResourceFileMount};
 /// container's name, its ports, its entrypoint and its environment
 /// are the provider's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Template<Kind> {
-    /// The family's own: the `type`, `agent` or `tool`, and whatever
-    /// else is that family's. Flattened, and first, so the hashed
-    /// JSON leads with the `type`.
-    #[serde(flatten)]
-    pub kind: Kind,
+pub struct Template<Type> {
+    /// What the template is for: the one value the family's type
+    /// admits, `agent` or `tool`. First, so the hashed JSON leads
+    /// with it.
+    pub r#type: Type,
+    /// The daemon's own tools every container made from this holds:
+    /// see [`DaemonTools`]. Absent, none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub daemon_tools: Option<DaemonTools>,
     /// The image: a name and a digest. See [`Image`].
     pub image: Image,
     /// How much memory the container may have, in BYTES.

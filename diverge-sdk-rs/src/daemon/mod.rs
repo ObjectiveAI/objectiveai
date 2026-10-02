@@ -10,16 +10,16 @@
 //! its own: agents, the tools attached to them, the templates both
 //! are made from — one shape, [`template`], shared by the two
 //! families' endpoints — and the resources served into them. The
-//! daemon's own tools, which an agent template hands the agents made
-//! from it, are [`builtin`]. Who
+//! daemon's own tools, which a template hands the agents and tools
+//! made from it, are [`daemon_tools`]. Who
 //! made each of those, and through whom, is [`creator`], carried by
 //! every list item; how a request names one of them, by name or
 //! once and for all, is [`reference`](mod@reference). The provider's endpoints are
 //! not the daemon's, and nothing here names them but what a daemon
 //! spawns an agent from.
 
-pub mod builtin;
 pub mod creator;
+pub mod daemon_tools;
 pub mod endpoints;
 pub mod reference;
 pub mod template;

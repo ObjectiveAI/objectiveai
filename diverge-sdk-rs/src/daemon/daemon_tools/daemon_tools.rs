@@ -4,13 +4,13 @@ use serde::{Deserialize, Serialize};
 
 use super::{Agents, AgentsCreate, AgentsDelete, AgentsEdit, Tags, TemplatesDelete};
 
-/// The daemon's tools an agent made from the template holds, one
-/// member each. A member present gives the agent that tool, as the
-/// member says; a member absent withholds it. Part of the template,
-/// and so of its hash; every member absent is the same as no
-/// `builtin` at all, and hashes the same.
+/// The daemon's tools an agent, or a tool, made from the template
+/// holds, one member each. A member present gives it that tool, as
+/// the member says; a member absent withholds it. Part of the
+/// template, and so of its hash; every member absent is `{}`, which
+/// is not the same bytes as no `daemon_tools` at all.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Builtin {
+pub struct DaemonTools {
     /// The tool over agents as they are: see [`Agents`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agents: Option<Agents>,

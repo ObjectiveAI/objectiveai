@@ -7,21 +7,20 @@
 //! it serves over FUSE into every container made from it, and the
 //! arguments — so that a template is shareable, the same template on
 //! any daemon hashing the same. The shape is one, [`Template`],
-//! written once here; what is the family's own leads it, the `type`
-//! first of all, `"agent"` for an
-//! [agent template](crate::daemon::endpoints::agents::templates) —
-//! followed by the daemon's [`builtin`](crate::daemon::builtin) tools
-//! the agents made from it hold, when it names any — and `"tool"`
-//! for a [tool template](crate::daemon::endpoints::tools::templates),
+//! written once here; which of the two it is for is its `type`, the
+//! first member, `"agent"` for an
+//! [agent template](crate::daemon::endpoints::agents::templates) and
+//! `"tool"` for a [tool template](crate::daemon::endpoints::tools::templates),
 //! so the two kinds never hash the same and a template's text says
-//! what it is for. Each family makes, lists and deletes its own.
+//! what it is for; the daemon's own tools it hands out,
+//! [`daemon_tools`](crate::daemon::daemon_tools), follow. Each family
+//! makes, lists and deletes its own.
 //!
 //! # The id is the template's hash
 //!
 //! The lowercase hexadecimal SHA-256 of the template's compact JSON —
-//! members in the order [`Template`] declares them, the family's own
-//! first and `type` the first of those, absent members omitted, no
-//! whitespace — which is the hash Go's
+//! members in the order [`Template`] declares them, `type` first,
+//! absent members omitted, no whitespace — which is the hash Go's
 //! `dirhash` writes for one file on each line of its summary.
 //! Sixty-four characters. The daemon computes it on a create and
 //! answers it; a caller may compute it the same way and need not.
