@@ -2,7 +2,7 @@
 //!
 //! The daemon keeps, for every agent it runs, every chunk the
 //! agent's run streamed — the user parts of each message that landed,
-//! everything the agent said, its tool calls and their answers, its
+//! each with who sent the message, everything the agent said, its tool calls and their answers, its
 //! usage and notifications — every error the run answered with, and
 //! when the agent began running on a provider, and which, and when
 //! it ceased to — each under an index that counts up and the time it

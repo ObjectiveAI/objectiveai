@@ -8,8 +8,8 @@ use super::Item;
 /// One entry: its place in the log, when it was kept, and the
 /// [`Item`] it holds — the item's own members flattened beside the
 /// two of the log's, so an entry reads as the chunk or error it is
-/// with `logs_index` and `created` added. Whose message a user part
-/// is, its own `key` says.
+/// with `logs_index` and `created` added. Which message a user part
+/// is of, its own `key` says; who sent that message, its `sender`.
 ///
 /// `logs_index` rather than `id`, because a tool call and a tool
 /// response carry an `id` of their own, and flattening would put the
