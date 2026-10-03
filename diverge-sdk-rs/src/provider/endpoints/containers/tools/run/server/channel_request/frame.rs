@@ -168,7 +168,7 @@ pub enum Frame<'a> {
     /// Every `truncate(2)`, `ftruncate(2)` and `O_TRUNC` open.
     FuseTruncate(fuse::truncate::request::Request<'a>),
     /// Set some attributes of an entry the caller mounted live. Tag
-    /// `26`.
+    /// `27`.
     ///
     /// Every `chmod(2)`, `chown(2)` and `utimensat(2)`.
     FuseSetattr(fuse::setattr::request::Request<'a>),
