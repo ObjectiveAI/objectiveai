@@ -8,8 +8,9 @@ use crate::daemon::endpoints::agents::create::client::request::Image;
 use super::{ResourceDirectoryMount, ResourceFileMount};
 
 /// Everything an agent or a tool is made from that is the same for
-/// every one made from it: what it is for, the image, the limits, the
-/// resources mounted over FUSE, the arguments. What is not here is
+/// every one made from it: what it is for, how to make one in words,
+/// the image, the limits, the resources mounted over FUSE, the
+/// arguments. What is not here is
 /// what differs one to the next — the name, the provider it runs on,
 /// and the mounts of that provider's volumes — which the
 /// [agent's](crate::daemon::endpoints::agents::create) or the
@@ -46,6 +47,17 @@ pub struct Template<Type> {
     /// admits, `agent` or `tool`. First, so the hashed JSON leads
     /// with it.
     pub r#type: Type,
+    /// How to make a container from this, in words, for whoever does:
+    /// what the create has to supply that a template cannot name —
+    /// the volumes and FUSE mounts it needs and at what paths, the
+    /// daemon's own tools it needs and how far each has to reach,
+    /// which agents it has to be able to message and which have to
+    /// reach it, and anything else about deploying it. The template
+    /// is shareable and this travels with it, inside the hash; a
+    /// template with nothing to say leaves it absent. Not handed to
+    /// the container, and read by nothing but a person.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     /// The image: a name and a digest. See [`Image`].
     pub image: Image,
     /// How much memory the container may have, in BYTES.
