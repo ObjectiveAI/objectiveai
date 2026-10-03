@@ -1,11 +1,13 @@
 //! Uploading a resource: one file, or one directory of files.
 //!
-//! A client opens the scope saying which kind, and for a directory
-//! which files; the daemon asks for each file's content on a channel
+//! A client opens the scope saying which kind, what the resource is
+//! in words, and for a directory which files; the daemon asks for
+//! each file's content on a channel
 //! of its own, the client answers each in pieces and finishes it, and
 //! when every channel has finished the daemon answers once with the
-//! resource's id — new, or held already — or a failure, and the
-//! scope finishes.
+//! resource's id — new, or held already, in which case the
+//! description given is the resource's from then on — or a failure,
+//! and the scope finishes.
 //!
 //! Split by who SENDS, as everywhere else. The kind and the content
 //! are in [`client`]; the asks for the content and the answer are in

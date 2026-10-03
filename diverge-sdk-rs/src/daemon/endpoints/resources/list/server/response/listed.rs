@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::resources::Kind;
 
-/// One resource of the caller's: its id, its kind, when it was
-/// uploaded, and its size.
+/// One resource of the caller's: its id, its kind, what it is in
+/// words, when it was uploaded, and its size.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Listed {
     /// The id: the resource's hash, as
@@ -14,6 +14,9 @@ pub struct Listed {
     pub id: String,
     /// A file, or a directory.
     pub kind: Kind,
+    /// What the resource is, in words: the description of its latest
+    /// upload.
+    pub description: String,
     /// When the upload held it.
     pub created: DateTime<Utc>,
     /// How many bytes it holds: the file's length, or the sum of a

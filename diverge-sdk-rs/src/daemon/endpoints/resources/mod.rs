@@ -8,6 +8,8 @@
 //! mounts it. There is no name: a resource is known by its id, which
 //! is its hash, so the same content uploaded twice is one resource
 //! and a caller that holds the bytes knows the id without asking.
+//! What a resource is FOR is its description, given on every upload
+//! and kept beside the bytes, outside the hash.
 //! [`list`] names every resource the caller has; [`delete`] removes
 //! one no agent mounts.
 //!

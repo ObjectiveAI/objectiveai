@@ -20,8 +20,9 @@ use crate::wire::encode::{Encode, Writer};
 /// # Exists is not a failure
 ///
 /// [`Exists`](Self::Exists) is an ANSWER: the caller holds exactly
-/// these bytes already, and the daemon kept nothing new — the id
-/// answered is the one the caller has, and nothing is retried. An
+/// these bytes already, and the daemon kept nothing new but the
+/// request's description, which is the resource's from then on — the
+/// id answered is the one the caller has, and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the resource
 /// could not be held — a content channel ended in an error, a path
 /// was never finished, whatever the daemon knows — and nothing is
@@ -31,7 +32,8 @@ pub enum Frame {
     /// The resource is held, and this is its id. Tag `0`.
     Uploaded(String),
     /// The same bytes were held before, and this is their id; nothing
-    /// changed. Tag `1`.
+    /// changed but the description, which is now the request's. Tag
+    /// `1`.
     Exists(String),
     /// A failure. Tag `2`.
     ///

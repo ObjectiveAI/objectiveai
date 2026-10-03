@@ -8,21 +8,37 @@ use crate::wire::encode::{Encode, Writer};
 /// Ask the daemon to hold a resource: a file, or a directory of the
 /// files named.
 ///
-/// JSON-tagged by `kind`. A [`File`](Self::File) carries nothing
-/// more: the daemon opens one content channel, and the file's bytes
-/// answer it. A [`Directory`](Self::Directory) names every file in
-/// it, by path from the directory's root, `/`-separated, no component
-/// empty, `.` or `..`, no path twice, and at least one; the daemon
-/// opens one content channel per path. No name is chosen here: the
-/// resource's id is its hash, which the daemon answers once it holds
-/// the bytes.
+/// JSON-tagged by `kind`. A [`File`](Self::File) carries its
+/// description and nothing more: the daemon opens one content
+/// channel, and the file's bytes answer it. A
+/// [`Directory`](Self::Directory) names every file in it, by path
+/// from the directory's root, `/`-separated, no component empty, `.`
+/// or `..`, no path twice, and at least one; the daemon opens one
+/// content channel per path. No name is chosen here: the resource's
+/// id is its hash, which the daemon answers once it holds the bytes.
+///
+/// # The description is the caller's, not the content's
+///
+/// A description says what the resource is for, in words, for
+/// whoever reads a listing. It is not in the hash: the same bytes
+/// uploaded with two descriptions are one resource, and the
+/// description the daemon keeps is the latest upload's, so an upload
+/// answered [`Exists`](crate::daemon::endpoints::resources::upload::server::response::Frame::Exists)
+/// has still said what the resource is.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Frame {
     /// One file.
-    File,
+    File {
+        /// What the resource is, in words. Required; the daemon
+        /// compares it to nothing and reads it for nothing.
+        description: String,
+    },
     /// One directory of files.
     Directory {
+        /// What the resource is, in words. Required; the daemon
+        /// compares it to nothing and reads it for nothing.
+        description: String,
         /// The paths of its files, from the directory's root.
         files: Vec<String>,
     },
