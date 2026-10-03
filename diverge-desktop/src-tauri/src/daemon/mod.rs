@@ -6,7 +6,7 @@
 //! the SDK's caller half is the whole of meeting up with him. Nothing above
 //! this module knows which one it holds.
 //!
-//! Since `87015ef92` the daemon has no volumes: they are each machine's,
+//! Since `e28031bbd` the daemon has no volumes: they are each machine's,
 //! behind the other seam, [`crate::machines`].
 //!
 //! Three methods are **ours until the wire has them** — `providers_*`. The

@@ -10,10 +10,10 @@ inherits it.
   `WireDaemon` when a daemon ships. The app doesn't use the tools verbs for rooms: a daemon-attached tool bypasses the app, which
   seals agents' calls and asks the person first.
 - `src-tauri/src/machines.rs` — `Machines`: the provider protocol's volume verbs, addressed to one machine. Since
-  `87015ef92` a volume is its provider's own; the daemon has none. The wire doesn't say yet how the app reaches a machine's verbs.
+  `e28031bbd` a volume is its provider's own; the daemon has none. The wire doesn't say yet how the app reaches a machine's verbs.
   The stand-in daemon implements both seams (it knows every agent's mounts, so it keeps every machine's holds).
 - Meeting up with the real daemon = writing `WireDaemon` and `WireMachines`, nothing else.
-- Everything returns **the SDK's real `diverge_sdk` types** (one crate since `d238949ba`, no features). Every
+- Everything returns **the SDK's real `diverge_sdk` types** (one crate since `9b338da70`, no features). Every
   conversion to our view types is an exhaustive `match` (never `_ =>`) so a new variant from him fails our build.
 - The contract is `diverge-sdk-rs/src/{daemon,provider/endpoints/{volumes,containers/tools},shared,container_proxy/inside}/**` at `origin/p2p-provider-binary` —
   never a doc. `CONTRACT_PIN` holds the commit we built against. Start every session with the drift check in it and
