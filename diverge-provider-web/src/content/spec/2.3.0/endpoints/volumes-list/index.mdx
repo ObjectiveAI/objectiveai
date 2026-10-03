@@ -1,12 +1,12 @@
 ---
 title: 'volumes::list'
-summary: 'Tag 3: a client asks which volumes are available to it; the server sends exactly one response carrying every such volume by name, size, age and mode, or an error, and the scope finishes.'
-order: 3
+summary: 'Tag 4: a client asks which volumes are available to it; the server sends exactly one response carrying every such volume by name, size, age and mode, or an error, and the scope finishes.'
+order: 4
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`3` and nothing more. The server sends exactly one response, which is
+`4` and nothing more. The server sends exactly one response, which is
 either the listing or an error. The response finish follows the
 response, and no frame follows the finish.
 

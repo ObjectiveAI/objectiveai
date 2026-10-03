@@ -1,0 +1,29 @@
+---
+title: 'Authorize List'
+summary: 'Tag 4: the server asks the runner whether a lister may be told of this container, carrying the lister’s peer address as the server observed it and the identity the lister’s connection was authorized under; the runner answers with exactly one byte.'
+order: 4
+draft: false
+---
+
+The server opens this channel on the run scope when a
+[containers::list](/endpoints/containers-list/) request names the
+identity of this run. The runner's answer decides whether the
+container is sent on the list scope.
+
+- **The request.** The tag byte `4` followed by the address and the
+  identity as JSON. [Request](/endpoints/containers-agents-run/server/authorize-list/request/) states its form.
+- **The response.** Exactly one channel response of one byte and the
+  channel response finish. [Response](/endpoints/containers-agents-run/server/authorize-list/response/) states the
+  sequence.
+- **Two claims, both attested.** The address is the peer address of
+  the lister's connection as the server observed it. The identity is
+  the one under which the server authorized the lister's connection,
+  as [Authorization](/authorization/) provides. The lister asserts
+  nothing on this channel.
+- **Every runner at once.** The server opens this channel on every
+  run the identity holds, without waiting on any other's answer, and
+  sends each container the moment its own answer arrives.
+- **Seeing is not joining.** A yes tells the lister the container's
+  id and family, and nothing else. A connector that joins is asked
+  for on the [authorize](/endpoints/containers-agents-run/server/authorize/) channel,
+  with its own authorization.

@@ -1,0 +1,69 @@
+---
+title: 'containers::list'
+summary: 'Tag 3: a client names an identity; the server asks the runner of every container that identity runs, on its run scope, whether the client may see it, sends each container the moment its runner answers yes, and finishes when every runner has answered or gone.'
+order: 3
+draft: false
+---
+
+A client, the lister, opens the scope with a request whose payload is
+the tag byte `3` followed by the request as JSON: an identity, named
+by the mode it authenticates in. The server asks the runner of every
+container that identity is running whether the lister may see it,
+and sends the lister each container whose runner says so, one
+response each, the moment that answer arrives. The response finish
+follows once every runner has answered or gone, and no frame follows
+the finish. This section states what the server does, in the order it
+does it. It states nothing about the lister or the runners.
+
+- **The request.** [Request](/endpoints/containers-list/request/) states its form.
+- **The response.** [Response](/endpoints/containers-list/response/) states the responses and
+  the sequence of the main stream.
+- **The channels.** Neither side opens a channel on a list scope.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Endpoints](/endpoints/) provides.
+2. **The server finds the containers.** The server finds every
+   container it is running whose runner is the identity named: every
+   [containers::agents::run](/endpoints/containers-agents-run/) and
+   every [containers::tools::run](/endpoints/containers-tools-run/)
+   scope the server holds open under that identity. A container is
+   found by its runner alone: a container the identity is attached to
+   as a connector is not among them. An identity that runs no
+   container is answered by the response finish with no response
+   before it.
+3. **The server asks every runner, all at once.** For each container
+   found, the server opens an
+   [authorize-list](/endpoints/containers-agents-run/server/authorize-list/)
+   channel on the RUN scope of the container, carrying the peer
+   address of the lister's connection as the server observed it and
+   the identity under which the lister's connection was authorized,
+   as [Authorization](/authorization/) provides. The server opens
+   every such channel without waiting on any other's answer.
+4. **The server sends each container as its runner allows.** The byte
+   `1` on a channel is answered on the list scope by exactly one
+   response carrying that container, sent when the byte arrives and
+   not held for any other runner. The byte `0`, a channel response
+   finish with no frame before it, and a runner that is gone are
+   each answered by nothing: the container is not sent.
+5. **The server ends the scope.** When every channel it opened has
+   finished, the server sends the response finish.
+
+## The rules that hold throughout
+
+- **No timeout.** The server times nothing out: a runner that does
+  not answer holds the scope open.
+- **No order.** The server sends containers in the order the runners'
+  answers arrive, and promises no other.
+- **Nothing but the id.** A container is sent as its id and its
+  family, and nothing else of it: not its image, not its mounts, not
+  who is attached to it.
+- **The lister's own containers.** A lister that names the identity
+  its own connection was authorized under is asked on its own run
+  scopes like any other lister.
+- **Seeing is not joining.** A container sent is a container named.
+  A lister that joins one opens a
+  [containers::tools::connect](/endpoints/containers-tools-connect/)
+  with its id and an authorization, and the runner is asked again.

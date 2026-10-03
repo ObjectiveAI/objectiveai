@@ -1,0 +1,48 @@
+---
+title: 'Response'
+summary: 'Zero or more responses, each the byte 0 and one container as JSON, sent as each runner allows; or the byte 1 and an error; and the response finish.'
+order: 2
+draft: false
+---
+
+```text
+[0][container JSON …]   per container, as its runner allows
+[1][error JSON …]       at most once, last
+```
+
+- **The sequence.** Zero or more responses of the byte `0` followed
+  by one container as JSON, in the order the runners' answers arrive;
+  the response finish follows the last of them. Or: zero or more such
+  responses, exactly one response of the byte `1` followed by an
+  error as JSON, and the response finish. No response follows the
+  error.
+- **`id`.** The id the container's run was answered with: the string
+  a [containers::tools::connect](/endpoints/containers-tools-connect/)
+  request names.
+- **`family`.** The string `agent` for a container a
+  [containers::agents::run](/endpoints/containers-agents-run/) made,
+  or `tool` for one a
+  [containers::tools::run](/endpoints/containers-tools-run/) made. An
+  agent container takes no connector.
+- **A finish with nothing before it.** The identity runs no
+  container, or no runner allowed the lister to see one. The server
+  does not say which.
+- **The error.** An error states that the server did not ask, and
+  that nothing was determined about the containers the lister was
+  not sent. Containers sent before the error were sent as their
+  runners allowed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/list/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/list/server/response/frame.rs
+```
+
+and by `diverge-sdk-rs/src/provider/endpoints/containers/list/server/response/container.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/list/server/response/container.rs
+```
+
+and by `diverge-sdk-rs/src/provider/endpoints/containers/list/server/response/family.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/list/server/response/family.rs
+```

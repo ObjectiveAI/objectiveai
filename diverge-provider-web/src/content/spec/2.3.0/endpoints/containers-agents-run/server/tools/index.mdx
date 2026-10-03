@@ -1,7 +1,7 @@
 ---
 title: 'Tools'
-summary: 'Tag 4: the server asks the client to deploy the tool containers the container declared at registration, carrying them verbatim; the client answers with exactly one channel response, deployed or an error, and the channel response finish; anything but a deploy is the run’s error.'
-order: 4
+summary: 'Tag 5: the server asks the client to deploy the tool containers the container declared at registration, carrying them verbatim; the client answers with exactly one channel response, deployed or an error, and the channel response finish; anything but a deploy is the run’s error.'
+order: 5
 draft: false
 ---
 
@@ -15,7 +15,7 @@ client's answer decides whether the run goes on.
   sent, beside the FUSE mounts. Exactly once per run, and never on a
   connect scope. The server opens no tools channel when the list is
   empty.
-- **The request.** The tag byte `4` followed by the tools as JSON.
+- **The request.** The tag byte `5` followed by the tools as JSON.
   [Request](/endpoints/containers-agents-run/server/tools/request/) states its form.
 - **The response.** Exactly one channel response, deployed or an
   error, and the channel response finish.
