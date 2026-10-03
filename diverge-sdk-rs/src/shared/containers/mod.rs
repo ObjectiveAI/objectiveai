@@ -29,7 +29,8 @@
 //! The PROVIDER asks the caller on its own account: [`oci`] whether
 //! the caller holds an image and, when it does, for its manifest and
 //! blobs, [`tools`] to deploy the tool containers the container
-//! declared, and [`authorize`] whether a connector may join.
+//! declared, and [`authorize`] whether a connector may join, or a lister may
+//! see.
 //!
 //! [`schema`] is what every container answers about its arguments,
 //! the same exchange in all three scopes. [`enqueue`] and [`dequeue`]

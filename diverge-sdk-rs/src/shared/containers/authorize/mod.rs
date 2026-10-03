@@ -3,7 +3,7 @@
 //! A [`Connect`](crate::shared::containers::request::Connect) arrives
 //! at the provider carrying an authorization the provider cannot
 //! judge, so the provider asks whoever runs the container: it opens a
-//! channel on the run scope with [`request::Authorize`] — where the
+//! channel on the run scope with [`request::AuthorizeConnect`] — where the
 //! connector's socket came from, and what it offered — and the runner
 //! answers with one [`response::Frame`], yes or no, then the channel
 //! finishes. The connect scope opens on a yes and is refused on a no.
@@ -11,7 +11,7 @@
 //! A second ask has the same answer. A
 //! [`containers::list`](crate::provider::endpoints::containers::list)
 //! names an identity, and the provider asks every container that
-//! identity runs, on its run scope, with [`request::List`] — who is
+//! identity runs, on its run scope, with [`request::AuthorizeList`] — who is
 //! asking, attested — whether the lister may see it; the runner
 //! answers with the same one [`response::Frame`], and the container
 //! is listed on a yes and not on a no.

@@ -17,7 +17,7 @@ use crate::shared::mcp;
 /// | `0` | [`OciManifest`](Self::OciManifest) |
 /// | `1` | [`OciBlob`](Self::OciBlob) |
 /// | `2` | [`OciHas`](Self::OciHas) |
-/// | `3` | [`Authorize`](Self::Authorize) |
+/// | `3` | [`AuthorizeConnect`](Self::AuthorizeConnect) |
 /// | `4` | [`AuthorizeList`](Self::AuthorizeList) |
 /// | `5` | [`Tools`](Self::Tools) |
 /// | `6` | [`Write`](Self::Write) |
@@ -77,17 +77,17 @@ pub enum Frame<'a> {
     ///
     /// Opened when one arrives; see
     /// [`authorize`](crate::shared::containers::authorize).
-    Authorize(authorize::request::Authorize),
+    AuthorizeConnect(authorize::request::AuthorizeConnect),
     /// Ask the caller whether a lister may see this container: who
     /// asks, attested. Tag `4`.
-    AuthorizeList(authorize::request::List),
-    /// Deploy the tools the container declared. Tag `4`.
+    AuthorizeList(authorize::request::AuthorizeList),
+    /// Deploy the tools the container declared. Tag `5`.
     ///
     /// Opened once, after the proxy's `Begun` carried a non-empty
     /// list and before the id; never on a connect. See
     /// [`tools`](crate::shared::containers::tools).
     Tools(tools::request::Request<'a>),
-    /// Send the content for a write. Tag `5`.
+    /// Send the content for a write. Tag `6`.
     ///
     /// Opened in answer to a write the caller started. A write cannot
     /// carry its own content — only a responder can finish a channel —
@@ -95,75 +95,75 @@ pub enum Frame<'a> {
     /// [`write_bytes`](crate::shared::containers::write_bytes).
     Write(write_bytes::request::Request),
     /// The provider's half of a database connection the container
-    /// opened. Tag `6`.
+    /// opened. Tag `7`.
     ///
     /// What comes back is everything the database says; the caller
     /// opens the other half, or declines. See
     /// [`postgres`](crate::shared::containers::postgres).
     Postgres(postgres::request::Postgres),
-    /// Run a command the container asked for. Tag `7`.
+    /// Run a command the container asked for. Tag `8`.
     ///
     /// Opaque bytes in the CLI's vocabulary; the items come back one
     /// per frame. See [`command`](crate::shared::containers::command).
     Command(command::request::Request<'a>),
-    /// Read a vault key. Tag `8`.
+    /// Read a vault key. Tag `9`.
     VaultGet(vault::get::request::Request<'a>),
-    /// Write a vault key. Tag `9`.
+    /// Write a vault key. Tag `10`.
     VaultSet(vault::set::request::Request<'a>),
-    /// Remove a vault key. Tag `10`.
+    /// Remove a vault key. Tag `11`.
     VaultDelete(vault::delete::request::Request<'a>),
-    /// Hold a vault key's lock. Tag `11`.
+    /// Hold a vault key's lock. Tag `12`.
     VaultLock(vault::lock::request::Request<'a>),
-    /// Release a vault key's lock. Tag `12`.
+    /// Release a vault key's lock. Tag `13`.
     ///
     /// The five vault asks are the container's; see
     /// [`vault`](crate::shared::containers::vault) for what each
     /// carries and how a lock behaves.
     VaultUnlock(vault::unlock::request::Request<'a>),
-    /// What tools the caller's servers have. Tag `13`.
+    /// What tools the caller's servers have. Tag `14`.
     ///
     /// The container asking OUTWARD: an agent's tool calls go to
     /// servers that live with the caller, so the five exchanges in
     /// [`shared::mcp`](crate::shared::mcp) travel this direction too.
     McpListTools(mcp::list_tools::request::Request),
-    /// What resources they have. Tag `14`.
+    /// What resources they have. Tag `15`.
     McpListResources(mcp::list_resources::request::Request),
-    /// Run one of their tools. Tag `15`.
+    /// Run one of their tools. Tag `16`.
     McpCallTool(mcp::call_tool::request::Request),
-    /// Read one of their resources. Tag `16`.
+    /// Read one of their resources. Tag `17`.
     McpReadResource(mcp::read_resource::request::Request),
-    /// Everything they say on their own account. Tag `17`.
+    /// Everything they say on their own account. Tag `18`.
     McpNotifications(mcp::notifications::request::Request),
     /// Read a piece of a file the caller mounted live, by the mount's
-    /// id, the file's path in it, an offset and a length. Tag `18`.
+    /// id, the file's path in it, an offset and a length. Tag `19`.
     ///
     /// The container's proxy asking on behalf of a FUSE mount: every
     /// `read(2)` of the file. See
     /// [`fuse`](crate::shared::containers::fuse).
     FuseRead(fuse::read::request::Request<'a>),
     /// Write a piece of a file the caller mounted live, in place at
-    /// an offset. Tag `19`.
+    /// an offset. Tag `20`.
     ///
     /// Every `write(2)` of the file.
     FuseWrite(fuse::write::request::Request<'a>),
-    /// List a directory of a tree the caller mounted live. Tag `20`.
+    /// List a directory of a tree the caller mounted live. Tag `21`.
     ///
     /// Every listing in a directory mount: names and kinds.
     FuseList(fuse::list::request::Request<'a>),
-    /// Remove a file or an empty directory of such a tree. Tag `21`.
+    /// Remove a file or an empty directory of such a tree. Tag `22`.
     FuseRemove(fuse::remove::request::Request<'a>),
-    /// Rename an entry within such a tree. Tag `22`.
+    /// Rename an entry within such a tree. Tag `23`.
     FuseRename(fuse::rename::request::Request<'a>),
-    /// Make a directory in such a tree. Tag `23`.
+    /// Make a directory in such a tree. Tag `24`.
     FuseMkdir(fuse::mkdir::request::Request<'a>),
     /// What an entry the caller mounted live is: kind, size, mode,
-    /// owner, group and times. Tag `24`.
+    /// owner, group and times. Tag `25`.
     ///
     /// Every attribute of a file mount, and every lookup and
     /// attribute of an entry in a directory mount: a `stat` costs
     /// fifty-seven bytes back, not the file.
     FuseStat(fuse::stat::request::Request<'a>),
-    /// Set a file the caller mounted live to a length. Tag `25`.
+    /// Set a file the caller mounted live to a length. Tag `26`.
     ///
     /// Every `truncate(2)`, `ftruncate(2)` and `O_TRUNC` open.
     FuseTruncate(fuse::truncate::request::Request<'a>),
@@ -183,8 +183,8 @@ const OCI_BLOB: u8 = 1;
 /// Tag for [`Frame::OciHas`].
 const OCI_HAS: u8 = 2;
 
-/// Tag for [`Frame::Authorize`].
-const AUTHORIZE: u8 = 3;
+/// Tag for [`Frame::AuthorizeConnect`].
+const AUTHORIZE_CONNECT: u8 = 3;
 
 /// Tag for [`Frame::AuthorizeList`].
 const AUTHORIZE_LIST: u8 = 4;
@@ -278,8 +278,8 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[OCI_HAS]);
                 request.encode(out).map_err(FrameEncodeError::Json)
             }
-            Frame::Authorize(authorize) => {
-                out.extend_from_slice(&[AUTHORIZE]);
+            Frame::AuthorizeConnect(authorize) => {
+                out.extend_from_slice(&[AUTHORIZE_CONNECT]);
                 serde_json::to_writer(out, authorize)
                     .map_err(FrameEncodeError::Json)
             }
@@ -436,9 +436,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             OCI_HAS => oci::has::request::Request::decode(rest)
                 .map(Frame::OciHas)
                 .map_err(FrameError::Oci),
-            AUTHORIZE => serde_json::from_slice(rest)
-                .map(Frame::Authorize)
-                .map_err(FrameError::Authorize),
+            AUTHORIZE_CONNECT => serde_json::from_slice(rest)
+                .map(Frame::AuthorizeConnect)
+                .map_err(FrameError::AuthorizeConnect),
             AUTHORIZE_LIST => serde_json::from_slice(rest)
                 .map(Frame::AuthorizeList)
                 .map_err(FrameError::AuthorizeList),
@@ -532,7 +532,7 @@ pub enum FrameError {
     /// An image ask did not parse.
     Oci(serde_json::Error),
     /// The authorization request did not parse.
-    Authorize(serde_json::Error),
+    AuthorizeConnect(serde_json::Error),
     /// The listing authorization request did not parse.
     AuthorizeList(serde_json::Error),
     /// The tools did not parse.
@@ -564,7 +564,7 @@ impl fmt::Display for FrameError {
             FrameError::Oci(error) => {
                 write!(f, "image ask did not parse: {error}")
             }
-            FrameError::Authorize(error) => {
+            FrameError::AuthorizeConnect(error) => {
                 write!(f, "authorization request did not parse: {error}")
             }
             FrameError::AuthorizeList(error) => {
@@ -590,7 +590,7 @@ impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             FrameError::Oci(error)
-            | FrameError::Authorize(error)
+            | FrameError::AuthorizeConnect(error)
             | FrameError::AuthorizeList(error)
             | FrameError::Tools(error)
             | FrameError::McpParams(error) => Some(error),

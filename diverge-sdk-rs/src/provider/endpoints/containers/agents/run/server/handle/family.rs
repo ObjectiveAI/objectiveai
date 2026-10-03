@@ -206,7 +206,7 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
                 name: name.to_string(),
                 digest: digest.to_string(),
             }),
-            Own::Authorize(authorize) => ask::Frame::Authorize(authorize),
+            Own::AuthorizeConnect(authorize) => ask::Frame::AuthorizeConnect(authorize),
             Own::AuthorizeList(list) => ask::Frame::AuthorizeList(list),
             Own::Tools(declared) => ask::Frame::Tools(tools::request::Request {
                 tools: Cow::Borrowed(declared),

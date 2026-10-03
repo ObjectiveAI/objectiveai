@@ -1,4 +1,4 @@
-//! What a runner answers on an authorize channel.
+//! What a runner answers on an authorize channel, connect or list.
 
 use std::fmt;
 
@@ -8,7 +8,7 @@ use crate::wire::encode::{Encode, Writer};
 /// Yes or no.
 ///
 /// The whole answer to an
-/// [`Authorize`](super::super::request::Authorize), and one frame is
+/// [`AuthorizeConnect`](super::super::request::AuthorizeConnect), and one frame is
 /// all there is — this is not a stream, and a channel carrying one of
 /// these finishes immediately after.
 ///

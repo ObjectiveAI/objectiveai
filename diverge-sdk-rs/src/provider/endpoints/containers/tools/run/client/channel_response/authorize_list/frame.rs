@@ -5,6 +5,6 @@
 /// [`authorize::response::Frame`](crate::shared::containers::authorize::response::Frame).
 ///
 /// An alias rather than a re-export, for the reason
-/// [`authorize`](super::super::authorize) gives: the path says this
+/// [`authorize_connect`](super::super::authorize_connect) gives: the path says this
 /// scope's answer lives here, and it does.
 pub type Frame = crate::shared::containers::authorize::response::Frame;

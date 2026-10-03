@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 /// attested one is not a bug in the ordinary sense; it is the whole of
 /// how this kind of check gets defeated.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Authorize {
+pub struct AuthorizeConnect {
     /// Where the connector's socket comes from.
     ///
     /// What the PROVIDER sees, which is not always where the connector

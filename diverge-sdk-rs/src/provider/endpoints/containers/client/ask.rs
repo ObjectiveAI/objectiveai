@@ -27,9 +27,9 @@ pub enum Ask {
     /// Whether the caller holds an image: its name, its digest.
     OciHas(String, String),
     /// Whether a connector may attach.
-    Authorize(authorize::request::Authorize),
+    AuthorizeConnect(authorize::request::AuthorizeConnect),
     /// Whether a lister may see the container.
-    AuthorizeList(authorize::request::List),
+    AuthorizeList(authorize::request::AuthorizeList),
     /// The tools the container declared, to deploy.
     Tools(Vec<Tool>),
     /// The content of a write this caller started, by its id.
@@ -88,7 +88,7 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
-            Frame::Authorize(request) => Ask::Authorize(request),
+            Frame::AuthorizeConnect(request) => Ask::AuthorizeConnect(request),
             Frame::AuthorizeList(request) => Ask::AuthorizeList(request),
             Frame::Tools(request) => Ask::Tools(request.tools.into_owned()),
             Frame::Write(request) => Ask::Write(request.write_id),
@@ -146,7 +146,7 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
-            Frame::Authorize(request) => Ask::Authorize(request),
+            Frame::AuthorizeConnect(request) => Ask::AuthorizeConnect(request),
             Frame::AuthorizeList(request) => Ask::AuthorizeList(request),
             Frame::Tools(request) => Ask::Tools(request.tools.into_owned()),
             Frame::Write(request) => Ask::Write(request.write_id),

@@ -54,8 +54,8 @@ pub(crate) async fn answer<O, A, T, P, C, V, M, F>(
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciHas(name, digest) => oci::has(&handle, scope, channel, name, digest, answerers.oci).await,
-        Ask::Authorize(request) => {
-            authorize::authorize(&handle, scope, channel, request, answerers.authorizer).await
+        Ask::AuthorizeConnect(request) => {
+            authorize::authorize_connect(&handle, scope, channel, request, answerers.authorizer).await
         }
         Ask::AuthorizeList(request) => {
             authorize::authorize_list(&handle, scope, channel, request, answerers.authorizer).await

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Nothing, here. The provider relays it to whoever holds the
 /// container's run scope, as an
-/// [`Authorize`](crate::shared::containers::authorize::request::Authorize),
+/// [`AuthorizeConnect`](crate::shared::containers::authorize::request::AuthorizeConnect),
 /// and the answer to that is whether this scope opens.
 ///
 /// Which is why the credential is opaque. A provider that had to

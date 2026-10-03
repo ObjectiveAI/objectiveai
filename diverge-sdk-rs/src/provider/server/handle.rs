@@ -39,7 +39,7 @@ use crate::shared::error::Error;
 /// is the peer the socket came from: it is handed to the
 /// [`UnbrokeredAuthorizer`] beside the credential, and it rides a
 /// connector's
-/// [`Authorize`](crate::shared::containers::authorize::request::Authorize).
+/// [`AuthorizeConnect`](crate::shared::containers::authorize::request::AuthorizeConnect).
 /// It is a signal rather than an identity.
 ///
 /// The rest are the provider's capabilities, shared because scopes run

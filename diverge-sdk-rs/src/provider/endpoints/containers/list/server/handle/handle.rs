@@ -28,7 +28,7 @@ use crate::wire::server::scope_handle::ScopeHandle;
 /// 1. Every container the identity runs, found in the [`Directory`]
 ///    by its runner. None is a scope that finishes with nothing.
 /// 2. Each runner asked, on its RUN scope, at once and all together:
-///    an [`List`](authorize::request::List) carrying the lister's
+///    an [`List`](authorize::request::AuthorizeList) carrying the lister's
 ///    address — this connection's peer, attested — and the identity
 ///    this connection was authorized under, attested too. One frame
 ///    answers each.
@@ -50,7 +50,7 @@ pub async fn handle(
 ) {
     let scope = Arc::new(scope);
     let request::Identity::Unbrokered { identity } = request.0;
-    let lister = authorize::request::List {
+    let lister = authorize::request::AuthorizeList {
         address,
         identity: client_identity.to_string(),
     };
@@ -74,7 +74,7 @@ pub async fn handle(
 
 /// Ask the runner, on its scope, and read its one answer. The channel
 /// is read to its finish, so its number comes back to the run.
-async fn authorized(running: &Running, lister: authorize::request::List) -> bool {
+async fn authorized(running: &Running, lister: authorize::request::AuthorizeList) -> bool {
     let payload = match running.family {
         response::Family::Agent => {
             let ask: <Agents as Runs>::Ask<'_> = Own::AuthorizeList(lister).into();

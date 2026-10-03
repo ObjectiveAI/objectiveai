@@ -1,4 +1,5 @@
-//! What a client's response frame carries on an authorize channel.
+//! What a client's response frame carries on an authorize-connect
+//! channel.
 
 /// Yes or no. See [`authorize::response::Frame`](crate::shared::containers::authorize::response::Frame).
 ///

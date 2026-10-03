@@ -10,15 +10,15 @@ use crate::shared::containers::authorize;
 /// The provider relays the connector's socket address — attested,
 /// the provider saw it — and whatever authorization the connector
 /// offered — asserted, the connector wrote it; see
-/// [`Authorize`](authorize::request::Authorize) for why the two are
+/// [`AuthorizeConnect`](authorize::request::AuthorizeConnect) for why the two are
 /// not equal. The runner answers yes or no, and the connect scope
 /// opens or is refused on that. There is no error: a runner that
 /// cannot decide has decided no.
 pub trait ConnectionAuthorizer: Send + Sync {
     /// Judge one connector.
-    fn authorize(
+    fn authorize_connect(
         &self,
-        request: &authorize::request::Authorize,
+        request: &authorize::request::AuthorizeConnect,
     ) -> impl Future<Output = authorize::response::Frame> + Send;
 
     /// Judge one lister: whether whoever a
@@ -32,6 +32,6 @@ pub trait ConnectionAuthorizer: Send + Sync {
     /// has decided no.
     fn authorize_list(
         &self,
-        request: &authorize::request::List,
+        request: &authorize::request::AuthorizeList,
     ) -> impl Future<Output = authorize::response::Frame> + Send;
 }

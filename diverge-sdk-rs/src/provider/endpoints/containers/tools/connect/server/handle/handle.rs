@@ -28,7 +28,7 @@ use crate::shared::error::Error;
 /// 1. The container, found in the [`Directory`] by its id — or not,
 ///    which is the scope's one `Error`, then the finish.
 /// 2. The runner asked, on the RUN scope: an
-///    [`Authorize`](authorize::request::Authorize) carrying the
+///    [`AuthorizeConnect`](authorize::request::AuthorizeConnect) carrying the
 ///    connector's address — this connection's peer, attested — and
 ///    the authorization it offered, asserted. One frame answers.
 ///    `Denied`, a finish with nothing, or a runner that is gone: the
@@ -60,7 +60,7 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
         return;
     };
 
-    let authorize = authorize::request::Authorize {
+    let authorize = authorize::request::AuthorizeConnect {
         address,
         authorization: request.0.authorization,
     };
@@ -115,8 +115,8 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
 
 /// Ask the runner, on its scope, and read its one answer. The channel
 /// is read to its finish, so its number comes back to the run.
-async fn authorized(run_scope: &ScopeHandle, authorize: authorize::request::Authorize) -> bool {
-    let ask: <Tools as Runs>::Ask<'_> = Own::Authorize(authorize).into();
+async fn authorized(run_scope: &ScopeHandle, authorize: authorize::request::AuthorizeConnect) -> bool {
+    let ask: <Tools as Runs>::Ask<'_> = Own::AuthorizeConnect(authorize).into();
     let Some(payload) = encoded(&ask) else {
         return false;
     };
