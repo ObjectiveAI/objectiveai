@@ -5,7 +5,7 @@ use crate::wire::encode::{Encode, Writer};
 
 use super::Identity;
 
-/// Ask for the containers an identity runs.
+/// Ask for the tool containers an identity runs.
 ///
 /// An [`Identity`] and nothing else. Whether each container is told
 /// of is its runner's to say, asked one by one; nothing a lister
@@ -72,12 +72,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("containers list request frame is empty"),
+            FrameError::Empty => f.write_str("tools list_for request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected containers list request tag {TAG}, found {tag}")
+                write!(f, "expected tools list_for request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "containers list request did not parse: {error}")
+                write!(f, "tools list_for request did not parse: {error}")
             }
         }
     }

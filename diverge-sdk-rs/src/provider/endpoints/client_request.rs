@@ -36,8 +36,8 @@ pub enum ClientRequest<'a> {
     ContainersToolsRun(containers::tools::run::client::request::Frame),
     /// Tag `2`. Join a tool container somebody else is running.
     ContainersToolsConnect(containers::tools::connect::client::request::Frame),
-    /// Tag `3`. Find the containers an identity runs.
-    ContainersList(containers::list::client::request::Frame),
+    /// Tag `3`. Find the tool containers an identity runs.
+    ContainersToolsListFor(containers::tools::list_for::client::request::Frame),
     /// Tag `4`. List the volumes a provider offers.
     VolumesList(volumes::list::client::request::Frame),
     /// Tag `5`. Examine one of them.
@@ -113,7 +113,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ContainersToolsConnect(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
-            ClientRequest::ContainersList(frame) => {
+            ClientRequest::ContainersToolsListFor(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::VolumesList(frame) => {
@@ -194,8 +194,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             2 => containers::tools::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ContainersToolsConnect)
                 .ok(),
-            3 => containers::list::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ContainersList)
+            3 => containers::tools::list_for::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ContainersToolsListFor)
                 .ok(),
             4 => volumes::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesList)

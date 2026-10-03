@@ -12,9 +12,10 @@
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
-//! And one scope that reaches neither: [`list`] names an identity and
-//! is told, one at a time and each with its runner's leave, the
-//! containers that identity runs — the ids a connect then offers.
+//! And one scope of the tools family that reaches into nothing:
+//! [`tools::list_for`] names an identity and is told, one at a time
+//! and each with its runner's leave, the tool containers that
+//! identity runs — the ids a connect then offers.
 //!
 //! Everything else is identical, and it is most of the wire: the
 //! request that makes a container carries its arguments — a JSON
@@ -75,7 +76,6 @@
 //! [`server`], written once.
 
 pub mod agents;
-pub mod list;
 pub mod tools;
 
 pub mod client;

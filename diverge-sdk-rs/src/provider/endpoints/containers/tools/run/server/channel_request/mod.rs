@@ -1,8 +1,8 @@
 //! The channels a provider opens on a caller during a run.
 //!
-//! Twenty-eight, and the same twenty-eight in both families: seven
-//! the provider asks on its own account, twenty-one it relays from
-//! the container. See [`Frame`].
+//! Twenty-eight: seven the provider asks on its own account — the
+//! two authorizations among them, which only a tool container is
+//! asked — twenty-one it relays from the container. See [`Frame`].
 
 mod frame;
 

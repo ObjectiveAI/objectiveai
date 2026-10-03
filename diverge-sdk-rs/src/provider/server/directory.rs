@@ -5,7 +5,6 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::watch;
 
-use crate::provider::endpoints::containers::list::server::response::Family;
 use crate::wire::server::scope_handle::ScopeHandle;
 use crate::provider::endpoints::containers::server::watched::Watched;
 use crate::wire::client::handle::Handle;
@@ -33,8 +32,9 @@ use crate::container_proxy::outside::endpoints::tools::begin::client::execute::E
 /// Minted here, by [`mint`](Self::mint), as a v4 UUID: holding one is
 /// what lets a connector ask, so it is unguessable and never
 /// derived from anything a caller chose. The map is enumerated one
-/// way only, by [`running_under`](Self::running_under): the entries
-/// one runner holds, for a [`list`](crate::provider::endpoints::containers::list)
+/// way only, by [`running_under`](Self::running_under): the tool
+/// containers one runner holds, for a
+/// [`list_for`](crate::provider::endpoints::containers::tools::list_for)
 /// that asks that runner, container by container, before it names
 /// any.
 ///
@@ -76,16 +76,14 @@ struct Entry {
     ended: watch::Sender<bool>,
 }
 
-/// One container an identity runs, as a listing finds it: enough to
-/// ask its runner, and to name it if the runner allows.
+/// One tool container an identity runs, as a listing finds it:
+/// enough to ask its runner, and to name it if the runner allows.
 #[derive(Debug, Clone)]
 pub struct Running {
     /// The container's id.
     pub id: String,
     /// The run scope: where the runner is asked.
     pub scope: Arc<ScopeHandle>,
-    /// An agent container or a tool container.
-    pub family: Family,
 }
 
 /// What a connector is handed for a container it named.
@@ -203,17 +201,17 @@ impl Directory {
             .is_some_and(|entry| &*entry.runner == identity || entry.connectors.contains_key(identity))
     }
 
-    /// Every container `runner` is running, in no order. What a
-    /// listing asks each runner about; nothing here is told to the
-    /// lister until the runner says so.
+    /// Every tool container `runner` is running, in no order: what a
+    /// listing asks each runner about, and nothing here is told to
+    /// the lister until the runner says so. An agent container is not
+    /// among them: it takes no connector, and is listed to nobody.
     pub fn running_under(&self, runner: &str) -> Vec<Running> {
         self.lock()
             .iter()
-            .filter(|(_, entry)| &*entry.runner == runner)
+            .filter(|(_, entry)| &*entry.runner == runner && entry.begin.is_some())
             .map(|(id, entry)| Running {
                 id: id.clone(),
                 scope: Arc::clone(&entry.scope),
-                family: if entry.begin.is_some() { Family::Tool } else { Family::Agent },
             })
             .collect()
     }

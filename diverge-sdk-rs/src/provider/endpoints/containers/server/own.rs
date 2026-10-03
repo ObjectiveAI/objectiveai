@@ -1,10 +1,12 @@
 //! What the provider asks a caller for on its own account.
 
-use crate::shared::containers::authorize::request::{AuthorizeConnect, AuthorizeList};
 use crate::shared::containers::tools::Tool;
 
 /// The provider's own asks, before the container's: what a run
-/// handler needs from the caller that no container asked for. Each
+/// handler needs from the caller that no container asked for. The
+/// two authorizations are not here: they are the tools family's
+/// alone, asked by a connect and a listing rather than by the run
+/// handler, and built as that family's own ask. Each
 /// family carries these as its own frame type — see
 /// [`Runs::Ask`](super::family::Runs::Ask), which every one converts
 /// into — so the machinery names them once, here, and a family says
@@ -22,10 +24,6 @@ pub(crate) enum Own<'a> {
         /// The manifest digest.
         digest: &'a str,
     },
-    /// Whether a connector may attach.
-    AuthorizeConnect(AuthorizeConnect),
-    /// Whether a lister may see the container.
-    AuthorizeList(AuthorizeList),
     /// The tools the container declared, to deploy.
     Tools(&'a [Tool]),
     /// This end's half of a database connection, by the id it minted.

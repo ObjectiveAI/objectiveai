@@ -9,12 +9,14 @@
 //! finishes. The connect scope opens on a yes and is refused on a no.
 //!
 //! A second ask has the same answer. A
-//! [`containers::list`](crate::provider::endpoints::containers::list)
-//! names an identity, and the provider asks every container that
-//! identity runs, on its run scope, with [`request::AuthorizeList`] — who is
-//! asking, attested — whether the lister may see it; the runner
-//! answers with the same one [`response::Frame`], and the container
-//! is listed on a yes and not on a no.
+//! [`containers::tools::list_for`](crate::provider::endpoints::containers::tools::list_for)
+//! names an identity, and the provider asks every tool container that
+//! identity runs, on its run scope, with [`request::AuthorizeList`] —
+//! who is asking, attested — whether the lister may see it; the
+//! runner answers with the same one [`response::Frame`], and the
+//! container is listed on a yes and not on a no. Both asks are the
+//! tools family's: an agent container takes no connector and is
+//! listed to nobody, and is asked neither.
 //!
 //! This layer guarantees two things and no more: that the bytes
 //! arrive as they were sent, and that the question is answered before

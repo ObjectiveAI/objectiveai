@@ -12,7 +12,8 @@ use crate::shared::containers::tools::Tool;
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// twenty-eight asks in the same order with the same payloads, and
+/// asks in the same order with the same payloads — the tools family
+/// two more, the authorizations — and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -88,8 +89,6 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
-            Frame::AuthorizeConnect(request) => Ask::AuthorizeConnect(request),
-            Frame::AuthorizeList(request) => Ask::AuthorizeList(request),
             Frame::Tools(request) => Ask::Tools(request.tools.into_owned()),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),

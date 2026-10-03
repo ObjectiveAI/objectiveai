@@ -10,8 +10,8 @@ use super::Container;
 
 /// A listing's answer: one container, or a failure.
 ///
-/// A listing is a stream: zero or more of these, one per container
-/// the identity runs whose runner said yes, each sent the moment
+/// A listing is a stream: zero or more of these, one per tool
+/// container the identity runs whose runner said yes, each sent the moment
 /// that runner answered and in no order a lister may rely on, then
 /// the finish once every runner has answered or gone; or exactly one
 /// error, then the finish. A payload leads with one byte saying
@@ -95,10 +95,10 @@ pub enum FrameError {
 impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("containers list response frame is empty"),
-            FrameError::UnknownTag(tag) => write!(f, "unknown containers list response frame tag {tag}"),
-            FrameError::Container(error) => write!(f, "containers list container did not parse: {error}"),
-            FrameError::Error(error) => write!(f, "containers list error did not parse: {error}"),
+            FrameError::Empty => f.write_str("tools list_for response frame is empty"),
+            FrameError::UnknownTag(tag) => write!(f, "unknown tools list_for response frame tag {tag}"),
+            FrameError::Container(error) => write!(f, "tools list_for container did not parse: {error}"),
+            FrameError::Error(error) => write!(f, "tools list_for error did not parse: {error}"),
         }
     }
 }

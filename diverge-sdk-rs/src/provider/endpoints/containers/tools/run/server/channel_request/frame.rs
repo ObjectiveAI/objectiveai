@@ -43,10 +43,12 @@ use crate::shared::mcp;
 /// | `26` | [`FuseTruncate`](Self::FuseTruncate) |
 /// | `27` | [`FuseSetattr`](Self::FuseSetattr) |
 ///
-/// The same twenty-eight in both families, in the same order. The
-/// first seven are the provider's own asks — whether the caller holds
-/// an image, its manifest and blobs, a connector's authorization, a
-/// lister's, the tools the container declared, a write's content — and the rest
+/// Twenty-eight: the agents family's twenty-six, and the two
+/// authorizations at `3` and `4` that only a tool container is ever
+/// asked, every tag after them two more here. The first seven are the
+/// provider's own asks — whether the caller holds an image, its
+/// manifest and blobs, a connector's authorization, a lister's, the
+/// tools the container declared, a write's content — and the rest
 /// are the CONTAINER's, relayed: its database
 /// connections, its commands, its vault, its tool calls outward to the
 /// caller's MCP servers, and the files the caller mounted live. A

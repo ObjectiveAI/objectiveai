@@ -2,10 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::Family;
-
-/// One container the identity runs, whose runner said the lister
-/// may see it: its id, and which family it is.
+/// One tool container the identity runs, whose runner said the
+/// lister may see it: its id.
 ///
 /// The id is the one its run was answered with, the capability a
 /// [`Connect`](crate::shared::containers::request::Connect) names.
@@ -16,6 +14,4 @@ use super::Family;
 pub struct Container {
     /// The container's id, as its run answered it.
     pub id: String,
-    /// An agent container or a tool container.
-    pub family: Family,
 }

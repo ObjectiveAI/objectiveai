@@ -22,7 +22,7 @@ pub trait ConnectionAuthorizer: Send + Sync {
     ) -> impl Future<Output = authorize::response::Frame> + Send;
 
     /// Judge one lister: whether whoever a
-    /// [`containers::list`](crate::provider::endpoints::containers::list)
+    /// [`containers::tools::list_for`](crate::provider::endpoints::containers::tools::list_for)
     /// names this runner's identity for may be told of this
     /// container. Both of the lister's claims are the provider's own
     /// — the address it saw, the identity it authorized — so there is
