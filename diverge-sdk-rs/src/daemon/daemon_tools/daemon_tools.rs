@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::{agents, tools};
-use super::{AgentsTag, AgentsTemplatesTag, AgentsTemplatesUntag, AgentsUntag, Held, Reach, Switch, ToolsAttach, ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag};
+use super::{AgentsTag, AgentsTemplatesTag, AgentsTemplatesUntag, AgentsUntag, Edge, Held, Reach, Switch, ToolsAttach, ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag};
 
 /// The daemon's tools an agent, or a tool, holds, named on its
 /// create, one member each: one for every endpoint but
@@ -147,9 +147,14 @@ pub struct DaemonTools {
     /// [`ToolsTemplatesUntag`].
     #[serde(default)]
     pub tools_templates_untag: Held<ToolsTemplatesUntag>,
-    /// The tool that uploads resources: see [`Switch`].
+    /// The tool that transfers files — between the container's own
+    /// filesystem, the tool containers attached to it, and the
+    /// resources — and the edges it may transfer along: `any`, or
+    /// `only` these, each a source and a destination. A transfer into
+    /// the resources is an upload, and this is the one way a container
+    /// uploads. See [`Edge`].
     #[serde(default)]
-    pub resources_upload: Switch,
+    pub transfer: Reach<Vec<Edge>>,
     /// The tool that lists resources; `only`, those named by id, the
     /// hash an upload answered, and a list answers none outside them.
     #[serde(default)]

@@ -47,11 +47,15 @@
 //! `only` — and are [`AgentsTag`], [`AgentsUntag`],
 //! [`AgentsTemplatesTag`], [`AgentsTemplatesUntag`], [`ToolsTag`],
 //! [`ToolsUntag`], [`ToolsTemplatesTag`] and [`ToolsTemplatesUntag`].
-//! The tools that make a template, and the one that uploads a
-//! resource, make something with no subject, and are each a
-//! [`Switch`], `disabled` or `any`. Resources have no list filter,
-//! so the tools that list and delete them reach `any` resource or
-//! `only` those named by id.
+//! The tools that make a template make something with no subject,
+//! and are each a [`Switch`], `disabled` or `any`. Resources have no
+//! list filter, so the tools that list and delete them reach `any`
+//! resource or `only` those named by id. The tool that transfers
+//! files reaches along edges — each a [`Source`] and a
+//! [`Destination`], among the container's own filesystem, the tool
+//! containers attached to it and the resources, see [`Edge`] — and a
+//! transfer into the resources is an upload, the one way a container
+//! has of making a resource.
 //!
 //! What each tool says to its caller, and how the daemon knows who
 //! is calling, is not yet stated here.
@@ -61,8 +65,11 @@ mod agents_templates_tag;
 mod agents_templates_untag;
 mod agents_untag;
 mod daemon_tools;
+mod destination;
+mod edge;
 mod held;
 mod reach;
+mod source;
 mod switch;
 mod tools_attach;
 mod tools_detach;
@@ -78,8 +85,11 @@ pub use agents_templates_tag::*;
 pub use agents_templates_untag::*;
 pub use agents_untag::*;
 pub use daemon_tools::*;
+pub use destination::*;
+pub use edge::*;
 pub use held::*;
 pub use reach::*;
+pub use source::*;
 pub use switch::*;
 pub use tools_attach::*;
 pub use tools_detach::*;
