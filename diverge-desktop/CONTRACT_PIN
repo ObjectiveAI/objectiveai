@@ -1,3 +1,3 @@
-2337808e95ec86f70349776e7906a01903eabf89
+6ee8537d87e888171f091812c4ef72defb671bfa
 # The origin/p2p-provider-binary commit this app's seams were built against (2026-09-30: a declared tool may carry instructions).
 # Every session: git fetch origin && git diff $(head -1 CONTRACT_PIN)..origin/p2p-provider-binary -- diverge-sdk-rs/src/daemon diverge-sdk-rs/src/provider/endpoints/volumes diverge-sdk-rs/src/provider/endpoints/containers/tools diverge-sdk-rs/src/shared diverge-sdk-rs/src/container_proxy/inside
