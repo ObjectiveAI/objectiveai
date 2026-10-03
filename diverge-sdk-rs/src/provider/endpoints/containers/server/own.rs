@@ -1,6 +1,6 @@
 //! What the provider asks a caller for on its own account.
 
-use crate::shared::containers::authorize::request::Authorize;
+use crate::shared::containers::authorize::request::{Authorize, List};
 use crate::shared::containers::tools::Tool;
 
 /// The provider's own asks, before the container's: what a run
@@ -24,6 +24,8 @@ pub(crate) enum Own<'a> {
     },
     /// Whether a connector may attach.
     Authorize(Authorize),
+    /// Whether a lister may see the container.
+    AuthorizeList(List),
     /// The tools the container declared, to deploy.
     Tools(&'a [Tool]),
     /// This end's half of a database connection, by the id it minted.

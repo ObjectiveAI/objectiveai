@@ -1,37 +1,20 @@
-//! What a client's request frame carries for an image check.
-
-use serde::{Deserialize, Serialize};
+//! What a client's request frame carries for a listing.
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask a provider whether it can supply a particular image.
+use super::Identity;
+
+/// Ask for the containers an identity runs.
 ///
-/// No registry. The digest is the image's identity and a registry is
-/// only a locator — any registry serving these bytes serves the same
-/// image, because a client recomputes the hash on pull and rejects a
-/// mismatch. So WHERE a provider gets it is the provider's business:
-/// its own mirror, a pull-through cache, a private registry it has
-/// credentials for, or something it already holds locally.
-///
-/// That is also what makes proprietary images answerable. A provider
-/// with access to an image no public registry serves can still say
-/// yes, and a caller naming a registry it cannot reach would be
-/// asserting something it has no standing to assert.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub struct Frame {
-    /// The repository path — `library/nginx`, `myorg/myimage`.
-    ///
-    /// Kept alongside the digest because a digest alone is not
-    /// resolvable: every registry API is repository-scoped, and there
-    /// is no lookup from a digest to wherever it lives.
-    pub name: String,
-    /// The manifest digest, `<algorithm>:<hex>`.
-    ///
-    /// What actually identifies the image. Unlike a tag, it cannot be
-    /// repointed at different content.
-    pub digest: String,
-}
+/// An [`Identity`] and nothing else. Whether each container is told
+/// of is its runner's to say, asked one by one; nothing a lister
+/// offers here changes that, so there is nothing to offer.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Frame(
+    /// Whose containers.
+    pub Identity,
+);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -45,15 +28,16 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 15;
+const TAG: u8 = 3;
 
+/// JSON, like every other structured request.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        serde_json::to_writer(out, self)
+        serde_json::to_writer(out, &self.0)
     }
 }
 
@@ -66,11 +50,11 @@ impl Decode<'_> for Frame {
         if *tag != TAG {
             return Err(FrameError::UnexpectedTag(*tag));
         }
-        serde_json::from_slice(rest).map_err(FrameError::Body)
+        serde_json::from_slice(rest).map(Frame).map_err(FrameError::Body)
     }
 }
 
-/// A an image check request request frame that could not be read.
+/// A listing request that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -88,14 +72,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => {
-                f.write_str("an image check request request frame is empty")
-            }
+            FrameError::Empty => f.write_str("containers list request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected an image check request request tag {TAG}, found {tag}")
+                write!(f, "expected containers list request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "an image check request request did not parse: {error}")
+                write!(f, "containers list request did not parse: {error}")
             }
         }
     }

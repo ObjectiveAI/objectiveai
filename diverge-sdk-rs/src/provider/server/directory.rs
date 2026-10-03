@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::watch;
 
+use crate::provider::endpoints::containers::list::server::response::Family;
 use crate::wire::server::scope_handle::ScopeHandle;
 use crate::provider::endpoints::containers::server::watched::Watched;
 use crate::wire::client::handle::Handle;
@@ -31,7 +32,11 @@ use crate::container_proxy::outside::endpoints::tools::begin::client::execute::E
 ///
 /// Minted here, by [`mint`](Self::mint), as a v4 UUID: holding one is
 /// what lets a connector ask, so it is unguessable and never
-/// derived from anything a caller chose. Nothing enumerates the map.
+/// derived from anything a caller chose. The map is enumerated one
+/// way only, by [`running_under`](Self::running_under): the entries
+/// one runner holds, for a [`list`](crate::provider::endpoints::containers::list)
+/// that asks that runner, container by container, before it names
+/// any.
 ///
 /// # And who may reach each container
 ///
@@ -69,6 +74,18 @@ struct Entry {
     /// Every mount the provider watches itself, for a filetree.
     watched: Arc<[Watched]>,
     ended: watch::Sender<bool>,
+}
+
+/// One container an identity runs, as a listing finds it: enough to
+/// ask its runner, and to name it if the runner allows.
+#[derive(Debug, Clone)]
+pub struct Running {
+    /// The container's id.
+    pub id: String,
+    /// The run scope: where the runner is asked.
+    pub scope: Arc<ScopeHandle>,
+    /// An agent container or a tool container.
+    pub family: Family,
 }
 
 /// What a connector is handed for a container it named.
@@ -184,6 +201,21 @@ impl Directory {
         self.lock()
             .get(id)
             .is_some_and(|entry| &*entry.runner == identity || entry.connectors.contains_key(identity))
+    }
+
+    /// Every container `runner` is running, in no order. What a
+    /// listing asks each runner about; nothing here is told to the
+    /// lister until the runner says so.
+    pub fn running_under(&self, runner: &str) -> Vec<Running> {
+        self.lock()
+            .iter()
+            .filter(|(_, entry)| &*entry.runner == runner)
+            .map(|(id, entry)| Running {
+                id: id.clone(),
+                scope: Arc::clone(&entry.scope),
+                family: if entry.begin.is_some() { Family::Tool } else { Family::Agent },
+            })
+            .collect()
     }
 
     /// The container under `id`, if it is running.

@@ -6,7 +6,7 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`containers`] | run an agent or a tool server in a container; join a tool server |
+//! | [`containers`] | run an agent or a tool server in a container; join a tool server; find the containers an identity runs |
 //! | [`images`] | ask whether an image can be supplied |
 //! | [`volumes`] | list what a provider offers; examine one; read, write or walk one; serve one's files live; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
 //! | [`version`] | ask what a provider is |
@@ -23,23 +23,25 @@
 //! | `0` | [`containers::agents::run`] |
 //! | `1` | [`containers::tools::run`] |
 //! | `2` | [`containers::tools::connect`] |
-//! | `3` | [`volumes::list`] |
-//! | `4` | [`volumes::stat`] |
-//! | `5` | [`volumes::read`] |
-//! | `6` | [`volumes::write`] |
-//! | `7` | [`volumes::filetree`] |
-//! | `8` | [`volumes::serve`] |
-//! | `9` | [`volumes::create_capacity`] |
-//! | `10` | [`volumes::create`] |
-//! | `11` | [`volumes::edit_capacity`] |
-//! | `12` | [`volumes::edit`] |
-//! | `13` | [`volumes::delete`] |
-//! | `14` | [`images::check`] |
-//! | `15` | [`version`] |
+//! | `3` | [`containers::list`] |
+//! | `4` | [`volumes::list`] |
+//! | `5` | [`volumes::stat`] |
+//! | `6` | [`volumes::read`] |
+//! | `7` | [`volumes::write`] |
+//! | `8` | [`volumes::filetree`] |
+//! | `9` | [`volumes::serve`] |
+//! | `10` | [`volumes::create_capacity`] |
+//! | `11` | [`volumes::create`] |
+//! | `12` | [`volumes::edit_capacity`] |
+//! | `13` | [`volumes::edit`] |
+//! | `14` | [`volumes::delete`] |
+//! | `15` | [`images::check`] |
+//! | `16` | [`version`] |
 //!
-//! Sixteen, grouped by endpoint and ordered within it. The three
-//! container scopes lead: the agents' run, then the tools' run and the
-//! connect that joins one. The eleven volume scopes follow in the
+//! Seventeen, grouped by endpoint and ordered within it. The four
+//! container scopes lead: the agents' run, the tools' run, the connect
+//! that joins one, and the list that finds them. The eleven volume
+//! scopes follow in the
 //! order a caller uses them: find one, examine it, read a file out of
 //! it, write one in, see its tree, serve its files live, ask how large
 //! one may be made, make one, ask how far one may grow, resize it,

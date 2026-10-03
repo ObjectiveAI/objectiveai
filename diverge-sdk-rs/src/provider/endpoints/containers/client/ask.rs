@@ -12,7 +12,7 @@ use crate::shared::containers::tools::Tool;
 /// borrowed: what the serving loop hands to a task.
 ///
 /// The two families' `server::channel_request::Frame`s carry the same
-/// twenty-seven asks in the same order with the same payloads, and
+/// twenty-eight asks in the same order with the same payloads, and
 /// borrow from the frame they were decoded from; this is the one
 /// owned form both convert into, so the answer to each is written
 /// once. Which family it came from does not matter to the answer: the
@@ -28,6 +28,8 @@ pub enum Ask {
     OciHas(String, String),
     /// Whether a connector may attach.
     Authorize(authorize::request::Authorize),
+    /// Whether a lister may see the container.
+    AuthorizeList(authorize::request::List),
     /// The tools the container declared, to deploy.
     Tools(Vec<Tool>),
     /// The content of a write this caller started, by its id.
@@ -87,6 +89,7 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
             Frame::Authorize(request) => Ask::Authorize(request),
+            Frame::AuthorizeList(request) => Ask::AuthorizeList(request),
             Frame::Tools(request) => Ask::Tools(request.tools.into_owned()),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
@@ -144,6 +147,7 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
             Frame::Authorize(request) => Ask::Authorize(request),
+            Frame::AuthorizeList(request) => Ask::AuthorizeList(request),
             Frame::Tools(request) => Ask::Tools(request.tools.into_owned()),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),

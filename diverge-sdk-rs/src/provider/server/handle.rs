@@ -238,6 +238,16 @@ where
                     .await;
                 });
             }
+            ClientRequest::ContainersList(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let directory = Arc::clone(&directory);
+                scopes.spawn(async move {
+                    endpoints::containers::list::server::handle::handle(
+                        scope, frame, &identity, address, directory,
+                    )
+                    .await;
+                });
+            }
             ClientRequest::VolumesList(_) => {
                 let identity = Arc::clone(&client_identity);
                 let manager = Arc::clone(&volume_manager);

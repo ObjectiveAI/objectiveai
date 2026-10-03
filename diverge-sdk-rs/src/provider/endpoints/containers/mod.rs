@@ -12,6 +12,10 @@
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
+//! And one scope that reaches neither: [`list`] names an identity and
+//! is told, one at a time and each with its runner's leave, the
+//! containers that identity runs — the ids a connect then offers.
+//!
 //! Everything else is identical, and it is most of the wire: the
 //! request that makes a container carries its arguments — a JSON
 //! value the image defines, fixed for the container's life — and a
@@ -23,9 +27,9 @@
 //! of the caller — its database connections, its commands, its vault,
 //! its tool calls outward. All of that is defined once, in
 //! [`shared::containers`](crate::shared::containers), and each scope's
-//! frames wrap or alias it. The three scopes' channel tags are laid out
-//! so the shared part comes first and identically, and the family's
-//! own exchange takes the tags after it.
+//! frames wrap or alias it. The three container scopes' channel tags
+//! are laid out so the shared part comes first and identically, and
+//! the family's own exchange takes the tags after it.
 //!
 //! # The main stream is the id, and then the agent
 //!
@@ -71,6 +75,7 @@
 //! [`server`], written once.
 
 pub mod agents;
+pub mod list;
 pub mod tools;
 
 pub mod client;

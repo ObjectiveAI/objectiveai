@@ -4,7 +4,8 @@
 //! [`oci_has`] says whether the caller holds the image, and
 //! [`oci_manifest`] and [`oci_blob`] hand it over when the provider
 //! takes it from there; [`authorize`] answers whether a connector
-//! may join; [`write_bytes`]
+//! may join, and [`authorize_list`] whether a lister may see the
+//! container; [`write_bytes`]
 //! streams the content of a file being written. The rest answer the
 //! CONTAINER, relayed: [`postgres`] is what
 //! its database said, [`command`] the items its command produced, the
@@ -14,6 +15,7 @@
 //! an entry of them is, and whether a change to one took.
 
 pub mod authorize;
+pub mod authorize_list;
 pub mod command;
 pub mod fuse_list;
 pub mod fuse_mkdir;

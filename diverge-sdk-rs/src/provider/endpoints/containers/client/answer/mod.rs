@@ -57,6 +57,9 @@ pub(crate) async fn answer<O, A, T, P, C, V, M, F>(
         Ask::Authorize(request) => {
             authorize::authorize(&handle, scope, channel, request, answerers.authorizer).await
         }
+        Ask::AuthorizeList(request) => {
+            authorize::authorize_list(&handle, scope, channel, request, answerers.authorizer).await
+        }
         Ask::Tools(declared) => tools::tools(&handle, scope, channel, declared, answerers.tools).await,
         Ask::Write(write_id) => write::write(&handle, scope, channel, write_id, writes, encoders).await,
         Ask::Postgres(connection_id) => {
