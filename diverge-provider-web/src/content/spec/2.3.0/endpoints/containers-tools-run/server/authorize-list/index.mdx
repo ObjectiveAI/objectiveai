@@ -6,7 +6,7 @@ draft: false
 ---
 
 The server opens this channel on the run scope when a
-[containers::list](/endpoints/containers-list/) request names the
+[containers::tools::list_for](/endpoints/containers-tools-list-for/) request names the
 identity of this run. The runner's answer decides whether the
 container is sent on the list scope.
 
@@ -21,8 +21,9 @@ container is sent on the list scope.
   as [Authorization](/authorization/) provides. The lister asserts
   nothing on this channel.
 - **Every runner at once.** The server opens this channel on every
-  run the identity holds, without waiting on any other's answer, and
-  sends each container the moment its own answer arrives.
+  tool run the identity holds, without waiting on any other's answer,
+  and sends each container the moment its own answer arrives. No
+  agent run is asked.
 - **Seeing is not joining.** A yes tells the lister the container's
   id and family, and nothing else. A connector that joins is asked
   for on the [authorize-connect](/endpoints/containers-tools-run/server/authorize-connect/) channel,

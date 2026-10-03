@@ -19,19 +19,19 @@ JSON, read as [Notation](/endpoints/#notation) provides:
 - **`identity`.** The identity whose containers the lister asks for:
   the string under which a connection of that identity was
   authorized, as [Authorization](/authorization/) provides. The server
-  compares it and does not read it. An identity that runs no
+  compares it and does not read it. An identity that runs no tool
   container is not an error.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is not `3`, and a payload whose bytes after the tag do not parse as
   the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 
-The request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/list/client/request/frame.rs`:
+The request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/list_for/client/request/frame.rs`:
 
-```rust include=diverge-sdk-rs/src/provider/endpoints/containers/list/client/request/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/tools/list_for/client/request/frame.rs
 ```
 
-and by `diverge-sdk-rs/src/provider/endpoints/containers/list/client/request/identity.rs`:
+and by `diverge-sdk-rs/src/provider/endpoints/containers/tools/list_for/client/request/identity.rs`:
 
-```rust include=diverge-sdk-rs/src/provider/endpoints/containers/list/client/request/identity.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/tools/list_for/client/request/identity.rs
 ```
