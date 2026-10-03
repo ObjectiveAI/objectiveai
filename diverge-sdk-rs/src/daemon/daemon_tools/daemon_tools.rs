@@ -124,6 +124,21 @@ pub struct DaemonTools {
     /// [`ToolsUntag`].
     #[serde(default)]
     pub tools_untag: Held<ToolsUntag>,
+    /// The tool that routes a dependency position to a tool; `only`,
+    /// to the tools the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
+    #[serde(default)]
+    pub tools_routes_add: Reach<tools::list::client::request::Filter>,
+    /// The tool that takes a route up; `only`, the routes the filter
+    /// passes. See
+    /// [`Filter`](crate::daemon::endpoints::tools::routes::list::client::request::Filter).
+    #[serde(default)]
+    pub tools_routes_delete: Reach<tools::routes::list::client::request::Filter>,
+    /// The tool that lists routes; `only`, the routes the filter
+    /// passes, and its own list requests narrow within them. See
+    /// [`Filter`](crate::daemon::endpoints::tools::routes::list::client::request::Filter).
+    #[serde(default)]
+    pub tools_routes_list: Reach<tools::routes::list::client::request::Filter>,
     /// The tool that makes tool templates: see [`Switch`].
     #[serde(default)]
     pub tools_templates_create: Switch,

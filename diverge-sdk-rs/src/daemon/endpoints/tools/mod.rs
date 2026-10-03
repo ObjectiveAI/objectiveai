@@ -37,7 +37,10 @@
 //! removes a tool that is attached nowhere; [`get`] answers one as
 //! a list would; [`list`] lists them,
 //! narrowed, with the agents each is attached to and its tags;
-//! [`tag`] and [`untag`] change a tool's tags.
+//! [`tag`] and [`untag`] change a tool's tags. [`routes`] answer a
+//! dependency a container declares at register time with a tool the
+//! caller already has, at one position in the chain of dependencies,
+//! so that no deployer is asked.
 
 pub mod attach;
 pub mod connect;
@@ -47,6 +50,7 @@ pub mod detach;
 pub mod edit;
 pub mod get;
 pub mod list;
+pub mod routes;
 pub mod tag;
 pub mod templates;
 pub mod untag;

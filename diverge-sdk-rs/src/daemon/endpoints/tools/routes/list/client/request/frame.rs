@@ -1,15 +1,36 @@
-//! What a client's request frame carries for a get.
+//! What a client's request frame carries for a list.
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-/// Ask the daemon for one template. The template is named by its id,
-/// its hash.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+use super::Filter;
+
+/// Ask the daemon for the caller's routes, narrowed.
+///
+/// Everything is optional, and a request with none of it — `{}` on the
+/// wire — is every route of the caller's. The members but `jq` and
+/// `count` together are the filter. The daemon applies the filter
+/// first, oldest first, so the program sees only what it lets through,
+/// and runs the program over each route of that; what the program
+/// yields is what comes back, and without a program the routes come
+/// back as they are. The count caps what comes back.
+/// [`Route`](crate::daemon::endpoints::tools::routes::list::server::response::Route)
+/// is the shape each comes back in without a program, and the reference
+/// for what a program is run over.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
-    /// The template's id: its hash, as its create answered it.
-    pub id: String,
+    /// The filter: see [`Filter`]. Flattened, so its members are this
+    /// object's own.
+    #[serde(flatten)]
+    pub filter: Filter,
+    /// How many values to send at most, counting what comes back —
+    /// routes as they are, or what the program yields — and not what
+    /// the filter reads; once that many have been sent the scope
+    /// finishes, whether or not more would have matched. `0` sends
+    /// nothing and finishes at once. Absent, no cap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub count: Option<u64>,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -24,7 +45,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 29;
+const TAG: u8 = 27;
 
 /// JSON, as every request of the daemon's is.
 impl Encode for Frame {
@@ -50,7 +71,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A tools templates get request frame that could not be read.
+/// A tools routes list request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -68,12 +89,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("tools templates get request frame is empty"),
+            FrameError::Empty => f.write_str("tools routes list request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected tools templates get request tag {TAG}, found {tag}")
+                write!(f, "expected tools routes list request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "tools templates get request did not parse: {error}")
+                write!(f, "tools routes list request did not parse: {error}")
             }
         }
     }

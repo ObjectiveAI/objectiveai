@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from |
-//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; make, get, list, delete, tag and untag the templates tools are made from |
+//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; route a dependency position to a tool, take the route up, list the routes; make, get, list, delete, tag and untag the templates tools are made from |
 //! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
 //!
 //! # The tags
@@ -44,17 +44,20 @@
 //! | `22` | [`tools::list`] |
 //! | `23` | [`tools::tag`] |
 //! | `24` | [`tools::untag`] |
-//! | `25` | [`tools::templates::create`] |
-//! | `26` | [`tools::templates::get`] |
-//! | `27` | [`tools::templates::list`] |
-//! | `28` | [`tools::templates::delete`] |
-//! | `29` | [`tools::templates::tag`] |
-//! | `30` | [`tools::templates::untag`] |
-//! | `31` | [`resources::upload`] |
-//! | `32` | [`resources::list`] |
-//! | `33` | [`resources::delete`] |
+//! | `25` | [`tools::routes::add`] |
+//! | `26` | [`tools::routes::delete`] |
+//! | `27` | [`tools::routes::list`] |
+//! | `28` | [`tools::templates::create`] |
+//! | `29` | [`tools::templates::get`] |
+//! | `30` | [`tools::templates::list`] |
+//! | `31` | [`tools::templates::delete`] |
+//! | `32` | [`tools::templates::tag`] |
+//! | `33` | [`tools::templates::untag`] |
+//! | `34` | [`resources::upload`] |
+//! | `35` | [`resources::list`] |
+//! | `36` | [`resources::delete`] |
 //!
-//! Thirty-four, so far. Tags are handed out in the order scopes are defined
+//! Thirty-seven, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

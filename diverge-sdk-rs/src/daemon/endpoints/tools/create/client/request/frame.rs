@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::daemon_tools::DaemonTools;
+use crate::daemon::reference;
 
 use super::{FuseMount, Provider};
 use crate::wire::decode::Decode;
@@ -70,6 +71,18 @@ pub struct Frame {
     /// the tool's for its life; how far each reaches is edited.
     #[serde(default, skip_serializing_if = "DaemonTools::all_disabled")]
     pub daemon_tools: DaemonTools,
+    /// The agent of the caller's the daemon hands this tool's
+    /// declared tool dependencies to — each as the template and the
+    /// instructions the tool returned at register time — when no
+    /// [route](crate::daemon::endpoints::tools::routes) answers them.
+    /// The deployer makes the tool, attaches it, and may add a route so
+    /// that the next ask at that position is answered without it. By
+    /// name, or by template and index: see [`reference::Agent`].
+    /// Absent, the daemon deploys nothing itself: a dependency no
+    /// route answers is not met, and the tool's tools channel is
+    /// answered with an error.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployer_agent: Option<reference::Agent>,
     /// The name, unique among the caller's tools.
     pub name: String,
 }

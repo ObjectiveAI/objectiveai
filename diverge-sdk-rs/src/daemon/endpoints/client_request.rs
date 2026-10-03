@@ -77,23 +77,29 @@ pub enum ClientRequest<'a> {
     ToolsTag(tools::tag::client::request::Frame),
     /// Tag `24`. Take tags off a tool.
     ToolsUntag(tools::untag::client::request::Frame),
-    /// Tag `25`. Make a tool template.
+    /// Tag `25`. Route a dependency position to a tool.
+    ToolsRoutesAdd(tools::routes::add::client::request::Frame),
+    /// Tag `26`. Take a route up.
+    ToolsRoutesDelete(tools::routes::delete::client::request::Frame),
+    /// Tag `27`. List the caller's routes, narrowed.
+    ToolsRoutesList(tools::routes::list::client::request::Frame),
+    /// Tag `28`. Make a tool template.
     ToolsTemplatesCreate(tools::templates::create::client::request::Frame),
-    /// Tag `26`. Get one tool template by id.
+    /// Tag `29`. Get one tool template by id.
     ToolsTemplatesGet(tools::templates::get::client::request::Frame),
-    /// Tag `27`. List the caller's tool templates, narrowed.
+    /// Tag `30`. List the caller's tool templates, narrowed.
     ToolsTemplatesList(tools::templates::list::client::request::Frame),
-    /// Tag `28`. Delete a tool template by id.
+    /// Tag `31`. Delete a tool template by id.
     ToolsTemplatesDelete(tools::templates::delete::client::request::Frame),
-    /// Tag `29`. Put tags on a tool template.
+    /// Tag `32`. Put tags on a tool template.
     ToolsTemplatesTag(tools::templates::tag::client::request::Frame),
-    /// Tag `30`. Take tags off a tool template.
+    /// Tag `33`. Take tags off a tool template.
     ToolsTemplatesUntag(tools::templates::untag::client::request::Frame),
-    /// Tag `31`. Upload a file or a directory.
+    /// Tag `34`. Upload a file or a directory.
     ResourcesUpload(resources::upload::client::request::Frame),
-    /// Tag `32`. List the caller's resources.
+    /// Tag `35`. List the caller's resources.
     ResourcesList(resources::list::client::request::Frame),
-    /// Tag `33`. Delete a resource by id.
+    /// Tag `36`. Delete a resource by id.
     ResourcesDelete(resources::delete::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -140,6 +146,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsList(frame) => frame.encode(out),
             ClientRequest::ToolsTag(frame) => frame.encode(out),
             ClientRequest::ToolsUntag(frame) => frame.encode(out),
+            ClientRequest::ToolsRoutesAdd(frame) => frame.encode(out),
+            ClientRequest::ToolsRoutesDelete(frame) => frame.encode(out),
+            ClientRequest::ToolsRoutesList(frame) => frame.encode(out),
             ClientRequest::ToolsTemplatesCreate(frame) => frame.encode(out),
             ClientRequest::ToolsTemplatesGet(frame) => frame.encode(out),
             ClientRequest::ToolsTemplatesList(frame) => frame.encode(out),
@@ -248,31 +257,40 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             24 => tools::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsUntag)
                 .ok(),
-            25 => tools::templates::create::client::request::Frame::decode(bytes)
+            25 => tools::routes::add::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsRoutesAdd)
+                .ok(),
+            26 => tools::routes::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsRoutesDelete)
+                .ok(),
+            27 => tools::routes::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsRoutesList)
+                .ok(),
+            28 => tools::templates::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesCreate)
                 .ok(),
-            26 => tools::templates::get::client::request::Frame::decode(bytes)
+            29 => tools::templates::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesGet)
                 .ok(),
-            27 => tools::templates::list::client::request::Frame::decode(bytes)
+            30 => tools::templates::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesList)
                 .ok(),
-            28 => tools::templates::delete::client::request::Frame::decode(bytes)
+            31 => tools::templates::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesDelete)
                 .ok(),
-            29 => tools::templates::tag::client::request::Frame::decode(bytes)
+            32 => tools::templates::tag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesTag)
                 .ok(),
-            30 => tools::templates::untag::client::request::Frame::decode(bytes)
+            33 => tools::templates::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesUntag)
                 .ok(),
-            31 => resources::upload::client::request::Frame::decode(bytes)
+            34 => resources::upload::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesUpload)
                 .ok(),
-            32 => resources::list::client::request::Frame::decode(bytes)
+            35 => resources::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesList)
                 .ok(),
-            33 => resources::delete::client::request::Frame::decode(bytes)
+            36 => resources::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesDelete)
                 .ok(),
             _ => None,
@@ -309,6 +327,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsList(_) => f.write_str("tools list"),
             ClientRequest::ToolsTag(_) => f.write_str("tools tag"),
             ClientRequest::ToolsUntag(_) => f.write_str("tools untag"),
+            ClientRequest::ToolsRoutesAdd(_) => f.write_str("tools routes add"),
+            ClientRequest::ToolsRoutesDelete(_) => f.write_str("tools routes delete"),
+            ClientRequest::ToolsRoutesList(_) => f.write_str("tools routes list"),
             ClientRequest::ToolsTemplatesCreate(_) => f.write_str("tools templates create"),
             ClientRequest::ToolsTemplatesGet(_) => f.write_str("tools templates get"),
             ClientRequest::ToolsTemplatesList(_) => f.write_str("tools templates list"),

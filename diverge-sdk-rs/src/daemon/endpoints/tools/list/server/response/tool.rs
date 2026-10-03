@@ -3,7 +3,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::daemon::creator;
 use crate::daemon::creator::Creator;
+use crate::daemon::endpoints::tools::routes::Path;
 use super::Origin;
 
 /// One tool of the caller's: what the daemon knows of it.
@@ -33,6 +35,11 @@ pub struct Tool {
     /// first and what made this tool last. Never empty; one link for
     /// a tool the caller made with a create or a connect.
     pub creator: Vec<Creator>,
+    /// The agent its create named as deployer, if any, as that agent
+    /// was: its template, its index and its name, stable past its
+    /// deletion. See the create's `deployer_agent`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployer_agent: Option<creator::Agent>,
     /// When the create or the connect made it.
     pub created: DateTime<Utc>,
     /// Whether the tool is active now: for a created tool, its
@@ -54,4 +61,9 @@ pub struct Tool {
     /// [`untag`](crate::daemon::endpoints::tools::untag) has not taken off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+    /// The dependency positions routed to it: every
+    /// [route](crate::daemon::endpoints::tools::routes) whose tool
+    /// this is, by its path. Absent when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub routes: Vec<Path>,
 }

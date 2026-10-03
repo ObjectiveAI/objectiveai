@@ -55,7 +55,11 @@
 //! [`Destination`], among the container's own filesystem, the tool
 //! containers attached to it and the resources, see [`Edge`] — and a
 //! transfer into the resources is an upload, the one way a container
-//! has of making a resource.
+//! has of making a resource. The three tools over
+//! [routes](crate::daemon::endpoints::tools::routes) reach by a
+//! filter too: the add by the tools list's, over the tools a
+//! dependency may be routed to, and the delete and the list by the
+//! routes list's own.
 //!
 //! What each tool says to its caller, and how the daemon knows who
 //! is calling, is not yet stated here.

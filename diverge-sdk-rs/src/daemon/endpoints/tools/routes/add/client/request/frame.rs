@@ -1,37 +1,39 @@
-//! What a client's request frame carries for an untag.
+//! What a client's request frame carries for a route add.
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-/// Ask the daemon to take tags off a template, by id.
-///
-/// The id is the template's hash, as a
-/// [`templates::create`](crate::daemon::endpoints::tools::templates::create)
-/// answered it. A tag the template did not hold is not held still, and
-/// is not a failure.
+use crate::daemon::endpoints::tools::routes::Path;
+use crate::daemon::reference;
+
+/// Ask the daemon to route a dependency position to a tool. The tool is
+/// named by its name or by its template and index, as
+/// [`reference`](crate::daemon::reference) states, and has to be made
+/// from the position's last template: the dependency IS that template.
+/// A position already routed is refused; delete the route first.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The template's id: its hash, as its create answered it.
-    pub id: String,
-    /// The tags to take off, one by one. Empty changes nothing and is
-    /// not a failure.
-    pub tags: Vec<String>,
+    /// The position: see [`Path`].
+    pub path: Path,
+    /// The tool to serve there: by its name, or by its template and its
+    /// index. See [`reference::Tool`].
+    pub tool: reference::Tool,
 }
 
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them —
-/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them
+/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the
-/// whole allocation. The values are chosen across modules that do not
-/// know about each other, so the table is the only place they can be
-/// seen at once.
-const TAG: u8 = 33;
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
+/// allocation. The values are chosen across modules that do not know
+/// about each other, so the table is the only place they can be seen
+/// at once.
+const TAG: u8 = 25;
 
 /// JSON, as every request of the daemon's is.
 impl Encode for Frame {
@@ -57,7 +59,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A tools templates untag request frame that could not be read.
+/// A tools routes add request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -75,12 +77,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("tools templates untag request frame is empty"),
+            FrameError::Empty => f.write_str("tools routes add request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected tools templates untag request tag {TAG}, found {tag}")
+                write!(f, "expected tools routes add request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "tools templates untag request did not parse: {error}")
+                write!(f, "tools routes add request did not parse: {error}")
             }
         }
     }
