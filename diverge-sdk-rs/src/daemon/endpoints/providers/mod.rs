@@ -4,8 +4,10 @@
 //! reaches it one of two ways, which its
 //! [`Identity`](crate::daemon::endpoints::agents::logs::server::response::Identity)
 //! already tells apart. An [`outgoing`] provider the daemon DIALS: a
-//! client gives an address and a mode — unbrokered, with the credential
-//! the daemon presents as its own — and the daemon dials it for
+//! client gives an address and a mode, by the mode's name as the
+//! provider server's own `auth` names its modes — `unbrokered`, with
+//! the credential the daemon presents as its own — and the daemon
+//! dials it for
 //! whatever it needs of it, presenting that credential first, as the
 //! wire rules. An [`incoming`] provider dials the daemon, and the
 //! daemon JUDGES its credential as a provider judges its own peers: the
