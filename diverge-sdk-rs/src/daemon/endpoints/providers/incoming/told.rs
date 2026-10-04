@@ -5,10 +5,11 @@ use std::net::IpAddr;
 use serde::{Deserialize, Serialize};
 
 /// A [`Judge`](super::Judge) as a list and a get report it: the same
-/// two kinds, the key judge without its key. JSON-tagged by `kind`,
-/// `key` or `hook`, as a judge is.
+/// two forms, the key judge without its key. Untagged JSON, as a judge
+/// is: `{"identity":…}` with an `address` if any, or
+/// `{"authorize_hook":…}`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(untagged, deny_unknown_fields)]
 pub enum Told {
     /// A key judge: the identity it names, and the address it accepts
     /// from, never the key.
@@ -22,6 +23,6 @@ pub enum Told {
     /// A hook judge: its resource.
     Hook {
         /// The hook's resource, by id.
-        resource: String,
+        authorize_hook: String,
     },
 }

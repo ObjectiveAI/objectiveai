@@ -14,7 +14,8 @@
 //! carries it.
 //!
 //! A judge is named afterwards by a [`Reference`]: a key judge by the
-//! identity it names, a hook judge by its resource. [`add`] appends
+//! identity it names, a hook judge by its resource, `authorize_hook`,
+//! the two members the server itself tells its judges apart by. [`add`] appends
 //! one; [`get`] answers one as a list would; [`list`] lists them in the
 //! order they are tried, narrowed; [`delete`] takes one out, unless a
 //! provider is connected through it; [`edit`] replaces one with another

@@ -4,9 +4,10 @@ use serde::{Deserialize, Serialize};
 
 /// Which judge a request means: a key judge by the identity it names, a
 /// hook judge by its resource. Untagged JSON, one object either way,
-/// `{"identity":…}` or `{"resource":…}`; an object with members of both
-/// does not decode. There is one key judge per identity and one hook
-/// judge per resource, so each names exactly one.
+/// `{"identity":…}` or `{"authorize_hook":…}`, the members a
+/// [`Judge`](super::Judge) is told apart by; an object with both does
+/// not decode. There is one key judge per identity and one hook judge
+/// per resource, so each names exactly one.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Reference {
@@ -16,8 +17,8 @@ pub enum Reference {
         identity: String,
     },
     /// A hook judge, by its resource.
-    Resource {
+    AuthorizeHook {
         /// The resource, by id.
-        resource: String,
+        authorize_hook: String,
     },
 }

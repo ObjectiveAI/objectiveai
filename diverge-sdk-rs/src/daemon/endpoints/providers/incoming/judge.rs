@@ -6,9 +6,12 @@ use serde::{Deserialize, Serialize};
 
 /// One judge of an incoming credential, as the provider server has
 /// them: a key the credential must equal, or a hook that judges it.
-/// JSON-tagged by `kind`, `key` or `hook`.
+/// Untagged JSON, told apart by its members as the server's are —
+/// `{"key":…,"identity":…}` with an `address` if any, or
+/// `{"authorize_hook":…}` — and an object with members of both does not
+/// decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(untagged, deny_unknown_fields)]
 pub enum Judge {
     /// A credential that must equal a key, byte for byte.
     Key {
@@ -33,6 +36,6 @@ pub enum Judge {
         /// [`providers`](crate::daemon::endpoints::providers) for what
         /// it is run with and what it answers. One hook judge per
         /// resource.
-        resource: String,
+        authorize_hook: String,
     },
 }

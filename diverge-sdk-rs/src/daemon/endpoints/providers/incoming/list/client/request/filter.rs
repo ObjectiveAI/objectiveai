@@ -30,8 +30,8 @@ pub struct Filter {
     pub identities: Vec<String>,
     /// Hook judges of any one of these resources, by id.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub resources: Vec<String>,
-    /// Of any one of these kinds, `key` or `hook`.
+    pub authorize_hooks: Vec<String>,
+    /// Of any one of these forms, `key` or `authorize_hook`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub kinds: Vec<Kind>,
     /// Whether a provider is connected through it now: `true`, or none,

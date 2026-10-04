@@ -3,13 +3,12 @@
 use serde::{Deserialize, Serialize};
 
 /// The mode the daemon dials a provider in, and what that mode needs.
-/// JSON-tagged by `kind`: one variant today, `unbrokered`, and a tag
-/// all the same, for the reason the wire's
-/// [`Auth`](crate::wire::frame::auth::Auth) ships a mode byte for one
-/// mode — a brokered mode is coming, and a tag added later is a wire
-/// break.
+/// One object whose one member is the mode, by name, as the provider
+/// server's `auth` section names its modes:
+/// `{"unbrokered":{"authorization":…}}`. One mode today; a brokered
+/// mode is a second member when the wire defines it, and nothing moves.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum Mode {
     /// The two ends already know each other: the daemon presents a
     /// credential the provider was told to expect.

@@ -17,7 +17,7 @@ pub struct Frame {
     /// identity from then on. See
     /// [`Identity`](crate::daemon::endpoints::agents::logs::server::response::Identity).
     pub address: String,
-    /// How to authenticate there: see [`Mode`].
+    /// How to authenticate there, by the mode's name: see [`Mode`].
     pub mode: Mode,
 }
 
