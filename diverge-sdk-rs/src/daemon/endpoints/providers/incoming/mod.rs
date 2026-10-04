@@ -3,9 +3,9 @@
 //! A provider that dials the daemon presents an unbrokered credential,
 //! and the daemon judges it by JUDGES the client has added, tried in
 //! the order they were added, the first that accepts deciding: a
-//! [`Judge::Key`](Judge::Key), a string the credential must equal,
+//! [`Judge::Key`], a string the credential must equal,
 //! naming the identity a peer presenting it has; or a
-//! [`Judge::Hook`](Judge::Hook), a directory resource the daemon runs
+//! [`Judge::Hook`], a directory resource the daemon runs
 //! to judge the credential and name the identity, as
 //! [`providers`](super) states. None accepting is a closed connection,
 //! and nothing of why reaches the peer. The identity a judge names is
