@@ -11,18 +11,17 @@ use crate::wire::encode::{Encode, Writer};
 /// Ask the daemon to change an agent: its name, its mounts, the
 /// daemon's tools it holds, its deployer.
 ///
-/// The agent is named by its name or by its template and its index,
-/// as [`reference`](crate::daemon::reference) states. Every other
-/// member is optional and replaces the agent's whole when given: see
+/// The agent is named by its name or by its template and its index, as
+/// [`reference`](crate::daemon::reference) states. Every other member
+/// is an optional `delete` or `set`, replacing the agent's whole: see
 /// [`Edit`]. A mount the agent already has is kept where the new list
-/// names it the same; a mount the new list leaves out is gone; a
-/// mount the new list adds is made. An agent that is active — one
-/// with a loop running — has its mounts left as they are, and the
-/// daemon says so with a variant of its own, because a caller acts on
-/// it differently from a failure: wait for the loop to end, and ask
-/// again; a request that names no mount is applied live. The agent's
-/// image, limits, provider and arguments are not edited: they are its
-/// for its life.
+/// names it the same; a mount the new list leaves out is gone; a mount
+/// the new list adds is made. An agent that is active — one with a loop
+/// running — has its mounts left as they are, and the daemon says so
+/// with a variant of its own, because a caller acts on it differently
+/// from a failure: wait for the loop to end, and ask again; a request
+/// that names no mount is applied live. The agent's image, limits,
+/// provider and arguments are not edited: they are its for its life.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
@@ -39,15 +38,15 @@ pub struct Frame {
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 6;
 
 /// JSON, as the create is: the same types, and the same reader for

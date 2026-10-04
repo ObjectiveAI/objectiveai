@@ -14,7 +14,7 @@ use crate::wire::encode::{Encode, Writer};
 /// The tool is named by its name, by its template and its index, or
 /// by the provider and id it joined, as
 /// [`reference`](crate::daemon::reference) states. Every other member
-/// is optional and replaces the tool's whole when given: see
+/// is an optional `delete` or `set`, replacing the tool's whole: see
 /// [`Edit`]. A tool that is active — its container running, or its
 /// connect scope held — has its mounts left as they are, and the
 /// daemon says so with a variant of its own; a request that names no
@@ -39,15 +39,15 @@ pub struct Frame {
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 17;
 
 /// JSON, as the create is: the same mount types, and the same reader
