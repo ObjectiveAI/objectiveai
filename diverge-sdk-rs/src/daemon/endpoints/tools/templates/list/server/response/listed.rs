@@ -14,13 +14,15 @@ pub struct Listed {
     /// The id: the template's hash, as [`templates`](crate::daemon::endpoints::tools::templates)
     /// states it.
     pub id: String,
-    /// When the create made it.
-    pub created: DateTime<Utc>,
+    /// When the first create made it. On the wire an RFC 3339
+    /// timestamp in UTC. A template made again — answered `Exists`,
+    /// or made anew after a delete — keeps it, as it keeps its creator.
     /// Who made it: the client, over an endpoint, or the agent or the
     /// tool of the client's that did so through the daemon's own tools.
     /// One [`Creator`](crate::daemon::creator::Creator), the direct
     /// maker; the maker's own maker is on the maker's list item. A
-    /// template made again is the first maker's still.
+    /// template made again — answered `Exists`, or made anew after a
+    /// delete — is the first maker's still.
     pub creator: Creator,
     /// Its tags, sorted bytewise: what [`tag`](crate::daemon::endpoints::tools::templates::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::tools::templates::untag) has not taken off. Absent when empty.
