@@ -4,8 +4,8 @@
 //! failure. [`Agent`] is what a value is without a program, and the
 //! reference for what a program is run over: one agent as the
 //! daemon holds it — its name, its template and its number among
-//! the agents made from it, who made it and through whom — its
-//! [`creator`](crate::daemon::creator) chain — its activity, its
+//! the agents made from it, who made it — its
+//! [`creator`](crate::daemon::creator) — its activity, its
 //! provider, its log's length, the tools attached to it, and its
 //! tags.
 

@@ -2,8 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The client itself: the first link of every chain, what every
-/// agent and tool of the client's descends from.
+/// The client itself: what made a thing over an endpoint, and what
+/// every agent and tool of the client's descends from, one maker at
+/// a time.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Client {
     /// The client's identity, as the daemon holds the connection the

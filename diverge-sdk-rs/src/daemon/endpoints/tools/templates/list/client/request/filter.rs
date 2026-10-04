@@ -20,7 +20,7 @@ use crate::daemon::creator::Creator;
 /// # Any one of, every one of
 ///
 /// A member that lists candidates matches a template that is any one
-/// of them, or was made under any one of them; `all_tags` a
+/// of them, or was made by any one of them; `all_tags` a
 /// template that carries every one of them, `any_tags` one that
 /// carries any one of them. An empty list is absent, and matches
 /// every template.
@@ -29,10 +29,9 @@ pub struct Filter {
     /// Any one of these ids.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ids: Vec<String>,
-    /// Made under any one of these, anywhere in its chain: see
-    /// [`creator`](crate::daemon::creator). A creator names everything
-    /// made under it, however far down. Absent when empty, and then
-    /// made by anybody.
+    /// Made by any one of these, directly: see
+    /// [`Creator`](crate::daemon::creator::Creator). Absent when empty,
+    /// and then made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
     /// Whether some tool of the caller's was made from it — what a

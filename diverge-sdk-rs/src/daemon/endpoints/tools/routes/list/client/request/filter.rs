@@ -20,7 +20,7 @@ use crate::daemon::creator::Creator;
 /// # Any one of
 ///
 /// A member that lists candidates matches a route that is any one of
-/// them, or was made under any one of them. An empty list is absent,
+/// them, or was made by any one of them. An empty list is absent,
 /// and matches every route.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Filter {
@@ -35,9 +35,9 @@ pub struct Filter {
     /// now.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<String>,
-    /// Put down under any one of these, anywhere in its chain: see
-    /// [`creator`](crate::daemon::creator). Absent when empty, and then
-    /// put down by anybody.
+    /// Put down by any one of these, directly: see
+    /// [`Creator`](crate::daemon::creator::Creator). Absent when empty,
+    /// and then made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
     /// The earliest `created` to list, inclusive; absent, no earliest.

@@ -21,7 +21,7 @@ use super::Kind;
 /// # Any one of, every one of
 ///
 /// A member that lists candidates matches a tool that is any one
-/// of them, or was made under any one of them; `all_tags` a
+/// of them, or was made by any one of them; `all_tags` a
 /// tool that carries every one of them, `any_tags` one that
 /// carries any one of them. An empty list is absent, and matches
 /// every tool.
@@ -34,10 +34,9 @@ pub struct Filter {
     /// connected tool matches none of them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
-    /// Made under any one of these, anywhere in its chain: see
-    /// [`creator`](crate::daemon::creator). A creator names everything
-    /// made under it, however far down. Absent when empty, and then
-    /// made by anybody.
+    /// Made by any one of these, directly: see
+    /// [`Creator`](crate::daemon::creator::Creator). Absent when empty,
+    /// and then made by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
     /// Created by the daemon, or connected to somebody else's: the

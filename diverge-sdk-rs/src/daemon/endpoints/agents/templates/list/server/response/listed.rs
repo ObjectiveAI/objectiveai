@@ -16,12 +16,12 @@ pub struct Listed {
     pub id: String,
     /// When the create made it.
     pub created: DateTime<Utc>,
-    /// Who made it, and through whom: the chain
-    /// [`creator`](crate::daemon::creator) describes, the client
-    /// first and what made this template last. Never empty; one link
-    /// for a template the caller made with a create. A template made
-    /// again is the first maker's still.
-    pub creator: Vec<Creator>,
+    /// Who made it: the client, over an endpoint, or the agent or the
+    /// tool of the client's that did so through the daemon's own tools.
+    /// One [`Creator`](crate::daemon::creator::Creator), the direct
+    /// maker; the maker's own maker is on the maker's list item. A
+    /// template made again is the first maker's still.
+    pub creator: Creator,
     /// Its tags, sorted bytewise: what [`tag`](crate::daemon::endpoints::agents::templates::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::agents::templates::untag) has not taken off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

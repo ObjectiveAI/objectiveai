@@ -11,23 +11,20 @@ use crate::provider::endpoints::containers::agents::run::server::response::Agent
 /// here, so the item reads as the chunk it is with `sender` added;
 /// which message the part belongs to, its own `key` says.
 ///
-/// # The sender is a chain
+/// # The sender
 ///
-/// `sender` is the chain [`creator`](crate::daemon::creator)
-/// describes, read the same way: the client first, each next
-/// reached through the one before, the last the one that sent. A
-/// message the client sent with
-/// [`message`](crate::daemon::endpoints::agents::message) has a
-/// chain of one. One an agent or a tool sent, through the daemon's
-/// own `agents_message` tool, has that agent or tool last, and its
-/// own makers before it. The message request names no sender: the
-/// daemon knows who sent from the scope the request arrived on, and
-/// keeps it here. Nothing but a user part has a sender.
+/// `sender` is one [`Creator`](crate::daemon::creator::Creator): the
+/// client, for a message it sent with
+/// [`message`](crate::daemon::endpoints::agents::message); the agent
+/// or the tool, for one sent through the daemon's own `agents_message`
+/// tool. The message request names no sender: the daemon knows who
+/// sent from the scope the request arrived on, and keeps it here.
+/// Nothing but a user part has a sender.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct User {
-    /// Who sent the message this part is of, and through whom. Never
-    /// empty.
-    pub sender: Vec<Creator>,
+    /// Who sent the message this part is of: one
+    /// [`Creator`](crate::daemon::creator::Creator).
+    pub sender: Creator,
     /// The part, as the run streamed it: one of the five `user_*`
     /// chunks, its members beside `sender`.
     #[serde(flatten)]

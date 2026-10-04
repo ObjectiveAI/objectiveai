@@ -5,8 +5,8 @@
 //! reference for what a program is run over: one tool as the daemon
 //! holds it — its name, where it comes from — its [`Origin`], created
 //! from a template or connected to somebody else's container — and
-//! its number among the tools made with the same, who made it and
-//! through whom — its [`creator`](crate::daemon::creator) chain —
+//! its number among the tools made with the same, who made it — its
+//! [`creator`](crate::daemon::creator) —
 //! whether its container runs, the agents it is attached to, and its
 //! tags.
 

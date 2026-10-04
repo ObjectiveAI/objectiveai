@@ -18,8 +18,9 @@ pub struct Route {
     pub tool: creator::Tool,
     /// When the set put it down.
     pub created: DateTime<Utc>,
-    /// Who put it down, and through whom: the chain
-    /// [`creator`](crate::daemon::creator) describes, the client first
-    /// and what added this route last. Never empty.
-    pub creator: Vec<Creator>,
+    /// Who put it down: the client, over an endpoint, or the agent or
+    /// the tool of the client's that did so through the daemon's own
+    /// tools. One [`Creator`](crate::daemon::creator::Creator), the
+    /// direct maker; the maker's own maker is on the maker's list item.
+    pub creator: Creator,
 }

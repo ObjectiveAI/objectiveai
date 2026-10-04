@@ -14,8 +14,7 @@
 //! [`edit`](mod@edit) — and the resources served into them. The
 //! daemon's own tools, which a create hands the agent or the tool it
 //! makes, are [`daemon_tools`]. Who
-//! made each of those, and through whom, is [`creator`], carried by
-//! every list item; how one list item points at another is [`key`],
+//! made each of those is [`creator`], carried by every list item; how one list item points at another is [`key`],
 //! and how a request names one of them, by name or once and for all,
 //! is [`reference`](mod@reference). The provider's endpoints are
 //! not the daemon's, and nothing here names them but what a daemon

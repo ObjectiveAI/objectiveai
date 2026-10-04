@@ -22,7 +22,7 @@ use super::Filter;
 /// # Any one of, every one of
 ///
 /// A member that lists candidates — `ids`, `creators` — matches a
-/// template that is any one of them, or was made under any one of them.
+/// template that is any one of them, or was made by any one of them.
 /// `all_tags` matches a template that carries every one of them, and
 /// `any_tags` one that carries any one of them. An empty list is
 /// absent, and matches every template.

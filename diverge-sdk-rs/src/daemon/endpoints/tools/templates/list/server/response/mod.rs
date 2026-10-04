@@ -3,8 +3,8 @@
 //! [`Frame`] is what a response frame holds — one value, or a
 //! failure. [`Listed`] is what a value is without a program, and the
 //! reference for what a program is run over: one template as the
-//! daemon holds it — its id, when it was made, who made it and
-//! through whom — its [`creator`](crate::daemon::creator) chain — its
+//! daemon holds it — its id, when it was made, who made it — its
+//! [`creator`](crate::daemon::creator) — its
 //! tags, and the template itself.
 
 mod frame;

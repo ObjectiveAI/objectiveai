@@ -27,10 +27,10 @@
 //! `self`, a permission of its own beside the tools' reach. A client
 //! has no self, an agent is no tool's self and a
 //! tool no agent's: a request naming `"self"` where there is none
-//! finds nothing. An agent or a tool that wants its own makers has
-//! them already, in the `creator` chain of its own list item, so
-//! there is no "parent": `"self"` and the chain are the whole
-//! hierarchy.
+//! finds nothing. An agent or a tool that wants its own maker has it
+//! already, as the `creator` of its own list item, and the maker's
+//! maker on the maker's, so there is no "parent": `"self"` and the
+//! items are the whole hierarchy.
 //!
 //! A name is optional, so the once-and-for-all forms are the ones
 //! that always work: an agent or a tool made with no name is reached

@@ -6,7 +6,7 @@
 //! by tags, all or any, by when it was created — one response each, oldest created
 //! first, and finishes: what each is called, what template it was
 //! made from and its number among the agents ever made from it,
-//! who made it and through whom, whether it is active now, when
+//! who made it, whether it is active now, when
 //! its activity last changed and where it ran, how long its log is,
 //! which tools are attached to it, and its tags. A jq program on the request runs
 //! over each agent the filter lets through, and what it yields is
