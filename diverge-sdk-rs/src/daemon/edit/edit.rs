@@ -61,6 +61,12 @@ pub struct Edit {
     /// Absent, as it is; `delete`, `disabled`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agents_list: Option<Change<Reach<agents::list::client::request::Filter>>>,
+    /// The tool that gets one agent as a list would report it; `only`,
+    /// the agents the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agents_get: Option<Change<Reach<agents::list::client::request::Filter>>>,
     /// The tool that messages agents; `only`, the agents the filter
     /// passes. See
     /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
@@ -113,6 +119,12 @@ pub struct Edit {
     /// Absent, as it is; `delete`, `disabled`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agents_templates_list: Option<Change<Reach<agents::templates::list::client::request::Filter>>>,
+    /// The tool that gets one agent template by id; `only`, the
+    /// templates the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agents_templates_get: Option<Change<Reach<agents::templates::list::client::request::Filter>>>,
     /// The tool that deletes agent templates; `only`, the templates the
     /// filter passes. See
     /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
@@ -137,6 +149,12 @@ pub struct Edit {
     /// Absent, as it is; `delete`, `disabled`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tools_list: Option<Change<Reach<tools::list::client::request::Filter>>>,
+    /// The tool that gets one tool as a list would report it; `only`,
+    /// the tools the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools_get: Option<Change<Reach<tools::list::client::request::Filter>>>,
     /// The tool that makes tools; `only`, from the tool templates the
     /// filter passes. See
     /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
@@ -204,6 +222,12 @@ pub struct Edit {
     /// Absent, as it is; `delete`, `disabled`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tools_templates_list: Option<Change<Reach<tools::templates::list::client::request::Filter>>>,
+    /// The tool that gets one tool template by id; `only`, the
+    /// templates the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools_templates_get: Option<Change<Reach<tools::templates::list::client::request::Filter>>>,
     /// The tool that deletes tool templates; `only`, the templates the
     /// filter passes. See
     /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).

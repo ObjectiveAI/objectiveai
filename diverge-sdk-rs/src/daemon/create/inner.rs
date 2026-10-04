@@ -88,6 +88,11 @@ pub struct Inner {
     /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
     #[serde(default)]
     pub agents_list: Reach<agents::list::client::request::Filter>,
+    /// The tool that gets one agent as a list would report it; `only`,
+    /// the agents the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
+    #[serde(default)]
+    pub agents_get: Reach<agents::list::client::request::Filter>,
     /// The tool that messages agents; `only`, the agents the filter
     /// passes. See
     /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
@@ -131,6 +136,11 @@ pub struct Inner {
     /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
     #[serde(default)]
     pub agents_templates_list: Reach<agents::templates::list::client::request::Filter>,
+    /// The tool that gets one agent template by id; `only`, the
+    /// templates the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
+    #[serde(default)]
+    pub agents_templates_get: Reach<agents::templates::list::client::request::Filter>,
     /// The tool that deletes agent templates; `only`, the templates the
     /// filter passes. See
     /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
@@ -151,6 +161,11 @@ pub struct Inner {
     /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
     #[serde(default)]
     pub tools_list: Reach<tools::list::client::request::Filter>,
+    /// The tool that gets one tool as a list would report it; `only`,
+    /// the tools the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
+    #[serde(default)]
+    pub tools_get: Reach<tools::list::client::request::Filter>,
     /// The tool that makes tools; `only`, from the tool templates the
     /// filter passes. See
     /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
@@ -206,6 +221,11 @@ pub struct Inner {
     /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
     #[serde(default)]
     pub tools_templates_list: Reach<tools::templates::list::client::request::Filter>,
+    /// The tool that gets one tool template by id; `only`, the
+    /// templates the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
+    #[serde(default)]
+    pub tools_templates_get: Reach<tools::templates::list::client::request::Filter>,
     /// The tool that deletes tool templates; `only`, the templates the
     /// filter passes. See
     /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
