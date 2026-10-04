@@ -10,7 +10,8 @@
 //! its own: agents, the tools attached to them, the templates both
 //! are made from — one shape, [`template`], shared by the two
 //! families' endpoints, as what their creates share is one
-//! [`create`](mod@create) — and the resources served into them. The
+//! [`create`](mod@create) and what their edits share one
+//! [`edit`](mod@edit) — and the resources served into them. The
 //! daemon's own tools, which a create hands the agent or the tool it
 //! makes, are [`daemon_tools`]. Who
 //! made each of those, and through whom, is [`creator`], carried by
@@ -23,6 +24,7 @@
 pub mod create;
 pub mod creator;
 pub mod daemon_tools;
+pub mod edit;
 pub mod endpoints;
 pub mod key;
 pub mod reference;

@@ -1,15 +1,13 @@
-//! Editing what a tool mounts, by name.
+//! Editing a tool: its name, its mounts, the daemon's tools it holds,
+//! its deployer.
 //!
 //! One request, one answer. A client names a tool of its own and
-//! states its mounts anew — the volumes of the provider it is pinned
-//! to, and the files and directories served over FUSE — and the
-//! daemon answers that the tool has them, that no tool is the one named,
-//! that the tool is active and was left as it is, or that it failed,
-//! and the scope finishes. The mounts are the one thing about a tool
-//! that changes after its [`create`](super::create): its image, its
-//! limits, its provider and its arguments are for its life. A tool is
-//! active while its container runs, which is while any agent it is
-//! attached to is.
+//! states anew whichever of those it names — each replaced whole, the
+//! rest as they are — and the daemon answers that the tool has them,
+//! that no tool is the one named, that the tool is active and its
+//! mounts were left as they are, that the tool is connected and has
+//! no mounts or daemon's tools of this caller's to change, that the
+//! name is another's, or that it failed, and the scope finishes.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer

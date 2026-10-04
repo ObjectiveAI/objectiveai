@@ -4,51 +4,36 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 
-use crate::daemon::endpoints::agents::create::client::request::{FuseMount, VolumeMount};
+use crate::daemon::edit::Edit;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to change what an agent mounts, by name.
+/// Ask the daemon to change an agent: its name, its mounts, the
+/// daemon's tools it holds, its deployer.
 ///
-/// The name is the one a
-/// [`create`](crate::daemon::endpoints::agents::create) gave the
-/// agent, compared as the daemon compares names and not read. The
-/// three lists are absolute: what the agent mounts after the edit is
-/// exactly what they state, each list replacing the agent's list of
-/// that kind whole, an empty list leaving the agent with no mount of
-/// that kind. A mount the agent already has is kept where the new
-/// list names it the same; a mount the new list leaves out is gone;
-/// a mount the new list adds is made. An agent that is active — one
-/// with a loop running — is not edited, and the daemon says so with a
-/// variant of its own, because a caller acts on it differently from a
-/// failure: wait for the loop to end, and ask again. The agent's
-/// image, limits, provider and arguments are not edited: they are
-/// its for its life.
+/// The agent is named by its name or by its template and its index,
+/// as [`reference`](crate::daemon::reference) states. Every other
+/// member is optional and replaces the agent's whole when given: see
+/// [`Edit`]. A mount the agent already has is kept where the new list
+/// names it the same; a mount the new list leaves out is gone; a
+/// mount the new list adds is made. An agent that is active — one
+/// with a loop running — has its mounts left as they are, and the
+/// daemon says so with a variant of its own, because a caller acts on
+/// it differently from a failure: wait for the loop to end, and ask
+/// again; a request that names no mount is applied live. The agent's
+/// image, limits, provider and arguments are not edited: they are its
+/// for its life.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The agent: by its name, as its create gave it, or by its
     /// template and its index, which name it once and for all. See
     /// [`reference::Agent`].
     pub agent: reference::Agent,
-    /// Volumes of the provider the agent's create pinned it to: see
-    /// [`VolumeMount`]. An agent pinned to no provider mounts no
-    /// volume, and a request that names one for such an agent is the
-    /// edit's error. Ordered, and applied in
-    /// order; no mount's path, in any list, is a prefix of another's.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub volume_mounts: Vec<VolumeMount>,
-    /// Files of providers' volumes served live across the daemon,
-    /// mounted one each over FUSE: see [`FuseMount`], and the
-    /// create's
-    /// [`fuse_file_mounts`](crate::daemon::create::Inner::fuse_file_mounts).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<FuseMount>,
-    /// Directories of providers' volumes served live across the
-    /// daemon, mounted one each over FUSE: see [`FuseMount`], and the
-    /// create's
-    /// [`fuse_directory_mounts`](crate::daemon::create::Inner::fuse_directory_mounts).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_directory_mounts: Vec<FuseMount>,
+    /// What an agent's edit and a tool's share — the name, the mounts,
+    /// the daemon's tools, the deployer, every one optional: see
+    /// [`Edit`]. Flattened, so its members are this object's own.
+    #[serde(flatten)]
+    pub edit: Edit,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -65,8 +50,8 @@ pub struct Frame {
 /// at once.
 const TAG: u8 = 6;
 
-/// JSON, as the create is: the same mount types, and the same reader
-/// for every request of the agents family.
+/// JSON, as the create is: the same types, and the same reader for
+/// every request of the agents family.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;

@@ -4,55 +4,36 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 
-use crate::daemon::endpoints::agents::create::client::request::{FuseMount, VolumeMount};
+use crate::daemon::edit::Edit;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to change what a tool mounts, by name.
+/// Ask the daemon to change a tool: its name, its mounts, the
+/// daemon's tools it holds, its deployer.
 ///
-/// The name is the one a
-/// [`create`](crate::daemon::endpoints::tools::create) gave the
-/// tool, compared as the daemon compares names and not read. The
-/// three lists are absolute: what the tool mounts after the edit is
-/// exactly what they state, each list replacing the tool's list of
-/// that kind whole, an empty list leaving the tool with no mount of
-/// that kind. A mount the tool already has is kept where the new
-/// list names it the same; a mount the new list leaves out is gone;
-/// a mount the new list adds is made. A tool that is active — its
-/// container running, an agent it is attached to being active — is
-/// not edited, and the daemon says so with a variant of its own,
-/// because a caller acts on it differently from a failure: wait for
-/// the container to stop, and ask again. The tool's image, limits,
-/// provider and arguments are not edited: they are its for its life.
-/// A [`connect`](crate::daemon::endpoints::tools::connect)ed tool has
-/// no mounts of this caller's and is not edited; the daemon says so
-/// with a variant of its own.
+/// The tool is named by its name, by its template and its index, or
+/// by the provider and id it joined, as
+/// [`reference`](crate::daemon::reference) states. Every other member
+/// is optional and replaces the tool's whole when given: see
+/// [`Edit`]. A tool that is active — its container running, or its
+/// connect scope held — has its mounts left as they are, and the
+/// daemon says so with a variant of its own; a request that names no
+/// mount is applied live. A
+/// [`connect`](crate::daemon::endpoints::tools::connect)ed tool has
+/// no mounts of this caller's and holds none of the daemon's tools:
+/// a request naming either for one is refused as not owned, and only
+/// its name changes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The tool: by its name, as its create or its connect gave it,
     /// or by its template and its index, which name a created tool
     /// once and for all. See [`reference::Tool`].
     pub tool: reference::Tool,
-    /// Volumes of the provider the tool is pinned to, as the
-    /// create's [`Provider`](crate::daemon::endpoints::agents::create::client::request::Provider)
-    /// names them: see [`VolumeMount`]. A tool pinned to no provider
-    /// mounts no volume, and a request that names one for such a
-    /// tool is the edit's error. Ordered, and applied in
-    /// order; no mount's path, in any list, is a prefix of another's.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub volume_mounts: Vec<VolumeMount>,
-    /// Files of providers' volumes served live across the daemon,
-    /// mounted one each over FUSE: see [`FuseMount`], and the
-    /// create's
-    /// [`fuse_file_mounts`](crate::daemon::create::Inner::fuse_file_mounts).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<FuseMount>,
-    /// Directories of providers' volumes served live across the
-    /// daemon, mounted one each over FUSE: see [`FuseMount`], and the
-    /// create's
-    /// [`fuse_directory_mounts`](crate::daemon::create::Inner::fuse_directory_mounts).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_directory_mounts: Vec<FuseMount>,
+    /// What an agent's edit and a tool's share — the name, the mounts,
+    /// the daemon's tools, the deployer, every one optional: see
+    /// [`Edit`]. Flattened, so its members are this object's own.
+    #[serde(flatten)]
+    pub edit: Edit,
 }
 
 /// This frame's tag among the scope-opening requests.

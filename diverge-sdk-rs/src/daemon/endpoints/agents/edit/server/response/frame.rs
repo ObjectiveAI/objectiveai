@@ -6,42 +6,46 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// An edit's answer: the agent has the mounts stated, no agent has
-/// the name, the agent is active, or a failure.
+/// An edit's answer: the agent is as the request states, no agent is
+/// the one named, the agent is active, the name is another's, or a
+/// failure.
 ///
 /// An edit is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Edited`](Self::Edited),
-/// `1` for [`NotFound`](Self::NotFound), `2` for
-/// [`Active`](Self::Active), `3` for [`Error`](Self::Error) — and
+/// with one byte saying which — `0` for [`Edited`](Self::Edited), `1`
+/// for [`NotFound`](Self::NotFound), `2` for [`Active`](Self::Active),
+/// `3` for [`InUse`](Self::InUse), `4` for [`Error`](Self::Error) — and
 /// only the error carries anything after it.
 ///
-/// # Three answers, one failure
+/// # Answers, and one failure
 ///
-/// [`NotFound`](Self::NotFound) and [`Active`](Self::Active) are
-/// ANSWERS: the daemon looked, and either no agent of the caller's
-/// is the one named, or one does and a loop is running in it, and in
-/// either case nothing was changed and nothing is retried — the
-/// caller has the wrong name, or waits for the loop to end and asks
-/// again. An [`Error`](Self::Error) is the absence of an answer: the
-/// daemon could not change the agent's mounts, for whatever reason it
-/// knows, and the agent mounts what it mounted.
+/// [`NotFound`](Self::NotFound), [`Active`](Self::Active) and
+/// [`InUse`](Self::InUse) are ANSWERS: the daemon looked, and no agent
+/// of the caller's is the one named, or one is and a loop is running in
+/// it while the request names a mount, or the name requested is another
+/// agent's, and in each case nothing changed and nothing is retried —
+/// the caller has the wrong agent, or waits for the loop to end and
+/// asks again, or chooses another name. An [`Error`](Self::Error) is
+/// the absence of an answer: the daemon could not make the change, for
+/// whatever reason it knows, and the agent is as it was. The request is
+/// applied whole or not at all.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The agent mounts what the request stated, and its next run
-    /// sees them. Tag `0`.
+    /// The agent is as the request states, and sees it. Tag `0`.
     Edited,
-    /// No agent of the caller's is the one named; nothing was changed.
-    /// Tag `1`.
+    /// No agent of the caller's is the one named; nothing changed. Tag
+    /// `1`.
     NotFound,
-    /// The agent is active — a loop is running in it — and was left
-    /// as it is; nothing was changed. Tag `2`.
+    /// The agent is active — a loop is running in it — and the request
+    /// names a mount; nothing changed. Tag `2`.
     Active,
-    /// A failure. Tag `3`.
+    /// The name requested is another agent's; nothing changed. Tag `3`.
+    InUse,
+    /// A failure. Tag `4`.
     ///
-    /// The agent mounts what it mounted. See
-    /// [`shared::error::Error`](crate::shared::error::Error)
-    /// for why it says so little.
+    /// Nothing changed. See
+    /// [`shared::error::Error`](crate::shared::error::Error) for why it
+    /// says so little.
     Error(Error),
 }
 
@@ -54,12 +58,15 @@ const NOT_FOUND: u8 = 1;
 /// Tag for [`Frame::Active`].
 const ACTIVE: u8 = 2;
 
+/// Tag for [`Frame::InUse`].
+const IN_USE: u8 = 3;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 3;
+const ERROR: u8 = 4;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
-    /// The ordinary JSON failure. The three bare answers cannot fail.
+    /// The ordinary JSON failure. The bare answers cannot fail.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -76,6 +83,10 @@ impl Encode for Frame {
             }
             Frame::Active => {
                 out.extend_from_slice(&[ACTIVE]);
+                Ok(())
+            }
+            Frame::InUse => {
+                out.extend_from_slice(&[IN_USE]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -97,6 +108,7 @@ impl Decode<'_> for Frame {
             EDITED => Ok(Frame::Edited),
             NOT_FOUND => Ok(Frame::NotFound),
             ACTIVE => Ok(Frame::Active),
+            IN_USE => Ok(Frame::InUse),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -108,7 +120,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),
