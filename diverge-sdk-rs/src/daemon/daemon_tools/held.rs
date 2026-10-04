@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use super::word::Word;
 
-/// The reach of a tool that tags or untags, as a member of
-/// [`DaemonTools`](super::DaemonTools) states it: not held, or held
+/// The reach of a tool that tags or untags, as the member of a
+/// create's [`Inner`](crate::daemon::create::Inner) states it: not held, or held
 /// with `T` saying which things and which tags, each side a
 /// [`Within`](super::Within) of its own. There is no `any` at this
 /// level, because "any agent with any tag" is `T` with both sides

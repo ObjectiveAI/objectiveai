@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use super::word::Word;
 
-/// The reach of one of the daemon's tools, as a member of
-/// [`DaemonTools`](super::DaemonTools) states it. On the wire the
+/// The reach of one of the daemon's tools, as the member of a
+/// create's [`Inner`](crate::daemon::create::Inner) states it. On the wire the
 /// string `"disabled"`, the string `"any"`, or `T` itself, flat —
 /// a filter, a pair of filters, or a list of ids, as the member
 /// says — with nothing wrapped around it. `Disabled` is the default,

@@ -6,12 +6,13 @@
 //! answers: the daemon's own verbs over the caller's agents, tools,
 //! and the templates both are made from, and over its resources.
 //! Which of them a container has, and how far each reaches, is its
-//! create's and not its template's: the [`DaemonTools`] an
-//! [agent's create](crate::daemon::endpoints::agents::create) or a
-//! [tool's create](crate::daemon::endpoints::tools::create) carries
-//! names each tool the container holds, with its reach — every
-//! member `disabled`, `any`, or `only` what it names, a [`Reach`] —
-//! and a container holds exactly the tools not `disabled`. Which
+//! create's and not its template's: an
+//! [agent's create](crate::daemon::endpoints::agents::create) and a
+//! [tool's create](crate::daemon::endpoints::tools::create) carry, in
+//! their shared [`Inner`](crate::daemon::create::Inner), one member
+//! per tool, with its reach — `disabled`, `any`, or `only` what it
+//! names, a [`Reach`] — and a container holds exactly the tools not
+//! `disabled`. Which
 //! tools it holds is fixed for its life; how far each reaches is
 //! edited. A create that carries no `daemon_tools` makes a container
 //! that holds none, and a connected tool holds none: it is somebody
@@ -39,7 +40,7 @@
 //! tool that makes something reaches templates: it makes from a
 //! template its filter passes, and from no other. `any` is every
 //! thing of the caller's with no filter at all. Each of these is
-//! one filter, and is that filter on [`DaemonTools`]; the two tools
+//! one filter, and is that filter on the create; the two tools
 //! that join a tool to an agent carry a filter for each, and are
 //! [`ToolsAttach`] and [`ToolsDetach`]; the eight that tag and untag
 //! are [`Held`] rather than reached — `disabled`, or `only` with two
@@ -68,7 +69,6 @@ mod agents_tag;
 mod agents_templates_tag;
 mod agents_templates_untag;
 mod agents_untag;
-mod daemon_tools;
 mod destination;
 mod edge;
 mod held;
@@ -88,7 +88,6 @@ pub use agents_tag::*;
 pub use agents_templates_tag::*;
 pub use agents_templates_untag::*;
 pub use agents_untag::*;
-pub use daemon_tools::*;
 pub use destination::*;
 pub use edge::*;
 pub use held::*;
