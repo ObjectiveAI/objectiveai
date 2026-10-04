@@ -9,7 +9,8 @@
 //! [`endpoints`] on top, as the [`provider`](crate::provider) defines
 //! its own: agents, the tools attached to them, the templates both
 //! are made from — one shape, [`template`], shared by the two
-//! families' endpoints — and the resources served into them. The
+//! families' endpoints, as what their creates share is one
+//! [`create`](mod@create) — and the resources served into them. The
 //! daemon's own tools, which a create hands the agent or the tool it
 //! makes, are [`daemon_tools`]. Who
 //! made each of those, and through whom, is [`creator`], carried by
@@ -19,6 +20,7 @@
 //! not the daemon's, and nothing here names them but what a daemon
 //! spawns an agent from.
 
+pub mod create;
 pub mod creator;
 pub mod daemon_tools;
 pub mod endpoints;

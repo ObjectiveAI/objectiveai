@@ -181,9 +181,8 @@ pub struct DaemonTools {
 }
 
 impl DaemonTools {
-    /// Whether every tool is `disabled`: what a container made with
-    /// no `daemon_tools` holds, and what a create leaves off the
-    /// wire.
+    /// Whether every tool is `disabled`: what a container holds when
+    /// its create named none.
     pub fn all_disabled(&self) -> bool {
         *self == Self::default()
     }

@@ -4,15 +4,13 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::daemon_tools::DaemonTools;
-use crate::daemon::reference;
-use super::{FuseMount, Provider};
+use crate::daemon::create::Inner;
 
 /// Ask the daemon to create an agent under a name, from a template.
 ///
 /// What every agent made from the template shares — the image, the
 /// limits, the resources, the arguments — is the
-/// [`template`](Self::template), named by its id; what is this
+/// [`template`](Inner::template), named by its id; what is this
 /// agent's own is here: the provider it runs on with the volumes it
 /// mounts there, its FUSE mounts of providers' volumes, the daemon's
 /// own tools it holds, and the name the agent is held under from
@@ -38,70 +36,12 @@ use super::{FuseMount, Provider};
 /// compares it and does not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The template the agent is made from, by its id — the hash a
-    /// [`templates::create`](crate::daemon::endpoints::agents::templates::create)
-    /// answered. An id no template of the caller's has is the
-    /// create's error. The template's image, limits, resources and
-    /// arguments are the agent's for its life.
-    pub template: String,
-    /// The one provider the agent runs on, and the volumes of that
-    /// provider made visible inside the container. See [`Provider`].
-    ///
-    /// Absent, the agent runs on whichever provider the daemon
-    /// chooses, and mounts no volume: a volume is a provider's own
-    /// and does not carry across, so an agent with state on a
-    /// provider's disk is an agent of that provider. The agent's for
-    /// its life, and never the template's.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider: Option<Provider>,
-    /// Files of providers' volumes served LIVE across the daemon,
-    /// mounted one each over FUSE.
-    ///
-    /// Each names a file by a provider, a volume of that provider's
-    /// and a path in it, and its path in the container — see
-    /// [`FuseMount`]; each may name a different provider. Every one
-    /// is mounted before the agent runs, and every read and every
-    /// write of a piece inside the container is one ask, forwarded by
-    /// the daemon to the volume's provider and served from the
-    /// volume's file in place. The file is
-    /// overwritten in place only; a program that replaces its file by
-    /// rename needs a directory mount. Its container path is no other
-    /// mount's — the template's resource mounts included — and lies
-    /// inside none, as every mount's.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<FuseMount>,
-    /// Directories of providers' volumes served LIVE across the
-    /// daemon, mounted one each over FUSE.
-    ///
-    /// Each names a directory by a provider, a volume of that
-    /// provider's and a path in it, and its path in the container —
-    /// see [`FuseMount`]; each may name a different provider. The
-    /// whole tree under the volume path is what the container sees:
-    /// every listing, stat, read or write of a piece, truncation,
-    /// change of attributes, creation, removal and rename inside the
-    /// container is one ask, forwarded by the daemon to the volume's
-    /// provider and served from the volume's tree in place. No other
-    /// mount may lie inside it.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The daemon's own tools the agent holds, and how far each
-    /// reaches: see [`DaemonTools`]. Absent, every one `disabled`,
-    /// and left off the wire when every one is. Which it holds is
-    /// the agent's for its life; how far each reaches is edited.
-    #[serde(default, skip_serializing_if = "DaemonTools::all_disabled")]
-    pub daemon_tools: DaemonTools,
-    /// The agent of the caller's the daemon hands this agent's
-    /// declared tool dependencies to — each as the template and the
-    /// instructions the agent returned at register time — when no
-    /// [route](crate::daemon::endpoints::tools::routes) answers them.
-    /// The deployer makes the tool, attaches it, and may add a route so
-    /// that the next ask at that position is answered without it. By
-    /// name, or by template and index: see [`reference::Agent`].
-    /// Absent, the daemon deploys nothing itself: a dependency no
-    /// route answers is not met, and the agent's tools channel is
-    /// answered with an error.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployer_agent: Option<reference::Agent>,
+    /// What an agent's create and a tool's share — the template, the
+    /// provider and its volumes, the FUSE mounts, the daemon's tools,
+    /// the deployer: see [`Inner`]. Flattened, so its members are this
+    /// object's own.
+    #[serde(flatten)]
+    pub inner: Inner,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's agents, by which the agent is reached
     /// afterwards beside its template and its index. Absent, the

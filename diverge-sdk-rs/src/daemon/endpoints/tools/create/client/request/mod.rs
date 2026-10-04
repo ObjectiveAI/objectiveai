@@ -1,6 +1,8 @@
 //! Create request data.
 //!
-//! What a caller hands the daemon to create a tool under a name:
+//! What a caller hands the daemon to create a tool under a name, in
+//! one [`Inner`](crate::daemon::create::Inner) shared with the agents
+//! create and flattened into the [`Frame`]:
 //! the [`Frame`] names the
 //! [`template`](crate::daemon::endpoints::tools::templates) the tool
 //! is made from and carries what is the tool's own: the one

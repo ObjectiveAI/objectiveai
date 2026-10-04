@@ -1,6 +1,8 @@
 //! Create request data.
 //!
-//! What a caller hands the daemon to create an agent under a name:
+//! What a caller hands the daemon to create an agent under a name, in
+//! one [`Inner`](crate::daemon::create::Inner) shared with the tools
+//! create and flattened into the [`Frame`]:
 //! the [`Frame`] names the
 //! [`template`](crate::daemon::endpoints::agents::templates) the
 //! agent is made from — its image, its limits, its resources, its

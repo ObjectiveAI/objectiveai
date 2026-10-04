@@ -40,13 +40,13 @@ pub struct Frame {
     /// Files of providers' volumes served live across the daemon,
     /// mounted one each over FUSE: see [`FuseMount`], and the
     /// create's
-    /// [`fuse_file_mounts`](crate::daemon::endpoints::agents::create::client::request::Frame::fuse_file_mounts).
+    /// [`fuse_file_mounts`](crate::daemon::create::Inner::fuse_file_mounts).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of providers' volumes served live across the
     /// daemon, mounted one each over FUSE: see [`FuseMount`], and the
     /// create's
-    /// [`fuse_directory_mounts`](crate::daemon::endpoints::agents::create::client::request::Frame::fuse_directory_mounts).
+    /// [`fuse_directory_mounts`](crate::daemon::create::Inner::fuse_directory_mounts).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
 }

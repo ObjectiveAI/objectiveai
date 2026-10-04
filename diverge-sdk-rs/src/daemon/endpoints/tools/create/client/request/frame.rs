@@ -2,10 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::daemon_tools::DaemonTools;
-use crate::daemon::reference;
+use crate::daemon::create::Inner;
 
-use super::{FuseMount, Provider};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -13,12 +11,13 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// What every tool made from the template shares — the image, the
 /// limits, the resources, the arguments — is the
-/// [`template`](Self::template), named by its id; what is this
+/// [`template`](Inner::template), named by its id; what is this
 /// tool's own is here: the provider it runs on with the volumes it
 /// mounts there, its FUSE mounts of providers' volumes, and the name
 /// the tool is held under from then on. The agents create's shape
-/// member for member, because a tool container is made of what an
-/// agent container is made of; what makes it a tool is the image,
+/// member for member — the one [`Inner`] flattened into both —
+/// because a tool container is made of what an agent container is
+/// made of; what makes it a tool is the image,
 /// which runs an MCP server, and what the daemon does with it, which
 /// is to serve it to the agents it is attached to. What a caller may
 /// not choose is not here at all rather than here and ignored: the
@@ -38,53 +37,12 @@ use crate::wire::encode::{Encode, Writer};
 /// string's form; the daemon compares it and does not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The tool template the tool is made from, by its id — the hash
-    /// a [`templates::create`](crate::daemon::endpoints::tools::templates::create)
-    /// answered. An id no tool template of the caller's has is the
-    /// create's error. The template's image, limits, resources and
-    /// arguments are the tool's for its life.
-    pub template: String,
-    /// The one provider the tool runs on, and the volumes of that
-    /// provider made visible inside the container. See [`Provider`].
-    ///
-    /// Absent, the tool runs on whichever provider the daemon
-    /// chooses, and mounts no volume. A tool pinned to a provider is
-    /// served to an agent on any provider: the daemon speaks to the
-    /// tool container over the provider it runs on, and answers the
-    /// agent's calls on the agent's. The tool's for its life, and
-    /// never the template's.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider: Option<Provider>,
-    /// Files of providers' volumes served live across the daemon,
-    /// mounted one each over FUSE: see [`FuseMount`], and the agents
-    /// create's
-    /// [`fuse_file_mounts`](crate::daemon::endpoints::agents::create::client::request::Frame::fuse_file_mounts).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<FuseMount>,
-    /// Directories of providers' volumes served live across the
-    /// daemon, mounted one each over FUSE: see [`FuseMount`], and the
-    /// agents create's
-    /// [`fuse_directory_mounts`](crate::daemon::endpoints::agents::create::client::request::Frame::fuse_directory_mounts).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The daemon's own tools the tool holds, and how far each
-    /// reaches: see [`DaemonTools`]. Absent, every one `disabled`,
-    /// and left off the wire when every one is. Which it holds is
-    /// the tool's for its life; how far each reaches is edited.
-    #[serde(default, skip_serializing_if = "DaemonTools::all_disabled")]
-    pub daemon_tools: DaemonTools,
-    /// The agent of the caller's the daemon hands this tool's
-    /// declared tool dependencies to — each as the template and the
-    /// instructions the tool returned at register time — when no
-    /// [route](crate::daemon::endpoints::tools::routes) answers them.
-    /// The deployer makes the tool, attaches it, and may add a route so
-    /// that the next ask at that position is answered without it. By
-    /// name, or by template and index: see [`reference::Agent`].
-    /// Absent, the daemon deploys nothing itself: a dependency no
-    /// route answers is not met, and the tool's tools channel is
-    /// answered with an error.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployer_agent: Option<reference::Agent>,
+    /// What an agent's create and a tool's share — the template, the
+    /// provider and its volumes, the FUSE mounts, the daemon's tools,
+    /// the deployer: see [`Inner`]. Flattened, so its members are this
+    /// object's own.
+    #[serde(flatten)]
+    pub inner: Inner,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's tools, by which the tool is reached
     /// afterwards beside its template and its index. Absent, the
