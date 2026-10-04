@@ -17,6 +17,7 @@ pub struct Listed {
     /// When the first create made it. On the wire an RFC 3339
     /// timestamp in UTC. A template made again — answered `Exists`,
     /// or made anew after a delete — keeps it, as it keeps its creator.
+    pub created: DateTime<Utc>,
     /// Who made it: the client, over an endpoint, or the agent or the
     /// tool of the client's that did so through the daemon's own tools.
     /// One [`Creator`](crate::daemon::creator::Creator), the direct
