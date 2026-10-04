@@ -25,8 +25,9 @@ use crate::daemon::endpoints::agents::list::server::response::Agent;
 ///
 /// [`NotFound`](Self::NotFound) and [`NoSelf`](Self::NoSelf) are
 /// ANSWERS: the daemon looked, and no agent of the caller's is the one
-/// named — or the request named `"self"` and the caller is no agent,
-/// having no self here — and nothing is retried. An
+/// named — or the request named `"self"` and the caller is no agent, or
+/// one whose create withheld `self`, having no self here — and
+/// nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not look, for whatever reason it knows.
 #[derive(Debug, Clone, PartialEq)]

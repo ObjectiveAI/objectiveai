@@ -83,6 +83,15 @@ pub struct Inner {
     /// mount may lie inside it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
+    /// Whether the container may name itself: `true`, the string
+    /// `"self"` names it wherever one of the daemon's tools takes a
+    /// [reference](crate::daemon::reference) to its own family, and
+    /// the tool's reach is then judged on it as on any other; `false`,
+    /// or absent, `"self"` names nothing for it, whatever the tools'
+    /// reach. An agent's `"self"` is an agent's only, a tool's a
+    /// tool's.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not", rename = "self")]
+    pub itself: bool,
     /// The tool that lists agents; `only`, the agents the filter
     /// passes, and its own list requests narrow within them. See
     /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).

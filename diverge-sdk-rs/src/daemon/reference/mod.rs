@@ -23,7 +23,9 @@
 //! agent, and names that agent; [`Tool`]'s `"self"` when the caller
 //! is a tool, and names that tool — through the daemon's own tools,
 //! where the daemon knows who is calling from the scope the call
-//! arrived on. A client has no self, an agent is no tool's self and a
+//! arrived on — and only when the caller's create or edit gave it
+//! `self`, a permission of its own beside the tools' reach. A client
+//! has no self, an agent is no tool's self and a
 //! tool no agent's: a request naming `"self"` where there is none
 //! finds nothing. An agent or a tool that wants its own makers has
 //! them already, in the `creator` chain of its own list item, so
