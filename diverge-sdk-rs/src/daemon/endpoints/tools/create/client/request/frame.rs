@@ -27,12 +27,14 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// # The name
 ///
-/// A string of the caller's choosing, unique among the caller's
-/// TOOLS — a namespace of its own beside the agents', so a tool and
-/// an agent may share a name: the daemon refuses a request whose
-/// name is a tool's already, and says so with a variant of its own,
-/// because a caller acts on it differently from a failure — use the
-/// tool it has, or choose another name. Nothing here constrains the
+/// Optional. A string of the caller's choosing, unique among the
+/// caller's TOOLS — a namespace of its own beside the agents', so a
+/// tool and an agent may share a name: the daemon refuses a request
+/// whose name is a tool's already, and says so with a variant of its
+/// own, because a caller acts on it differently from a failure — use
+/// the tool it has, or choose another name. A request with no name
+/// is never refused for one: the tool is reached by its template and
+/// its index, which it always has. Nothing here constrains the
 /// string's form; the daemon compares it and does not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
@@ -83,8 +85,12 @@ pub struct Frame {
     /// answered with an error.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deployer_agent: Option<reference::Agent>,
-    /// The name, unique among the caller's tools.
-    pub name: String,
+    /// The name, if any: a string of the caller's choosing, unique
+    /// among the caller's tools, by which the tool is reached
+    /// afterwards beside its template and its index. Absent, the
+    /// tool has none, and is reached once and for all only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 /// This frame's tag among the scope-opening requests.

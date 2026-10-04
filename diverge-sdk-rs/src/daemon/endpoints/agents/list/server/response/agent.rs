@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator;
 use crate::daemon::creator::Creator;
+use crate::daemon::key;
 use crate::daemon::endpoints::agents::logs::server::response::Provider;
 
 /// One agent of the caller's: what the daemon knows of it without
@@ -17,8 +18,11 @@ use crate::daemon::endpoints::agents::logs::server::response::Provider;
 /// mounts are the create's, and neither is repeated here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Agent {
-    /// The name, as its create gave it.
-    pub name: String,
+    /// The name, as its create gave it, if it gave one; absent for an
+    /// agent made with none, which is reached by its template and its
+    /// index alone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     /// The template it was made from, by id: the hash a
     /// [`templates::create`](crate::daemon::endpoints::agents::templates::create)
     /// answered, and what a
@@ -60,12 +64,13 @@ pub struct Agent {
     /// and where a read that wants only what comes next starts.
     /// `0` for an empty log.
     pub logs_index: u64,
-    /// The names of the [`tools`](crate::daemon::endpoints::tools)
-    /// attached to it, in the order they were attached; empty for an
-    /// agent with none. The tools list reports the same attachments
-    /// from the other side.
+    /// The [`tools`](crate::daemon::endpoints::tools) attached to it,
+    /// each by its [`key`](crate::daemon::key) — its origin and its
+    /// index, with its name beside when it has one — in the order
+    /// they were attached; empty for an agent with none. The tools
+    /// list reports the same attachments from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tools: Vec<String>,
+    pub tools: Vec<key::Tool>,
     /// Its tags, sorted bytewise: what [`tag`](crate::daemon::endpoints::agents::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::agents::untag) has not taken off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

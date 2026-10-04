@@ -33,12 +33,15 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// # The name
 ///
-/// A string of the caller's choosing, unique among the caller's
-/// tools, created and connected alike: the daemon refuses a request
-/// whose name is a tool's already, and says so with a variant of its
-/// own, because a caller acts on it differently from a failure — use
-/// the tool it has, or choose another name. Nothing here constrains
-/// the string's form; the daemon compares it and does not read it.
+/// Optional. A string of the caller's choosing, unique among the
+/// caller's tools, created and connected alike: the daemon refuses a
+/// request whose name is a tool's already, and says so with a
+/// variant of its own, because a caller acts on it differently from
+/// a failure — use the tool it has, or choose another name. A
+/// request with no name is never refused for one: the tool is
+/// reached by the provider and id it joined, which it always has.
+/// Nothing here constrains the string's form; the daemon compares it
+/// and does not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The provider the container runs on, as the daemon knows it:
@@ -58,8 +61,12 @@ pub struct Frame {
     /// whether the connection opens. Its form is the runner's to
     /// state.
     pub authorization: String,
-    /// The name, unique among the caller's tools.
-    pub name: String,
+    /// The name, if any: a string of the caller's choosing, unique
+    /// among the caller's tools, by which the tool is reached
+    /// afterwards beside the provider and id it joined. Absent, the
+    /// tool has none, and is reached by that pair only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 /// This frame's tag among the scope-opening requests.

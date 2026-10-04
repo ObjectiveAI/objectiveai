@@ -27,11 +27,13 @@ use super::{FuseMount, Provider};
 ///
 /// # The name
 ///
-/// A string of the caller's choosing, unique among the caller's
-/// agents: the daemon refuses a request whose name is an agent's
-/// already, and says so with a variant of its own, because a caller
-/// acts on it differently from a failure — use the agent it has, or
-/// choose another name. Nothing here constrains the string's form;
+/// Optional. A string of the caller's choosing, unique among the
+/// caller's agents: the daemon refuses a request whose name is an
+/// agent's already, and says so with a variant of its own, because a
+/// caller acts on it differently from a failure — use the agent it
+/// has, or choose another name. A request with no name is never
+/// refused for one: the agent is reached by its template and its
+/// index, which it always has. Nothing here constrains the string's form;
 /// the name is the caller's word for its agent, and the daemon
 /// compares it and does not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -100,8 +102,12 @@ pub struct Frame {
     /// answered with an error.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deployer_agent: Option<reference::Agent>,
-    /// The name, unique among the caller's agents.
-    pub name: String,
+    /// The name, if any: a string of the caller's choosing, unique
+    /// among the caller's agents, by which the agent is reached
+    /// afterwards beside its template and its index. Absent, the
+    /// agent has none, and is reached once and for all only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 /// This frame's tag among the scope-opening requests.

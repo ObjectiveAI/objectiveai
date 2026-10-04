@@ -16,6 +16,8 @@ pub struct Tool {
     /// its list item carries. The template and the index name the
     /// tool once and for all.
     pub index: u64,
-    /// The tool's name, as its create gave it.
-    pub name: String,
+    /// The tool's name, as its create gave it, if it gave one. Absent
+    /// when it had none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }

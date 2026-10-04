@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 pub enum Agent {
     /// By name: `{"name":…}`.
     Name {
-        /// The agent's name, as its create gave it.
+        /// The agent's name, as its create gave it. An agent given
+        /// none is not reached this way.
         name: String,
     },
     /// By template and index: `{"template":…,"index":…}`.

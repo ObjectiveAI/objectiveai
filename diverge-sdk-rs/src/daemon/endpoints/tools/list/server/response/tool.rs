@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator;
 use crate::daemon::creator::Creator;
+use crate::daemon::key;
 use crate::daemon::endpoints::tools::routes::Path;
 use super::Origin;
 
@@ -17,8 +18,12 @@ use super::Origin;
 /// made from is its runner's, and unknown here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tool {
-    /// The name, as its create gave it.
-    pub name: String,
+    /// The name, as its create or its connect gave it, if it gave
+    /// one; absent for a tool made with none, which is reached by its
+    /// template and its index, or by the provider and id it joined,
+    /// alone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     /// Where it comes from, and what the daemon knows of its
     /// container: see [`Origin`].
     pub origin: Origin,
@@ -52,11 +57,13 @@ pub struct Tool {
     /// tool that has never run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_active: Option<DateTime<Utc>>,
-    /// The names of the agents it is attached to, in the order they
-    /// were attached; empty for a tool attached nowhere. The agents
-    /// list reports the same attachments from the other side.
+    /// The agents it is attached to, each by its
+    /// [`key`](crate::daemon::key) — its template and its index, with
+    /// its name beside when it has one — in the order they were
+    /// attached; empty for a tool attached nowhere. The agents list
+    /// reports the same attachments from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub agents: Vec<String>,
+    pub agents: Vec<key::Agent>,
     /// Its tags, sorted bytewise: what [`tag`](crate::daemon::endpoints::tools::tag) put on it and
     /// [`untag`](crate::daemon::endpoints::tools::untag) has not taken off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

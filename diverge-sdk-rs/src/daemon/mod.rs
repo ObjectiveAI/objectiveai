@@ -13,13 +13,15 @@
 //! daemon's own tools, which a create hands the agent or the tool it
 //! makes, are [`daemon_tools`]. Who
 //! made each of those, and through whom, is [`creator`], carried by
-//! every list item; how a request names one of them, by name or
-//! once and for all, is [`reference`](mod@reference). The provider's endpoints are
+//! every list item; how one list item points at another is [`key`],
+//! and how a request names one of them, by name or once and for all,
+//! is [`reference`](mod@reference). The provider's endpoints are
 //! not the daemon's, and nothing here names them but what a daemon
 //! spawns an agent from.
 
 pub mod creator;
 pub mod daemon_tools;
 pub mod endpoints;
+pub mod key;
 pub mod reference;
 pub mod template;
