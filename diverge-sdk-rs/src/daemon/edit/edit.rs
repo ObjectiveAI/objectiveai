@@ -55,11 +55,6 @@ pub struct Edit {
     /// The new list whole. Absent, as it is; `delete`, none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fuse_directory_mounts: Option<Change<Vec<FuseMount>>>,
-    /// Whether the container may name itself: see the create's
-    /// [`self`](crate::daemon::create::Inner::itself). Absent, as it
-    /// is; `delete`, `false`.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "self")]
-    pub itself: Option<Change<bool>>,
     /// The tool that lists agents; `only`, the agents the filter
     /// passes, and its own list requests narrow within them. See
     /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).

@@ -26,7 +26,7 @@ use crate::daemon::endpoints::tools::list::server::response::Tool;
 /// [`NotFound`](Self::NotFound) and [`NoSelf`](Self::NoSelf) are
 /// ANSWERS: the daemon looked, and no tool of the caller's is the one
 /// named — or the request named `"self"` and the caller is no tool, or
-/// one whose create withheld `self`, having no self here — and
+/// one whose create withheld `tools_self`, having no self here — and
 /// nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not look, for whatever reason it knows.

@@ -43,6 +43,13 @@ pub struct Frame {
     /// object's own.
     #[serde(flatten)]
     pub inner: Inner,
+    /// Whether the tool may get itself: `true`, the string `"self"`
+    /// names it in the daemon's own `tools_get`, and that tool's reach
+    /// is then judged on it as on any other tool; `false`, or absent,
+    /// `"self"` names nothing for it. This is about naming, not names:
+    /// it changes nothing about what the tool is called.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub tools_self: bool,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's tools, by which the tool is reached
     /// afterwards beside its template and its index. Absent, the

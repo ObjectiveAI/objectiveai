@@ -42,6 +42,13 @@ pub struct Frame {
     /// object's own.
     #[serde(flatten)]
     pub inner: Inner,
+    /// Whether the agent may get itself: `true`, the string `"self"`
+    /// names it in the daemon's own `agents_get`, and that tool's reach
+    /// is then judged on it as on any other agent; `false`, or absent,
+    /// `"self"` names nothing for it. This is about naming, not names:
+    /// it changes nothing about what the agent is called.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub agents_self: bool,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's agents, by which the agent is reached
     /// afterwards beside its template and its index. Absent, the

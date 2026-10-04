@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 
-use crate::daemon::edit::Edit;
+use crate::daemon::edit::{Change, Edit};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -34,6 +34,11 @@ pub struct Frame {
     /// [`Edit`]. Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub edit: Edit,
+    /// Whether the tool may get itself: see the create's
+    /// [`tools_self`](crate::daemon::endpoints::tools::create::client::request::Frame::tools_self).
+    /// Absent, as it is; `delete`, `false`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools_self: Option<Change<bool>>,
 }
 
 /// This frame's tag among the scope-opening requests.

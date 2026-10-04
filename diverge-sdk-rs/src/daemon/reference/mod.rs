@@ -19,13 +19,14 @@
 //! carrying members of more than one is malformed.
 //!
 //! A fourth form names the caller itself: the string `"self"`. It
-//! works one way only — [`Agent`]'s `"self"` when the caller is an
-//! agent, and names that agent; [`Tool`]'s `"self"` when the caller
-//! is a tool, and names that tool — through the daemon's own tools,
-//! where the daemon knows who is calling from the scope the call
-//! arrived on — and only when the caller's create or edit gave it
-//! `self`, a permission of its own beside the tools' reach. A client
-//! has no self, an agent is no tool's self and a
+//! is for a get, and nothing else — [`Agent`]'s `"self"` in the
+//! daemon's own `agents_get` when the caller is an agent, and names
+//! that agent; [`Tool`]'s `"self"` in its `tools_get` when the caller
+//! is a tool, and names that tool — where the daemon knows who is
+//! calling from the scope the call arrived on, and only when the
+//! caller's create or edit gave it `agents_self` or `tools_self`, a
+//! permission of its own beside the tools' reach. Anywhere else,
+//! `"self"` names nothing. A client has no self, an agent is no tool's self and a
 //! tool no agent's: a request naming `"self"` where there is none
 //! finds nothing. An agent or a tool that wants its own maker has it
 //! already, as the `creator` of its own list item, and the maker's
