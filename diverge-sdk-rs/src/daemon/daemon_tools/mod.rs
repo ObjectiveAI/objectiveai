@@ -58,7 +58,7 @@
 //! transfer into the resources is an upload, the one way a container
 //! has of making a resource. The three tools over
 //! [routes](crate::daemon::endpoints::tools::routes) reach by a
-//! filter too: the add by the tools list's, over the tools a
+//! filter too: the set by the tools list's, over the tools a
 //! dependency may be routed to, and the delete and the list by the
 //! routes list's own.
 //!

@@ -202,7 +202,7 @@ pub struct Inner {
     /// to the tools the filter passes. See
     /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
     #[serde(default)]
-    pub tools_routes_add: Reach<tools::list::client::request::Filter>,
+    pub tools_routes_set: Reach<tools::list::client::request::Filter>,
     /// The tool that takes a route up; `only`, the routes the filter
     /// passes. See
     /// [`Filter`](crate::daemon::endpoints::tools::routes::list::client::request::Filter).
@@ -261,7 +261,7 @@ pub struct Inner {
     /// declared tool dependencies to — each as the template and the
     /// instructions the container returned at register time — when no
     /// [route](crate::daemon::endpoints::tools::routes) answers them.
-    /// The deployer makes the tool, attaches it, and may add a route so
+    /// The deployer makes the tool, attaches it, and may set a route so
     /// that the next ask at that position is answered without it. By
     /// name, or by template and index: see [`reference::Agent`].
     /// Absent, the daemon deploys nothing itself: a dependency no

@@ -8,21 +8,25 @@ use crate::shared::error::Error;
 
 use crate::daemon::endpoints::tools::list::server::response::Tool;
 
-/// A get's answer: the tool, no tool is the one named, or a failure.
+/// A get's answer: the tool, no tool is the one named, the caller has
+/// no self to name, or a failure.
 ///
 /// A get is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Found`](Self::Found), `1` for
-/// [`NotFound`](Self::NotFound), `2` for [`Error`](Self::Error) — and
+/// [`NotFound`](Self::NotFound), `2` for [`NoSelf`](Self::NoSelf), `3`
+/// for [`Error`](Self::Error) — and
 /// the rest is that variant's own JSON: one
 /// [`Tool`](crate::daemon::endpoints::tools::list::server::response::Tool)
-/// for the first, as a list reports it; nothing for the second; the
-/// error for the third.
+/// for the first, as a list reports it; nothing for the second and the
+/// third; the error for the fourth.
 ///
-/// # One answer, one failure
+/// # Two answers, one failure
 ///
-/// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and no
-/// tool of the caller's is the one named, and nothing is retried. An
+/// [`NotFound`](Self::NotFound) and [`NoSelf`](Self::NoSelf) are
+/// ANSWERS: the daemon looked, and no tool of the caller's is the one
+/// named — or the request named `"self"` and the caller is no tool,
+/// having no self here — and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not look, for whatever reason it knows.
 #[derive(Debug, Clone, PartialEq)]
@@ -31,7 +35,10 @@ pub enum Frame {
     Found(Tool),
     /// No tool of the caller's is the one named. Tag `1`.
     NotFound,
-    /// A failure. Tag `2`.
+    /// The request named `"self"`, and the caller is not a tool: a
+    /// client, or a agent. Tag `2`.
+    NoSelf,
+    /// A failure. Tag `3`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error)
     /// for why it says so little.
@@ -44,8 +51,11 @@ const FOUND: u8 = 0;
 /// Tag for [`Frame::NotFound`].
 const NOT_FOUND: u8 = 1;
 
+/// Tag for [`Frame::NoSelf`].
+const NO_SELF: u8 = 2;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 3;
 
 /// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
@@ -62,6 +72,10 @@ impl Encode for Frame {
             }
             Frame::NotFound => {
                 out.extend_from_slice(&[NOT_FOUND]);
+                Ok(())
+            }
+            Frame::NoSelf => {
+                out.extend_from_slice(&[NO_SELF]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -82,6 +96,7 @@ impl Decode<'_> for Frame {
         match *tag {
             FOUND => serde_json::from_slice(rest).map(Frame::Found).map_err(FrameError::Found),
             NOT_FOUND => Ok(Frame::NotFound),
+            NO_SELF => Ok(Frame::NoSelf),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -93,7 +108,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The tool did not parse.
     Found(serde_json::Error),

@@ -1,4 +1,4 @@
-//! Putting a route down: at one position, this tool. One request, one
+//! Setting a route: at one position, this tool. One request, one
 //! answer. A client names a position — a [`Path`](super::Path) — and a
 //! tool of its own; the daemon answers that the route is down, that no
 //! tool of the caller's is the one named, that the tool is not of the

@@ -1,4 +1,4 @@
-//! What a server's response frame carries for a route add.
+//! What a server's response frame carries for a route set.
 
 use std::fmt;
 
@@ -6,13 +6,13 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A route add's answer: the route is down, no tool is the one named,
+/// A route set's answer: the route is down, no tool is the one named,
 /// the tool is of the wrong template, the position is routed already,
 /// or a failure.
 ///
-/// A route add is one question and one reply, so there is exactly one
+/// A route set is one question and one reply, so there is exactly one
 /// of these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Added`](Self::Added), `1` for
+/// with one byte saying which — `0` for [`Set`](Self::Set), `1` for
 /// [`NoTool`](Self::NoTool), `2` for [`Mismatch`](Self::Mismatch), `3`
 /// for [`Exists`](Self::Exists), `4` for [`Error`](Self::Error) — and
 /// only the error carries anything after it.
@@ -30,7 +30,7 @@ use crate::shared::error::Error;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The route is down: the position is served the tool. Tag `0`.
-    Added,
+    Set,
     /// No tool of the caller's is the one named; nothing changed. Tag
     /// `1`.
     NoTool,
@@ -47,8 +47,8 @@ pub enum Frame {
     Error(Error),
 }
 
-/// Tag for [`Frame::Added`].
-const ADDED: u8 = 0;
+/// Tag for [`Frame::Set`].
+const SET: u8 = 0;
 
 /// Tag for [`Frame::NoTool`].
 const NO_TOOL: u8 = 1;
@@ -71,8 +71,8 @@ impl Encode for Frame {
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Added => {
-                out.extend_from_slice(&[ADDED]);
+            Frame::Set => {
+                out.extend_from_slice(&[SET]);
                 Ok(())
             }
             Frame::NoTool => {
@@ -103,7 +103,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            ADDED => Ok(Frame::Added),
+            SET => Ok(Frame::Set),
             NO_TOOL => Ok(Frame::NoTool),
             MISMATCH => Ok(Frame::Mismatch),
             EXISTS => Ok(Frame::Exists),
@@ -113,7 +113,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A route add response frame that could not be read.
+/// A route set response frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -127,9 +127,9 @@ pub enum FrameError {
 impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("tools routes add response frame is empty"),
-            FrameError::UnknownTag(tag) => write!(f, "unknown tools routes add response frame tag {tag}"),
-            FrameError::Error(error) => write!(f, "tools routes add error did not parse: {error}"),
+            FrameError::Empty => f.write_str("tools routes set response frame is empty"),
+            FrameError::UnknownTag(tag) => write!(f, "unknown tools routes set response frame tag {tag}"),
+            FrameError::Error(error) => write!(f, "tools routes set error did not parse: {error}"),
         }
     }
 }

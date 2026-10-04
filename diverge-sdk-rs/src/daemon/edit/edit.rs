@@ -199,7 +199,7 @@ pub struct Edit {
     /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
     /// Absent, as it is; `delete`, `disabled`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_routes_add: Option<Change<Reach<tools::list::client::request::Filter>>>,
+    pub tools_routes_set: Option<Change<Reach<tools::list::client::request::Filter>>>,
     /// The tool that takes a route up; `only`, the routes the filter
     /// passes. See
     /// [`Filter`](crate::daemon::endpoints::tools::routes::list::client::request::Filter).

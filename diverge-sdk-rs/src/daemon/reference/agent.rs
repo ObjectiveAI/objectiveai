@@ -2,8 +2,10 @@
 
 use serde::{Deserialize, Serialize};
 
-/// One agent of the caller's: by its name, or by its template and
-/// its index. See [`reference`](super) for which names what. Untagged
+use super::Itself;
+
+/// One agent of the caller's: by its name, by its template and its
+/// index, or — when the caller is an agent — itself. See [`reference`](super) for which names what. Untagged
 /// JSON, one object either way; an object with members of both
 /// variants does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -23,4 +25,7 @@ pub enum Agent {
         /// ever made from that template, as its list item carries it.
         index: u64,
     },
+    /// The caller itself, when the caller is an agent: the string
+    /// `"self"`. Names nothing when the caller is a client or a tool.
+    Itself(Itself),
 }

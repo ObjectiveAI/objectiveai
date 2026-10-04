@@ -3,10 +3,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::agents::logs::server::response::Identity;
+use super::Itself;
 
 /// One tool of the caller's: by its name, by its template and its
-/// index, or — a connected tool — by the provider and container id
-/// it joined. See [`reference`](super) for which names what. Untagged
+/// index, — a connected tool — by the provider and container id it
+/// joined, or — when the caller is a tool — itself. See [`reference`](super) for which names what. Untagged
 /// JSON, one object any way; an object with members of more than one
 /// variant does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -36,4 +37,7 @@ pub enum Tool {
         /// The container's id, as the connect named it.
         id: String,
     },
+    /// The caller itself, when the caller is a tool: the string
+    /// `"self"`. Names nothing when the caller is a client or an agent.
+    Itself(Itself),
 }

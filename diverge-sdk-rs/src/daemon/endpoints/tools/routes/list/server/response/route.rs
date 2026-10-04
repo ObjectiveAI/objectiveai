@@ -16,7 +16,7 @@ pub struct Route {
     /// The tool served there, as it was when routed: its template, its
     /// index and its name. The template is the path's last.
     pub tool: creator::Tool,
-    /// When the add put it down.
+    /// When the set put it down.
     pub created: DateTime<Utc>,
     /// Who put it down, and through whom: the chain
     /// [`creator`](crate::daemon::creator) describes, the client first

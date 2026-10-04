@@ -77,8 +77,8 @@ pub enum ClientRequest<'a> {
     ToolsTag(tools::tag::client::request::Frame),
     /// Tag `24`. Take tags off a tool.
     ToolsUntag(tools::untag::client::request::Frame),
-    /// Tag `25`. Route a dependency position to a tool.
-    ToolsRoutesAdd(tools::routes::add::client::request::Frame),
+    /// Tag `25`. Set a dependency position's route to a tool.
+    ToolsRoutesSet(tools::routes::set::client::request::Frame),
     /// Tag `26`. Take a route up.
     ToolsRoutesDelete(tools::routes::delete::client::request::Frame),
     /// Tag `27`. List the caller's routes, narrowed.
@@ -146,7 +146,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsList(frame) => frame.encode(out),
             ClientRequest::ToolsTag(frame) => frame.encode(out),
             ClientRequest::ToolsUntag(frame) => frame.encode(out),
-            ClientRequest::ToolsRoutesAdd(frame) => frame.encode(out),
+            ClientRequest::ToolsRoutesSet(frame) => frame.encode(out),
             ClientRequest::ToolsRoutesDelete(frame) => frame.encode(out),
             ClientRequest::ToolsRoutesList(frame) => frame.encode(out),
             ClientRequest::ToolsTemplatesCreate(frame) => frame.encode(out),
@@ -257,8 +257,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             24 => tools::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsUntag)
                 .ok(),
-            25 => tools::routes::add::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsRoutesAdd)
+            25 => tools::routes::set::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsRoutesSet)
                 .ok(),
             26 => tools::routes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsRoutesDelete)
@@ -327,7 +327,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsList(_) => f.write_str("tools list"),
             ClientRequest::ToolsTag(_) => f.write_str("tools tag"),
             ClientRequest::ToolsUntag(_) => f.write_str("tools untag"),
-            ClientRequest::ToolsRoutesAdd(_) => f.write_str("tools routes add"),
+            ClientRequest::ToolsRoutesSet(_) => f.write_str("tools routes set"),
             ClientRequest::ToolsRoutesDelete(_) => f.write_str("tools routes delete"),
             ClientRequest::ToolsRoutesList(_) => f.write_str("tools routes list"),
             ClientRequest::ToolsTemplatesCreate(_) => f.write_str("tools templates create"),

@@ -1,4 +1,4 @@
-//! The get response: the tool, no such tool, or a failure.
+//! The get response: the tool, no such tool, no self, or a failure.
 //!
 //! [`Frame`] is what a response frame holds. The tool comes back as
 //! [`Tool`](crate::daemon::endpoints::tools::list::server::response::Tool),

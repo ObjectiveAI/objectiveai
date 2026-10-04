@@ -1,4 +1,4 @@
-//! What a client's request frame carries for a route add.
+//! What a client's request frame carries for a route set.
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::daemon::endpoints::tools::routes::Path;
 use crate::daemon::reference;
 
-/// Ask the daemon to route a dependency position to a tool. The tool is
+/// Ask the daemon to set the route of a dependency position: this
+/// tool, there. The tool is
 /// named by its name or by its template and index, as
 /// [`reference`](crate::daemon::reference) states, and has to be made
 /// from the position's last template: the dependency IS that template.
@@ -59,7 +60,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A tools routes add request frame that could not be read.
+/// A tools routes set request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -77,12 +78,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("tools routes add request frame is empty"),
+            FrameError::Empty => f.write_str("tools routes set request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected tools routes add request tag {TAG}, found {tag}")
+                write!(f, "expected tools routes set request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "tools routes add request did not parse: {error}")
+                write!(f, "tools routes set request did not parse: {error}")
             }
         }
     }

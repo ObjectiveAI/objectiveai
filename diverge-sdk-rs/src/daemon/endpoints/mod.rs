@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from |
-//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; route a dependency position to a tool, take the route up, list the routes; make, get, list, delete, tag and untag the templates tools are made from |
+//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from |
 //! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
 //!
 //! # The tags
@@ -44,7 +44,7 @@
 //! | `22` | [`tools::list`] |
 //! | `23` | [`tools::tag`] |
 //! | `24` | [`tools::untag`] |
-//! | `25` | [`tools::routes::add`] |
+//! | `25` | [`tools::routes::set`] |
 //! | `26` | [`tools::routes::delete`] |
 //! | `27` | [`tools::routes::list`] |
 //! | `28` | [`tools::templates::create`] |
