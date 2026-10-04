@@ -9,6 +9,7 @@
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from |
 //! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from |
 //! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
+//! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a judge of providers that dial in, get one, list them, take one out, replace one |
 //!
 //! # The tags
 //!
@@ -56,8 +57,18 @@
 //! | `34` | [`resources::upload`] |
 //! | `35` | [`resources::list`] |
 //! | `36` | [`resources::delete`] |
+//! | `37` | [`providers::outgoing::add`] |
+//! | `38` | [`providers::outgoing::get`] |
+//! | `39` | [`providers::outgoing::list`] |
+//! | `40` | [`providers::outgoing::delete`] |
+//! | `41` | [`providers::outgoing::edit`] |
+//! | `42` | [`providers::incoming::add`] |
+//! | `43` | [`providers::incoming::get`] |
+//! | `44` | [`providers::incoming::list`] |
+//! | `45` | [`providers::incoming::delete`] |
+//! | `46` | [`providers::incoming::edit`] |
 //!
-//! Thirty-seven, so far. Tags are handed out in the order scopes are defined
+//! Forty-seven, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,
@@ -81,5 +92,6 @@ mod client_request;
 pub use client_request::*;
 
 pub mod agents;
+pub mod providers;
 pub mod resources;
 pub mod tools;

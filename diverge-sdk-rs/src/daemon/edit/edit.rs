@@ -7,7 +7,7 @@ use crate::daemon::daemon_tools::{
     ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag,
 };
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, VolumeMount};
-use crate::daemon::endpoints::{agents, tools};
+use crate::daemon::endpoints::{agents, providers, tools};
 use crate::daemon::reference;
 use super::Change;
 
@@ -265,6 +265,64 @@ pub struct Edit {
     /// Absent, as it is; `delete`, `disabled`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resources_delete: Option<Change<Reach<Vec<String>>>>,
+    /// The tool that adds a provider to dial: see [`Switch`].
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_outgoing_add: Option<Change<Switch>>,
+    /// The tool that gets one outgoing provider; `only`, the providers
+    /// the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_outgoing_get: Option<Change<Reach<providers::outgoing::list::client::request::Filter>>>,
+    /// The tool that lists outgoing providers; `only`, the providers
+    /// the filter passes, and its own list requests narrow within them.
+    /// See
+    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_outgoing_list: Option<Change<Reach<providers::outgoing::list::client::request::Filter>>>,
+    /// The tool that forgets an outgoing provider; `only`, the
+    /// providers the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_outgoing_delete: Option<Change<Reach<providers::outgoing::list::client::request::Filter>>>,
+    /// The tool that replaces an outgoing provider's mode; `only`, the
+    /// providers the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_outgoing_edit: Option<Change<Reach<providers::outgoing::list::client::request::Filter>>>,
+    /// The tool that adds a judge of incoming providers: see
+    /// [`Switch`].
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_incoming_add: Option<Change<Switch>>,
+    /// The tool that gets one judge; `only`, the judges the filter
+    /// passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_incoming_get: Option<Change<Reach<providers::incoming::list::client::request::Filter>>>,
+    /// The tool that lists judges; `only`, the judges the filter
+    /// passes, and its own list requests narrow within them. See
+    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_incoming_list: Option<Change<Reach<providers::incoming::list::client::request::Filter>>>,
+    /// The tool that takes a judge out; `only`, the judges the filter
+    /// passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_incoming_delete: Option<Change<Reach<providers::incoming::list::client::request::Filter>>>,
+    /// The tool that replaces a judge; `only`, the judges the filter
+    /// passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers_incoming_edit: Option<Change<Reach<providers::incoming::list::client::request::Filter>>>,
     /// The deployer: see the create's
     /// [`deployer_agent`](crate::daemon::create::Inner::deployer_agent).
     /// Absent, as it is; `delete`, none, and the container's

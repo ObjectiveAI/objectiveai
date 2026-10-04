@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{agents, resources, tools};
+use super::{agents, providers, resources, tools};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -39,7 +39,7 @@ pub enum ClientRequest<'a> {
     AgentsLogs(agents::logs::client::request::Frame),
     /// Tag `5`. List the caller's agents, narrowed.
     AgentsList(agents::list::client::request::Frame),
-    /// Tag `6`. Change what an agent mounts.
+    /// Tag `6`. Change an agent.
     AgentsEdit(agents::edit::client::request::Frame),
     /// Tag `7`. Put tags on an agent.
     AgentsTag(agents::tag::client::request::Frame),
@@ -61,7 +61,7 @@ pub enum ClientRequest<'a> {
     ToolsCreate(tools::create::client::request::Frame),
     /// Tag `16`. Get one tool.
     ToolsGet(tools::get::client::request::Frame),
-    /// Tag `17`. Change what a tool mounts.
+    /// Tag `17`. Change a tool.
     ToolsEdit(tools::edit::client::request::Frame),
     /// Tag `18`. Hold somebody else's tool container under a name.
     ToolsConnect(tools::connect::client::request::Frame),
@@ -101,6 +101,26 @@ pub enum ClientRequest<'a> {
     ResourcesList(resources::list::client::request::Frame),
     /// Tag `36`. Delete a resource by id.
     ResourcesDelete(resources::delete::client::request::Frame),
+    /// Tag `37`. Add a provider to dial.
+    ProvidersOutgoingAdd(providers::outgoing::add::client::request::Frame),
+    /// Tag `38`. Get one outgoing provider.
+    ProvidersOutgoingGet(providers::outgoing::get::client::request::Frame),
+    /// Tag `39`. List the caller's outgoing providers, narrowed.
+    ProvidersOutgoingList(providers::outgoing::list::client::request::Frame),
+    /// Tag `40`. Forget an outgoing provider.
+    ProvidersOutgoingDelete(providers::outgoing::delete::client::request::Frame),
+    /// Tag `41`. Replace an outgoing provider's mode.
+    ProvidersOutgoingEdit(providers::outgoing::edit::client::request::Frame),
+    /// Tag `42`. Add a judge of incoming providers.
+    ProvidersIncomingAdd(providers::incoming::add::client::request::Frame),
+    /// Tag `43`. Get one judge.
+    ProvidersIncomingGet(providers::incoming::get::client::request::Frame),
+    /// Tag `44`. List the caller's judges, narrowed.
+    ProvidersIncomingList(providers::incoming::list::client::request::Frame),
+    /// Tag `45`. Take a judge out.
+    ProvidersIncomingDelete(providers::incoming::delete::client::request::Frame),
+    /// Tag `46`. Replace a judge.
+    ProvidersIncomingEdit(providers::incoming::edit::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -158,6 +178,16 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ResourcesUpload(frame) => frame.encode(out),
             ClientRequest::ResourcesList(frame) => frame.encode(out),
             ClientRequest::ResourcesDelete(frame) => frame.encode(out),
+            ClientRequest::ProvidersOutgoingAdd(frame) => frame.encode(out),
+            ClientRequest::ProvidersOutgoingGet(frame) => frame.encode(out),
+            ClientRequest::ProvidersOutgoingList(frame) => frame.encode(out),
+            ClientRequest::ProvidersOutgoingDelete(frame) => frame.encode(out),
+            ClientRequest::ProvidersOutgoingEdit(frame) => frame.encode(out),
+            ClientRequest::ProvidersIncomingAdd(frame) => frame.encode(out),
+            ClientRequest::ProvidersIncomingGet(frame) => frame.encode(out),
+            ClientRequest::ProvidersIncomingList(frame) => frame.encode(out),
+            ClientRequest::ProvidersIncomingDelete(frame) => frame.encode(out),
+            ClientRequest::ProvidersIncomingEdit(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -293,6 +323,36 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             36 => resources::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesDelete)
                 .ok(),
+            37 => providers::outgoing::add::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersOutgoingAdd)
+                .ok(),
+            38 => providers::outgoing::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersOutgoingGet)
+                .ok(),
+            39 => providers::outgoing::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersOutgoingList)
+                .ok(),
+            40 => providers::outgoing::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersOutgoingDelete)
+                .ok(),
+            41 => providers::outgoing::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersOutgoingEdit)
+                .ok(),
+            42 => providers::incoming::add::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersIncomingAdd)
+                .ok(),
+            43 => providers::incoming::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersIncomingGet)
+                .ok(),
+            44 => providers::incoming::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersIncomingList)
+                .ok(),
+            45 => providers::incoming::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersIncomingDelete)
+                .ok(),
+            46 => providers::incoming::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersIncomingEdit)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -339,6 +399,16 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ResourcesUpload(_) => f.write_str("resources upload"),
             ClientRequest::ResourcesList(_) => f.write_str("resources list"),
             ClientRequest::ResourcesDelete(_) => f.write_str("resources delete"),
+            ClientRequest::ProvidersOutgoingAdd(_) => f.write_str("providers outgoing add"),
+            ClientRequest::ProvidersOutgoingGet(_) => f.write_str("providers outgoing get"),
+            ClientRequest::ProvidersOutgoingList(_) => f.write_str("providers outgoing list"),
+            ClientRequest::ProvidersOutgoingDelete(_) => f.write_str("providers outgoing delete"),
+            ClientRequest::ProvidersOutgoingEdit(_) => f.write_str("providers outgoing edit"),
+            ClientRequest::ProvidersIncomingAdd(_) => f.write_str("providers incoming add"),
+            ClientRequest::ProvidersIncomingGet(_) => f.write_str("providers incoming get"),
+            ClientRequest::ProvidersIncomingList(_) => f.write_str("providers incoming list"),
+            ClientRequest::ProvidersIncomingDelete(_) => f.write_str("providers incoming delete"),
+            ClientRequest::ProvidersIncomingEdit(_) => f.write_str("providers incoming edit"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

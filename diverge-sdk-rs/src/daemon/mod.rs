@@ -11,7 +11,8 @@
 //! are made from — one shape, [`template`], shared by the two
 //! families' endpoints, as what their creates share is one
 //! [`create`](mod@create) and what their edits share one
-//! [`edit`](mod@edit) — and the resources served into them. The
+//! [`edit`](mod@edit) — the resources served into them, and the
+//! providers it dials and the judges of those that dial it. The
 //! daemon's own tools, which a create hands the agent or the tool it
 //! makes, are [`daemon_tools`]. Who
 //! made each of those is [`creator`], carried by every list item; how one list item points at another is [`key`],

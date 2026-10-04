@@ -7,7 +7,7 @@ use crate::daemon::daemon_tools::{
     ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag,
 };
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
-use crate::daemon::endpoints::{agents, tools};
+use crate::daemon::endpoints::{agents, providers, tools};
 use crate::daemon::reference;
 
 /// Everything a container is made of that its template does not say
@@ -257,6 +257,54 @@ pub struct Inner {
     /// request naming one outside them is refused, and nothing changes.
     #[serde(default)]
     pub resources_delete: Reach<Vec<String>>,
+    /// The tool that adds a provider to dial: see [`Switch`].
+    #[serde(default)]
+    pub providers_outgoing_add: Switch,
+    /// The tool that gets one outgoing provider; `only`, the providers
+    /// the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
+    #[serde(default)]
+    pub providers_outgoing_get: Reach<providers::outgoing::list::client::request::Filter>,
+    /// The tool that lists outgoing providers; `only`, the providers
+    /// the filter passes, and its own list requests narrow within them.
+    /// See
+    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
+    #[serde(default)]
+    pub providers_outgoing_list: Reach<providers::outgoing::list::client::request::Filter>,
+    /// The tool that forgets an outgoing provider; `only`, the
+    /// providers the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
+    #[serde(default)]
+    pub providers_outgoing_delete: Reach<providers::outgoing::list::client::request::Filter>,
+    /// The tool that replaces an outgoing provider's mode; `only`, the
+    /// providers the filter passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
+    #[serde(default)]
+    pub providers_outgoing_edit: Reach<providers::outgoing::list::client::request::Filter>,
+    /// The tool that adds a judge of incoming providers: see
+    /// [`Switch`].
+    #[serde(default)]
+    pub providers_incoming_add: Switch,
+    /// The tool that gets one judge; `only`, the judges the filter
+    /// passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
+    #[serde(default)]
+    pub providers_incoming_get: Reach<providers::incoming::list::client::request::Filter>,
+    /// The tool that lists judges; `only`, the judges the filter
+    /// passes, and its own list requests narrow within them. See
+    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
+    #[serde(default)]
+    pub providers_incoming_list: Reach<providers::incoming::list::client::request::Filter>,
+    /// The tool that takes a judge out; `only`, the judges the filter
+    /// passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
+    #[serde(default)]
+    pub providers_incoming_delete: Reach<providers::incoming::list::client::request::Filter>,
+    /// The tool that replaces a judge; `only`, the judges the filter
+    /// passes. See
+    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
+    #[serde(default)]
+    pub providers_incoming_edit: Reach<providers::incoming::list::client::request::Filter>,
     /// The agent of the caller's the daemon hands this container's
     /// declared tool dependencies to — each as the template and the
     /// instructions the container returned at register time — when no
