@@ -54,7 +54,7 @@ pub struct Frame {
 /// whole allocation. The values are chosen across modules that do not
 /// know about each other, so the table is the only place they can be
 /// seen at once.
-const TAG: u8 = 22;
+const TAG: u8 = 23;
 
 /// JSON, as every request of the daemon's is: the filter's members,
 /// each absent when it says nothing, so that a request that says

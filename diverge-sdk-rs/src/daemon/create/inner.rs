@@ -7,6 +7,7 @@ use crate::daemon::daemon_tools::{
     ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag,
 };
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
+use crate::daemon::endpoints::agents::logs::server::response::Identity;
 use crate::daemon::endpoints::{agents, providers, tools};
 use crate::daemon::reference;
 
@@ -20,10 +21,7 @@ use crate::daemon::reference;
 ///
 /// # The daemon's tools
 ///
-/// One member for every endpoint but
-/// [`tools::connect`](crate::daemon::endpoints::tools::connect),
-/// which joins somebody else's container on an authorization of the
-/// caller's and is the caller's alone. Every one is a [`Reach`] —
+/// One member for every endpoint. Every one is a [`Reach`] —
 /// `"disabled"`, `"any"`, or what it names, flat — or, for a tool
 /// with nothing to narrow, a [`Switch`], or, for one that tags, a
 /// [`Held`], `"disabled"` or its two sides, each `"any"` or what it
@@ -176,6 +174,20 @@ pub struct Inner {
     /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
     #[serde(default)]
     pub tools_edit: Reach<tools::list::client::request::Filter>,
+    /// The tool that holds somebody else's tool container under a name,
+    /// as [`tools::connect`](crate::daemon::endpoints::tools::connect)
+    /// does — the provider, the container's id, the authorization and
+    /// a name, the authorization the caller's to give as a client gives
+    /// it; `only`, on providers of these identities. See
+    /// [`Identity`].
+    #[serde(default)]
+    pub tools_connect: Reach<Vec<Identity>>,
+    /// The tool that asks a provider which tool containers an identity
+    /// runs, as [`tools::list_for`](crate::daemon::endpoints::tools::list_for)
+    /// does; `only`, of providers of these identities. See
+    /// [`Identity`].
+    #[serde(default)]
+    pub tools_list_for: Reach<Vec<Identity>>,
     /// The tool that deletes tools; `only`, the tools the filter
     /// passes. See
     /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).

@@ -65,61 +65,63 @@ pub enum ClientRequest<'a> {
     ToolsEdit(tools::edit::client::request::Frame),
     /// Tag `18`. Hold somebody else's tool container under a name.
     ToolsConnect(tools::connect::client::request::Frame),
-    /// Tag `19`. Attach a tool to an agent.
+    /// Tag `19`. Ask a provider which tool containers an identity runs.
+    ToolsListFor(tools::list_for::client::request::Frame),
+    /// Tag `20`. Attach a tool to an agent.
     ToolsAttach(tools::attach::client::request::Frame),
-    /// Tag `20`. Detach a tool from an agent.
+    /// Tag `21`. Detach a tool from an agent.
     ToolsDetach(tools::detach::client::request::Frame),
-    /// Tag `21`. Delete a tool.
+    /// Tag `22`. Delete a tool.
     ToolsDelete(tools::delete::client::request::Frame),
-    /// Tag `22`. List the caller's tools, narrowed.
+    /// Tag `23`. List the caller's tools, narrowed.
     ToolsList(tools::list::client::request::Frame),
-    /// Tag `23`. Put tags on a tool.
+    /// Tag `24`. Put tags on a tool.
     ToolsTag(tools::tag::client::request::Frame),
-    /// Tag `24`. Take tags off a tool.
+    /// Tag `25`. Take tags off a tool.
     ToolsUntag(tools::untag::client::request::Frame),
-    /// Tag `25`. Set a dependency position's route to a tool.
+    /// Tag `26`. Set a dependency position's route to a tool.
     ToolsRoutesSet(tools::routes::set::client::request::Frame),
-    /// Tag `26`. Take a route up.
+    /// Tag `27`. Take a route up.
     ToolsRoutesDelete(tools::routes::delete::client::request::Frame),
-    /// Tag `27`. List the caller's routes, narrowed.
+    /// Tag `28`. List the caller's routes, narrowed.
     ToolsRoutesList(tools::routes::list::client::request::Frame),
-    /// Tag `28`. Make a tool template.
+    /// Tag `29`. Make a tool template.
     ToolsTemplatesCreate(tools::templates::create::client::request::Frame),
-    /// Tag `29`. Get one tool template by id.
+    /// Tag `30`. Get one tool template by id.
     ToolsTemplatesGet(tools::templates::get::client::request::Frame),
-    /// Tag `30`. List the caller's tool templates, narrowed.
+    /// Tag `31`. List the caller's tool templates, narrowed.
     ToolsTemplatesList(tools::templates::list::client::request::Frame),
-    /// Tag `31`. Delete a tool template by id.
+    /// Tag `32`. Delete a tool template by id.
     ToolsTemplatesDelete(tools::templates::delete::client::request::Frame),
-    /// Tag `32`. Put tags on a tool template.
+    /// Tag `33`. Put tags on a tool template.
     ToolsTemplatesTag(tools::templates::tag::client::request::Frame),
-    /// Tag `33`. Take tags off a tool template.
+    /// Tag `34`. Take tags off a tool template.
     ToolsTemplatesUntag(tools::templates::untag::client::request::Frame),
-    /// Tag `34`. Upload a file or a directory.
+    /// Tag `35`. Upload a file or a directory.
     ResourcesUpload(resources::upload::client::request::Frame),
-    /// Tag `35`. List the caller's resources.
+    /// Tag `36`. List the caller's resources.
     ResourcesList(resources::list::client::request::Frame),
-    /// Tag `36`. Delete a resource by id.
+    /// Tag `37`. Delete a resource by id.
     ResourcesDelete(resources::delete::client::request::Frame),
-    /// Tag `37`. Add a provider to dial.
+    /// Tag `38`. Add a provider to dial.
     ProvidersOutgoingAdd(providers::outgoing::add::client::request::Frame),
-    /// Tag `38`. Get one outgoing provider.
+    /// Tag `39`. Get one outgoing provider.
     ProvidersOutgoingGet(providers::outgoing::get::client::request::Frame),
-    /// Tag `39`. List the caller's outgoing providers, narrowed.
+    /// Tag `40`. List the caller's outgoing providers, narrowed.
     ProvidersOutgoingList(providers::outgoing::list::client::request::Frame),
-    /// Tag `40`. Forget an outgoing provider.
+    /// Tag `41`. Forget an outgoing provider.
     ProvidersOutgoingDelete(providers::outgoing::delete::client::request::Frame),
-    /// Tag `41`. Replace an outgoing provider's mode.
+    /// Tag `42`. Replace an outgoing provider's mode.
     ProvidersOutgoingEdit(providers::outgoing::edit::client::request::Frame),
-    /// Tag `42`. Add a judge of incoming providers.
+    /// Tag `43`. Add a judge of incoming providers.
     ProvidersIncomingAdd(providers::incoming::add::client::request::Frame),
-    /// Tag `43`. Get one judge.
+    /// Tag `44`. Get one judge.
     ProvidersIncomingGet(providers::incoming::get::client::request::Frame),
-    /// Tag `44`. List the caller's judges, narrowed.
+    /// Tag `45`. List the caller's judges, narrowed.
     ProvidersIncomingList(providers::incoming::list::client::request::Frame),
-    /// Tag `45`. Take a judge out.
+    /// Tag `46`. Take a judge out.
     ProvidersIncomingDelete(providers::incoming::delete::client::request::Frame),
-    /// Tag `46`. Replace a judge.
+    /// Tag `47`. Replace a judge.
     ProvidersIncomingEdit(providers::incoming::edit::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -160,6 +162,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsGet(frame) => frame.encode(out),
             ClientRequest::ToolsEdit(frame) => frame.encode(out),
             ClientRequest::ToolsConnect(frame) => frame.encode(out),
+            ClientRequest::ToolsListFor(frame) => frame.encode(out),
             ClientRequest::ToolsAttach(frame) => frame.encode(out),
             ClientRequest::ToolsDetach(frame) => frame.encode(out),
             ClientRequest::ToolsDelete(frame) => frame.encode(out),
@@ -269,88 +272,91 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             18 => tools::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsConnect)
                 .ok(),
-            19 => tools::attach::client::request::Frame::decode(bytes)
+            19 => tools::list_for::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsListFor)
+                .ok(),
+            20 => tools::attach::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsAttach)
                 .ok(),
-            20 => tools::detach::client::request::Frame::decode(bytes)
+            21 => tools::detach::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsDetach)
                 .ok(),
-            21 => tools::delete::client::request::Frame::decode(bytes)
+            22 => tools::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsDelete)
                 .ok(),
-            22 => tools::list::client::request::Frame::decode(bytes)
+            23 => tools::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsList)
                 .ok(),
-            23 => tools::tag::client::request::Frame::decode(bytes)
+            24 => tools::tag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTag)
                 .ok(),
-            24 => tools::untag::client::request::Frame::decode(bytes)
+            25 => tools::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsUntag)
                 .ok(),
-            25 => tools::routes::set::client::request::Frame::decode(bytes)
+            26 => tools::routes::set::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsRoutesSet)
                 .ok(),
-            26 => tools::routes::delete::client::request::Frame::decode(bytes)
+            27 => tools::routes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsRoutesDelete)
                 .ok(),
-            27 => tools::routes::list::client::request::Frame::decode(bytes)
+            28 => tools::routes::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsRoutesList)
                 .ok(),
-            28 => tools::templates::create::client::request::Frame::decode(bytes)
+            29 => tools::templates::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesCreate)
                 .ok(),
-            29 => tools::templates::get::client::request::Frame::decode(bytes)
+            30 => tools::templates::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesGet)
                 .ok(),
-            30 => tools::templates::list::client::request::Frame::decode(bytes)
+            31 => tools::templates::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesList)
                 .ok(),
-            31 => tools::templates::delete::client::request::Frame::decode(bytes)
+            32 => tools::templates::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesDelete)
                 .ok(),
-            32 => tools::templates::tag::client::request::Frame::decode(bytes)
+            33 => tools::templates::tag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesTag)
                 .ok(),
-            33 => tools::templates::untag::client::request::Frame::decode(bytes)
+            34 => tools::templates::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesUntag)
                 .ok(),
-            34 => resources::upload::client::request::Frame::decode(bytes)
+            35 => resources::upload::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesUpload)
                 .ok(),
-            35 => resources::list::client::request::Frame::decode(bytes)
+            36 => resources::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesList)
                 .ok(),
-            36 => resources::delete::client::request::Frame::decode(bytes)
+            37 => resources::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesDelete)
                 .ok(),
-            37 => providers::outgoing::add::client::request::Frame::decode(bytes)
+            38 => providers::outgoing::add::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingAdd)
                 .ok(),
-            38 => providers::outgoing::get::client::request::Frame::decode(bytes)
+            39 => providers::outgoing::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingGet)
                 .ok(),
-            39 => providers::outgoing::list::client::request::Frame::decode(bytes)
+            40 => providers::outgoing::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingList)
                 .ok(),
-            40 => providers::outgoing::delete::client::request::Frame::decode(bytes)
+            41 => providers::outgoing::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingDelete)
                 .ok(),
-            41 => providers::outgoing::edit::client::request::Frame::decode(bytes)
+            42 => providers::outgoing::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingEdit)
                 .ok(),
-            42 => providers::incoming::add::client::request::Frame::decode(bytes)
+            43 => providers::incoming::add::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingAdd)
                 .ok(),
-            43 => providers::incoming::get::client::request::Frame::decode(bytes)
+            44 => providers::incoming::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingGet)
                 .ok(),
-            44 => providers::incoming::list::client::request::Frame::decode(bytes)
+            45 => providers::incoming::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingList)
                 .ok(),
-            45 => providers::incoming::delete::client::request::Frame::decode(bytes)
+            46 => providers::incoming::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingDelete)
                 .ok(),
-            46 => providers::incoming::edit::client::request::Frame::decode(bytes)
+            47 => providers::incoming::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingEdit)
                 .ok(),
             _ => None,
@@ -381,6 +387,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsGet(_) => f.write_str("tools get"),
             ClientRequest::ToolsEdit(_) => f.write_str("tools edit"),
             ClientRequest::ToolsConnect(_) => f.write_str("tools connect"),
+            ClientRequest::ToolsListFor(_) => f.write_str("tools list_for"),
             ClientRequest::ToolsAttach(_) => f.write_str("tools attach"),
             ClientRequest::ToolsDetach(_) => f.write_str("tools detach"),
             ClientRequest::ToolsDelete(_) => f.write_str("tools delete"),

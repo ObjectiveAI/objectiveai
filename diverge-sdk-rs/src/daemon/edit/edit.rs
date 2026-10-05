@@ -7,6 +7,7 @@ use crate::daemon::daemon_tools::{
     ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag,
 };
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, VolumeMount};
+use crate::daemon::endpoints::agents::logs::server::response::Identity;
 use crate::daemon::endpoints::{agents, providers, tools};
 use crate::daemon::reference;
 use super::Change;
@@ -167,6 +168,22 @@ pub struct Edit {
     /// Absent, as it is; `delete`, `disabled`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tools_edit: Option<Change<Reach<tools::list::client::request::Filter>>>,
+    /// The tool that holds somebody else's tool container under a name,
+    /// as [`tools::connect`](crate::daemon::endpoints::tools::connect)
+    /// does — the provider, the container's id, the authorization and
+    /// a name, the authorization the caller's to give as a client gives
+    /// it; `only`, on providers of these identities. See
+    /// [`Identity`].
+    /// Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools_connect: Option<Change<Reach<Vec<Identity>>>>,
+    /// The tool that asks a provider which tool containers an identity
+    /// runs, as
+    /// [`tools::list_for`](crate::daemon::endpoints::tools::list_for)
+    /// does; `only`, of providers of these identities. See
+    /// [`Identity`]. Absent, as it is; `delete`, `disabled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools_list_for: Option<Change<Reach<Vec<Identity>>>>,
     /// The tool that deletes tools; `only`, the tools the filter
     /// passes. See
     /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).

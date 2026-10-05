@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from |
-//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from |
+//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; ask a provider which tool containers an identity runs; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from |
 //! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a judge of providers that dial in, get one, list them, take one out, replace one |
 //!
@@ -39,36 +39,37 @@
 //! | `16` | [`tools::get`] |
 //! | `17` | [`tools::edit`] |
 //! | `18` | [`tools::connect`] |
-//! | `19` | [`tools::attach`] |
-//! | `20` | [`tools::detach`] |
-//! | `21` | [`tools::delete`] |
-//! | `22` | [`tools::list`] |
-//! | `23` | [`tools::tag`] |
-//! | `24` | [`tools::untag`] |
-//! | `25` | [`tools::routes::set`] |
-//! | `26` | [`tools::routes::delete`] |
-//! | `27` | [`tools::routes::list`] |
-//! | `28` | [`tools::templates::create`] |
-//! | `29` | [`tools::templates::get`] |
-//! | `30` | [`tools::templates::list`] |
-//! | `31` | [`tools::templates::delete`] |
-//! | `32` | [`tools::templates::tag`] |
-//! | `33` | [`tools::templates::untag`] |
-//! | `34` | [`resources::upload`] |
-//! | `35` | [`resources::list`] |
-//! | `36` | [`resources::delete`] |
-//! | `37` | [`providers::outgoing::add`] |
-//! | `38` | [`providers::outgoing::get`] |
-//! | `39` | [`providers::outgoing::list`] |
-//! | `40` | [`providers::outgoing::delete`] |
-//! | `41` | [`providers::outgoing::edit`] |
-//! | `42` | [`providers::incoming::add`] |
-//! | `43` | [`providers::incoming::get`] |
-//! | `44` | [`providers::incoming::list`] |
-//! | `45` | [`providers::incoming::delete`] |
-//! | `46` | [`providers::incoming::edit`] |
+//! | `19` | [`tools::list_for`] |
+//! | `20` | [`tools::attach`] |
+//! | `21` | [`tools::detach`] |
+//! | `22` | [`tools::delete`] |
+//! | `23` | [`tools::list`] |
+//! | `24` | [`tools::tag`] |
+//! | `25` | [`tools::untag`] |
+//! | `26` | [`tools::routes::set`] |
+//! | `27` | [`tools::routes::delete`] |
+//! | `28` | [`tools::routes::list`] |
+//! | `29` | [`tools::templates::create`] |
+//! | `30` | [`tools::templates::get`] |
+//! | `31` | [`tools::templates::list`] |
+//! | `32` | [`tools::templates::delete`] |
+//! | `33` | [`tools::templates::tag`] |
+//! | `34` | [`tools::templates::untag`] |
+//! | `35` | [`resources::upload`] |
+//! | `36` | [`resources::list`] |
+//! | `37` | [`resources::delete`] |
+//! | `38` | [`providers::outgoing::add`] |
+//! | `39` | [`providers::outgoing::get`] |
+//! | `40` | [`providers::outgoing::list`] |
+//! | `41` | [`providers::outgoing::delete`] |
+//! | `42` | [`providers::outgoing::edit`] |
+//! | `43` | [`providers::incoming::add`] |
+//! | `44` | [`providers::incoming::get`] |
+//! | `45` | [`providers::incoming::list`] |
+//! | `46` | [`providers::incoming::delete`] |
+//! | `47` | [`providers::incoming::edit`] |
 //!
-//! Forty-seven, so far. Tags are handed out in the order scopes are defined
+//! Forty-eight, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

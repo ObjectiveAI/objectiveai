@@ -1,17 +1,28 @@
-//! What a client's request frame carries for a get.
+//! What a client's request frame carries for a list_for.
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::providers::incoming::Reference;
+use crate::daemon::endpoints::agents::logs::server::response::Identity;
+use crate::provider::endpoints::containers::tools::list_for::client::request;
 
-/// Ask the daemon for one judge of incoming providers, by the identity
-/// it names or the resource it is: see [`Reference`].
+/// Ask the daemon to ask a provider which tool containers an identity
+/// runs there.
+///
+/// The provider is one of the caller's, by its [`Identity`] — the
+/// address the daemon dials, or the identity a judge gave a provider
+/// that dialled in. Whose containers is the provider protocol's own
+/// request, [`request::Identity`], reused rather than restated:
+/// `{"kind":"unbrokered","identity":…}`, with a brokered form to come
+/// as the wire defines it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The judge: see [`Reference`].
-    pub judge: Reference,
+    /// The provider to ask: see [`Identity`].
+    pub provider: Identity,
+    /// Whose containers, as the provider protocol's
+    /// `containers::tools::list_for` takes it.
+    pub whose: request::Identity,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -26,7 +37,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 44;
+const TAG: u8 = 19;
 
 /// JSON, as every request of the daemon's is.
 impl Encode for Frame {
@@ -52,7 +63,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A providers incoming get request frame that could not be read.
+/// A tools list_for request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -70,12 +81,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("providers incoming get request frame is empty"),
+            FrameError::Empty => f.write_str("tools list_for request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected providers incoming get request tag {TAG}, found {tag}")
+                write!(f, "expected tools list_for request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "providers incoming get request did not parse: {error}")
+                write!(f, "tools list_for request did not parse: {error}")
             }
         }
     }
