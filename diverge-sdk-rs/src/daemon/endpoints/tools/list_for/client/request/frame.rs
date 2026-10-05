@@ -12,7 +12,7 @@ use crate::provider::endpoints::containers::tools::list_for::client::request;
 ///
 /// The provider is one of the caller's, by its [`Identity`] — the
 /// address the daemon dials, or the identity a judge gave a provider
-/// that dialled in. Whose containers is the provider protocol's own
+/// that dialled in. The tenant — whose containers — is the provider protocol's own
 /// request, [`request::Identity`], reused rather than restated:
 /// `{"kind":"unbrokered","identity":…}`, with a brokered form to come
 /// as the wire defines it.
@@ -20,9 +20,9 @@ use crate::provider::endpoints::containers::tools::list_for::client::request;
 pub struct Frame {
     /// The provider to ask: see [`Identity`].
     pub provider: Identity,
-    /// Whose containers, as the provider protocol's
+    /// The tenant: whose containers, as the provider protocol's
     /// `containers::tools::list_for` takes it.
-    pub whose: request::Identity,
+    pub tenant: request::Identity,
 }
 
 /// This frame's tag among the scope-opening requests.
