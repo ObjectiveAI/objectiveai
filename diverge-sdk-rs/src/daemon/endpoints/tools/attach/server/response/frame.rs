@@ -11,8 +11,11 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// An attach is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Attached`](Self::Attached), `1` for [`NoTool`](Self::NoTool), `2` for [`NoAgent`](Self::NoAgent), `3` for [`Error`](Self::Error) —
-/// and only the error carries anything after it.
+/// with one byte saying which — `0` for [`Attached`](Self::Attached),
+/// `1` for [`NoTool`](Self::NoTool), `2` for
+/// [`NoAgent`](Self::NoAgent), `3` for [`Forbidden`](Self::Forbidden),
+/// `4` for [`Error`](Self::Error) — and only the error carries anything
+/// after it.
 ///
 /// # Two answers, one failure
 ///
@@ -22,6 +25,16 @@ use crate::wire::encode::{Encode, Writer};
 /// wrong name. An [`Error`](Self::Error) is the absence of an answer:
 /// the daemon could not attach the tool, for whatever reason it
 /// knows, and the attachment is as it was.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The tool is attached to the agent. Tag `0`.
@@ -32,7 +45,10 @@ pub enum Frame {
     /// No agent of the caller's has the agent's name; nothing was
     /// changed. Tag `2`.
     NoAgent,
-    /// A failure. Tag `3`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `3`.
+    Forbidden,
+    /// A failure. Tag `4`.
     ///
     /// The tool is attached to the agent if it was, and not if it
     /// was not. See
@@ -50,8 +66,11 @@ const NO_TOOL: u8 = 1;
 /// Tag for [`Frame::NoAgent`].
 const NO_AGENT: u8 = 2;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 3;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 3;
+const ERROR: u8 = 4;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -74,6 +93,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[NO_AGENT]);
                 Ok(())
             }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -93,6 +116,7 @@ impl Decode<'_> for Frame {
             ATTACHED => Ok(Frame::Attached),
             NO_TOOL => Ok(Frame::NoTool),
             NO_AGENT => Ok(Frame::NoAgent),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -104,7 +128,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's 4.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

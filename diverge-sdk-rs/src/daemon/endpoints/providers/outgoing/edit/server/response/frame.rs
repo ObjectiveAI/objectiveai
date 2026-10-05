@@ -12,12 +12,27 @@ use crate::shared::error::Error;
 /// An edit is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Edited`](Self::Edited), `1`
-/// for [`NotFound`](Self::NotFound), `2` for [`Error`](Self::Error) —
-/// and only the error carries anything after it.
+/// for [`NotFound`](Self::NotFound), `2` for
+/// [`Forbidden`](Self::Forbidden), `3` for [`Error`](Self::Error) — and
+/// only the error carries anything after it.
 ///
 /// # Answers, and one failure
 ///
-/// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and no provider of the caller's has the address, nothing changed and nothing is retried. An [`Error`](Self::Error) is the absence of an answer: the daemon could not make the change, for whatever reason it knows, and the provider is as it was.
+/// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and no
+/// provider of the caller's has the address, nothing changed and
+/// nothing is retried. An [`Error`](Self::Error) is the absence of an
+/// answer: the daemon could not make the change, for whatever reason it
+/// knows, and the provider is as it was.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The provider's mode is as the request states. Tag `0`.
@@ -25,7 +40,10 @@ pub enum Frame {
     /// No provider of the caller's has the address; nothing changed.
     /// Tag `1`.
     NotFound,
-    /// A failure. Tag `2`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `2`.
+    Forbidden,
+    /// A failure. Tag `3`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -39,8 +57,11 @@ const EDITED: u8 = 0;
 /// Tag for [`Frame::NotFound`].
 const NOT_FOUND: u8 = 1;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 2;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 3;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -57,6 +78,10 @@ impl Encode for Frame {
             }
             Frame::NotFound => {
                 out.extend_from_slice(&[NOT_FOUND]);
+                Ok(())
+            }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -77,6 +102,7 @@ impl Decode<'_> for Frame {
         match *tag {
             EDITED => Ok(Frame::Edited),
             NOT_FOUND => Ok(Frame::NotFound),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -88,7 +114,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

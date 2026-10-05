@@ -13,7 +13,8 @@ use crate::daemon::endpoints::providers::incoming::list::server::response::Incom
 /// A get is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Found`](Self::Found), `1` for
-/// [`NotFound`](Self::NotFound), `2` for [`Error`](Self::Error) — and
+/// [`NotFound`](Self::NotFound), `2` for
+/// [`Forbidden`](Self::Forbidden), `3` for [`Error`](Self::Error) — and
 /// the rest is that variant's own JSON: one
 /// [`Incoming`](crate::daemon::endpoints::providers::incoming::list::server::response::Incoming)
 /// for the first, as a list reports it; nothing for the second; the
@@ -21,14 +22,30 @@ use crate::daemon::endpoints::providers::incoming::list::server::response::Incom
 ///
 /// # One answer, one failure
 ///
-/// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and no judge of the caller's is the one named, and nothing is retried. An [`Error`](Self::Error) is the absence of an answer: the daemon could not look, for whatever reason it knows.
+/// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and no
+/// judge of the caller's is the one named, and nothing is retried. An
+/// [`Error`](Self::Error) is the absence of an answer: the daemon could
+/// not look, for whatever reason it knows.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The judge, as the list reports it. Tag `0`.
     Found(Incoming),
     /// No judge of the caller's is the one named. Tag `1`.
     NotFound,
-    /// A failure. Tag `2`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `2`.
+    Forbidden,
+    /// A failure. Tag `3`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error)
     /// for why it says so little.
@@ -41,8 +58,11 @@ const FOUND: u8 = 0;
 /// Tag for [`Frame::NotFound`].
 const NOT_FOUND: u8 = 1;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 2;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 3;
 
 /// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
@@ -59,6 +79,10 @@ impl Encode for Frame {
             }
             Frame::NotFound => {
                 out.extend_from_slice(&[NOT_FOUND]);
+                Ok(())
+            }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -79,6 +103,7 @@ impl Decode<'_> for Frame {
         match *tag {
             FOUND => serde_json::from_slice(rest).map(Frame::Found).map_err(FrameError::Found),
             NOT_FOUND => Ok(Frame::NotFound),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -90,7 +115,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The judge did not parse.
     Found(serde_json::Error),

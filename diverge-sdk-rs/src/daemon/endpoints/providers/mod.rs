@@ -6,10 +6,9 @@
 //! already tells apart. An [`outgoing`] provider the daemon DIALS: a
 //! client gives an address and a mode, by the mode's name as the
 //! provider server's own `auth` names its modes — `unbrokered`, with
-//! the credential the daemon presents as its own — and the daemon
-//! dials it for
-//! whatever it needs of it, presenting that credential first, as the
-//! wire rules. An [`incoming`] provider dials the daemon, and the
+//! the credential the daemon presents as its own — and the daemon dials
+//! it for whatever it needs of it, presenting that credential first, as
+//! the wire rules. An [`incoming`] provider dials the daemon, and the
 //! daemon JUDGES its credential as a provider judges its own peers: the
 //! client gives judges — a key that the credential must equal and the
 //! identity it then names, or a hook that judges the credential itself
@@ -30,7 +29,9 @@
 //! document from stdout on exit `0`: `{"authorized":true,"identity":…}`
 //! accepts the peer as that identity, `{"authorized":false}` refuses
 //! it, and anything else — a non-zero exit, any other output — is a
-//! refusal.
+//! refusal. A hook [account](crate::daemon::endpoints::accounts) is the
+//! same kind of resource, run the same way, judging a client that dials
+//! in as the daemon's own.
 //!
 //! # Secrets are given, never answered
 //!

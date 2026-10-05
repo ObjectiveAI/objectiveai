@@ -1,5 +1,5 @@
 //! The delete response: deleted, no such resource, the resource in
-//! use, or a failure.
+//! use, forbidden, or a failure.
 
 mod frame;
 

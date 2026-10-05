@@ -11,7 +11,10 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// A detach is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Detached`](Self::Detached), `1` for [`NoTool`](Self::NoTool), `2` for [`NoAgent`](Self::NoAgent), `3` for [`Active`](Self::Active), `4` for [`Error`](Self::Error) —
+/// with one byte saying which — `0` for [`Detached`](Self::Detached),
+/// `1` for [`NoTool`](Self::NoTool), `2` for
+/// [`NoAgent`](Self::NoAgent), `3` for [`Active`](Self::Active), `4`
+/// for [`Forbidden`](Self::Forbidden), `5` for [`Error`](Self::Error) —
 /// and only the error carries anything after it.
 ///
 /// # Three answers, one failure
@@ -24,6 +27,16 @@ use crate::wire::encode::{Encode, Writer};
 /// again. An [`Error`](Self::Error) is the absence of an answer: the
 /// daemon could not detach the tool, for whatever reason it knows,
 /// and the attachment is as it was.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The tool is not attached to the agent. Tag `0`.
@@ -37,7 +50,10 @@ pub enum Frame {
     /// The agent is active — a loop is running in it — and was left
     /// as it is; nothing was changed. Tag `3`.
     Active,
-    /// A failure. Tag `4`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `4`.
+    Forbidden,
+    /// A failure. Tag `5`.
     ///
     /// The attachment is as it was. See
     /// [`shared::error::Error`](crate::shared::error::Error)
@@ -57,8 +73,11 @@ const NO_AGENT: u8 = 2;
 /// Tag for [`Frame::Active`].
 const ACTIVE: u8 = 3;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 4;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 5;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -85,6 +104,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ACTIVE]);
                 Ok(())
             }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -105,6 +128,7 @@ impl Decode<'_> for Frame {
             NO_TOOL => Ok(Frame::NoTool),
             NO_AGENT => Ok(Frame::NoAgent),
             ACTIVE => Ok(Frame::Active),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -116,7 +140,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's 5.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

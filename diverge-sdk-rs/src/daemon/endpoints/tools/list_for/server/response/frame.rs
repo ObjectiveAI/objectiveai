@@ -16,8 +16,9 @@ use crate::provider::endpoints::containers::tools::list_for::server::response::C
 /// [`NoProvider`](Self::NoProvider), then the finish; or containers and
 /// then exactly one error, then the finish. A payload leads with one
 /// byte saying which — `0` for [`Container`](Self::Container), `1` for
-/// [`NoProvider`](Self::NoProvider), `2` for [`Error`](Self::Error) —
-/// and the rest is that variant's own JSON: the provider protocol's
+/// [`NoProvider`](Self::NoProvider), `2` for
+/// [`Forbidden`](Self::Forbidden), `3` for [`Error`](Self::Error) — and
+/// the rest is that variant's own JSON: the provider protocol's
 /// [`Container`] for the first, nothing for the second, the error for
 /// the third.
 ///
@@ -31,6 +32,16 @@ use crate::provider::endpoints::containers::tools::list_for::server::response::C
 /// [`Error`](Self::Error) is a failure: the daemon could not ask, or
 /// the provider answered an error, in whichever's words. Containers
 /// sent before the failure precede the error; none follow it.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// One tool container the identity runs, as the provider told of
@@ -39,7 +50,10 @@ pub enum Frame {
     /// No provider of the caller's is the one named; nothing was asked.
     /// Tag `1`.
     NoProvider,
-    /// A failure. Tag `2`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `2`.
+    Forbidden,
+    /// A failure. Tag `3`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error)
     /// for why it says so little.
@@ -52,8 +66,11 @@ const CONTAINER: u8 = 0;
 /// Tag for [`Frame::NoProvider`].
 const NO_PROVIDER: u8 = 1;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 2;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 3;
 
 /// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
@@ -70,6 +87,10 @@ impl Encode for Frame {
             }
             Frame::NoProvider => {
                 out.extend_from_slice(&[NO_PROVIDER]);
+                Ok(())
+            }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -90,6 +111,7 @@ impl Decode<'_> for Frame {
         match *tag {
             CONTAINER => serde_json::from_slice(rest).map(Frame::Container).map_err(FrameError::Container),
             NO_PROVIDER => Ok(Frame::NoProvider),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -101,7 +123,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The container did not parse.
     Container(serde_json::Error),

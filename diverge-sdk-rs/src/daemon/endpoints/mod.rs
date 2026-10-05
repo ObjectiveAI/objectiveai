@@ -10,6 +10,8 @@
 //! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; ask a provider which tool containers an identity runs; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from |
 //! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a judge of providers that dial in, get one, list them, take one out, replace one |
+//! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
+//! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //!
 //! # The tags
 //!
@@ -68,17 +70,40 @@
 //! | `45` | [`providers::incoming::list`] |
 //! | `46` | [`providers::incoming::delete`] |
 //! | `47` | [`providers::incoming::edit`] |
+//! | `48` | [`accounts::create`] |
+//! | `49` | [`accounts::get`] |
+//! | `50` | [`accounts::list`] |
+//! | `51` | [`accounts::delete`] |
+//! | `52` | [`accounts::edit`] |
+//! | `53` | [`accounts::tag`] |
+//! | `54` | [`accounts::untag`] |
+//! | `55` | [`roles::create`] |
+//! | `56` | [`roles::get`] |
+//! | `57` | [`roles::list`] |
+//! | `58` | [`roles::delete`] |
+//! | `59` | [`roles::edit`] |
+//! | `60` | [`roles::tag`] |
+//! | `61` | [`roles::untag`] |
 //!
-//! Forty-eight, so far. Tags are handed out in the order scopes are defined
-//! and nothing reads them in order; a new scope takes the next value
-//! wherever it belongs conceptually. This table is the whole
+//! Sixty-two, so far. Tags are handed out in the order scopes are
+//! defined and nothing reads them in order; a new scope takes the next
+//! value wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,
-//! because a value chosen in one module has to be checked against
-//! every other, and no module can see the others.
+//! because a value chosen in one module has to be checked against every
+//! other, and no module can see the others.
 //!
 //! [`ClientRequest`] is the same table as a type: one variant per row,
 //! in tag order, plus an [`Invalid`](ClientRequest::Invalid) for a
 //! payload that is none of them. It is the only place the values meet.
+//!
+//! # Who asks, and what they may
+//!
+//! Every request is served for one [account](accounts) — the account
+//! the connection dialed in as, or the `account` of the container the
+//! request came from — and is allowed or refused by the
+//! [grants](crate::daemon::grant) of the [`roles`] that account
+//! holds. Every response has a `Forbidden` answer for the refusal,
+//! tagged just before its error.
 //!
 //! # The wire is the provider's
 //!
@@ -92,7 +117,9 @@ mod client_request;
 
 pub use client_request::*;
 
+pub mod accounts;
 pub mod agents;
 pub mod providers;
 pub mod resources;
+pub mod roles;
 pub mod tools;

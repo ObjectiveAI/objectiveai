@@ -14,7 +14,8 @@ use crate::shared::error::Error;
 /// of these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Set`](Self::Set), `1` for
 /// [`NoTool`](Self::NoTool), `2` for [`Mismatch`](Self::Mismatch), `3`
-/// for [`Exists`](Self::Exists), `4` for [`Error`](Self::Error) — and
+/// for [`Exists`](Self::Exists), `4` for
+/// [`Forbidden`](Self::Forbidden), `5` for [`Error`](Self::Error) — and
 /// only the error carries anything after it.
 ///
 /// # Answers, and one failure
@@ -27,6 +28,16 @@ use crate::shared::error::Error;
 /// each case nothing changed and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not put the route down, for whatever reason it knows.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The route is down: the position is served the tool. Tag `0`.
@@ -39,7 +50,10 @@ pub enum Frame {
     Mismatch,
     /// The position has a route already; nothing changed. Tag `3`.
     Exists,
-    /// A failure. Tag `4`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `4`.
+    Forbidden,
+    /// A failure. Tag `5`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -59,8 +73,11 @@ const MISMATCH: u8 = 2;
 /// Tag for [`Frame::Exists`].
 const EXISTS: u8 = 3;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 4;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 5;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -87,6 +104,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[EXISTS]);
                 Ok(())
             }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -107,6 +128,7 @@ impl Decode<'_> for Frame {
             NO_TOOL => Ok(Frame::NoTool),
             MISMATCH => Ok(Frame::Mismatch),
             EXISTS => Ok(Frame::Exists),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -118,7 +140,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

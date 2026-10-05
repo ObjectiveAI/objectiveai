@@ -13,9 +13,11 @@
 //! endpoints, as what their creates share is one [`create`](mod@create)
 //! and what their edits share one [`edit`](mod@edit) — the resources
 //! served into them, and the providers it dials and the judges of those
-//! that dial it. Who made each of those is [`creator`], carried by
-//! every list item; how one list item points at another is [`key`], and
-//! how a request names one of them, by name or once and for all, is
+//! that dial it. Who may ask for any of it is an
+//! [account](endpoints::accounts), holding [roles](endpoints::roles) of
+//! [grants](mod@grant). Who made each of those is [`creator`], carried
+//! by every list item; how one list item points at another is [`key`],
+//! and how a request names one of them, by name or once and for all, is
 //! [`reference`](mod@reference). The provider's endpoints are not the
 //! daemon's, and nothing here names them but what a daemon spawns an
 //! agent from.
@@ -24,6 +26,7 @@ pub mod create;
 pub mod creator;
 pub mod edit;
 pub mod endpoints;
+pub mod grant;
 pub mod key;
 pub mod reference;
 pub mod template;

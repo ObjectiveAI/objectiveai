@@ -16,8 +16,8 @@ use crate::shared::error::Error;
 /// for [`NotFound`](Self::NotFound), `2` for [`Active`](Self::Active),
 /// `3` for [`NotOwned`](Self::NotOwned), `4` for
 /// [`InUse`](Self::InUse), `5` for [`NoAccount`](Self::NoAccount), `6`
-/// for [`Error`](Self::Error) — and only the error carries anything
-/// after it.
+/// for [`Forbidden`](Self::Forbidden), `7` for [`Error`](Self::Error) —
+/// and only the error carries anything after it.
 ///
 /// # Answers, and one failure
 ///
@@ -32,6 +32,16 @@ use crate::shared::error::Error;
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not make the change, for whatever reason it knows, and the tool is
 /// as it was. The request is applied whole or not at all.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The tool is as the request states. Tag `0`.
@@ -51,7 +61,10 @@ pub enum Frame {
     /// The account requested is none the daemon has; nothing changed.
     /// Tag `5`.
     NoAccount,
-    /// A failure. Tag `6`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `6`.
+    Forbidden,
+    /// A failure. Tag `7`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -77,8 +90,11 @@ const IN_USE: u8 = 4;
 /// Tag for [`Frame::NoAccount`].
 const NO_ACCOUNT: u8 = 5;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 6;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 6;
+const ERROR: u8 = 7;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -113,6 +129,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[NO_ACCOUNT]);
                 Ok(())
             }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -135,6 +155,7 @@ impl Decode<'_> for Frame {
             NOT_OWNED => Ok(Frame::NotOwned),
             IN_USE => Ok(Frame::InUse),
             NO_ACCOUNT => Ok(Frame::NoAccount),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -146,7 +167,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's seven.
+    /// A tag that is none of this frame's eight.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

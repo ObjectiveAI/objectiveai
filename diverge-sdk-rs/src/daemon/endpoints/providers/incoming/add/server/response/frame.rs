@@ -13,12 +13,30 @@ use crate::shared::error::Error;
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Added`](Self::Added), `1` for
 /// [`Exists`](Self::Exists), `2` for [`NoResource`](Self::NoResource),
-/// `3` for [`Error`](Self::Error) — and only the error carries anything
-/// after it.
+/// `3` for [`Forbidden`](Self::Forbidden), `4` for
+/// [`Error`](Self::Error) — and only the error carries anything after
+/// it.
 ///
 /// # Answers, and one failure
 ///
-/// [`Exists`](Self::Exists) and [`NoResource`](Self::NoResource) are ANSWERS: the daemon looked, and either a key judge for that identity or a hook judge for that resource is there already, or the hook names a resource the caller does not hold, or a file, or a directory with no `hook.yaml` at its root, and in each case nothing changed and nothing is retried. An [`Error`](Self::Error) is the absence of an answer: the daemon could not add it, for whatever reason it knows.
+/// [`Exists`](Self::Exists) and [`NoResource`](Self::NoResource) are
+/// ANSWERS: the daemon looked, and either a key judge for that identity
+/// or a hook judge for that resource is there already, or the hook
+/// names a resource the caller does not hold, or a file, or a directory
+/// with no `hook.yaml` at its root, and in each case nothing changed
+/// and nothing is retried. An [`Error`](Self::Error) is the absence of
+/// an answer: the daemon could not add it, for whatever reason it
+/// knows.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The judge is added, last in the order. Tag `0`.
@@ -30,7 +48,10 @@ pub enum Frame {
     /// a directory with `hook.yaml` at its root; nothing changed. Tag
     /// `2`.
     NoResource,
-    /// A failure. Tag `3`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `3`.
+    Forbidden,
+    /// A failure. Tag `4`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -47,8 +68,11 @@ const EXISTS: u8 = 1;
 /// Tag for [`Frame::NoResource`].
 const NO_RESOURCE: u8 = 2;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 3;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 3;
+const ERROR: u8 = 4;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -71,6 +95,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[NO_RESOURCE]);
                 Ok(())
             }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -90,6 +118,7 @@ impl Decode<'_> for Frame {
             ADDED => Ok(Frame::Added),
             EXISTS => Ok(Frame::Exists),
             NO_RESOURCE => Ok(Frame::NoResource),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -101,7 +130,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

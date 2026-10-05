@@ -1,4 +1,5 @@
-//! The list response: the tools, one value each, or a failure.
+//! The list response: the tools, one value each, forbidden, or a
+//! failure.
 //!
 //! [`Frame`] is what a response frame holds — one value, or a
 //! failure. [`Tool`] is what a value is without a program, and the

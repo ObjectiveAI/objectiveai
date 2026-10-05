@@ -29,9 +29,11 @@ pub struct Edit {
     pub name: Option<Change<String>>,
     /// The account the container runs under: see the create's
     /// [`account`](crate::daemon::create::Inner::account). An account
-    /// the daemon does not have is the edit's `NoAccount`, and nothing
+    /// the daemon does not have is the edit's `NoAccount`, one the
+    /// caller holds no `assign` grant over its `Forbidden`, and nothing
     /// changes. Absent, as it is; `delete`, the container runs under no
-    /// account, and runs no command of the daemon's from then on.
+    /// account, and everything it asks of the daemon is answered
+    /// `Forbidden` from then on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<Change<String>>,
     /// Volumes of the provider the create pinned the container to, as

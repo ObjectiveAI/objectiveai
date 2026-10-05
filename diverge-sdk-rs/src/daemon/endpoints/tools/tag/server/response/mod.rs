@@ -1,4 +1,5 @@
-//! The tag response: the tags on, no such tool, or a failure.
+//! The tag response: the tags on, no such tool, forbidden, or a
+//! failure.
 
 mod frame;
 

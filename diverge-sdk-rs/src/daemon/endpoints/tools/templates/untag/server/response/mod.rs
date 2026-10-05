@@ -1,4 +1,5 @@
-//! The untag response: the tags off, no such template, or a failure.
+//! The untag response: the tags off, no such template, forbidden, or a
+//! failure.
 
 mod frame;
 

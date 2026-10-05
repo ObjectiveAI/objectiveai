@@ -12,10 +12,11 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// A create is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Created`](Self::Created),
-/// `1` for [`Exists`](Self::Exists), `2` for [`Error`](Self::Error) —
-/// and the rest is that variant's own JSON: the id as a JSON string
-/// for the first two, the error for the third.
+/// with one byte saying which — `0` for [`Created`](Self::Created), `1`
+/// for [`Exists`](Self::Exists), `2` for
+/// [`Forbidden`](Self::Forbidden), `3` for [`Error`](Self::Error) — and
+/// the rest is that variant's own JSON: the id as a JSON string for the
+/// first two, the error for the third.
 ///
 /// # Exists is not a failure
 ///
@@ -25,6 +26,16 @@ use crate::wire::encode::{Encode, Writer};
 /// [`Error`](Self::Error) is the absence of an answer: the template
 /// could not be made, for whatever reason the daemon knows, and
 /// nothing is held.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The template is made, and this is its id. Tag `0`.
@@ -32,7 +43,10 @@ pub enum Frame {
     /// A template of the same hash was made before, and this is its
     /// id; nothing was made. Tag `1`.
     Exists(String),
-    /// A failure. Tag `2`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `2`.
+    Forbidden,
+    /// A failure. Tag `3`.
     ///
     /// Nothing is held. See
     /// [`shared::error::Error`](crate::shared::error::Error)
@@ -46,8 +60,11 @@ const CREATED: u8 = 0;
 /// Tag for [`Frame::Exists`].
 const EXISTS: u8 = 1;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 2;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 3;
 
 /// A tag, then the variant's own JSON.
 impl Encode for Frame {
@@ -65,6 +82,10 @@ impl Encode for Frame {
             Frame::Exists(id) => {
                 out.extend_from_slice(&[EXISTS]);
                 serde_json::to_writer(out, id)
+            }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -84,6 +105,7 @@ impl Decode<'_> for Frame {
         match *tag {
             CREATED => serde_json::from_slice(rest).map(Frame::Created).map_err(FrameError::Id),
             EXISTS => serde_json::from_slice(rest).map(Frame::Exists).map_err(FrameError::Id),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -95,7 +117,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The id did not parse as a JSON string.
     Id(serde_json::Error),

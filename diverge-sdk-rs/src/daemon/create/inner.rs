@@ -20,16 +20,17 @@ pub struct Inner {
     /// error. The template's image, limits, resources and arguments are
     /// the container's for its life.
     pub template: String,
-    /// The account the container runs under, if any: the identity it
-    /// acts as toward the daemon, and what the daemon judges everything
-    /// it asks of the daemon by. Named as the daemon knows it; an
-    /// account the daemon does not have is the create's `NoAccount`,
-    /// and nothing is made. Absent, the container runs under no account
-    /// and runs no command of the daemon's: nothing it asks of the
-    /// daemon is served. The account is the container's for its life
-    /// unless an edit replaces or deletes it. What an account is, and
-    /// what it may do, the daemon's account system states; nothing here
-    /// does.
+    /// The account the container runs under, if any — a NAMED
+    /// [account](crate::daemon::endpoints::accounts), by its name: the
+    /// identity it acts as toward the daemon, and what the daemon
+    /// judges everything it asks of the daemon by, through the roles
+    /// the account holds. One the daemon does not have is the create's
+    /// `NoAccount`; one the caller holds no `assign` grant over is its
+    /// `Forbidden`; in either case nothing is made. Absent, the
+    /// container runs under no account and holds no grant: everything
+    /// it asks of the daemon is answered `Forbidden`. The account is
+    /// the container's for its life unless an edit replaces or deletes
+    /// it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<String>,
     /// The one provider the container runs on, and the volumes of that

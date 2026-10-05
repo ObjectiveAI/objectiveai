@@ -12,9 +12,10 @@ use super::Listed;
 ///
 /// A list is a stream: zero or more of these, one per resource of the
 /// caller's, oldest created first, then the finish; or exactly one
-/// error, then the finish. A payload leads with one byte saying
-/// which — `0` for [`Listed`](Self::Listed), `1` for
-/// [`Error`](Self::Error) — and the rest is that variant's own JSON.
+/// error, then the finish. A payload leads with one byte saying which —
+/// `0` for [`Listed`](Self::Listed), `1` for
+/// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error) — and
+/// the rest is that variant's own JSON.
 ///
 /// # A finish with nothing is an answer
 ///
@@ -23,11 +24,24 @@ use super::Listed;
 /// is a failure: the daemon could not list, for whatever reason it
 /// knows. Resources sent before the failure precede the error; none
 /// follow it, and the list is not whole.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// One resource. Tag `0`.
     Listed(Listed),
-    /// A failure. Tag `1`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `1`.
+    Forbidden,
+    /// A failure. Tag `2`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error)
     /// for why it says so little.
@@ -37,8 +51,11 @@ pub enum Frame {
 /// Tag for [`Frame::Listed`].
 const LISTED: u8 = 0;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 1;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 1;
+const ERROR: u8 = 2;
 
 /// A tag, then the variant's own JSON.
 impl Encode for Frame {
@@ -52,6 +69,10 @@ impl Encode for Frame {
             Frame::Listed(listed) => {
                 out.extend_from_slice(&[LISTED]);
                 serde_json::to_writer(out, listed)
+            }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -70,6 +91,7 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             LISTED => serde_json::from_slice(rest).map(Frame::Listed).map_err(FrameError::Listed),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -81,7 +103,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The resource did not parse.
     Listed(serde_json::Error),

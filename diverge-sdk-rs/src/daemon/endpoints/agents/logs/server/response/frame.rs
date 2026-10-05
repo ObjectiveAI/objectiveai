@@ -10,20 +10,21 @@ use serde_json::Value;
 
 /// A logs read's answer: one value, or a failure.
 ///
-/// A read is a stream: zero or more values, each one matching item
-/// as it is — or, with a program, one value the program yielded —
-/// in the log's order oldest first, then the finish; or exactly one
-/// error, then the finish. A count on the request caps the values,
-/// watching or not. Watching, the values go on as items land, and
-/// the finish comes when the count is met, when the filter can never
-/// match again, on a cancel, or on the agent's deletion — the
-/// request frame says exactly when. A payload leads with one byte saying which — `0`
-/// for [`Value`](Self::Value), `1` for [`Error`](Self::Error) — and
-/// the rest is that variant's own JSON. A value is an
-/// [`ItemWrapper`](super::ItemWrapper) without a program, and with
-/// one whatever the program made — a string, a number, an object of
-/// its own — so this crate types it as JSON; a reader that sent no
-/// program reads each as an [`ItemWrapper`](super::ItemWrapper).
+/// A read is a stream: zero or more values, each one matching item as
+/// it is — or, with a program, one value the program yielded — in the
+/// log's order oldest first, then the finish; or exactly one error,
+/// then the finish. A count on the request caps the values, watching or
+/// not. Watching, the values go on as items land, and the finish comes
+/// when the count is met, when the filter can never match again, on a
+/// cancel, or on the agent's deletion — the request frame says exactly
+/// when. A payload leads with one byte saying which — `0` for
+/// [`Value`](Self::Value), `1` for [`Forbidden`](Self::Forbidden), `2`
+/// for [`Error`](Self::Error) — and the rest is that variant's own
+/// JSON. A value is an [`ItemWrapper`](super::ItemWrapper) without a
+/// program, and with one whatever the program made — a string, a
+/// number, an object of its own — so this crate types it as JSON; a
+/// reader that sent no program reads each as an
+/// [`ItemWrapper`](super::ItemWrapper).
 ///
 /// # A finish with nothing is an answer
 ///
@@ -34,11 +35,24 @@ use serde_json::Value;
 /// the name, the program would not compile, or it failed while it
 /// ran, in the daemon's own words or jq's. Values sent before the
 /// failure precede the error; none follow it.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// One matching item, or one value the program yielded. Tag `0`.
     Value(Value),
-    /// A failure. Tag `1`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `1`.
+    Forbidden,
+    /// A failure. Tag `2`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error)
     /// for why it says so little.
@@ -48,8 +62,11 @@ pub enum Frame {
 /// Tag for [`Frame::Value`].
 const VALUE: u8 = 0;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 1;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 1;
+const ERROR: u8 = 2;
 
 /// A tag, then the variant's own JSON.
 impl Encode for Frame {
@@ -63,6 +80,10 @@ impl Encode for Frame {
             Frame::Value(value) => {
                 out.extend_from_slice(&[VALUE]);
                 serde_json::to_writer(out, value)
+            }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -81,6 +102,7 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             VALUE => serde_json::from_slice(rest).map(Frame::Value).map_err(FrameError::Value),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -92,7 +114,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The value did not parse.
     Value(serde_json::Error),

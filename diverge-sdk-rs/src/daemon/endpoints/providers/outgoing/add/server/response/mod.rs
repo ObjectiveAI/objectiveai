@@ -1,4 +1,4 @@
-//! The add response: added, the address taken, or a failure.
+//! The add response: added, the address taken, forbidden, or a failure.
 
 mod frame;
 

@@ -1,4 +1,5 @@
-//! The tag response: the tags on, no such agent, or a failure.
+//! The tag response: the tags on, no such agent, forbidden, or a
+//! failure.
 
 mod frame;
 

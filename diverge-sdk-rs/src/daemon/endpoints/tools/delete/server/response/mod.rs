@@ -1,5 +1,5 @@
-//! The delete response: deleted, no such tool, the tool attached, or
-//! a failure.
+//! The delete response: deleted, no such tool, the tool attached,
+//! forbidden, or a failure.
 
 mod frame;
 

@@ -1,4 +1,5 @@
-//! The tag response: the tags on, no such template, or a failure.
+//! The tag response: the tags on, no such template, forbidden, or a
+//! failure.
 
 mod frame;
 

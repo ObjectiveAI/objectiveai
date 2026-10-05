@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{agents, providers, resources, tools};
+use super::{accounts, agents, providers, resources, roles, tools};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -123,6 +123,34 @@ pub enum ClientRequest<'a> {
     ProvidersIncomingDelete(providers::incoming::delete::client::request::Frame),
     /// Tag `47`. Replace a judge.
     ProvidersIncomingEdit(providers::incoming::edit::client::request::Frame),
+    /// Tag `48`. Create an account.
+    AccountsCreate(accounts::create::client::request::Frame),
+    /// Tag `49`. Get one account.
+    AccountsGet(accounts::get::client::request::Frame),
+    /// Tag `50`. List the accounts, narrowed.
+    AccountsList(accounts::list::client::request::Frame),
+    /// Tag `51`. Delete an account.
+    AccountsDelete(accounts::delete::client::request::Frame),
+    /// Tag `52`. Change an account.
+    AccountsEdit(accounts::edit::client::request::Frame),
+    /// Tag `53`. Put tags on an account.
+    AccountsTag(accounts::tag::client::request::Frame),
+    /// Tag `54`. Take tags off an account.
+    AccountsUntag(accounts::untag::client::request::Frame),
+    /// Tag `55`. Create a role.
+    RolesCreate(roles::create::client::request::Frame),
+    /// Tag `56`. Get one role.
+    RolesGet(roles::get::client::request::Frame),
+    /// Tag `57`. List the roles, narrowed.
+    RolesList(roles::list::client::request::Frame),
+    /// Tag `58`. Delete a role.
+    RolesDelete(roles::delete::client::request::Frame),
+    /// Tag `59`. Change a role.
+    RolesEdit(roles::edit::client::request::Frame),
+    /// Tag `60`. Put tags on a role.
+    RolesTag(roles::tag::client::request::Frame),
+    /// Tag `61`. Take tags off a role.
+    RolesUntag(roles::untag::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -191,6 +219,20 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersIncomingList(frame) => frame.encode(out),
             ClientRequest::ProvidersIncomingDelete(frame) => frame.encode(out),
             ClientRequest::ProvidersIncomingEdit(frame) => frame.encode(out),
+            ClientRequest::AccountsCreate(frame) => frame.encode(out),
+            ClientRequest::AccountsGet(frame) => frame.encode(out),
+            ClientRequest::AccountsList(frame) => frame.encode(out),
+            ClientRequest::AccountsDelete(frame) => frame.encode(out),
+            ClientRequest::AccountsEdit(frame) => frame.encode(out),
+            ClientRequest::AccountsTag(frame) => frame.encode(out),
+            ClientRequest::AccountsUntag(frame) => frame.encode(out),
+            ClientRequest::RolesCreate(frame) => frame.encode(out),
+            ClientRequest::RolesGet(frame) => frame.encode(out),
+            ClientRequest::RolesList(frame) => frame.encode(out),
+            ClientRequest::RolesDelete(frame) => frame.encode(out),
+            ClientRequest::RolesEdit(frame) => frame.encode(out),
+            ClientRequest::RolesTag(frame) => frame.encode(out),
+            ClientRequest::RolesUntag(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -359,6 +401,48 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             47 => providers::incoming::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingEdit)
                 .ok(),
+            48 => accounts::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AccountsCreate)
+                .ok(),
+            49 => accounts::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AccountsGet)
+                .ok(),
+            50 => accounts::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AccountsList)
+                .ok(),
+            51 => accounts::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AccountsDelete)
+                .ok(),
+            52 => accounts::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AccountsEdit)
+                .ok(),
+            53 => accounts::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AccountsTag)
+                .ok(),
+            54 => accounts::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AccountsUntag)
+                .ok(),
+            55 => roles::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::RolesCreate)
+                .ok(),
+            56 => roles::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::RolesGet)
+                .ok(),
+            57 => roles::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::RolesList)
+                .ok(),
+            58 => roles::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::RolesDelete)
+                .ok(),
+            59 => roles::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::RolesEdit)
+                .ok(),
+            60 => roles::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::RolesTag)
+                .ok(),
+            61 => roles::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::RolesUntag)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -416,6 +500,20 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersIncomingList(_) => f.write_str("providers incoming list"),
             ClientRequest::ProvidersIncomingDelete(_) => f.write_str("providers incoming delete"),
             ClientRequest::ProvidersIncomingEdit(_) => f.write_str("providers incoming edit"),
+            ClientRequest::AccountsCreate(_) => f.write_str("accounts create"),
+            ClientRequest::AccountsGet(_) => f.write_str("accounts get"),
+            ClientRequest::AccountsList(_) => f.write_str("accounts list"),
+            ClientRequest::AccountsDelete(_) => f.write_str("accounts delete"),
+            ClientRequest::AccountsEdit(_) => f.write_str("accounts edit"),
+            ClientRequest::AccountsTag(_) => f.write_str("accounts tag"),
+            ClientRequest::AccountsUntag(_) => f.write_str("accounts untag"),
+            ClientRequest::RolesCreate(_) => f.write_str("roles create"),
+            ClientRequest::RolesGet(_) => f.write_str("roles get"),
+            ClientRequest::RolesList(_) => f.write_str("roles list"),
+            ClientRequest::RolesDelete(_) => f.write_str("roles delete"),
+            ClientRequest::RolesEdit(_) => f.write_str("roles edit"),
+            ClientRequest::RolesTag(_) => f.write_str("roles tag"),
+            ClientRequest::RolesUntag(_) => f.write_str("roles untag"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

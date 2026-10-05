@@ -1,4 +1,5 @@
-//! The untag response: the tags off, no such tool, or a failure.
+//! The untag response: the tags off, no such tool, forbidden, or a
+//! failure.
 
 mod frame;
 

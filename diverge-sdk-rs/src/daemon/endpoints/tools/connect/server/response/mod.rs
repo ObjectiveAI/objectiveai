@@ -1,4 +1,5 @@
-//! The connect response: connected, the name in use, or a failure.
+//! The connect response: connected, the name in use, forbidden, or a
+//! failure.
 
 mod frame;
 

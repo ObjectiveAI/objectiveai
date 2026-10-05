@@ -11,8 +11,11 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// A delete is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Deleted`](Self::Deleted), `1` for [`NotFound`](Self::NotFound), `2` for [`InUse`](Self::InUse), `3` for [`Error`](Self::Error) —
-/// and only the error carries anything after it.
+/// with one byte saying which — `0` for [`Deleted`](Self::Deleted), `1`
+/// for [`NotFound`](Self::NotFound), `2` for [`InUse`](Self::InUse),
+/// `3` for [`Forbidden`](Self::Forbidden), `4` for
+/// [`Error`](Self::Error) — and only the error carries anything after
+/// it.
 ///
 /// # Three answers, one failure
 ///
@@ -24,6 +27,16 @@ use crate::wire::encode::{Encode, Writer};
 /// An [`Error`](Self::Error) is the absence of an answer: the daemon
 /// could not delete the resource, for whatever reason it knows, and
 /// the resource is as it was.
+///
+/// # Forbidden
+///
+/// [`Forbidden`](Self::Forbidden) is an answer every endpoint has: the
+/// account the request is served for — the connection's, or the
+/// `account` of the container it came from — holds no grant allowing
+/// what the request asks over what it names, and nothing changed. Where
+/// the answer is a stream it comes as an error does: exactly one, with
+/// nothing before it, then the finish. Nothing is retried. See
+/// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The resource is deleted. Tag `0`.
@@ -34,7 +47,10 @@ pub enum Frame {
     /// An agent of the caller's mounts the resource, and it was left
     /// as it is; nothing was deleted. Tag `2`.
     InUse,
-    /// A failure. Tag `3`.
+    /// The account the request is served for holds no grant allowing
+    /// it; nothing changed. Tag `3`.
+    Forbidden,
+    /// A failure. Tag `4`.
     ///
     /// The resource is as it was. See
     /// [`shared::error::Error`](crate::shared::error::Error)
@@ -51,8 +67,11 @@ const NOT_FOUND: u8 = 1;
 /// Tag for [`Frame::InUse`].
 const IN_USE: u8 = 2;
 
+/// Tag for [`Frame::Forbidden`].
+const FORBIDDEN: u8 = 3;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 3;
+const ERROR: u8 = 4;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -75,6 +94,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[IN_USE]);
                 Ok(())
             }
+            Frame::Forbidden => {
+                out.extend_from_slice(&[FORBIDDEN]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -94,6 +117,7 @@ impl Decode<'_> for Frame {
             DELETED => Ok(Frame::Deleted),
             NOT_FOUND => Ok(Frame::NotFound),
             IN_USE => Ok(Frame::InUse),
+            FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -105,7 +129,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's 4.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

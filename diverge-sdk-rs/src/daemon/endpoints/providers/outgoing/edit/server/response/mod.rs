@@ -1,4 +1,5 @@
-//! The edit response: edited, no such provider, or a failure.
+//! The edit response: edited, no such provider, forbidden, or a
+//! failure.
 
 mod frame;
 
