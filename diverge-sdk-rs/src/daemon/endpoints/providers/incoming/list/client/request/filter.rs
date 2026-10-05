@@ -10,13 +10,8 @@ use super::Kind;
 /// The filter over judges: every member optional, and every one given a
 /// condition a judge passes or does not. In a [list
 /// request](super::Frame) it is flattened into the request and narrows
-/// what the daemon sends, and its program transforms what passes. In
-/// the daemon's own tools, as a
-/// [permission](crate::daemon::daemon_tools), the same filter says
-/// which judges the tool reaches, and its program is a test: a judge
-/// passes when the program, run with the judge as its input, yields
-/// first a value that is neither `false` nor `null`. A filter with no
-/// member given passes every judge.
+/// what the daemon sends, and its program transforms what passes. A
+/// filter with no member given passes every judge.
 ///
 /// # Any one of
 ///

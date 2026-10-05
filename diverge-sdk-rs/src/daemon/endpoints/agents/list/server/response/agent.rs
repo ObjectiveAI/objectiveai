@@ -13,9 +13,9 @@ use crate::daemon::endpoints::agents::logs::server::response::Provider;
 ///
 /// Everything here the daemon holds for the agent's life, so a list
 /// costs no more than the agents it names. What an agent has SAID is
-/// its [`logs`](crate::daemon::endpoints::agents::logs), read separately;
-/// what it was made from is its template's, named by id, and its
-/// mounts are the create's, and neither is repeated here.
+/// its [`logs`](crate::daemon::endpoints::agents::logs), read
+/// separately; what it was made from is its template's, named by id,
+/// and its mounts are the create's, and neither is repeated here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Agent {
     /// The name, as its create gave it, if it gave one; absent for an
@@ -36,7 +36,7 @@ pub struct Agent {
     /// all, where a name is free again once the agent is deleted.
     pub index: u64,
     /// Who made it: the client, over an endpoint, or the agent or the
-    /// tool of the client's that did so through the daemon's own tools.
+    /// tool of the client's that did so through the daemon.
     /// One [`Creator`](crate::daemon::creator::Creator), the direct
     /// maker; the maker's own maker is on the maker's list item.
     pub creator: Creator,
@@ -70,8 +70,10 @@ pub struct Agent {
     /// list reports the same attachments from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<key::Tool>,
-    /// Its tags, sorted bytewise: what [`tag`](crate::daemon::endpoints::agents::tag) put on it and
-    /// [`untag`](crate::daemon::endpoints::agents::untag) has not taken off. Absent when empty.
+    /// Its tags, sorted bytewise: what
+    /// [`tag`](crate::daemon::endpoints::agents::tag) put on it and
+    /// [`untag`](crate::daemon::endpoints::agents::untag) has not taken
+    /// off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
 }

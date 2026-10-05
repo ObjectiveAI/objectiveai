@@ -10,12 +10,7 @@ use crate::daemon::endpoints::providers::outgoing::Kind;
 /// The filter over outgoing providers: every member optional, and every
 /// one given a condition a provider passes or does not. In a [list
 /// request](super::Frame) it is flattened into the request and narrows
-/// what the daemon sends, and its program transforms what passes. In
-/// the daemon's own tools, as a
-/// [permission](crate::daemon::daemon_tools), the same filter says
-/// which outgoing providers the tool reaches, and its program is a
-/// test: a provider passes when the program, run with the provider as
-/// its input, yields first a value that is neither `false` nor `null`.
+/// what the daemon sends, and its program transforms what passes.
 /// A filter with no member given passes every provider.
 ///
 /// # Any one of

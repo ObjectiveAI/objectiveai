@@ -13,42 +13,35 @@ use crate::daemon::create::Inner;
 /// [`template`](Inner::template), named by its id; what is this
 /// agent's own is here: the provider it runs on with the volumes it
 /// mounts there, its FUSE mounts of providers' volumes, the daemon's
-/// own tools it holds, and the name the agent is held under from
-/// then on. The provider is the agent's
-/// and not the template's so that a template can be shared. What a caller may not choose is not here at
-/// all rather than here and ignored: the container's name, its
-/// ports, its entrypoint and its environment are the provider's,
-/// because they are how the provider reaches the container and how
-/// the container reaches back. There is no environment: the mounts
-/// are the caller's only provisioning channel, and a field that is
-/// accepted and ignored is a field callers will believe in.
+/// own tools it holds, and the name the agent is held under from then
+/// on. The provider is the agent's and not the template's so that a
+/// template can be shared. What a caller may not choose is not here at
+/// all rather than here and ignored: the container's name, its ports,
+/// its entrypoint and its environment are the provider's, because they
+/// are how the provider reaches the container and how the container
+/// reaches back. There is no environment: the mounts are the caller's
+/// only provisioning channel, and a field that is accepted and ignored
+/// is a field callers will believe in.
 ///
 /// # The name
 ///
 /// Optional. A string of the caller's choosing, unique among the
 /// caller's agents: the daemon refuses a request whose name is an
 /// agent's already, and says so with a variant of its own, because a
-/// caller acts on it differently from a failure — use the agent it
-/// has, or choose another name. A request with no name is never
-/// refused for one: the agent is reached by its template and its
-/// index, which it always has. Nothing here constrains the string's form;
-/// the name is the caller's word for its agent, and the daemon
-/// compares it and does not read it.
+/// caller acts on it differently from a failure — use the agent it has,
+/// or choose another name. A request with no name is never refused for
+/// one: the agent is reached by its template and its index, which it
+/// always has. Nothing here constrains the string's form; the name is
+/// the caller's word for its agent, and the daemon compares it and does
+/// not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// What an agent's create and a tool's share — the template, the
-    /// provider and its volumes, the FUSE mounts, the daemon's tools,
-    /// the deployer: see [`Inner`]. Flattened, so its members are this
+    /// provider and its volumes, the FUSE mounts, the account, the
+    /// deployer: see [`Inner`]. Flattened, so its members are this
     /// object's own.
     #[serde(flatten)]
     pub inner: Inner,
-    /// Whether the agent may get itself: `true`, the string `"self"`
-    /// names it in the daemon's own `agents_get`, and that tool's reach
-    /// is then judged on it as on any other agent; `false`, or absent,
-    /// `"self"` names nothing for it. This is about naming, not names:
-    /// it changes nothing about what the agent is called.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub agents_self: bool,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's agents, by which the agent is reached
     /// afterwards beside its template and its index. Absent, the
@@ -60,15 +53,15 @@ pub struct Frame {
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 0;
 
 /// JSON, as every request of the daemon's is.

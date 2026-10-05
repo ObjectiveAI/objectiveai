@@ -1,5 +1,5 @@
 //! The edit response: the agent as stated, no such agent, active, the
-//! name in use, or a failure.
+//! name in use, no such account, or a failure.
 
 mod frame;
 

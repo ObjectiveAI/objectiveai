@@ -3,7 +3,7 @@
 //! Everything the daemon holds for a caller — an agent, a tool, a
 //! template of either kind, a route — was made by somebody: by the
 //! client itself, over an endpoint, or by an agent or a tool of the
-//! client's, through the daemon's own tools. Every list item carries
+//! client's, through the daemon. Every list item carries
 //! that one maker as its `creator`, a [`Creator`]; a user part of a
 //! message carries the one that sent it as its `sender`, the same
 //! shape. Only the direct maker is carried: the maker's own maker is

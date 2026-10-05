@@ -20,8 +20,9 @@ use super::{ResourceDirectoryMount, ResourceFileMount};
 ///
 /// `Type` is the family's own single-value enum —
 /// [`AgentType`](crate::daemon::endpoints::agents::templates::AgentType)
-/// or [`ToolType`](crate::daemon::endpoints::tools::templates::ToolType)
-/// — so an agent template is `{"type":"agent",…}` and a tool template
+/// or
+/// [`ToolType`](crate::daemon::endpoints::tools::templates::ToolType) —
+/// so an agent template is `{"type":"agent",…}` and a tool template
 /// `{"type":"tool",…}`, neither decoding as the other, and the two
 /// hashing apart however alike the rest.
 ///
@@ -38,9 +39,9 @@ use super::{ResourceDirectoryMount, ResourceFileMount};
 /// Its id is its hash: see [`template`](super). What a caller may
 /// not choose is not here at all rather than here and ignored: the
 /// container's name, its ports, its entrypoint and its environment
-/// are the provider's. The daemon's own tools an agent or a tool
-/// holds are not here either: they are the create's, so that one
-/// template makes agents of different reach.
+/// are the provider's. The account a container runs under is not
+/// here either: it is the create's, so that one template makes
+/// containers of different standing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Template<Type> {
     /// What the template is for: the one value the family's type
@@ -48,14 +49,14 @@ pub struct Template<Type> {
     /// with it.
     pub r#type: Type,
     /// How to make a container from this, in words, for whoever does:
-    /// what the create has to supply that a template cannot name —
-    /// the volumes and FUSE mounts it needs and at what paths, the
-    /// daemon's own tools it needs and how far each has to reach,
+    /// what the create has to supply that a template cannot name — the
+    /// volumes and FUSE mounts it needs and at what paths, the account
+    /// it has to run under and what that account has to be able to do,
     /// which agents it has to be able to message and which have to
-    /// reach it, and anything else about deploying it. The template
-    /// is shareable and this travels with it, inside the hash; a
-    /// template with nothing to say leaves it absent. Not handed to
-    /// the container, and read by nothing but a person.
+    /// reach it, and anything else about deploying it. The template is
+    /// shareable and this travels with it, inside the hash; a template
+    /// with nothing to say leaves it absent. Not handed to the
+    /// container, and read by nothing but a person.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// The image: a name and a digest. See [`Image`].
@@ -100,8 +101,8 @@ pub struct Template<Type> {
     /// container's life.
     ///
     /// A JSON value, because this crate does not know what an image
-    /// takes — a model, tools, a tool server's own knobs — and a wire that
-    /// typed it would have to be revised for every image that ever
+    /// takes — a model, tools, a tool server's own knobs — and a wire
+    /// that typed it would have to be revised for every image that ever
     /// ran. It is handed to the container and not read here.
     pub arguments: Value,
 }

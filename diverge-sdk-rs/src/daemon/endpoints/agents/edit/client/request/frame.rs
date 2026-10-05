@@ -4,12 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 
-use crate::daemon::edit::{Change, Edit};
+use crate::daemon::edit::Edit;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to change an agent: its name, its mounts, the
-/// daemon's tools it holds, its deployer.
+/// Ask the daemon to change an agent: its name, its account, its
+/// mounts, its deployer.
 ///
 /// The agent is named by its name or by its template and its index, as
 /// [`reference`](crate::daemon::reference) states. Every other member
@@ -28,16 +28,11 @@ pub struct Frame {
     /// template and its index, which name it once and for all. See
     /// [`reference::Agent`].
     pub agent: reference::Agent,
-    /// What an agent's edit and a tool's share — the name, the mounts,
-    /// the daemon's tools, the deployer, every one optional: see
+    /// What an agent's edit and a tool's share — the name, the account,
+    /// the mounts, the deployer, every one optional: see
     /// [`Edit`]. Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub edit: Edit,
-    /// Whether the agent may get itself: see the create's
-    /// [`agents_self`](crate::daemon::endpoints::agents::create::client::request::Frame::agents_self).
-    /// Absent, as it is; `delete`, `false`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_self: Option<Change<bool>>,
 }
 
 /// This frame's tag among the scope-opening requests.

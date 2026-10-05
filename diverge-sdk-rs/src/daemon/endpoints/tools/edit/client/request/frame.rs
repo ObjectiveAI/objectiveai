@@ -4,12 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 
-use crate::daemon::edit::{Change, Edit};
+use crate::daemon::edit::Edit;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask the daemon to change a tool: its name, its mounts, the
-/// daemon's tools it holds, its deployer.
+/// Ask the daemon to change a tool: its name, its account, its
+/// mounts, its deployer.
 ///
 /// The tool is named by its name, by its template and its index, or
 /// by the provider and id it joined, as
@@ -20,25 +20,20 @@ use crate::wire::encode::{Encode, Writer};
 /// daemon says so with a variant of its own; a request that names no
 /// mount is applied live. A
 /// [`connect`](crate::daemon::endpoints::tools::connect)ed tool has
-/// no mounts of this caller's and holds none of the daemon's tools:
-/// a request naming either for one is refused as not owned, and only
-/// its name changes.
+/// no mounts of this caller's and runs under no account, since it
+/// runs nothing of the caller's: a request naming either for one is
+/// refused as not owned, and only its name changes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The tool: by its name, as its create or its connect gave it,
     /// or by its template and its index, which name a created tool
     /// once and for all. See [`reference::Tool`].
     pub tool: reference::Tool,
-    /// What an agent's edit and a tool's share — the name, the mounts,
-    /// the daemon's tools, the deployer, every one optional: see
+    /// What an agent's edit and a tool's share — the name, the account,
+    /// the mounts, the deployer, every one optional: see
     /// [`Edit`]. Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub edit: Edit,
-    /// Whether the tool may get itself: see the create's
-    /// [`tools_self`](crate::daemon::endpoints::tools::create::client::request::Frame::tools_self).
-    /// Absent, as it is; `delete`, `false`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_self: Option<Change<bool>>,
 }
 
 /// This frame's tag among the scope-opening requests.

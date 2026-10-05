@@ -1,4 +1,4 @@
-//! The get response: the agent, no such agent, no self, or a failure.
+//! The get response: the agent, no such agent, or a failure.
 //!
 //! [`Frame`] is what a response frame holds. The agent comes back as
 //! [`Agent`](crate::daemon::endpoints::agents::list::server::response::Agent),

@@ -1,20 +1,15 @@
-//! What narrows a list of agent templates, and what a permission over
-//! them reaches.
+//! What narrows a list of agent templates.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
 
-/// The filter over agent templates: every member optional, and every one
-/// given a condition a template passes or does not. In a
+/// The filter over agent templates: every member optional, and every
+/// one given a condition a template passes or does not. In a
 /// [list request](super::Frame) it is flattened into the request and
 /// narrows what the daemon sends, and its program transforms what
-/// passes. In the daemon's own tools, as a
-/// [permission](crate::daemon::daemon_tools), the same filter says
-/// which agent templates the tool reaches, and its program is a test: a
-/// template passes when the program, run with the template as its
-/// input, yields first a value that is neither `false` nor `null`.
+/// passes.
 /// A filter with no member given passes every template.
 ///
 /// # Any one of, every one of

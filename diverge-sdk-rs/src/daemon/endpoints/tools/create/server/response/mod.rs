@@ -1,4 +1,5 @@
-//! The create response: created, the name in use, or a failure.
+//! The create response: the tool made, its name in use, no such
+//! account, or a failure.
 
 mod frame;
 

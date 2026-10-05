@@ -36,7 +36,7 @@ pub struct Tool {
     /// free again once the tool is deleted.
     pub index: u64,
     /// Who made it: the client, over an endpoint, or the agent or the
-    /// tool of the client's that did so through the daemon's own tools.
+    /// tool of the client's that did so through the daemon.
     /// One [`Creator`](crate::daemon::creator::Creator), the direct
     /// maker; the maker's own maker is on the maker's list item.
     pub creator: Creator,
@@ -64,8 +64,10 @@ pub struct Tool {
     /// reports the same attachments from the other side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<key::Agent>,
-    /// Its tags, sorted bytewise: what [`tag`](crate::daemon::endpoints::tools::tag) put on it and
-    /// [`untag`](crate::daemon::endpoints::tools::untag) has not taken off. Absent when empty.
+    /// Its tags, sorted bytewise: what
+    /// [`tag`](crate::daemon::endpoints::tools::tag) put on it and
+    /// [`untag`](crate::daemon::endpoints::tools::untag) has not taken
+    /// off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
     /// The dependency positions routed to it: every

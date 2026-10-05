@@ -2,8 +2,7 @@
 //!
 //! What a caller hands the daemon to list its outgoing providers: the
 //! filter, the program and the count, every one optional: the
-//! [`Filter`], which the daemon's own tools reach by too, and the
-//! count.
+//! [`Filter`] and the count.
 
 mod filter;
 mod frame;

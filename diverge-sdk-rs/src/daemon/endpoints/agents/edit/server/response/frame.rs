@@ -7,28 +7,29 @@ use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
 /// An edit's answer: the agent is as the request states, no agent is
-/// the one named, the agent is active, the name is another's, or a
-/// failure.
+/// the one named, the agent is active, the name is another's, the
+/// account is none the daemon has, or a failure.
 ///
 /// An edit is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Edited`](Self::Edited), `1`
 /// for [`NotFound`](Self::NotFound), `2` for [`Active`](Self::Active),
-/// `3` for [`InUse`](Self::InUse), `4` for [`Error`](Self::Error) — and
+/// `3` for [`InUse`](Self::InUse), `4` for
+/// [`NoAccount`](Self::NoAccount), `5` for [`Error`](Self::Error) — and
 /// only the error carries anything after it.
 ///
 /// # Answers, and one failure
 ///
-/// [`NotFound`](Self::NotFound), [`Active`](Self::Active) and
-/// [`InUse`](Self::InUse) are ANSWERS: the daemon looked, and no agent
-/// of the caller's is the one named, or one is and a loop is running in
-/// it while the request names a mount, or the name requested is another
-/// agent's, and in each case nothing changed and nothing is retried —
-/// the caller has the wrong agent, or waits for the loop to end and
-/// asks again, or chooses another name. An [`Error`](Self::Error) is
-/// the absence of an answer: the daemon could not make the change, for
-/// whatever reason it knows, and the agent is as it was. The request is
-/// applied whole or not at all.
+/// [`NotFound`](Self::NotFound), [`Active`](Self::Active),
+/// [`InUse`](Self::InUse) and [`NoAccount`](Self::NoAccount) are
+/// ANSWERS: the daemon looked, and no agent of the caller's is the one
+/// named, or one is and a loop is running in it while the request names
+/// a mount, or the name requested is another agent's, or the account
+/// requested is none the daemon has, and in each case nothing changed
+/// and nothing is retried. An [`Error`](Self::Error) is the absence of
+/// an answer: the daemon could not make the change, for whatever reason
+/// it knows, and the agent is as it was. The request is applied whole
+/// or not at all.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The agent is as the request states, and sees it. Tag `0`.
@@ -41,7 +42,10 @@ pub enum Frame {
     Active,
     /// The name requested is another agent's; nothing changed. Tag `3`.
     InUse,
-    /// A failure. Tag `4`.
+    /// The account requested is none the daemon has; nothing changed.
+    /// Tag `4`.
+    NoAccount,
+    /// A failure. Tag `5`.
     ///
     /// Nothing changed. See
     /// [`shared::error::Error`](crate::shared::error::Error) for why it
@@ -61,8 +65,11 @@ const ACTIVE: u8 = 2;
 /// Tag for [`Frame::InUse`].
 const IN_USE: u8 = 3;
 
+/// Tag for [`Frame::NoAccount`].
+const NO_ACCOUNT: u8 = 4;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 5;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -89,6 +96,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[IN_USE]);
                 Ok(())
             }
+            Frame::NoAccount => {
+                out.extend_from_slice(&[NO_ACCOUNT]);
+                Ok(())
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -109,6 +120,7 @@ impl Decode<'_> for Frame {
             NOT_FOUND => Ok(Frame::NotFound),
             ACTIVE => Ok(Frame::Active),
             IN_USE => Ok(Frame::InUse),
+            NO_ACCOUNT => Ok(Frame::NoAccount),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -120,7 +132,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

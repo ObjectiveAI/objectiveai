@@ -2,45 +2,45 @@
 
 use std::fmt;
 
-use crate::shared::error::Error;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
+use crate::shared::error::Error;
 
-/// A create's answer: the tool is created, the name is in use, or a
-/// failure.
+/// A create's answer: the tool exists under the name, the name is in
+/// use, the account is none the daemon has, or a failure.
 ///
 /// A create is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
-/// with one byte saying which — `0` for [`Created`](Self::Created), `1` for [`InUse`](Self::InUse), `2` for [`Error`](Self::Error) —
-/// and only the error carries anything after it.
+/// with one byte saying which — `0` for [`Created`](Self::Created), `1`
+/// for [`InUse`](Self::InUse), `2` for [`NoAccount`](Self::NoAccount),
+/// `3` for [`Error`](Self::Error) — and only the error carries anything
+/// after it.
 ///
-/// # The name in use is not a failure
+/// # Answers, and one failure
 ///
-/// [`InUse`](Self::InUse) is an ANSWER: a tool of the caller's exists
-/// under that name already, and the daemon created nothing — the
-/// caller uses the tool it has, or chooses another name, and nothing
-/// is retried. An [`Error`](Self::Error) is the absence of an answer:
-/// the tool could not be created, for whatever reason the daemon
-/// knows, and the name is as it was.
-///
-/// # Created carries nothing
-///
-/// The name is the caller's handle from now on, and the caller chose
-/// it: there is no id to hand back, and a tool that is not yet
-/// attached to any agent runs nowhere.
+/// [`InUse`](Self::InUse) and [`NoAccount`](Self::NoAccount) are
+/// ANSWERS: the daemon looked, and either the name is a tool's of the
+/// caller's already, or the account named is none it has, and in either
+/// case nothing was created and nothing is retried. An
+/// [`Error`](Self::Error) is the absence of an answer: the daemon could
+/// not create the tool, for whatever reason it knows, and nothing is
+/// held.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The tool exists under the name. Tag `0`.
+    /// The tool exists, under the name if one was given, and is reached
+    /// by its template and index from now on. Tag `0`.
     Created,
-    /// A tool of the caller's exists under that name already;
-    /// nothing was created. Tag `1`.
+    /// The name is a tool's of the caller's already; nothing was
+    /// created. Tag `1`.
     InUse,
-    /// A failure. Tag `2`.
+    /// The account named is none the daemon has; nothing was created.
+    /// Tag `2`.
+    NoAccount,
+    /// A failure. Tag `3`.
     ///
-    /// The tool does not exist and will not, and the name is
-    /// unchanged. See
-    /// [`shared::error::Error`](crate::shared::error::Error)
-    /// for why it says so little.
+    /// Nothing changed. See
+    /// [`shared::error::Error`](crate::shared::error::Error) for why it
+    /// says so little.
     Error(Error),
 }
 
@@ -50,8 +50,11 @@ const CREATED: u8 = 0;
 /// Tag for [`Frame::InUse`].
 const IN_USE: u8 = 1;
 
+/// Tag for [`Frame::NoAccount`].
+const NO_ACCOUNT: u8 = 2;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 2;
+const ERROR: u8 = 3;
 
 /// A tag, and — for the error alone — that variant's own JSON.
 impl Encode for Frame {
@@ -68,6 +71,10 @@ impl Encode for Frame {
             }
             Frame::InUse => {
                 out.extend_from_slice(&[IN_USE]);
+                Ok(())
+            }
+            Frame::NoAccount => {
+                out.extend_from_slice(&[NO_ACCOUNT]);
                 Ok(())
             }
             Frame::Error(error) => {
@@ -88,6 +95,7 @@ impl Decode<'_> for Frame {
         match *tag {
             CREATED => Ok(Frame::Created),
             IN_USE => Ok(Frame::InUse),
+            NO_ACCOUNT => Ok(Frame::NoAccount),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -99,7 +107,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's 3.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),

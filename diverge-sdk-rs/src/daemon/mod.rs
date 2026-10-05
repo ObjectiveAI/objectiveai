@@ -2,28 +2,26 @@
 //!
 //! The daemon speaks the same frames, scopes and channels the provider
 //! protocol does, over the same [`wire`](crate::wire) — its
-//! [`frame`](crate::wire::frame), [`connection`](crate::wire::connection),
+//! [`frame`](crate::wire::frame),
+//! [`connection`](crate::wire::connection),
 //! [`encode`](crate::wire::encode) and [`decode`](crate::wire::decode),
 //! the one error shape in [`shared::error`](crate::shared::error), and
 //! the frame-level cores of each half — and defines its own
 //! [`endpoints`] on top, as the [`provider`](crate::provider) defines
-//! its own: agents, the tools attached to them, the templates both
-//! are made from — one shape, [`template`], shared by the two
-//! families' endpoints, as what their creates share is one
-//! [`create`](mod@create) and what their edits share one
-//! [`edit`](mod@edit) — the resources served into them, and the
-//! providers it dials and the judges of those that dial it. The
-//! daemon's own tools, which a create hands the agent or the tool it
-//! makes, are [`daemon_tools`]. Who
-//! made each of those is [`creator`], carried by every list item; how one list item points at another is [`key`],
-//! and how a request names one of them, by name or once and for all,
-//! is [`reference`](mod@reference). The provider's endpoints are
-//! not the daemon's, and nothing here names them but what a daemon
-//! spawns an agent from.
+//! its own: agents, the tools attached to them, the templates both are
+//! made from — one shape, [`template`], shared by the two families'
+//! endpoints, as what their creates share is one [`create`](mod@create)
+//! and what their edits share one [`edit`](mod@edit) — the resources
+//! served into them, and the providers it dials and the judges of those
+//! that dial it. Who made each of those is [`creator`], carried by
+//! every list item; how one list item points at another is [`key`], and
+//! how a request names one of them, by name or once and for all, is
+//! [`reference`](mod@reference). The provider's endpoints are not the
+//! daemon's, and nothing here names them but what a daemon spawns an
+//! agent from.
 
 pub mod create;
 pub mod creator;
-pub mod daemon_tools;
 pub mod edit;
 pub mod endpoints;
 pub mod key;

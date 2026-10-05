@@ -23,7 +23,7 @@ pub struct Incoming {
     /// When the add made it. On the wire an RFC 3339 timestamp in UTC.
     pub created: DateTime<Utc>,
     /// Who added it: the client, over an endpoint, or the agent or the
-    /// tool of the client's that did so through the daemon's own tools.
+    /// tool of the client's that did so through the daemon.
     /// One [`Creator`](crate::daemon::creator::Creator), the direct
     /// maker.
     pub creator: Creator,

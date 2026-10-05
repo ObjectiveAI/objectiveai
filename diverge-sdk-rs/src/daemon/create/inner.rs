@@ -2,45 +2,36 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::daemon_tools::{
-    AgentsTag, AgentsTemplatesTag, AgentsTemplatesUntag, AgentsUntag, Edge, Held, Reach, Switch, ToolsAttach,
-    ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag,
-};
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
-use crate::daemon::endpoints::{agents, providers, tools};
 use crate::daemon::reference;
 
-/// Everything a container is made of that its template does not say
-/// and its name is not: the template, the provider pin and its
-/// volumes, the FUSE mounts, the daemon's own tools one member each,
-/// the deployer. Flattened into an
+/// Everything a container is made of that its template does not say and
+/// its name is not: the template, the account it runs under, the
+/// provider pin and its volumes, the FUSE mounts, the deployer.
+/// Flattened into an
 /// [agent's](crate::daemon::endpoints::agents::create) and a
 /// [tool's](crate::daemon::endpoints::tools::create) create, so its
 /// members are the request's own.
-///
-/// # The daemon's tools
-///
-/// One member for every endpoint. Every one is a [`Reach`] —
-/// `"disabled"`, `"any"`, or what it names, flat — or, for a tool
-/// with nothing to narrow, a [`Switch`], or, for one that tags, a
-/// [`Held`], `"disabled"` or its two sides, each `"any"` or what it
-/// names. Every one is always present, `disabled` when the container
-/// does not hold the tool, so that an edit replaces a member and
-/// never adds or removes one. What `only` names is a filter, the very
-/// shape the list of that family narrows by, read as a test — see
-/// [`daemon_tools`](crate::daemon::daemon_tools) — or a pair of
-/// them, or a filter with its tags, or a list of ids. Which tools a
-/// container holds is its for its life; how far each reaches is
-/// edited.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Inner {
     /// The template the container is made from, by its id — the hash
-    /// its family's `templates::create` answered. An id no template
-    /// of the caller's has, or one of the other family, is the
-    /// create's error. The template's image, limits, resources and
-    /// arguments are the container's for its life.
+    /// its family's `templates::create` answered. An id no template of
+    /// the caller's has, or one of the other family, is the create's
+    /// error. The template's image, limits, resources and arguments are
+    /// the container's for its life.
     pub template: String,
+    /// The account the container runs under, if any: the identity it
+    /// acts as toward the daemon, and what the daemon judges everything
+    /// it asks of the daemon by. Named as the daemon knows it; an
+    /// account the daemon does not have is the create's `NoAccount`,
+    /// and nothing is made. Absent, the container runs under no account
+    /// and runs no command of the daemon's: nothing it asks of the
+    /// daemon is served. The account is the container's for its life
+    /// unless an edit replaces or deletes it. What an account is, and
+    /// what it may do, the daemon's account system states; nothing here
+    /// does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
     /// The one provider the container runs on, and the volumes of that
     /// provider made visible inside it. See [`Provider`].
     ///
@@ -81,242 +72,6 @@ pub struct Inner {
     /// mount may lie inside it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The tool that lists agents; `only`, the agents the filter
-    /// passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_list: Reach<agents::list::client::request::Filter>,
-    /// The tool that gets one agent as a list would report it; `only`,
-    /// the agents the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_get: Reach<agents::list::client::request::Filter>,
-    /// The tool that messages agents; `only`, the agents the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_message: Reach<agents::list::client::request::Filter>,
-    /// The tool that reads agents' logs; `only`, the agents the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_logs: Reach<agents::list::client::request::Filter>,
-    /// The tool that makes agents; `only`, from the agent templates the
-    /// filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_create: Reach<agents::templates::list::client::request::Filter>,
-    /// The tool that deletes agents; `only`, the agents the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_delete: Reach<agents::list::client::request::Filter>,
-    /// The tool that edits agents; `only`, the agents the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_edit: Reach<agents::list::client::request::Filter>,
-    /// The tool that tags agents: `disabled`, or `only` which agents
-    /// and with which tags, each side `any` or `only`: see
-    /// [`AgentsTag`].
-    #[serde(default)]
-    pub agents_tag: Held<AgentsTag>,
-    /// The tool that untags agents: `disabled`, or `only` which agents
-    /// and of which tags, each side `any` or `only`: see
-    /// [`AgentsUntag`].
-    #[serde(default)]
-    pub agents_untag: Held<AgentsUntag>,
-    /// The tool that makes agent templates: see [`Switch`].
-    #[serde(default)]
-    pub agents_templates_create: Switch,
-    /// The tool that lists agent templates; `only`, the templates the
-    /// filter passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_templates_list: Reach<agents::templates::list::client::request::Filter>,
-    /// The tool that gets one agent template by id; `only`, the
-    /// templates the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_templates_get: Reach<agents::templates::list::client::request::Filter>,
-    /// The tool that deletes agent templates; `only`, the templates the
-    /// filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
-    #[serde(default)]
-    pub agents_templates_delete: Reach<agents::templates::list::client::request::Filter>,
-    /// The tool that tags agent templates: `disabled`, or `only` which
-    /// templates and with which tags, each side `any` or `only`: see
-    /// [`AgentsTemplatesTag`].
-    #[serde(default)]
-    pub agents_templates_tag: Held<AgentsTemplatesTag>,
-    /// The tool that untags agent templates: `disabled`, or `only`
-    /// which templates and of which tags, each side `any` or `only`:
-    /// see [`AgentsTemplatesUntag`].
-    #[serde(default)]
-    pub agents_templates_untag: Held<AgentsTemplatesUntag>,
-    /// The tool that lists tools; `only`, the tools the filter passes,
-    /// and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_list: Reach<tools::list::client::request::Filter>,
-    /// The tool that gets one tool as a list would report it; `only`,
-    /// the tools the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_get: Reach<tools::list::client::request::Filter>,
-    /// The tool that makes tools; `only`, from the tool templates the
-    /// filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_create: Reach<tools::templates::list::client::request::Filter>,
-    /// The tool that edits tools; `only`, the tools the filter passes.
-    /// See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_edit: Reach<tools::list::client::request::Filter>,
-    /// The tool that holds somebody else's tool container under a name,
-    /// as [`tools::connect`](crate::daemon::endpoints::tools::connect)
-    /// does — the provider, the container's id, the authorization and
-    /// a name, the authorization the caller's to give as a client gives
-    /// it; `only`, on providers of these identities. See
-    /// [`Identity`].
-    #[serde(default)]
-    pub tools_connect: Reach<Vec<Identity>>,
-    /// The tool that asks a provider which tool containers an identity
-    /// runs, as [`tools::list_for`](crate::daemon::endpoints::tools::list_for)
-    /// does; `only`, of providers of these identities. See
-    /// [`Identity`].
-    #[serde(default)]
-    pub tools_list_for: Reach<Vec<Identity>>,
-    /// The tool that deletes tools; `only`, the tools the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_delete: Reach<tools::list::client::request::Filter>,
-    /// The tool that attaches tools to agents; `only`, what it may join
-    /// to what: see [`ToolsAttach`].
-    #[serde(default)]
-    pub tools_attach: Reach<ToolsAttach>,
-    /// The tool that detaches tools from agents; `only`, what it may
-    /// part from what: see [`ToolsDetach`].
-    #[serde(default)]
-    pub tools_detach: Reach<ToolsDetach>,
-    /// The tool that tags tools: `disabled`, or `only` which tools and
-    /// with which tags, each side `any` or `only`: see [`ToolsTag`].
-    #[serde(default)]
-    pub tools_tag: Held<ToolsTag>,
-    /// The tool that untags tools: `disabled`, or `only` which tools
-    /// and of which tags, each side `any` or `only`: see
-    /// [`ToolsUntag`].
-    #[serde(default)]
-    pub tools_untag: Held<ToolsUntag>,
-    /// The tool that routes a dependency position to a tool; `only`,
-    /// to the tools the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_routes_set: Reach<tools::list::client::request::Filter>,
-    /// The tool that takes a route up; `only`, the routes the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::routes::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_routes_delete: Reach<tools::routes::list::client::request::Filter>,
-    /// The tool that lists routes; `only`, the routes the filter
-    /// passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::tools::routes::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_routes_list: Reach<tools::routes::list::client::request::Filter>,
-    /// The tool that makes tool templates: see [`Switch`].
-    #[serde(default)]
-    pub tools_templates_create: Switch,
-    /// The tool that lists tool templates; `only`, the templates the
-    /// filter passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_templates_list: Reach<tools::templates::list::client::request::Filter>,
-    /// The tool that gets one tool template by id; `only`, the
-    /// templates the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_templates_get: Reach<tools::templates::list::client::request::Filter>,
-    /// The tool that deletes tool templates; `only`, the templates the
-    /// filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
-    #[serde(default)]
-    pub tools_templates_delete: Reach<tools::templates::list::client::request::Filter>,
-    /// The tool that tags tool templates: `disabled`, or `only` which
-    /// templates and with which tags, each side `any` or `only`: see
-    /// [`ToolsTemplatesTag`].
-    #[serde(default)]
-    pub tools_templates_tag: Held<ToolsTemplatesTag>,
-    /// The tool that untags tool templates: `disabled`, or `only` which
-    /// templates and of which tags, each side `any` or `only`: see
-    /// [`ToolsTemplatesUntag`].
-    #[serde(default)]
-    pub tools_templates_untag: Held<ToolsTemplatesUntag>,
-    /// The tool that transfers files — between the container's own
-    /// filesystem, the tool containers attached to it, and the
-    /// resources — and the edges it may transfer along: `any`, or
-    /// `only` these, each a source and a destination. A transfer into
-    /// the resources is an upload, and this is the one way a container
-    /// uploads. See [`Edge`].
-    #[serde(default)]
-    pub transfer: Reach<Vec<Edge>>,
-    /// The tool that lists resources; `only`, those named by id, the
-    /// hash an upload answered, and a list answers none outside them.
-    #[serde(default)]
-    pub resources_list: Reach<Vec<String>>,
-    /// The tool that deletes resources; `only`, those named by id; a
-    /// request naming one outside them is refused, and nothing changes.
-    #[serde(default)]
-    pub resources_delete: Reach<Vec<String>>,
-    /// The tool that adds a provider to dial: see [`Switch`].
-    #[serde(default)]
-    pub providers_outgoing_add: Switch,
-    /// The tool that gets one outgoing provider; `only`, the providers
-    /// the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
-    #[serde(default)]
-    pub providers_outgoing_get: Reach<providers::outgoing::list::client::request::Filter>,
-    /// The tool that lists outgoing providers; `only`, the providers
-    /// the filter passes, and its own list requests narrow within them.
-    /// See
-    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
-    #[serde(default)]
-    pub providers_outgoing_list: Reach<providers::outgoing::list::client::request::Filter>,
-    /// The tool that forgets an outgoing provider; `only`, the
-    /// providers the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
-    #[serde(default)]
-    pub providers_outgoing_delete: Reach<providers::outgoing::list::client::request::Filter>,
-    /// The tool that replaces an outgoing provider's mode; `only`, the
-    /// providers the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
-    #[serde(default)]
-    pub providers_outgoing_edit: Reach<providers::outgoing::list::client::request::Filter>,
-    /// The tool that adds a judge of incoming providers: see
-    /// [`Switch`].
-    #[serde(default)]
-    pub providers_incoming_add: Switch,
-    /// The tool that gets one judge; `only`, the judges the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
-    #[serde(default)]
-    pub providers_incoming_get: Reach<providers::incoming::list::client::request::Filter>,
-    /// The tool that lists judges; `only`, the judges the filter
-    /// passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
-    #[serde(default)]
-    pub providers_incoming_list: Reach<providers::incoming::list::client::request::Filter>,
-    /// The tool that takes a judge out; `only`, the judges the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
-    #[serde(default)]
-    pub providers_incoming_delete: Reach<providers::incoming::list::client::request::Filter>,
-    /// The tool that replaces a judge; `only`, the judges the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
-    #[serde(default)]
-    pub providers_incoming_edit: Reach<providers::incoming::list::client::request::Filter>,
     /// The agent of the caller's the daemon hands this container's
     /// declared tool dependencies to — each as the template and the
     /// instructions the container returned at register time — when no

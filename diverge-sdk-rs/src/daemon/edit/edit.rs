@@ -2,30 +2,23 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::daemon_tools::{
-    AgentsTag, AgentsTemplatesTag, AgentsTemplatesUntag, AgentsUntag, Edge, Held, Reach, Switch, ToolsAttach,
-    ToolsDetach, ToolsTag, ToolsTemplatesTag, ToolsTemplatesUntag, ToolsUntag,
-};
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, VolumeMount};
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
-use crate::daemon::endpoints::{agents, providers, tools};
 use crate::daemon::reference;
 use super::Change;
 
 /// Everything about a container that changes after its create, every
 /// member an optional [`Change`]. A member absent leaves that of the
 /// container as it is; `delete` takes it away; `set` replaces it whole
-/// — a list of mounts is the new list entire, a tool's reach the new
-/// reach, the name the new name — and nothing is merged. A request with
-/// every member absent changes nothing and is not a failure. What is
-/// not here does not change: the template, the provider pin, the index,
-/// who made it.
+/// — a list of mounts is the new list entire, the name the new name —
+/// and nothing is merged. A request with every member absent changes
+/// nothing and is not a failure. What is not here does not change: the
+/// template, the provider pin, the index, who made it.
 ///
 /// # What waits for the container to be inactive
 ///
 /// The mounts: a request that names any of the three mount lists is
 /// refused while the container is active, and left as it is. The name,
-/// the daemon's tools and the deployer change live.
+/// the account and the deployer change live.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Edit {
     /// The name, unique among the caller's agents or tools as the
@@ -34,6 +27,13 @@ pub struct Edit {
     /// the container has no name, and is reached once and for all only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<Change<String>>,
+    /// The account the container runs under: see the create's
+    /// [`account`](crate::daemon::create::Inner::account). An account
+    /// the daemon does not have is the edit's `NoAccount`, and nothing
+    /// changes. Absent, as it is; `delete`, the container runs under no
+    /// account, and runs no command of the daemon's from then on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<Change<String>>,
     /// Volumes of the provider the create pinned the container to, as
     /// it is to mount them: see [`VolumeMount`]. The new list whole; a
     /// container pinned to no provider mounts no volume, and a request
@@ -56,290 +56,6 @@ pub struct Edit {
     /// The new list whole. Absent, as it is; `delete`, none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fuse_directory_mounts: Option<Change<Vec<FuseMount>>>,
-    /// The tool that lists agents; `only`, the agents the filter
-    /// passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_list: Option<Change<Reach<agents::list::client::request::Filter>>>,
-    /// The tool that gets one agent as a list would report it; `only`,
-    /// the agents the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_get: Option<Change<Reach<agents::list::client::request::Filter>>>,
-    /// The tool that messages agents; `only`, the agents the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_message: Option<Change<Reach<agents::list::client::request::Filter>>>,
-    /// The tool that reads agents' logs; `only`, the agents the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_logs: Option<Change<Reach<agents::list::client::request::Filter>>>,
-    /// The tool that makes agents; `only`, from the agent templates the
-    /// filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_create: Option<Change<Reach<agents::templates::list::client::request::Filter>>>,
-    /// The tool that deletes agents; `only`, the agents the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_delete: Option<Change<Reach<agents::list::client::request::Filter>>>,
-    /// The tool that edits agents; `only`, the agents the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_edit: Option<Change<Reach<agents::list::client::request::Filter>>>,
-    /// The tool that tags agents: `disabled`, or `only` which agents
-    /// and with which tags, each side `any` or `only`: see
-    /// [`AgentsTag`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_tag: Option<Change<Held<AgentsTag>>>,
-    /// The tool that untags agents: `disabled`, or `only` which agents
-    /// and of which tags, each side `any` or `only`: see
-    /// [`AgentsUntag`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_untag: Option<Change<Held<AgentsUntag>>>,
-    /// The tool that makes agent templates: see [`Switch`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_templates_create: Option<Change<Switch>>,
-    /// The tool that lists agent templates; `only`, the templates the
-    /// filter passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_templates_list: Option<Change<Reach<agents::templates::list::client::request::Filter>>>,
-    /// The tool that gets one agent template by id; `only`, the
-    /// templates the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_templates_get: Option<Change<Reach<agents::templates::list::client::request::Filter>>>,
-    /// The tool that deletes agent templates; `only`, the templates the
-    /// filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::agents::templates::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_templates_delete: Option<Change<Reach<agents::templates::list::client::request::Filter>>>,
-    /// The tool that tags agent templates: `disabled`, or `only` which
-    /// templates and with which tags, each side `any` or `only`: see
-    /// [`AgentsTemplatesTag`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_templates_tag: Option<Change<Held<AgentsTemplatesTag>>>,
-    /// The tool that untags agent templates: `disabled`, or `only`
-    /// which templates and of which tags, each side `any` or `only`:
-    /// see [`AgentsTemplatesUntag`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents_templates_untag: Option<Change<Held<AgentsTemplatesUntag>>>,
-    /// The tool that lists tools; `only`, the tools the filter passes,
-    /// and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_list: Option<Change<Reach<tools::list::client::request::Filter>>>,
-    /// The tool that gets one tool as a list would report it; `only`,
-    /// the tools the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_get: Option<Change<Reach<tools::list::client::request::Filter>>>,
-    /// The tool that makes tools; `only`, from the tool templates the
-    /// filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_create: Option<Change<Reach<tools::templates::list::client::request::Filter>>>,
-    /// The tool that edits tools; `only`, the tools the filter passes.
-    /// See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_edit: Option<Change<Reach<tools::list::client::request::Filter>>>,
-    /// The tool that holds somebody else's tool container under a name,
-    /// as [`tools::connect`](crate::daemon::endpoints::tools::connect)
-    /// does — the provider, the container's id, the authorization and
-    /// a name, the authorization the caller's to give as a client gives
-    /// it; `only`, on providers of these identities. See
-    /// [`Identity`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_connect: Option<Change<Reach<Vec<Identity>>>>,
-    /// The tool that asks a provider which tool containers an identity
-    /// runs, as
-    /// [`tools::list_for`](crate::daemon::endpoints::tools::list_for)
-    /// does; `only`, of providers of these identities. See
-    /// [`Identity`]. Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_list_for: Option<Change<Reach<Vec<Identity>>>>,
-    /// The tool that deletes tools; `only`, the tools the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_delete: Option<Change<Reach<tools::list::client::request::Filter>>>,
-    /// The tool that attaches tools to agents; `only`, what it may join
-    /// to what: see [`ToolsAttach`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_attach: Option<Change<Reach<ToolsAttach>>>,
-    /// The tool that detaches tools from agents; `only`, what it may
-    /// part from what: see [`ToolsDetach`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_detach: Option<Change<Reach<ToolsDetach>>>,
-    /// The tool that tags tools: `disabled`, or `only` which tools and
-    /// with which tags, each side `any` or `only`: see [`ToolsTag`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_tag: Option<Change<Held<ToolsTag>>>,
-    /// The tool that untags tools: `disabled`, or `only` which tools
-    /// and of which tags, each side `any` or `only`: see
-    /// [`ToolsUntag`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_untag: Option<Change<Held<ToolsUntag>>>,
-    /// The tool that routes a dependency position to a tool; `only`, to
-    /// the tools the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_routes_set: Option<Change<Reach<tools::list::client::request::Filter>>>,
-    /// The tool that takes a route up; `only`, the routes the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::routes::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_routes_delete: Option<Change<Reach<tools::routes::list::client::request::Filter>>>,
-    /// The tool that lists routes; `only`, the routes the filter
-    /// passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::tools::routes::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_routes_list: Option<Change<Reach<tools::routes::list::client::request::Filter>>>,
-    /// The tool that makes tool templates: see [`Switch`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_templates_create: Option<Change<Switch>>,
-    /// The tool that lists tool templates; `only`, the templates the
-    /// filter passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_templates_list: Option<Change<Reach<tools::templates::list::client::request::Filter>>>,
-    /// The tool that gets one tool template by id; `only`, the
-    /// templates the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_templates_get: Option<Change<Reach<tools::templates::list::client::request::Filter>>>,
-    /// The tool that deletes tool templates; `only`, the templates the
-    /// filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::tools::templates::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_templates_delete: Option<Change<Reach<tools::templates::list::client::request::Filter>>>,
-    /// The tool that tags tool templates: `disabled`, or `only` which
-    /// templates and with which tags, each side `any` or `only`: see
-    /// [`ToolsTemplatesTag`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_templates_tag: Option<Change<Held<ToolsTemplatesTag>>>,
-    /// The tool that untags tool templates: `disabled`, or `only` which
-    /// templates and of which tags, each side `any` or `only`: see
-    /// [`ToolsTemplatesUntag`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tools_templates_untag: Option<Change<Held<ToolsTemplatesUntag>>>,
-    /// The tool that transfers files — between the container's own
-    /// filesystem, the tool containers attached to it, and the
-    /// resources — and the edges it may transfer along: `any`, or
-    /// `only` these, each a source and a destination. A transfer into
-    /// the resources is an upload, and this is the one way a container
-    /// uploads. See [`Edge`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub transfer: Option<Change<Reach<Vec<Edge>>>>,
-    /// The tool that lists resources; `only`, those named by id, the
-    /// hash an upload answered, and a list answers none outside them.
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub resources_list: Option<Change<Reach<Vec<String>>>>,
-    /// The tool that deletes resources; `only`, those named by id; a
-    /// request naming one outside them is refused, and nothing changes.
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub resources_delete: Option<Change<Reach<Vec<String>>>>,
-    /// The tool that adds a provider to dial: see [`Switch`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_outgoing_add: Option<Change<Switch>>,
-    /// The tool that gets one outgoing provider; `only`, the providers
-    /// the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_outgoing_get: Option<Change<Reach<providers::outgoing::list::client::request::Filter>>>,
-    /// The tool that lists outgoing providers; `only`, the providers
-    /// the filter passes, and its own list requests narrow within them.
-    /// See
-    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_outgoing_list: Option<Change<Reach<providers::outgoing::list::client::request::Filter>>>,
-    /// The tool that forgets an outgoing provider; `only`, the
-    /// providers the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_outgoing_delete: Option<Change<Reach<providers::outgoing::list::client::request::Filter>>>,
-    /// The tool that replaces an outgoing provider's mode; `only`, the
-    /// providers the filter passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::outgoing::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_outgoing_edit: Option<Change<Reach<providers::outgoing::list::client::request::Filter>>>,
-    /// The tool that adds a judge of incoming providers: see
-    /// [`Switch`].
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_incoming_add: Option<Change<Switch>>,
-    /// The tool that gets one judge; `only`, the judges the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_incoming_get: Option<Change<Reach<providers::incoming::list::client::request::Filter>>>,
-    /// The tool that lists judges; `only`, the judges the filter
-    /// passes, and its own list requests narrow within them. See
-    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_incoming_list: Option<Change<Reach<providers::incoming::list::client::request::Filter>>>,
-    /// The tool that takes a judge out; `only`, the judges the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_incoming_delete: Option<Change<Reach<providers::incoming::list::client::request::Filter>>>,
-    /// The tool that replaces a judge; `only`, the judges the filter
-    /// passes. See
-    /// [`Filter`](crate::daemon::endpoints::providers::incoming::list::client::request::Filter).
-    /// Absent, as it is; `delete`, `disabled`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers_incoming_edit: Option<Change<Reach<providers::incoming::list::client::request::Filter>>>,
     /// The deployer: see the create's
     /// [`deployer_agent`](crate::daemon::create::Inner::deployer_agent).
     /// Absent, as it is; `delete`, none, and the container's

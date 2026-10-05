@@ -15,11 +15,10 @@ use crate::provider::endpoints::containers::agents::run::server::response::Agent
 ///
 /// `sender` is one [`Creator`](crate::daemon::creator::Creator): the
 /// client, for a message it sent with
-/// [`message`](crate::daemon::endpoints::agents::message); the agent
-/// or the tool, for one sent through the daemon's own `agents_message`
-/// tool. The message request names no sender: the daemon knows who
-/// sent from the scope the request arrived on, and keeps it here.
-/// Nothing but a user part has a sender.
+/// [`message`](crate::daemon::endpoints::agents::message); the agent or
+/// the tool, for one sent through the daemon. The message request names
+/// no sender: the daemon knows who sent from the scope the request
+/// arrived on, and keeps it here. Nothing but a user part has a sender.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct User {
     /// Who sent the message this part is of: one

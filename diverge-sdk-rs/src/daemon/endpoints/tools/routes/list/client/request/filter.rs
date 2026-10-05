@@ -1,5 +1,4 @@
-//! What narrows a list of routes, and what a permission over them
-//! reaches.
+//! What narrows a list of routes.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -9,13 +8,8 @@ use crate::daemon::creator::Creator;
 /// The filter over routes: every member optional, and every one given a
 /// condition a route passes or does not. In a [list
 /// request](super::Frame) it is flattened into the request and narrows
-/// what the daemon sends, and its program transforms what passes. In
-/// the daemon's own tools, as a
-/// [permission](crate::daemon::daemon_tools), the same filter says
-/// which routes the tool reaches, and its program is a test: a route
-/// passes when the program, run with the route as its input, yields
-/// first a value that is neither `false` nor `null`. A filter with no
-/// member given passes every route.
+/// what the daemon sends, and its program transforms what passes. A
+/// filter with no member given passes every route.
 ///
 /// # Any one of
 ///

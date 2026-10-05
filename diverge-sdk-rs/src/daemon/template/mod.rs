@@ -2,20 +2,19 @@
 //! hash.
 //!
 //! A template is everything about an agent or a tool that is not its
-//! name, not the provider it runs on and not its own mounts: the
-//! image, the limits, the [resources](crate::daemon::endpoints::resources)
-//! it serves over FUSE into every container made from it, the
-//! arguments, and — in words, for whoever makes one — what the create
-//! has to bring that the template cannot name — so that a template is shareable, the same template on
-//! any daemon hashing the same. The shape is one, [`Template`],
-//! written once here; which of the two it is for is its `type`, the
-//! first member, `"agent"` for an
-//! [agent template](crate::daemon::endpoints::agents::templates) and
-//! `"tool"` for a [tool template](crate::daemon::endpoints::tools::templates),
-//! so the two kinds never hash the same and a template's text says
-//! what it is for. Each family makes, lists and deletes its own. The
-//! daemon's own tools, [`daemon_tools`](crate::daemon::daemon_tools),
-//! are not a template's but a create's.
+//! name, not the provider it runs on and not its own mounts: the image,
+//! the limits, the [resources](crate::daemon::endpoints::resources) it
+//! serves over FUSE into every container made from it, the arguments,
+//! and — in words, for whoever makes one — what the create has to bring
+//! that the template cannot name — so that a template is shareable, the
+//! same template on any daemon hashing the same. The shape is one,
+//! [`Template`], written once here; which of the two it is for is its
+//! `type`, the first member, `"agent"` for an [agent
+//! template](crate::daemon::endpoints::agents::templates) and `"tool"`
+//! for a [tool template](crate::daemon::endpoints::tools::templates),
+//! so the two kinds never hash the same and a template's text says what
+//! it is for. Each family makes, lists and deletes its own. The account
+//! a container runs under is not a template's but a create's.
 //!
 //! # The id is the template's hash
 //!
