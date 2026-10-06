@@ -10,11 +10,11 @@ use serde_json::Value;
 
 /// A list's answer: one value, or a failure.
 ///
-/// A list is a stream: zero or more values, each one matching judge as
-/// it is — or, with a program, one value the program yielded — oldest
-/// first, then the finish; or exactly one error, then the finish. A
-/// count on the request caps the values. A payload leads with one byte
-/// saying which — `0` for [`Value`](Self::Value), `1` for
+/// A list is a stream: zero or more values, each one matching
+/// credential as it is — or, with a program, one value the program
+/// yielded — oldest first, then the finish; or exactly one error, then
+/// the finish. A count on the request caps the values. A payload leads
+/// with one byte saying which — `0` for [`Value`](Self::Value), `1` for
 /// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error) — and
 /// the rest is that variant's own JSON. A value is one
 /// [`Incoming`](super::Incoming) without a program, and with one
@@ -27,7 +27,7 @@ use serde_json::Value;
 /// # A finish with nothing is an answer
 ///
 /// Nothing matched, or the program yielded nothing over what did, or
-/// the caller has no judges at all: a scope that finishes with no
+/// the caller has no credentials at all: a scope that finishes with no
 /// response before it is that answer, not a failure. An
 /// [`Error`](Self::Error) is a failure: the daemon could not list, the
 /// program would not compile, or it failed while it ran, in the
@@ -45,7 +45,8 @@ use serde_json::Value;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// One matching judge, or one value the program yielded. Tag `0`.
+    /// One matching credential, or one value the program yielded. Tag
+    /// `0`.
     Value(Value),
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `1`.

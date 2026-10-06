@@ -1,5 +1,5 @@
-//! The delete response: gone, no such judge, in use, forbidden, or a
-//! failure.
+//! The delete response: gone, no such credential, in use, forbidden, or
+//! a failure.
 
 mod frame;
 

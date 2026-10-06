@@ -6,8 +6,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// An edit's answer: the judge is replaced, no judge is the one named,
-/// the kinds differ, or a failure.
+/// An edit's answer: the credential is replaced, no credential is the
+/// one named, the kinds differ, or a failure.
 ///
 /// An edit is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
@@ -20,12 +20,13 @@ use crate::shared::error::Error;
 /// # Answers, and one failure
 ///
 /// [`NotFound`](Self::NotFound) and [`Mismatch`](Self::Mismatch) are
-/// ANSWERS: the daemon looked, and either no judge of the caller's is
-/// the one named, or one is and the judge given is of the other kind —
-/// a hook for a key judge, a key for a hook judge — and in either case
-/// nothing changed and nothing is retried. An [`Error`](Self::Error) is
-/// the absence of an answer: the daemon could not make the change, for
-/// whatever reason it knows, and the judge is as it was.
+/// ANSWERS: the daemon looked, and either no credential of the caller's
+/// is the one named, or one is and the credential given is of the other
+/// kind — a hook for a key credential, a key for a hook credential —
+/// and in either case nothing changed and nothing is retried. An
+/// [`Error`](Self::Error) is the absence of an answer: the daemon could
+/// not make the change, for whatever reason it knows, and the
+/// credential is as it was.
 ///
 /// # Forbidden
 ///
@@ -38,13 +39,13 @@ use crate::shared::error::Error;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The judge is as the request states, in its place. Tag `0`.
+    /// The credential is as the request states, in its place. Tag `0`.
     Edited,
-    /// No judge of the caller's is the one named; nothing changed. Tag
-    /// `1`.
+    /// No credential of the caller's is the one named; nothing changed.
+    /// Tag `1`.
     NotFound,
-    /// The judge given is not of the named judge's kind; nothing
-    /// changed. Tag `2`.
+    /// The credential given is not of the named credential's kind;
+    /// nothing changed. Tag `2`.
     Mismatch,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `3`.

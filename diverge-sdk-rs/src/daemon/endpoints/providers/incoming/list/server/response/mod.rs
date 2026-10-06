@@ -1,4 +1,4 @@
-//! The list response: the judges, one value each, forbidden, or a
+//! The list response: the credentials, one value each, forbidden, or a
 //! failure.
 //!
 //! [`Frame`] is what a response frame holds — one value, forbidden, or

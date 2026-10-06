@@ -11,11 +11,11 @@ use crate::provider::endpoints::containers::tools::list_for::client::request;
 /// runs there.
 ///
 /// The provider is one of the caller's, by its [`Identity`] — the
-/// address the daemon dials, or the identity a judge gave a provider
-/// that dialled in. The tenant — whose containers — is the provider protocol's own
-/// request, [`request::Identity`], reused rather than restated:
-/// `{"kind":"unbrokered","identity":…}`, with a brokered form to come
-/// as the wire defines it.
+/// address the daemon dials, or the identity a credential gave a
+/// provider that dialled in. The tenant — whose containers — is the
+/// provider protocol's own request, [`request::Identity`], reused
+/// rather than restated: `{"kind":"unbrokered","identity":…}`, with a
+/// brokered form to come as the wire defines it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The provider to ask: see [`Identity`].
@@ -28,15 +28,15 @@ pub struct Frame {
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 19;
 
 /// JSON, as every request of the daemon's is.

@@ -6,26 +6,26 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::providers::incoming::Reference;
 
-/// Ask the daemon for one judge of incoming providers, by the identity
-/// it names or the resource it is: see [`Reference`].
+/// Ask the daemon for one credential of incoming providers, by the
+/// identity it names or the resource it is: see [`Reference`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The judge: see [`Reference`].
-    pub judge: Reference,
+    /// The credential: see [`Reference`].
+    pub credential: Reference,
 }
 
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 44;
 
 /// JSON, as every request of the daemon's is.

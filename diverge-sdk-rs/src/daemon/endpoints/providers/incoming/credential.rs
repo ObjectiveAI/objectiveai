@@ -4,15 +4,16 @@ use std::net::IpAddr;
 
 use serde::{Deserialize, Serialize};
 
-/// One judge of an incoming credential, as the provider server has
-/// them: a key the credential must equal, or a hook that judges it.
+/// One credential of an incoming provider, as the provider server has
+/// them: a key the presented credential must equal, or a hook that
+/// judges it.
 /// Untagged JSON, told apart by its members as the server's are —
 /// `{"key":…,"identity":…}` with an `address` if any, or
 /// `{"authorize_hook":…}` — and an object with members of both does not
 /// decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
-pub enum Judge {
+pub enum Credential {
     /// A credential that must equal a key, byte for byte.
     Key {
         /// The string the credential must equal. Given on an add or an
@@ -20,7 +21,7 @@ pub enum Judge {
         key: String,
         /// Who a peer that presents the key is: the provider's identity
         /// from then on. The key itself never serves as one. One key
-        /// judge per identity.
+        /// credential per identity.
         identity: String,
         /// The one peer address the key is accepted from, as the OS
         /// reports it; absent, any address.
@@ -34,7 +35,7 @@ pub enum Judge {
         /// hook, by id, with `hook.yaml` at its root; held by the
         /// caller before the add, which refuses one that is not. See
         /// [`providers`](crate::daemon::endpoints::providers) for what
-        /// it is run with and what it answers. One hook judge per
+        /// it is run with and what it answers. One hook credential per
         /// resource.
         authorize_hook: String,
     },

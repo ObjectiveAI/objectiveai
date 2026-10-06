@@ -1,8 +1,8 @@
-//! Getting one judge. One request, one answer. A client names a judge
-//! of its own — a key judge by its identity, a hook judge by its
-//! resource; the daemon answers with the judge as a list would report
-//! it, without its key, that no judge is the one named, or that it
-//! failed, and the scope finishes.
+//! Getting one credential. One request, one answer. A client names a
+//! credential of its own — a key credential by its identity, a hook
+//! credential by its resource; the daemon answers with the credential
+//! as a list would report it, without its key, that no credential is
+//! the one named, or that it failed, and the scope finishes.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

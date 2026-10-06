@@ -12,9 +12,9 @@
 //! made from — one shape, [`template`], shared by the two families'
 //! endpoints, as what their creates share is one [`create`](mod@create)
 //! and what their edits share one [`edit`](mod@edit) — the resources
-//! served into them, the providers it dials and the judges of those
-//! that dial it, and the volumes those providers hold. Who may ask for
-//! any of it is an [account](endpoints::accounts), holding
+//! served into them, the providers it dials and the credentials of
+//! those that dial it, and the volumes those providers hold. Who may
+//! ask for any of it is an [account](endpoints::accounts), holding
 //! [roles](endpoints::roles) of [grants](mod@grant). Who made each of
 //! those is [`creator`], carried by every list item; how one list item
 //! points at another is [`key`], and how a request names one of them,

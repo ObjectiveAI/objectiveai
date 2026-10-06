@@ -4,34 +4,36 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::providers::incoming::{Judge, Reference};
+use crate::daemon::endpoints::providers::incoming::{Credential, Reference};
 
-/// Ask the daemon to replace a judge of incoming providers with another
-/// of its kind. The judge is replaced whole: there is nothing to take
-/// away but the judge itself, which a delete does, so there is no
-/// `delete` here and the request carries the new judge entire. A
-/// connection a provider holds through the judge now is not dropped;
-/// the next credential is judged by the new one.
+/// Ask the daemon to replace a credential of incoming providers with
+/// another of its kind. The credential is replaced whole: there is
+/// nothing to take away but the credential itself, which a delete does,
+/// so there is no `delete` here and the request carries the new
+/// credential entire. A connection a provider holds through the
+/// credential now is not dropped; the next credential is judged by the
+/// new one.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The judge to replace: see [`Reference`].
-    pub judge: Reference,
-    /// The judge as it is to be, of the same kind: see [`Judge`].
-    pub set: Judge,
+    /// The credential to replace: see [`Reference`].
+    pub credential: Reference,
+    /// The credential as it is to be, of the same kind: see
+    /// [`Credential`].
+    pub set: Credential,
 }
 
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 47;
 
 /// JSON, as every request of the daemon's is.

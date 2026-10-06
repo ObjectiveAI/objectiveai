@@ -28,8 +28,7 @@ pub enum Grant {
     /// Over resources: see [`resources::Permission`].
     Resources(resources::Permission),
     /// Over outgoing providers: see [`providers_outgoing::Permission`].
-    ProvidersOutgoing(providers_outgoing::Permission),
-    /// Over judges: see [`providers_incoming::Permission`].
+    ProvidersOutgoing(providers_outgoing::Permission),    /// Over incoming credentials: see [`providers_incoming::Permission`].
     ProvidersIncoming(providers_incoming::Permission),
     /// Over accounts: see [`accounts::Permission`].
     Accounts(accounts::Permission),

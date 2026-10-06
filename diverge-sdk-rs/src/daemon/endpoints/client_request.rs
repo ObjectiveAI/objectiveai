@@ -113,15 +113,15 @@ pub enum ClientRequest<'a> {
     ProvidersOutgoingDelete(providers::outgoing::delete::client::request::Frame),
     /// Tag `42`. Replace an outgoing provider's mode.
     ProvidersOutgoingEdit(providers::outgoing::edit::client::request::Frame),
-    /// Tag `43`. Add a judge of incoming providers.
+    /// Tag `43`. Add a credential of incoming providers.
     ProvidersIncomingAdd(providers::incoming::add::client::request::Frame),
-    /// Tag `44`. Get one judge.
+    /// Tag `44`. Get one credential.
     ProvidersIncomingGet(providers::incoming::get::client::request::Frame),
-    /// Tag `45`. List the caller's judges, narrowed.
+    /// Tag `45`. List the credentials, narrowed.
     ProvidersIncomingList(providers::incoming::list::client::request::Frame),
-    /// Tag `46`. Take a judge out.
+    /// Tag `46`. Take a credential out.
     ProvidersIncomingDelete(providers::incoming::delete::client::request::Frame),
-    /// Tag `47`. Replace a judge.
+    /// Tag `47`. Replace a credential.
     ProvidersIncomingEdit(providers::incoming::edit::client::request::Frame),
     /// Tag `48`. Create an account.
     AccountsCreate(accounts::create::client::request::Frame),

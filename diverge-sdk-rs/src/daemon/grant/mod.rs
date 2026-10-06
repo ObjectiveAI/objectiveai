@@ -2,13 +2,13 @@
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
 //! agents, agent templates, tools, tool templates, routes, resources,
-//! outgoing providers, incoming judges, accounts, roles, volumes — and
-//! a [role](crate::daemon::endpoints::roles) is a list of them, held by
-//! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
-//! is one object with one member, named for the kind, whose value is
-//! the kind's permission: `{"agents":…}`, `{"providers_incoming":…}`.
-//! Every kind's permission takes one of two or three shapes, and the
-//! shape is the logic:
+//! outgoing providers, incoming credentials, accounts, roles, volumes —
+//! and a [role](crate::daemon::endpoints::roles) is a list of them,
+//! held by [accounts](crate::daemon::endpoints::accounts). On the wire
+//! a grant is one object with one member, named for the kind, whose
+//! value is the kind's permission: `{"agents":…}`,
+//! `{"providers_incoming":…}`. Every kind's permission takes one of two
+//! or three shapes, and the shape is the logic:
 //!
 //! - **To make.** A bare array of the kind's making actions — the ones
 //!   that bring something into being: a create, an add, an upload, a

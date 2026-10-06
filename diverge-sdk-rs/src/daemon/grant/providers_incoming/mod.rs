@@ -1,6 +1,6 @@
-//! Grants over judges.
+//! Grants over incoming credentials.
 //!
-//! What a role may allow over judges, in the three shapes
+//! What a role may allow over incoming credentials, in the three shapes
 //! [`grant`](crate::daemon::grant) states: [`Make`], the actions that
 //! bring one into being; [`Over`], the actions over those that exist;
 //! and [`Permission`], one grant's worth of either.

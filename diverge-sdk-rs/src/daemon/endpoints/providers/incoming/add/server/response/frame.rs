@@ -6,8 +6,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// An add's answer: the judge is added, one like it exists, the hook's
-/// resource is not there or not a hook, or a failure.
+/// An add's answer: the credential is added, one like it exists, the
+/// hook's resource is not there or not a hook, or a failure.
 ///
 /// An add is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
@@ -20,13 +20,13 @@ use crate::shared::error::Error;
 /// # Answers, and one failure
 ///
 /// [`Exists`](Self::Exists) and [`NoResource`](Self::NoResource) are
-/// ANSWERS: the daemon looked, and either a key judge for that identity
-/// or a hook judge for that resource is there already, or the hook
-/// names a resource the caller does not hold, or a file, or a directory
-/// with no `hook.yaml` at its root, and in each case nothing changed
-/// and nothing is retried. An [`Error`](Self::Error) is the absence of
-/// an answer: the daemon could not add it, for whatever reason it
-/// knows.
+/// ANSWERS: the daemon looked, and either a key credential for that
+/// identity or a hook credential for that resource is there already, or
+/// the hook names a resource the caller does not hold, or a file, or a
+/// directory with no `hook.yaml` at its root, and in each case nothing
+/// changed and nothing is retried. An [`Error`](Self::Error) is the
+/// absence of an answer: the daemon could not add it, for whatever
+/// reason it knows.
 ///
 /// # Forbidden
 ///
@@ -39,10 +39,10 @@ use crate::shared::error::Error;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The judge is added, last in the order. Tag `0`.
+    /// The credential is added, last in the order. Tag `0`.
     Added,
-    /// A key judge for that identity, or a hook judge for that
-    /// resource, is there already; nothing changed. Tag `1`.
+    /// A key credential for that identity, or a hook credential for
+    /// that resource, is there already; nothing changed. Tag `1`.
     Exists,
     /// The hook names no resource the caller holds, or one that is not
     /// a directory with `hook.yaml` at its root; nothing changed. Tag

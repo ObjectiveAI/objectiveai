@@ -4,32 +4,32 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::providers::incoming::Judge;
+use crate::daemon::endpoints::providers::incoming::Credential;
 
-/// Ask the daemon to add a judge of incoming providers, after every
-/// judge there is. A key judge for an identity there is a key judge for
-/// already, or a hook judge for a resource there is one for already, is
-/// refused; so is a hook naming a resource the caller does not hold, or
-/// a file resource, or a directory resource without `hook.yaml` at its
-/// root.
+/// Ask the daemon to add a credential of incoming providers, after
+/// every credential there is. A key credential for an identity there is
+/// a key credential for already, or a hook credential for a resource
+/// there is one for already, is refused; so is a hook naming a resource
+/// the caller does not hold, or a file resource, or a directory
+/// resource without `hook.yaml` at its root.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The judge: see [`Judge`].
-    pub judge: Judge,
+    /// The credential: see [`Credential`].
+    pub credential: Credential,
 }
 
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 43;
 
 /// JSON, as every request of the daemon's is.

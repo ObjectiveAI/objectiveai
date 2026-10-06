@@ -1,18 +1,18 @@
-//! A judge without its secret.
+//! A credential without its secret.
 
 use std::net::IpAddr;
 
 use serde::{Deserialize, Serialize};
 
-/// A [`Judge`](super::Judge) as a list and a get report it: the same
-/// two forms, the key judge without its key. Untagged JSON, as a judge
-/// is: `{"identity":…}` with an `address` if any, or
-/// `{"authorize_hook":…}`.
+/// A [`Credential`](super::Credential) as a list and a get report it:
+/// the same two forms, the key credential without its key. Untagged
+/// JSON, as a credential is: `{"identity":…}` with an `address` if any,
+/// or `{"authorize_hook":…}`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Told {
-    /// A key judge: the identity it names, and the address it accepts
-    /// from, never the key.
+    /// A key credential: the identity it names, and the address it
+    /// accepts from, never the key.
     Key {
         /// The identity a peer presenting the key has.
         identity: String,
@@ -20,7 +20,7 @@ pub enum Told {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         address: Option<IpAddr>,
     },
-    /// A hook judge: its resource.
+    /// A hook credential: its resource.
     Hook {
         /// The hook's resource, by id.
         authorize_hook: String,

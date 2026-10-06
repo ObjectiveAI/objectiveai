@@ -8,7 +8,8 @@ use crate::shared::error::Error;
 
 use crate::daemon::endpoints::providers::incoming::list::server::response::Incoming;
 
-/// A get's answer: the judge, no judge is the one named, or a failure.
+/// A get's answer: the credential, no credential is the one named, or a
+/// failure.
 ///
 /// A get is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
@@ -23,9 +24,9 @@ use crate::daemon::endpoints::providers::incoming::list::server::response::Incom
 /// # One answer, one failure
 ///
 /// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and no
-/// judge of the caller's is the one named, and nothing is retried. An
-/// [`Error`](Self::Error) is the absence of an answer: the daemon could
-/// not look, for whatever reason it knows.
+/// credential of the caller's is the one named, and nothing is retried.
+/// An [`Error`](Self::Error) is the absence of an answer: the daemon
+/// could not look, for whatever reason it knows.
 ///
 /// # Forbidden
 ///
@@ -38,9 +39,9 @@ use crate::daemon::endpoints::providers::incoming::list::server::response::Incom
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The judge, as the list reports it. Tag `0`.
+    /// The credential, as the list reports it. Tag `0`.
     Found(Incoming),
-    /// No judge of the caller's is the one named. Tag `1`.
+    /// No credential of the caller's is the one named. Tag `1`.
     NotFound,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `2`.
@@ -117,7 +118,7 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's four.
     UnknownTag(u8),
-    /// The judge did not parse.
+    /// The credential did not parse.
     Found(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
@@ -128,7 +129,7 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("providers incoming get response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown providers incoming get response frame tag {tag}"),
-            FrameError::Found(error) => write!(f, "providers incoming get judge did not parse: {error}"),
+            FrameError::Found(error) => write!(f, "providers incoming get credential did not parse: {error}"),
             FrameError::Error(error) => write!(f, "providers incoming get error did not parse: {error}"),
         }
     }

@@ -10,15 +10,14 @@
 //! it for whatever it needs of it, presenting that credential first, as
 //! the wire rules. An [`incoming`] provider dials the daemon, and the
 //! daemon JUDGES its credential as a provider judges its own peers: the
-//! client gives judges — a key that the credential must equal and the
-//! identity it then names, or a hook that judges the credential itself
-//! and names the identity — and the daemon tries them in the order they
-//! were added; the first that accepts decides, and none accepting is a
-//! closed connection.
+//! client gives credentials — a key that the presented one must equal
+//! and the identity it then names, or a hook that judges the credential
+//! itself and names the identity — and the daemon tries them in the
+//! order they were added; the first that accepts decides, and none
+//! accepting is a closed connection.
 //!
 //! # A hook is a resource
-//!
-//! The hook judge of an incoming provider is a directory
+//! The hook credential of an incoming provider is a directory
 //! [resource](crate::daemon::endpoints::resources) the caller holds
 //! already, with `hook.yaml` at its root: the manifest the provider
 //! server reads, a command per platform — `windows`, `macos`, `linux`,
@@ -34,9 +33,8 @@
 //! in as the daemon's own.
 //!
 //! # Secrets are given, never answered
-//!
-//! An outgoing provider's authorization and a key judge's key are
-//! credentials. A list and a get report the mode or the judge without
+//! An outgoing provider's authorization and a key credential's key are
+//! secrets. A list and a get report the mode or the credential without
 //! them; an edit replaces them whole, which is how one rotates.
 
 pub mod incoming;
