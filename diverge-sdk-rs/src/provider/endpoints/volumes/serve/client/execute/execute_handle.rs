@@ -4,6 +4,7 @@ use bytes::Bytes;
 
 use super::super::channel_request;
 use super::AskError;
+use crate::wire::client::channel::Channel;
 use crate::wire::client::handle::Handle;
 use crate::wire::client::scope::Scope;
 use crate::container_proxy::outside::endpoints::fuse::mount::server::channel_request as mount;
@@ -59,6 +60,23 @@ impl ExecuteHandle {
                 _ => {}
             }
         }
+    }
+
+    /// The tree of the volume as this serve sees it, and then its
+    /// changes: the filetree channel, opened, whose responses are
+    /// [`filetree`](crate::provider::endpoints::volumes::serve::server::channel_response::filetree::Frame)
+    /// frames — one snapshot, then one per change — for as long as
+    /// the scope lives, and whose finish comes with the scope's. Any
+    /// number may be open at once.
+    pub async fn filetree(&self) -> Result<Channel, AskError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::Filetree
+            .encode(&mut Writer::new(&mut payload))
+            .map_err(AskError::Encode)?;
+        self.handle
+            .send_channel_request(self.scope.scope, &payload)
+            .await
+            .map_err(AskError::Send)
     }
 
     /// Stop serving: the stop goes out, and this waits for the scope's

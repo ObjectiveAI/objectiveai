@@ -43,6 +43,23 @@
 //! which the caller relays as a read-only filesystem, and every
 //! immutable ask goes through. Ephemeral and read-only volumes may be
 //! served on any number of scopes, beside any number of containers.
+//!
+//! # The tree, as the serve sees it
+//!
+//! A caller that holds the scope may open a
+//! [`filetree`](client::channel_request::Frame::Filetree) channel on
+//! it, any number of times, and the provider answers each with a
+//! [`filetree`](crate::shared::filetree) stream of the volume AS THIS
+//! SERVE SEES IT: one snapshot of the served view — for an ephemeral
+//! volume the volume under the serve's layer — then one frame per
+//! change, for as long as the scope lives, and the finish with the
+//! scope. The changes are the ones the serve's own asks make, since
+//! nothing else changes what a serve sees: a mutation answered `ok` is
+//! reported as the proxy's own tree would report it. A read-only
+//! volume's stream is its snapshot and nothing after. This is the one
+//! way to see a served volume's tree: a [`filetree`](super::filetree)
+//! of the volume is refused while the serve holds it, and would not
+//! show the layer if it were not.
 
 pub mod client;
 pub mod server;

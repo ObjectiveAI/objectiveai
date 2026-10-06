@@ -1,11 +1,14 @@
 //! What the provider sends back on a serve, one module per kind of
-//! ask the caller opens.
+//! channel the caller opens.
 //!
-//! Each is the shared vocabulary's own answer — what the file or the
-//! directory holds, what an entry is, whether a change took — an
-//! alias of the shape [`shared::containers::fuse`](crate::shared::containers::fuse)
-//! defines, answered from the volume.
+//! Each ask's is the shared vocabulary's own answer — what the file
+//! or the directory holds, what an entry is, whether a change took —
+//! an alias of the shape
+//! [`shared::containers::fuse`](crate::shared::containers::fuse)
+//! defines, answered from the volume. [`filetree`] is the one stream:
+//! the served tree, then its changes.
 
+pub mod filetree;
 pub mod list;
 pub mod mkdir;
 pub mod read;

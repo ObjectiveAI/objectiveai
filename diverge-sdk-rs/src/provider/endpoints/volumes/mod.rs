@@ -4,8 +4,8 @@
 //! [`list`] says which volumes exist; [`stat`] names one and says how
 //! much of it is used and what is in it; [`read`] takes one file out
 //! of one, [`write`](mod@write) puts one in, and [`filetree`] says what one
-//! holds, once; [`serve`] holds one mounted and answers a FUSE
-//! mount's asks from it; [`create_capacity`] says how
+//! holds, once; [`serve`] holds one mounted, answers a FUSE mount's
+//! asks from it and streams its tree as served; [`create_capacity`] says how
 //! large a volume may be made and [`create`] makes one; [`edit_capacity`] says
 //! how far one may grow and [`edit`] changes how much it reserves,
 //! its [`Mode`], or both; and [`delete`]

@@ -1,5 +1,5 @@
-//! The channels a client opens on a serve scope: the nine asks, and
-//! the stop. See [`Frame`].
+//! The channels a client opens on a serve scope: the nine asks, the
+//! stop, and the tree. See [`Frame`].
 //!
 //! The asks are the proxy's own frames — the ones a mount opens on
 //! its scope, with no mount id, because the scope is the volume as
