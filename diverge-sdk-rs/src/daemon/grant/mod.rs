@@ -17,22 +17,22 @@
 //!   since there is nothing yet to judge it over.
 //! - **Over what exists.** An object of `actions`, the kind's actions
 //!   over what exists, and `within`, how far they reach:
-//!   `{"agents":{"actions":["get","message"],"within":{"all_tags":["crew"]}}}`.
-//!   `within` is the string `"any"`, every one of the kind the daemon
-//!   holds, or the kind's own list filter — the one its `list` request
-//!   takes, `agents::list`'s
-//!   [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter)
-//!   for agents, and so on; resources, whose list takes none, have [one
-//!   of the grant's own](resources::Filter) — read as a TEST: a thing
-//!   passes when it passes every member the filter gives, and, a `jq`
-//!   program given, when the program, run with the thing as its input
-//!   as the list runs it, yields first a value that is neither `false`
-//!   nor `null`. A filter with no member passes everything.
+//! `{"agents":{"actions":["get","message"],"within":{"all_tags":["crew"]}}}`.
+//! `within` is the string `"any"`, every one of the kind the daemon
+//! holds, or the kind's own list filter — the one its `list` request
+//! takes, `agents::list`'s
+//! [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter)
+//! for agents, and so on; resources, whose list takes none, have [one
+//! of the grant's own](resources::Filter) — read as a TEST: a thing
+//! passes when it passes every member the filter gives, and, a `jq`
+//! program given, when the program, run with the thing as its input
+//! as the list runs it, yields first a value that is neither `false`
+//! nor `null`. A filter with no member passes everything.
 //! - **Tagging.** For the kinds that carry tags, an object of
 //!   `actions`, `tag` or `untag` or both, `within` as above, and
-//!   `tags`, which tags may be put on or taken off: `"any"`, or the
-//!   list of them.
-//!   `{"agents":{"actions":["tag"],"within":"any","tags":["crew","idle"]}}`.
+//! `tags`, which tags may be put on or taken off: `"any"`, or the
+//! list of them.
+//! `{"agents":{"actions":["tag"],"within":"any","tags":["crew","idle"]}}`.
 //!
 //! Each shape is its own variant with its own members, and an object
 //! that is none of them does not decode: an action of one shape among
@@ -64,6 +64,14 @@
 //! [`tools::list_for`](crate::daemon::endpoints::tools::list_for) does.
 //! A request that names several things — an account and its roles, a
 //! tool and an agent — is allowed when every one of them is.
+//!
+//! Moving files is two-sided. A download takes `download` over its
+//! source; an upload takes `upload` over the agent or the tool it lands
+//! in; a transfer takes `transfer` over its source and `upload` over
+//! the agent or the tool it lands in, or the `upload` making action
+//! over resources when it lands in a new resource. A grant reaches a
+//! container or a resource whole: which paths within it may be read or
+//! written is not a grant's to narrow.
 
 mod grant;
 mod tagging;

@@ -151,6 +151,22 @@ pub enum ClientRequest<'a> {
     RolesTag(roles::tag::client::request::Frame),
     /// Tag `61`. Take tags off a role.
     RolesUntag(roles::untag::client::request::Frame),
+    /// Tag `62`. Send the client files out of an agent's container.
+    AgentsDownload(agents::download::client::request::Frame),
+    /// Tag `63`. Put files into an agent's container.
+    AgentsUpload(agents::upload::client::request::Frame),
+    /// Tag `64`. Copy files out of an agent's container elsewhere.
+    AgentsTransfer(agents::transfer::client::request::Frame),
+    /// Tag `65`. Send the client files out of a tool's container.
+    ToolsDownload(tools::download::client::request::Frame),
+    /// Tag `66`. Put files into a tool's container.
+    ToolsUpload(tools::upload::client::request::Frame),
+    /// Tag `67`. Copy files out of a tool's container elsewhere.
+    ToolsTransfer(tools::transfer::client::request::Frame),
+    /// Tag `68`. Send the client a resource, or a part of one.
+    ResourcesDownload(resources::download::client::request::Frame),
+    /// Tag `69`. Copy a resource, or a part of one, elsewhere.
+    ResourcesTransfer(resources::transfer::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -233,6 +249,14 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::RolesEdit(frame) => frame.encode(out),
             ClientRequest::RolesTag(frame) => frame.encode(out),
             ClientRequest::RolesUntag(frame) => frame.encode(out),
+            ClientRequest::AgentsDownload(frame) => frame.encode(out),
+            ClientRequest::AgentsUpload(frame) => frame.encode(out),
+            ClientRequest::AgentsTransfer(frame) => frame.encode(out),
+            ClientRequest::ToolsDownload(frame) => frame.encode(out),
+            ClientRequest::ToolsUpload(frame) => frame.encode(out),
+            ClientRequest::ToolsTransfer(frame) => frame.encode(out),
+            ClientRequest::ResourcesDownload(frame) => frame.encode(out),
+            ClientRequest::ResourcesTransfer(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -443,6 +467,30 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             61 => roles::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::RolesUntag)
                 .ok(),
+            62 => agents::download::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsDownload)
+                .ok(),
+            63 => agents::upload::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsUpload)
+                .ok(),
+            64 => agents::transfer::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsTransfer)
+                .ok(),
+            65 => tools::download::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsDownload)
+                .ok(),
+            66 => tools::upload::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsUpload)
+                .ok(),
+            67 => tools::transfer::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsTransfer)
+                .ok(),
+            68 => resources::download::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ResourcesDownload)
+                .ok(),
+            69 => resources::transfer::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ResourcesTransfer)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -514,6 +562,14 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::RolesEdit(_) => f.write_str("roles edit"),
             ClientRequest::RolesTag(_) => f.write_str("roles tag"),
             ClientRequest::RolesUntag(_) => f.write_str("roles untag"),
+            ClientRequest::AgentsDownload(_) => f.write_str("agents download"),
+            ClientRequest::AgentsUpload(_) => f.write_str("agents upload"),
+            ClientRequest::AgentsTransfer(_) => f.write_str("agents transfer"),
+            ClientRequest::ToolsDownload(_) => f.write_str("tools download"),
+            ClientRequest::ToolsUpload(_) => f.write_str("tools upload"),
+            ClientRequest::ToolsTransfer(_) => f.write_str("tools transfer"),
+            ClientRequest::ResourcesDownload(_) => f.write_str("resources download"),
+            ClientRequest::ResourcesTransfer(_) => f.write_str("resources transfer"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

@@ -6,9 +6,9 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from |
-//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; ask a provider which tool containers an identity runs; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from |
-//! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one |
+//! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one |
+//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; ask a provider which tool containers an identity runs; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one |
+//! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one; download one, transfer one into a container or a resource of its own |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a judge of providers that dial in, get one, list them, take one out, replace one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
@@ -84,8 +84,16 @@
 //! | `59` | [`roles::edit`] |
 //! | `60` | [`roles::tag`] |
 //! | `61` | [`roles::untag`] |
+//! | `62` | [`agents::download`] |
+//! | `63` | [`agents::upload`] |
+//! | `64` | [`agents::transfer`] |
+//! | `65` | [`tools::download`] |
+//! | `66` | [`tools::upload`] |
+//! | `67` | [`tools::transfer`] |
+//! | `68` | [`resources::download`] |
+//! | `69` | [`resources::transfer`] |
 //!
-//! Sixty-two, so far. Tags are handed out in the order scopes are
+//! Seventy, so far. Tags are handed out in the order scopes are
 //! defined and nothing reads them in order; a new scope takes the next
 //! value wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

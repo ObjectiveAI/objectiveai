@@ -3,7 +3,8 @@
 use serde::{Deserialize, Serialize};
 
 /// The actions over resources that exist, which a grant reaches as far
-/// as its `within` says. Snake case on the wire: `"list"`, `"delete"`.
+/// as its `within` says. Snake case on the wire: `"list"`, `"delete"`,
+/// `"download"`, `"transfer"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Over {
@@ -15,4 +16,12 @@ pub enum Over {
     /// [`resources::delete`](crate::daemon::endpoints::resources::delete)
     /// does.
     Delete,
+    /// Send the client one, or a part of one, as
+    /// [`resources::download`](crate::daemon::endpoints::resources::download)
+    /// does.
+    Download,
+    /// Copy one, or a part of one, elsewhere, as
+    /// [`resources::transfer`](crate::daemon::endpoints::resources::transfer)
+    /// does; where it lands is judged by its own grant.
+    Transfer,
 }
