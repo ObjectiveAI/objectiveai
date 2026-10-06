@@ -9,7 +9,7 @@ use crate::agent::Cmd;
 use crate::begin::Family;
 use crate::filesystem::mount::Mounts;
 use crate::inside::mcp::{Gate, Peers};
-use crate::inside::postgres::Pairs;
+use crate::inside::pairs::Pairs;
 use crate::program::Upstream;
 use crate::stamp::Stamp;
 use crate::tool::Tool;
@@ -52,6 +52,8 @@ pub struct Proxy {
     /// The FUSE mounts made so far.
     pub mounts: Mounts,
     /// The database connections announced and not yet paired.
+    /// The daemon connections announced and not yet paired.
+    pub daemons: Pairs,
     pub pairs: Pairs,
     /// The MCP sessions the resident notifications stream addresses.
     pub peers: Peers,
@@ -70,6 +72,7 @@ impl Proxy {
             upstream: Upstream::new(),
             tool: Tool::new(),
             mounts: Mounts::new(),
+            daemons: Pairs::new(),
             pairs: Pairs::new(),
             peers: Peers::new(),
             gate: Gate::new(),

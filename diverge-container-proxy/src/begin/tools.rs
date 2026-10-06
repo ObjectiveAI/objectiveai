@@ -62,6 +62,9 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
         let scope = Arc::clone(&scope);
         let stamp = stamp.clone();
         match channel_request::Frame::decode(payload) {
+            Ok(channel_request::Frame::Daemon(request)) => {
+                tokio::spawn(inside::daemon::attach(proxy, scope, channel, request.connection_id));
+            }
             Ok(channel_request::Frame::Postgres(request)) => {
                 tokio::spawn(inside::postgres::attach(proxy, scope, channel, request.connection_id));
             }

@@ -8,9 +8,7 @@
 //! the server's channel, the ask's frames in as the driver's bytes,
 //! nothing parsed, until either side hangs up.
 
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -18,7 +16,6 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::containers::postgres;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{Mutex, oneshot};
 
 use crate::answer::{self, Answer};
 use crate::ask;
@@ -35,54 +32,11 @@ const READ_CHUNK: usize = 16 * 1024;
 /// failure that persists is a slow loop rather than a hot one.
 const ACCEPT_PAUSE: Duration = Duration::from_millis(100);
 
-/// The connections announced and not yet paired: each waits for the
-/// server to open its half, quoting the id, and is handed the
-/// channel it did.
-pub struct Pairs {
-    next: AtomicU32,
-    pending: Mutex<HashMap<u32, oneshot::Sender<u32>>>,
-}
-
-impl Pairs {
-    pub fn new() -> Self {
-        Pairs {
-            // From one: unique among the connections not yet paired is
-            // all that is needed, and never reused is the simplest
-            // way to be that.
-            next: AtomicU32::new(1),
-            pending: Mutex::new(HashMap::new()),
-        }
-    }
-
-    /// A fresh id, and where the server's half arrives.
-    async fn announce(&self) -> (u32, oneshot::Receiver<u32>) {
-        let id = self.next.fetch_add(1, Ordering::Relaxed);
-        let (sender, receiver) = oneshot::channel();
-        self.pending.lock().await.insert(id, sender);
-        (id, receiver)
-    }
-
-    /// The server's half arrived for `id`, on `channel`: hand it over.
-    /// `false` is an id nobody is waiting on.
-    async fn pair(&self, id: u32, channel: u32) -> bool {
-        let Some(sender) = self.pending.lock().await.remove(&id) else {
-            return false;
-        };
-        sender.send(channel).is_ok()
-    }
-
-    /// The announcement is withdrawn: the ask ended before the half
-    /// came.
-    async fn forget(&self, id: u32) {
-        self.pending.lock().await.remove(&id);
-    }
-}
-
 /// The server opened its half of `connection_id` on `channel`: hand
 /// the channel to the connection waiting for it. An id nobody waits
 /// on is a channel this end cannot serve, finished with nothing.
 pub async fn attach(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, connection_id: u32) {
-    if !proxy.pairs.pair(connection_id, channel).await {
+    if !proxy.pairs.pair(connection_id, channel) {
         scope.send_channel_response_finish(channel).await;
     }
 }
@@ -124,14 +78,14 @@ async fn connection(stream: TcpStream, proxy: Arc<Proxy>) {
     // latency to each one.
     let _ = stream.set_nodelay(true);
 
-    let (id, half) = proxy.pairs.announce().await;
+    let (id, half) = proxy.pairs.announce();
     let Ok((begun, mut channel)) = ask::open(
         &proxy,
         Own::Postgres(postgres::request::Postgres { connection_id: id }),
     )
     .await
     else {
-        proxy.pairs.forget(id).await;
+        proxy.pairs.forget(id);
         return;
     };
 
@@ -144,14 +98,14 @@ async fn connection(stream: TcpStream, proxy: Arc<Proxy>) {
             paired = &mut half => match paired {
                 Ok(channel) => break channel,
                 Err(_) => {
-                    proxy.pairs.forget(id).await;
+                    proxy.pairs.forget(id);
                     return;
                 }
             },
             next = answer::next(&mut channel) => match next {
                 Some(Answer::Frame(bytes)) => early.push(bytes),
                 Some(Answer::Finish) | None => {
-                    proxy.pairs.forget(id).await;
+                    proxy.pairs.forget(id);
                     return;
                 }
             },

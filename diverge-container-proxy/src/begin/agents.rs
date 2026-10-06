@@ -62,6 +62,9 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         let proxy = Arc::clone(&proxy);
         let scope = Arc::clone(&scope);
         match channel_request::Frame::decode(payload) {
+            Ok(channel_request::Frame::Daemon(request)) => {
+                tokio::spawn(inside::daemon::attach(proxy, scope, channel, request.connection_id));
+            }
             Ok(channel_request::Frame::Postgres(request)) => {
                 tokio::spawn(inside::postgres::attach(proxy, scope, channel, request.connection_id));
             }

@@ -8,6 +8,7 @@
 //! scope, and its answer handed back untouched.
 
 pub mod daemon;
+pub mod pairs;
 pub mod mcp;
 pub mod postgres;
 pub mod vault;

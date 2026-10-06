@@ -16,8 +16,9 @@ use crate::encode::encoded;
 pub enum Own<'a> {
     /// The proxy's half of a database connection the driver opened.
     Postgres(postgres::request::Postgres),
-    /// Carry one client frame of the program's daemon connection.
-    Daemon(daemon::request::Request<'a>),
+    /// Announce a daemon connection the program opened, by an id the
+    /// proxy minted.
+    Daemon(daemon::request::Daemon),
     /// Read a vault key.
     VaultGet(vault::get::request::Request<'a>),
     /// Write a vault key.
