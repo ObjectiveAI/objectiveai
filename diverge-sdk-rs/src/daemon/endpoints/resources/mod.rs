@@ -9,8 +9,10 @@
 //! hash, so the same content uploaded twice is one resource and a
 //! caller that holds the bytes knows the id without asking. What a
 //! resource is FOR is its description, given on every upload and kept
-//! beside the bytes, outside the hash. [`list`] names every resource
-//! the caller has; [`delete`] removes one no agent mounts; [`filetree`]
+//! beside the bytes, outside the hash. [`get`] answers one by id as a
+//! list would; [`list`] lists them, narrowed, with their tags;
+//! [`delete`] removes one no agent mounts; [`tag`] and [`untag`] change
+//! one's tags, which are the caller's and not in the hash; [`filetree`]
 //! answers a directory resource's tree, once; [`download`] sends the
 //! client a resource, or a part of a directory one; [`transfer`] copies
 //! one, or a part of one, into an agent's or a tool's container or a
@@ -50,6 +52,9 @@ pub use kind::*;
 pub mod delete;
 pub mod download;
 pub mod filetree;
+pub mod get;
 pub mod list;
+pub mod tag;
 pub mod transfer;
+pub mod untag;
 pub mod upload;

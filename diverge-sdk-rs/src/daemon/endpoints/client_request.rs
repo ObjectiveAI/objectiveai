@@ -99,7 +99,7 @@ pub enum ClientRequest<'a> {
     ToolsTemplatesUntag(tools::templates::untag::client::request::Frame),
     /// Tag `35`. Upload a file or a directory.
     ResourcesUpload(resources::upload::client::request::Frame),
-    /// Tag `36`. List the caller's resources.
+    /// Tag `36`. List the resources, narrowed.
     ResourcesList(resources::list::client::request::Frame),
     /// Tag `37`. Delete a resource by id.
     ResourcesDelete(resources::delete::client::request::Frame),
@@ -193,6 +193,12 @@ pub enum ClientRequest<'a> {
     ResourcesFiletree(resources::filetree::client::request::Frame),
     /// Tag `82`. See a volume's tree, once.
     VolumesFiletree(volumes::filetree::client::request::Frame),
+    /// Tag `83`. Get one resource by id.
+    ResourcesGet(resources::get::client::request::Frame),
+    /// Tag `84`. Put tags on a resource.
+    ResourcesTag(resources::tag::client::request::Frame),
+    /// Tag `85`. Take tags off a resource.
+    ResourcesUntag(resources::untag::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -296,6 +302,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsFiletree(frame) => frame.encode(out),
             ClientRequest::ResourcesFiletree(frame) => frame.encode(out),
             ClientRequest::VolumesFiletree(frame) => frame.encode(out),
+            ClientRequest::ResourcesGet(frame) => frame.encode(out),
+            ClientRequest::ResourcesTag(frame) => frame.encode(out),
+            ClientRequest::ResourcesUntag(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -569,6 +578,15 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             82 => volumes::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesFiletree)
                 .ok(),
+            83 => resources::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ResourcesGet)
+                .ok(),
+            84 => resources::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ResourcesTag)
+                .ok(),
+            85 => resources::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ResourcesUntag)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -661,6 +679,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsFiletree(_) => f.write_str("tools filetree"),
             ClientRequest::ResourcesFiletree(_) => f.write_str("resources filetree"),
             ClientRequest::VolumesFiletree(_) => f.write_str("volumes filetree"),
+            ClientRequest::ResourcesGet(_) => f.write_str("resources get"),
+            ClientRequest::ResourcesTag(_) => f.write_str("resources tag"),
+            ClientRequest::ResourcesUntag(_) => f.write_str("resources untag"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

@@ -8,7 +8,7 @@
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed and run through a program; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
 //! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; ask a provider which tool containers an identity runs; attach one to an agent; detach one; delete one; list them, narrowed and run through a program; tag one and untag one; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`resources`] | upload a file or a directory, held by its hash; list them; delete one; download one, transfer one into a container; see one's tree |
+//! | [`resources`] | upload a file or a directory, held by its hash; get one; list them, narrowed; delete one; tag one and untag one; download one, transfer one into a container; see one's tree |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a judge of providers that dial in, get one, list them, take one out, replace one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
@@ -106,8 +106,11 @@
 //! | `80` | [`tools::filetree`] |
 //! | `81` | [`resources::filetree`] |
 //! | `82` | [`volumes::filetree`] |
+//! | `83` | [`resources::get`] |
+//! | `84` | [`resources::tag`] |
+//! | `85` | [`resources::untag`] |
 //!
-//! Eighty-three, so far. Tags are handed out in the order scopes are
+//! Eighty-six, so far. Tags are handed out in the order scopes are
 //! defined and nothing reads them in order; a new scope takes the next
 //! value wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

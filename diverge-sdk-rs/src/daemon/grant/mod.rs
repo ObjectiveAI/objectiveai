@@ -22,12 +22,11 @@
 //! holds, or the kind's own list filter — the one its `list` request
 //! takes, `agents::list`'s
 //! [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter)
-//! for agents, and so on; resources, whose list takes none, have [one
-//! of the grant's own](resources::Filter) — read as a TEST: a thing
-//! passes when it passes every member the filter gives, and, a `jq`
-//! program given, when the program, run with the thing as its input as
-//! the list runs it, yields first a value that is neither `false` nor
-//! `null`. A filter with no member passes everything.
+//! for agents, and so on — read as a TEST: a thing passes when it
+//! passes every member the filter gives, and, a `jq` program given,
+//! when the program, run with the thing as its input as the list runs
+//! it, yields first a value that is neither `false` nor `null`. A
+//! filter with no member passes everything.
 //! - **Tagging.** For the kinds that carry tags, an object of
 //!   `actions`, `tag` or `untag` or both, `within` as above, and
 //! `tags`, which tags may be put on or taken off: `"any"`, or the list
