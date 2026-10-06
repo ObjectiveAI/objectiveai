@@ -10,12 +10,12 @@
 //! caller that holds the bytes knows the id without asking. What a
 //! resource is FOR is its description, given on every upload and kept
 //! beside the bytes, outside the hash. [`list`] names every resource
-//! the caller has; [`delete`] removes one no agent mounts; [`download`]
-//! sends the client a resource, or a part of a directory one;
-//! [`transfer`] copies one, or a part of one, into an agent's or a
-//! tool's container or a volume, and never into a resource: a part of a
-//! directory resource wanted as a resource of its own is uploaded as
-//! one.
+//! the caller has; [`delete`] removes one no agent mounts; [`filetree`]
+//! answers a directory resource's tree, once; [`download`] sends the
+//! client a resource, or a part of a directory one; [`transfer`] copies
+//! one, or a part of one, into an agent's or a tool's container or a
+//! volume, and never into a resource: a part of a directory resource
+//! wanted as a resource of its own is uploaded as one.
 //!
 //! # The id is Go's dirhash
 //!
@@ -49,6 +49,7 @@ pub use kind::*;
 
 pub mod delete;
 pub mod download;
+pub mod filetree;
 pub mod list;
 pub mod transfer;
 pub mod upload;

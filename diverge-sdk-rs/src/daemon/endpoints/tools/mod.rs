@@ -35,15 +35,15 @@
 //! not; [`delete`] removes a tool that is attached nowhere; [`get`]
 //! answers one as a list would; [`list`] lists them, narrowed, with the
 //! agents each is attached to and its tags; [`tag`] and [`untag`]
-//! change a tool's tags; [`list_for`] asks a provider which tool
-//! containers somebody runs, the ids a [`connect`] then offers;
-//! [`download`] sends the client a file or a directory out of a tool's
-//! container, [`upload`] puts files into it, and [`transfer`] copies
-//! out of it into an agent, another tool, a volume or a new resource,
-//! the bytes never reaching the client. [`routes`] answer a dependency
-//! a container declares at register time with a tool the caller already
-//! has, at one position in the chain of dependencies, so that no
-//! deployer is asked.
+//! change a tool's tags; [`filetree`] watches one's container whole;
+//! [`list_for`] asks a provider which tool containers somebody runs,
+//! the ids a [`connect`] then offers; [`download`] sends the client a
+//! file or a directory out of a tool's container, [`upload`] puts files
+//! into it, and [`transfer`] copies out of it into an agent, another
+//! tool, a volume or a new resource, the bytes never reaching the
+//! client. [`routes`] answer a dependency a container declares at
+//! register time with a tool the caller already has, at one position in
+//! the chain of dependencies, so that no deployer is asked.
 
 pub mod attach;
 pub mod connect;
@@ -52,6 +52,7 @@ pub mod delete;
 pub mod detach;
 pub mod download;
 pub mod edit;
+pub mod filetree;
 pub mod get;
 pub mod list;
 pub mod list_for;

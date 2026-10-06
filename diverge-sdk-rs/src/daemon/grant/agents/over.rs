@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The actions over agents that exist, which a grant reaches as far as
 /// its `within` says. Snake case on the wire: `"get"`, `"delete"`,
 /// `"edit"`, `"message"`, `"logs"`, `"list"`, `"download"`, `"upload"`,
-/// `"transfer"`.
+/// `"transfer"`, `"filetree"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Over {
@@ -42,4 +42,8 @@ pub enum Over {
     /// [`agents::transfer`](crate::daemon::endpoints::agents::transfer)
     /// does; where they land is judged by its own grant.
     Transfer,
+    /// Watch one's container whole, as
+    /// [`agents::filetree`](crate::daemon::endpoints::agents::filetree)
+    /// does.
+    Filetree,
 }

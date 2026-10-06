@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The actions over volumes that exist, which a grant reaches as far as
 /// its `within` says. Snake case on the wire: `"get"`, `"list"`,
 /// `"delete"`, `"edit"`, `"stat"`, `"download"`, `"upload"`,
-/// `"transfer"`, `"mount"`.
+/// `"transfer"`, `"filetree"`, `"mount"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Over {
@@ -45,4 +45,8 @@ pub enum Over {
     /// [edit](crate::daemon::endpoints::agents::edit), beside the grant
     /// over the container.
     Mount,
+    /// See one's tree, as
+    /// [`volumes::filetree`](crate::daemon::endpoints::volumes::filetree)
+    /// does.
+    Filetree,
 }

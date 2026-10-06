@@ -185,6 +185,14 @@ pub enum ClientRequest<'a> {
     VolumesUpload(volumes::upload::client::request::Frame),
     /// Tag `78`. Copy files out of a volume elsewhere.
     VolumesTransfer(volumes::transfer::client::request::Frame),
+    /// Tag `79`. Watch an agent's container whole.
+    AgentsFiletree(agents::filetree::client::request::Frame),
+    /// Tag `80`. Watch a tool's container whole.
+    ToolsFiletree(tools::filetree::client::request::Frame),
+    /// Tag `81`. See a directory resource's tree, once.
+    ResourcesFiletree(resources::filetree::client::request::Frame),
+    /// Tag `82`. See a volume's tree, once.
+    VolumesFiletree(volumes::filetree::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -284,6 +292,10 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesDownload(frame) => frame.encode(out),
             ClientRequest::VolumesUpload(frame) => frame.encode(out),
             ClientRequest::VolumesTransfer(frame) => frame.encode(out),
+            ClientRequest::AgentsFiletree(frame) => frame.encode(out),
+            ClientRequest::ToolsFiletree(frame) => frame.encode(out),
+            ClientRequest::ResourcesFiletree(frame) => frame.encode(out),
+            ClientRequest::VolumesFiletree(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -545,6 +557,18 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             78 => volumes::transfer::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesTransfer)
                 .ok(),
+            79 => agents::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsFiletree)
+                .ok(),
+            80 => tools::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsFiletree)
+                .ok(),
+            81 => resources::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ResourcesFiletree)
+                .ok(),
+            82 => volumes::filetree::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesFiletree)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -633,6 +657,10 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::VolumesDownload(_) => f.write_str("volumes download"),
             ClientRequest::VolumesUpload(_) => f.write_str("volumes upload"),
             ClientRequest::VolumesTransfer(_) => f.write_str("volumes transfer"),
+            ClientRequest::AgentsFiletree(_) => f.write_str("agents filetree"),
+            ClientRequest::ToolsFiletree(_) => f.write_str("tools filetree"),
+            ClientRequest::ResourcesFiletree(_) => f.write_str("resources filetree"),
+            ClientRequest::VolumesFiletree(_) => f.write_str("volumes filetree"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

@@ -12,12 +12,12 @@
 //! across providers, narrowed; [`delete`] destroys one nothing uses;
 //! [`edit`] changes how much one reserves, its mode, or both; [`stat`]
 //! walks one for how much of it is used and the hash of its content;
-//! [`download`] sends the client a file or a directory out of one,
-//! [`upload`] puts files into one, and [`transfer`] copies out of one
-//! into an agent, a tool, another volume or a new resource, the bytes
-//! never reaching the client. A volume is a
-//! [`Destination`](crate::daemon::transfer::Destination) of every other
-//! family's transfer too.
+//! [`filetree`] answers one's tree, once; [`download`] sends the client
+//! a file or a directory out of one, [`upload`] puts files into one,
+//! and [`transfer`] copies out of one into an agent, a tool, another
+//! volume or a new resource, the bytes never reaching the client. A
+//! volume is a [`Destination`](crate::daemon::transfer::Destination) of
+//! every other family's transfer too.
 //!
 //! # At rest, or held
 //!
@@ -53,6 +53,7 @@ pub mod create;
 pub mod delete;
 pub mod download;
 pub mod edit;
+pub mod filetree;
 pub mod get;
 pub mod list;
 pub mod stat;
