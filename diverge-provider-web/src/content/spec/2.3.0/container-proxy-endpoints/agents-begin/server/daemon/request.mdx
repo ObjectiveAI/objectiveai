@@ -1,0 +1,38 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 1 and the request of the channel.'
+order: 1
+draft: false
+---
+
+```text
+[1][type: u8][scope: u32, big-endian][channel: u32, big-endian][payload …]
+```
+
+- **The client frame.** The payload after the tag byte is exactly one
+  client frame of the daemon protocol, laid out as
+  [Frames](/frames/) lays out a client frame: the type byte, the
+  scope as a `u32` big-endian, the channel as a `u32` big-endian, and
+  the payload, running to the end. The type is `1`, a request opening
+  a scope; `4`, a channel request on a scope; `5`, a channel response
+  on a channel the daemon opened; or `6`, the finish of such a
+  channel. The type `0`, an auth frame, is malformed: a daemon
+  connection inside a container presents no credential.
+- **The nested numbers.** The scope and the channel in the frame are
+  the program's, minted as a client of the daemon mints them, and
+  mean nothing on this wire: the server does not read them, and
+  relays the frame as it is.
+- **Malformed.** A payload with no frame after the tag, a frame
+  shorter than its header, a type the wire does not have, and the
+  type `0` are malformed; the channel is answered by a channel
+  response finish that no channel response precedes.
+
+The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/agents/begin/server/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/agents/begin/server/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/daemon/request/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/daemon/request/request.rs
+```

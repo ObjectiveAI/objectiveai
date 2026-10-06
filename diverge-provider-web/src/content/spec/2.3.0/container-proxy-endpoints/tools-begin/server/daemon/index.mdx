@@ -1,0 +1,29 @@
+---
+title: 'Daemon'
+summary: 'Tag 1: the server carries one client frame of the daemon protocol that a program in the container sent on the /daemon socket of its proxy; the client answers with one channel response per server frame of the scope or channel of that frame, an error when the frame could not be served, and the channel response finish.'
+order: 1
+draft: false
+---
+
+The server opens this channel when a program in the container sends a client frame on the proxy's `/daemon`. The payload is one client
+frame of the daemon protocol, as [Daemon connection](/container-proxy-endpoints/tools-begin/server/daemon/request/)
+states, carried as it is.
+
+- **The request.** The tag byte `1` followed by one client frame.
+  [Request](/container-proxy-endpoints/tools-begin/server/daemon/request/) states its form.
+- **The response.** One channel response per server frame that
+  answers the client frame, an error last when the client sends one,
+  and the channel response finish. [Response](/container-proxy-endpoints/tools-begin/server/daemon/response/)
+  states the sequence.
+- **One channel per client frame.** A frame of type `1`, a request
+  opening a scope, is answered with every server frame of that
+  scope, in order, and the channel finishes when the scope's
+  response finish has been sent. A frame of type `4`, a channel
+  request, is answered with every channel response and the channel
+  response finish of that channel, and the channel finishes with
+  them. A frame of type `5` or `6`, answering a channel the daemon
+  opened, is answered with nothing: the channel finishes at once.
+- **The account.** The daemon serves every frame for the account the
+  container was created under. No credential passes, and an auth
+  frame is malformed.
+- **The conduit.** Each channel response the client sends is one server frame of the daemon protocol, which the server writes to the program's `/daemon` socket as it is. An error, when the client sends one, becomes the wire's own word for a frame not served: a response finish for a frame of type `1`, a channel response finish for one of type `4`, nothing for the others.

@@ -55,7 +55,7 @@ the server does. It states nothing about the client beyond the order
   connection.
 - **Both directions.** The server opens channels on this scope for
   everything the container asks of the world outside it — its
-  database connections, its commands, its vault, its tool calls
+  database connections, its daemon connection, its vault, its tool calls
   outward — and the client opens channels on it for the schema, the
   queue, and its half of each database connection.
 - **No error on the stream after `Begun`.** After `Begun`, the server

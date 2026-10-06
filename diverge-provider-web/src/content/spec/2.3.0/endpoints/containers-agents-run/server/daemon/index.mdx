@@ -1,0 +1,29 @@
+---
+title: 'Daemon'
+summary: 'Tag 6: the server carries one client frame of the daemon protocol that a program in the container sent on the /daemon socket of its proxy; the client answers with one channel response per server frame of the scope or channel of that frame, an error when the frame could not be served, and the channel response finish.'
+order: 6
+draft: false
+---
+
+The server opens this channel when the container's proxy opens a daemon channel on the begin scope. The payload is one client
+frame of the daemon protocol, as [Daemon connection](/endpoints/containers-agents-run/server/daemon/request/)
+states, carried as it is.
+
+- **The request.** The tag byte `6` followed by one client frame.
+  [Request](/endpoints/containers-agents-run/server/daemon/request/) states its form.
+- **The response.** One channel response per server frame that
+  answers the client frame, an error last when the client sends one,
+  and the channel response finish. [Response](/endpoints/containers-agents-run/server/daemon/response/)
+  states the sequence.
+- **One channel per client frame.** A frame of type `1`, a request
+  opening a scope, is answered with every server frame of that
+  scope, in order, and the channel finishes when the scope's
+  response finish has been sent. A frame of type `4`, a channel
+  request, is answered with every channel response and the channel
+  response finish of that channel, and the channel finishes with
+  them. A frame of type `5` or `6`, answering a channel the daemon
+  opened, is answered with nothing: the channel finishes at once.
+- **The account.** The daemon serves every frame for the account the
+  container was created under. No credential passes, and an auth
+  frame is malformed.
+- **The conduit.** The server relays each channel response onto the proxy's daemon channel as one channel response, in order, and finishes it when the channel finishes. The server reads neither the frame nor an answer, and does not send the frame twice.
