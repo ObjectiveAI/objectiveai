@@ -22,7 +22,7 @@
 //! | [`ConnectionAuthorizer`] | whether a connector may attach |
 //! | [`ToolDeployer`] | the tool containers the container declared, run |
 //! | [`PostgresDialer`] | the container's database connections |
-//! | [`CommandRunner`] | the commands the container asks run |
+//! | [`Daemon`] | the frames of the container's daemon connection, answered by the daemon's session for it |
 //! | [`Vault`] | the container's secrets, with locks |
 //! | [`McpServer`] | the container's tool calls outward |
 //! | [`FuseServer`] | the files and directories mounted live |
@@ -36,7 +36,7 @@
 //! the content of its own writes, takes none of them.
 
 mod answerers;
-mod command_runner;
+mod daemon;
 mod connection_authorizer;
 mod fuse_server;
 mod mcp_server;
@@ -46,7 +46,7 @@ mod tool_deployer;
 mod vault;
 
 pub use answerers::*;
-pub use command_runner::*;
+pub use daemon::*;
 pub use connection_authorizer::*;
 pub use fuse_server::*;
 pub use mcp_server::*;

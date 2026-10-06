@@ -25,12 +25,13 @@ pub(crate) async fn relay<R: Runs>(run: Arc<Run>, mut asks: Asks<Ask>) {
     run.over.notify_one();
 }
 
-/// One ask, by its kind: a database connection is a pair, a command
-/// and a notification stream are streams, and the rest answer once.
+/// One ask, by its kind: a database connection is a pair, a daemon
+/// connection's frame and a notification stream are streams, and the
+/// rest answer once.
 async fn answer<R: Runs>(run: Arc<Run>, channel: u32, ask: Ask) {
     match ask {
         Ask::Postgres(proxy_id) => postgres::postgres::<R>(run, channel, proxy_id).await,
-        Ask::Command(_) | Ask::McpNotifications => stream::stream::<R>(run, channel, &ask).await,
+        Ask::Daemon(_) | Ask::McpNotifications => stream::stream::<R>(run, channel, &ask).await,
         _ => one::one::<R>(run, channel, &ask).await,
     }
 }

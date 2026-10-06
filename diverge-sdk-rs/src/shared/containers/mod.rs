@@ -21,20 +21,7 @@
 //! filesystem.
 //!
 //! The CONTAINER asks the caller, through the provider: [`postgres`]
-//! carries each database connection it opens, [`command`] a command
-//! it wants run, [`vault`] the keys it keeps with the caller, [`fuse`]
-//! the files the caller mounted live, and the exchanges in
-//! [`mcp`](crate::shared::mcp) its tool calls outward.
-//!
-//! The PROVIDER asks the caller on its own account: [`oci`] whether
-//! the caller holds an image and, when it does, for its manifest and
-//! blobs, [`tools`] to deploy the tool containers the container
-//! declared, and [`authorize`] whether a connector may join, or a lister may
-//! see.
-//!
-//! [`schema`] is what every container answers about its arguments,
-//! the same exchange in all three scopes. [`enqueue`] and [`dequeue`]
-//! are the agents family's own — the two verbs against its queue —
+//! carries each database connection it opens, [`daemon`] a frame of the program's daemon connection — the two verbs against its queue —
 //! here beside the rest of the wire they ride. What the agent says is
 //! no exchange: it rides the run scope's own main stream, and its
 //! chunks are defined beside that stream, in
@@ -46,7 +33,7 @@
 //! container, whose own channels carry both.
 
 pub mod authorize;
-pub mod command;
+pub mod daemon;
 pub mod dequeue;
 pub mod enqueue;
 pub mod filetree;

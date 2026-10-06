@@ -13,10 +13,10 @@
 //!
 //! What a connector does NOT do is supply anything on the container's
 //! account. The image was somebody else's problem, and so are the
-//! container's own asks — its database, its commands, its vault, its
-//! tools — which go to whoever runs it. The one channel a provider
-//! opens on a connector is for the content of a write the connector
-//! itself started.
+//! container's own asks — its database, its daemon connection, its
+//! vault, its tools — which go to whoever runs it. The one channel a
+//! provider opens on a connector is for the content of a write the
+//! connector itself started.
 
 pub mod client;
 pub mod server;

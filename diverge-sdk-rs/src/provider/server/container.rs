@@ -14,19 +14,19 @@ use std::future::Future;
 /// # Everything else goes through the proxy
 ///
 /// A container carries the proxy — the deployer put it there and
-/// started it before the deploy returned — and every exchange with
-/// the container is an exchange with the proxy over the one
-/// WebSocket dialled to it: the begin scope the proxy's asks and the
-/// agent's conversation ride, a scope per FUSE mount, the tree, a
-/// read, a write. All of that is spoken by the executors under
-/// [`container_proxy_endpoints`](crate::container_proxy::outside),
-/// on the [`Handle`](crate::wire::client::handle::Handle) that
+/// started it before the deploy returned — and every exchange with the
+/// container is an exchange with the proxy over the one WebSocket
+/// dialled to it: the begin scope the proxy's asks and the agent's
+/// conversation ride, a scope per FUSE mount, the tree, a read, a
+/// write. All of that is spoken by the executors under
+/// [`container_proxy_endpoints`](crate::container_proxy::outside), on
+/// the [`Handle`](crate::wire::client::handle::Handle) that
 /// [`proxy::dial`](super::proxy::dial) makes from
-/// [`address`](Self::address). So this trait names no exchange:
-/// there was a version that did — MCP asks and answers, the agentic
-/// loop, a postgres pair, commands, the filetree, reads and writes,
-/// each a method with its own streams — and every one of them was the
-/// proxy's protocol restated as a trait, to be implemented by
+/// [`address`](Self::address). So this trait names no exchange: there
+/// was a version that did — MCP asks and answers, the agentic loop, a
+/// postgres pair, the daemon connection, the filetree, reads and
+/// writes, each a method with its own streams — and every one of them
+/// was the proxy's protocol restated as a trait, to be implemented by
 /// dialling the proxy. The dial is the whole of it, so the address is
 /// the whole of it.
 ///

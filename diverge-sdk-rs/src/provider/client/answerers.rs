@@ -11,7 +11,7 @@ use std::sync::Arc;
 /// connector's admission from [`authorizer`](Self::authorizer), the
 /// tools the container declared from [`tools`](Self::tools), the
 /// container's database connections through [`postgres`](Self::postgres),
-/// its commands through [`commands`](Self::commands), its secrets
+/// its daemon connection through [`daemon`](Self::daemon), its secrets
 /// through [`vault`](Self::vault), its tool calls through
 /// [`mcp`](Self::mcp), and the files it mounted live through
 /// [`fuse`](Self::fuse). Each is an [`Arc`], because every ask is
@@ -25,7 +25,7 @@ use std::sync::Arc;
 /// that serves nothing of a kind implements that trait as the empty
 /// answer: `None`, a denial, an empty stream, an error.
 #[derive(Debug)]
-pub struct Answerers<O, A, T, P, C, V, M, F> {
+pub struct Answerers<O, A, T, P, D, V, M, F> {
     /// Whether the caller holds an image, and its manifests and blobs
     /// ([`OciStore`](super::OciStore)).
     pub oci: Arc<O>,
@@ -38,9 +38,9 @@ pub struct Answerers<O, A, T, P, C, V, M, F> {
     /// The database the container dials
     /// ([`PostgresDialer`](super::PostgresDialer)).
     pub postgres: Arc<P>,
-    /// The commands the container asks run
-    /// ([`CommandRunner`](super::CommandRunner)).
-    pub commands: Arc<C>,
+    /// The frames of the container's daemon connection
+    /// ([`Daemon`](super::Daemon)).
+    pub daemon: Arc<D>,
     /// The container's secrets ([`Vault`](super::Vault)).
     pub vault: Arc<V>,
     /// The MCP servers the container calls
@@ -51,14 +51,14 @@ pub struct Answerers<O, A, T, P, C, V, M, F> {
     pub fuse: Arc<F>,
 }
 
-impl<O, A, T, P, C, V, M, F> Clone for Answerers<O, A, T, P, C, V, M, F> {
+impl<O, A, T, P, D, V, M, F> Clone for Answerers<O, A, T, P, D, V, M, F> {
     fn clone(&self) -> Self {
         Answerers {
             oci: Arc::clone(&self.oci),
             authorizer: Arc::clone(&self.authorizer),
             tools: Arc::clone(&self.tools),
             postgres: Arc::clone(&self.postgres),
-            commands: Arc::clone(&self.commands),
+            daemon: Arc::clone(&self.daemon),
             vault: Arc::clone(&self.vault),
             mcp: Arc::clone(&self.mcp),
             fuse: Arc::clone(&self.fuse),

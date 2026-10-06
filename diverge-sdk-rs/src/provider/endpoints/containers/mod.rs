@@ -18,19 +18,19 @@
 //! identity runs — the ids a connect then offers.
 //!
 //! Everything else is identical, and it is most of the wire: the
-//! request that makes a container carries its arguments — a JSON
-//! value the image defines, fixed for the container's life — and a
-//! `schema` channel says what they may be; each family has a `run`
-//! that owns the container's life, and the tools
-//! family also has a `connect` that joins one by id and authorization
-//! — an agent container is its runner's alone; every scope reads and
-//! writes files, watches the tree, and relays what the container asks
-//! of the caller — its database connections, its commands, its vault,
-//! its tool calls outward. All of that is defined once, in
+//! request that makes a container carries its arguments — a JSON value
+//! the image defines, fixed for the container's life — and a `schema`
+//! channel says what they may be; each family has a `run` that owns the
+//! container's life, and the tools family also has a `connect` that
+//! joins one by id and authorization — an agent container is its
+//! runner's alone; every scope reads and writes files, watches the
+//! tree, and relays what the container asks of the caller — its
+//! database connections, its daemon connection, its vault, its tool
+//! calls outward. All of that is defined once, in
 //! [`shared::containers`](crate::shared::containers), and each scope's
 //! frames wrap or alias it. The three container scopes' channel tags
-//! are laid out so the shared part comes first and identically, and
-//! the family's own exchange takes the tags after it.
+//! are laid out so the shared part comes first and identically, and the
+//! family's own exchange takes the tags after it.
 //!
 //! # The main stream is the id, and then the agent
 //!
@@ -57,23 +57,24 @@
 //! # And a way to use them
 //!
 //! Each scope's `client::execute` performs the exchange rather than
-//! describing it: hand it a [`Handle`](crate::wire::client::handle::Handle),
-//! the request and — for a run — the caller's
+//! describing it: hand it a
+//! [`Handle`](crate::wire::client::handle::Handle), the request and —
+//! for a run — the caller's
 //! [`Answerers`](crate::provider::client::Answerers), and get back the
-//! container's id and a handle that holds the scope for the
-//! container's life, opens every channel the caller may open, and
-//! answers every channel the provider opens. What the three share is
-//! [`client`], written once.
+//! container's id and a handle that holds the scope for the container's
+//! life, opens every channel the caller may open, and answers every
+//! channel the provider opens. What the three share is [`client`],
+//! written once.
 //!
 //! # And a way to serve them
 //!
-//! Each scope's `server::handle` answers the request: a run brings
-//! the container up in order — content, registry, deploy, the proxy
-//! dialled and begun, every mount made — sends the id, and then
-//! relays everything the container asks and serves everything the
-//! caller opens until the run ends; a connect asks the runner and, on a yes,
-//! serves the connector the same way. What the three share is
-//! [`server`], written once.
+//! Each scope's `server::handle` answers the request: a run brings the
+//! container up in order — content, registry, deploy, the proxy dialled
+//! and begun, every mount made — sends the id, and then relays
+//! everything the container asks and serves everything the caller opens
+//! until the run ends; a connect asks the runner and, on a yes, serves
+//! the connector the same way. What the three share is [`server`],
+//! written once.
 
 pub mod agents;
 pub mod tools;

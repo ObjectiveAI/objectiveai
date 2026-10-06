@@ -1,10 +1,11 @@
-//! What a server's channel request frame carries for an agent container run.
+//! What a server's channel request frame carries for an agent container
+//! run.
 
 use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::{command, fuse, oci, postgres, tools, vault, write_bytes};
+use crate::shared::containers::{daemon, fuse, oci, postgres, tools, vault, write_bytes};
 use crate::shared::mcp;
 
 /// What a provider asks a caller for while an agent container runs.
@@ -20,7 +21,7 @@ use crate::shared::mcp;
 /// | `3` | [`Tools`](Self::Tools) |
 /// | `4` | [`Write`](Self::Write) |
 /// | `5` | [`Postgres`](Self::Postgres) |
-/// | `6` | [`Command`](Self::Command) |
+/// | `6` | [`Daemon`](Self::Daemon) |
 /// | `7` | [`VaultGet`](Self::VaultGet) |
 /// | `8` | [`VaultSet`](Self::VaultSet) |
 /// | `9` | [`VaultDelete`](Self::VaultDelete) |
@@ -42,17 +43,16 @@ use crate::shared::mcp;
 /// | `25` | [`FuseSetattr`](Self::FuseSetattr) |
 ///
 /// Twenty-six: the tools family's twenty-eight less the two
-/// authorizations it carries at `3` and `4`, which an agent container
-/// — taking no connector, and listed to nobody — is never asked, so
-/// every tag after them is two less here. The first five are the
-/// provider's own asks — whether the caller holds an image, its
-/// manifest and blobs, the tools the container declared, a write's
-/// content — and the rest
-/// are the CONTAINER's, relayed: its database
-/// connections, its commands, its vault, its tool calls outward to the
-/// caller's MCP servers, and the files the caller mounted live. A
-/// connector's scope has none of these but [`Write`](Self::Write); the container's asks go to
-/// whoever runs it.
+/// authorizations it carries at `3` and `4`, which an agent container —
+/// taking no connector, and listed to nobody — is never asked, so every
+/// tag after them is two less here. The first five are the provider's
+/// own asks — whether the caller holds an image, its manifest and
+/// blobs, the tools the container declared, a write's content — and the
+/// rest are the CONTAINER's, relayed: its database connections, its
+/// daemon connection, its vault, its tool calls outward to the caller's
+/// MCP servers, and the files the caller mounted live. A connector's
+/// scope has none of these but [`Write`](Self::Write); the container's
+/// asks go to whoever runs it.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// A manifest of an image the caller holds, by digest. Tag `0`.
@@ -94,11 +94,12 @@ pub enum Frame<'a> {
     /// opens the other half, or declines. See
     /// [`postgres`](crate::shared::containers::postgres).
     Postgres(postgres::request::Postgres),
-    /// Run a command the container asked for. Tag `6`.
+    /// One client frame of the container's daemon connection. Tag `6`.
     ///
-    /// Opaque bytes in the CLI's vocabulary; the items come back one
-    /// per frame. See [`command`](crate::shared::containers::command).
-    Command(command::request::Request<'a>),
+    /// Carried as it is to the caller, whose daemon's session answers
+    /// it with the server frames of its scope or channel; see
+    /// [`daemon`](crate::shared::containers::daemon).
+    Daemon(daemon::request::Request<'a>),
     /// Read a vault key. Tag `7`.
     VaultGet(vault::get::request::Request<'a>),
     /// Write a vault key. Tag `8`.
@@ -185,8 +186,8 @@ const WRITE: u8 = 4;
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 5;
 
-/// Tag for [`Frame::Command`].
-const COMMAND: u8 = 6;
+/// Tag for [`Frame::Daemon`].
+const DAEMON: u8 = 6;
 
 /// Tag for [`Frame::VaultGet`].
 const VAULT_GET: u8 = 7;
@@ -279,8 +280,8 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[POSTGRES]);
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::Command(request) => {
-                out.extend_from_slice(&[COMMAND]);
+            Frame::Daemon(request) => {
+                out.extend_from_slice(&[DAEMON]);
                 request.encode(out).map_err(|error| match error {})
             }
             Frame::VaultGet(request) => {
@@ -422,10 +423,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            COMMAND => Ok(Frame::Command(
-                command::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            DAEMON => daemon::request::Request::decode(rest)
+                .map(Frame::Daemon)
+                .map_err(FrameError::Daemon),
             VAULT_GET => vault::get::request::Request::decode(rest)
                 .map(Frame::VaultGet)
                 .map_err(FrameError::Vault),
@@ -517,6 +517,9 @@ pub enum FrameError {
     /// One variant for five tags, because they fail the same way and
     /// the tag already said which was meant.
     McpParams(serde_json::Error),
+    /// The daemon connection's frame did not decode, or was an auth
+    /// frame.
+    Daemon(daemon::request::RequestError),
 }
 
 impl fmt::Display for FrameError {
@@ -543,6 +546,7 @@ impl fmt::Display for FrameError {
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
+            FrameError::Daemon(error) => write!(f, "daemon connection frame did not decode: {error}"),
         }
     }
 }
@@ -550,6 +554,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            FrameError::Daemon(error) => Some(error),
             FrameError::Oci(error)
             | FrameError::Tools(error)
             | FrameError::McpParams(error) => Some(error),

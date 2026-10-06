@@ -8,7 +8,7 @@
 //! filesystem, and read, write and watch the container's files.
 //! [`inside`] is the loopback the container's program dials the
 //! proxy on: one [`Client`](inside::Client) with every feature a
-//! method — MCP, the vault, commands, Postgres — and the contract of
+//! method — MCP, the vault, the daemon, Postgres — and the contract of
 //! the program's own server the proxy dials back. Nothing crosses
 //! from one face to the other but through the proxy itself.
 

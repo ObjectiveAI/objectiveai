@@ -15,10 +15,10 @@
 //! | `5` | [`filesystem::write`] |
 //!
 //! Six. A `begin` leads, one per family, because it is the server's
-//! first act on every connection: the scope the proxy's own asks ride
-//! — the container's database connections, its commands, its vault,
-//! its tool calls outward — and the family's own exchanges with it. A
-//! mount is a scope because the asks a mount makes ride it, and a
+//! first act on every connection: the scope the proxy's own asks ride —
+//! the container's database connections, its daemon connection, its
+//! vault, its tool calls outward — and the family's own exchanges with
+//! it. A mount is a scope because the asks a mount makes ride it, and a
 //! tree is one because it does not end by itself. A read and a write
 //! are scopes because each is a stream of its own.
 //!

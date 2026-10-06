@@ -36,10 +36,15 @@
 //! dialling and presenting the account's key — the one its
 //! [`create`](crate::daemon::endpoints::accounts::create) answered — as
 //! [`Authorization::Outgoing`](crate::wire::client::authorization::Authorization::Outgoing),
-//! and then split into a [`Router`](crate::wire::client::router::Router)
-//! that reads and the handle that writes. Every executor takes the
-//! handle by reference and opens its own scope on it; any number may
-//! run at once.
+//! and then split into a
+//! [`Router`](crate::wire::client::router::Router) that reads and the
+//! handle that writes. A program in a container holds its handle from
+//! its proxy instead —
+//! [`Client::daemon`](crate::container_proxy::inside::Client::daemon)
+//! dials the loopback's `/daemon`, which the proxy serves as the daemon
+//! protocol, presenting nothing — and is served for the container's
+//! account. Every executor takes the handle by reference and opens its
+//! own scope on it; any number may run at once.
 
 pub mod cancel;
 pub mod one_shot;

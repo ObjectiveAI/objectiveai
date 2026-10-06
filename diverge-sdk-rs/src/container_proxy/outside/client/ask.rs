@@ -2,6 +2,8 @@
 
 use bytes::Bytes;
 
+use crate::shared::containers::daemon;
+
 use super::super::endpoints::{agents, tools};
 use crate::shared::mcp;
 
@@ -17,8 +19,8 @@ pub enum Ask {
     /// The proxy's half of a database connection, by the id the proxy
     /// minted.
     Postgres(u32),
-    /// A command, as bytes in the CLI's own vocabulary.
-    Command(Bytes),
+    /// One client frame of the container's daemon connection.
+    Daemon(daemon::request::Owned),
     /// Read a vault key.
     VaultGet {
         /// The key.
@@ -65,7 +67,7 @@ impl From<agents::begin::server::channel_request::Frame<'_>> for Ask {
         use agents::begin::server::channel_request::Frame;
         match frame {
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
-            Frame::Command(request) => Ask::Command(Bytes::copy_from_slice(request.0)),
+            Frame::Daemon(request) => Ask::Daemon(daemon::request::Owned::from(request)),
             Frame::VaultGet(request) => Ask::VaultGet {
                 key: request.key.to_owned(),
             },
@@ -97,7 +99,7 @@ impl From<tools::begin::server::channel_request::Frame<'_>> for Ask {
         use tools::begin::server::channel_request::Frame;
         match frame {
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
-            Frame::Command(request) => Ask::Command(Bytes::copy_from_slice(request.0)),
+            Frame::Daemon(request) => Ask::Daemon(daemon::request::Owned::from(request)),
             Frame::VaultGet(request) => Ask::VaultGet {
                 key: request.key.to_owned(),
             },

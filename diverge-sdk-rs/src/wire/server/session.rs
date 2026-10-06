@@ -63,11 +63,12 @@ use crate::wire::frame::server::ServerFrame;
 ///
 /// A peer's credential arrives as [`Received::Auth`] and is judged by
 /// whoever holds this stream; the credential a provider owes on an
-/// [`Outgoing`](crate::wire::connection::Connection::Outgoing) connection
-/// goes out through the session too, sent by
-/// [`handle`](crate::provider::server::handle::handle) before it reads. This type carries
-/// them and takes no position on either — the handshake's rules live
-/// with the handshake, in [`handle`](crate::provider::server::handle::handle).
+/// [`Outgoing`](crate::wire::connection::Connection::Outgoing)
+/// connection goes out through the session too, sent by
+/// [`handle`](crate::provider::server::handle::handle) before it reads.
+/// This type carries them and takes no position on either — the
+/// handshake's rules live with the handshake, in
+/// [`handle`](crate::provider::server::handle::handle).
 #[derive(Debug)]
 pub struct Session {
     /// The read half of the connection.
@@ -143,9 +144,9 @@ pub struct Session {
     /// What it costs is a bound, and the two queues owe differently for
     /// it. A channel request is ONE frame, so that queue holds channels
     /// opened and not yet taken. A channel RESPONSE is a stream — an
-    /// image layer, a database connection, a command's items — so an
-    /// answer nobody reads accumulates without limit, and it is the
-    /// larger exposure by far.
+    /// image layer, a database connection, a daemon frame's answers —
+    /// so an answer nobody reads accumulates without limit, and it is
+    /// the larger exposure by far.
     ///
     /// Nothing here can bound either, and nothing here tries. The
     /// remedy is to read a queue or drop the thing holding it, which
@@ -246,7 +247,8 @@ impl Session {
     /// The one thing a session ever writes: everything else a provider
     /// says goes through the [`ScopeHandle`]s it hands out, and a
     /// credential belongs to the connection rather than to any scope.
-    /// [`handle`](crate::provider::server::handle::handle) calls it exactly once, on an
+    /// [`handle`](crate::provider::server::handle::handle) calls it
+    /// exactly once, on an
     /// [`Outgoing`](super::authorization::Authorization::Outgoing)
     /// connection, before it reads anything — "nothing may precede it"
     /// is the frame's own rule.
@@ -342,8 +344,8 @@ impl Session {
     /// before the lookup therefore always finds it.
     ///
     /// Which is why there is no drain-on-miss here, where
-    /// [`client::router::Router`](crate::wire::client::router::Router) has
-    /// one. That router looks twice because it drains lazily; this
+    /// [`client::router::Router`](crate::wire::client::router::Router)
+    /// has one. That router looks twice because it drains lazily; this
     /// drains on a schedule that already dominates the race.
     ///
     /// # Why not more rarely

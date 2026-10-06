@@ -18,12 +18,12 @@ use super::notice::Notice;
 ///
 /// # Read it or drop it
 ///
-/// [`response_receiver`](Self::response_receiver) is unbounded, and what rides it is a
-/// stream rather than a message — an image layer, a database
-/// connection, a command's items. An answer nobody reads is memory the
-/// far side can grow without limit, and nothing in this crate bounds
-/// it. Dropping this frees the queue and tells the session to forget
-/// the channel.
+/// [`response_receiver`](Self::response_receiver) is unbounded, and
+/// what rides it is a stream rather than a message — an image layer, a
+/// database connection, a daemon frame's answers. An answer nobody
+/// reads is memory the far side can grow without limit, and nothing in
+/// this crate bounds it. Dropping this frees the queue and tells the
+/// session to forget the channel.
 #[derive(Debug)]
 pub struct Channel {
     /// The channel's number, chosen by this end.

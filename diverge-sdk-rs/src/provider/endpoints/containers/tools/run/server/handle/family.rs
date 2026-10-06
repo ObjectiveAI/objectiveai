@@ -26,7 +26,7 @@ use crate::container_proxy::outside::endpoints::tools::begin::client::execute as
 use crate::shared;
 use crate::shared::containers::request::Image;
 use crate::shared::containers::response::{Id, VolumeHeld};
-use crate::shared::containers::{command, fuse, oci, postgres, tools, vault};
+use crate::shared::containers::{fuse, oci, postgres, tools, vault};
 use crate::shared::mcp;
 use crate::shared::error::Error;
 use crate::shared::filetree as tree;
@@ -159,7 +159,7 @@ impl Runs for Tools {
 fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
     Some(match ask {
         Ask::Postgres(_) => return None,
-        Ask::Command(bytes) => ask::Frame::Command(command::request::Request(bytes)),
+        Ask::Daemon(frame) => ask::Frame::Daemon(frame.as_request()),
         Ask::VaultGet { key } => ask::Frame::VaultGet(vault::get::request::Request { key }),
         Ask::VaultSet { key, value } => ask::Frame::VaultSet(vault::set::request::Request { key, value }),
         Ask::VaultDelete { key } => ask::Frame::VaultDelete(vault::delete::request::Request { key }),

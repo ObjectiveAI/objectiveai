@@ -1,4 +1,4 @@
-//! An ask answered with a stream: a command's items, a notification
+//! An ask answered with a stream: a daemon frame's answers, a notification
 //! stream.
 
 use std::sync::Arc;

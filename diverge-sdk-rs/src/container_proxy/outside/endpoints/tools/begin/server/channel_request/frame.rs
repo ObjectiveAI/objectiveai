@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::{command, postgres, vault};
+use crate::shared::containers::{daemon, postgres, vault};
 use crate::shared::mcp;
 
 /// What the proxy asks the server for once a tool container
@@ -17,7 +17,7 @@ use crate::shared::mcp;
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
-/// | `1` | [`Command`](Self::Command) |
+/// | `1` | [`Daemon`](Self::Daemon) |
 /// | `2` | [`VaultGet`](Self::VaultGet) |
 /// | `3` | [`VaultSet`](Self::VaultSet) |
 /// | `4` | [`VaultDelete`](Self::VaultDelete) |
@@ -30,11 +30,11 @@ use crate::shared::mcp;
 /// | `11` | [`McpNotifications`](Self::McpNotifications) |
 ///
 /// The same twelve in both families, in the same order: everything a
-/// container asks of the world outside — its database connections,
-/// its commands, its vault, its tool calls outward to the caller's
-/// MCP servers — which the server relays to the caller as the
-/// provider protocol's own channel requests. The fuse asks are not
-/// here; each rides the scope of the mount it belongs to.
+/// container asks of the world outside — its database connections, its
+/// daemon connection, its vault, its tool calls outward to the caller's
+/// MCP servers — which the server relays to the caller as the provider
+/// protocol's own channel requests. The fuse asks are not here; each
+/// rides the scope of the mount it belongs to.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// The proxy's half of a database connection the container's
@@ -45,11 +45,12 @@ pub enum Frame<'a> {
     /// finishing this one with nothing before it. See
     /// [`postgres`](crate::shared::containers::postgres).
     Postgres(postgres::request::Postgres),
-    /// Run a command the container asked for. Tag `1`.
+    /// One client frame of the program's daemon connection. Tag `1`.
     ///
-    /// Opaque bytes in the CLI's vocabulary; the items come back one
-    /// per frame. See [`command`](crate::shared::containers::command).
-    Command(command::request::Request<'a>),
+    /// Carried as it is to the server and on to the caller, whose
+    /// daemon's session answers it with the server frames of its scope
+    /// or channel; see [`daemon`](crate::shared::containers::daemon).
+    Daemon(daemon::request::Request<'a>),
     /// Read a vault key. Tag `2`.
     VaultGet(vault::get::request::Request<'a>),
     /// Write a vault key. Tag `3`.
@@ -83,8 +84,8 @@ pub enum Frame<'a> {
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 0;
 
-/// Tag for [`Frame::Command`].
-const COMMAND: u8 = 1;
+/// Tag for [`Frame::Daemon`].
+const DAEMON: u8 = 1;
 
 /// Tag for [`Frame::VaultGet`].
 const VAULT_GET: u8 = 2;
@@ -129,8 +130,8 @@ impl Encode for Frame<'_> {
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
             }
-            Frame::Command(request) => {
-                out.extend_from_slice(&[COMMAND]);
+            Frame::Daemon(request) => {
+                out.extend_from_slice(&[DAEMON]);
                 request.encode(out).map_err(|error| match error {})
             }
             Frame::VaultGet(request) => {
@@ -216,10 +217,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            COMMAND => Ok(Frame::Command(
-                command::request::Request::decode(rest)
-                    .unwrap_or_else(|error| match error {}),
-            )),
+            DAEMON => daemon::request::Request::decode(rest)
+                .map(Frame::Daemon)
+                .map_err(FrameError::Daemon),
             VAULT_GET => vault::get::request::Request::decode(rest)
                 .map(Frame::VaultGet)
                 .map_err(FrameError::Vault),
@@ -276,6 +276,9 @@ pub enum FrameError {
     /// One variant for five tags, because they fail the same way and
     /// the tag already said which was meant.
     McpParams(serde_json::Error),
+    /// The daemon connection's frame did not decode, or was an auth
+    /// frame.
+    Daemon(daemon::request::RequestError),
 }
 
 impl fmt::Display for FrameError {
@@ -292,6 +295,7 @@ impl fmt::Display for FrameError {
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
+            FrameError::Daemon(error) => write!(f, "daemon connection frame did not decode: {error}"),
         }
     }
 }
@@ -299,6 +303,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            FrameError::Daemon(error) => Some(error),
             FrameError::McpParams(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
             FrameError::Vault(error) => Some(error),
