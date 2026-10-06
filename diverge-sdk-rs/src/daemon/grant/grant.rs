@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{agents, agents_templates, tools, tools_templates, routes, resources, providers_outgoing, providers_incoming, accounts, roles, volumes};
+use super::{agents, agents_templates, tools, tools_templates, routes, resources, providers_outgoing, providers_incoming, accounts, roles, volumes, postgres};
 
 /// One grant: a permission over one kind of thing the daemon holds.
 /// Externally tagged by the kind's name — one object with one member,
@@ -28,7 +28,8 @@ pub enum Grant {
     /// Over resources: see [`resources::Permission`].
     Resources(resources::Permission),
     /// Over outgoing providers: see [`providers_outgoing::Permission`].
-    ProvidersOutgoing(providers_outgoing::Permission),    /// Over incoming credentials: see [`providers_incoming::Permission`].
+    ProvidersOutgoing(providers_outgoing::Permission),
+    /// Over incoming credentials: see [`providers_incoming::Permission`].
     ProvidersIncoming(providers_incoming::Permission),
     /// Over accounts: see [`accounts::Permission`].
     Accounts(accounts::Permission),
@@ -36,4 +37,6 @@ pub enum Grant {
     Roles(roles::Permission),
     /// Over volumes: see [`volumes::Permission`].
     Volumes(volumes::Permission),
+    /// Over the database: see [`postgres::Permission`].
+    Postgres(postgres::Permission),
 }

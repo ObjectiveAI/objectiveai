@@ -2,19 +2,20 @@
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
 //! agents, agent templates, tools, tool templates, routes, resources,
-//! outgoing providers, incoming credentials, accounts, roles, volumes —
-//! and a [role](crate::daemon::endpoints::roles) is a list of them,
-//! held by [accounts](crate::daemon::endpoints::accounts). On the wire
-//! a grant is one object with one member, named for the kind, whose
-//! value is the kind's permission: `{"agents":…}`,
-//! `{"providers_incoming":…}`. Every kind's permission takes one of two
-//! or three shapes, and the shape is the logic:
+//! outgoing providers, incoming credentials, accounts, roles, volumes,
+//! the database — and a [role](crate::daemon::endpoints::roles) is a
+//! list of them, held by
+//! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
+//! is one object with one member, named for the kind, whose value is
+//! the kind's permission: `{"agents":…}`, `{"providers_incoming":…}`.
+//! Every kind's permission takes one of these shapes, and the shape is
+//! the logic:
 //!
 //! - **To make.** A bare array of the kind's making actions — the ones
 //!   that bring something into being: a create, an add, an upload, a
-//! connect, a route's set — `{"agents":["create"]}`. Holding the
-//! action is the whole of it; nothing is judged but that it is held,
-//! since there is nothing yet to judge it over.
+//! connect, a route's set — `{"agents":["create"]}`. Holding the action
+//! is the whole of it; nothing is judged but that it is held, since
+//! there is nothing yet to judge it over.
 //! - **Over what exists.** An object of `actions`, the kind's actions
 //!   over what exists, and `within`, how far they reach:
 //! `{"agents":{"actions":["get","message"],"within":{"all_tags":["crew"]}}}`.
@@ -30,6 +31,21 @@
 //! `tags`, which tags may be put on or taken off: `"any"`, or the list
 //! of them.
 //! `{"agents":{"actions":["tag"],"within":"any","tags":["crew","idle"]}}`.
+//! - **Over the one thing.** For the database, of which the daemon
+//!   serves exactly one, a bare array of its actions,
+//! `{"postgres":["get","connections"]}`: there is nothing to name and
+//! nothing to narrow, so holding the action is the whole of it, as for
+//! making.
+//! - **Over the one thing.** For the database, of which the daemon
+//!   serves exactly one, a bare array of its actions,
+//! `{"postgres":["get","connections"]}`: there is nothing to name and
+//! nothing to narrow, so holding the action is the whole of it, as for
+//! making.
+//! - **Over the one thing.** For the database, of which the daemon
+//!   serves exactly one, a bare array of its actions,
+//! `{"postgres":["get","connections"]}`: there is nothing to name and
+//! nothing to narrow, so holding the action is the whole of it, as for
+//! making.
 //!
 //! Each shape is its own variant with its own members, and an object
 //! that is none of them does not decode: an action of one shape among
@@ -96,3 +112,4 @@ pub mod providers_incoming;
 pub mod accounts;
 pub mod roles;
 pub mod volumes;
+pub mod postgres;

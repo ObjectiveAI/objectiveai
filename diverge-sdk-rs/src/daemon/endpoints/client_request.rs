@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{accounts, agents, providers, resources, roles, tools, volumes};
+use super::{accounts, agents, postgres, providers, resources, roles, tools, volumes};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -199,6 +199,12 @@ pub enum ClientRequest<'a> {
     ResourcesTag(resources::tag::client::request::Frame),
     /// Tag `85`. Take tags off a resource.
     ResourcesUntag(resources::untag::client::request::Frame),
+    /// Tag `86`. Read which database the daemon serves.
+    PostgresGet(postgres::get::client::request::Frame),
+    /// Tag `87`. Swap which database the daemon serves.
+    PostgresSet(postgres::set::client::request::Frame),
+    /// Tag `88`. List the container connections open through the database.
+    PostgresConnections(postgres::connections::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -305,6 +311,9 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ResourcesGet(frame) => frame.encode(out),
             ClientRequest::ResourcesTag(frame) => frame.encode(out),
             ClientRequest::ResourcesUntag(frame) => frame.encode(out),
+            ClientRequest::PostgresGet(frame) => frame.encode(out),
+            ClientRequest::PostgresSet(frame) => frame.encode(out),
+            ClientRequest::PostgresConnections(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -587,6 +596,15 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             85 => resources::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesUntag)
                 .ok(),
+            86 => postgres::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::PostgresGet)
+                .ok(),
+            87 => postgres::set::client::request::Frame::decode(bytes)
+                .map(ClientRequest::PostgresSet)
+                .ok(),
+            88 => postgres::connections::client::request::Frame::decode(bytes)
+                .map(ClientRequest::PostgresConnections)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -682,6 +700,9 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ResourcesGet(_) => f.write_str("resources get"),
             ClientRequest::ResourcesTag(_) => f.write_str("resources tag"),
             ClientRequest::ResourcesUntag(_) => f.write_str("resources untag"),
+            ClientRequest::PostgresGet(_) => f.write_str("postgres get"),
+            ClientRequest::PostgresSet(_) => f.write_str("postgres set"),
+            ClientRequest::PostgresConnections(_) => f.write_str("postgres connections"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

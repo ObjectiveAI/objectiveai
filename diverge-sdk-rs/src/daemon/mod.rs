@@ -13,18 +13,20 @@
 //! endpoints, as what their creates share is one [`create`](mod@create)
 //! and what their edits share one [`edit`](mod@edit) — the resources
 //! served into them, the providers it dials and the credentials of
-//! those that dial it, and the volumes those providers hold. Who may
-//! ask for any of it is an [account](endpoints::accounts), holding
-//! [roles](endpoints::roles) of [grants](mod@grant). Who made each of
-//! those is [`creator`], carried by every list item; how one list item
-//! points at another is [`key`], and how a request names one of them,
-//! by name or once and for all, is [`reference`](mod@reference). What a
-//! download sends, one piece of one file with its path, is
-//! [`download`](mod@download)'s chunk, and where a transfer lands is
-//! [`transfer`](mod@transfer)'s destination. Every endpoint's exchange
-//! is performed by its `client::execute`, the four shapes of which are
-//! [`client`]'s. The provider's endpoints are not the daemon's, and
-//! nothing here names them but what a daemon spawns an agent from.
+//! those that dial it, the volumes those providers hold, and the one
+//! [database](endpoints::postgres) it serves into every container, its
+//! own or a remote one. Who may ask for any of it is an
+//! [account](endpoints::accounts), holding [roles](endpoints::roles) of
+//! [grants](mod@grant). Who made each of those is [`creator`], carried
+//! by every list item; how one list item points at another is [`key`],
+//! and how a request names one of them, by name or once and for all, is
+//! [`reference`](mod@reference). What a download sends, one piece of
+//! one file with its path, is [`download`](mod@download)'s chunk, and
+//! where a transfer lands is [`transfer`](mod@transfer)'s destination.
+//! Every endpoint's exchange is performed by its `client::execute`, the
+//! four shapes of which are [`client`]'s. The provider's endpoints are
+//! not the daemon's, and nothing here names them but what a daemon
+//! spawns an agent from.
 
 pub mod client;
 pub mod create;
