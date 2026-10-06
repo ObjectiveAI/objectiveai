@@ -25,6 +25,7 @@
 //! are not the daemon's, and nothing here names them but what a daemon
 //! spawns an agent from.
 
+pub mod client;
 pub mod create;
 pub mod creator;
 pub mod download;
