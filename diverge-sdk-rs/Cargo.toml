@@ -62,3 +62,13 @@ tokio = { version = "1.53.1", default-features = false, features = ["net", "rt",
 tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["stream", "connect"] }
 # Container ids, minted by the provider's server.
 uuid = { version = "1.18.1", default-features = false, features = ["v4"] }
+
+# `file_lock`: the one place this crate touches a disk, and the
+# system call it does it with. `flock` on Unix, `LockFileEx` on
+# Windows — the primitives themselves, so the lock's semantics are
+# the kernel's and not a wrapper's.
+[target.'cfg(unix)'.dependencies]
+libc = { version = "0.2", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO"] }
