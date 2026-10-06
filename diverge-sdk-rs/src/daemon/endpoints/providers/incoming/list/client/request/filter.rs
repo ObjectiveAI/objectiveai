@@ -1,41 +1,34 @@
-//! What narrows a list of credentials, and what a permission over them
-//! reaches.
+//! What narrows a list of credentials.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
-use super::Kind;
 
-/// The filter over credentials: every member optional, and every one
-/// given a condition a credential passes or does not. In a [list
-/// request](super::Frame) it is flattened into the request and narrows
-/// what the daemon sends, and its program transforms what passes. A
-/// filter with no member given passes every credential.
+/// The filter over the credentials of incoming providers: every member
+/// optional, and every one given a condition a credential passes or
+/// does not. In a [list request](super::Frame) it is flattened into the
+/// request and narrows what the daemon sends, and its program
+/// transforms what passes. A filter with no member given passes every
+/// credential.
 ///
 /// # Any one of
 ///
 /// A member that lists candidates matches a credential that is any one
-/// of them, or was made by any one of them. An empty list is absent,
+/// of them, or was added by any one of them. An empty list is absent,
 /// and matches every credential.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Filter {
-    /// Key credentials naming any one of these identities.
+    /// Naming any one of these identities.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identities: Vec<String>,
-    /// Hook credentials of any one of these resources, by id.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub authorize_hooks: Vec<String>,
-    /// Of any one of these forms, `key` or `authorize_hook`.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub kinds: Vec<Kind>,
     /// Whether a provider is connected through it now: `true`, or none,
     /// `false`; absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connected: Option<bool>,
-    /// Made by any one of these, directly: see
+    /// Added by any one of these, directly: see
     /// [`Creator`](crate::daemon::creator::Creator). Absent when empty,
-    /// and then made by anybody.
+    /// and then added by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
     /// The earliest `created` to list, inclusive; absent, no earliest.

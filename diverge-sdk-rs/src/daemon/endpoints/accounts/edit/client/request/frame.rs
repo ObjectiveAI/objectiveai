@@ -9,7 +9,7 @@ use crate::daemon::endpoints::accounts::{Credential, Reference};
 /// Ask the daemon to change an account. Every member but the reference
 /// is an optional [`Change`]: absent leaves it as it is, `"delete"`
 /// takes it away, `{"set":…}` replaces it whole — the roles the new
-/// list entire, the credential a new credential, of either form. A
+/// list entire, the credential a new credential without a key. A
 /// request with every member absent changes nothing and is not a
 /// failure.
 ///
@@ -28,11 +28,12 @@ pub struct Frame {
     /// dials in alone, which a container running under it forbids.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<Change<String>>,
-    /// How a client dials in as the account: see [`Credential`].
-    /// Replaced whole, which is how a key rotates or a hook moves; a
-    /// key naming an identity another account's key names is the edit's
-    /// `InUse`. Absent, as it is; `delete`, no client dials in as it
-    /// from then on, which a client connected as it now forbids.
+    /// How a client dials in as the account: see [`Credential`]. Set,
+    /// it is replaced whole and the daemon mints a new key, answered
+    /// once, which is how a key rotates or an address or an identity
+    /// changes; an identity another account's credential names is the
+    /// edit's `InUse`. Absent, as it is; `delete`, no client dials in
+    /// as it from then on, which a client connected as it now forbids.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub credential: Option<Change<Credential>>,
     /// What the account is for, in words. Absent, as it is; `delete`,

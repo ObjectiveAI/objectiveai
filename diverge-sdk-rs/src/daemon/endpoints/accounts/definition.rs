@@ -28,7 +28,7 @@ pub enum Definition {
     },
     /// An account without a name: a client dials in as it, and no
     /// container runs under it. Named afterwards by its credential's
-    /// identity or resource.
+    /// identity.
     Unnamed {
         /// How a client dials in as the account: see [`Credential`].
         credential: Credential,

@@ -44,7 +44,7 @@ pub enum Identity {
     /// credential. `kind: "incoming_unbrokered"`.
     ///
     /// The identity is what the daemon's judging of the credential
-    /// answered: the string a key names, or a hook returns — the same
+    /// answered: the identity the credential names — the same
     /// form a provider identifies its own connectors by, the daemon
     /// being the provider's mirror in this. The credential itself is
     /// never here; it is a secret, and the identity is what it

@@ -4,17 +4,14 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::providers::incoming::Reference;
 
-/// Ask the daemon to take out a credential of incoming providers: see
-/// [`Reference`]. A credential a provider is connected through now is
-/// not taken out, and the daemon says so with a variant of its own,
-/// because a caller acts on it differently from a failure: wait for the
-/// connection to end, and ask again.
+/// Ask the daemon to take a credential of incoming providers out, by
+/// the identity it names. One a provider is connected through is not
+/// taken out, and the daemon says so with a variant of its own.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The credential: see [`Reference`].
-    pub credential: Reference,
+    /// The identity the credential names.
+    pub identity: String,
 }
 
 /// This frame's tag among the scope-opening requests.

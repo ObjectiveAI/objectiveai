@@ -5,8 +5,8 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::accounts::Reference;
-/// Ask the daemon for one account, by its name, its key's identity or
-/// its hook's resource: see [`Reference`].
+/// Ask the daemon for one account, by its name or by its credential's
+/// identity: see [`Reference`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The account: see [`Reference`].

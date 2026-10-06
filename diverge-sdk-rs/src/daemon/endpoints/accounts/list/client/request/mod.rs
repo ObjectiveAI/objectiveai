@@ -6,8 +6,6 @@
 
 mod filter;
 mod frame;
-mod kind;
 
 pub use filter::*;
 pub use frame::*;
-pub use kind::*;

@@ -5,16 +5,16 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::providers::incoming::Credential;
-
-/// Ask the daemon to add a credential of incoming providers, after
-/// every credential there is. A key credential for an identity there is
-/// a key credential for already, or a hook credential for a resource
-/// there is one for already, is refused; so is a hook naming a resource
-/// the caller does not hold, or a file resource, or a directory
-/// resource without `hook.yaml` at its root.
+/// Ask the daemon to add a credential of incoming providers: the
+/// identity a provider presenting it will have, and the address it is
+/// accepted from if one. The key is not here: the daemon mints it and
+/// answers it. A credential for an identity there is one for already is
+/// refused.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The credential: see [`Credential`].
+    /// The credential, without its key: see [`Credential`]. Flattened,
+    /// so its members are this object's own.
+    #[serde(flatten)]
     pub credential: Credential,
 }
 

@@ -1,5 +1,5 @@
-//! The add response: added, one like it already, no such hook resource,
-//! forbidden, or a failure.
+//! The add response: the key, one for that identity already, forbidden,
+//! or a failure.
 
 mod frame;
 

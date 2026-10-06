@@ -6,27 +6,26 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A create's answer: the account exists, one like it exists already,
-/// no such role, no such hook resource, forbidden, or a failure.
+/// A create's answer: the account exists, with its key when it has a
+/// credential, one like it exists already, no such role, forbidden, or
+/// a failure.
 ///
 /// A create is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Created`](Self::Created), `1`
 /// for [`Exists`](Self::Exists), `2` for [`NoRole`](Self::NoRole), `3`
-/// for [`NoResource`](Self::NoResource), `4` for
-/// [`Forbidden`](Self::Forbidden), `5` for [`Error`](Self::Error) — and
-/// only the error carries anything after it.
+/// for [`Forbidden`](Self::Forbidden), `4` for [`Error`](Self::Error) —
+/// and the rest is that variant's own JSON: the key for the first,
+/// nothing for the bare answers, the error for the last.
 ///
 /// # Answers, and one failure
 ///
-/// [`Exists`](Self::Exists), [`NoRole`](Self::NoRole) and
-/// [`NoResource`](Self::NoResource) are ANSWERS: the daemon looked, and
-/// the name, the identity or the resource is an account's already, or a
-/// role named is none it has, or the hook names a resource the caller
-/// does not hold, or a file, or a directory with no `hook.yaml` at its
-/// root, and in each case nothing was created and nothing is retried.
-/// An [`Error`](Self::Error) is the absence of an answer: the daemon
-/// could not create the account, for whatever reason it knows.
+/// [`Exists`](Self::Exists) and [`NoRole`](Self::NoRole) are ANSWERS:
+/// the daemon looked, and the name or the identity is an account's
+/// already, or a role named is none it has, and in either case nothing
+/// was created and nothing is retried. An [`Error`](Self::Error) is the
+/// absence of an answer: the daemon could not create the account, for
+/// whatever reason it knows.
 ///
 /// # Forbidden
 ///
@@ -39,26 +38,23 @@ use crate::shared::error::Error;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The account exists, with its roles. Tag `0`.
-    Created,
-    /// The name, the identity or the resource is an account's already;
-    /// nothing was created. Tag `1`.
+    /// The account exists, with its roles. The key the daemon minted,
+    /// when the request gave a credential, answered here and never
+    /// again; `null` for a named account with none. Tag `0`.
+    Created(Option<String>),
+    /// The name or the identity is an account's already; nothing was
+    /// created. Tag `1`.
     Exists,
     /// A role named is none the daemon has; nothing was created. Tag
     /// `2`.
     NoRole,
-    /// The hook names no resource the caller holds, or one that is not
-    /// a directory with `hook.yaml` at its root; nothing was created.
-    /// Tag `3`.
-    NoResource,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `4`.
+    /// it; nothing changed. Tag `3`.
     Forbidden,
-    /// A failure. Tag `5`.
+    /// A failure. Tag `4`.
     ///
-    /// Nothing changed. See
-    /// [`shared::error::Error`](crate::shared::error::Error) for why it
-    /// says so little.
+    /// See [`shared::error::Error`](crate::shared::error::Error) for
+    /// why it says so little.
     Error(Error),
 }
 
@@ -71,16 +67,13 @@ const EXISTS: u8 = 1;
 /// Tag for [`Frame::NoRole`].
 const NO_ROLE: u8 = 2;
 
-/// Tag for [`Frame::NoResource`].
-const NO_RESOURCE: u8 = 3;
-
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 4;
+const FORBIDDEN: u8 = 3;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 5;
+const ERROR: u8 = 4;
 
-/// A tag, and — for the error alone — that variant's own JSON.
+/// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
     /// The ordinary JSON failure. The bare answers cannot fail.
     type Error = serde_json::Error;
@@ -89,9 +82,9 @@ impl Encode for Frame {
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Created => {
+            Frame::Created(key) => {
                 out.extend_from_slice(&[CREATED]);
-                Ok(())
+                serde_json::to_writer(out, key)
             }
             Frame::Exists => {
                 out.extend_from_slice(&[EXISTS]);
@@ -99,10 +92,6 @@ impl Encode for Frame {
             }
             Frame::NoRole => {
                 out.extend_from_slice(&[NO_ROLE]);
-                Ok(())
-            }
-            Frame::NoResource => {
-                out.extend_from_slice(&[NO_RESOURCE]);
                 Ok(())
             }
             Frame::Forbidden => {
@@ -118,17 +107,16 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail, and only one of them is JSON.
+    /// Four ways to fail, and each names which half failed.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            CREATED => Ok(Frame::Created),
+            CREATED => serde_json::from_slice(rest).map(Frame::Created).map_err(FrameError::Created),
             EXISTS => Ok(Frame::Exists),
             NO_ROLE => Ok(Frame::NoRole),
-            NO_RESOURCE => Ok(Frame::NoResource),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -141,8 +129,10 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's six.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
+    /// The key did not parse as a JSON string or `null`.
+    Created(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -152,6 +142,7 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("accounts create response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown accounts create response frame tag {tag}"),
+            FrameError::Created(error) => write!(f, "accounts create key did not parse: {error}"),
             FrameError::Error(error) => write!(f, "accounts create error did not parse: {error}"),
         }
     }
@@ -160,7 +151,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Error(error) => Some(error),
+            FrameError::Created(error) | FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

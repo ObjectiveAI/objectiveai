@@ -1,10 +1,9 @@
 //! Adding a credential of incoming providers. One request, one answer.
-//! A client gives a credential — a key with the identity it names, or a
-//! hook resource; the daemon answers that the credential is added, that
-//! one of its kind for that identity or that resource exists already,
-//! that the hook names no resource the caller holds or not one that is
-//! a hook, or that it failed, and the scope finishes. The credential is
-//! appended: tried after every credential there was.
+//! A client gives the identity a provider presenting the credential
+//! will have, and the address it is accepted from if one; the daemon
+//! mints a key, and answers it, once, that a credential for that
+//! identity exists already, forbidden, or that it failed, and the scope
+//! finishes. The key is never reported again.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

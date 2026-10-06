@@ -5,16 +5,15 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
 use super::Filter;
-
-/// Ask the daemon for the caller's credentials, narrowed.
+/// Ask the daemon for the credentials of incoming providers, narrowed.
 ///
 /// Everything is optional, and a request with none of it — `{}` on the
-/// wire — is every credential of the caller's. The members but `jq` and
-/// `count` together are the filter. The daemon applies the filter
-/// first, oldest first, so the program sees only what it lets through,
-/// and runs the program over each credential of that; what the program
-/// yields is what comes back, and without a program the credentials
-/// come back as they are. The count caps what comes back.
+/// wire — is every credential the caller's grants reach. The members
+/// but `jq` and `count` together are the filter. The daemon applies the
+/// filter first, oldest first, so the program sees only what it lets
+/// through, and runs the program over each credential of that; what the
+/// program yields is what comes back, and without a program the
+/// credentials come back as they are. The count caps what comes back.
 /// [`Incoming`](crate::daemon::endpoints::providers::incoming::list::server::response::Incoming)
 /// is the shape each comes back in without a program, and the reference
 /// for what a program is run over.

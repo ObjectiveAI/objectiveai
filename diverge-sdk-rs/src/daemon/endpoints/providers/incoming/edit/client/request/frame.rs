@@ -4,20 +4,16 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::providers::incoming::{Credential, Reference};
-
+use crate::daemon::endpoints::providers::incoming::Credential;
 /// Ask the daemon to replace a credential of incoming providers with
-/// another of its kind. The credential is replaced whole: there is
-/// nothing to take away but the credential itself, which a delete does,
-/// so there is no `delete` here and the request carries the new
-/// credential entire. A connection a provider holds through the
-/// credential now is not dropped; the next credential is judged by the
-/// new one.
+/// another, whole. The old key admits nothing from then on and the new
+/// one, answered once, admits the new identity. A new identity that
+/// another credential names already is refused.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The credential to replace: see [`Reference`].
-    pub credential: Reference,
-    /// The credential as it is to be, of the same kind: see
+    /// The identity the credential to replace names.
+    pub identity: String,
+    /// The credential as it is to be, without its key: see
     /// [`Credential`].
     pub set: Credential,
 }

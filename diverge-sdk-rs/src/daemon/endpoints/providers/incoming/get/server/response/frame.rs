@@ -8,8 +8,8 @@ use crate::shared::error::Error;
 
 use crate::daemon::endpoints::providers::incoming::list::server::response::Incoming;
 
-/// A get's answer: the credential, no credential is the one named, or a
-/// failure.
+/// A get's answer: the credential, no credential is the one named,
+/// forbidden, or a failure.
 ///
 /// A get is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
@@ -18,15 +18,15 @@ use crate::daemon::endpoints::providers::incoming::list::server::response::Incom
 /// [`Forbidden`](Self::Forbidden), `3` for [`Error`](Self::Error) — and
 /// the rest is that variant's own JSON: one
 /// [`Incoming`](crate::daemon::endpoints::providers::incoming::list::server::response::Incoming)
-/// for the first, as a list reports it; nothing for the second; the
-/// error for the third.
+/// for the first, as a list reports it; nothing for the second and the
+/// third; the error for the fourth.
 ///
 /// # One answer, one failure
 ///
 /// [`NotFound`](Self::NotFound) is an ANSWER: the daemon looked, and no
-/// credential of the caller's is the one named, and nothing is retried.
-/// An [`Error`](Self::Error) is the absence of an answer: the daemon
-/// could not look, for whatever reason it knows.
+/// credential is the one named, and nothing is retried. An
+/// [`Error`](Self::Error) is the absence of an answer: the daemon could
+/// not look, for whatever reason it knows.
 ///
 /// # Forbidden
 ///
@@ -41,15 +41,15 @@ use crate::daemon::endpoints::providers::incoming::list::server::response::Incom
 pub enum Frame {
     /// The credential, as the list reports it. Tag `0`.
     Found(Incoming),
-    /// No credential of the caller's is the one named. Tag `1`.
+    /// No credential is the one named. Tag `1`.
     NotFound,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `2`.
+    /// it. Tag `2`.
     Forbidden,
     /// A failure. Tag `3`.
     ///
-    /// See [`shared::error::Error`](crate::shared::error::Error)
-    /// for why it says so little.
+    /// See [`shared::error::Error`](crate::shared::error::Error) for
+    /// why it says so little.
     Error(Error),
 }
 
@@ -67,7 +67,7 @@ const ERROR: u8 = 3;
 
 /// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
-    /// The ordinary JSON failure. The bare answer cannot fail.
+    /// The ordinary JSON failure. The bare answers cannot fail.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant

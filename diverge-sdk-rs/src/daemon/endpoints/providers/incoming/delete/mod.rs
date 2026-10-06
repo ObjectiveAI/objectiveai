@@ -1,9 +1,9 @@
 //! Taking a credential out. One request, one answer. A client names a
-//! credential of its own; the daemon answers that the credential is
-//! gone, that no credential is the one named, that a provider is
-//! connected through it and it was left as it is, or that it failed,
-//! and the scope finishes. A credential the credential accepted is
-//! accepted by no credential from then on, unless another does.
+//! credential by its identity; the daemon answers that the credential
+//! is gone, that no credential names that identity, that a provider is
+//! connected through it and it was left as it is, forbidden, or that it
+//! failed, and the scope finishes. The key the credential answered
+//! admits nothing from then on.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

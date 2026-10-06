@@ -6,35 +6,33 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// An edit's answer: the account is as the request states, no account
-/// is the one named, no such role, no such hook resource, the name or
-/// the identity is another's, the change would leave the account alone,
-/// forbidden, or a failure.
+/// An edit's answer: the account is as the request states, with a new
+/// key when a credential was set, no account is the one named, no such
+/// role, the name or the identity is another's, the change would leave
+/// the account alone, forbidden, or a failure.
 ///
 /// An edit is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
 /// with one byte saying which — `0` for [`Edited`](Self::Edited), `1`
 /// for [`NotFound`](Self::NotFound), `2` for [`NoRole`](Self::NoRole),
-/// `3` for [`NoResource`](Self::NoResource), `4` for
-/// [`InUse`](Self::InUse), `5` for [`Alone`](Self::Alone), `6` for
-/// [`Forbidden`](Self::Forbidden), `7` for [`Error`](Self::Error) — and
-/// only the error carries anything after it.
+/// `3` for [`InUse`](Self::InUse), `4` for [`Alone`](Self::Alone), `5`
+/// for [`Forbidden`](Self::Forbidden), `6` for [`Error`](Self::Error) —
+/// and the rest is that variant's own JSON: the key for the first,
+/// nothing for the bare answers, the error for the last.
 ///
 /// # Answers, and one failure
 ///
 /// [`NotFound`](Self::NotFound), [`NoRole`](Self::NoRole),
-/// [`NoResource`](Self::NoResource), [`InUse`](Self::InUse) and
-/// [`Alone`](Self::Alone) are ANSWERS: the daemon looked, and no
-/// account is the one named, or a role named is none it has, or the
-/// hook names no resource the caller holds or not one that is a hook,
-/// or the name or the identity requested is another account's, or the
-/// change would leave the account with neither a name nor a credential,
-/// or would take the name from an account a container runs under or the
-/// credential from one a client is connected as, and in each case
-/// nothing changed and nothing is retried. An [`Error`](Self::Error) is
-/// the absence of an answer: the daemon could not make the change, for
-/// whatever reason it knows, and the account is as it was. The request
-/// is applied whole or not at all.
+/// [`InUse`](Self::InUse) and [`Alone`](Self::Alone) are ANSWERS: the
+/// daemon looked, and no account is the one named, or a role named is
+/// none it has, or the name or the identity requested is another
+/// account's, or the change would leave the account with neither a name
+/// nor a credential, or would take the name from an account a container
+/// runs under or the credential from one a client is connected as, and
+/// in each case nothing changed and nothing is retried. An
+/// [`Error`](Self::Error) is the absence of an answer: the daemon could
+/// not make the change, for whatever reason it knows, and the account
+/// is as it was. The request is applied whole or not at all.
 ///
 /// # Forbidden
 ///
@@ -47,32 +45,29 @@ use crate::shared::error::Error;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The account is as the request states. Tag `0`.
-    Edited,
+    /// The account is as the request states. The new key the daemon
+    /// minted, when the request set a credential, answered here and
+    /// never again; `null` otherwise. Tag `0`.
+    Edited(Option<String>),
     /// No account is the one named; nothing changed. Tag `1`.
     NotFound,
     /// A role named is none the daemon has; nothing changed. Tag `2`.
     NoRole,
-    /// The hook names no resource the caller holds, or one that is not
-    /// a directory with `hook.yaml` at its root; nothing changed. Tag
-    /// `3`.
-    NoResource,
     /// The name or the identity requested is another account's; nothing
-    /// changed. Tag `4`.
+    /// changed. Tag `3`.
     InUse,
     /// The change would leave the account with neither a name nor a
     /// credential, or take the name from one a container runs under, or
     /// the credential from one a client is connected as; nothing
-    /// changed. Tag `5`.
+    /// changed. Tag `4`.
     Alone,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `6`.
+    /// it; nothing changed. Tag `5`.
     Forbidden,
-    /// A failure. Tag `7`.
+    /// A failure. Tag `6`.
     ///
-    /// Nothing changed. See
-    /// [`shared::error::Error`](crate::shared::error::Error) for why it
-    /// says so little.
+    /// See [`shared::error::Error`](crate::shared::error::Error) for
+    /// why it says so little.
     Error(Error),
 }
 
@@ -85,22 +80,19 @@ const NOT_FOUND: u8 = 1;
 /// Tag for [`Frame::NoRole`].
 const NO_ROLE: u8 = 2;
 
-/// Tag for [`Frame::NoResource`].
-const NO_RESOURCE: u8 = 3;
-
 /// Tag for [`Frame::InUse`].
-const IN_USE: u8 = 4;
+const IN_USE: u8 = 3;
 
 /// Tag for [`Frame::Alone`].
-const ALONE: u8 = 5;
+const ALONE: u8 = 4;
 
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 6;
+const FORBIDDEN: u8 = 5;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 7;
+const ERROR: u8 = 6;
 
-/// A tag, and — for the error alone — that variant's own JSON.
+/// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
     /// The ordinary JSON failure. The bare answers cannot fail.
     type Error = serde_json::Error;
@@ -109,9 +101,9 @@ impl Encode for Frame {
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Edited => {
+            Frame::Edited(key) => {
                 out.extend_from_slice(&[EDITED]);
-                Ok(())
+                serde_json::to_writer(out, key)
             }
             Frame::NotFound => {
                 out.extend_from_slice(&[NOT_FOUND]);
@@ -119,10 +111,6 @@ impl Encode for Frame {
             }
             Frame::NoRole => {
                 out.extend_from_slice(&[NO_ROLE]);
-                Ok(())
-            }
-            Frame::NoResource => {
-                out.extend_from_slice(&[NO_RESOURCE]);
                 Ok(())
             }
             Frame::InUse => {
@@ -146,17 +134,16 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail, and only one of them is JSON.
+    /// Four ways to fail, and each names which half failed.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            EDITED => Ok(Frame::Edited),
+            EDITED => serde_json::from_slice(rest).map(Frame::Edited).map_err(FrameError::Edited),
             NOT_FOUND => Ok(Frame::NotFound),
             NO_ROLE => Ok(Frame::NoRole),
-            NO_RESOURCE => Ok(Frame::NoResource),
             IN_USE => Ok(Frame::InUse),
             ALONE => Ok(Frame::Alone),
             FORBIDDEN => Ok(Frame::Forbidden),
@@ -171,8 +158,10 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's eight.
+    /// A tag that is none of this frame's seven.
     UnknownTag(u8),
+    /// The key did not parse as a JSON string or `null`.
+    Edited(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -182,6 +171,7 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("accounts edit response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown accounts edit response frame tag {tag}"),
+            FrameError::Edited(error) => write!(f, "accounts edit key did not parse: {error}"),
             FrameError::Error(error) => write!(f, "accounts edit error did not parse: {error}"),
         }
     }
@@ -190,7 +180,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Error(error) => Some(error),
+            FrameError::Edited(error) | FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

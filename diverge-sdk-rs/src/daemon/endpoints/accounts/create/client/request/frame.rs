@@ -7,11 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::daemon::endpoints::accounts::Definition;
 /// Ask the daemon to create an account. The definition is flattened in,
 /// so the request is `{"name":…}`, `{"credential":…}` or both, with
-/// `description` and `roles` beside. A name, an identity or a hook
-/// resource that is an account's already is refused; so is a role the
-/// daemon does not have, and a hook naming a resource the caller does
-/// not hold, a file resource, or a directory resource without
-/// `hook.yaml` at its root.
+/// `description` and `roles` beside; a credential carries no key, which
+/// the daemon mints and answers. A name or an identity that is an
+/// account's already is refused; so is a role the daemon does not have.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// A name, a credential, or both: see [`Definition`]. Flattened, so

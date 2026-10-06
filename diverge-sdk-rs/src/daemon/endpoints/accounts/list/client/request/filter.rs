@@ -4,7 +4,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
-use super::Kind;
 
 /// The filter over accounts: every member optional, and every one given
 /// a condition an account passes or does not. In a [list
@@ -24,21 +23,17 @@ pub struct Filter {
     /// Any one of these names.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub names: Vec<String>,
-    /// Key accounts naming any one of these identities.
+    /// With a credential naming any one of these identities.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identities: Vec<String>,
-    /// Hook accounts of any one of these resources, by id.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub authorize_hooks: Vec<String>,
     /// Whether the account has a name: `true`, or none, `false`;
     /// absent, either.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub named: Option<bool>,
-    /// With a credential of any one of these forms, `key` or
-    /// `authorize_hook`. Absent when empty, and then with any
-    /// credential or none.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub kinds: Vec<Kind>,
+    /// Whether the account has a credential: `true`, or none, `false`;
+    /// absent, either.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credentialed: Option<bool>,
     /// Holding any one of these roles, by name.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<String>,

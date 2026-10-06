@@ -6,8 +6,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A delete's answer: the credential is gone, no credential is the one
-/// named, the credential is in use, or a failure.
+/// A delete's answer: the credential is gone, no credential names that
+/// identity, the credential is in use, forbidden, or a failure.
 ///
 /// A delete is one question and one reply, so there is exactly one of
 /// these per scope, before the finish that ends it. A payload leads
@@ -20,9 +20,9 @@ use crate::shared::error::Error;
 /// # Answers, and one failure
 ///
 /// [`NotFound`](Self::NotFound) and [`InUse`](Self::InUse) are ANSWERS:
-/// the daemon looked, and either no credential of the caller's is the
-/// one named, or one is and a provider is connected through it now, and
-/// in either case nothing changed and nothing is retried. An
+/// the daemon looked, and either no credential names that identity, or
+/// one does and a provider is connected through it now, and in either
+/// case nothing changed and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not take it out, for whatever reason it knows.
 ///
@@ -39,8 +39,7 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The credential is gone. Tag `0`.
     Deleted,
-    /// No credential of the caller's is the one named; nothing changed.
-    /// Tag `1`.
+    /// No credential names that identity; nothing changed. Tag `1`.
     NotFound,
     /// A provider is connected through the credential now, which was
     /// left as it is; nothing changed. Tag `2`.

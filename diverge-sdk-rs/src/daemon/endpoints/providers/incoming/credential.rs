@@ -1,42 +1,28 @@
-//! One way of judging a provider that dials the daemon.
+//! How a provider dials in: the identity it has, and from where.
 
 use std::net::IpAddr;
 
 use serde::{Deserialize, Serialize};
 
-/// One credential of an incoming provider, as the provider server has
-/// them: a key the presented credential must equal, or a hook that
-/// judges it.
-/// Untagged JSON, told apart by its members as the server's are —
-/// `{"key":…,"identity":…}` with an `address` if any, or
-/// `{"authorize_hook":…}` — and an object with members of both does not
-/// decode.
+/// A credential a client dials in with: the identity it names, and the
+/// one address it is accepted from, if any. The KEY is not here, on any
+/// request or in any report: the daemon mints it when the credential is
+/// made — on an
+/// [`add`](crate::daemon::endpoints::providers::incoming::add), or an
+/// [`edit`](crate::daemon::endpoints::providers::incoming::edit) that
+/// replaces it — answers it in that response, once, and never reports
+/// it again; a client presents it byte for byte, and the daemon knows
+/// it by the key alone. One credential per identity. One JSON object,
+/// `{"identity":…}` with an `address` if any.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(untagged, deny_unknown_fields)]
-pub enum Credential {
-    /// A credential that must equal a key, byte for byte.
-    Key {
-        /// The string the credential must equal. Given on an add or an
-        /// edit, and answered by nothing.
-        key: String,
-        /// Who a peer that presents the key is: the provider's identity
-        /// from then on. The key itself never serves as one. One key
-        /// credential per identity.
-        identity: String,
-        /// The one peer address the key is accepted from, as the OS
-        /// reports it; absent, any address.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        address: Option<IpAddr>,
-    },
-    /// A hook that judges the credential itself and names the identity.
-    Hook {
-        /// The directory
-        /// [resource](crate::daemon::endpoints::resources) that is the
-        /// hook, by id, with `hook.yaml` at its root; held by the
-        /// caller before the add, which refuses one that is not. See
-        /// [`providers`](crate::daemon::endpoints::providers) for what
-        /// it is run with and what it answers. One hook credential per
-        /// resource.
-        authorize_hook: String,
-    },
+pub struct Credential {
+    /// Who a provider presenting the key is: its identity from then on,
+    /// as
+    /// [`Identity::IncomingUnbrokered`](crate::daemon::endpoints::agents::logs::server::response::Identity::IncomingUnbrokered)
+    /// carries it. Compared and not read.
+    pub identity: String,
+    /// The one peer address the key is accepted from, as the OS reports
+    /// it; absent, any address.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address: Option<IpAddr>,
 }

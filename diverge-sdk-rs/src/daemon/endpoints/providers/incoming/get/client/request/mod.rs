@@ -1,5 +1,5 @@
-//! Get request data. What a caller hands the daemon to get one
-//! credential: which one, and nothing else.
+//! Get request data. What a caller hands the daemon to get a
+//! credential: its identity, and nothing else.
 
 mod frame;
 

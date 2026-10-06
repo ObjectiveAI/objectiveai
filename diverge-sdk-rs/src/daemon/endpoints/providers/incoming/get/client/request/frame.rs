@@ -4,14 +4,13 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::providers::incoming::Reference;
 
 /// Ask the daemon for one credential of incoming providers, by the
-/// identity it names or the resource it is: see [`Reference`].
+/// identity it names.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The credential: see [`Reference`].
-    pub credential: Reference,
+    /// The identity the credential names.
+    pub identity: String,
 }
 
 /// This frame's tag among the scope-opening requests.

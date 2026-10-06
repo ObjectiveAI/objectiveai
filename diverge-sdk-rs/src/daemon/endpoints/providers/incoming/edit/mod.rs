@@ -1,12 +1,13 @@
 //! Replacing a credential. One request, one answer. A client names a
-//! credential of its own and gives a credential of the same kind anew —
-//! a key credential a new key, address or identity, a hook credential a
-//! new resource; the daemon answers that the credential is replaced,
-//! that no credential is the one named, that the credential given is
-//! not of the named one's kind, or that it failed, and the scope
-//! finishes. The credential keeps its place in the order; a key
-//! credential given a new identity is named by the new one from then
-//! on.
+//! credential by its identity and gives a credential anew — the
+//! identity it names from then on, the address it is accepted from if
+//! one; the daemon replaces it whole, mints a new key, and answers the
+//! key, once, that no credential names the identity, that the new
+//! identity is another credential's, forbidden, or that it failed, and
+//! the scope finishes. This is how a key rotates, and how an address or
+//! an identity changes. A connection a provider holds through the
+//! credential now is not dropped; the next one is judged by the new
+//! key.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is
