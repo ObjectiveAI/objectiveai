@@ -12,9 +12,9 @@
 //!
 //! - **To make.** A bare array of the kind's making actions — the ones
 //!   that bring something into being: a create, an add, an upload, a
-//!   connect, a route's set — `{"agents":["create"]}`. Holding the
-//!   action is the whole of it; nothing is judged but that it is held,
-//!   since there is nothing yet to judge it over.
+//! connect, a route's set — `{"agents":["create"]}`. Holding the
+//! action is the whole of it; nothing is judged but that it is held,
+//! since there is nothing yet to judge it over.
 //! - **Over what exists.** An object of `actions`, the kind's actions
 //!   over what exists, and `within`, how far they reach:
 //! `{"agents":{"actions":["get","message"],"within":{"all_tags":["crew"]}}}`.
@@ -23,10 +23,8 @@
 //! takes, `agents::list`'s
 //! [`Filter`](crate::daemon::endpoints::agents::list::client::request::Filter)
 //! for agents, and so on — read as a TEST: a thing passes when it
-//! passes every member the filter gives, and, a `jq` program given,
-//! when the program, run with the thing as its input as the list runs
-//! it, yields first a value that is neither `false` nor `null`. A
-//! filter with no member passes everything.
+//! passes every member the filter gives, and a filter with no member
+//! passes everything.
 //! - **Tagging.** For the kinds that carry tags, an object of
 //!   `actions`, `tag` or `untag` or both, `within` as above, and
 //! `tags`, which tags may be put on or taken off: `"any"`, or the list

@@ -8,9 +8,8 @@ use crate::daemon::creator::Creator;
 /// The filter over the credentials of incoming providers: every member
 /// optional, and every one given a condition a credential passes or
 /// does not. In a [list request](super::Frame) it is flattened into the
-/// request and narrows what the daemon sends, and its program
-/// transforms what passes. A filter with no member given passes every
-/// credential.
+/// request and narrows what the daemon sends. A filter with no member
+/// given passes every credential.
 ///
 /// # Any one of
 ///
@@ -37,13 +36,4 @@ pub struct Filter {
     /// The latest `created` to list, inclusive; absent, no latest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_to: Option<DateTime<Utc>>,
-    /// A jq program, as the `jq` command takes one, run with each
-    /// matching credential — one
-    /// [`Incoming`](crate::daemon::endpoints::providers::incoming::list::server::response::Incoming)
-    /// as JSON — as its input; everything it yields comes back, in
-    /// order. Absent, the credentials come back as they are. The daemon
-    /// does not read the program beyond running it; one that will not
-    /// compile, or fails while it runs, is the scope's error.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub jq: Option<String>,
 }

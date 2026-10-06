@@ -5,12 +5,10 @@
 //! connected as it now, by creator, by tags, by when it was created —
 //! one response each, oldest created first, and finishes: each the
 //! account, its credential without its key, its roles, who is connected
-//! as it, its tags, when it was created and by whom. A jq program on
-//! the request runs over each account the filter lets through, and what
-//! it yields is what comes back; a count caps what comes back. A
-//! request that says nothing is every account the grants reach. A
-//! caller whose grants reach none that matches sees the finish and
-//! nothing before it. The daemon does not stay open.
+//! as it, its tags, when it was created and by whom. A count caps what
+//! comes back. A request that says nothing is every account the grants
+//! reach. A caller whose grants reach none that matches sees the finish
+//! and nothing before it. The daemon does not stay open.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

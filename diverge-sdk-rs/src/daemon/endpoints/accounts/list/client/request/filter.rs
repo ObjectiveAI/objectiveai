@@ -8,8 +8,8 @@ use crate::daemon::creator::Creator;
 /// The filter over accounts: every member optional, and every one given
 /// a condition an account passes or does not. In a [list
 /// request](super::Frame) it is flattened into the request and narrows
-/// what the daemon sends, and its program transforms what passes. A
-/// filter with no member given passes every account.
+/// what the daemon sends. A filter with no member given passes every
+/// account.
 ///
 /// # Any one of, every one of
 ///
@@ -62,13 +62,4 @@ pub struct Filter {
     /// The latest `created` to list, inclusive; absent, no latest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_to: Option<DateTime<Utc>>,
-    /// A jq program, as the `jq` command takes one, run with each
-    /// matching account — one
-    /// [`Account`](crate::daemon::endpoints::accounts::list::server::response::Account)
-    /// as JSON — as its input; everything it yields comes back, in
-    /// order. Absent, the accounts come back as they are. The daemon
-    /// does not read the program beyond running it; one that will not
-    /// compile, or fails while it runs, is the scope's error.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub jq: Option<String>,
 }

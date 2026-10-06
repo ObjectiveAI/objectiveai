@@ -1,4 +1,4 @@
-//! What a server's response frame carries for a list.
+//! What a server's response frame carries for list.
 
 use std::fmt;
 
@@ -6,33 +6,29 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-use serde_json::Value;
+use super::Outgoing;
 
-/// A list's answer: one value, or a failure.
+/// A list's answer: one provider, forbidden, or a failure.
 ///
-/// A list is a stream: zero or more values, each one matching provider
-/// as it is — or, with a program, one value the program yielded —
-/// oldest first, then the finish; or exactly one error, then the
-/// finish. A count on the request caps the values. A payload leads with
-/// one byte saying which — `0` for [`Value`](Self::Value), `1` for
+/// A list is a stream: zero or more outgoing providers, each one that
+/// matches as the daemon holds it, oldest first, then the finish; or
+/// exactly one [`Forbidden`](Self::Forbidden), then the finish; or
+/// outgoing providers and then exactly one error, then the finish. A
+/// count on the request caps them. A payload leads with one byte saying
+/// which — `0` for [`Outgoing`](Self::Outgoing), `1` for
 /// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error) — and
-/// the rest is that variant's own JSON. A value is one
-/// [`Outgoing`](super::Outgoing) without a program, and with one
-/// whatever the program made — a string, a number, an object of its own
-/// — so this crate types it as JSON; a reader that sent no program
-/// reads each as a [`Outgoing`](super::Outgoing), which is defined
-/// beside this frame as the reference for what the daemon sends and
-/// what a program is run over.
+/// the rest is that variant's own JSON: one
+/// [`Outgoing`](super::Outgoing) for the first, nothing for the second,
+/// the error for the third.
 ///
 /// # A finish with nothing is an answer
 ///
-/// Nothing matched, or the program yielded nothing over what did, or
-/// the caller has no outgoing providers at all: a scope that finishes
-/// with no response before it is that answer, not a failure. An
-/// [`Error`](Self::Error) is a failure: the daemon could not list, the
-/// program would not compile, or it failed while it ran, in the
-/// daemon's own words or jq's. Values sent before the failure precede
-/// the error; none follow it, and the list is not whole.
+/// Nothing matched, or the account's grants reach no outgoing providers
+/// at all: a scope that finishes with no response before it is that
+/// answer, not a failure. An [`Error`](Self::Error) is a failure: the
+/// daemon could not list, for whatever reason it knows. What was sent
+/// before the failure precedes the error; nothing follows it, and the
+/// list is not whole.
 ///
 /// # Forbidden
 ///
@@ -45,21 +41,20 @@ use serde_json::Value;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// One matching provider, or one value the program yielded. Tag
-    /// `0`.
-    Value(Value),
+    /// One matching provider, as the daemon holds it. Tag `0`.
+    Outgoing(Outgoing),
     /// The account the request is served for holds no grant allowing
-    /// it; nothing changed. Tag `1`.
+    /// it; nothing was sent. Tag `1`.
     Forbidden,
     /// A failure. Tag `2`.
     ///
-    /// See [`shared::error::Error`](crate::shared::error::Error)
-    /// for why it says so little.
+    /// See [`shared::error::Error`](crate::shared::error::Error) for
+    /// why it says so little.
     Error(Error),
 }
 
-/// Tag for [`Frame::Value`].
-const VALUE: u8 = 0;
+/// Tag for [`Frame::Outgoing`].
+const OUTGOING: u8 = 0;
 
 /// Tag for [`Frame::Forbidden`].
 const FORBIDDEN: u8 = 1;
@@ -67,18 +62,18 @@ const FORBIDDEN: u8 = 1;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 2;
 
-/// A tag, then the variant's own JSON.
+/// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
-    /// The ordinary JSON failure, from either half.
+    /// The ordinary JSON failure. The bare answer cannot fail.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Value(value) => {
-                out.extend_from_slice(&[VALUE]);
-                serde_json::to_writer(out, value)
+            Frame::Outgoing(item) => {
+                out.extend_from_slice(&[OUTGOING]);
+                serde_json::to_writer(out, item)
             }
             Frame::Forbidden => {
                 out.extend_from_slice(&[FORBIDDEN]);
@@ -100,7 +95,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            VALUE => serde_json::from_slice(rest).map(Frame::Value).map_err(FrameError::Value),
+            OUTGOING => serde_json::from_slice(rest).map(Frame::Outgoing).map_err(FrameError::Outgoing),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -115,8 +110,8 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's three.
     UnknownTag(u8),
-    /// The value did not parse.
-    Value(serde_json::Error),
+    /// The provider did not parse.
+    Outgoing(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -126,7 +121,7 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("providers outgoing list response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown providers outgoing list response frame tag {tag}"),
-            FrameError::Value(error) => write!(f, "providers outgoing list value did not parse: {error}"),
+            FrameError::Outgoing(error) => write!(f, "providers outgoing list provider did not parse: {error}"),
             FrameError::Error(error) => write!(f, "providers outgoing list error did not parse: {error}"),
         }
     }
@@ -135,7 +130,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Value(error) | FrameError::Error(error) => Some(error),
+            FrameError::Outgoing(error) | FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

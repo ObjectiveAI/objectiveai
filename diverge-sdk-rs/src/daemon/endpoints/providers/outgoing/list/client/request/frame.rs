@@ -9,26 +9,21 @@ use super::Filter;
 /// Ask the daemon for the caller's outgoing providers, narrowed.
 ///
 /// Everything is optional, and a request with none of it — `{}` on the
-/// wire — is every provider of the caller's. The members but `jq` and
-/// `count` together are the filter. The daemon applies the filter
-/// first, oldest first, so the program sees only what it lets through,
-/// and runs the program over each provider of that; what the program
-/// yields is what comes back, and without a program the outgoing
-/// providers come back as they are. The count caps what comes back.
-/// [`Outgoing`](crate::daemon::endpoints::providers::outgoing::list::server::response::Outgoing)
-/// is the shape each comes back in without a program, and the reference
-/// for what a program is run over.
+/// wire — is every provider of the caller's. The members but `count`
+/// together are the filter. The daemon applies the filter, oldest
+/// first, and sends each provider it lets through as a
+/// [`Outgoing`](crate::daemon::endpoints::providers::outgoing::list::server::response::Outgoing).
+/// The count caps what comes back.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
     /// The filter: see [`Filter`]. Flattened, so its members are this
     /// object's own.
     #[serde(flatten)]
     pub filter: Filter,
-    /// How many values to send at most, counting what comes back —
-    /// outgoing providers as they are, or what the program yields — and
-    /// not what the filter reads; once that many have been sent the
-    /// scope finishes, whether or not more would have matched. `0`
-    /// sends nothing and finishes at once. Absent, no cap.
+    /// How many outgoing providers to send at most, counting what comes
+    /// back and not what the filter reads; once that many have been
+    /// sent the scope finishes, whether or not more would have matched.
+    /// `0` sends nothing and finishes at once. Absent, no cap.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub count: Option<u64>,
 }
@@ -36,15 +31,15 @@ pub struct Frame {
 /// This frame's tag among the scope-opening requests.
 ///
 /// One byte at the front of the payload, which is what tells a reader
-/// which request it holds. The frame layer does not discriminate them
-/// — [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
+/// which request it holds. The frame layer does not discriminate them —
+/// [`ClientFrame::Request`](crate::wire::frame::client::ClientFrame::Request)
 /// is one type carrying bytes — so the distinction has to be in the
 /// bytes, and each request owns the value that names it.
 ///
-/// See the table in [`endpoints`](crate::daemon::endpoints) for the whole
-/// allocation. The values are chosen across modules that do not know
-/// about each other, so the table is the only place they can be seen
-/// at once.
+/// See the table in [`endpoints`](crate::daemon::endpoints) for the
+/// whole allocation. The values are chosen across modules that do not
+/// know about each other, so the table is the only place they can be
+/// seen at once.
 const TAG: u8 = 40;
 
 /// JSON, as every request of the daemon's is.

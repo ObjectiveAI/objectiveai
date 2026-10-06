@@ -9,15 +9,11 @@ use super::Filter;
 /// Ask the daemon for the caller's agents, narrowed.
 ///
 /// Everything is optional, and a request with none of it — `{}` on the
-/// wire — is every agent of the caller's. The members but `jq` and
-/// `count` together are the filter. The daemon applies the filter
-/// first, oldest created first, so the program sees only what it lets
-/// through, and runs the program over each agent of that; what the
-/// program yields is what comes back, and without a program the agents
-/// come back as they are. The count caps what comes back.
-/// [`Agent`](crate::daemon::endpoints::agents::list::server::response::Agent)
-/// is the shape each comes back in without a program, and the reference
-/// for what a program is run over.
+/// wire — is every agent of the caller's. The members but `count`
+/// together are the filter. The daemon applies the filter, oldest
+/// created first, and sends each agent it lets through as an
+/// [`Agent`](crate::daemon::endpoints::agents::list::server::response::Agent).
+/// The count caps what comes back.
 ///
 /// # Any one of, every one of
 ///
@@ -28,15 +24,14 @@ use super::Filter;
 /// absent, and matches every agent.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
-    /// The filter: see [`Filter`]. Flattened, so its members are
-    /// this object's own.
+    /// The filter: see [`Filter`]. Flattened, so its members are this
+    /// object's own.
     #[serde(flatten)]
     pub filter: Filter,
-    /// How many values to send at most, counting what comes back —
-    /// agents as they are, or what the program yields — and not what
-    /// the filter reads; once that many have been sent the scope
-    /// finishes, whether or not more would have matched. `0` sends
-    /// nothing and finishes at once. Absent, no cap.
+    /// How many agents to send at most, counting what comes back and
+    /// not what the filter reads; once that many have been sent the
+    /// scope finishes, whether or not more would have matched. `0`
+    /// sends nothing and finishes at once. Absent, no cap.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub count: Option<u64>,
 }

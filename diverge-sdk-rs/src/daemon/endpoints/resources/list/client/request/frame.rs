@@ -9,25 +9,20 @@ use super::Filter;
 ///
 /// Everything is optional, and a request with none of it — `{}` on the
 /// wire — is every resource the caller's grants reach. The members but
-/// `jq` and `count` together are the filter. The daemon applies the
-/// filter first, oldest first, so the program sees only what it lets
-/// through, and runs the program over each resource of that; what the
-/// program yields is what comes back, and without a program the
-/// resources come back as they are. The count caps what comes back.
-/// [`Listed`](crate::daemon::endpoints::resources::list::server::response::Listed)
-/// is the shape each comes back in without a program, and the reference
-/// for what a program is run over.
+/// `count` together are the filter. The daemon applies the filter,
+/// oldest first, and sends each resource it lets through as a
+/// [`Listed`](crate::daemon::endpoints::resources::list::server::response::Listed).
+/// The count caps what comes back.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
     /// The filter: see [`Filter`]. Flattened, so its members are this
     /// object's own.
     #[serde(flatten)]
     pub filter: Filter,
-    /// How many values to send at most, counting what comes back —
-    /// resources as they are, or what the program yields — and not what
-    /// the filter reads; once that many have been sent the scope
-    /// finishes, whether or not more would have matched. `0` sends
-    /// nothing and finishes at once. Absent, no cap.
+    /// How many resources to send at most, counting what comes back and
+    /// not what the filter reads; once that many have been sent the
+    /// scope finishes, whether or not more would have matched. `0`
+    /// sends nothing and finishes at once. Absent, no cap.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub count: Option<u64>,
 }
