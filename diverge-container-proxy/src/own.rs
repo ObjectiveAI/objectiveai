@@ -2,7 +2,7 @@
 //! outside, in whichever family's frame the begin scope speaks.
 
 use diverge_sdk::container_proxy::outside::endpoints::{agents, tools};
-use diverge_sdk::shared::containers::{command, postgres, vault};
+use diverge_sdk::shared::containers::{daemon, postgres, vault};
 use diverge_sdk::shared::mcp;
 
 use crate::begin::Family;
@@ -16,8 +16,8 @@ use crate::encode::encoded;
 pub enum Own<'a> {
     /// The proxy's half of a database connection the driver opened.
     Postgres(postgres::request::Postgres),
-    /// Run a command the container asked for.
-    Command(command::request::Request<'a>),
+    /// Carry one client frame of the program's daemon connection.
+    Daemon(daemon::request::Request<'a>),
     /// Read a vault key.
     VaultGet(vault::get::request::Request<'a>),
     /// Write a vault key.
@@ -55,7 +55,7 @@ impl<'a> From<Own<'a>> for agents::begin::server::channel_request::Frame<'a> {
     fn from(own: Own<'a>) -> Self {
         match own {
             Own::Postgres(request) => Self::Postgres(request),
-            Own::Command(request) => Self::Command(request),
+            Own::Daemon(request) => Self::Daemon(request),
             Own::VaultGet(request) => Self::VaultGet(request),
             Own::VaultSet(request) => Self::VaultSet(request),
             Own::VaultDelete(request) => Self::VaultDelete(request),
@@ -74,7 +74,7 @@ impl<'a> From<Own<'a>> for tools::begin::server::channel_request::Frame<'a> {
     fn from(own: Own<'a>) -> Self {
         match own {
             Own::Postgres(request) => Self::Postgres(request),
-            Own::Command(request) => Self::Command(request),
+            Own::Daemon(request) => Self::Daemon(request),
             Own::VaultGet(request) => Self::VaultGet(request),
             Own::VaultSet(request) => Self::VaultSet(request),
             Own::VaultDelete(request) => Self::VaultDelete(request),

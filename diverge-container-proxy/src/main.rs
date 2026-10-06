@@ -92,7 +92,7 @@ async fn run() {
         .route("/vault/delete", axum::routing::post(inside::vault::delete))
         .route("/vault/lock", axum::routing::post(inside::vault::lock))
         .route("/vault/unlock", axum::routing::post(inside::vault::unlock))
-        .route("/command", axum::routing::post(inside::command::agent))
+        .route("/daemon", axum::routing::any(inside::daemon::serve))
         .nest_service("/mcp", mcp)
         .with_state(Arc::clone(&proxy));
 
