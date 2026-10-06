@@ -6,8 +6,9 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A transfer's answer: it landed, no agent is the one named, no agent
-/// or tool is the destination's, forbidden, or a failure.
+/// A transfer's answer: it landed, no agent is the one named, no agent,
+/// tool or volume is the destination's, a volume held, forbidden, or a
+/// failure.
 ///
 /// A transfer is one question and one reply, sent once everything has
 /// landed, so there is exactly one of these per scope, before the
@@ -15,23 +16,25 @@ use crate::shared::error::Error;
 /// `0` for [`Transferred`](Self::Transferred), `1` for
 /// [`NotFound`](Self::NotFound), `2` for
 /// [`NoDestination`](Self::NoDestination), `3` for
-/// [`Forbidden`](Self::Forbidden), `4` for [`Error`](Self::Error) — and
-/// the rest is that variant's own JSON: for the first, the new
-/// resource's id as a JSON string when the destination was a resource
-/// and `null` otherwise; nothing for the next three; the error for the
-/// last.
+/// [`Held`](Self::Held), `4` for [`Forbidden`](Self::Forbidden), `5`
+/// for [`Error`](Self::Error) — and the rest is that variant's own
+/// JSON: for the first, the new resource's id as a JSON string when the
+/// destination was a resource and `null` otherwise; nothing for the
+/// next four; the error for the last.
 ///
 /// # Answers, and one failure
 ///
-/// [`NotFound`](Self::NotFound) and
-/// [`NoDestination`](Self::NoDestination) are ANSWERS: the daemon
-/// looked, and no agent is the one named or nothing is at the path, or
-/// the destination names an agent or a tool that is none, and in either
-/// case nothing landed and nothing is retried. An
-/// [`Error`](Self::Error) is the absence of an answer: the daemon could
-/// not copy, or could not finish copying, for whatever reason it knows;
-/// a file is at the destination whole or as it was, never the half
-/// between, and files that landed before the failure stay.
+/// [`NotFound`](Self::NotFound), [`NoDestination`](Self::NoDestination)
+/// and [`Held`](Self::Held) are ANSWERS: the daemon looked, and no
+/// agent is the one named or nothing is at the path, or the destination
+/// names an agent, a tool or a volume that is none, or a volume at
+/// either end is held — a running container has it, or another
+/// download, upload or transfer is on it — and in each case nothing
+/// landed and nothing is retried. An [`Error`](Self::Error) is the
+/// absence of an answer: the daemon could not copy, or could not finish
+/// copying, for whatever reason it knows; a file is at the destination
+/// whole or as it was, never the half between, and files that landed
+/// before the failure stay.
 ///
 /// # Forbidden
 ///
@@ -51,13 +54,17 @@ pub enum Frame {
     /// No agent is the one named, or nothing is at the path; nothing
     /// landed. Tag `1`.
     NotFound,
-    /// The destination names an agent or a tool that is none; nothing
-    /// landed. Tag `2`.
+    /// The destination names an agent, a tool or a volume that is none;
+    /// nothing landed. Tag `2`.
     NoDestination,
+    /// A volume at either end is held: a running container has it, or
+    /// another download, upload or transfer is on it; nothing landed.
+    /// Tag `3`.
+    Held,
     /// The account the request is served for holds no grant allowing
-    /// it; nothing landed. Tag `3`.
+    /// it; nothing landed. Tag `4`.
     Forbidden,
-    /// A failure. Tag `4`.
+    /// A failure. Tag `5`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -73,11 +80,14 @@ const NOT_FOUND: u8 = 1;
 /// Tag for [`Frame::NoDestination`].
 const NO_DESTINATION: u8 = 2;
 
+/// Tag for [`Frame::Held`].
+const HELD: u8 = 3;
+
 /// Tag for [`Frame::Forbidden`].
-const FORBIDDEN: u8 = 3;
+const FORBIDDEN: u8 = 4;
 
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 4;
+const ERROR: u8 = 5;
 
 /// A tag, then the variant's own JSON, if it has any.
 impl Encode for Frame {
@@ -98,6 +108,10 @@ impl Encode for Frame {
             }
             Frame::NoDestination => {
                 out.extend_from_slice(&[NO_DESTINATION]);
+                Ok(())
+            }
+            Frame::Held => {
+                out.extend_from_slice(&[HELD]);
                 Ok(())
             }
             Frame::Forbidden => {
@@ -123,6 +137,7 @@ impl Decode<'_> for Frame {
             TRANSFERRED => serde_json::from_slice(rest).map(Frame::Transferred).map_err(FrameError::Id),
             NOT_FOUND => Ok(Frame::NotFound),
             NO_DESTINATION => Ok(Frame::NoDestination),
+            HELD => Ok(Frame::Held),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -135,7 +150,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     UnknownTag(u8),
     /// The id did not parse as a JSON string or `null`.
     Id(serde_json::Error),

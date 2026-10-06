@@ -2,8 +2,8 @@
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
 //! agents, agent templates, tools, tool templates, routes, resources,
-//! outgoing providers, incoming judges, accounts, roles — and a
-//! [role](crate::daemon::endpoints::roles) is a list of them, held by
+//! outgoing providers, incoming judges, accounts, roles, volumes — and
+//! a [role](crate::daemon::endpoints::roles) is a list of them, held by
 //! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
 //! is one object with one member, named for the kind, whose value is
 //! the kind's permission: `{"agents":…}`, `{"providers_incoming":…}`.
@@ -25,13 +25,13 @@
 //! for agents, and so on; resources, whose list takes none, have [one
 //! of the grant's own](resources::Filter) — read as a TEST: a thing
 //! passes when it passes every member the filter gives, and, a `jq`
-//! program given, when the program, run with the thing as its input
-//! as the list runs it, yields first a value that is neither `false`
-//! nor `null`. A filter with no member passes everything.
+//! program given, when the program, run with the thing as its input as
+//! the list runs it, yields first a value that is neither `false` nor
+//! `null`. A filter with no member passes everything.
 //! - **Tagging.** For the kinds that carry tags, an object of
 //!   `actions`, `tag` or `untag` or both, `within` as above, and
-//! `tags`, which tags may be put on or taken off: `"any"`, or the
-//! list of them.
+//! `tags`, which tags may be put on or taken off: `"any"`, or the list
+//! of them.
 //! `{"agents":{"actions":["tag"],"within":"any","tags":["crew","idle"]}}`.
 //!
 //! Each shape is its own variant with its own members, and an object
@@ -66,12 +66,19 @@
 //! tool and an agent — is allowed when every one of them is.
 //!
 //! Moving files is two-sided. A download takes `download` over its
-//! source; an upload takes `upload` over the agent or the tool it lands
-//! in; a transfer takes `transfer` over its source and `upload` over
-//! the agent or the tool it lands in, or the `upload` making action
-//! over resources when it lands in a new resource. A grant reaches a
-//! container or a resource whole: which paths within it may be read or
-//! written is not a grant's to narrow.
+//! source; an upload takes `upload` over the agent, the tool or the
+//! volume it lands in; a transfer takes `transfer` over its source and
+//! `upload` over the agent, the tool or the volume it lands in, or the
+//! `upload` making action over resources when it lands in a new
+//! resource. A grant reaches a container, a volume or a resource whole:
+//! which paths within it may be read or written is not a grant's to
+//! narrow.
+//!
+//! Mounting is two-sided the same way: naming a volume in a container's
+//! mounts — a volume mount of the provider it is pinned to, or a FUSE
+//! mount of a file or a directory in it — at the container's create or
+//! edit takes `mount` over the volume, beside the `create` or `edit`
+//! grant over the container.
 
 mod grant;
 mod tagging;
@@ -91,3 +98,4 @@ pub mod providers_outgoing;
 pub mod providers_incoming;
 pub mod accounts;
 pub mod roles;
+pub mod volumes;

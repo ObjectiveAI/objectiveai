@@ -13,8 +13,9 @@
 //! the caller has; [`delete`] removes one no agent mounts; [`download`]
 //! sends the client a resource, or a part of a directory one;
 //! [`transfer`] copies one, or a part of one, into an agent's or a
-//! tool's container, and never into a resource: a part of a directory
-//! resource wanted as a resource of its own is uploaded as one.
+//! tool's container or a volume, and never into a resource: a part of a
+//! directory resource wanted as a resource of its own is uploaded as
+//! one.
 //!
 //! # The id is Go's dirhash
 //!

@@ -1,4 +1,5 @@
-//! Naming an agent or a tool: by its name, or once and for all.
+//! Naming an agent, a tool or a volume: by its name, or once and for
+//! all.
 //!
 //! Every request that acts on an agent or a tool of the caller's — a
 //! delete, an edit, a message, a logs read, a tag, an untag, an attach,
@@ -18,6 +19,10 @@
 //! `{"provider":…,"id":…}`. An object carrying members of more than one
 //! is malformed.
 //!
+//! A volume is named one way only, by [`Volume`]: the provider that
+//! holds it and the name that provider lists it under,
+//! `{"provider":…,"name":…}`.
+//!
 //! A name is optional, so the once-and-for-all forms are the ones that
 //! always work: an agent or a tool made with no name is reached by them
 //! and no other way; a request naming a template and an index finds no
@@ -26,6 +31,8 @@
 
 mod agent;
 mod tool;
+mod volume;
 
 pub use agent::*;
 pub use tool::*;
+pub use volume::*;

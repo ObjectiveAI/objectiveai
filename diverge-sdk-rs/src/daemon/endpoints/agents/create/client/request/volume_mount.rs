@@ -40,6 +40,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct VolumeMount {
     /// Which volume, by the name the provider's listing gives it.
+    /// Naming it takes the `mount` grant over it: see
+    /// [`grant`](crate::daemon::grant).
     pub volume_name: String,
     /// How far into that volume to start, as path components
     /// relative to it.

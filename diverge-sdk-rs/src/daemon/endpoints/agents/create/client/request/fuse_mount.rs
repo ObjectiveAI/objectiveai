@@ -96,7 +96,9 @@ pub struct FuseMount {
     pub provider: Identity,
     /// Which of that provider's volumes, by the name its listing gives
     /// it, as the daemon lists that provider's volumes. A name the
-    /// provider holds no volume by is the create's error.
+    /// provider holds no volume by is the create's error. Naming it
+    /// takes the `mount` grant over it: see
+    /// [`grant`](crate::daemon::grant).
     pub volume_name: String,
     /// Where in that volume, as path components from the volume's
     /// root; empty is the volume itself. A file mount names a regular

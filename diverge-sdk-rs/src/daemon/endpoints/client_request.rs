@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{accounts, agents, providers, resources, roles, tools};
+use super::{accounts, agents, providers, resources, roles, tools, volumes};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -167,6 +167,24 @@ pub enum ClientRequest<'a> {
     ResourcesDownload(resources::download::client::request::Frame),
     /// Tag `69`. Copy a resource, or a part of one, elsewhere.
     ResourcesTransfer(resources::transfer::client::request::Frame),
+    /// Tag `70`. Create a volume on a provider.
+    VolumesCreate(volumes::create::client::request::Frame),
+    /// Tag `71`. Get one volume.
+    VolumesGet(volumes::get::client::request::Frame),
+    /// Tag `72`. List the volumes, narrowed.
+    VolumesList(volumes::list::client::request::Frame),
+    /// Tag `73`. Delete a volume.
+    VolumesDelete(volumes::delete::client::request::Frame),
+    /// Tag `74`. Change a volume's size or mode.
+    VolumesEdit(volumes::edit::client::request::Frame),
+    /// Tag `75`. Walk a volume for its use and its hash.
+    VolumesStat(volumes::stat::client::request::Frame),
+    /// Tag `76`. Send the client files out of a volume.
+    VolumesDownload(volumes::download::client::request::Frame),
+    /// Tag `77`. Put files into a volume.
+    VolumesUpload(volumes::upload::client::request::Frame),
+    /// Tag `78`. Copy files out of a volume elsewhere.
+    VolumesTransfer(volumes::transfer::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -257,6 +275,15 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsTransfer(frame) => frame.encode(out),
             ClientRequest::ResourcesDownload(frame) => frame.encode(out),
             ClientRequest::ResourcesTransfer(frame) => frame.encode(out),
+            ClientRequest::VolumesCreate(frame) => frame.encode(out),
+            ClientRequest::VolumesGet(frame) => frame.encode(out),
+            ClientRequest::VolumesList(frame) => frame.encode(out),
+            ClientRequest::VolumesDelete(frame) => frame.encode(out),
+            ClientRequest::VolumesEdit(frame) => frame.encode(out),
+            ClientRequest::VolumesStat(frame) => frame.encode(out),
+            ClientRequest::VolumesDownload(frame) => frame.encode(out),
+            ClientRequest::VolumesUpload(frame) => frame.encode(out),
+            ClientRequest::VolumesTransfer(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -491,6 +518,33 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             69 => resources::transfer::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ResourcesTransfer)
                 .ok(),
+            70 => volumes::create::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesCreate)
+                .ok(),
+            71 => volumes::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesGet)
+                .ok(),
+            72 => volumes::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesList)
+                .ok(),
+            73 => volumes::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesDelete)
+                .ok(),
+            74 => volumes::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesEdit)
+                .ok(),
+            75 => volumes::stat::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesStat)
+                .ok(),
+            76 => volumes::download::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesDownload)
+                .ok(),
+            77 => volumes::upload::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesUpload)
+                .ok(),
+            78 => volumes::transfer::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesTransfer)
+                .ok(),
             _ => None,
         };
         Ok(request.unwrap_or(ClientRequest::Invalid(bytes)))
@@ -570,6 +624,15 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsTransfer(_) => f.write_str("tools transfer"),
             ClientRequest::ResourcesDownload(_) => f.write_str("resources download"),
             ClientRequest::ResourcesTransfer(_) => f.write_str("resources transfer"),
+            ClientRequest::VolumesCreate(_) => f.write_str("volumes create"),
+            ClientRequest::VolumesGet(_) => f.write_str("volumes get"),
+            ClientRequest::VolumesList(_) => f.write_str("volumes list"),
+            ClientRequest::VolumesDelete(_) => f.write_str("volumes delete"),
+            ClientRequest::VolumesEdit(_) => f.write_str("volumes edit"),
+            ClientRequest::VolumesStat(_) => f.write_str("volumes stat"),
+            ClientRequest::VolumesDownload(_) => f.write_str("volumes download"),
+            ClientRequest::VolumesUpload(_) => f.write_str("volumes upload"),
+            ClientRequest::VolumesTransfer(_) => f.write_str("volumes transfer"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

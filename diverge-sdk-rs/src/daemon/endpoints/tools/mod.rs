@@ -39,9 +39,9 @@
 //! containers somebody runs, the ids a [`connect`] then offers;
 //! [`download`] sends the client a file or a directory out of a tool's
 //! container, [`upload`] puts files into it, and [`transfer`] copies
-//! out of it into an agent, another tool or a new resource, the bytes
-//! never reaching the client. [`routes`] answer a dependency a
-//! container declares at register time with a tool the caller already
+//! out of it into an agent, another tool, a volume or a new resource,
+//! the bytes never reaching the client. [`routes`] answer a dependency
+//! a container declares at register time with a tool the caller already
 //! has, at one position in the chain of dependencies, so that no
 //! deployer is asked.
 

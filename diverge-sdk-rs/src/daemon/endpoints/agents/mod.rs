@@ -20,9 +20,9 @@
 //! narrowed, with their tags; [`tag`] and [`untag`] change one's tags;
 //! [`download`] sends the client a file or a directory out of one's
 //! container, [`upload`] puts files into it, and [`transfer`] copies
-//! out of it into another agent, a tool or a new resource, the bytes
-//! never reaching the client. The MCP servers an agent calls are
-//! [`tools`](super::tools), attached to it by name.
+//! out of it into another agent, a tool, a volume or a new resource,
+//! the bytes never reaching the client. The MCP servers an agent calls
+//! are [`tools`](super::tools), attached to it by name.
 
 pub mod create;
 pub mod delete;

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{agents, agents_templates, tools, tools_templates, routes, resources, providers_outgoing, providers_incoming, accounts, roles};
+use super::{agents, agents_templates, tools, tools_templates, routes, resources, providers_outgoing, providers_incoming, accounts, roles, volumes};
 
 /// One grant: a permission over one kind of thing the daemon holds.
 /// Externally tagged by the kind's name — one object with one member,
@@ -11,7 +11,7 @@ use super::{agents, agents_templates, tools, tools_templates, routes, resources,
 /// [`grant`](crate::daemon::grant) states. Snake case on the wire:
 /// `"agents"`, `"agents_templates"`, `"tools"`, `"tools_templates"`,
 /// `"routes"`, `"resources"`, `"providers_outgoing"`,
-/// `"providers_incoming"`, `"accounts"`, `"roles"`.
+/// `"providers_incoming"`, `"accounts"`, `"roles"`, `"volumes"`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Grant {
@@ -35,4 +35,6 @@ pub enum Grant {
     Accounts(accounts::Permission),
     /// Over roles: see [`roles::Permission`].
     Roles(roles::Permission),
+    /// Over volumes: see [`volumes::Permission`].
+    Volumes(volumes::Permission),
 }

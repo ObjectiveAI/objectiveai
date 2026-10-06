@@ -12,6 +12,7 @@
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a judge of providers that dial in, get one, list them, take one out, replace one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
+//! | [`volumes`] | create a volume on a provider; get one; list them across providers, narrowed; delete one; change its size or mode; walk one for its use and its hash; download files out of one, upload files into one, transfer files out of one |
 //!
 //! # The tags
 //!
@@ -92,8 +93,17 @@
 //! | `67` | [`tools::transfer`] |
 //! | `68` | [`resources::download`] |
 //! | `69` | [`resources::transfer`] |
+//! | `70` | [`volumes::create`] |
+//! | `71` | [`volumes::get`] |
+//! | `72` | [`volumes::list`] |
+//! | `73` | [`volumes::delete`] |
+//! | `74` | [`volumes::edit`] |
+//! | `75` | [`volumes::stat`] |
+//! | `76` | [`volumes::download`] |
+//! | `77` | [`volumes::upload`] |
+//! | `78` | [`volumes::transfer`] |
 //!
-//! Seventy, so far. Tags are handed out in the order scopes are
+//! Seventy-nine, so far. Tags are handed out in the order scopes are
 //! defined and nothing reads them in order; a new scope takes the next
 //! value wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,
@@ -131,3 +141,4 @@ pub mod providers;
 pub mod resources;
 pub mod roles;
 pub mod tools;
+pub mod volumes;
