@@ -17,6 +17,7 @@ members = [
     "diverge-agentic-loop-python",
     "diverge-sdk-rs",
     "diverge-provider-server",
+    "diverge-postgres",
     "objectiveai-sdk-rs",
     "objectiveai-json-schema/builder",
     "objectiveai-sdk-rs-wasm-js",

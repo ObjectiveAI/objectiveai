@@ -1,0 +1,48 @@
+[package]
+name = "diverge-postgres"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The local Postgres of a Diverge daemon: installed from the archive baked into this program, initialized once, started on a free port, announced on stdout, stopped by a line on stdin — and never leashed"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "diverge-postgres"
+path = "src/main.rs"
+
+[dependencies]
+# Path-only: this crate rides the workspace and is never published, so
+# the SDK is named by where it lives rather than by a version pin
+# version.sh would have to chase. `file_lock` is what it takes from it.
+diverge-sdk = { path = "../diverge-sdk-rs" }
+# The Postgres binaries themselves, baked into this program at build
+# time (`bundled`, from the theseus builds) and extracted once into the
+# directory. Nothing is downloaded when the program runs. `tokio` for
+# the extraction's commands, `rustls` because that is the TLS the
+# workspace builds with; the default native TLS is left off.
+postgresql_embedded = { version = "0.20", default-features = false, features = ["bundled", "theseus", "tokio", "rustls"] }
+# The two lines that cross stdio — the ready line out, the shutdown
+# line in — are JSON, one object each.
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+# `config.yaml`, and the path to whatever in it was wrong.
+serde_path_to_error = "0.1.20"
+serde_yaml_ng = "0.10.0"
+# `process` for postgres, pg_ctl and initdb; `io-util` for stdin's
+# lines and stdout's one line; `fs` for the directory; `net` for the
+# free port and the readiness probe; `time` for every deadline;
+# `signal` for Ctrl-C and SIGTERM; `rt-multi-thread` and `sync` for
+# the runtime `main` builds.
+tokio = { version = "1.53.1", features = ["process", "io-util", "fs", "sync", "rt", "rt-multi-thread", "net", "time", "signal"] }
+# `future::select`: the stop is whichever comes first of a shutdown
+# line, a signal, and the postmaster exiting on its own.
+futures-util = { version = "0.3.33", default-features = false, features = ["alloc"] }
+# The superuser password, minted once: a v4 uuid's thirty-two hex
+# digits.
+uuid = { version = "1.26.1", default-features = false, features = ["v4"] }
