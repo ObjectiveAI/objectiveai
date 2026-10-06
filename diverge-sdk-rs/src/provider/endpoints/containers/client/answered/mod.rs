@@ -8,6 +8,7 @@
 //! that family's `execute`.
 
 mod answered;
+mod daemon;
 mod dequeue;
 mod enqueue;
 mod mcp_call_tool;
@@ -19,6 +20,7 @@ mod postgres;
 mod schema;
 
 pub use answered::*;
+pub use daemon::*;
 pub use dequeue::*;
 pub use enqueue::*;
 pub use mcp_call_tool::*;

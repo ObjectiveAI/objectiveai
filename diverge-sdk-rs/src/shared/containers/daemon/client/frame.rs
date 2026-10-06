@@ -10,7 +10,8 @@ use crate::wire::frame::client::ClientFrame;
 /// One client frame of the daemon protocol, as the program sent it on
 /// the proxy's `/daemon`: a request opening a scope, a channel request
 /// on one, a channel response or its finish answering a channel the
-/// daemon opened on one.
+/// daemon opened on one. One channel response of the caller's half
+/// per frame, in the order the program sent them.
 ///
 /// Every variant is the wire's own
 /// [`ClientFrame`](crate::wire::frame::client::ClientFrame) variant of
@@ -21,20 +22,20 @@ use crate::wire::frame::client::ClientFrame;
 /// # On the wire
 ///
 /// The client frame's own bytes — its type byte, the scope, the
-/// channel, the payload — exactly as the wire lays them out, so that a
-/// bridge forwards bytes. An `Auth` frame, type `0`, does not decode.
+/// channel, the payload — exactly as the wire lays them out, with no
+/// tag in front, so that a bridge forwards bytes. An `Auth` frame,
+/// type `0`, does not decode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Request<'a> {
+pub enum Frame<'a> {
     /// Open a scope with a request: a daemon endpoint's request, tag
-    /// and all. Answered with every server frame of the scope.
+    /// and all.
     Request {
         /// The scope the program minted.
         scope: u32,
         /// The daemon's request frame, as the endpoint lays it out.
         payload: &'a [u8],
     },
-    /// Open a channel on a scope: a cancel, a stop. Answered with the
-    /// channel's responses and its finish.
+    /// Open a channel on a scope: a cancel, a stop.
     ChannelRequest {
         /// The scope.
         scope: u32,
@@ -44,7 +45,7 @@ pub enum Request<'a> {
         payload: &'a [u8],
     },
     /// Answer a channel the daemon opened on a scope: a piece of an
-    /// upload's content. Answered with nothing.
+    /// upload's content.
     ChannelResponse {
         /// The scope.
         scope: u32,
@@ -53,8 +54,7 @@ pub enum Request<'a> {
         /// The channel response, as the endpoint lays it out.
         payload: &'a [u8],
     },
-    /// Finish a channel the daemon opened on a scope. Answered with
-    /// nothing.
+    /// Finish a channel the daemon opened on a scope.
     ChannelResponseFinish {
         /// The scope.
         scope: u32,
@@ -63,34 +63,34 @@ pub enum Request<'a> {
     },
 }
 
-impl<'a> From<Request<'a>> for ClientFrame<'a> {
-    fn from(request: Request<'a>) -> Self {
-        match request {
-            Request::Request { scope, payload } => ClientFrame::Request { scope, payload },
-            Request::ChannelRequest { scope, channel, payload } => ClientFrame::ChannelRequest { scope, channel, payload },
-            Request::ChannelResponse { scope, channel, payload } => ClientFrame::ChannelResponse { scope, channel, payload },
-            Request::ChannelResponseFinish { scope, channel } => ClientFrame::ChannelResponseFinish { scope, channel },
+impl<'a> From<Frame<'a>> for ClientFrame<'a> {
+    fn from(frame: Frame<'a>) -> Self {
+        match frame {
+            Frame::Request { scope, payload } => ClientFrame::Request { scope, payload },
+            Frame::ChannelRequest { scope, channel, payload } => ClientFrame::ChannelRequest { scope, channel, payload },
+            Frame::ChannelResponse { scope, channel, payload } => ClientFrame::ChannelResponse { scope, channel, payload },
+            Frame::ChannelResponseFinish { scope, channel } => ClientFrame::ChannelResponseFinish { scope, channel },
         }
     }
 }
 
-impl<'a> TryFrom<ClientFrame<'a>> for Request<'a> {
+impl<'a> TryFrom<ClientFrame<'a>> for Frame<'a> {
     /// The one frame that does not pass.
     type Error = Auth;
 
     fn try_from(frame: ClientFrame<'a>) -> Result<Self, Auth> {
         Ok(match frame {
             ClientFrame::Auth { .. } => return Err(Auth),
-            ClientFrame::Request { scope, payload } => Request::Request { scope, payload },
-            ClientFrame::ChannelRequest { scope, channel, payload } => Request::ChannelRequest { scope, channel, payload },
-            ClientFrame::ChannelResponse { scope, channel, payload } => Request::ChannelResponse { scope, channel, payload },
-            ClientFrame::ChannelResponseFinish { scope, channel } => Request::ChannelResponseFinish { scope, channel },
+            ClientFrame::Request { scope, payload } => Frame::Request { scope, payload },
+            ClientFrame::ChannelRequest { scope, channel, payload } => Frame::ChannelRequest { scope, channel, payload },
+            ClientFrame::ChannelResponse { scope, channel, payload } => Frame::ChannelResponse { scope, channel, payload },
+            ClientFrame::ChannelResponseFinish { scope, channel } => Frame::ChannelResponseFinish { scope, channel },
         })
     }
 }
 
 /// The client frame's own encoding, and nothing in front of it.
-impl Encode for Request<'_> {
+impl Encode for Frame<'_> {
     /// [`Infallible`](std::convert::Infallible): a frame is bytes
     /// copied.
     type Error = std::convert::Infallible;
@@ -100,13 +100,13 @@ impl Encode for Request<'_> {
     }
 }
 
-impl<'a> Decode<'a> for Request<'a> {
+impl<'a> Decode<'a> for Frame<'a> {
     /// The frame that would not decode, or the one that does not pass.
-    type Error = RequestError;
+    type Error = FrameError;
 
-    fn decode(bytes: &'a [u8]) -> Result<Self, RequestError> {
-        let frame = ClientFrame::decode(bytes).map_err(RequestError::Frame)?;
-        Request::try_from(frame).map_err(|Auth| RequestError::Auth)
+    fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
+        let frame = ClientFrame::decode(bytes).map_err(FrameError::Frame)?;
+        Frame::try_from(frame).map_err(|Auth| FrameError::Auth)
     }
 }
 
@@ -122,9 +122,9 @@ impl fmt::Display for Auth {
 
 impl std::error::Error for Auth {}
 
-/// A daemon connection's ask that could not be read.
+/// A client frame of a daemon connection that could not be read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RequestError {
+pub enum FrameError {
     /// Not a client frame: shorter than its header, or of a type the
     /// wire does not have.
     Frame(frame::FrameError),
@@ -132,20 +132,20 @@ pub enum RequestError {
     Auth,
 }
 
-impl fmt::Display for RequestError {
+impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RequestError::Frame(error) => write!(f, "daemon connection frame did not decode: {error}"),
-            RequestError::Auth => f.write_str("an auth frame does not pass on a daemon connection"),
+            FrameError::Frame(error) => write!(f, "daemon connection client frame did not decode: {error}"),
+            FrameError::Auth => f.write_str("an auth frame does not pass on a daemon connection"),
         }
     }
 }
 
-impl std::error::Error for RequestError {
+impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            RequestError::Frame(error) => Some(error),
-            RequestError::Auth => None,
+            FrameError::Frame(error) => Some(error),
+            FrameError::Auth => None,
         }
     }
 }

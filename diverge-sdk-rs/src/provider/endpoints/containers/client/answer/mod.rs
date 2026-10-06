@@ -65,7 +65,9 @@ pub(crate) async fn answer<O, A, T, P, D, V, M, F>(
         Ask::Postgres(connection_id) => {
             postgres::postgres(&handle, scope, channel, connection_id, answerers.postgres, encoders).await
         }
-        Ask::Daemon(frame) => daemon::daemon(&handle, scope, channel, frame, answerers.daemon).await,
+        Ask::Daemon(connection_id) => {
+            daemon::daemon(&handle, scope, channel, connection_id, answerers.daemon, encoders).await
+        }
         Ask::VaultGet(key) => vault::get(&handle, scope, channel, key, answerers.vault).await,
         Ask::VaultSet(key, value) => vault::set(&handle, scope, channel, key, value, answerers.vault).await,
         Ask::VaultDelete(key) => vault::delete(&handle, scope, channel, key, answerers.vault).await,

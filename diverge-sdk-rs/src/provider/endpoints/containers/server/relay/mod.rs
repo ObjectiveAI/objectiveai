@@ -11,6 +11,7 @@
 //! the begin's main stream, onto the run's.
 
 mod chunks;
+mod daemon;
 mod fuse;
 mod one;
 mod postgres;

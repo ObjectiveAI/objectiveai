@@ -2,22 +2,22 @@
 
 use bytes::Bytes;
 
-use super::Request;
+use super::Frame;
 
-/// A [`Request`] that owns its payload: the same four frames, the
+/// A [`Frame`] that owns its payload: the same four frames, the
 /// payload a [`Bytes`] rather than a borrow, for a relay that keeps a
 /// frame past the message it arrived in and for the caller's
 /// [`Daemon`](crate::provider::client::Daemon), which is handed one.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Owned {
-    /// See [`Request::Request`].
+    /// See [`Frame::Request`].
     Request {
         /// The scope.
         scope: u32,
         /// The daemon's request frame.
         payload: Bytes,
     },
-    /// See [`Request::ChannelRequest`].
+    /// See [`Frame::ChannelRequest`].
     ChannelRequest {
         /// The scope.
         scope: u32,
@@ -26,7 +26,7 @@ pub enum Owned {
         /// The channel request.
         payload: Bytes,
     },
-    /// See [`Request::ChannelResponse`].
+    /// See [`Frame::ChannelResponse`].
     ChannelResponse {
         /// The scope.
         scope: u32,
@@ -35,7 +35,7 @@ pub enum Owned {
         /// The channel response.
         payload: Bytes,
     },
-    /// See [`Request::ChannelResponseFinish`].
+    /// See [`Frame::ChannelResponseFinish`].
     ChannelResponseFinish {
         /// The scope.
         scope: u32,
@@ -46,12 +46,12 @@ pub enum Owned {
 
 impl Owned {
     /// The frame, borrowing this one's payload: what goes on a wire.
-    pub fn as_request(&self) -> Request<'_> {
+    pub fn as_frame(&self) -> Frame<'_> {
         match self {
-            Owned::Request { scope, payload } => Request::Request { scope: *scope, payload },
-            Owned::ChannelRequest { scope, channel, payload } => Request::ChannelRequest { scope: *scope, channel: *channel, payload },
-            Owned::ChannelResponse { scope, channel, payload } => Request::ChannelResponse { scope: *scope, channel: *channel, payload },
-            Owned::ChannelResponseFinish { scope, channel } => Request::ChannelResponseFinish { scope: *scope, channel: *channel },
+            Owned::Request { scope, payload } => Frame::Request { scope: *scope, payload },
+            Owned::ChannelRequest { scope, channel, payload } => Frame::ChannelRequest { scope: *scope, channel: *channel, payload },
+            Owned::ChannelResponse { scope, channel, payload } => Frame::ChannelResponse { scope: *scope, channel: *channel, payload },
+            Owned::ChannelResponseFinish { scope, channel } => Frame::ChannelResponseFinish { scope: *scope, channel: *channel },
         }
     }
 
@@ -66,15 +66,15 @@ impl Owned {
     }
 }
 
-impl From<Request<'_>> for Owned {
+impl From<Frame<'_>> for Owned {
     /// The payload copied once, out of the message it was borrowed
     /// from.
-    fn from(request: Request<'_>) -> Self {
-        match request {
-            Request::Request { scope, payload } => Owned::Request { scope, payload: Bytes::copy_from_slice(payload) },
-            Request::ChannelRequest { scope, channel, payload } => Owned::ChannelRequest { scope, channel, payload: Bytes::copy_from_slice(payload) },
-            Request::ChannelResponse { scope, channel, payload } => Owned::ChannelResponse { scope, channel, payload: Bytes::copy_from_slice(payload) },
-            Request::ChannelResponseFinish { scope, channel } => Owned::ChannelResponseFinish { scope, channel },
+    fn from(frame: Frame<'_>) -> Self {
+        match frame {
+            Frame::Request { scope, payload } => Owned::Request { scope, payload: Bytes::copy_from_slice(payload) },
+            Frame::ChannelRequest { scope, channel, payload } => Owned::ChannelRequest { scope, channel, payload: Bytes::copy_from_slice(payload) },
+            Frame::ChannelResponse { scope, channel, payload } => Owned::ChannelResponse { scope, channel, payload: Bytes::copy_from_slice(payload) },
+            Frame::ChannelResponseFinish { scope, channel } => Owned::ChannelResponseFinish { scope, channel },
         }
     }
 }

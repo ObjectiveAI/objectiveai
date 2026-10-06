@@ -7,6 +7,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::containers::postgres;
+use crate::shared::containers::daemon;
 use crate::shared::mcp;
 
 /// What the server asks the proxy for once a tool container has
@@ -19,13 +20,14 @@ use crate::shared::mcp;
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
 /// | `1` | [`Schema`](Self::Schema) |
-/// | `2` | [`McpListTools`](Self::McpListTools) |
-/// | `3` | [`McpListResources`](Self::McpListResources) |
-/// | `4` | [`McpCallTool`](Self::McpCallTool) |
-/// | `5` | [`McpReadResource`](Self::McpReadResource) |
-/// | `6` | [`McpNotifications`](Self::McpNotifications) |
+/// | `2` | [`Daemon`](Self::Daemon) |
+/// | `3` | [`McpListTools`](Self::McpListTools) |
+/// | `4` | [`McpListResources`](Self::McpListResources) |
+/// | `5` | [`McpCallTool`](Self::McpCallTool) |
+/// | `6` | [`McpReadResource`](Self::McpReadResource) |
+/// | `7` | [`McpNotifications`](Self::McpNotifications) |
 ///
-/// The first two are the same in both begin scopes, so a reader of
+/// The first three are the same in both begin scopes, so a reader of
 /// one is a reader of both; what follows is this family's own
 /// exchange. All
 /// of them reach INTO the container: the last hop of what a caller
@@ -45,6 +47,14 @@ pub enum Frame {
     /// with the JSON Schema of the container's arguments. See
     /// [`schema`](crate::shared::containers::schema).
     Schema,
+    /// A daemon connection the program opened, by the id the proxy
+    /// announced: the server's half of it. Tag `2`.
+    ///
+    /// What comes back on it is everything the PROGRAM sends, as
+    /// [`daemon::client::Frame`](crate::shared::containers::daemon::client::Frame)s;
+    /// its finish is the program's socket ended. See
+    /// [`daemon`](crate::shared::containers::daemon) for the pair.
+    Daemon(daemon::request::Daemon),
     /// What tools the container's server has. Tag `2`.
     ///
     /// The family's own exchange, and the first of five: the caller
@@ -70,20 +80,23 @@ const POSTGRES: u8 = 0;
 /// Tag for [`Frame::Schema`].
 const SCHEMA: u8 = 1;
 
+/// Tag for [`Frame::Daemon`].
+const DAEMON: u8 = 2;
+
 /// Tag for [`Frame::McpListTools`].
-const MCP_LIST_TOOLS: u8 = 2;
+const MCP_LIST_TOOLS: u8 = 3;
 
 /// Tag for [`Frame::McpListResources`].
-const MCP_LIST_RESOURCES: u8 = 3;
+const MCP_LIST_RESOURCES: u8 = 4;
 
 /// Tag for [`Frame::McpCallTool`].
-const MCP_CALL_TOOL: u8 = 4;
+const MCP_CALL_TOOL: u8 = 5;
 
 /// Tag for [`Frame::McpReadResource`].
-const MCP_READ_RESOURCE: u8 = 5;
+const MCP_READ_RESOURCE: u8 = 6;
 
 /// Tag for [`Frame::McpNotifications`].
-const MCP_NOTIFICATIONS: u8 = 6;
+const MCP_NOTIFICATIONS: u8 = 7;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from whichever ask has one.
@@ -100,6 +113,10 @@ impl Encode for Frame {
             Frame::Schema => {
                 out.extend_from_slice(&[SCHEMA]);
                 Ok(())
+            }
+            Frame::Daemon(request) => {
+                out.extend_from_slice(&[DAEMON]);
+                request.encode(out).map_err(|error| match error {})
             }
             Frame::McpListTools(request) => {
                 out.extend_from_slice(&[MCP_LIST_TOOLS]);
@@ -136,6 +153,9 @@ impl Decode<'_> for Frame {
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
             SCHEMA => Ok(Frame::Schema),
+            DAEMON => daemon::request::Daemon::decode(rest)
+                .map(Frame::Daemon)
+                .map_err(FrameError::Daemon),
             MCP_LIST_TOOLS => mcp::list_tools::request::Request::decode(rest)
                 .map(Frame::McpListTools)
                 .map_err(FrameError::McpParams),
@@ -170,6 +190,8 @@ pub enum FrameError {
     UnknownTag(u8),
     /// The connection id was not four bytes.
     Postgres(postgres::request::PostgresError),
+    /// The daemon connection's id was not four bytes.
+    Daemon(daemon::request::DaemonError),
     /// One of the five MCP exchanges' params did not parse.
     ///
     /// One variant for five tags, because they fail the same way and
@@ -187,6 +209,7 @@ impl fmt::Display for FrameError {
                 write!(f, "unknown tools begin channel request tag {tag}")
             }
             FrameError::Postgres(error) => write!(f, "{error}"),
+            FrameError::Daemon(error) => write!(f, "{error}"),
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
@@ -199,6 +222,7 @@ impl Error for FrameError {
         match self {
             FrameError::McpParams(error) => Some(error),
             FrameError::Postgres(error) => Some(error),
+            FrameError::Daemon(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

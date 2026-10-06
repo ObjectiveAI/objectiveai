@@ -1,63 +1,69 @@
-//! A daemon connection, carried frame by frame.
+//! A daemon connection the container's program opened, carried to the
+//! caller.
 //!
-//! A container has no daemon it may dial, and the program in it is a
-//! client of the daemon all the same: it speaks the
-//! [daemon protocol](crate::daemon) to its proxy, on the loopback's
-//! `/daemon`, exactly as a client speaks it to the daemon — scopes,
-//! channels, every endpoint — and the proxy carries each frame to the
-//! provider, and the provider to the caller, which is the daemon. The
-//! ask is one [`request::Request`], one client frame of that
-//! connection; the answer is a stream of [`response::Frame`]s, the
-//! server frames that answer it, then the finish — or an
-//! [`Error`](response::Frame::Error) last, when the caller could not
-//! serve the frame at all.
+//! A program in a container is a client of the daemon, and the daemon
+//! lives with the caller. The program dials its proxy on the
+//! loopback's `/daemon` and speaks the [daemon protocol](crate::daemon)
+//! on it as a client speaks it to the daemon — scopes, channels,
+//! every endpoint — and the provider carries every such connection
+//! out as a PAIR of channels, one per direction, correlated by a
+//! [`request::Daemon`] each carries, exactly as it carries a
+//! [`postgres`](super::postgres) connection:
 //!
-//! # One channel per client frame
+//! - The provider opens a channel on the scope with the id it minted.
+//!   What comes back on it is everything the DAEMON says: the server
+//!   frames of the connection, as [`server::Frame`]s, typed; its
+//!   finish is the daemon closing the connection — and an empty finish
+//!   is the caller declining to connect.
+//! - The caller opens a channel quoting the same id. What comes back
+//!   on it is everything the PROGRAM sends: the client frames of the
+//!   connection, as [`client::Frame`]s, typed; its finish is the
+//!   program's socket ended.
 //!
-//! The wire inside is the wire outside, nested: a scope the program
-//! opens is a scope of the daemon's, and the daemon's channels on it
-//! come back to the program as they would to any client. Each frame
-//! the program sends is exactly one channel of this kind, and what
-//! that channel answers with is settled by the frame it carries:
+//! # Why a connection is two channels
 //!
-//! | the program sends | the channel answers with | and finishes when |
-//! |-------------------|--------------------------|-------------------|
-//! | `Request { scope, … }` | every server frame of that scope — its responses, the daemon's channel requests on it, their finishes — in order | the scope's `ResponseFinish` has been sent |
-//! | `ChannelRequest { scope, channel, … }` | every `ChannelResponse` and the `ChannelResponseFinish` of that channel | the channel's finish has been sent |
-//! | `ChannelResponse` or `ChannelResponseFinish` | nothing | at once |
+//! Because only a responder can end a channel, and a connection has
+//! to be endable from both sides. A program that closes its socket
+//! has to be sayable to the caller, or the daemon's session stays
+//! open with nothing left to serve; a daemon that drops the
+//! connection has to be sayable to the provider, or the program waits
+//! on a reply that is not coming. One duplex channel could express
+//! neither. Two express both with nothing added: each side finishes
+//! the one it answers on, and that finish IS the close.
 //!
-//! The nested scope and channel numbers ride inside the frames, which
-//! carry them already, so nothing between the program and the daemon
-//! routes: the proxy writes every server frame it is answered with to
-//! the program's socket as it is. The caller keeps one daemon session
-//! per container and feeds every frame into it.
+//! # Open it, or decline
 //!
-//! # No credential passes
+//! A caller that has taken the provider's half owes it one of two
+//! things: its own half, or a finish on the provider's channel. The
+//! daemon protocol is client-first, so the program's first request
+//! may be written the instant it connected, and the proxy holds the
+//! program's frames until the caller's half arrives.
 //!
-//! A daemon connection inside a container is served for the
-//! container's [`account`](crate::daemon::create::Inner::account): the
-//! proxy is the trust boundary, and an `Auth` frame is the one client
-//! frame this ask cannot carry — it does not decode, and the proxy
-//! closes `/daemon` on one. The server frame of the same name is left
-//! out the same way.
+//! # One connection, one session
 //!
-//! # The frame is the whole message
+//! The daemon serves every connection for the container's
+//! [`account`](crate::daemon::create::Inner::account), and no credential
+//! passes: the proxy is the trust boundary, and an `Auth` frame is the
+//! one frame of either side that neither [`client::Frame`] nor
+//! [`server::Frame`] has — one does not decode, and the proxy closes
+//! `/daemon` on one. Within a connection the program mints scopes and
+//! channels as any client does, and two connections are two
+//! connections: their numbers never meet, and nothing between the
+//! program and the daemon reads them.
 //!
-//! A frame is not read by anything it passes through: the proxy, the
-//! provider and the caller's relay forward its bytes, and only the
-//! daemon's session reads the request inside. An [`Error`] answers a
-//! frame the caller could not serve — the session gone, a frame on a
-//! scope it does not have — and the proxy turns it into the wire's own
-//! word for "not served": a `ResponseFinish` for a `Request`, a
-//! `ChannelResponseFinish` for a `ChannelRequest`, nothing for the
-//! rest.
+//! # Several at once is the ordinary case
+//!
+//! A program may hold any number of daemon connections, each a pair
+//! per connection, in parallel, each with its own id, its own two
+//! channels and its own ordering; their frames interleave freely on
+//! the socket. Nothing is parsed between the ends: a frame crosses as
+//! it is, typed only so far as the wire's own header goes.
 //!
 //! The same shapes ride both wires this crate defines: the provider's
 //! channel toward the caller, and the
 //! [`proxy`](crate::container_proxy::outside::endpoints::agents::begin)
 //! inside the container.
-//!
-//! [`Error`]: response::Frame::Error
 
+pub mod client;
 pub mod request;
-pub mod response;
+pub mod server;

@@ -46,6 +46,11 @@ pub(crate) struct Run {
     /// open beside the proxy's tree and merge in.
     pub watched: Arc<[Watched]>,
     /// Database connections whose caller half has not opened.
+    /// The daemon connections announced to the caller and not yet
+    /// taken. Its own, apart from [`pairs`](Self::pairs): an id
+    /// announced as one kind must not resolve a half of the other, and
+    /// a registry per kind is what makes that so rather than hoped.
+    pub daemons: Pairs,
     pub pairs: Pairs,
     /// The container is gone: the proxy's asks ended, or the run a
     /// connector joined is over.
@@ -76,6 +81,7 @@ impl Run {
             begin,
             ignore,
             watched,
+            daemons: Pairs::new(),
             pairs: Pairs::new(),
             over: Notify::new(),
             trees: Mutex::new(HashMap::new()),
@@ -132,6 +138,7 @@ impl std::fmt::Debug for Run {
         f.debug_struct("Run")
             .field("scope", &self.scope)
             .field("begin", &self.begin)
+            .field("daemons", &self.daemons)
             .field("pairs", &self.pairs)
             .finish()
     }

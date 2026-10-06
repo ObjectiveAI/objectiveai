@@ -14,6 +14,9 @@ use crate::shared::error::Error;
 pub struct Encoders {
     /// The caller's half of a database connection: the family's
     /// `Postgres { connection_id }` channel request.
+    /// The caller's half of a daemon connection, by the id the
+    /// provider announced: the family's own channel request.
+    pub daemon_half: fn(u32) -> Option<Vec<u8>>,
     pub postgres_half: fn(u32) -> Option<Vec<u8>>,
     /// One piece of a write's content: the family's `write_bytes`
     /// `Body` channel response.

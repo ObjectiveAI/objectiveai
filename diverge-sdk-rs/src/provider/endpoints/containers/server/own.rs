@@ -27,5 +27,9 @@ pub(crate) enum Own<'a> {
     /// The tools the container declared, to deploy.
     Tools(&'a [Tool]),
     /// This end's half of a database connection, by the id it minted.
+    /// A daemon connection the proxy announced, by an id of this
+    /// end's own. See
+    /// [`daemon`](crate::shared::containers::daemon).
+    Daemon(u32),
     Postgres(u32),
 }

@@ -1,4 +1,5 @@
-//! A daemon connection's frame: the answer, sent back by the server.
+//! A daemon connection: what the daemon says, sent back by the
+//! client.
 
 mod frame;
 

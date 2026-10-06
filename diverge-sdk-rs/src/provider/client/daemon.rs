@@ -1,46 +1,53 @@
-//! The daemon the container speaks to, answering its frames.
+//! The daemon a container's program connects to, one connection at a
+//! time.
 
 use std::future::Future;
 
 use futures_util::Stream;
+use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::shared::containers::daemon::{request, response};
-use crate::shared::error::Error;
+use crate::shared::containers::daemon;
 
-/// What answers a container's daemon connection, one client frame at
-/// a time: the daemon's session for the container, which the caller
-/// keeps for the container's life.
+/// What takes a daemon connection a container's program opened: the
+/// daemon's session for that connection, which the caller holds for
+/// the connection's life.
 ///
-/// Each frame the container's program sends on its proxy's `/daemon`
-/// reaches this as one [`request::Owned`] — a request opening a scope,
-/// a channel request on one, a channel response or its finish — and
-/// what this hands back is the stream of server frames that answer
-/// it, as [`daemon`](crate::shared::containers::daemon) states: every
-/// frame of the scope for a request, every frame of the channel for a
-/// channel request, nothing for the rest. The stream's end is the
-/// channel's finish. An `Err` in it is the frame the session could not
-/// serve at all — the session gone, a scope it does not have — and the
-/// last thing the stream yields.
+/// Every time a program in the container dials its proxy's `/daemon`,
+/// the provider announces the connection under an id and this is asked
+/// for it. Taking it means handing back the stream of server frames the
+/// daemon sends on it; declining means handing back [`None`], which
+/// finishes the provider's half with nothing and closes the program's
+/// socket. See [`daemon`](crate::shared::containers::daemon) for the
+/// pair of channels a connection is.
 ///
-/// # The session is the caller's
+/// # Both directions
 ///
-/// Nothing here mints scopes or channels: the program does, as a
-/// client, and the numbers ride inside the frames. This is handed each
-/// frame as it is, and the session it feeds is served for the
-/// container's [`account`](crate::daemon::create::Inner::account),
-/// which the caller knows from the run.
+/// `from_program` carries every client frame the program sends, in
+/// order, and ends when the program's socket ends; the stream carries
+/// every server frame the daemon sends, in order, and its end closes
+/// the program's socket. Neither side is read by anything between: the
+/// program mints the scopes and the channels, as a client of the daemon
+/// does, and the numbers mean nothing outside the connection.
 ///
-/// # Every frame is its own stream
+/// # The account is the container's
 ///
-/// Frames arrive on channels of their own, at once, and are answered
-/// on tasks of their own, so a long scope — a watch, an upload — does
-/// not hold up the frame after it.
+/// Nothing here carries a credential, and the connection presents
+/// none: the session is served for the container's
+/// [`account`](crate::daemon::create::Inner::account), which the caller
+/// knows from the run. Two connections of one container are two
+/// sessions, with scopes of their own.
 pub trait Daemon: Send + Sync {
-    /// The server frames that answer one client frame, in order, then
-    /// the end; or, last, the error.
-    type Frames: Stream<Item = Result<response::Owned, Error>> + Send + 'static;
+    /// The server frames the daemon sends on one connection, in order,
+    /// then the end.
+    type Frames: Stream<Item = daemon::server::Owned> + Send + 'static;
 
-    /// Feed one client frame to the container's session, and hand
-    /// back what answers it.
-    fn frame(&self, frame: request::Owned) -> impl Future<Output = Self::Frames> + Send;
+    /// Take the connection, or decline it.
+    ///
+    /// [`None`] declines: the provider finishes its half with nothing,
+    /// and the program's socket is closed. Nothing is retried.
+    fn connect(
+        &self,
+        connection_id: u32,
+        from_program: UnboundedReceiver<daemon::client::Owned>,
+    ) -> impl Future<Output = Option<Self::Frames>> + Send;
 }

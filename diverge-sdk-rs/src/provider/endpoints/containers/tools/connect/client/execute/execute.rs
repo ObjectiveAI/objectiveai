@@ -50,13 +50,22 @@ pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<Execut
 }
 
 /// This family's frames, for the shared answers. A connector is
-/// never asked to carry a database connection — the container's asks
-/// go to its runner — so the half it would open is never sent.
+/// never asked to carry a database connection or a daemon connection —
+/// the container's asks go to its runner — so neither half it would
+/// open is ever sent.
 const ENCODERS: Encoders = Encoders {
+    daemon_half,
     postgres_half,
     write_body,
     write_error,
 };
+
+/// Never sent: a connected container's own asks go to its runner, so
+/// no daemon connection of its program is ever announced here, and a
+/// half that cannot be encoded is a channel finished with nothing.
+fn daemon_half(_connection_id: u32) -> Option<Vec<u8>> {
+    None
+}
 
 fn postgres_half(connection_id: u32) -> Option<Vec<u8>> {
     encoded(&channel_request::Frame::Postgres(postgres::request::Postgres { connection_id }))

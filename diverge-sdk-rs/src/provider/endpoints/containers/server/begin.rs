@@ -6,7 +6,7 @@ use crate::wire::client::handle::SendError;
 use crate::container_proxy::outside::endpoints::agents::begin::client::execute::{Chunks, ExecuteHandle as AgentsBegin};
 use crate::container_proxy::outside::client::{Ask, Asks};
 use crate::container_proxy::outside::endpoints::tools::begin::client::execute::{ExecuteHandle as ToolsBegin, Finish};
-use crate::provider::endpoints::containers::client::answered::{Postgres, Schema};
+use crate::provider::endpoints::containers::client::answered::{Daemon, Postgres, Schema};
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError};
 use crate::shared::containers::tools::Tool;
 
@@ -48,6 +48,13 @@ impl Begin {
 
     /// This end's half of a database connection the proxy announced,
     /// quoting the proxy's id.
+    pub(crate) async fn daemon(&self, connection_id: u32) -> Result<ChannelStream<Daemon>, OpenError> {
+        match self {
+            Begin::Agents(begin) => begin.daemon(connection_id).await,
+            Begin::Tools(begin) => begin.daemon(connection_id).await,
+        }
+    }
+
     pub(crate) async fn postgres(&self, connection_id: u32) -> Result<ChannelStream<Postgres>, OpenError> {
         match self {
             Begin::Agents(begin) => begin.postgres(connection_id).await,

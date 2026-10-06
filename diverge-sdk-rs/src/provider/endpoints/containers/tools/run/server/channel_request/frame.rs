@@ -104,12 +104,16 @@ pub enum Frame<'a> {
     /// opens the other half, or declines. See
     /// [`postgres`](crate::shared::containers::postgres).
     Postgres(postgres::request::Postgres),
-    /// One client frame of the container's daemon connection. Tag `8`.
+    /// A daemon connection the program opened, by the id the provider
+    /// minted. Tag `8`.
     ///
-    /// Carried as it is to the caller, whose daemon's session answers
-    /// it with the server frames of its scope or channel; see
-    /// [`daemon`](crate::shared::containers::daemon).
-    Daemon(daemon::request::Request<'a>),
+    /// This half is the proxy's, relayed under an id of the provider's.
+    /// What comes back on it is everything the DAEMON says, as
+    /// [`daemon::server::Frame`](crate::shared::containers::daemon::server::Frame)s;
+    /// its finish is the connection closed, and an empty finish is the
+    /// connection declined. See
+    /// [`daemon`](crate::shared::containers::daemon) for the pair.
+    Daemon(daemon::request::Daemon),
     /// Read a vault key. Tag `9`.
     VaultGet(vault::get::request::Request<'a>),
     /// Write a vault key. Tag `10`.
@@ -455,7 +459,7 @@ impl<'a> Decode<'a> for Frame<'a> {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            DAEMON => daemon::request::Request::decode(rest)
+            DAEMON => daemon::request::Daemon::decode(rest)
                 .map(Frame::Daemon)
                 .map_err(FrameError::Daemon),
             VAULT_GET => vault::get::request::Request::decode(rest)
@@ -553,9 +557,8 @@ pub enum FrameError {
     /// One variant for five tags, because they fail the same way and
     /// the tag already said which was meant.
     McpParams(serde_json::Error),
-    /// The daemon connection's frame did not decode, or was an auth
-    /// frame.
-    Daemon(daemon::request::RequestError),
+    /// The daemon connection's id was not four bytes.
+    Daemon(daemon::request::DaemonError),
 }
 
 impl fmt::Display for FrameError {
@@ -588,7 +591,7 @@ impl fmt::Display for FrameError {
             FrameError::McpParams(error) => {
                 write!(f, "mcp request params did not parse: {error}")
             }
-            FrameError::Daemon(error) => write!(f, "daemon connection frame did not decode: {error}"),
+            FrameError::Daemon(error) => write!(f, "{error}"),
         }
     }
 }

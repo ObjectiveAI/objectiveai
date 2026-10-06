@@ -102,6 +102,9 @@ pub(crate) enum Opened<E> {
     Stop,
     /// The container's tree, watched.
     Filetree,
+    /// A daemon connection the proxy announced, by an id of this
+    /// end's own.
+    Daemon(u32),
     /// One file, read.
     Read(Vec<String>),
     /// One file, written.

@@ -6,7 +6,7 @@ use futures_util::StreamExt as _;
 
 use super::super::family::Runs;
 use super::super::run::Run;
-use super::{one, postgres, stream};
+use super::{daemon, one, postgres, stream};
 use crate::container_proxy::outside::client::{Ask, Asks};
 
 /// Read the proxy's asks off the begin scope for as long as it lives,
@@ -25,13 +25,14 @@ pub(crate) async fn relay<R: Runs>(run: Arc<Run>, mut asks: Asks<Ask>) {
     run.over.notify_one();
 }
 
-/// One ask, by its kind: a database connection is a pair, a daemon
-/// connection's frame and a notification stream are streams, and the
-/// rest answer once.
+/// One ask, by its kind: a database connection and a daemon
+/// connection are each a pair, a notification stream is a stream, and
+/// the rest answer once.
 async fn answer<R: Runs>(run: Arc<Run>, channel: u32, ask: Ask) {
     match ask {
+        Ask::Daemon(proxy_id) => daemon::daemon::<R>(run, channel, proxy_id).await,
         Ask::Postgres(proxy_id) => postgres::postgres::<R>(run, channel, proxy_id).await,
-        Ask::Daemon(_) | Ask::McpNotifications => stream::stream::<R>(run, channel, &ask).await,
+        Ask::McpNotifications => stream::stream::<R>(run, channel, &ask).await,
         _ => one::one::<R>(run, channel, &ask).await,
     }
 }

@@ -27,6 +27,7 @@ use crate::shared;
 use crate::shared::containers::request::Image;
 use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::containers::{fuse, oci, postgres, tools, vault};
+use crate::shared::containers::daemon;
 use crate::shared::mcp;
 use crate::shared::error::Error;
 use crate::shared::filetree as tree;
@@ -52,6 +53,7 @@ impl Family for Agents {
                 id: request.id,
                 destination: request.destination,
             },
+            channel_request::Frame::Daemon(request) => Opened::Daemon(request.connection_id),
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
             channel_request::Frame::Schema => Opened::Schema,
             channel_request::Frame::Enqueue(request) => Opened::Exchange(agent::Exchange::Enqueue(request.key, request.content)),
@@ -154,7 +156,7 @@ impl Runs for Agents {
 fn relayed(ask: &Ask) -> Option<ask::Frame<'_>> {
     Some(match ask {
         Ask::Postgres(_) => return None,
-        Ask::Daemon(frame) => ask::Frame::Daemon(frame.as_request()),
+        Ask::Daemon(_) => return None,
         Ask::VaultGet { key } => ask::Frame::VaultGet(vault::get::request::Request { key }),
         Ask::VaultSet { key, value } => ask::Frame::VaultSet(vault::set::request::Request { key, value }),
         Ask::VaultDelete { key } => ask::Frame::VaultDelete(vault::delete::request::Request { key }),
@@ -209,6 +211,7 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
             Own::Tools(declared) => ask::Frame::Tools(tools::request::Request {
                 tools: Cow::Borrowed(declared),
             }),
+            Own::Daemon(connection_id) => ask::Frame::Daemon(daemon::request::Daemon { connection_id }),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
         }
     }

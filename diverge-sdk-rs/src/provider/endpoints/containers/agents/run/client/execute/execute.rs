@@ -16,6 +16,7 @@ use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
 use crate::provider::endpoints::containers::client::{Ask, Encoders, Scoped, Writes, encoded, serve};
 use crate::wire::frame;
+use crate::shared::containers::daemon;
 use crate::shared::containers::postgres;
 use crate::shared::containers::response::Id;
 use crate::shared::containers::write_bytes;
@@ -137,10 +138,15 @@ fn decode_ask(payload: &[u8]) -> Option<Ask> {
 
 /// This family's frames, for the shared answers.
 const ENCODERS: Encoders = Encoders {
+    daemon_half,
     postgres_half,
     write_body,
     write_error,
 };
+
+fn daemon_half(connection_id: u32) -> Option<Vec<u8>> {
+    encoded(&channel_request::Frame::Daemon(daemon::request::Daemon { connection_id }))
+}
 
 fn postgres_half(connection_id: u32) -> Option<Vec<u8>> {
     encoded(&channel_request::Frame::Postgres(postgres::request::Postgres { connection_id }))
