@@ -1,29 +1,31 @@
 ---
 title: 'Daemon'
-summary: 'Tag 1: the server carries one client frame of the daemon protocol that a program in the container sent on the /daemon socket of its proxy; the client answers with one channel response per server frame of the scope or channel of that frame, an error when the frame could not be served, and the channel response finish.'
+summary: 'Tag 1: the server announces a daemon connection a program in the container opened, under a connection id it minted; the client answers with everything the daemon says on it, one server frame per channel response, and its channel response finish closes the connection.'
 order: 1
 draft: false
 ---
 
-The server opens this channel when a program in the container sends a client frame on the proxy's `/daemon`. The payload is one client
-frame of the daemon protocol, as [Daemon connection](/container-proxy-endpoints/agents-begin/server/daemon/request/)
-states, carried as it is.
+The server opens this channel when a program in the container dials the proxy's `/daemon`. It is the server's
+half of the connection; the client's half is a
+[daemon](/container-proxy-endpoints/agents-begin/client/daemon/) channel the client opens, quoting the same id.
 
-- **The request.** The tag byte `1` followed by one client frame.
-  [Request](/container-proxy-endpoints/agents-begin/server/daemon/request/) states its form.
-- **The response.** One channel response per server frame that
-  answers the client frame, an error last when the client sends one,
-  and the channel response finish. [Response](/container-proxy-endpoints/agents-begin/server/daemon/response/)
-  states the sequence.
-- **One channel per client frame.** A frame of type `1`, a request
-  opening a scope, is answered with every server frame of that
-  scope, in order, and the channel finishes when the scope's
-  response finish has been sent. A frame of type `4`, a channel
-  request, is answered with every channel response and the channel
-  response finish of that channel, and the channel finishes with
-  them. A frame of type `5` or `6`, answering a channel the daemon
-  opened, is answered with nothing: the channel finishes at once.
-- **The account.** The daemon serves every frame for the account the
-  container was created under. No credential passes, and an auth
-  frame is malformed.
-- **The conduit.** Each channel response the client sends is one server frame of the daemon protocol, which the server writes to the program's `/daemon` socket as it is. An error, when the client sends one, becomes the wire's own word for a frame not served: a response finish for a frame of type `1`, a channel response finish for one of type `4`, nothing for the others.
+- **The request.** The tag byte `1` followed by a connection id, four
+  bytes, that the server minted. [Request](/container-proxy-endpoints/agents-begin/server/daemon/request/)
+  states its form.
+- **The response.** What the daemon says, as channel responses, each
+  one server frame, and the channel response finish, which closes the
+  program's socket. [Response](/container-proxy-endpoints/agents-begin/server/daemon/response/) states
+  the sequence.
+- **The id.** The server chooses the id and keeps it unique among the
+  daemon connections it has announced and the client has not
+  finished. The proxy does not reuse an id while either half of its connection is open. Daemon connections and database connections
+  number independently: an id of one never names the other.
+- **Before the other half.** The server reads nothing from the
+  program until the client has opened its half. The daemon protocol
+  is client-first, so nothing is expected on this channel before then;
+  what arrives all the same is held, and written to the program first,
+  in order.
+- **The account.** The daemon serves the connection for the account
+  the container was created under. No credential passes on either
+  half.
+- **The conduit.** The server writes each channel response to the program's socket as one message, in order, and does not read it; the channel response finish closes the socket.

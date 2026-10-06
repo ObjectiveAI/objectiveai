@@ -1,0 +1,43 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[type: u8][scope: u32][channel: u32][payload …]    zero or more, one client frame each
+```
+
+- **The sequence.** Zero or more channel responses, each one client
+  frame of the daemon protocol with no tag in front, in the order the
+  program sent them. The channel response finish follows when the
+  program's socket ends, or when the program sends a frame that is
+  not one — shorter than its header, of a type the wire does not have,
+  or an auth frame — on which the server closes the socket. A channel
+  response finish that no channel response precedes states that the
+  id names no connection whose half is open.
+- **The frame.** Each channel response is exactly one client frame of
+  the daemon protocol, laid out as [Frames](/frames/) lays out a
+  client frame: the type byte, the scope as a `u32` big-endian, the
+  channel as a `u32` big-endian, and the payload, running to the end.
+  The type is `1`, a request opening a scope; `4`, a channel request
+  on a scope; `5`, a channel response on a channel the daemon opened;
+  or `6`, the finish of such a channel. The type `0`, an auth frame,
+  never passes: a daemon connection inside a container presents no
+  credential, and the proxy closes a socket that sends one.
+- **The numbers are the program's.** The scope and the channel in a
+  frame are minted by the program as a client of the daemon mints
+  them, and mean nothing on this wire: nothing between the program
+  and the daemon reads them, and two connections of one program
+  number independently.
+
+The channel response is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/agents/begin/server/channel_response/daemon/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/agents/begin/server/channel_response/daemon/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/daemon/client/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/daemon/client/frame.rs
+```

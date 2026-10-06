@@ -1,7 +1,7 @@
 ---
 title: 'Enqueue'
-summary: 'Tag 2: the client sends a message to the agent, which starts a loop when none runs and joins the queue when one does; the server answers with exactly one channel response, the fate of the message, when the fate is known.'
-order: 2
+summary: 'Tag 3: the client sends a message to the agent, which starts a loop when none runs and joins the queue when one does; the server answers with exactly one channel response, the fate of the message, when the fate is known.'
+order: 3
 draft: false
 ---
 
@@ -12,7 +12,7 @@ a seam of its own choosing. Nothing interrupts a loop. What the agent
 says in reply is the main stream of the scope, as
 [Response](/container-proxy-endpoints/agents-begin/response/) states.
 
-- **The request.** The tag byte `2` followed by the message as JSON.
+- **The request.** The tag byte `3` followed by the message as JSON.
   [Request](/container-proxy-endpoints/agents-begin/client/enqueue/request/) states its form.
 - **The response.** Exactly one channel response, sent when the fate
   of the message is known, however long that takes, and the channel

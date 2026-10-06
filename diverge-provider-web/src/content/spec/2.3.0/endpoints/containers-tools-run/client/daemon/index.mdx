@@ -1,0 +1,25 @@
+---
+title: 'Daemon'
+summary: 'Tag 7: the client opens its half of a daemon connection the server announced, quoting the connection id; the server sends everything the program sends on it, one client frame per channel response, and the channel response finish when the socket of the program ends.'
+order: 7
+draft: false
+---
+
+The client opens this channel as its half of a daemon connection the
+server announced on a [daemon](/endpoints/containers-tools-run/server/daemon/) channel of its own, quoting
+the connection id. The server sends on it everything the program
+sends.
+
+- **The request.** The tag byte `7` followed by the connection id,
+  four bytes. [Request](/endpoints/containers-tools-run/client/daemon/request/) states its
+  form.
+- **The response.** The frames the program sent, as channel responses,
+  each one client frame, and the channel response finish when the
+  program's socket ends. [Response](/endpoints/containers-tools-run/client/daemon/response/)
+  states the sequence.
+- **Nothing is lost.** The server reads nothing from the program
+  before this channel opens, and sends what the program sends from the
+  moment it does, in order.
+- **One half per connection.** A connection id the server did not
+  announce, and an id whose half was already opened, are answered by
+  a channel response finish that no channel response precedes.

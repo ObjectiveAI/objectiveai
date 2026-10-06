@@ -6,30 +6,29 @@ draft: false
 ---
 
 ```text
-[0][type: u8][scope: u32][channel: u32][payload …]    one server frame of the daemon protocol
-[1][error JSON …]                                    last, the frame could not be served
+[type: u8][scope: u32][channel: u32][payload …]    zero or more, one server frame each
 ```
 
-- **The sequence.** Zero or more channel responses whose first byte
-  is `0`, each one server frame of the daemon protocol as
-  [Frames](/frames/) lays out a server frame — the type byte `2`, a
-  response; `3`, a response finish; `4`, a channel request the
-  daemon opened; `5`, a channel response; `6`, a channel response
-  finish; never `0` — in the order the daemon sent them. An error,
-  when the client sends one, is the last channel response: the frame
-  could not be served at all, and nothing of its scope or channel
-  follows. The channel response finish follows the last channel
-  response.
-- **A finish with nothing.** A channel response finish that no
-  channel response precedes states that the client did not serve the
-  frame. The server relays that to the proxy as a channel response finish that no channel response precedes, and does not ask again.
+- **The sequence.** Zero or more channel responses, each one server
+  frame of the daemon protocol with no tag in front, in the order the
+  daemon sent them. The channel response finish is the daemon closing
+  the connection: the server closes the program's socket. A channel
+  response finish that no channel response precedes states that the
+  client declined the connection, and the server closes the program's
+  socket at once.
+- **The frame.** Each channel response is exactly one server frame of
+  the daemon protocol, laid out as [Frames](/frames/) lays out a
+  server frame: the type byte `2`, a response; `3`, a response
+  finish; `4`, a channel request the daemon opened; `5`, a channel
+  response; `6`, a channel response finish; never `0`. The scope and
+  the channel in it are the program's, and are not read on this wire.
 
-The channel response is defined by `diverge-sdk-rs/src/shared/containers/daemon/response/frame.rs`:
+The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/client/channel_response/daemon/frame.rs`:
 
-```rust include=diverge-sdk-rs/src/shared/containers/daemon/response/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/agents/run/client/channel_response/daemon/frame.rs
 ```
 
-and by `diverge-sdk-rs/src/shared/containers/daemon/response/served.rs`:
+and by `diverge-sdk-rs/src/shared/containers/daemon/server/frame.rs`:
 
-```rust include=diverge-sdk-rs/src/shared/containers/daemon/response/served.rs
+```rust include=diverge-sdk-rs/src/shared/containers/daemon/server/frame.rs
 ```
