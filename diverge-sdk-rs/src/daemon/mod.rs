@@ -21,9 +21,10 @@
 //! by name or once and for all, is [`reference`](mod@reference). What a
 //! download sends, one piece of one file with its path, is
 //! [`download`](mod@download)'s chunk, and where a transfer lands is
-//! [`transfer`](mod@transfer)'s destination. The provider's endpoints
-//! are not the daemon's, and nothing here names them but what a daemon
-//! spawns an agent from.
+//! [`transfer`](mod@transfer)'s destination. Every endpoint's exchange
+//! is performed by its `client::execute`, the four shapes of which are
+//! [`client`]'s. The provider's endpoints are not the daemon's, and
+//! nothing here names them but what a daemon spawns an agent from.
 
 pub mod client;
 pub mod create;

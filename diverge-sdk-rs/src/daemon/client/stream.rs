@@ -111,7 +111,7 @@ pub enum OpenError<Q> {
 
 impl<Q, A> From<one_shot::Error<Q, A>> for OpenError<Q> {
     /// Only the two ways an open fails exist before a frame is read,
-    /// and [`open`](one_shot::open) produces no other.
+    /// and the open produces no other.
     fn from(error: one_shot::Error<Q, A>) -> Self {
         match error {
             one_shot::Error::Send(error) => OpenError::Send(error),
