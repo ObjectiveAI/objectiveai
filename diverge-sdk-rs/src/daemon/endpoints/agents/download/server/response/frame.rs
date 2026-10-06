@@ -27,11 +27,11 @@ use crate::shared::error::Error;
 /// A directory with no file in it: a scope that finishes with no
 /// response before it is that answer, not a failure. A zero-byte file
 /// is one chunk, never nothing. [`NotFound`](Self::NotFound) is an
-/// ANSWER: no %(thing)s is the one named, or nothing is at the path,
-/// and nothing was sent. An [`Error`](Self::Error) is a failure: the
-/// daemon could not read, or could not go on reading, in its own words.
-/// Chunks sent before the failure precede the error; none follow it,
-/// and what was sent is not whole.
+/// ANSWER: no agent is the one named, or nothing is at the path, and
+/// nothing was sent. An [`Error`](Self::Error) is a failure: the daemon
+/// could not read, or could not go on reading, in its own words. Chunks
+/// sent before the failure precede the error; none follow it, and what
+/// was sent is not whole.
 ///
 /// # Forbidden
 ///

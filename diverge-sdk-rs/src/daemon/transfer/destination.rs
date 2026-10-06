@@ -44,7 +44,8 @@ pub enum Destination {
         /// least one, each a name.
         path: Vec<String>,
     },
-    /// A new resource.
+    /// A new resource, from an agent's or a tool's files. A resource's
+    /// transfer refuses it: a resource is never copied into a resource.
     Resource {
         /// The resource to make: see [`Resource`].
         resource: Resource,

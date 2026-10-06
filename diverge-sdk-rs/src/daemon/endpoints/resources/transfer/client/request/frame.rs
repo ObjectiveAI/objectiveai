@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::daemon::transfer::Destination;
 /// Ask the daemon to copy a file or a directory out of a resource to a
 /// destination: see [`Destination`] for what lands where. A path into a
-/// directory resource copies that part of it, and a resource
-/// destination then makes it a resource of its own.
+/// directory resource copies that part of it. A resource destination is
+/// refused: a resource is never copied into a resource, and a part of
+/// one wanted as a resource of its own is uploaded as one.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// The resource, by id: its hash, as its upload answered it.

@@ -1,6 +1,5 @@
-//! The transfer response: landed, with a new resource's id when there
-//! is one, no such resource or path, no such destination, forbidden, or
-//! a failure.
+//! The transfer response: landed, no such resource or path, no such
+//! destination, the destination a resource, forbidden, or a failure.
 
 mod frame;
 

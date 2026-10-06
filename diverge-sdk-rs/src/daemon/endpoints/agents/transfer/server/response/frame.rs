@@ -6,8 +6,8 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A transfer's answer: it landed, no %(thing)s is the one named, no
-/// agent or tool is the destination's, forbidden, or a failure.
+/// A transfer's answer: it landed, no agent is the one named, no agent
+/// or tool is the destination's, forbidden, or a failure.
 ///
 /// A transfer is one question and one reply, sent once everything has
 /// landed, so there is exactly one of these per scope, before the
@@ -25,9 +25,9 @@ use crate::shared::error::Error;
 ///
 /// [`NotFound`](Self::NotFound) and
 /// [`NoDestination`](Self::NoDestination) are ANSWERS: the daemon
-/// looked, and no %(thing)s is the one named or nothing is at the path,
-/// or the destination names an agent or a tool that is none, and in
-/// either case nothing landed and nothing is retried. An
+/// looked, and no agent is the one named or nothing is at the path, or
+/// the destination names an agent or a tool that is none, and in either
+/// case nothing landed and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not copy, or could not finish copying, for whatever reason it knows;
 /// a file is at the destination whole or as it was, never the half
