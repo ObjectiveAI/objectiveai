@@ -4,7 +4,6 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-
 /// Ask the daemon which database it serves its containers. There is
 /// exactly one, so there is nothing to name: the request is `{}` on the
 /// wire, and the answer is the daemon's

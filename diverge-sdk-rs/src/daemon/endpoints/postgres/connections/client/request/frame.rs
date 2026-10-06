@@ -4,7 +4,6 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
-
 /// Ask the daemon which container connections are open through its
 /// database now. There is exactly one database and the list is whole,
 /// so there is nothing to name and nothing to narrow: the request is
