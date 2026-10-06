@@ -1,0 +1,40 @@
+---
+title: 'filetree'
+summary: 'Tag 10: the client asks for the tree of the served volume as this serve sees it; the server sends a snapshot of that tree, the layer of an ephemeral serve included, and one channel response per change the asks of this serve make, until the scope ends.'
+order: 10
+draft: false
+---
+
+The client opens this channel to watch the served volume as this serve
+sees it.
+
+- **The request.** The payload is the tag byte `10` and nothing more.
+  [Request](/endpoints/volumes-serve/client/filetree/request/) states its form.
+- **The response.** A snapshot, one channel response per change, and
+  the channel response finish when the scope ends.
+  [Response](/endpoints/volumes-serve/client/filetree/response/) states the sequence.
+- **The tree is the serve's view.** The snapshot is the volume as this
+  serve sees it: for a `persistent` volume the volume; for an
+  `ephemeral` volume the volume under the layer of this serve, so an
+  entry the layer holds is in the tree as the layer holds it; for a
+  `read_only` volume the volume. The root of the tree is the root of
+  the volume.
+- **What changes.** A change is a mutation this serve answered `ok`: a
+  write, a truncate, a setattr, a mkdir, a removal or a rename on one
+  of this scope's channels. Nothing else changes what this serve sees,
+  and nothing else is reported. A `read_only` volume answers no
+  mutation `ok`, and its stream is the snapshot and nothing after it.
+- **Every channel is whole.** Each filetree channel begins with its
+  own snapshot. Two filetree channels on one scope are two streams,
+  and each reports every change.
+- **Every directory is watched.** Every `Directory` in the snapshot
+  has `changes` `1`: every change beneath it is reported, since every
+  change passes through this serve.
+- **Ended with the scope.** The channel response finish of a filetree
+  channel is sent when the scope ends, after the last change. The
+  client ends a filetree channel by ending the scope, and not
+  otherwise.
+- **Not a volumes::filetree.** A [volumes::filetree](/endpoints/volumes-filetree/)
+  of a served volume is answered with an error while the serve holds
+  the volume, and would show the volume without the layer. This
+  channel is the one view of the tree of a served volume.

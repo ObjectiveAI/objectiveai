@@ -1,0 +1,69 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][filetree frame, postcard …]      the snapshot, or one change
+[1][error JSON …]                    last
+```
+
+- **The sequence.** The first channel response is the snapshot, or an
+  error. Zero or more channel responses follow, each one change or a
+  further snapshot. An error, when the server sends one, is the last
+  channel response. The channel response finish follows the last
+  channel response: the server sends it when the scope ends. A
+  channel response finish that no channel response precedes states
+  that the server did not serve the watch.
+- **The filetree frame.** After the byte `0`, the payload is one
+  filetree frame, running to the end of the payload, in the form the
+  [filetree](/endpoints/containers-agents-run/client/filetree/response/)
+  channel of a running container defines: the same four variants,
+  the same nodes, the same paths, encoded as the postcard reading of
+  [Notation](/endpoints/#notation) provides. Every `path` is a
+  sequence of components from the root of the volume.
+- **The snapshot.** The first channel response of every filetree
+  channel is a `Snapshot` carrying the tree of the volume as this
+  serve sees it at that time. A further `Snapshot` is sent whenever
+  the server has lost track of the changes a channel was not sent.
+  Every `Snapshot` replaces the tree whole. Every `Directory` has
+  `changes` `1`. A `File` whose attributes the server could not read
+  has `size` and `modified_at` absent. `created_at` is absent: the
+  asks of a serve do not carry a birth time.
+- **A change.** After a snapshot, one channel response is sent for
+  each mutation this serve answered `ok`, in the order the server
+  answered them. A write or a truncate of a path that held no entry,
+  and a mkdir, are sent as `Inserted` at that path, with the node
+  complete; a write, a truncate or a setattr of an entry that was
+  there is sent as `Modified` at its path, with the node's complete
+  new value; a removal is sent as `Removed` at its path; a rename is
+  sent as `Removed` at the path it left, followed by `Inserted` at
+  the path it arrived at, with the inserted node complete, a
+  directory with its whole subtree.
+- **Order and repetition.** As the running container's filetree
+  channel provides: a channel response for one change may be sent
+  more than once, a `Snapshot` may be sent at any time, and every
+  channel response places or clears exactly one place in the tree.
+- **The tree the client holds.** The client applies each channel
+  response as the running container's filetree channel provides.
+- **The error.** After the byte `1`, exactly one JSON value in the
+  form defined on the [volumes::list response](/endpoints/volumes-list/response/)
+  page. The server sends it when it could not walk the volume or
+  could not carry the watch.
+
+The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/serve/server/channel_response/filetree/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/serve/server/channel_response/filetree/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/filetree/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/filetree/response/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/filetree/response/node.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/filetree/response/node.rs
+```

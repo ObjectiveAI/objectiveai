@@ -1,6 +1,6 @@
 ---
 title: 'volumes::serve'
-summary: 'Tag 9: a client names a volume from its listing and a cap for an ephemeral layer; the server holds the volume as a mount holds it, answers Serving once, and for as long as the scope lives answers on channels the client opens the nine asks a FUSE mount makes, from the volume as its mode allows, a piece at a time; the client stops the scope.'
+summary: 'Tag 9: a client names a volume from its listing and a cap for an ephemeral layer; the server holds the volume as a mount holds it, answers Serving once, and for as long as the scope lives answers on channels the client opens the nine asks a FUSE mount makes, from the volume as its mode allows, a piece at a time, and streams the tree of the volume as served; the client stops the scope.'
 order: 9
 draft: false
 ---
@@ -29,8 +29,18 @@ error, and no channel is served.
 - **The response.** [Response](/endpoints/volumes-serve/response/) states the one response
   and what follows it.
 - **The channels.** The client opens the channels that
-  [Client Channels](/endpoints/volumes-serve/client/) defines: the nine asks, and the
-  stop. The server opens no channel on a serve scope.
+  [Client Channels](/endpoints/volumes-serve/client/) defines: the nine asks, the
+  stop, and the filetree. The server opens no channel on a serve
+  scope.
+- **The tree as served.** A [filetree](/endpoints/volumes-serve/client/filetree/)
+  channel carries the tree of the volume as this serve sees it — for
+  an `ephemeral` volume, the volume under the layer of the serve —
+  as a snapshot, followed by one channel response per change the
+  asks of this serve make, until the scope ends. A `read_only`
+  volume's stream is the snapshot and nothing after it. No
+  `volumes::filetree` of a served volume is answered while the serve
+  holds it; the filetree channel is the one view of a served volume's
+  tree.
 - **A served volume is a mounted volume.** The server holds the volume
   as a running container that mounts it holds it, from the moment it
   sends `Serving` until the response finish. While it holds it, a

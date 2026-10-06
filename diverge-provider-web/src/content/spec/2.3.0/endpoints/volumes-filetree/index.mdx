@@ -37,7 +37,11 @@ the finish.
   its form.
 - **A snapshot, not a watch.** The response is the whole of the
   exchange. The server sends no change after it, and every
-  `Directory` in the tree has `changes` `0`. A client that needs the
+  `Directory` in the tree has `changes` `0`.
+  A volume being served is watched, as the serve sees it, by the
+  [filetree](/endpoints/volumes-serve/client/filetree/) channel of its
+  serve; this request is answered with an error while a serve holds
+  the volume. A client that needs the
   tree as it is later sends another request.
 - **A mounted volume is not walked.** The server does not walk a
   volume that is mounted in any running container, or served on any
