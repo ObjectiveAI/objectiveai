@@ -53,7 +53,7 @@ pub enum Frame {
     /// its finish is the program's socket ended. See
     /// [`daemon`](crate::shared::containers::daemon) for the pair.
     Daemon(daemon::request::Daemon),
-    /// A message for the agent. Tag `2`.
+    /// A message for the agent. Tag `3`.
     ///
     /// The one way into it: a message with no loop running starts one,
     /// on that message, and a message while one runs joins its queue.
@@ -63,7 +63,7 @@ pub enum Frame {
     /// finish. What the agent says in reply is the begin's main stream.
     /// See [`enqueue`](crate::shared::containers::enqueue).
     Enqueue(enqueue::request::Request),
-    /// Withdraw every message still waiting under a key. Tag `3`.
+    /// Withdraw every message still waiting under a key. Tag `4`.
     ///
     /// Carries the key, as the enqueues gave it. Answered once — by a
     /// [`dequeue::response::Frame`](crate::shared::containers::dequeue::response::Frame)

@@ -10,17 +10,19 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::super::super::server::response;
 use crate::wire::decode::Decode as _;
-use crate::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+use crate::provider::endpoints::containers::agents::run::client::execute::Event;
 use crate::wire::frame;
 use crate::shared::error::Error;
 
-/// Every chunk the agent produces, for as long as the connection
-/// lives: the begin scope's main stream after `Begun`.
+/// Everything the begin scope's main stream says after `Begun`, for
+/// as long as the connection lives: every chunk the agent produces,
+/// and the proxy's word before a loop's first chunk and after its
+/// last, each one [`Event`].
 ///
 /// Zero or more [`Ok`], then either the end — the proxy finished the
 /// scope, which is the proxy ending — or exactly one [`Err`] and the
 /// end. Every error is terminal. There is no timeout: a quiet
-/// conversation is an agent with nothing to say.
+/// conversation is an agent with nothing to say, or one working.
 #[must_use = "a conversation that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct Chunks {
@@ -34,14 +36,14 @@ impl Chunks {
         }
     }
 
-    fn end(&mut self, error: ChunksError) -> Poll<Option<Result<AgenticLoopChunk, ChunksError>>> {
+    fn end(&mut self, error: ChunksError) -> Poll<Option<Result<Event, ChunksError>>> {
         self.receiver = None;
         Poll::Ready(Some(Err(error)))
     }
 }
 
 impl Stream for Chunks {
-    type Item = Result<AgenticLoopChunk, ChunksError>;
+    type Item = Result<Event, ChunksError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let Some(receiver) = &mut self.receiver else {
@@ -63,7 +65,9 @@ impl Stream for Chunks {
             _ => return self.end(ChunksError::Misrouted),
         };
         match response::Frame::decode(payload) {
-            Ok(response::Frame::Chunk(chunk)) => Poll::Ready(Some(Ok(chunk))),
+            Ok(response::Frame::Chunk(chunk)) => Poll::Ready(Some(Ok(Event::Chunk(chunk)))),
+            Ok(response::Frame::Active) => Poll::Ready(Some(Ok(Event::Active))),
+            Ok(response::Frame::Inactive) => Poll::Ready(Some(Ok(Event::Inactive))),
             Ok(response::Frame::Error(error)) => self.end(ChunksError::Refused(error)),
             // `Begun` comes once, and it came before this stream
             // existed.

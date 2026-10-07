@@ -21,9 +21,10 @@ use crate::shared::containers::tools::Tool;
 /// because nothing may be opened on the scope before its `Begun`:
 /// a refusal is [`Refused`](ExecuteError::Refused), the container's
 /// server's own words; a finish first is
-/// [`Unanswered`](ExecuteError::Unanswered); a chunk first is a proxy
-/// out of order. What comes back is the handle, the asks the proxy
-/// will open, the conversation, and the tools the container declared.
+/// [`Unanswered`](ExecuteError::Unanswered); a chunk or a loop's word
+/// first is a proxy out of order. What comes back is the handle, the
+/// asks the proxy will open, the conversation, and the tools the
+/// container declared.
 pub async fn execute(
     handle: &Handle,
     arguments: Value,
@@ -45,9 +46,12 @@ pub async fn execute(
     let tools = match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Begun(tools) => tools,
         response::Frame::Error(error) => return Err(ExecuteError::Refused(error)),
-        // The agent speaks only after `Begun`; a chunk first is a
-        // proxy out of order, which is a frame this end cannot place.
-        response::Frame::Chunk(_) => return Err(ExecuteError::Misrouted),
+        // The agent speaks only after `Begun`, and no loop runs
+        // before it; any of the three first is a proxy out of order,
+        // which is a frame this end cannot place.
+        response::Frame::Chunk(_) | response::Frame::Active | response::Frame::Inactive => {
+            return Err(ExecuteError::Misrouted);
+        }
     };
 
     Ok((

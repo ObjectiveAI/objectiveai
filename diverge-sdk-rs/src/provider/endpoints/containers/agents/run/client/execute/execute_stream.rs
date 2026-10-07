@@ -7,21 +7,24 @@ use std::task::{Context, Poll};
 
 use futures_util::{Stream, stream};
 
+use super::Event;
 use crate::wire::decode::Decode as _;
-use crate::provider::endpoints::containers::agents::run::server::response::{self, AgenticLoopChunk};
+use crate::provider::endpoints::containers::agents::run::server::response;
 use crate::provider::endpoints::containers::client::{Decoded, Scoped, WaitError};
 
-/// Every chunk the agent produces, for as long as the run lives: the
-/// scope's main stream after the id, as
-/// [`response::Frame::Chunk`] carries it.
+/// Everything the run's main stream says after the id, for as long as
+/// the run lives: every chunk the agent produces, and the proxy's word
+/// before a loop's first chunk and after its last — each one
+/// [`Event`], as [`response::Frame`] carries them.
 ///
-/// Zero or more [`Ok`], each the [`AgenticLoopChunk`] the provider
-/// relayed, in the order the agent produced them; then either the end
-/// — the finish, the run over as it should — or exactly one [`Err`]
-/// and the end. Every error is terminal, and it is the same ending
-/// [`ExecuteHandle::wait`](super::ExecuteHandle::wait) reports. There
-/// is no marker between turns and no timeout: quiet is an agent with
-/// nothing to say.
+/// Zero or more [`Ok`], in the order the provider relayed them; then
+/// either the end — the finish, the run over as it should — or exactly
+/// one [`Err`] and the end. Every error is terminal, and it is the
+/// same ending [`ExecuteHandle::wait`](super::ExecuteHandle::wait)
+/// reports. There is no timeout: quiet between an
+/// [`Active`](Event::Active) and its [`Inactive`](Event::Inactive) is
+/// an agent working, and quiet after an `Inactive` is an agent with
+/// nothing to say until the next message.
 ///
 /// # This is the main stream's reader
 ///
@@ -31,7 +34,7 @@ use crate::provider::endpoints::containers::client::{Decoded, Scoped, WaitError}
 /// the conversation drains this to the end.
 #[must_use = "a conversation that is not polled grows a queue nobody reads, and the run's end is never heard"]
 pub struct ExecuteStream {
-    inner: Pin<Box<dyn Stream<Item = Result<AgenticLoopChunk, WaitError<response::FrameError>>> + Send>>,
+    inner: Pin<Box<dyn Stream<Item = Result<Event, WaitError<response::FrameError>>> + Send>>,
 }
 
 impl ExecuteStream {
@@ -41,7 +44,7 @@ impl ExecuteStream {
                 return None;
             }
             match scoped.read(decode).await {
-                Ok(Some(chunk)) => Some((Ok(chunk), (scoped, false))),
+                Ok(Some(event)) => Some((Ok(event), (scoped, false))),
                 Ok(None) => None,
                 Err(error) => Some((Err(error), (scoped, true))),
             }
@@ -52,19 +55,22 @@ impl ExecuteStream {
     }
 }
 
-/// One main-stream frame as the run's response frame: a chunk is the
-/// item, the provider's error is the end, and the id or the refusal —
-/// forbidden after the first response — is read past.
-fn decode(payload: &[u8]) -> Result<Decoded<AgenticLoopChunk>, response::FrameError> {
+/// One main-stream frame as the run's response frame: a chunk and the
+/// two words are items, the provider's error is the end, and the id
+/// or the refusal — forbidden after the first response — is read
+/// past.
+fn decode(payload: &[u8]) -> Result<Decoded<Event>, response::FrameError> {
     Ok(match response::Frame::decode(payload)? {
-        response::Frame::Chunk(chunk) => Decoded::Item(chunk),
+        response::Frame::Chunk(chunk) => Decoded::Item(Event::Chunk(chunk)),
+        response::Frame::Active => Decoded::Item(Event::Active),
+        response::Frame::Inactive => Decoded::Item(Event::Inactive),
         response::Frame::Error(error) => Decoded::Error(error),
         response::Frame::Id(_) | response::Frame::VolumeHeld(_) => Decoded::Skip,
     })
 }
 
 impl Stream for ExecuteStream {
-    type Item = Result<AgenticLoopChunk, WaitError<response::FrameError>>;
+    type Item = Result<Event, WaitError<response::FrameError>>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.inner.as_mut().poll_next(cx)

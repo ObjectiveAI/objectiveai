@@ -54,6 +54,21 @@ use futures_util::{Sink, Stream};
 /// Which keeps every question about the transport where it belongs:
 /// what the URL is, what the TLS story is, what authenticates the
 /// upgrade, and what else that server or process does.
+///
+/// # The third variant has no socket at all
+///
+/// [`Local`](Self::Local) is a connection carried by something else in
+/// this process: whole frames arrive on a channel and leave on one,
+/// and nothing between them is a transport. It is what a container's
+/// `/daemon` connection is to the daemon — the program's frames reach
+/// it as the responses of a channel the provider opened, and its own
+/// leave as the responses of a channel it opened back; see
+/// [`daemon`](crate::shared::containers::daemon) for the pair — and it
+/// is how that connection is served by the same session, the same
+/// scopes and the same dispatch a socket gets, with nothing written
+/// twice. It ends as a socket ends: the far side dropping its sender
+/// is the stream's `None`, and the far side dropping its receiver is
+/// a write that fails.
 pub enum Connection {
     /// A connection that came in, which this process's own server
     /// upgraded.
@@ -64,6 +79,17 @@ pub enum Connection {
             tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
         >,
     ),
+    /// A connection carried inside this process: every payload the
+    /// peer sends arrives on `incoming`, whole, and every payload sent
+    /// goes out on `outgoing`, whole.
+    Local {
+        /// The peer's payloads, in order; closed when the peer is
+        /// gone.
+        incoming: tokio::sync::mpsc::UnboundedReceiver<Bytes>,
+        /// This end's payloads, to the peer; a send to a peer that is
+        /// gone fails, as a write to a closed socket does.
+        outgoing: tokio::sync::mpsc::UnboundedSender<Bytes>,
+    },
 }
 
 /// The binary payloads, one at a time, until the connection ends.
@@ -138,6 +164,11 @@ impl Stream for Connection {
                         }
                     }
                 }
+                // Whole payloads already, and nothing that is not one;
+                // the channel closing is the peer gone.
+                Connection::Local { incoming, .. } => {
+                    return Poll::Ready(ready!(incoming.poll_recv(cx)).map(Ok));
+                }
             }
         }
     }
@@ -175,6 +206,9 @@ impl Sink<Bytes> for Connection {
             Connection::Outgoing(stream) => {
                 Pin::new(stream).poll_ready(cx).map_err(Error::Outgoing)
             }
+            // An unbounded channel is always ready; whether the peer
+            // is still there is learned at the send.
+            Connection::Local { .. } => Poll::Ready(Ok(())),
         }
     }
 
@@ -191,6 +225,7 @@ impl Sink<Bytes> for Connection {
                     payload,
                 ))
                 .map_err(Error::Outgoing),
+            Connection::Local { outgoing, .. } => outgoing.send(payload).map_err(|_| Error::Local),
         }
     }
 
@@ -205,10 +240,16 @@ impl Sink<Bytes> for Connection {
             Connection::Outgoing(stream) => {
                 Pin::new(stream).poll_flush(cx).map_err(Error::Outgoing)
             }
+            // Nothing is buffered: a sent payload is already the
+            // peer's.
+            Connection::Local { .. } => Poll::Ready(Ok(())),
         }
     }
 
-    /// Close the socket, which sends a close frame.
+    /// Close the socket, which sends a close frame — or, carried in
+    /// the process, let the peer's receiver close by dropping nothing
+    /// yet: the sender goes with the connection, and that is the
+    /// peer's `None`.
     ///
     /// The graceful half of a close. Dropping a
     /// [`Connection`] instead is the ungraceful one, and both are
@@ -225,6 +266,7 @@ impl Sink<Bytes> for Connection {
             Connection::Outgoing(stream) => {
                 Pin::new(stream).poll_close(cx).map_err(Error::Outgoing)
             }
+            Connection::Local { .. } => Poll::Ready(Ok(())),
         }
     }
 }
@@ -234,6 +276,7 @@ impl fmt::Debug for Connection {
         match self {
             Connection::Incoming(_) => f.write_str("Connection::Incoming"),
             Connection::Outgoing(_) => f.write_str("Connection::Outgoing"),
+            Connection::Local { .. } => f.write_str("Connection::Local"),
         }
     }
 }
@@ -249,6 +292,9 @@ pub enum Error {
     Incoming(axum::Error),
     /// An outgoing socket failed.
     Outgoing(tokio_tungstenite::tungstenite::Error),
+    /// The peer of a connection carried inside the process is gone,
+    /// so the payload had nowhere to go.
+    Local,
 }
 
 impl fmt::Display for Error {
@@ -256,6 +302,7 @@ impl fmt::Display for Error {
         match self {
             Error::Incoming(error) => write!(f, "websocket failed: {error}"),
             Error::Outgoing(error) => write!(f, "websocket failed: {error}"),
+            Error::Local => f.write_str("the in-process peer is gone"),
         }
     }
 }
@@ -265,6 +312,7 @@ impl std::error::Error for Error {
         match self {
             Error::Incoming(error) => Some(error),
             Error::Outgoing(error) => Some(error),
+            Error::Local => None,
         }
     }
 }

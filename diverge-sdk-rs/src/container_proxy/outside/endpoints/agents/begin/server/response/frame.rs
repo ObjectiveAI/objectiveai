@@ -9,18 +9,23 @@ use crate::provider::endpoints::containers::agents::run::server::response::Agent
 use crate::shared::error::Error;
 
 /// A begin's answer: that the connection has begun, then the agent's
-/// conversation for as long as the connection lives — or a failure.
+/// conversation for as long as the connection lives, each loop of it
+/// bracketed by the proxy's own word that it began and that it ended
+/// — or a failure.
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Begun`](Self::Begun), `1` for [`Error`](Self::Error), `2` for
-/// [`Chunk`](Self::Chunk) — and the rest is that variant's own JSON.
+/// [`Chunk`](Self::Chunk), `3` for [`Active`](Self::Active), `4` for
+/// [`Inactive`](Self::Inactive) — and the rest is that variant's own
+/// JSON, or nothing: the two words carry nothing after the byte.
 ///
 /// # Begun, then the conversation
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | a begun, then chunks, and stays open | the container holds its arguments and its tools are known, and the agent is speaking |
-/// | a begun, then quiet, and stays open | the container holds its arguments, and the agent has nothing to say until the next message |
+/// | a begun, then quiet, and stays open | the container holds its arguments and its tools are known, and no loop has run |
+/// | a begun, an active, then chunks, and stays open | a loop is running, and the agent is speaking |
+/// | …an active, chunks, an inactive, and stays open | that loop ran and ended; the agent is quiet until the next message |
 /// | an error, then a finish | it has not begun — this connection had already begun, or the arguments were refused |
 /// | a finish, with no error | the proxy is ending |
 ///
@@ -32,14 +37,28 @@ use crate::shared::error::Error;
 /// [`Chunk`](crate::provider::endpoints::containers::agents::run::server::response::Frame::Chunk). Nothing opens a
 /// loop: an [`Enqueue`](super::super::super::client::channel_request::Frame::Enqueue)
 /// with no loop running starts one on its message, and one while a
-/// loop runs joins the queue. There is no marker between one turn and
-/// the next, and quiet is an agent with nothing left to say. The
-/// tools family's stream carries nothing after `Begun`.
+/// loop runs joins the queue. The tools family's stream carries
+/// nothing after `Begun`.
+///
+/// # The proxy marks the loop, and only the proxy can
+///
+/// A loop is one `POST /run` on the agent's server: it begins when
+/// that call answers `2xx`, and it ends when the event stream of that
+/// answer ends, however it ends. The proxy makes the call, so the
+/// proxy is the one party that knows both moments, and it says them
+/// here as [`Active`](Self::Active) before the loop's first chunk and
+/// [`Inactive`](Self::Inactive) after its last. The program's stream
+/// is chunks and only chunks, every one of them a `Chunk` here, so
+/// nothing a program writes is read as either word: see
+/// [the run's frame](crate::provider::endpoints::containers::agents::run::server::response::Frame)
+/// for why the byte in front is what keeps that so. Between an
+/// `Inactive` and the next `Active` the agent says nothing; quiet
+/// between an `Active` and its `Inactive` is an agent still working.
 ///
 /// The asks the container makes, and the family's other exchanges,
 /// are channels, not this stream. It carries no readiness signal
-/// beyond the one word: the proxy is here, the arguments are held,
-/// and channels may be opened.
+/// beyond `Begun`: the proxy is here, the arguments are held, and
+/// channels may be opened.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The connection has begun, the container holds its arguments
@@ -67,9 +86,25 @@ pub enum Frame {
     /// lives, as the agent's server streamed them with the container's
     /// image under each one's `_meta` — see
     /// [`shared::mcp`](crate::shared::mcp) for the key; never before
-    /// `Begun`, and never after a finish. See [`AgenticLoopChunk`] for
-    /// what one is.
+    /// `Begun`, never outside an [`Active`](Self::Active) and its
+    /// [`Inactive`](Self::Inactive), and never after a finish. See
+    /// [`AgenticLoopChunk`] for what one is.
     Chunk(AgenticLoopChunk),
+    /// A loop began. Tag `3`, and nothing after it.
+    ///
+    /// The agent's server answered `POST /run` with `2xx`: a loop is
+    /// running, and the chunks that follow until the matching
+    /// [`Inactive`](Self::Inactive) are its output. Sent by the proxy,
+    /// never relayed from the program.
+    Active,
+    /// A loop ended. Tag `4`, and nothing after it.
+    ///
+    /// The event stream of the loop's `POST /run` ended — cleanly, or
+    /// by dying; a loop that failed said so in a fatal notification
+    /// chunk before this. The agent is quiet until the next message
+    /// starts the next loop. Sent by the proxy, never relayed from
+    /// the program.
+    Inactive,
 }
 
 /// Tag for [`Frame::Begun`].
@@ -82,7 +117,14 @@ const ERROR: u8 = 1;
 /// chunk's JSON without reading it can frame it.
 pub const CHUNK: u8 = 2;
 
-/// A tag, and that variant's own JSON.
+/// Tag for [`Frame::Active`]. Public, so the proxy writes the one
+/// byte that is the whole frame.
+pub const ACTIVE: u8 = 3;
+
+/// Tag for [`Frame::Inactive`]. Public, as [`ACTIVE`] is.
+pub const INACTIVE: u8 = 4;
+
+/// A tag, and that variant's own JSON — or the tag alone.
 impl Encode for Frame {
     /// The ordinary JSON failure.
     type Error = serde_json::Error;
@@ -106,12 +148,20 @@ impl Encode for Frame {
                 out.extend_from_slice(&[CHUNK]);
                 serde_json::to_writer(out, chunk)
             }
+            Frame::Active => {
+                out.extend_from_slice(&[ACTIVE]);
+                Ok(())
+            }
+            Frame::Inactive => {
+                out.extend_from_slice(&[INACTIVE]);
+                Ok(())
+            }
         }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Four ways to fail, and two of them are JSON.
+    /// Five ways to fail, and three of them are JSON.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
@@ -125,6 +175,8 @@ impl Decode<'_> for Frame {
             CHUNK => serde_json::from_slice(rest)
                 .map(Frame::Chunk)
                 .map_err(FrameError::Chunk),
+            ACTIVE => Ok(Frame::Active),
+            INACTIVE => Ok(Frame::Inactive),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -135,7 +187,12 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's five.
+    ///
+    /// What a proxy newer than its server produces, which is the case
+    /// the tag exists to make survivable: a reader that does not know
+    /// a variant says so, rather than reading somebody else's bytes as
+    /// its own.
     UnknownTag(u8),
     /// The tools did not parse.
     Begun(serde_json::Error),

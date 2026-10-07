@@ -9,20 +9,24 @@ use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::error::Error;
 
 /// A run's answer: the container's id, then the agent's conversation
-/// for as long as the scope lives — or the volume that refused it, or
-/// a failure.
+/// for as long as the scope lives, each loop of it bracketed by the
+/// proxy's own word that it began and that it ended — or the volume
+/// that refused it, or a failure.
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Id`](Self::Id), `1` for [`VolumeHeld`](Self::VolumeHeld),
-/// `2` for [`Error`](Self::Error), `3` for [`Chunk`](Self::Chunk) —
-/// and the rest is that variant's own JSON.
+/// `2` for [`Error`](Self::Error), `3` for [`Chunk`](Self::Chunk),
+/// `4` for [`Active`](Self::Active), `5` for
+/// [`Inactive`](Self::Inactive) — and the rest is that variant's own
+/// JSON, or nothing: the two words carry nothing after the byte.
 ///
 /// # The id, then the conversation
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | an id, then chunks, and stays open | the container is running, and the agent is speaking |
-/// | an id, then quiet, and stays open | the container is running, and the agent has nothing to say until the next message |
+/// | an id, then quiet, and stays open | the container is running, and no loop has run |
+/// | an id, an active, then chunks, and stays open | the container is running, a loop is running, and the agent is speaking |
+/// | …an active, chunks, an inactive, and stays open | that loop ran and ended; the agent is quiet until the next message |
 /// | a volume held, then a finish | it never started: that volume is under a stat, an edit or a delete |
 /// | an error, then a finish | it never came up, or it is gone |
 /// | a finish, with no error | the run is over — a stop, or the container's own end |
@@ -48,21 +52,36 @@ use crate::shared::error::Error;
 /// [`enqueue`](crate::shared::containers::enqueue) with no loop
 /// running starts one on its message, an enqueue while one runs joins
 /// the queue, and either way what the agent says arrives here, chunk
-/// by chunk, in order, as the proxy sent it. There is no marker
-/// between one turn and the next: a message's user parts — see
-/// [`user_parts`](super::user_parts) — mark it landing, a
+/// by chunk, in order, as the proxy sent it. A message's user parts —
+/// see [`user_parts`](super::user_parts) — mark it landing, and a
 /// [`NotificationChunk`](super::NotificationChunk) with
 /// [`is_fatal`](super::NotificationChunk::is_fatal) set marks a loop
-/// that died, and quiet is an agent with nothing left to say. The
-/// tools family's stream carries nothing after the id: its own
-/// exchange answers on channels.
+/// that died. The tools family's stream carries nothing after the id:
+/// its own exchange answers on channels.
+///
+/// # The proxy marks the loop, and only the proxy can
+///
+/// A loop is one `POST /run` on the agent's server inside the
+/// container: it begins when that call answers `2xx` and ends when the
+/// event stream of that answer ends, however it ends. The proxy makes
+/// the call, so the proxy is the one party that knows both moments,
+/// and it says them on its begin stream — see
+/// [the begin's frame](crate::container_proxy::outside::endpoints::agents::begin::server::response::Frame)
+/// — which the provider relays here as [`Active`](Self::Active) before
+/// the loop's first chunk and [`Inactive`](Self::Inactive) after its
+/// last. Between an `Inactive` and the next `Active` the agent says
+/// nothing; quiet between an `Active` and its `Inactive` is an agent
+/// still working. So a caller knows whether the agent is busy from
+/// the stream alone, and never guesses it from silence.
 ///
 /// The tree and the files are still channels the caller opens, so a
 /// caller that wants none of them pays for none of them. This stream
-/// carries no readiness signal either: a provider knows when a
-/// CONTAINER has started, and that is not the same fact as the thing
-/// inside it having bound its port. The channels find out, one
-/// exchange at a time.
+/// carries no readiness signal: a provider knows when a CONTAINER has
+/// started, and that is not the same fact as the thing inside it
+/// having bound its port. The channels find out, one exchange at a
+/// time. The three facts are three things — the container up, which
+/// is the id; the program reachable, which the channels learn; and a
+/// loop running, which is `Active` — and none stands in for another.
 ///
 /// # The tag is not decoration
 ///
@@ -71,7 +90,10 @@ use crate::shared::error::Error;
 /// arbitrary JSON value — including, legitimately, an object with a
 /// `type` field. The byte in front is what keeps a provider's error
 /// text from being read as a chunk, and a failure from looking like
-/// output.
+/// output. It is also what keeps `Active` and `Inactive` the proxy's
+/// alone: a program's output is chunks, every one of them under the
+/// chunk's byte, so no chunk a program writes, whatever its `type`,
+/// is read as the proxy's word about the loop.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The container's id. Tag `0`.
@@ -101,9 +123,26 @@ pub enum Frame {
     ///
     /// After the id, zero or more, for as long as the scope lives, in
     /// the order the agent produced them and exactly as the proxy
-    /// sent them; never before the id, and never after a finish. See
-    /// [`AgenticLoopChunk`] for what one is.
+    /// sent them; never before the id, never outside an
+    /// [`Active`](Self::Active) and its [`Inactive`](Self::Inactive),
+    /// and never after a finish. See [`AgenticLoopChunk`] for what
+    /// one is.
     Chunk(AgenticLoopChunk),
+    /// A loop began. Tag `4`, and nothing after it.
+    ///
+    /// The proxy's word that the agent's server took a message and is
+    /// working: every chunk until the matching
+    /// [`Inactive`](Self::Inactive) is this loop's. After the id,
+    /// never twice without an `Inactive` between.
+    Active,
+    /// A loop ended. Tag `5`, and nothing after it.
+    ///
+    /// The proxy's word that the loop's stream ended — cleanly, or by
+    /// dying; a loop that failed said so in a fatal notification chunk
+    /// before this. The agent is quiet until the next message starts
+    /// the next loop. Never without an [`Active`](Self::Active) before
+    /// it.
+    Inactive,
 }
 
 /// Tag for [`Frame::Id`].
@@ -119,8 +158,16 @@ const ERROR: u8 = 2;
 /// chunk's JSON without reading it can frame it.
 pub const CHUNK: u8 = 3;
 
+/// Tag for [`Frame::Active`]. Public, so a relay writes the one byte
+/// that is the whole frame.
+pub const ACTIVE: u8 = 4;
+
+/// Tag for [`Frame::Inactive`]. Public, as [`ACTIVE`] is.
+pub const INACTIVE: u8 = 5;
+
 impl Encode for Frame {
-    /// One failure per variant, and all are JSON's.
+    /// One failure per variant that carries JSON; the two words
+    /// cannot fail.
     type Error = FrameEncodeError;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -145,6 +192,14 @@ impl Encode for Frame {
             Frame::Chunk(chunk) => {
                 out.extend_from_slice(&[CHUNK]);
                 serde_json::to_writer(out, chunk).map_err(FrameEncodeError::Chunk)
+            }
+            Frame::Active => {
+                out.extend_from_slice(&[ACTIVE]);
+                Ok(())
+            }
+            Frame::Inactive => {
+                out.extend_from_slice(&[INACTIVE]);
+                Ok(())
             }
         }
     }
@@ -213,6 +268,8 @@ impl Decode<'_> for Frame {
             CHUNK => serde_json::from_slice(rest)
                 .map(Frame::Chunk)
                 .map_err(FrameError::Chunk),
+            ACTIVE => Ok(Frame::Active),
+            INACTIVE => Ok(Frame::Inactive),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -223,7 +280,12 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's six.
+    ///
+    /// What a provider newer than its caller produces, which is the
+    /// case the tag exists to make survivable: a reader that does not
+    /// know a variant says so, rather than reading somebody else's
+    /// bytes as its own.
     UnknownTag(u8),
     /// The id did not parse.
     Id(serde_json::Error),
