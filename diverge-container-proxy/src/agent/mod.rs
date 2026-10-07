@@ -13,9 +13,12 @@
 //! the queue can wait on a call the loop holds open.
 //!
 //! What the loop says rides the begin scope's main stream, chunk by
-//! chunk, verbatim; nothing else is said there, because an error on
-//! that stream would end the scope, and the scope is the connection's
-//! life.
+//! chunk, verbatim, between the proxy's own word that the loop began
+//! and its word that it ended — `Active` and `Inactive`, one byte
+//! each, which the proxy alone writes, since the proxy alone makes
+//! the `/run` call whose answer and whose end they are. Nothing else
+//! is said there, because an error on that stream would end the
+//! scope, and the scope is the connection's life.
 
 mod dequeue;
 mod driver;

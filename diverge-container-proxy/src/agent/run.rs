@@ -1,10 +1,11 @@
-//! The loop, run: `POST /run`, and its chunks relayed.
+//! The loop, run: `POST /run`, its chunks relayed, and the proxy's
+//! word before and after them that a loop began and ended.
 
 use std::pin::pin;
 use std::sync::Arc;
 
 use diverge_sdk::container_proxy::inside::agent::run::request::{Message, Request};
-use diverge_sdk::container_proxy::outside::endpoints::agents::begin::server::response::CHUNK;
+use diverge_sdk::container_proxy::outside::endpoints::agents::begin::server::response::{ACTIVE, CHUNK, INACTIVE};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
 use eventsource_stream::Eventsource as _;
@@ -52,18 +53,23 @@ pub fn start(proxy: Arc<Proxy>, messages: Vec<Message>) -> oneshot::Receiver<Res
     receiver
 }
 
-/// Relay the loop, on a task of its own: every event's data goes out
-/// on the begin scope's main stream as one `Chunk`, its JSON as the
-/// agent's server wrote it with the container's image under its
+/// Relay the loop, on a task of its own: first the proxy's own word
+/// that the loop began, `Active`, one byte; then every event's data
+/// out on the begin scope's main stream as one `Chunk`, its JSON as
+/// the agent's server wrote it with the container's image under its
 /// `_meta` — the messages' user parts first, then whatever the agent
-/// says — until the stream ends — cleanly,
-/// or by dying — which is the loop over. The receiver hears the end
-/// as its sender dropping. Nothing is said on the stream about how
-/// the loop ended: an error there would end the scope, and the
-/// stream has no marker between one loop and the next by design.
+/// says — until the stream ends — cleanly, or by dying — which is the
+/// loop over; then the proxy's word that it ended, `Inactive`, one
+/// byte. The receiver hears the end as its sender dropping. The two
+/// words are the proxy's alone: the agent's server produces chunks,
+/// every one under the chunk's tag, so nothing it writes is read as
+/// either. Nothing is said about HOW the loop ended: an error on the
+/// stream would end the scope, and a loop that failed already said
+/// so in a fatal notification chunk.
 pub fn relay(response: reqwest::Response, scope: Arc<ScopeHandle>, stamp: Stamp) -> oneshot::Receiver<()> {
     let (sender, receiver) = oneshot::channel::<()>();
     tokio::spawn(async move {
+        scope.send_response(&[ACTIVE]).await;
         let mut events = pin!(response.bytes_stream().eventsource());
         while let Some(Ok(event)) = events.next().await {
             // The chunk's tag, then its JSON as the agent's server
@@ -74,6 +80,7 @@ pub fn relay(response: reqwest::Response, scope: Arc<ScopeHandle>, stamp: Stamp)
             bytes.extend_from_slice(&chunk);
             scope.send_response(&bytes).await;
         }
+        scope.send_response(&[INACTIVE]).await;
         drop(sender);
     });
     receiver

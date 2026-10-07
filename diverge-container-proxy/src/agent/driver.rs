@@ -44,6 +44,9 @@ enum Run {
 ///   task of its own, reporting back on a channel, so a dequeue
 ///   never waits on an `/enqueue` the loop holds open.
 /// - Nothing here writes an error on the begin scope's main stream.
+///   What [`run::relay`] writes there beside the chunks is the
+///   proxy's own two words, that a loop began and that it ended,
+///   and neither ends the scope.
 struct Driver {
     queue: VecDeque<Queued>,
     inflight: Option<Inflight>,
