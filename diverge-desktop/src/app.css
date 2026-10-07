@@ -252,7 +252,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .array-item, .map-row { display: flex; gap: var(--space-2); align-items: flex-start; }
 .array-item > .field, .array-item > .group, .map-value { flex: 1; min-width: 0; }
 .map-key { max-width: 180px; }
-.check-bad { color: var(--text); background: var(--note); border-left: var(--mark) solid var(--pink); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); word-break: break-word; }
+.check-bad { color: var(--text); background: var(--bad-soft); border-left: var(--mark) solid var(--bad); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); word-break: break-word; }
 .kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
 .kind { display: flex; flex-direction: column; gap: var(--space-1); border: 1px solid var(--line-strong); background: var(--bg); border-radius: var(--radius-md); padding: var(--space-3); }
 .kind:hover { background: var(--surface-3); border-color: var(--line-hover); }
