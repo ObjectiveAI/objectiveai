@@ -1,20 +1,22 @@
 //! What is live: nobody's record, gone at restart.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::wire::client::handle::Handle;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, watch};
 use tokio::task::AbortHandle;
 
-use crate::store::AccountId;
+use crate::store::{AccountId, AgentId};
 
 /// The live state of the daemon: which accounts have a client
 /// connected as them, and how many; which providers the daemon holds
 /// a connection to, and the handle it speaks to each on; and the dial
-/// tasks keeping the outgoing ones connected. Later, which containers
-/// run under which account. Behind async mutexes, held for a lookup
-/// and never across anything that waits on the outside.
+/// tasks keeping the outgoing ones connected; and every agent's log
+/// as it is appended and watched. Later, which containers run. Behind
+/// async mutexes, held for a lookup and never across anything that
+/// waits on the outside.
 #[derive(Debug, Default)]
 pub struct Live {
     /// Connections per account, for the accounts with any.
@@ -25,6 +27,23 @@ pub struct Live {
     /// The dial task of every outgoing provider, by address, to be
     /// ended when the provider is forgotten or the daemon stops.
     dials: Mutex<HashMap<String, AbortHandle>>,
+    /// Every agent's log that has been appended to or watched since
+    /// the start, by agent.
+    logs: Mutex<HashMap<AgentId, Arc<Log>>>,
+}
+
+/// One agent's log as it is live: the lock an append is made under,
+/// so two land one after the other with the index right, and the
+/// latest index as a watch, so a reader waiting on more learns of
+/// every append. The sender gone — the agent deleted — ends every
+/// watch.
+#[derive(Debug)]
+pub struct Log {
+    /// Taken for the length of one append.
+    pub lock: Mutex<()>,
+    /// The `logs_index` of the latest item appended since the start;
+    /// `0` before any. What a reader waits on.
+    pub latest: watch::Sender<u64>,
 }
 
 impl Live {
@@ -59,13 +78,6 @@ impl Live {
     /// a list that asks about each.
     pub async fn connected(&self) -> HashSet<AccountId> {
         self.connected.lock().await.keys().copied().collect()
-    }
-
-    /// Whether anything holds the account — a client connected as it,
-    /// or a container running under it — which is what refuses its
-    /// deletion. No container runs under anything yet.
-    pub async fn holds(&self, id: AccountId) -> bool {
-        self.is_connected(id).await
     }
 
     /// A provider is connected, and this is the handle on it. A
@@ -122,5 +134,23 @@ impl Live {
         for (_, dial) in self.dials.lock().await.drain() {
             dial.abort();
         }
+    }
+
+    /// The agent's log, live: the one every append and every watch of
+    /// that log goes through.
+    pub async fn log(&self, id: AgentId) -> Arc<Log> {
+        let mut logs = self.logs.lock().await;
+        Arc::clone(logs.entry(id).or_insert_with(|| {
+            Arc::new(Log {
+                lock: Mutex::new(()),
+                latest: watch::channel(0).0,
+            })
+        }))
+    }
+
+    /// The agent is deleted: forget its log, which ends every watch on
+    /// it once the last append has let go.
+    pub async fn end_log(&self, id: AgentId) {
+        self.logs.lock().await.remove(&id);
     }
 }

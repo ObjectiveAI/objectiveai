@@ -116,3 +116,104 @@ CREATE TABLE IF NOT EXISTS diverge.resources (
     creator     JSONB NOT NULL,
     deleted     BOOLEAN NOT NULL DEFAULT false
 );
+
+-- The once-and-for-all index of a container among those made the same
+-- way: one row per way, advanced in the transaction that makes the
+-- container, so a crash mid-create never hands one number to two.
+CREATE TABLE IF NOT EXISTS diverge.counters (
+    key         TEXT PRIMARY KEY,
+    next        BIGINT NOT NULL
+);
+
+-- An agent: a template plus what its create added. The container is
+-- work made from the row, never the row.
+CREATE TABLE IF NOT EXISTS diverge.agents (
+    id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    template              TEXT NOT NULL,
+    index                 BIGINT NOT NULL,
+    name                  TEXT UNIQUE,
+    -- The account it runs under, if any; an account a container
+    -- names is not deleted.
+    account               BIGINT REFERENCES diverge.accounts(id) ON DELETE RESTRICT,
+    -- The provider it is pinned to and that provider's volumes
+    -- mounted, as the create named them.
+    provider              JSONB,
+    fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
+    fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
+    -- The deployer agent as it was when named: template, index, name.
+    deployer              JSONB,
+    -- The provider it last ran on, and when it last began or ceased.
+    last_provider         JSONB,
+    last_active           TIMESTAMPTZ,
+    tags                  TEXT[] NOT NULL DEFAULT '{}',
+    created               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator               JSONB NOT NULL,
+    UNIQUE (template, index)
+);
+
+-- A tool: made from a template, or joined to somebody else's
+-- container by its provider, its id and an authorization.
+CREATE TABLE IF NOT EXISTS diverge.tools (
+    id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    -- `created` or `connected`.
+    kind                  TEXT NOT NULL,
+    template              TEXT,
+    provider              JSONB,
+    connected_provider    JSONB,
+    connected_id          TEXT,
+    authorization         TEXT,
+    index                 BIGINT NOT NULL,
+    name                  TEXT UNIQUE,
+    account               BIGINT REFERENCES diverge.accounts(id) ON DELETE RESTRICT,
+    fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
+    fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
+    deployer              JSONB,
+    last_provider         JSONB,
+    last_active           TIMESTAMPTZ,
+    tags                  TEXT[] NOT NULL DEFAULT '{}',
+    created               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator               JSONB NOT NULL,
+    CONSTRAINT tools_origin_whole CHECK (
+        (kind = 'created' AND template IS NOT NULL
+            AND connected_provider IS NULL AND connected_id IS NULL AND authorization IS NULL)
+        OR (kind = 'connected' AND template IS NULL AND provider IS NULL
+            AND connected_provider IS NOT NULL AND connected_id IS NOT NULL AND authorization IS NOT NULL)
+    )
+);
+CREATE UNIQUE INDEX IF NOT EXISTS tools_created_index
+    ON diverge.tools (template, index) WHERE kind = 'created';
+CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
+    ON diverge.tools (connected_provider, connected_id, index) WHERE kind = 'connected';
+
+-- A tool attached to an agent; `seq` is the order of attaching.
+CREATE TABLE IF NOT EXISTS diverge.attachments (
+    tool        BIGINT NOT NULL REFERENCES diverge.tools(id) ON DELETE CASCADE,
+    agent       BIGINT NOT NULL REFERENCES diverge.agents(id) ON DELETE CASCADE,
+    seq         BIGINT GENERATED ALWAYS AS IDENTITY,
+    PRIMARY KEY (tool, agent)
+);
+CREATE INDEX IF NOT EXISTS attachments_agent ON diverge.attachments (agent);
+
+-- Who may see a created tool from its provider, and who may join it:
+-- the key, when the admission admits a connect, is kept as its hash.
+CREATE TABLE IF NOT EXISTS diverge.admissions (
+    tool        BIGINT NOT NULL REFERENCES diverge.tools(id) ON DELETE CASCADE,
+    identity    TEXT NOT NULL,
+    address     TEXT,
+    -- `list`, `connect` or `both`.
+    admits      TEXT NOT NULL,
+    key_hash    TEXT UNIQUE,
+    created     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (tool, identity)
+);
+
+-- A route: at one position in a chain of dependencies, this tool
+-- answers, and no deployer is asked. The tool gone takes the route.
+CREATE TABLE IF NOT EXISTS diverge.routes (
+    agent       TEXT NOT NULL,
+    templates   TEXT[] NOT NULL,
+    tool        BIGINT NOT NULL REFERENCES diverge.tools(id) ON DELETE CASCADE,
+    created     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator     JSONB NOT NULL,
+    PRIMARY KEY (agent, templates)
+);

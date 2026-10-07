@@ -40,7 +40,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::accounts::over(&standing, Over::Delete, &account, connected) {
         return Ok(Frame::Forbidden);
     }
-    if daemon.live.holds(account.id).await {
+    if connected || store::in_use::account(&mut tx, account.id).await? {
         return Ok(Frame::InUse);
     }
     accounts::delete(&mut tx, account.id).await?;

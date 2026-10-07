@@ -10,12 +10,16 @@
 //! `accounts` table before, so that somebody can be the first to
 //! connect — and both are ordinary records from then on, editable and
 //! deletable. [`accounts`], [`roles`], [`providers_outgoing`],
-//! [`providers_incoming`], [`agents_templates`], [`tools_templates`]
-//! and [`resources`] are the records of each kind, loaded whole and
-//! written whole; [`hash`] is the three ids that are hashes; [`of_account`] is what an account may
-//! do, read fresh for every request; [`tags`] is the one way a set of
-//! tags is kept; the ids are [`AccountId`] and [`RoleId`], so that an
-//! id of one kind is never handed to a query of the other.
+//! [`providers_incoming`], [`agents_templates`], [`tools_templates`],
+//! [`resources`], [`agents`], [`tools`] and [`routes`] are the
+//! records of each kind, loaded whole and written whole; [`hash`] is
+//! the three ids that are hashes; [`counters`] is the once-and-for-all
+//! index of a container; [`in_use`] is what containers hold —
+//! templates, resources, accounts — as the records say; [`of_account`]
+//! is what an account may do, read fresh for every request; [`tags`]
+//! is the one way a set of tags is kept; the ids are [`AccountId`],
+//! [`RoleId`], [`AgentId`], [`ToolId`] and the providers', so that an
+//! id of one kind is never handed to a query of another.
 //!
 //! # Whole or not at all
 //!
@@ -47,11 +51,16 @@ pub use schema::*;
 pub use store::*;
 
 pub mod accounts;
+pub mod agents;
 pub mod agents_templates;
+pub mod counters;
 pub mod hash;
+pub mod in_use;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod resources;
 pub mod roles;
+pub mod routes;
 pub mod tags;
+pub mod tools;
 pub mod tools_templates;

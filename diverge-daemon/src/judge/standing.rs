@@ -88,4 +88,28 @@ impl Standing {
             _ => None,
         })
     }
+
+    /// The grants over agents.
+    pub fn agents(&self) -> impl Iterator<Item = &grant::agents::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Agents(permission) => Some(permission),
+            _ => None,
+        })
+    }
+
+    /// The grants over tools.
+    pub fn tools(&self) -> impl Iterator<Item = &grant::tools::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Tools(permission) => Some(permission),
+            _ => None,
+        })
+    }
+
+    /// The grants over routes.
+    pub fn routes(&self) -> impl Iterator<Item = &grant::routes::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Routes(permission) => Some(permission),
+            _ => None,
+        })
+    }
 }

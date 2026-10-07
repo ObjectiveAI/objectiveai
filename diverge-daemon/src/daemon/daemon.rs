@@ -17,16 +17,21 @@ pub struct Daemon {
     /// `<dir>/resources/`, where every resource's bytes are: see
     /// [`content`](crate::content).
     pub resources: PathBuf,
+    /// `<dir>/agents/`, where every agent's log is: see
+    /// [`logs`](crate::logs).
+    pub logs: PathBuf,
 }
 
 impl Daemon {
     /// A daemon on an open store, holding its content under
-    /// `resources`, with nothing live yet.
-    pub fn new(store: Store, resources: PathBuf) -> Self {
+    /// `resources` and its agents' logs under `logs`, with nothing
+    /// live yet.
+    pub fn new(store: Store, resources: PathBuf, logs: PathBuf) -> Self {
         Daemon {
             store,
             live: Live::new(),
             resources,
+            logs,
         }
     }
 

@@ -18,9 +18,12 @@
 //! SQL as kinds are added.
 
 pub mod accounts;
+pub mod agents;
 pub mod agents_templates;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod resources;
 pub mod roles;
+pub mod routes;
+pub mod tools;
 pub mod tools_templates;

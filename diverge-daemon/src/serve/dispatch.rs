@@ -13,50 +13,50 @@ use crate::daemon::Daemon;
 use crate::judge::Who;
 
 /// What every request nothing serves yet is answered with.
-const NOT_SERVED: &str = "not served: the daemon serves accounts, roles, providers, templates and resources, and nothing else yet";
+const NOT_SERVED: &str = "not served: the daemon serves accounts, roles, providers, templates, resources, agents, tools and routes, and nothing else yet";
 
 /// Read `payload` as the request that opened `scope` and hand it to
 /// its handler, which answers and finishes the scope.
 ///
 /// One arm per request of the wire, so that a request added to the
-/// SDK is a request this cannot compile without. The forty-six over
-/// accounts, roles, providers, templates, resources and a provider's
-/// tool containers have handlers; every other is answered with its
+/// SDK is a request this cannot compile without. The sixty-nine over
+/// accounts, roles, providers, templates, resources, agents, tools,
+/// routes and a provider's tool containers have handlers; every other is answered with its
 /// endpoint's own `Error`, carrying one sentence saying so, encoded as
 /// the endpoint encodes it, then the finish. A payload that is no
 /// request at all is finished with nothing before it, which is what
 /// the wire means by a request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
     match ClientRequest::decode(payload).unwrap_or_else(|never| match never {}) {
-        ClientRequest::AgentsCreate(_) => refused(scope, encoded(&endpoints::agents::create::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsGet(_) => refused(scope, encoded(&endpoints::agents::get::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsDelete(_) => refused(scope, encoded(&endpoints::agents::delete::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::AgentsCreate(frame) => agents::create::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsGet(frame) => agents::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsDelete(frame) => agents::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsMessage(_) => refused(scope, encoded(&endpoints::agents::message::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsLogs(_) => refused(scope, encoded(&endpoints::agents::logs::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsList(_) => refused(scope, encoded(&endpoints::agents::list::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsEdit(_) => refused(scope, encoded(&endpoints::agents::edit::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsTag(_) => refused(scope, encoded(&endpoints::agents::tag::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsUntag(_) => refused(scope, encoded(&endpoints::agents::untag::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::AgentsLogs(frame) => agents::logs::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsList(frame) => agents::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsEdit(frame) => agents::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsTag(frame) => agents::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsUntag(frame) => agents::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTemplatesCreate(frame) => agents::templates::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTemplatesGet(frame) => agents::templates::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTemplatesList(frame) => agents::templates::list::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTemplatesDelete(frame) => agents::templates::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTemplatesTag(frame) => agents::templates::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTemplatesUntag(frame) => agents::templates::untag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ToolsCreate(_) => refused(scope, encoded(&endpoints::tools::create::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsGet(_) => refused(scope, encoded(&endpoints::tools::get::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsEdit(_) => refused(scope, encoded(&endpoints::tools::edit::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsConnect(_) => refused(scope, encoded(&endpoints::tools::connect::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::ToolsCreate(frame) => tools::create::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsGet(frame) => tools::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsEdit(frame) => tools::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsConnect(frame) => tools::connect::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsListFor(frame) => tools::list_for::handle(scope, frame, who, daemon).await,
-        ClientRequest::ToolsAttach(_) => refused(scope, encoded(&endpoints::tools::attach::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsDetach(_) => refused(scope, encoded(&endpoints::tools::detach::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsDelete(_) => refused(scope, encoded(&endpoints::tools::delete::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsList(_) => refused(scope, encoded(&endpoints::tools::list::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsTag(_) => refused(scope, encoded(&endpoints::tools::tag::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsUntag(_) => refused(scope, encoded(&endpoints::tools::untag::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsRoutesSet(_) => refused(scope, encoded(&endpoints::tools::routes::set::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsRoutesDelete(_) => refused(scope, encoded(&endpoints::tools::routes::delete::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsRoutesList(_) => refused(scope, encoded(&endpoints::tools::routes::list::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::ToolsAttach(frame) => tools::attach::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsDetach(frame) => tools::detach::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsDelete(frame) => tools::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsList(frame) => tools::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsTag(frame) => tools::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsUntag(frame) => tools::untag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsRoutesSet(frame) => tools::routes::set::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsRoutesDelete(frame) => tools::routes::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsRoutesList(frame) => tools::routes::list::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTemplatesCreate(frame) => tools::templates::create::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTemplatesGet(frame) => tools::templates::get::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTemplatesList(frame) => tools::templates::list::handle(scope, frame, who, daemon).await,
@@ -116,8 +116,8 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ResourcesUntag(frame) => resources::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::PostgresGet(_) => refused(scope, encoded(&endpoints::postgres::get::server::response::Frame::Error(not_served()))).await,
         ClientRequest::PostgresConnections(_) => refused(scope, encoded(&endpoints::postgres::connections::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsAdmit(_) => refused(scope, encoded(&endpoints::tools::admit::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsUnadmit(_) => refused(scope, encoded(&endpoints::tools::unadmit::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::ToolsAdmit(frame) => tools::admit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsUnadmit(frame) => tools::unadmit::handle(scope, frame, who, daemon).await,
         ClientRequest::Invalid(_) => refused(scope, None).await,
     }
 }

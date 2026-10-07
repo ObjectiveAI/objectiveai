@@ -17,3 +17,12 @@ pub struct OutgoingId(pub i64);
 /// An incoming credential's row id, likewise.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct IncomingId(pub i64);
+
+/// An agent's row id. Never on the wire — an agent is named there by
+/// its name, or by its template and index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct AgentId(pub i64);
+
+/// A tool's row id, likewise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ToolId(pub i64);

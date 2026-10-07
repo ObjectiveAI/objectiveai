@@ -35,7 +35,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(record) = tools_templates::by_id(&mut conn, &frame.id, false).await? else {
         return Ok(Frame::NotFound);
     };
-    if !judge::tools_templates::over(&standing, Over::Get, &record, in_use(&record)) {
+    let held = store::in_use::tools_templates(&mut conn).await?;
+    if !judge::tools_templates::over(&standing, Over::Get, &record, in_use(&held, &record)) {
         return Ok(Frame::Forbidden);
     }
     Ok(Frame::Found(record.report()))

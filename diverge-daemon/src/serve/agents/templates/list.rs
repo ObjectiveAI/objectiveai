@@ -34,11 +34,12 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         return Ok(());
     }
     let all = agents_templates::all(&mut conn).await?;
+    let held = store::in_use::agents_templates(&mut conn).await?;
     drop(conn);
     let cap = frame.count.map_or(usize::MAX, |count| usize::try_from(count).unwrap_or(usize::MAX));
     let sent = all
         .iter()
-        .map(|record| (record, in_use(record)))
+        .map(|record| (record, in_use(&held, record)))
         .filter(|(record, in_use)| judge::agents_templates::over(&standing, Over::List, record, *in_use))
         .filter(|(record, in_use)| filter::agents_templates::test(&frame.filter, record, *in_use))
         .take(cap);

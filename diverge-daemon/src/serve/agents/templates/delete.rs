@@ -36,7 +36,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(record) = agents_templates::by_id(&mut tx, &frame.id, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let used = in_use(&record);
+    let held = store::in_use::agents_templates(&mut tx).await?;
+    let used = in_use(&held, &record);
     if !judge::agents_templates::over(&standing, Over::Delete, &record, used) {
         return Ok(Frame::Forbidden);
     }

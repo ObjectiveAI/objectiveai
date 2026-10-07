@@ -36,7 +36,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(record) = tools_templates::by_id(&mut tx, &frame.id, true).await? else {
         return Ok(Frame::NotFound);
     };
-    if !judge::tools_templates::tagging(&standing, Tagging::Untag, &record, in_use(&record), &frame.tags) {
+    let held = store::in_use::tools_templates(&mut tx).await?;
+    if !judge::tools_templates::tagging(&standing, Tagging::Untag, &record, in_use(&held, &record), &frame.tags) {
         return Ok(Frame::Forbidden);
     }
     tools_templates::set_tags(&mut tx, &record.id, &tags::without(&record.tags, &frame.tags)).await?;

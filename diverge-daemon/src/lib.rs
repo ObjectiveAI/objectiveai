@@ -12,14 +12,19 @@
 //!
 //! # What serves today
 //!
-//! Accounts, roles, providers, templates and resources, whole: the
-//! forty-six requests over them — the fourteen of the first two, the
-//! ten over outgoing providers and incoming credentials, the listing
-//! of a tenant's tool containers through a provider, the twelve over
-//! the two template families, and the nine over resources — are
-//! served as the wire states them, every other request is answered with its endpoint's
-//! own error saying it is not served yet, and every connection is
-//! judged. An outgoing provider on record is dialled and dialled
+//! Accounts, roles, providers, templates, resources, agents, tools
+//! and routes, as records: the sixty-nine requests over them — the
+//! fourteen of the first two, the ten over outgoing providers and
+//! incoming credentials, the listing of a tenant's tool containers
+//! through a provider, the twelve over the two template families,
+//! the nine over resources, the eight over agents' records and logs,
+//! the twelve over tools' records, attachments and admissions, and
+//! the three over routes — are served as the wire states them; every
+//! other request, and a message to an agent, is answered with its
+//! endpoint's own error saying it is not served yet; and every
+//! connection is judged. No container runs yet: an agent or a tool is
+//! its record, its log is kept under `<dir>/agents/<id>/`, and what
+//! runs comes with the work layer. An outgoing provider on record is dialled and dialled
 //! again for the daemon's life; a provider that dials in is admitted
 //! by a credential the daemon minted; on either connection the daemon
 //! is the caller of the provider protocol, [`providers`]. The records live in the one Postgres
@@ -28,7 +33,8 @@
 //! connection is and what each request may do is [`judge`]; what is
 //! live and shared is [`daemon`]; the local Postgres is [`postgres`];
 //! the connections to providers are [`providers`]; the bytes of every
-//! resource are [`content`]'s, under `<dir>/resources/`;
+//! resource are [`content`]'s, under `<dir>/resources/`; every agent's
+//! log is [`logs`]', under `<dir>/agents/`;
 //! and [`serve`] is the daemon running: the port bound, every
 //! connection read, every request dispatched, and the stop.
 //!
@@ -48,12 +54,14 @@
 //! `--config <dir>`, else `DIVERGE_DAEMON_CONFIG`, else
 //! `~/.diverge/daemon/`, holding `config.yaml`, optional, and
 //! `postgres/`, the local cluster's own directory when the daemon
-//! runs one, and `resources/`, every resource's bytes by its hash.
+//! runs one, `resources/`, every resource's bytes by its hash, and
+//! `agents/`, every agent's log by its id.
 
 pub mod config;
 pub mod content;
 pub mod daemon;
 pub mod judge;
+pub mod logs;
 pub mod postgres;
 pub mod providers;
 pub mod serve;

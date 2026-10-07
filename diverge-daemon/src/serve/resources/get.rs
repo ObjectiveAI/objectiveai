@@ -35,7 +35,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(record) = resources::by_id(&mut conn, &frame.id, false).await? else {
         return Ok(Frame::NotFound);
     };
-    if !judge::resources::over(&standing, Over::Get, &record, in_use(&record)) {
+    let held = store::in_use::resources(&mut conn).await?;
+    if !judge::resources::over(&standing, Over::Get, &record, in_use(&held, &record)) {
         return Ok(Frame::Forbidden);
     }
     Ok(Frame::Found(record.report()))

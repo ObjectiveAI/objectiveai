@@ -40,8 +40,9 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(record) = resources::by_id(&mut conn, &frame.resource, false).await? else {
         return Ok(Frame::NotFound);
     };
+    let held = store::in_use::resources(&mut conn).await?;
     drop(conn);
-    if !judge::resources::over(&standing, Over::Filetree, &record, in_use(&record)) {
+    if !judge::resources::over(&standing, Over::Filetree, &record, in_use(&held, &record)) {
         return Ok(Frame::Forbidden);
     }
     if record.kind == Kind::File {

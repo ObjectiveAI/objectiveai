@@ -46,8 +46,9 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     };
+    let held = store::in_use::resources(&mut conn).await?;
     drop(conn);
-    if !judge::resources::over(&standing, Over::Download, &record, in_use(&record)) {
+    if !judge::resources::over(&standing, Over::Download, &record, in_use(&held, &record)) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }

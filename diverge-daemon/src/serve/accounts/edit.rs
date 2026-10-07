@@ -81,7 +81,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     };
     let credential_taken = account.identity.is_some() && identity.is_none();
     let name_taken = account.name.is_some() && name.is_none();
-    if (name.is_none() && identity.is_none()) || (credential_taken && connected) || (name_taken && runs_under(account.id)) {
+    if (name.is_none() && identity.is_none()) || (credential_taken && connected) || (name_taken && store::in_use::account(&mut tx, account.id).await?) {
         return Ok(Frame::Alone);
     }
     let columns = accounts::Columns {
@@ -101,8 +101,3 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     Ok(Frame::Edited(minted))
 }
 
-/// Whether a container runs under the account, which forbids taking
-/// its name. No container runs under anything yet.
-fn runs_under(_: store::AccountId) -> bool {
-    false
-}
