@@ -98,6 +98,16 @@ Two populations, kept apart by type and by fate:
 - **Delegation is bounded.** An account hands out only grants it holds —
   `assign` over an account, `grant` over a role — so nothing escalates
   through a container or a role.
+- **One connection per incoming credential.** A provider that dials in
+  holds, for its connection's life, both the identity its credential
+  names and the credential itself; a second connection presenting that
+  credential, or admitted as that identity, is closed without a word,
+  as a refused credential is. The slot is taken before the version is
+  asked and given back by the connection's own task, on every path. An
+  edit of the credential ends the connection it holds and the next is
+  judged by the new key; a delete while connected is refused. The
+  provider server keeps the same rule for the peers that dial it, by
+  identity and by credential. (Ruling of 2026-10-07.)
 
 ## 5. Containers
 

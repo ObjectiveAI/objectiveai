@@ -25,7 +25,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// identity another credential names; else the credential replaced
 /// whole, with a new key answered here and never again, the old one
 /// admitting nothing. A connection a provider holds through it now is
-/// not dropped; the next one is judged by the new key.
+/// ended by the daemon once the edit is committed — its slot given
+/// back as it closes — and the next one is judged by the new key.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -51,5 +52,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::InUse);
     }
     tx.commit().await?;
+    daemon.live.evict_provider(&credential.provider()).await;
     Ok(Frame::Edited(minted))
 }

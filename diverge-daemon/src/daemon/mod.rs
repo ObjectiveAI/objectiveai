@@ -12,6 +12,8 @@
 
 mod daemon;
 mod live;
+mod peers;
 
 pub use daemon::*;
 pub use live::*;
+pub use peers::*;

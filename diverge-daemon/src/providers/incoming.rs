@@ -9,13 +9,14 @@ use super::{Error, attach};
 use crate::daemon::Daemon;
 
 /// Serve `connection`, a provider admitted at the handshake as
-/// `identity`, until it ends: attached under
-/// `Identity::IncomingUnbrokered`, and served. Why it ended, or why
-/// it never attached, is nobody's to hear: the provider dialled, and
-/// a provider that is not one gets its socket closed and nothing
-/// else.
-pub async fn incoming(connection: Connection, identity: String, daemon: &Arc<Daemon>) -> Result<(), Error> {
-    let attached = attach(connection, Identity::IncomingUnbrokered { identity }, daemon).await?;
+/// `identity` by the credential hashing to `key_hash`, until it ends:
+/// attached under `Identity::IncomingUnbrokered`, holding the
+/// credential, and served. Why it ended, or why it never attached —
+/// another connection holding the identity or the credential, or a
+/// socket that is not a provider's — is nobody's to hear: the
+/// provider dialled, and gets its socket closed and nothing else.
+pub async fn incoming(connection: Connection, identity: String, key_hash: String, daemon: &Arc<Daemon>) -> Result<(), Error> {
+    let attached = attach(connection, Identity::IncomingUnbrokered { identity }, Some(key_hash), daemon).await?;
     attached.serve().await;
     Ok(())
 }

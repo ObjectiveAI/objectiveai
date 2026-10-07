@@ -30,8 +30,10 @@ use crate::providers;
 /// and a refusal — or a store that could not be asked — is the
 /// connection closed without a word, as a provider closes on a key it
 /// does not hold. A provider admitted is handed to
-/// [`providers::incoming`], where the daemon is the caller; a client
-/// admitted is served here, as a client is.
+/// [`providers::incoming`], where the daemon is the caller — and
+/// where a second connection under an identity or a credential a
+/// connection holds is dropped the same way; a client admitted is
+/// served here, as a client is.
 pub async fn connection(mut connection: Connection, address: IpAddr, daemon: Arc<Daemon>) {
     let Some(Ok(first)) = connection.next().await else {
         return;
@@ -48,8 +50,8 @@ pub async fn connection(mut connection: Connection, address: IpAddr, daemon: Arc
     };
     match peer {
         Peer::Client(who) => client(connection, who, daemon).await,
-        Peer::Provider(identity) => {
-            let _ = providers::incoming(connection, identity, &daemon).await;
+        Peer::Provider { identity, key_hash } => {
+            let _ = providers::incoming(connection, identity, key_hash, &daemon).await;
         }
     }
 }

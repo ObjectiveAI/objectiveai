@@ -51,6 +51,7 @@ pub async fn dial(daemon: Arc<Daemon>, address: String) {
                     Identity::Outgoing {
                         address: address.clone(),
                     },
+                    None,
                     &daemon,
                 )
                 .await

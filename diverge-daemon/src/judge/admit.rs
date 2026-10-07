@@ -13,8 +13,14 @@ use crate::store::{self, Store, accounts, providers_incoming};
 pub enum Peer {
     /// A client, as the account.
     Client(Who),
-    /// A provider, as the identity.
-    Provider(String),
+    /// A provider, as the identity its credential names, with the
+    /// hash of the credential, which the connection holds.
+    Provider {
+        /// The identity.
+        identity: String,
+        /// The credential's hash.
+        key_hash: String,
+    },
 }
 
 /// The account `credential` names, presented from `address`: the one
@@ -40,16 +46,20 @@ pub async fn admit(store: &Store, credential: &str, address: IpAddr) -> Result<O
 
 /// The provider `credential` names, presented from `address`: the
 /// identity of the incoming credential whose key hashes to it, by the
-/// same rule as an account's.
-pub async fn admit_provider(store: &Store, credential: &str, address: IpAddr) -> Result<Option<String>, store::Error> {
+/// same rule as an account's, with that hash.
+pub async fn admit_provider(store: &Store, credential: &str, address: IpAddr) -> Result<Option<Peer>, store::Error> {
     let mut conn = store.acquire().await?;
-    let Some(incoming) = providers_incoming::by_key_hash(&mut conn, &key::hash(credential)).await? else {
+    let key_hash = key::hash(credential);
+    let Some(incoming) = providers_incoming::by_key_hash(&mut conn, &key_hash).await? else {
         return Ok(None);
     };
     if !accepts(incoming.address, address) {
         return Ok(None);
     }
-    Ok(Some(incoming.identity))
+    Ok(Some(Peer::Provider {
+        identity: incoming.identity,
+        key_hash,
+    }))
 }
 
 /// Who `credential` admits: a client and a provider dial the one
@@ -61,7 +71,7 @@ pub async fn admit_peer(store: &Store, credential: &str, address: IpAddr) -> Res
     if let Some(who) = admit(store, credential, address).await? {
         return Ok(Some(Peer::Client(who)));
     }
-    Ok(admit_provider(store, credential, address).await?.map(Peer::Provider))
+    admit_provider(store, credential, address).await
 }
 
 /// Whether a credential given `allowed` accepts a peer at `address`.

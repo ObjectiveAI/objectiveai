@@ -12,6 +12,7 @@ use chrono::{DateTime, Utc};
 
 use diverge_sdk::daemon::reference;
 
+use super::Peers;
 use crate::containers::{AgentRun, Key, ToolRun};
 use crate::database::Scope;
 use crate::store::{AccountId, AgentId, ToolId};
@@ -28,9 +29,10 @@ use crate::store::{AccountId, AgentId, ToolId};
 pub struct Live {
     /// Connections per account, for the accounts with any.
     connected: Mutex<HashMap<AccountId, usize>>,
-    /// The providers connected now, by identity, and the caller's
-    /// handle on each: what every request to a provider rides.
-    providers: Mutex<HashMap<Identity, Handle>>,
+    /// The providers connected now, one slot per identity and one
+    /// connection per credential, and the caller's handle on each:
+    /// what every request to a provider rides. See [`Peers`].
+    providers: Mutex<Peers>,
     /// The dial task of every outgoing provider, by address, to be
     /// ended when the provider is forgotten or the daemon stops.
     dials: Mutex<HashMap<String, AbortHandle>>,
@@ -117,31 +119,56 @@ impl Live {
         self.connected.lock().await.keys().copied().collect()
     }
 
-    /// A provider is connected, and this is the handle on it. A
-    /// second connection under one identity replaces the first's
-    /// handle, which is the newer one being the one that lives.
-    pub async fn connect_provider(&self, identity: Identity, handle: Handle) {
-        self.providers.lock().await.insert(identity, handle);
+    /// Take the provider's slot for a connection being admitted,
+    /// holding `credential` — the hash of the key an incoming provider
+    /// presented — with it: `None` when a connection holds the
+    /// identity, or one holds the credential, already, and the
+    /// newcomer is refused; else the slot's eviction word. What is
+    /// taken is given back with `disconnect_provider`, on every path.
+    pub async fn take_provider(&self, identity: Identity, credential: Option<String>) -> Option<Arc<Notify>> {
+        self.providers.lock().await.take(identity, credential)
     }
 
-    /// The provider's connection ended.
+    /// The provider answered its version, and this is the handle on
+    /// it: its slot filled.
+    pub async fn connect_provider(&self, identity: &Identity, handle: Handle) {
+        if let Some(slot) = self.providers.lock().await.slots.get_mut(identity) {
+            slot.handle = Some(handle);
+        }
+    }
+
+    /// The provider's connection ended: its slot given back, with the
+    /// credential it held.
     pub async fn disconnect_provider(&self, identity: &Identity) {
-        self.providers.lock().await.remove(identity);
+        self.providers.lock().await.release(identity);
     }
 
-    /// Whether the daemon holds a connection to the provider now.
+    /// End the provider's connection: its own task is told, closes
+    /// the socket, and gives the slot back — so the slot is held
+    /// until that has happened, and a connection arriving between is
+    /// refused as one arriving before would be.
+    pub async fn evict_provider(&self, identity: &Identity) {
+        if let Some(slot) = self.providers.lock().await.slots.get(identity) {
+            slot.evict.notify_one();
+        }
+    }
+
+    /// Whether the daemon holds a connection to the provider now — a
+    /// provider still answering its version included, since its
+    /// credential is taken.
     pub async fn is_provider_connected(&self, identity: &Identity) -> bool {
-        self.providers.lock().await.contains_key(identity)
+        self.providers.lock().await.slots.contains_key(identity)
     }
 
     /// Every provider connected now: one snapshot, for a list.
     pub async fn connected_providers(&self) -> HashSet<Identity> {
-        self.providers.lock().await.keys().cloned().collect()
+        self.providers.lock().await.slots.keys().cloned().collect()
     }
 
-    /// The handle on the provider, if it is connected.
+    /// The handle on the provider, if it is connected and has
+    /// answered its version.
     pub async fn provider(&self, identity: &Identity) -> Option<Handle> {
-        self.providers.lock().await.get(identity).cloned()
+        self.providers.lock().await.slots.get(identity).and_then(|slot| slot.handle.clone())
     }
 
     /// Keep the dial task for the address, ending any earlier one for
@@ -153,7 +180,7 @@ impl Live {
     }
 
     /// End the dial task for the address, and the connection it holds
-    /// with it — and take the handle out, since a task ended mid-way
+    /// with it — and give the slot back, since a task ended mid-way
     /// does not get to. An address with no dial is nothing to end.
     pub async fn stop_dial(&self, address: &str) {
         if let Some(dial) = self.dials.lock().await.remove(address) {

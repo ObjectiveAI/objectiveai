@@ -15,7 +15,10 @@
 //! once — so that a socket that is not a provider never counts as one
 //! connected — the handle put into [`Live`](crate::daemon::Live)
 //! under the provider's [`Identity`](diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity),
-//! the router driven until the socket ends, and the handle taken out.
+//! the router driven until the socket ends or the daemon evicts it,
+//! and the slot given back. One connection per identity, and one per
+//! incoming credential: the slot is taken before the version is asked,
+//! and a newcomer that collides on either is dropped without a word.
 //! [`url`] is the one rule for the address of an outgoing provider
 //! as a URL. [`Error`] is why an attach did not happen.
 //!
