@@ -10,7 +10,6 @@ use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::daemon::key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{active, running};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::reply;
@@ -58,11 +57,12 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         admitted.entry(record.tool).or_default().push(record.admission);
     }
     drop(conn);
+    let states = daemon.live.active_tools().await;
     let cap = frame.count.map_or(usize::MAX, |count| usize::try_from(count).unwrap_or(usize::MAX));
     let empty = Vec::new();
     let sent = all
         .iter()
-        .map(|tool| (tool, active(daemon, tool.id), attached.get(&tool.id).unwrap_or(&empty)))
+        .map(|tool| (tool, states.contains_key(&tool.id), attached.get(&tool.id).unwrap_or(&empty)))
         .filter(|(tool, active, attached)| judge::tools::over(&standing, Over::List, tool, *active, attached))
         .filter(|(tool, active, attached)| filter::tools::test(&frame.filter, tool, *active, attached))
         .take(cap);
@@ -75,7 +75,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         };
         reply::reply(
             scope,
-            &Frame::Tool(tool.report(active, running(daemon, tool.id), attached.clone(), routes, admissions)),
+            &Frame::Tool(tool.report(active, states.get(&tool.id).cloned().flatten(), attached.clone(), routes, admissions)),
         )
         .await;
     }

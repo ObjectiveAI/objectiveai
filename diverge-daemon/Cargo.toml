@@ -23,6 +23,9 @@ path = "src/main.rs"
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # A directory resource's id is `h1:` and the base64 of a hash.
 base64 = "0.22.1"
+# The MCP types a container's tool calls carry: what the served
+# tools answer, merged.
+rmcp = { version = "3.1.2", default-features = false }
 # The socket: a WebSocket upgrade accepted at any path on the port.
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "ws"] }
 # The one frame the daemon reads off a socket itself: the credential,
@@ -61,4 +64,4 @@ uuid = { version = "1.26.1", default-features = false, features = ["v4"] }
 # `time` for how long its stop is given; `signal` for Ctrl-C and
 # SIGTERM; `rt-multi-thread` and `sync` for the runtime `main` builds
 # and the stop flag.
-tokio = { version = "1.53.1", features = ["fs", "io-util", "process", "sync", "rt", "rt-multi-thread", "net", "signal", "time"] }
+tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "process", "sync", "rt", "rt-multi-thread", "net", "signal", "time"] }

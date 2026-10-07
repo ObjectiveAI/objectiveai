@@ -35,7 +35,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(agent) = agents::by_reference(&mut tx, &frame.agent, true).await? else {
         return Ok(Frame::NotFound);
     };
-    if !judge::agents::tagging(&standing, Tagging::Untag, &agent, active(daemon, agent.id), &frame.tags) {
+    if !judge::agents::tagging(&standing, Tagging::Untag, &agent, active(daemon, agent.id).await, &frame.tags) {
         return Ok(Frame::Forbidden);
     }
     agents::set_tags(&mut tx, agent.id, &tags::without(&agent.tags, &frame.tags)).await?;

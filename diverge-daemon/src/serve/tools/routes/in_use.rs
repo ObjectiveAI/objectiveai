@@ -3,8 +3,8 @@
 use crate::daemon::Daemon;
 use crate::store::routes::Route;
 
-/// Whether an active container is served its dependency through the
-/// route now, which refuses its deletion. No container runs yet.
-pub fn in_use(_: &Daemon, _: &Route) -> bool {
-    false
+/// Whether an active container is served the route's tool now, which
+/// refuses the route's deletion.
+pub async fn in_use(daemon: &Daemon, route: &Route) -> bool {
+    daemon.live.serving(route.tool).await
 }

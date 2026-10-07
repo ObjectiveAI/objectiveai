@@ -19,7 +19,7 @@ const NOT_SERVED: &str = "not served: the daemon serves accounts, roles, provide
 /// its handler, which answers and finishes the scope.
 ///
 /// One arm per request of the wire, so that a request added to the
-/// SDK is a request this cannot compile without. The sixty-nine over
+/// SDK is a request this cannot compile without. The seventy over
 /// accounts, roles, providers, templates, resources, agents, tools,
 /// routes and a provider's tool containers have handlers; every other is answered with its
 /// endpoint's own `Error`, carrying one sentence saying so, encoded as
@@ -31,7 +31,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::AgentsCreate(frame) => agents::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsGet(frame) => agents::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsDelete(frame) => agents::delete::handle(scope, frame, who, daemon).await,
-        ClientRequest::AgentsMessage(_) => refused(scope, encoded(&endpoints::agents::message::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::AgentsMessage(frame) => agents::message::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsLogs(frame) => agents::logs::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsList(frame) => agents::list::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsEdit(frame) => agents::edit::handle(scope, frame, who, daemon).await,

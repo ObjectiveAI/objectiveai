@@ -1,11 +1,10 @@
-//! The requests over agents, served: the eight over the records —
-//! [`create`], [`get`], [`list`], [`edit`], [`delete`], [`tag`],
-//! [`untag`], [`logs`] — and [`templates`], what agents are made from.
-//! Whether a loop runs in an agent is [`active`], false until
-//! containers run; what is attached to one is [`tools_of`]; and
+//! The requests over agents, served: the nine over the records and
+//! the run — [`create`], [`get`], [`list`], [`edit`], [`delete`],
+//! [`tag`], [`untag`], [`logs`], [`message`] — and [`templates`],
+//! what agents are made from. Whether a loop runs in an agent is
+//! [`active`]; what is attached to one is [`tools_of`]; and
 //! [`Failure`] is why a handler could not answer, the store or the
-//! log. A message to an agent needs its container and comes with the
-//! run.
+//! log.
 
 mod active;
 mod attached;
@@ -21,6 +20,7 @@ pub mod edit;
 pub mod get;
 pub mod list;
 pub mod logs;
+pub mod message;
 pub mod tag;
 pub mod templates;
 pub mod untag;

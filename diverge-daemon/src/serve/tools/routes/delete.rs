@@ -41,7 +41,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::routes::over(&standing, Over::Delete, &route, tool_name) {
         return Ok(Frame::Forbidden);
     }
-    if in_use(daemon, &route) {
+    if in_use(daemon, &route).await {
         return Ok(Frame::InUse);
     }
     routes::delete(&mut tx, &frame.path).await?;

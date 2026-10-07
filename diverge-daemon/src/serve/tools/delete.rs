@@ -38,7 +38,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::NotFound);
     };
     let attached = agents_of(&mut tx, tool.id).await?;
-    if !judge::tools::over(&standing, Over::Delete, &tool, active(daemon, tool.id), &attached) {
+    if !judge::tools::over(&standing, Over::Delete, &tool, active(daemon, tool.id).await, &attached) {
         return Ok(Frame::Forbidden);
     }
     if !attached.is_empty() {

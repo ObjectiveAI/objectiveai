@@ -47,7 +47,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         return Ok(());
     };
     drop(conn);
-    if !judge::agents::over(&standing, Over::Logs, &agent, active(daemon, agent.id)) {
+    if !judge::agents::over(&standing, Over::Logs, &agent, active(daemon, agent.id).await) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }

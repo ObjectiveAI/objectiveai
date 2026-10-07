@@ -1838,6 +1838,7 @@ dependencies = [
  "futures-util",
  "hex",
  "rand 0.9.2",
+ "rmcp 3.1.2",
  "serde",
  "serde_json",
  "serde_path_to_error",

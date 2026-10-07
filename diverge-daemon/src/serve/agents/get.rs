@@ -36,7 +36,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(agent) = agents::by_reference(&mut conn, &frame.agent, false).await? else {
         return Ok(Frame::NotFound);
     };
-    let active = active(daemon, agent.id);
+    let active = active(daemon, agent.id).await;
     if !judge::agents::over(&standing, Over::Get, &agent, active) {
         return Ok(Frame::Forbidden);
     }

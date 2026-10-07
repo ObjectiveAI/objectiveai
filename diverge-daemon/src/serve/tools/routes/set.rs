@@ -52,5 +52,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         routes::Created::Exists => return Ok(Frame::Exists),
     }
     tx.commit().await?;
+    daemon.live.answered.notify_waiters();
     Ok(Frame::Set)
 }

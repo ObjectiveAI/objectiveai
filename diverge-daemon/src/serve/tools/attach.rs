@@ -7,6 +7,7 @@ use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{active, agents_of};
+use crate::containers;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::agents;
@@ -44,12 +45,17 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::NoAgent);
     };
     let attached = agents_of(&mut tx, tool.id).await?;
-    if !judge::tools::over(&standing, Over::Attach, &tool, active(daemon, tool.id), &attached)
-        || !judge::agents::over(&standing, AgentsOver::Edit, &agent, agents::active(daemon, agent.id))
+    if !judge::tools::over(&standing, Over::Attach, &tool, active(daemon, tool.id).await, &attached)
+        || !judge::agents::over(&standing, AgentsOver::Edit, &agent, agents::active(daemon, agent.id).await)
     {
         return Ok(Frame::Forbidden);
     }
     attachments::attach(&mut tx, tool.id, agent.id).await?;
     tx.commit().await?;
+    if let Some(run) = daemon.live.agent_run(agent.id).await {
+        let name = containers::serve_name(&tool);
+        run.served.lock().await.insert(tool, &name);
+    }
+    daemon.live.answered.notify_waiters();
     Ok(Frame::Attached)
 }

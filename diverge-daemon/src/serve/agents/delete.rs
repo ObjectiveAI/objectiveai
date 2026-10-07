@@ -6,6 +6,7 @@ use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{Failure, active};
+use crate::containers;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::logs;
@@ -24,8 +25,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for an agent the grants do not reach; `Active` while a loop runs
-/// in it; else the agent gone — its attachments with it, its name
-/// free, every watch on its log ended and the log removed.
+/// in it; else the agent gone — its container stopped if it was up,
+/// its attachments with it, its name free, every watch on its log
+/// ended and the log removed.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, Failure> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -37,7 +39,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(agent) = agents::by_reference(&mut tx, &frame.agent, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let active = active(daemon, agent.id);
+    let active = active(daemon, agent.id).await;
     if !judge::agents::over(&standing, Over::Delete, &agent, active) {
         return Ok(Frame::Forbidden);
     }
@@ -46,6 +48,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     agents::delete(&mut tx, agent.id).await?;
     tx.commit().await?;
+    containers::stop_agent(daemon, agent.id).await;
     daemon.live.end_log(agent.id).await;
     logs::remove(&daemon.logs, agent.id).await?;
     Ok(Frame::Deleted)

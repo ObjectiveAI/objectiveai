@@ -130,6 +130,21 @@ Two populations, kept apart by type and by fate:
 - **Delete is refused while held.** A volume a container mounts, a
   resource a transfer reads, a database with a connection open: the live
   state is consulted before the record is touched, under the kind's lock.
+- **A loop is the proxy's word.** Whether an agent is ACTIVE — a loop
+  running in it — is read off the run's main stream, where the proxy
+  says `active` before a loop's first chunk and `inactive` after its
+  last; the program's output is chunks and cannot say either. Nothing
+  is derived from quiet. (Wire change of 2026-10-06.)
+- **A cross-provider mount is served for the run.** The `volumes::serve`
+  scope the daemon holds on another provider's volume for a FUSE mount
+  is opened when the container's run starts and let go when it ends —
+  the run's, not the record's, since the record outlives any run.
+- **One tool list, prefixed.** An agent sees the union of its attached
+  tools and its dependencies, each MCP tool as `<prefix>_<name>`: the
+  prefix is the serve-name folded to `[a-z0-9-]`, escalated to `name-2`,
+  `name-3`, … while taken, assigned once per run and kept until the tool
+  leaves, so nothing is dropped or renamed while served. A call routes by
+  its first `_`.
 - **Unused, a container stops.** Every container, agent or tool, has an
   idle clock: it resets on every use — a message delivered, a tool call
   relayed, a file moved in or out, a request the container itself makes

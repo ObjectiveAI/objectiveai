@@ -1,6 +1,7 @@
 //! The daemon's pieces, built once.
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use super::Live;
 use crate::store::Store;
@@ -20,18 +21,27 @@ pub struct Daemon {
     /// `<dir>/agents/`, where every agent's log is: see
     /// [`logs`](crate::logs).
     pub logs: PathBuf,
+    /// `<dir>/overlays/`, where an ephemeral mount's own layer is for
+    /// the run's life: see [`fuse`](crate::containers::fuse).
+    pub overlays: PathBuf,
+    /// How long a container may go unused before its run is ended:
+    /// `idle_seconds` of the configuration.
+    pub idle: Duration,
 }
 
 impl Daemon {
     /// A daemon on an open store, holding its content under
-    /// `resources` and its agents' logs under `logs`, with nothing
-    /// live yet.
-    pub fn new(store: Store, resources: PathBuf, logs: PathBuf) -> Self {
+    /// `resources`, its agents' logs under `logs` and its runs'
+    /// overlays under `overlays`, ending a run unused for `idle`, with
+    /// nothing live yet.
+    pub fn new(store: Store, resources: PathBuf, logs: PathBuf, overlays: PathBuf, idle: Duration) -> Self {
         Daemon {
             store,
             live: Live::new(),
             resources,
             logs,
+            overlays,
+            idle,
         }
     }
 

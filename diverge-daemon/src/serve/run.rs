@@ -9,6 +9,7 @@ use tokio::sync::watch;
 
 use super::{Error, listen};
 use crate::config::Config;
+use crate::containers;
 use crate::daemon::Daemon;
 use crate::postgres;
 use crate::providers;
@@ -44,7 +45,18 @@ pub async fn run(config: Config, dir: PathBuf) -> Result<(), Error> {
         postgres.stop().await;
         return Err(Error::Resources(error));
     }
-    let daemon = Arc::new(Daemon::new(store, resources, logs));
+    let overlays = dir.join("overlays");
+    if let Err(error) = tokio::fs::create_dir_all(&overlays).await {
+        postgres.stop().await;
+        return Err(Error::Resources(error));
+    }
+    let daemon = Arc::new(Daemon::new(
+        store,
+        resources,
+        logs,
+        overlays,
+        std::time::Duration::from_secs(config.idle_seconds),
+    ));
     if let Err(error) = providers::dial_all(&daemon).await {
         postgres.stop().await;
         return Err(Error::Store(error));
@@ -59,6 +71,7 @@ pub async fn run(config: Config, dir: PathBuf) -> Result<(), Error> {
             listening.await
         }
     };
+    containers::stop_all(&daemon).await;
     daemon.live.stop_dials().await;
     postgres.stop().await;
     outcome

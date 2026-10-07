@@ -8,7 +8,7 @@ use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::daemon::key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{Failure, active};
+use super::Failure;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who, filter};
 use crate::logs;
@@ -47,10 +47,11 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         }
     }
     drop(conn);
+    let actives = daemon.live.active_agents().await;
     let cap = frame.count.map_or(usize::MAX, |count| usize::try_from(count).unwrap_or(usize::MAX));
     let sent = all
         .iter()
-        .map(|agent| (agent, active(daemon, agent.id)))
+        .map(|agent| (agent, actives.contains(&agent.id)))
         .filter(|(agent, active)| judge::agents::over(&standing, Over::List, agent, *active))
         .filter(|(agent, active)| filter::agents::test(&frame.filter, agent, *active))
         .take(cap);

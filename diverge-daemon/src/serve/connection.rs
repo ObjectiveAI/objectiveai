@@ -65,7 +65,7 @@ pub async fn connection(mut connection: Connection, address: IpAddr, daemon: Arc
 /// its feed has closed, and then every task still answering is waited
 /// for, since an answer composed is an answer sent, and the connection
 /// counts itself out.
-async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
+pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
     let mut session = Session::new(connection);
     daemon.live.enter(who.id).await;
     let mut scopes = JoinSet::new();

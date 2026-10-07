@@ -24,5 +24,5 @@ pub async fn report(conn: &mut PgConnection, daemon: &Daemon, tool: &Tool) -> Re
             .map(|record| record.admission)
             .collect()
     };
-    Ok(tool.report(active(daemon, tool.id), running(daemon, tool.id), agents, routes, admissions))
+    Ok(tool.report(active(daemon, tool.id).await, running(daemon, tool.id).await, agents, routes, admissions))
 }

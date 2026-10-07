@@ -5,19 +5,21 @@ use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::wire::client::handle::Handle;
-use tokio::sync::{Mutex, watch};
+use tokio::sync::{Mutex, Notify, watch};
 use tokio::task::AbortHandle;
 
-use crate::store::{AccountId, AgentId};
+use crate::containers::{AgentRun, ToolRun};
+use crate::store::{AccountId, AgentId, ToolId};
 
 /// The live state of the daemon: which accounts have a client
 /// connected as them, and how many; which providers the daemon holds
 /// a connection to, and the handle it speaks to each on; and the dial
-/// tasks keeping the outgoing ones connected; and every agent's log
-/// as it is appended and watched. Later, which containers run. Behind
-/// async mutexes, held for a lookup and never across anything that
-/// waits on the outside.
-#[derive(Debug, Default)]
+/// tasks keeping the outgoing ones connected; every agent's log as
+/// it is appended and watched; which agents and tools run, and what
+/// is live for each; the deployer agents' queues; and the word that a
+/// dependency's position was answered. Behind async mutexes, held for
+/// a lookup and never across anything that waits on the outside.
+#[derive(Default)]
 pub struct Live {
     /// Connections per account, for the accounts with any.
     connected: Mutex<HashMap<AccountId, usize>>,
@@ -30,6 +32,22 @@ pub struct Live {
     /// Every agent's log that has been appended to or watched since
     /// the start, by agent.
     logs: Mutex<HashMap<AgentId, Arc<Log>>>,
+    /// The agents running now.
+    agents: Mutex<HashMap<AgentId, Arc<AgentRun>>>,
+    /// The tools running now, or joined.
+    tools: Mutex<HashMap<ToolId, Arc<ToolRun>>>,
+    /// One queue per deployer agent: the lock a dependency holds for
+    /// its turn, so the deployer handles one at a time.
+    deployers: Mutex<HashMap<AgentId, Arc<Mutex<()>>>>,
+    /// A route was set or a tool attached: every dependency waiting
+    /// on its position looks again.
+    pub answered: Notify,
+}
+
+impl std::fmt::Debug for Live {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Live")
+    }
 }
 
 /// One agent's log as it is live: the lock an append is made under,
@@ -152,5 +170,84 @@ impl Live {
     /// it once the last append has let go.
     pub async fn end_log(&self, id: AgentId) {
         self.logs.lock().await.remove(&id);
+    }
+
+    /// The agent's run, if it is up.
+    pub async fn agent_run(&self, id: AgentId) -> Option<Arc<AgentRun>> {
+        self.agents.lock().await.get(&id).cloned()
+    }
+
+    /// The agent is running.
+    pub async fn insert_agent(&self, run: Arc<AgentRun>) {
+        self.agents.lock().await.insert(run.id, run);
+    }
+
+    /// The agent's run is over: what was live for it, once.
+    pub async fn remove_agent(&self, id: AgentId) -> Option<Arc<AgentRun>> {
+        self.agents.lock().await.remove(&id)
+    }
+
+    /// Every agent running now.
+    pub async fn agent_runs(&self) -> Vec<Arc<AgentRun>> {
+        self.agents.lock().await.values().cloned().collect()
+    }
+
+    /// The agents a loop runs in now: one snapshot for a list.
+    pub async fn active_agents(&self) -> HashSet<AgentId> {
+        self.agents
+            .lock()
+            .await
+            .values()
+            .filter(|run| run.is_active())
+            .map(|run| run.id)
+            .collect()
+    }
+
+    /// The tool's run, if it is up.
+    pub async fn tool_run(&self, id: ToolId) -> Option<Arc<ToolRun>> {
+        self.tools.lock().await.get(&id).cloned()
+    }
+
+    /// The tool is running, or joined.
+    pub async fn insert_tool(&self, run: Arc<ToolRun>) {
+        self.tools.lock().await.insert(run.id, run);
+    }
+
+    /// The tool's run is over: what was live for it, once.
+    pub async fn remove_tool(&self, id: ToolId) -> Option<Arc<ToolRun>> {
+        self.tools.lock().await.remove(&id)
+    }
+
+    /// Every tool running now.
+    pub async fn tool_runs(&self) -> Vec<Arc<ToolRun>> {
+        self.tools.lock().await.values().cloned().collect()
+    }
+
+    /// The tools active now, each with its container's id when it has
+    /// one: one snapshot for a list.
+    pub async fn active_tools(&self) -> HashMap<ToolId, Option<String>> {
+        self.tools
+            .lock()
+            .await
+            .values()
+            .map(|run| (run.id, run.container.clone()))
+            .collect()
+    }
+
+    /// Whether an active agent is served the tool now, which is what
+    /// holds a route to it.
+    pub async fn serving(&self, tool: ToolId) -> bool {
+        for run in self.agent_runs().await {
+            if run.is_active() && run.served.lock().await.entry(tool).is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// The deployer agent's queue: the lock one dependency holds for
+    /// its turn.
+    pub async fn deployer_queue(&self, id: AgentId) -> Arc<Mutex<()>> {
+        Arc::clone(self.deployers.lock().await.entry(id).or_default())
     }
 }

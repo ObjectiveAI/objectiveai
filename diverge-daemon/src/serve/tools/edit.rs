@@ -44,7 +44,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(tool) = tools::by_reference(&mut tx, &frame.tool, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let active = active(daemon, tool.id);
+    let active = active(daemon, tool.id).await;
     let attached = agents_of(&mut tx, tool.id).await?;
     if !judge::tools::over(&standing, Over::Edit, &tool, active, &attached) {
         return Ok(Frame::Forbidden);
