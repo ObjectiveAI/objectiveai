@@ -2,16 +2,20 @@
 
 use std::net::IpAddr;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use diverge_sdk::wire::server::unbrokered_authorizer;
 use futures_util::future;
 
-use super::Error;
+use super::{Error, Slot, Taken};
 use crate::config::auth::{Auth, Hook, HookInput, HookOutput, Key, Unbrokered};
 use crate::hook;
+use crate::serve::{Peers, digest};
 
-/// The provider's authorizer: the ways the `auth` section lists, and
-/// the `hooks/` directory the hooks among them are found in.
+/// The provider's authorizer for one connection: the ways the `auth`
+/// section lists, the `hooks/` directory the hooks among them are
+/// found in, the peers connected now, and the slot the connection
+/// reads what was taken from.
 #[derive(Debug)]
 pub struct UnbrokeredAuthorizer {
     /// The ways, in the configuration's order. Empty is a provider
@@ -19,6 +23,10 @@ pub struct UnbrokeredAuthorizer {
     ways: Vec<Unbrokered>,
     /// The `hooks/` directory of the provider.
     hooks_dir: PathBuf,
+    /// The peers connected now, where an accepted credential is held.
+    peers: Arc<Peers>,
+    /// Where what was taken is left for the connection.
+    taken: Slot,
 }
 
 /// What one way said of a credential.
@@ -33,11 +41,14 @@ enum Judgement {
 
 impl UnbrokeredAuthorizer {
     /// An authorizer over the `auth` section, absent or present, with
-    /// the provider's `hooks/` directory.
-    pub fn new(auth: Option<Auth>, hooks_dir: PathBuf) -> Self {
+    /// the provider's `hooks/` directory, for one connection: what it
+    /// takes in `peers` it leaves in `taken`.
+    pub fn new(auth: Option<Auth>, hooks_dir: PathBuf, peers: Arc<Peers>, taken: Slot) -> Self {
         UnbrokeredAuthorizer {
             ways: auth.and_then(|auth| auth.unbrokered).unwrap_or_default(),
             hooks_dir,
+            peers,
+            taken,
         }
     }
 
@@ -93,13 +104,26 @@ impl unbrokered_authorizer::UnbrokeredAuthorizer for UnbrokeredAuthorizer {
 
     /// Every way asked at once; the first in the configuration's
     /// order that accepts decides; none accepting is the refusal,
-    /// with the hooks that did not answer.
+    /// with the hooks that did not answer. An accepted credential is
+    /// then taken with its identity among the peers connected, or is
+    /// [`Error::Held`] when a connection holds either already; what
+    /// was taken is left in the slot for the connection to give back.
     async fn authorize(&self, credential: &str, address: IpAddr) -> Result<String, Error> {
         let judgements = future::join_all(self.ways.iter().map(|way| self.judge(way, credential, address))).await;
         let mut failed = Vec::new();
         for judgement in judgements {
             match judgement {
-                Judgement::Accepted(identity) => return Ok(identity),
+                Judgement::Accepted(identity) => {
+                    let credential = digest(credential);
+                    if !self.peers.take(&identity, credential).await {
+                        return Err(Error::Held { identity });
+                    }
+                    *self.taken.lock().await = Some(Taken {
+                        identity: identity.clone(),
+                        credential,
+                    });
+                    return Ok(identity);
+                }
                 Judgement::Refused => {}
                 Judgement::Failed(name, error) => failed.push((name, error)),
             }

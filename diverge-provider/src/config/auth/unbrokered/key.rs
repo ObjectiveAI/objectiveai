@@ -13,7 +13,9 @@ pub struct Key {
     pub key: String,
     /// Who a peer that presents the key is: the string every handler
     /// and every capability receives as the client's identity. The
-    /// key itself never serves as one.
+    /// key itself never serves as one. One connection holds the
+    /// identity at a time, and one holds the key; two keys naming one
+    /// identity admit one peer at a time between them.
     pub identity: String,
     /// The one peer address the key is accepted from. Absent means
     /// any address.

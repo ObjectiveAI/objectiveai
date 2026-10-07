@@ -4,13 +4,15 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use tokio::sync::Mutex;
+
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::server::authorization::Authorization;
 use diverge_sdk::provider::server::directory::Directory;
 use diverge_sdk::provider::server::handle::handle;
 use diverge_sdk::wire::server::session::Session;
 
-use super::Error;
+use super::{Error, Peers};
 use crate::config::Config;
 use crate::config::auth::Auth;
 use crate::config::volumes::Volumes;
@@ -18,7 +20,7 @@ use crate::container_deployer::ContainerDeployer;
 use crate::image_checker::ImageChecker;
 use crate::image_registry::ImageRegistry;
 use crate::tools::podman;
-use crate::unbrokered_authorizer::UnbrokeredAuthorizer;
+use crate::unbrokered_authorizer::{Slot, UnbrokeredAuthorizer};
 use crate::volume_manager::{Scratch, VolumeManager};
 use crate::Limit;
 
@@ -43,6 +45,8 @@ pub struct Provider {
     registry: Arc<ImageRegistry>,
     /// The running containers, one map for the provider.
     directory: Arc<Directory>,
+    /// The peers connected now, one per identity and per credential.
+    peers: Arc<Peers>,
 }
 
 impl Provider {
@@ -77,16 +81,25 @@ impl Provider {
             checker,
             registry,
             directory: Arc::new(Directory::new()),
+            peers: Arc::new(Peers::default()),
         })
     }
 
-    /// The authorization of a connection a peer dialled: the peer's
-    /// first frame judged by an authorizer over the `auth` section,
-    /// made here since the SDK takes one by value per connection and
-    /// making one is a clone of the section.
-    pub fn incoming(&self) -> Authorization<UnbrokeredAuthorizer> {
-        Authorization::Incoming {
-            unbrokered: UnbrokeredAuthorizer::new(self.auth.clone(), self.hooks_dir.clone()),
+    /// A connection a peer dialled, served for as long as it lasts:
+    /// the peer's first frame judged by an authorizer over the `auth`
+    /// section — made here since the SDK takes one by value per
+    /// connection and making one is a clone of the section — which
+    /// takes the identity and the credential among the peers
+    /// connected, and refuses a second connection on either; when the
+    /// connection is over, whatever it took is given back.
+    pub async fn accept(&self, connection: Connection, address: IpAddr) {
+        let taken: Slot = Arc::new(Mutex::new(None));
+        let authorization = Authorization::Incoming {
+            unbrokered: UnbrokeredAuthorizer::new(self.auth.clone(), self.hooks_dir.clone(), Arc::clone(&self.peers), Arc::clone(&taken)),
+        };
+        self.connection(connection, authorization, address).await;
+        if let Some(held) = taken.lock().await.take() {
+            self.peers.release(&held.identity, &held.credential).await;
         }
     }
 

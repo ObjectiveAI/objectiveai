@@ -18,6 +18,13 @@
 //! close, and carries the hooks that did not answer, by name, so a
 //! broken hook is seen as broken by whoever holds the error.
 //!
+//! A credential accepted is then held: the identity it admits and
+//! the credential itself are taken in the provider's
+//! [`Peers`](crate::serve::Peers) for the connection's life, and a
+//! connection that collides on either is refused the same way a bad
+//! credential is. What was taken is left in the connection's
+//! [`Slot`] as [`Taken`], for the connection to give back.
+//!
 //! [`UnbrokeredAuthorizer`] is the authorizer and [`Error`] the
 //! refusal.
 //!
@@ -25,7 +32,9 @@
 //! through this module and not through the file it lives in.
 
 mod error;
+mod taken;
 mod unbrokered_authorizer;
 
 pub use error::*;
+pub use taken::*;
 pub use unbrokered_authorizer::*;

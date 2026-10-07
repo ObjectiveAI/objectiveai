@@ -7,7 +7,9 @@
 //! this module owns both ends of the socket. [`listen`] accepts a
 //! WebSocket upgrade at any path on the configured port, on every
 //! interface, and each upgrade is one connection the peer
-//! authenticates with its first frame; [`dial`] connects to one peer
+//! authenticates with its first frame — one connection per identity
+//! and per credential, [`Peers`], a second being closed at its
+//! handshake; [`dial`] connects to one peer
 //! of `clients.unbrokered`, presents the configured key as the first
 //! frame, serves the connection for as long as it lasts, and dials
 //! again five seconds after it ends or fails, for the provider's
@@ -27,11 +29,13 @@
 mod dial;
 mod error;
 mod listen;
+mod peers;
 mod provider;
 mod run;
 
 pub use dial::*;
 pub use error::*;
 pub use listen::*;
+pub use peers::*;
 pub use provider::*;
 pub use run::*;

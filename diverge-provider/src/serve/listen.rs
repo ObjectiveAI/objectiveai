@@ -16,7 +16,7 @@ use super::{Error, Provider};
 
 /// Listen on `port`, on every interface, until `stop` says so: every
 /// request at every path is a WebSocket upgrade, and each upgrade is
-/// one connection served by [`Provider::connection`]. A request that
+/// one connection served by [`Provider::accept`]. A request that
 /// is not an upgrade is answered as axum answers one. When `stop`
 /// turns `true` the listener closes and what was accepted is left to
 /// finish on its own.
@@ -41,8 +41,7 @@ async fn accept(
 ) -> Response {
     upgrade
         .on_upgrade(move |socket| async move {
-            let authorization = provider.incoming();
-            provider.connection(Connection::Incoming(socket), authorization, peer.ip()).await;
+            provider.accept(Connection::Incoming(socket), peer.ip()).await;
         })
         .into_response()
 }
