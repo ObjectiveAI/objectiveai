@@ -27,14 +27,12 @@
 //!
 //! # What lands
 //!
-//! The file, created or replaced, as the bytes arrived; parents are
-//! not created — the request names a file, not a tree, and a missing
-//! parent is an error. The proxy writes the content beside its
-//! destination and moves it over in one rename when the content
-//! finishes, so the destination is either what it was or the whole
-//! new file, never the half between. A content channel that ends in
-//! an error is a write the proxy abandons, and it discards what it
-//! wrote.
+//! The file, created or replaced, as the bytes arrived. The proxy
+//! writes the content beside its destination and moves it over in
+//! one rename when the content finishes, so the destination is either
+//! what it was or the whole new file, never the half between. A
+//! content channel that ends in an error is a write the proxy
+//! abandons, and it discards what it wrote.
 
 pub mod client;
 pub mod server;

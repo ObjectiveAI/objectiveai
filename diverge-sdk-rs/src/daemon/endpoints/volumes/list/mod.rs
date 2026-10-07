@@ -8,9 +8,10 @@
 //! the provider lists it, with the agents and the tools that mount it.
 //! A count caps what comes back. A request that says nothing is every
 //! volume the grants reach. A caller whose grants reach none that
-//! matches sees the finish and nothing before it. A provider that could
-//! not be asked is the scope's error, after whatever was sent. The
-//! daemon does not stay open.
+//! matches sees the finish and nothing before it. A provider on record
+//! that is not connected now is not asked and contributes nothing; a
+//! connected provider that could not be asked is the scope's error,
+//! after whatever was sent. The daemon does not stay open.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is
