@@ -59,6 +59,7 @@ export function installPreview() {
   const volumesOf = (p: { kind: string }) => machineOf(p)?.volumes ?? [];
   const views: SavedView[] = [];
   const localAgents: LocalAgentView[] = [];
+  let theme: string | null = null;
   type SpaceRec = { view: SpaceView; moves: MoveView[]; invite: string | null; from_copy?: boolean };
   const spaceRecs: SpaceRec[] = structuredClone(fixture.spaces) as SpaceRec[];
   const knocks: KnockView[] = structuredClone(fixture.knocks) as KnockView[];
@@ -589,6 +590,11 @@ export function installPreview() {
           return null;
         case "machines_names":
           return {};
+        case "theme_get":
+          return theme;
+        case "theme_set":
+          theme = args.theme;
+          return theme;
         case "machines_rename":
           return { [args.identity.kind === "outgoing" ? `outgoing:${args.identity.address}` : `incoming:${args.identity.identity}`]: args.name };
         case "machines_list":

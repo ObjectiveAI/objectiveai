@@ -129,6 +129,8 @@ fn main() {
             actions::machines_remove,
             actions::machines_rename,
             actions::machines_names,
+            actions::theme_get,
+            actions::theme_set,
             actions::views_list,
             actions::views_save,
             actions::views_delete,

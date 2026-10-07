@@ -156,6 +156,9 @@ export const api = {
   machineRename: (identity: ProviderView, name: string) => invoke<Record<string, string>>("machines_rename", { identity, name }),
   onMenu: (handler: (id: string) => void) => listen<string>("menu://action", (e) => handler(e.payload)),
 
+  theme: () => invoke<string | null>("theme_get"),
+  themeSet: (theme: string | null) => invoke<string | null>("theme_set", { theme }),
+
   views: () => invoke<SavedView[]>("views_list"),
   viewSave: (view: SavedView) => invoke<SavedView>("views_save", { view }),
   viewDelete: (id: string) => invoke<null>("views_delete", { id }),

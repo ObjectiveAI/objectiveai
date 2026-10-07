@@ -60,6 +60,8 @@ pub struct AppState {
     pub agent_mounts: Mutex<HashMap<String, AgentMounts>>,
     /// Your card as you keep it; none until you first save one.
     pub card: Mutex<Option<crate::card::Card>>,
+    /// The theme you picked, by its id in theme.css; none is the default.
+    pub theme: Mutex<Option<String>>,
     /// What waits for the first-run page to be finished: anything that acts as you.
     pub after_first_run: Mutex<Vec<AfterFirstRun>>,
 }
@@ -75,6 +77,7 @@ const MACHINE_NAMES_FILE: &str = "machine_names.json";
 const AGENT_MOUNTS_FILE: &str = "agent_mounts.json";
 const THREADS_FILE: &str = "threads.json";
 const CARD_FILE: &str = "profile_card.json";
+const THEME_FILE: &str = "theme.json";
 const RECORDS_DIR: &str = "records";
 
 /// The variable that puts the app's files in a folder of your choosing:
@@ -212,6 +215,8 @@ impl AppState {
             threads: Mutex::new(kept(held, &data.join(THREADS_FILE), store::THREADS).unwrap_or_default()),
             agent_mounts: Mutex::new(kept(held, &data.join(AGENT_MOUNTS_FILE), store::AGENT_MOUNTS).unwrap_or(seams.first_mounts)),
             card: Mutex::new(kept(held, &data.join(CARD_FILE), store::PROFILE_CARD)),
+            // A theme that's no longer in theme.css falls back to the default.
+            theme: Mutex::new(kept::<Option<String>>(held, &data.join(THEME_FILE), store::THEME).flatten().filter(|id| theme_ids().contains(&id.as_str()))),
             after_first_run: Mutex::new(Vec::new()),
             data,
             folder,
@@ -326,6 +331,8 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("machines_remove", "Remove a machine"),
     ("machines_rename", "Call a machine by a name of your own"),
     ("machines_names", "The names you gave your machines"),
+    ("theme_get", "The theme you picked (none: the default)"),
+    ("theme_set", "Pick a theme by its id, or none for the default"),
     ("views_list", "List saved Views"),
     ("views_save", "Save a View (a saved log request)"),
     ("views_delete", "Delete a saved View"),
@@ -1793,6 +1800,41 @@ pub async fn machines_remove(state: State<'_, AppState>, identity: ProviderView)
     state.daemon.providers_remove((&identity).into()).await
 }
 
+// --- the theme -------------------------------------------------------------
+
+/// The themes theme.css holds besides the default: the id of each
+/// `:root[data-theme="<id>"]` block. Read from the sheet itself, so there is no
+/// second list to keep.
+pub fn theme_ids() -> Vec<&'static str> {
+    const CSS: &str = include_str!("../../src/theme.css");
+    CSS.split(":root[data-theme=\"").skip(1).filter_map(|rest| rest.split_once("\"]").map(|(id, _)| id))
+        // Only real ids: the sheet's own comment names the pattern as `<id>`.
+        .filter(|id| !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'))
+        .collect()
+}
+
+#[tauri::command]
+pub fn theme_get(state: State<'_, AppState>) -> Option<String> {
+    state.theme.lock().unwrap().clone()
+}
+
+#[tauri::command]
+pub fn theme_set(state: State<'_, AppState>, theme: Option<String>) -> Result<Option<String>, String> {
+    set_theme(&state, theme)
+}
+
+fn set_theme(state: &AppState, theme: Option<String>) -> Result<Option<String>, String> {
+    if let Some(id) = &theme {
+        if !theme_ids().contains(&id.as_str()) {
+            return Err(format!("there is no theme called {id:?}"));
+        }
+    }
+    let mut kept = state.theme.lock().unwrap();
+    *kept = theme;
+    state.keep(THEME_FILE, crate::store::THEME, &*kept);
+    Ok(kept.clone())
+}
+
 // --- saved Views -----------------------------------------------------------
 
 #[tauri::command]
@@ -2611,6 +2653,35 @@ mod tests {
         let again = AppState::open(data.clone()).await;
         assert_eq!(info(&again).folder_held, FolderHeld::Yes);
         assert_eq!(again.identity.usual().unwrap().key, Keypair::from_seed("juno").key());
+    }
+
+    #[test]
+    fn the_themes_are_read_from_theme_css() {
+        assert_eq!(theme_ids(), vec!["navy"]);
+    }
+
+    #[tokio::test]
+    async fn the_theme_you_pick_is_kept_and_read_back() {
+        let data = store::tests::folder("actions-theme");
+        seeded_keys(&data);
+        let state = AppState::open(data.clone()).await;
+        assert_eq!(*state.theme.lock().unwrap(), None, "the default until you pick one");
+        assert!(!data.join(THEME_FILE).exists(), "and no file until then");
+        assert!(set_theme(&state, Some("teal".into())).is_err(), "only a theme theme.css has");
+        assert!(!data.join(THEME_FILE).exists());
+        assert_eq!(set_theme(&state, Some("navy".into())), Ok(Some("navy".into())));
+        assert_eq!(store::header(&data.join(THEME_FILE)).map(|h| (h.file, h.version)), Some(("theme".into(), 1)));
+        drop(state);
+        let again = AppState::open(data.clone()).await;
+        assert_eq!(*again.theme.lock().unwrap(), Some("navy".into()), "kept between launches");
+        assert_eq!(set_theme(&again, None), Ok(None), "back to the default");
+        drop(again);
+        let third = AppState::open(data.clone()).await;
+        assert_eq!(*third.theme.lock().unwrap(), None);
+        drop(third);
+        // A theme theme.css no longer has reads as the default.
+        store::save(&data.join(THEME_FILE), store::THEME, &Some("gone".to_owned())).unwrap();
+        assert_eq!(*AppState::open(data.clone()).await.theme.lock().unwrap(), None);
     }
 
     #[tokio::test]

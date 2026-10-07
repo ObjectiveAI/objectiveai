@@ -841,6 +841,7 @@ export const t = {
       "record copy": "Your copy of a room's record",
       "door agents": "Your local agents file",
       "profile card": "Your card file",
+      "theme": "Your theme file",
       "stand-in rooms": "The stand-in's rooms file",
       "stand-in volumes": "The stand-in's storage file",
     } as Record<string, string>,

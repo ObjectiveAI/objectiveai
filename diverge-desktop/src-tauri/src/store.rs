@@ -71,9 +71,12 @@ pub const PROFILE_CARD: Format = Format { name: "profile card", version: 1, keep
 /// and the port the door was given once.
 pub const DOOR_AGENTS: Format = Format { name: "door agents", version: 1, keep_previous: true };
 
+/// The theme you picked; none until you pick one, and the app shows the default.
+pub const THEME: Format = Format { name: "theme", version: 1, keep_previous: true };
+
 /// Every kind of file the app itself keeps (the stand-in keeps two more of its own).
 #[allow(dead_code)] // read by the test that every kind has words on screen
-pub const FORMATS: &[Format] = &[KEYS, COUNTERS, ALLOWANCES, VIEWS, MACHINE_NAMES, AGENT_MOUNTS, THREADS, RECORD_COPY, DOOR_AGENTS, PROFILE_CARD];
+pub const FORMATS: &[Format] = &[KEYS, COUNTERS, ALLOWANCES, VIEWS, MACHINE_NAMES, AGENT_MOUNTS, THREADS, RECORD_COPY, DOOR_AGENTS, PROFILE_CARD, THEME];
 
 /// Why a file can't be used.
 #[derive(Debug, Clone, PartialEq, Eq)]
