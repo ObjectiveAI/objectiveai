@@ -23,16 +23,23 @@ pub struct Config {
     /// the daemon runs: another database is another start. Absent
     /// means local.
     pub postgres: Mode,
+    /// How many seconds a container — an agent or a tool — may go
+    /// unused before the daemon ends its run. The clock resets on
+    /// every use and does not run while the container is active; the
+    /// record stays, and the next use starts the container again.
+    /// Absent means ten.
+    pub idle_seconds: u64,
 }
 
 /// What a daemon runs on before it has written a line of
-/// configuration: the port one above the provider's, and a Postgres
-/// of its own.
+/// configuration: the port one above the provider's, a Postgres of
+/// its own, and ten seconds of idleness.
 impl Default for Config {
     fn default() -> Self {
         Config {
             port: OUTSIDE_PORT + 1,
             postgres: Mode::Local,
+            idle_seconds: 10,
         }
     }
 }

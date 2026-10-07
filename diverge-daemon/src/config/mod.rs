@@ -16,10 +16,13 @@
 //! postgres:
 //!   kind: remote
 //!   url: postgresql://diverge:secret@db.example.com:5432/diverge
+//! idle_seconds: 10
 //! ```
 //!
 //! `postgres` absent is `{kind: local}`: the daemon runs a Postgres of
 //! its own, `diverge-postgres`, beside it, under `<dir>/postgres/`.
+//! `idle_seconds` is how long a container may go unused before its
+//! run is ended; absent, ten.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
