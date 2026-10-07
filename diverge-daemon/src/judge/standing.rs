@@ -112,4 +112,12 @@ impl Standing {
             _ => None,
         })
     }
+
+    /// The grants over the database.
+    pub fn postgres(&self) -> impl Iterator<Item = &grant::postgres::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Postgres(permission) => Some(permission),
+            _ => None,
+        })
+    }
 }

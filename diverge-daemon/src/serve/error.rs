@@ -4,6 +4,7 @@ use std::fmt;
 use std::io;
 
 use crate::config;
+use crate::database;
 use crate::postgres;
 use crate::store;
 
@@ -20,6 +21,8 @@ pub enum Error {
     Postgres(postgres::Error),
     /// The store could not be opened, or its schema applied.
     Store(store::Error),
+    /// The database URL could not be read for where and how to dial.
+    Database(database::TargetError),
     /// The content directory or the logs directory could not be made.
     Resources(io::Error),
     /// The port could not be bound.
@@ -35,6 +38,7 @@ impl fmt::Display for Error {
             Error::Config(error) => write!(f, "the configuration could not be used: {error}"),
             Error::Postgres(error) => write!(f, "the local Postgres could not be started: {error}"),
             Error::Store(error) => write!(f, "the store could not be opened: {error}"),
+            Error::Database(error) => write!(f, "{error}"),
             Error::Resources(error) => write!(f, "the resources or agents directory could not be made: {error}"),
             Error::Bind(error) => write!(f, "the port could not be bound: {error}"),
             Error::Serve(error) => write!(f, "the listener stopped: {error}"),
@@ -55,6 +59,7 @@ impl std::error::Error for Error {
             Error::Config(error) => Some(error),
             Error::Postgres(error) => Some(error),
             Error::Store(error) => Some(error),
+            Error::Database(error) => Some(error),
         }
     }
 }

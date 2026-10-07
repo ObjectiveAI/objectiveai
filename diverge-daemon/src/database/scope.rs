@@ -1,0 +1,60 @@
+//! Which scope is a container's: its role, from its identity.
+
+use diverge_sdk::daemon::endpoints::postgres::Container;
+use diverge_sdk::daemon::reference;
+use sha2::{Digest, Sha256};
+use sqlx::PgConnection;
+
+use crate::containers::Key;
+use crate::store::agents::Agent;
+use crate::store::tools::{Origin, Tool};
+use crate::store::{self, agents, tools};
+
+/// The role, and the schema, of the container's scope: `diverge_` and
+/// the first forty hex digits of the SHA-256 of the container's
+/// once-and-for-all identity as the wire names it — forty-eight bytes
+/// of `[a-z0-9_]`, stable across restarts, never reused because the
+/// identity is never reused, and safe to write as a bare identifier.
+pub fn role_of(container: &Container) -> String {
+    let json = serde_json::to_vec(container).unwrap_or_default();
+    let digest = hex::encode(Sha256::digest(&json));
+    format!("diverge_{}", &digest[..40])
+}
+
+/// The key the scope's provisioning is serialized under: the first
+/// eight bytes of the SHA-256 of the role, as a signed integer.
+pub fn lock_key(role: &str) -> i64 {
+    let digest = Sha256::digest(role.as_bytes());
+    i64::from_be_bytes(digest[..8].try_into().unwrap_or([0; 8]))
+}
+
+/// The agent as the database names it.
+pub fn container_of_agent(agent: &Agent) -> Container {
+    Container::Agent(reference::Agent::TemplateIndex {
+        template: agent.template.clone(),
+        index: agent.index,
+    })
+}
+
+/// The tool as the database names it.
+pub fn container_of_tool(tool: &Tool) -> Container {
+    Container::Tool(match &tool.origin {
+        Origin::Created { template, .. } => reference::Tool::TemplateIndex {
+            template: template.clone(),
+            index: tool.index,
+        },
+        Origin::Connected { provider, id, .. } => reference::Tool::Connected {
+            provider: provider.clone(),
+            id: id.clone(),
+        },
+    })
+}
+
+/// The container the key names, as the database names it, if its
+/// record is there.
+pub async fn container_of(conn: &mut PgConnection, key: Key) -> Result<Option<Container>, store::Error> {
+    Ok(match key {
+        Key::Agent(id) => agents::by_id(conn, id, false).await?.map(|agent| container_of_agent(&agent)),
+        Key::Tool(id) => tools::by_id(conn, id, false).await?.map(|tool| container_of_tool(&tool)),
+    })
+}

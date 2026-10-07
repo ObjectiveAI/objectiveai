@@ -13,22 +13,24 @@
 //! # What serves today
 //!
 //! Accounts, roles, providers, templates, resources, agents, tools
-//! and routes, and the containers agents and tools are: the seventy
-//! requests over them — the fourteen of the first two, the ten over
+//! and routes, the containers agents and tools are, and the database
+//! served into them: the seventy-two requests over them — the fourteen of the first two, the ten over
 //! outgoing providers and incoming credentials, the listing of a
 //! tenant's tool containers through a provider, the twelve over the
 //! two template families, the nine over resources, the nine over
 //! agents, their logs and their messages, the twelve over tools,
-//! attachments and admissions, and the three over routes — are served
-//! as the wire states them; every other request — the volumes, the
-//! file movement into and out of containers, the database — is
-//! answered with its endpoint's own error saying it is not served
-//! yet; and every connection is judged. An agent's container runs on
+//! attachments and admissions, the three over routes, and the two
+//! over the database — are served as the wire states them; every
+//! other request — the volumes, the file movement into and out of
+//! containers — is answered with its endpoint's own error saying it
+//! is not served yet; and every connection is judged. An agent's container runs on
 //! a provider from its first message and stops after `idle_seconds`
 //! unused; a tool's runs while an agent it is attached to is active;
 //! the provider's asks on a run — the container's `/daemon`
 //! connections, its tool calls, its mounts, its dependencies, who may
-//! see or join it — are answered by [`containers`]. An outgoing provider on record is dialled and dialled
+//! see or join it — are answered by [`containers`]; its database
+//! connections reach one scope of its own, the handshake the daemon's
+//! and the rest relayed unread, by [`database`]. An outgoing provider on record is dialled and dialled
 //! again for the daemon's life; a provider that dials in is admitted
 //! by a credential the daemon minted; on either connection the daemon
 //! is the caller of the provider protocol, [`providers`]. The records live in the one Postgres
@@ -67,6 +69,7 @@ pub mod config;
 pub mod containers;
 pub mod content;
 pub mod daemon;
+pub mod database;
 pub mod judge;
 pub mod logs;
 pub mod postgres;

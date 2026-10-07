@@ -188,6 +188,20 @@ Two populations, kept apart by type and by fate:
   the rest unread, so no credential ever enters a container.
 - **Never swapped while running.** Another database is a config edit
   and a restart.
+- **The handshake is the daemon's.** The container's driver is asked
+  no password; the daemon reads its startup packet, answers
+  `AuthenticationOk`, and authenticates toward the database as the
+  container's role through the `postgres-protocol` crate — SCRAM, md5,
+  or cleartext over TLS alone — then relays whole messages unread.
+  (Ruling of 2026-10-07: no credential in the container, no hand-rolled
+  protocol.)
+- **TLS toward a remote database** by the URL's `sslmode` as libpq
+  reads it, `prefer` when absent, through rustls; `verify-ca` is held to
+  `verify-full`.
+- **The privilege check is per connection.** A URL's role lacking
+  `CREATEROLE` or `CREATE` on the database refuses that container's
+  connection, with an `error` item in an agent's log; the daemon starts
+  regardless.
 
 ## 7. Concurrency
 

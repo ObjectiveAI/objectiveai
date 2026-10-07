@@ -6,7 +6,9 @@ use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{active, agents_of};
+use crate::containers;
 use crate::daemon::Daemon;
+use crate::database;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, tools};
@@ -23,8 +25,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for a tool the grants do not reach; `Attached` while it is attached
-/// to any agent; else the tool gone — its admissions and the routes
-/// that named it with it, its name free. A tool attached nowhere runs
+/// to any agent; else the tool gone — its database scope dropped with
+/// its every table, its admissions and the routes that named it with
+/// it, its name free. A tool attached nowhere runs
 /// nowhere, so nothing is stopped.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
@@ -45,6 +48,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::Attached);
     }
     tools::delete(&mut tx, tool.id).await?;
+    database::provision::drop(&mut tx, &database::role_of(&database::container_of_tool(&tool))).await?;
     tx.commit().await?;
+    daemon.live.forget_scope(containers::Key::Tool(tool.id)).await;
     Ok(Frame::Deleted)
 }

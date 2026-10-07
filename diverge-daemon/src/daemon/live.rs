@@ -8,7 +8,10 @@ use diverge_sdk::wire::client::handle::Handle;
 use tokio::sync::{Mutex, Notify, watch};
 use tokio::task::AbortHandle;
 
-use crate::containers::{AgentRun, ToolRun};
+use chrono::{DateTime, Utc};
+
+use crate::containers::{AgentRun, Key, ToolRun};
+use crate::database::Scope;
 use crate::store::{AccountId, AgentId, ToolId};
 
 /// The live state of the daemon: which accounts have a client
@@ -42,6 +45,17 @@ pub struct Live {
     /// A route was set or a tool attached: every dependency waiting
     /// on its position looks again.
     pub answered: Notify,
+    /// Every container's database scope touched since the start: its
+    /// password, in memory only.
+    scopes: Mutex<HashMap<Key, Arc<Scope>>>,
+    /// The backend key of every container session open now, and
+    /// whose it is: what a cancel is judged by.
+    backends: Mutex<HashMap<(i32, i32), Key>>,
+    /// Every container connection open through the database now, by
+    /// a number of the daemon's, and when it was opened.
+    connections: Mutex<HashMap<u64, (Key, DateTime<Utc>)>>,
+    /// The next connection number.
+    next_connection: Mutex<u64>,
 }
 
 impl std::fmt::Debug for Live {
@@ -249,5 +263,56 @@ impl Live {
     /// its turn.
     pub async fn deployer_queue(&self, id: AgentId) -> Arc<Mutex<()>> {
         Arc::clone(self.deployers.lock().await.entry(id).or_default())
+    }
+
+    /// The container's database scope, live: the one there is, or one
+    /// made now for the role `role` names, with a fresh password.
+    pub async fn scope(&self, key: Key, role: impl FnOnce() -> String) -> Arc<Scope> {
+        let mut scopes = self.scopes.lock().await;
+        Arc::clone(scopes.entry(key).or_insert_with(|| Arc::new(Scope::new(role()))))
+    }
+
+    /// The container is deleted: its scope is forgotten.
+    pub async fn forget_scope(&self, key: Key) {
+        self.scopes.lock().await.remove(&key);
+    }
+
+    /// A container session was given the backend key.
+    pub async fn register_backend(&self, backend: (i32, i32), key: Key) {
+        self.backends.lock().await.insert(backend, key);
+    }
+
+    /// The session is over.
+    pub async fn forget_backend(&self, backend: (i32, i32)) {
+        self.backends.lock().await.remove(&backend);
+    }
+
+    /// Whose session the backend key is, if any's.
+    pub async fn backend_owner(&self, backend: (i32, i32)) -> Option<Key> {
+        self.backends.lock().await.get(&backend).copied()
+    }
+
+    /// A container connection is open through the database: its
+    /// number, to close it by.
+    pub async fn open_connection(&self, key: Key) -> u64 {
+        let id = {
+            let mut next = self.next_connection.lock().await;
+            *next += 1;
+            *next
+        };
+        self.connections.lock().await.insert(id, (key, Utc::now()));
+        id
+    }
+
+    /// The connection is closed.
+    pub async fn close_connection(&self, id: u64) {
+        self.connections.lock().await.remove(&id);
+    }
+
+    /// Every container connection open now, oldest opened first.
+    pub async fn connections(&self) -> Vec<(Key, DateTime<Utc>)> {
+        let mut all: Vec<(Key, DateTime<Utc>)> = self.connections.lock().await.values().copied().collect();
+        all.sort_by_key(|(_, opened)| *opened);
+        all
     }
 }

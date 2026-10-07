@@ -12,6 +12,7 @@ use super::mcp::{self, Context};
 use super::{AgentRun, Key, stop, tools};
 use crate::daemon::Daemon;
 use crate::logs;
+use crate::store::AgentId;
 
 /// Read the run's stream to its end: every chunk kept — a user part
 /// as its sender's, by the key the message was enqueued under — the
@@ -74,9 +75,14 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
 /// One item onto the agent's log, under its live lock, and the
 /// watchers told.
 pub async fn append(daemon: &Daemon, run: &AgentRun, item: Item) -> Result<(), logs::Error> {
-    let log = daemon.live.log(run.id).await;
+    append_for(daemon, run.id, item).await
+}
+
+/// One item onto the log of the agent with the id, running or not.
+pub async fn append_for(daemon: &Daemon, id: AgentId, item: Item) -> Result<(), logs::Error> {
+    let log = daemon.live.log(id).await;
     let _held = log.lock.lock().await;
-    let wrapper = logs::append(&daemon.logs, run.id, item).await?;
+    let wrapper = logs::append(&daemon.logs, id, item).await?;
     log.latest.send_replace(wrapper.logs_index);
     Ok(())
 }

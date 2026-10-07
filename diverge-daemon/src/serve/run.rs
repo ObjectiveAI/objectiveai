@@ -11,6 +11,7 @@ use super::{Error, listen};
 use crate::config::Config;
 use crate::containers;
 use crate::daemon::Daemon;
+use crate::database;
 use crate::postgres;
 use crate::providers;
 use crate::store;
@@ -50,12 +51,20 @@ pub async fn run(config: Config, dir: PathBuf) -> Result<(), Error> {
         postgres.stop().await;
         return Err(Error::Resources(error));
     }
+    let database = match database::Target::parse(&url, postgres.is_local()) {
+        Ok(database) => database,
+        Err(error) => {
+            postgres.stop().await;
+            return Err(Error::Database(error));
+        }
+    };
     let daemon = Arc::new(Daemon::new(
         store,
         resources,
         logs,
         overlays,
         std::time::Duration::from_secs(config.idle_seconds),
+        database,
     ));
     if let Err(error) = providers::dial_all(&daemon).await {
         postgres.stop().await;

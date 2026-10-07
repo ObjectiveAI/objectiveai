@@ -13,8 +13,8 @@
 //! first, [`admit`](crate::judge::admit)ted, and then every request,
 //! read as a [`ClientRequest`](diverge_sdk::daemon::endpoints::ClientRequest)
 //! and handed by [`dispatch`] to its handler — [`accounts`],
-//! [`roles`], [`providers`], [`agents`], [`tools`] and [`resources`]
-//! have one per request served
+//! [`roles`], [`providers`], [`agents`], [`tools`], [`resources`] and
+//! [`postgres`] have one per request served
 //! — or, for the requests nothing serves yet, answered with that
 //! endpoint's own error. A credential that admits a provider rather
 //! than a client hands the socket to [`providers`](crate::providers)
@@ -55,6 +55,7 @@ pub use run::*;
 pub mod accounts;
 pub mod agents;
 pub mod inner;
+pub mod postgres;
 pub mod providers;
 pub mod resources;
 pub mod roles;

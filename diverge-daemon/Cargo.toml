@@ -26,6 +26,24 @@ base64 = "0.22.1"
 # The MCP types a container's tool calls carry: what the served
 # tools answer, merged.
 rmcp = { version = "3.1.2", default-features = false }
+# The pgwire client side of a container's database connection: the
+# startup message the daemon sends as the container's role, the
+# SCRAM-SHA-256 and md5 answers, the backend messages parsed, and the
+# SCRAM verifier a role is made with.
+postgres-protocol = "0.6.12"
+# The iterator trait `postgres-protocol`'s lists — the SASL
+# mechanisms offered, an error's fields — are walked with; its
+# version, which the trait is tied to.
+fallible-iterator = "0.2.0"
+# TLS toward a remote database, by the URL's `sslmode`.
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring"] }
+rustls = { version = "0.23.37", default-features = false, features = ["ring", "std"] }
+rustls-pki-types = "1.15.1"
+webpki-roots = "1.0.9"
+# A remote URL answered without its password, and read for where to
+# dial; its user and database decoded.
+url = "2.5.8"
+percent-encoding = "2.3.2"
 # The socket: a WebSocket upgrade accepted at any path on the port.
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "ws"] }
 # The one frame the daemon reads off a socket itself: the credential,

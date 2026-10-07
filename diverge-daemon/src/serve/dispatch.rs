@@ -8,18 +8,18 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, providers, resources, roles, tools};
+use super::{accounts, agents, postgres, providers, resources, roles, tools};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
 /// What every request nothing serves yet is answered with.
-const NOT_SERVED: &str = "not served: the daemon serves accounts, roles, providers, templates, resources, agents, tools and routes, and nothing else yet";
+const NOT_SERVED: &str = "not served: the daemon serves accounts, roles, providers, templates, resources, agents, tools, routes and the database, and nothing else yet";
 
 /// Read `payload` as the request that opened `scope` and hand it to
 /// its handler, which answers and finishes the scope.
 ///
 /// One arm per request of the wire, so that a request added to the
-/// SDK is a request this cannot compile without. The seventy over
+/// SDK is a request this cannot compile without. The seventy-two over
 /// accounts, roles, providers, templates, resources, agents, tools,
 /// routes and a provider's tool containers have handlers; every other is answered with its
 /// endpoint's own `Error`, carrying one sentence saying so, encoded as
@@ -114,8 +114,8 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ResourcesGet(frame) => resources::get::handle(scope, frame, who, daemon).await,
         ClientRequest::ResourcesTag(frame) => resources::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::ResourcesUntag(frame) => resources::untag::handle(scope, frame, who, daemon).await,
-        ClientRequest::PostgresGet(_) => refused(scope, encoded(&endpoints::postgres::get::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::PostgresConnections(_) => refused(scope, encoded(&endpoints::postgres::connections::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::PostgresGet(frame) => postgres::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::PostgresConnections(frame) => postgres::connections::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsAdmit(frame) => tools::admit::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsUnadmit(frame) => tools::unadmit::handle(scope, frame, who, daemon).await,
         ClientRequest::Invalid(_) => refused(scope, None).await,
