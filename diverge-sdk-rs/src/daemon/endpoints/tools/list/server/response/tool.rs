@@ -7,6 +7,7 @@ use crate::daemon::creator;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
 use crate::daemon::endpoints::tools::routes::Path;
+use super::super::super::super::Admission;
 use super::Origin;
 
 /// One tool of the caller's: what the daemon knows of it.
@@ -75,4 +76,10 @@ pub struct Tool {
     /// this is, by its path. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub routes: Vec<Path>,
+    /// Who may see it from its provider and who may join it, as
+    /// [`admit`](crate::daemon::endpoints::tools::admit) put them down,
+    /// never with a key, in the order they were admitted. Absent when
+    /// empty, and always for a connected tool, whose runner admits.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub admissions: Vec<Admission>,
 }

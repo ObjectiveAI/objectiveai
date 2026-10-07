@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; ask a provider which tool containers an identity runs; attach one to an agent; detach one; delete one; list them, narrowed; tag one and untag one; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; ask a provider which tool containers an identity runs; attach one to an agent; detach one; delete one; list them, narrowed; tag one and untag one; admit a lister or a connector to one, take the admission back; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
 //! | [`resources`] | upload a file or a directory, held by its hash; get one; list them, narrowed; delete one; tag one and untag one; download one, transfer one into a container; see one's tree |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a credential of providers that dial in, get one, list them, take one out, replace one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
@@ -112,10 +112,12 @@
 //! | `85` | [`resources::untag`] |
 //! | `86` | [`postgres::get`] |
 //! | `87` | [`postgres::connections`] |
+//! | `88` | [`tools::admit`] |
+//! | `89` | [`tools::unadmit`] |
 //!
-//! Eighty-eight, so far. Tags are handed out in the order scopes are
-//! defined and nothing reads them in order; a new scope takes the next
-//! value wherever it belongs conceptually. This table is the whole
+//! Ninety, so far. Tags are handed out in the order scopes are defined
+//! and nothing reads them in order; a new scope takes the next value
+//! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,
 //! because a value chosen in one module has to be checked against every
 //! other, and no module can see the others.

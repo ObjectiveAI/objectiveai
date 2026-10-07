@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The actions over tools that exist, which a grant reaches as far as
 /// its `within` says. Snake case on the wire: `"get"`, `"edit"`,
 /// `"attach"`, `"detach"`, `"delete"`, `"list"`, `"download"`,
-/// `"upload"`, `"transfer"`, `"filetree"`.
+/// `"upload"`, `"transfer"`, `"filetree"`, `"admit"`, `"unadmit"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Over {
@@ -46,4 +46,11 @@ pub enum Over {
     /// [`tools::filetree`](crate::daemon::endpoints::tools::filetree)
     /// does.
     Filetree,
+    /// Admit a lister or a connector to one, as
+    /// [`tools::admit`](crate::daemon::endpoints::tools::admit) does.
+    Admit,
+    /// Take an admission back, as
+    /// [`tools::unadmit`](crate::daemon::endpoints::tools::unadmit)
+    /// does.
+    Unadmit,
 }
