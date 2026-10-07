@@ -34,9 +34,10 @@ static TEMPORARIES: Mutex<u64> = Mutex::const_new(0);
 /// The rules, in order:
 ///
 /// 1. The path must name a file ([`paths::absolute`]), else `Error`.
-/// 2. The temporary is created new beside the destination; a parent
-///    that is missing, or is not a directory, fails here, and that
-///    is the `Error`.
+/// 2. Every missing parent of the destination is made, as a volume
+///    write makes them; then the temporary is created new beside the
+///    destination. A parent that exists and is not a directory fails
+///    here, and that is the `Error`.
 /// 3. The content channel is opened — the proxy's one ask on a write,
 ///    carrying nothing — and every body on it is written in order; a
 ///    write that fails discards the temporary and is the `Error`.
@@ -59,6 +60,12 @@ pub async fn write(scope: ScopeHandle, frame: request::Frame) {
         return;
     };
 
+    if let Some(parent) = destination.parent()
+        && let Err(reason) = fs::create_dir_all(parent).await
+    {
+        error(&scope, "create", &reason.to_string()).await;
+        return;
+    }
     let temporary = temporary(&destination).await;
     let mut file = match fs::OpenOptions::new()
         .write(true)
