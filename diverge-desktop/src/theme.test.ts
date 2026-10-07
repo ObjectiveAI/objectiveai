@@ -5,17 +5,44 @@ type RGBA = [number, number, number, number];
 
 const css = readFileSync(new URL("./theme.css", import.meta.url), "utf8");
 const appCss = readFileSync(new URL("./app.css", import.meta.url), "utf8");
-const base = new Map<string, string>();
-for (const m of css.matchAll(/(--[\w-]+):\s*([^;]+);/g)) base.set(m[1], m[2].trim());
 
-// Every theme is the eight site colours; every role is mixed from them in theme.css. The first is theme.css
-// as written; the rest swap in their own eight and keep every mix. Each must pass every pair below.
-const THEMES: Record<string, Partial<Record<"--plum" | "--ground" | "--raised" | "--rule" | "--ink" | "--pink" | "--gold" | "--note", string>>> = {
-  "plum and gold (theme.css)": {},
-  "navy and orange (draft of 2026-10-01; rule and note still from the hue formula)": {
-    "--plum": "#000a28", "--ground": "#000411", "--raised": "#090f22", "--rule": "#1d2335", "--ink": "#fbd5cd", "--pink": "#b2c5ff", "--gold": "#eb4a2a", "--note": "#172243",
-  },
-};
+// The five colours a theme is; everything else is mixed from them in theme.css.
+const FIVE = ["--ground", "--raised", "--accent", "--ink", "--here"];
+
+/** Each `selector { … }` block of theme.css, comments left out, with its custom properties in order. */
+const blocks = [...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+  selector: m[1].trim(),
+  props: [...m[2].matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((p) => [p[1], p[2].trim()] as [string, string]),
+}));
+const base = new Map(blocks.filter((b) => b.selector === ":root").flatMap((b) => b.props));
+
+// Every theme in theme.css: plain :root is the default, and each :root[data-theme="<id>"] block swaps in its own
+// five. A theme added there is checked here; there is no list to forget to add it to.
+const THEMES: Record<string, Map<string, string>> = { "the default (:root)": new Map(base) };
+for (const b of blocks) {
+  const id = b.selector.match(/^:root\[data-theme="([\w-]+)"\]$/)?.[1];
+  if (id) THEMES[id] = new Map([...base, ...b.props]);
+}
+
+describe("theme.css", () => {
+  it("has the default and at least one more theme", () => {
+    expect(Object.keys(THEMES).length).toBeGreaterThanOrEqual(2);
+  });
+  it("puts colours only in :root and in theme blocks", () => {
+    expect(blocks.filter((b) => b.props.length).map((b) => b.selector).filter((s) => s !== ":root" && !/^:root\[data-theme="[\w-]+"\]$/.test(s))).toEqual([]);
+  });
+  it.each(blocks.filter((b) => b.selector.startsWith(":root[")).map((b) => [b.selector, b.props.map(([k]) => k)] as const))(
+    "%s sets exactly the five colours",
+    (_s, names) => {
+      expect([...names].sort()).toEqual([...FIVE].sort());
+    },
+  );
+  it("the default sets each of the five as a colour, and nothing else is a bare colour", () => {
+    const hex = [...base].filter(([, v]) => /^#[0-9a-f]{6}$/i.test(v)).map(([k]) => k);
+    // ok and bad are the only invented values (see theme.css); every other colour is one of the five or mixed from them.
+    expect(hex.sort()).toEqual([...FIVE, "--ok", "--bad"].sort());
+  });
+});
 
 /** A theme value, worked out: hex, `transparent`, `var(...)`, and `color-mix(in srgb, …)` (premultiplied, as CSS mixes). */
 function colour(raw: Map<string, string>, v: string): RGBA | null {
@@ -72,6 +99,7 @@ const WORDS: [string, string, string][] = [
   ["--text", "--surface-2", "the row you're on; code in a quiet banner"],
   ["--text", "--surface-3", "a hovered row, tab, chip or quiet button"],
   ["--text", "--note", "warning banners and cards, the knock card"],
+  ["--text", "--bad-soft", "a rejected settings check"],
   ["--text", "--accent-soft", "the agent kind you picked, the filter you picked"],
   ["--text-2", "--bg", "quieter words on the page"],
   ["--text-2", "--surface", "quieter words on a card"],
@@ -87,12 +115,12 @@ const WORDS: [string, string, string][] = [
   ["--accent", "--bg", "links and counts on the page"],
   ["--accent", "--surface", "links and counts on a card"],
   ["--accent", "--surface-3", "a count on a hovered rail row"],
-  ["--pink", "--note", "a link on the knock card"],
-  ["--pink", "--accent-soft", "an accent chip"],
+  ["--accent", "--note", "a link on the knock card"],
+  ["--accent", "--accent-soft", "an accent chip"],
   ["--on-accent", "--accent", "the main button"],
   ["--on-accent", "--accent-hover", "the main button under the mouse"],
-  ["--plum", "--bad", "a danger button"],
-  ["--plum", "--bad-hover", "a danger button under the mouse"],
+  ["--on-bad", "--bad", "a danger button"],
+  ["--on-bad", "--bad-hover", "a danger button under the mouse"],
   ["--warn", "--bg", "a warning word"],
   ["--warn", "--warn-soft", "a warning chip"],
   ["--ok", "--bg", "how it went, on the page"],
@@ -112,7 +140,7 @@ const EDGES: [string, string, string][] = [
   ["--line-strong", "--surface-2", "the picked option in a segmented control"],
   ["--line-hover", "--surface-3", "the edge of anything under the mouse"],
   ["--on-accent", "--accent-hover", "the edge of the main button under the mouse (its words' colour: the ink would vanish on pink)"],
-  ["--plum", "--bad-hover", "the edge of a danger button under the mouse"],
+  ["--on-bad", "--bad-hover", "the edge of a danger button under the mouse"],
   ["--here", "--bg", "the bar under the open tab"],
   ["--here", "--surface", "the bar beside the rail row you're on (the rail scrolls over the ground)"],
   ["--here", "--surface-2", "the bar beside the row you're on"],
@@ -132,9 +160,7 @@ const EDGES: [string, string, string][] = [
 // Everywhere something you can focus sits, so everywhere the ring is drawn.
 const RING_ON = ["--bg", "--surface", "--surface-2", "--surface-3", "--note", "--accent-soft", "--ok-soft", "--bad-soft"];
 
-describe.each(Object.entries(THEMES))("the theme: %s", (_name, swap) => {
-  const raw = new Map(base);
-  for (const [k, v] of Object.entries(swap)) raw.set(k, v!);
+describe.each(Object.entries(THEMES))("the theme: %s", (_name, raw) => {
   const rows = [
     ...WORDS.map(([fg, bg, where]) => ({ name: `${fg} on ${bg}`, where, min: 7, got: ratio(raw, fg, bg) })),
     ...EDGES.map(([edge, bg, where]) => ({ name: `${edge} edge on ${bg}`, where, min: 3, got: ratio(raw, edge, bg) })),

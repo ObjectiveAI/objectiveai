@@ -2,13 +2,18 @@
    app names a colour; it names one of these roles. Copy this file, change
    the values, and the whole app follows.
 
-   Where the colours come from: the protocol site (diverge-provider-web/src/
-   layouts/Layout.astro on main, the palette of 2026-09-14). Its own rules:
-   ink #fbeacd, links #ffb2ff, and gold #eba52a for ONE thing only — where
-   you are. The mark's plum #280022 stays the mark's; the ground is that plum
-   taken to near black, #11000e. Surfaces are tints of it, never neutral
-   greys: #22091d raised, #351d30 a rule. A note is #431723 with a pink edge.
-   System fonts, square corners, dark, no glows.
+   A theme is five colours, and nothing else:
+     --ground   the background
+     --raised   cards, the rail, the icon's body
+     --accent   links, the main button, the wordmark
+     --ink      words
+     --here     where you are, and nothing else
+   Every other colour is mixed from those five, below, the same way in every
+   theme. The first theme, plum and gold, comes from the protocol site
+   (diverge-provider-web/src/layouts/Layout.astro on main, the palette of
+   2026-09-14). A theme is one block, `:root[data-theme="<id>"]`, setting the
+   five; plum and gold is the default and sits on plain `:root`. Add a block
+   and src/theme.test.ts checks it with the rest.
 
    The roles:
      --bg, --rail          the ground everything sits on
@@ -28,11 +33,29 @@
    uses reads at 7:1 or better (WCAG AAA), and each edge of something you can
    press or type into, each bar that marks where you are, each status dot,
    and the focus ring, reads at 3:1 against what's around it.
-   src/theme.test.ts checks every pair, for this theme and for every other
-   theme listed there; any break fails the build.
+   src/theme.test.ts checks every pair, in every theme block in this file;
+   any break fails the build.
 
    Status colours (ok / bad) are NOT from the site — it never needed them.
    They are the only invented values here, and the product owner's to replace. */
+
+/* plum and gold, the default */
+:root {
+  --ground: #11000e;
+  --raised: #22091d;
+  --accent: #ffb2ff;
+  --ink: #fbeacd;
+  --here: #eba52a;
+}
+
+/* navy and orange */
+:root[data-theme="navy"] {
+  --ground: #000411;
+  --raised: #090f22;
+  --accent: #b2c5ff;
+  --ink: #fbd5cd;
+  --here: #eb4a2a;
+}
 
 :root {
   color-scheme: dark;
@@ -76,17 +99,12 @@
   --measure: 63ch;
   --strip-height: 38px;
 
-  /* the site's */
-  --plum: #280022;
-  --ground: #11000e;
-  --raised: #22091d;
-  --rule: #351d30;
-  --ink: #fbeacd;
-  --pink: #ffb2ff;
-  --gold: #eba52a;
-  --note: #431723;
+  /* mixed from the five, in every theme */
+  --rule: color-mix(in srgb, var(--raised) 91%, var(--ink));
+  /* Behind something that wants you before you act: a knock, a heads-up. Mixed with the accent, never --here. */
+  --note: color-mix(in srgb, var(--raised) 88%, var(--accent));
 
-  /* roles, built only from the site's colours */
+  /* roles, built only from the five */
   --bg: var(--ground);
   --rail: var(--ground);
   --surface: var(--raised);
@@ -102,12 +120,10 @@
   /* Words step evenly, 100 / 90 / 80. Muted (80%) reads 7:1 on every surface, the rule and a note included. */
   --text-2: color-mix(in srgb, var(--ink) 90%, var(--ground));
   --text-3: color-mix(in srgb, var(--ink) 80%, var(--ground));
-  --accent: var(--pink);
-  --accent-soft: color-mix(in srgb, var(--pink) 14%, var(--ground));
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--ground));
   --accent-hover: color-mix(in srgb, var(--accent) 78%, var(--ink));
-  --on-accent: var(--plum);
-  --here: var(--gold);
-  --warn: var(--pink);
+  --on-accent: var(--ground);
+  --warn: var(--accent);
   --warn-soft: var(--note);
   --user: var(--raised);
 
@@ -118,8 +134,10 @@
   --bad-soft: color-mix(in srgb, #ff9a8f 14%, var(--ground));
   --bad-hover: color-mix(in srgb, #ff9a8f 88%, var(--ink));
   --line-bad: color-mix(in srgb, var(--bad) 45%, var(--line));
+  /* Words and the edge on a danger button. */
+  --on-bad: var(--ground);
 
-  --focus: 0 0 0 2px color-mix(in srgb, var(--pink) 55%, transparent);
+  --focus: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
   --shadow: none;
 }
 

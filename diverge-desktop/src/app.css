@@ -35,8 +35,8 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
    kind; only links (pink words, a place to go) are bare words. */
 .btn-tertiary { background: var(--surface); border-color: var(--line-strong); }
 .btn-tertiary:hover:not(:disabled) { background: var(--surface-3); border-color: var(--line-hover); color: var(--text); }
-.btn-danger { background: var(--bad); border-color: var(--bad); color: var(--plum); }
-.btn-danger:hover:not(:disabled) { background: var(--bad-hover); border-color: var(--plum); color: var(--plum); }
+.btn-danger { background: var(--bad); border-color: var(--bad); color: var(--on-bad); }
+.btn-danger:hover:not(:disabled) { background: var(--bad-hover); border-color: var(--on-bad); color: var(--on-bad); }
 /* An icon alone: a square at the floor, quiet until pointed at. */
 .btn-icon { min-width: var(--hit-min); min-height: var(--hit-min); padding: 0; color: var(--text-3); }
 .btn-icon:hover:not(:disabled) { background: var(--surface-3); border-color: var(--line-hover); color: var(--text); }
@@ -47,7 +47,7 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 .chip-ok { background: var(--ok-soft); color: var(--ok); }
 .chip-warn { background: var(--warn-soft); color: var(--warn); }
 .chip-bad { background: var(--bad-soft); color: var(--bad); }
-.chip-accent { background: var(--accent-soft); color: var(--pink); }
+.chip-accent { background: var(--accent-soft); color: var(--accent); }
 .chip-press { border-color: var(--line-strong); min-height: var(--hit-min); cursor: pointer; }
 .chip-press:hover { color: var(--text); background: var(--surface-3); border-color: var(--line-hover); }
 .chip-press.on { background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); color: var(--text); font-weight: 600; }
@@ -56,9 +56,9 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 /* Cards: one padding, one rhythm inside. A card you press is a button as a whole. */
 .card { border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
 .card-bad { background: var(--bad-soft); color: var(--bad); }
-.card-warn { background: var(--note); color: var(--text); border-left: var(--mark) solid var(--pink); }
+.card-warn { background: var(--note); color: var(--text); border-left: var(--mark) solid var(--accent); }
 .card-quiet { background: var(--surface-2); color: var(--text-2); }
-.card-press { width: 100%; min-height: var(--hit-min); border: 1px solid var(--pink); background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
+.card-press { width: 100%; min-height: var(--hit-min); border: 1px solid var(--accent); background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
 
 /* Rows you press to go somewhere. Each list below lays its rows out; this marks the one you're on, the same way
    everywhere: cream words in bold, and a --mark-wide bar down the left in the where-you-are colour. The left
@@ -145,7 +145,7 @@ p, dd, .door-verbs li, .persona > .muted, .banner-text { max-width: var(--measur
 .empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); text-align: center; padding: var(--space-6); }
 .empty h3 { font-size: var(--text-lg); font-weight: 600; }
 .banner { padding: var(--space-2) var(--space-4); font-size: var(--text-sm); }
-.banner-warn { background: var(--note); color: var(--text); border-left: var(--mark) solid var(--pink); }
+.banner-warn { background: var(--note); color: var(--text); border-left: var(--mark) solid var(--accent); }
 .banner-bad { background: var(--bad-soft); color: var(--bad); }
 
 /* --- conversation ------------------------------------------------------------ */
@@ -350,7 +350,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .space-row { display: flex; align-items: center; gap: var(--space-2); }
 .space-row-title { font-weight: 600; }
 .knocks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-.knock { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--note); border-left: var(--mark) solid var(--pink); }
+.knock { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--note); border-left: var(--mark) solid var(--accent); }
 .knock-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .space { display: flex; flex-direction: column; height: 100%; }
 .space-head { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
@@ -388,12 +388,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .move-reply { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); font-size: var(--text-sm); }
 .move-reply .move-body { flex-basis: 100%; }
 .receipt-line { flex-basis: 100%; color: var(--ok); font-weight: 600; }
-.move-ask { border-left: var(--mark) solid var(--pink); }
+.move-ask { border-left: var(--mark) solid var(--accent); }
 .move-task { border-left: var(--mark) solid var(--accent); }
 .move-run { border-left: var(--mark) solid var(--line-strong); }
 
 /* --- ask cards: an agent asks its person ------------------------------------------ */
-.ask-card { border: 1px solid var(--pink); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.ask-card { border: 1px solid var(--accent); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .ask-card-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-sm); }
 .ask-card-question { font-size: var(--text-lg); }
 .ask-card-options { display: flex; gap: var(--space-2); flex-wrap: wrap; }
