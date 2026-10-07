@@ -1,6 +1,6 @@
 ---
 title: 'Response'
-summary: 'The server sends Begun once, carrying the tools the container declared, or an error and the finish; after Begun it sends every chunk of the agent’s conversation as a response, and the finish only when the server ends.'
+summary: 'The server sends Begun once, carrying the tools the container declared, or an error and the finish; after Begun it sends Active before each loop, every chunk of that loop as a response, and Inactive after it, and the finish only when the server ends.'
 order: 2
 draft: false
 ---
@@ -9,15 +9,30 @@ draft: false
 [0][tools JSON …]    begun: the container holds its arguments, and these are its tools
 [1][error JSON …]    not begun: the connection had begun, or the arguments were refused
 [2][chunk JSON …]    one chunk of the conversation
+[3]                  active: a loop began
+[4]                  inactive: that loop ended
 ```
 
 - **The sequence.** Exactly one response whose first byte is `0`,
-  followed by zero or more responses whose first byte is `2`, in the
-  order the container produced them, followed by the response
-  finish when the server ends; or exactly one response whose first
-  byte is `1`, followed by the response finish. The server sends no
-  response whose first byte is `2` before `Begun`, and none after the
-  finish.
+  followed by zero or more loops, followed by the response finish
+  when the server ends; or exactly one response whose first byte is
+  `1`, followed by the response finish. A loop is exactly one
+  response whose payload is the byte `3` and nothing else, followed
+  by zero or more responses whose first byte is `2`, in the order the
+  container produced them, followed by exactly one response whose
+  payload is the byte `4` and nothing else. The server sends no
+  response whose first byte is `2`, `3` or `4` before `Begun`, none
+  whose first byte is `2` outside a loop, and none after the finish.
+- **Active and inactive.** The server sends the byte `3` when the
+  agent's server answers the loop's `POST /run` with `2xx`, before
+  the first chunk of that loop, and the byte `4` when the event
+  stream of that answer ends, after the last chunk of that loop,
+  whether the stream ended cleanly or by failing. The server
+  produces both itself and relays neither from the agent's server:
+  every event of the agent's server is sent under the byte `2`, so
+  no event is read as either. Neither carries bytes after the first.
+  The server sends no byte `3` while a loop is open, and no byte `4`
+  while none is.
 - **The tools.** The bytes after the byte `0` are a JSON array of
   the tools the container's program answered its registration with,
   each as the [tools](/endpoints/containers-agents-run/server/tools/)

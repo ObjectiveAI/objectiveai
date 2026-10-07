@@ -1,29 +1,35 @@
 ---
 title: 'Response'
-summary: 'The server sends the id, the volume that refused the run, or an error; after the id it sends the agent’s chunks as they come, and nothing else until the finish, which carries no error.'
+summary: 'The server sends the id, the volume that refused the run, or an error; after the id it sends active before each loop, the agent’s chunks as they come, and inactive after the loop, and nothing else until the finish, which carries no error.'
 order: 2
 draft: false
 ---
 
 The server sends the id, the volume that refused the run, or an
-error, and, after the id, zero or more chunks: what the agent says,
-for the life of the run. The response finish ends the scope. No frame
-bearing the scope follows the finish.
+error, and, after the id, zero or more loops: for each, the word that
+it began, the chunks the agent says in it, and the word that it
+ended, for the life of the run. The response finish ends the scope.
+No frame bearing the scope follows the finish.
 
 ```text
 [0][id JSON …]                  once, when the container is running
 [1][volume-held JSON …]         once, when a named volume is under a stat, an edit or a delete
 [2][error JSON …]               once, when it is not running for another reason
-[3][chunk JSON …]               zero or more, after the id, for the life of the run
+[3][chunk JSON …]               zero or more, within a loop, for the life of the run
+[4]                             active: a loop began
+[5]                             inactive: that loop ended
 ```
 
 - **The sequence.** Before the id, the server sends no response.
   The first response is the id, the volume that refused the run, or
   an error. A refusal and an error are each followed by the response
   finish, and the container is not running and will not be. After
-  the id, the server sends zero or more chunks, each as one response,
-  in the order the proxy sent them, and no other response until the
-  finish, and the finish carries no error: a run that ended after its id
+  the id, the server sends zero or more loops, and no other response
+  until the finish. A loop is exactly one response whose payload is
+  the byte `4` and nothing else, followed by zero or more chunks, each
+  as one response, in the order the proxy sent them, followed by
+  exactly one response whose payload is the byte `5` and nothing
+  else. The finish carries no error: a run that ended after its id
   ended by the client's stop, by the container's own end, or by the
   client's connection ending. A response finish that no response
   precedes states that the request was not served, as
@@ -59,16 +65,29 @@ bearing the scope follows the finish.
   enqueue gave it, consecutive in the message's order. The first
   chunks the server sends after the id are the user parts of the
   message the loop started on, or of every message it started on,
-  in the order sent. There is no chunk that marks the end of a turn:
-  a message's user parts mark it landing, a `notification` chunk
-  whose `is_fatal` is `true` marks a loop that ended in failure, and
-  quiet is an agent with nothing to say.
+  in the order sent. A message's user parts mark it landing, and a
+  `notification` chunk whose `is_fatal` is `true` marks a loop that
+  ended in failure. No chunk marks the end of a loop: the byte `5`
+  does.
+- **Active and inactive.** A payload that is the byte `4` and
+  nothing else states that a loop began: the agent's server answered
+  the loop's `POST /run` with `2xx`. A payload that is the byte `5`
+  and nothing else states that the loop ended: the event stream of
+  that answer ended, cleanly or by failing. The server sends each
+  exactly as the proxy sent it on the
+  [begin response](/container-proxy-endpoints/agents-begin/response/),
+  where the proxy produces both and relays neither from the agent's
+  server. The server sends no byte `4` before the id, none while a
+  loop is open, and no byte `5` while none is. An agent is quiet
+  between a `5` and the next `4`; quiet between a `4` and its `5` is
+  an agent still working.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0`, `1`, `2` and `3`, a payload whose bytes after `0` do not
-  parse as the id, a payload whose bytes after `1` do not parse as
-  the refusal, a payload whose bytes after `3` do not parse as a
-  chunk, and a payload whose bytes after `2` are not one JSON
-  value are malformed.
+  is none of `0`, `1`, `2`, `3`, `4` and `5`, a payload whose bytes
+  after `0` do not parse as the id, a payload whose bytes after `1`
+  do not parse as the refusal, a payload whose bytes after `3` do not
+  parse as a chunk, and a payload whose bytes after `2` are not one
+  JSON value are malformed. A payload whose first byte is `4` or `5`
+  is read by that byte alone; bytes after it are not read.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/frame.rs`:
 
