@@ -1,0 +1,37 @@
+[package]
+name = "diverge-daemon"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The Diverge daemon — the server of the daemon protocol, initialized: it listens, reads every request, and serves none of them yet"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://diverge.network"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "diverge-daemon"
+path = "src/main.rs"
+
+[dependencies]
+# Path-only: this crate rides the workspace and is never published, so
+# the SDK is named by where it lives rather than by a version pin
+# version.sh would have to chase.
+diverge-sdk = { path = "../diverge-sdk-rs" }
+# The socket: a WebSocket upgrade accepted at any path on the port.
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "ws"] }
+# `StreamExt`, for the session's scopes as they arrive.
+futures-util = { version = "0.3.33", default-features = false, features = ["alloc"] }
+# `config.yaml`, and the path to whatever in it was wrong; and the
+# one error every refusal carries, as JSON.
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+serde_path_to_error = "0.1.20"
+serde_yaml_ng = "0.10.0"
+# `net` for the port; `fs` for the directory; `signal` for Ctrl-C and
+# SIGTERM; `rt-multi-thread` and `sync` for the runtime `main` builds
+# and the stop flag.
+tokio = { version = "1.53.1", features = ["fs", "sync", "rt", "rt-multi-thread", "net", "signal"] }

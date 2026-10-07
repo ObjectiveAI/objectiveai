@@ -1827,6 +1827,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-daemon"
+version = "2.3.0"
+dependencies = [
+ "axum",
+ "diverge-sdk",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "serde_yaml_ng",
+ "tokio",
+]
+
+[[package]]
 name = "diverge-postgres"
 version = "2.3.0"
 dependencies = [
