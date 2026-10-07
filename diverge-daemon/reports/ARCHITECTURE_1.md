@@ -58,12 +58,13 @@ Two populations, kept apart by type and by fate:
 | where | the store | memory, under the `Daemon` |
 | at restart | reloaded | gone; the records say what SHOULD be running and the daemon converges |
 
-- **The store.** The daemon's own, in its own directory, never the
-  database it serves to containers — a mode swap must not move the
-  daemon's memory of itself. Recommended: SQLite, one file, transactional,
-  embedded, nothing to supervise. The alternative is a second local
-  Postgres cluster always running; it buys nothing the daemon needs and
-  costs a supervisor. **Open: the store engine.**
+- **The store.** The SAME Postgres the daemon serves to containers, in a
+  schema `diverge` of its own that no container role can read. Which
+  Postgres is configuration — local, the daemon's own beside it, or a
+  remote URL — read at start and never changed while the daemon runs:
+  another database is another start, and what the old one holds stays
+  there. (Ruling of 2026-10-06; the earlier draft wanted a separate
+  store and a live mode swap.)
 - **Content lives beside the store, not in it.** Resource bytes under
   `resources/<hash>`, agent logs appended under `agents/<id>/log` with an
   index, both read by streaming. The store holds the index of a thing,
@@ -86,10 +87,12 @@ Two populations, kept apart by type and by fate:
   union allows; nothing denies. The judge collects the grants of the
   action from every role the account holds and passes the request if any
   one reaches everything the request names.
-- **Bootstrap.** At first start the daemon mints a root key into the
-  directory. A connection presenting it is served as a built-in account
-  holding every grant, by which the first real accounts are made. The
-  root is a record like any other once the store exists.
+- **Bootstrap.** A fresh database — one with no accounts table before
+  the daemon initialized it — is seeded with a role `root` holding every
+  grant and an account `root` holding it, whose key is the word `root`.
+  Both are ordinary records: the first client connects with `root`,
+  makes the real accounts, and rotates or deletes root. A database that
+  has the table is never seeded again.
 - **Delegation is bounded.** An account hands out only grants it holds —
   `assign` over an account, `grant` over a role — so nothing escalates
   through a container or a role.
@@ -117,16 +120,19 @@ Two populations, kept apart by type and by fate:
 
 ## 6. The database
 
-- **One served database, two modes.** Local, a cluster `diverge-postgres`
-  runs beside the daemon — spawned at start when the mode is local, its
-  ready line read, its shutdown line sent at stop; remote, a URL. The
-  daemon is the end that holds the database for every container.
+- **One database, two modes, by configuration.** Local, a cluster
+  `diverge-postgres` runs beside the daemon — spawned at start, its ready
+  line read, its shutdown line sent at stop; remote, a URL. The daemon is
+  the end that holds the database for every container, and keeps its own
+  records in it. `postgres::get` answers the mode; nothing on the wire
+  changes it.
 - **One scope per container.** A login role and a same-named schema,
   made at the container's first connection, searched implicitly,
   inescapable by privilege, dropped at delete — `POSTGRES_1.md` in the SDK
   reports. The daemon performs the handshake for the container and relays
   the rest unread, so no credential ever enters a container.
-- **Swapped at rest.** A set while any connection is open is `InUse`.
+- **Never swapped while running.** Another database is a config edit
+  and a restart.
 
 ## 7. Concurrency
 

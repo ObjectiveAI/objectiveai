@@ -3,7 +3,7 @@ name = "diverge-daemon"
 version = "2.3.0"
 edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
-description = "The Diverge daemon — the server of the daemon protocol, initialized: it listens, reads every request, and serves none of them yet"
+description = "The Diverge daemon — the server of the daemon protocol: its records in the Postgres it serves, its accounts and roles, and the judgment of every request"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://diverge.network"
@@ -23,15 +23,32 @@ path = "src/main.rs"
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The socket: a WebSocket upgrade accepted at any path on the port.
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "ws"] }
+# The time a record was made, as Postgres keeps it and the wire
+# carries it.
+chrono = { version = "0.4.39", default-features = false, features = ["std", "clock", "serde"] }
 # `StreamExt`, for the session's scopes as they arrive.
 futures-util = { version = "0.3.33", default-features = false, features = ["alloc"] }
-# `config.yaml`, and the path to whatever in it was wrong; and the
-# one error every refusal carries, as JSON.
+# A minted key, and its hash, as text.
+hex = "0.4.3"
+# The bytes of a minted key.
+rand = { version = "0.9.2", default-features = false, features = ["std", "std_rng", "os_rng"] }
+# `config.yaml`, and the path to whatever in it was wrong; the one
+# error every refusal carries, as JSON; and what a record keeps as
+# JSON — a creator, a role's grants.
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 serde_path_to_error = "0.1.20"
 serde_yaml_ng = "0.10.0"
-# `net` for the port; `fs` for the directory; `signal` for Ctrl-C and
+# The hash a credential is kept and looked up by: a key is compared
+# as its SHA-256, so the key itself is nowhere on disk.
+sha2 = "0.10.9"
+# The records, in Postgres. Runtime queries alone — no macros, so no
+# database at build time — over tokio with rustls; `chrono` and `json`
+# for the columns of those types.
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "json"] }
+# `net` for the port; `fs` for the directory; `process` and `io-util`
+# for the local Postgres beside the daemon and its two stdio lines;
+# `time` for how long its stop is given; `signal` for Ctrl-C and
 # SIGTERM; `rt-multi-thread` and `sync` for the runtime `main` builds
 # and the stop flag.
-tokio = { version = "1.53.1", features = ["fs", "sync", "rt", "rt-multi-thread", "net", "signal"] }
+tokio = { version = "1.53.1", features = ["fs", "io-util", "process", "sync", "rt", "rt-multi-thread", "net", "signal", "time"] }

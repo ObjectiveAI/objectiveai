@@ -13,7 +13,13 @@
 //!
 //! ```yaml
 //! port: 14980
+//! postgres:
+//!   kind: remote
+//!   url: postgresql://diverge:secret@db.example.com:5432/diverge
 //! ```
+//!
+//! `postgres` absent is `{kind: local}`: the daemon runs a Postgres of
+//! its own, `diverge-postgres`, beside it, under `<dir>/postgres/`.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

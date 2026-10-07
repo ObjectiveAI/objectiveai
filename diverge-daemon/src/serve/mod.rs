@@ -4,37 +4,49 @@
 //! The SDK's frame-level server takes a finished WebSocket and yields
 //! the scopes a client opens on it; it neither listens nor decides
 //! what a request is. So this module owns the socket and the
-//! dispatch. [`listen`] accepts a WebSocket upgrade at any path on
-//! the configured port, on every interface; [`connection`] is one
-//! accepted socket for its life: the credential that must come
-//! first, [`judge`]d, and then every request, read as a
-//! [`ClientRequest`](diverge_sdk::daemon::endpoints::ClientRequest)
-//! and handed to [`refuse`], which answers it with its endpoint's own
-//! error and finishes the scope. [`run`] binds, listens, waits for
-//! Ctrl-C or SIGTERM, and drains. [`Error`] is why the daemon could
-//! not start or could not listen, the one report a failed start gets;
-//! the daemon prints nothing else.
+//! dispatch. [`run`] starts the database the configuration names,
+//! opens the store on it, builds the one [`Daemon`](crate::daemon::Daemon),
+//! listens, waits for Ctrl-C or SIGTERM, drains, and stops the
+//! database it started. [`listen`] accepts a WebSocket upgrade at any
+//! path on the configured port, on every interface; [`connection`] is
+//! one accepted socket for its life: the credential that must come
+//! first, [`admit`](crate::judge::admit)ted, and then every request,
+//! read as a [`ClientRequest`](diverge_sdk::daemon::endpoints::ClientRequest)
+//! and handed by [`dispatch`] to its handler — [`accounts`] and
+//! [`roles`] have one per request — or, for the requests nothing
+//! serves yet, answered with that endpoint's own error. [`reply`] is
+//! how every handler sends a frame and how a store failure becomes the
+//! wire's error. [`Error`] is why the daemon could not start or could
+//! not listen, the one report a failed start gets; the daemon prints
+//! nothing else.
 //!
-//! # Every request is refused, for now
+//! # Every handler, the same way
 //!
-//! The daemon holds no records yet, so it admits no credential and
-//! serves no request. [`judge`] is where admission will be decided
-//! and refuses everyone today; [`refuse`] is the one answer there is,
-//! and is where each endpoint's real handler will take its arm from.
+//! A handler takes the scope, its decoded request, the [`Who`](crate::judge::Who)
+//! the connection is served for, and the daemon; begins a
+//! transaction; reads the account's [`Standing`](crate::judge::Standing);
+//! judges; loads what the request names; judges again over it; acts;
+//! commits on the answer that says it was done; and sends exactly the
+//! answers the wire states, then the finish. A store failure on any
+//! path is the endpoint's `Error`, and the transaction dropped is the
+//! rollback.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
 mod connection;
+mod dispatch;
 mod error;
-mod judge;
 mod listen;
-mod refuse;
+mod reply;
 mod run;
 
 pub use connection::*;
+pub use dispatch::*;
 pub use error::*;
-pub use judge::*;
 pub use listen::*;
-pub use refuse::*;
+pub use reply::*;
 pub use run::*;
+
+pub mod accounts;
+pub mod roles;

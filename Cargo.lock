@@ -1831,12 +1831,17 @@ name = "diverge-daemon"
 version = "2.3.0"
 dependencies = [
  "axum",
+ "chrono",
  "diverge-sdk",
  "futures-util",
+ "hex",
+ "rand 0.9.2",
  "serde",
  "serde_json",
  "serde_path_to_error",
  "serde_yaml_ng",
+ "sha2",
+ "sqlx",
  "tokio",
 ]
 
@@ -7393,6 +7398,7 @@ dependencies = [
  "bitflags 2.11.0",
  "byteorder",
  "bytes",
+ "chrono",
  "crc",
  "digest",
  "dotenvy",
@@ -7471,6 +7477,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2d12fe70b2c1b4401038055f90f151b78208de1f9f89a7dbfd41587a10c3eea"
 dependencies = [
  "atoi",
+ "chrono",
  "flume",
  "futures-channel",
  "futures-core",
