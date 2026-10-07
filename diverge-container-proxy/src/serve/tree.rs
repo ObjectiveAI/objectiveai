@@ -1,7 +1,7 @@
 //! A tree scope: the container's filesystem, watched from `/` and
 //! streamed until the server says stop.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use diverge_sdk::container_proxy::outside::endpoints::filesystem::tree::client::request;
 use diverge_sdk::container_proxy::outside::endpoints::filesystem::tree::server::response;
@@ -9,6 +9,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
 use diverge_sdk::shared::filetree;
 use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 
 use crate::encode::encoded;
 use crate::filesystem::tree::{self, Mapped};
@@ -92,7 +93,7 @@ pub async fn tree(scope: ScopeHandle, frame: request::Frame) {
                         let ignore = Arc::clone(&ignore);
                         let watch = Arc::clone(&watch);
                         let children = tokio::task::spawn_blocking(move || {
-                            let dark = watch.lock().map(|watch| watch.dark()).unwrap_or_default();
+                            let dark = watch.blocking_lock().dark();
                             tree::children(std::path::Path::new(ROOT), &ignore, &dark)
                         })
                         .await;

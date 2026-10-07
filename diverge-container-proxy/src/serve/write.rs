@@ -2,7 +2,6 @@
 //! channel the proxy opens.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use diverge_sdk::container_proxy::outside::endpoints::filesystem::write::client::{channel_response, request};
 use diverge_sdk::container_proxy::outside::endpoints::filesystem::write::server::{channel_request, response};
@@ -11,6 +10,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::containers::write_path;
 use diverge_sdk::shared::error::Error;
 use tokio::fs;
+use tokio::sync::Mutex;
 use tokio::io::AsyncWriteExt as _;
 
 use crate::answer::{self, Answer};
@@ -19,7 +19,7 @@ use crate::paths;
 
 /// Counted up per temporary, so two writes to one destination at
 /// once get two temporaries; `create_new` catches whatever is left.
-static TEMPORARIES: AtomicU64 = AtomicU64::new(0);
+static TEMPORARIES: Mutex<u64> = Mutex::const_new(0);
 
 /// Serve one write until the file is in place or the write is over.
 ///
@@ -59,7 +59,7 @@ pub async fn write(scope: ScopeHandle, frame: request::Frame) {
         return;
     };
 
-    let temporary = temporary(&destination);
+    let temporary = temporary(&destination).await;
     let mut file = match fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -133,8 +133,13 @@ pub async fn write(scope: ScopeHandle, frame: request::Frame) {
 
 /// The temporary's path: beside `destination`, named after it, with
 /// a number no other temporary of this run has.
-fn temporary(destination: &Path) -> PathBuf {
-    let n = TEMPORARIES.fetch_add(1, Ordering::Relaxed);
+async fn temporary(destination: &Path) -> PathBuf {
+    let n = {
+        let mut temporaries = TEMPORARIES.lock().await;
+        let n = *temporaries;
+        *temporaries += 1;
+        n
+    };
     // `paths::absolute` guarantees a final component.
     let name = destination
         .file_name()

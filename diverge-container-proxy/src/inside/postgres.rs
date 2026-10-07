@@ -36,7 +36,7 @@ const ACCEPT_PAUSE: Duration = Duration::from_millis(100);
 /// the channel to the connection waiting for it. An id nobody waits
 /// on is a channel this end cannot serve, finished with nothing.
 pub async fn attach(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, connection_id: u32) {
-    if !proxy.pairs.pair(connection_id, channel) {
+    if !proxy.pairs.pair(connection_id, channel).await {
         scope.send_channel_response_finish(channel).await;
     }
 }
@@ -78,14 +78,14 @@ async fn connection(stream: TcpStream, proxy: Arc<Proxy>) {
     // latency to each one.
     let _ = stream.set_nodelay(true);
 
-    let (id, half) = proxy.pairs.announce();
+    let (id, half) = proxy.pairs.announce().await;
     let Ok((begun, mut channel)) = ask::open(
         &proxy,
         Own::Postgres(postgres::request::Postgres { connection_id: id }),
     )
     .await
     else {
-        proxy.pairs.forget(id);
+        proxy.pairs.forget(id).await;
         return;
     };
 
@@ -98,14 +98,14 @@ async fn connection(stream: TcpStream, proxy: Arc<Proxy>) {
             paired = &mut half => match paired {
                 Ok(channel) => break channel,
                 Err(_) => {
-                    proxy.pairs.forget(id);
+                    proxy.pairs.forget(id).await;
                     return;
                 }
             },
             next = answer::next(&mut channel) => match next {
                 Some(Answer::Frame(bytes)) => early.push(bytes),
                 Some(Answer::Finish) | None => {
-                    proxy.pairs.forget(id);
+                    proxy.pairs.forget(id).await;
                     return;
                 }
             },

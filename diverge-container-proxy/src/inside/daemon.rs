@@ -46,7 +46,7 @@ pub async fn serve(State(proxy): State<Arc<Proxy>>, upgrade: WebSocketUpgrade) -
 /// the channel to the connection waiting for it. An id nobody waits
 /// on is a channel this end cannot serve, finished with nothing.
 pub async fn attach(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, connection_id: u32) {
-    if !proxy.daemons.pair(connection_id, channel) {
+    if !proxy.daemons.pair(connection_id, channel).await {
         scope.send_channel_response_finish(channel).await;
     }
 }
@@ -89,14 +89,14 @@ pub async fn attach(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, co
 /// than being guessed at. What the daemon says is not decoded at all:
 /// the program's own wire reads it.
 async fn connection(socket: WebSocket, proxy: Arc<Proxy>) {
-    let (id, half) = proxy.daemons.announce();
+    let (id, half) = proxy.daemons.announce().await;
     let Ok((begun, mut channel)) = ask::open(
         &proxy,
         Own::Daemon(daemon::request::Daemon { connection_id: id }),
     )
     .await
     else {
-        proxy.daemons.forget(id);
+        proxy.daemons.forget(id).await;
         return;
     };
 
@@ -109,7 +109,7 @@ async fn connection(socket: WebSocket, proxy: Arc<Proxy>) {
             paired = &mut half => match paired {
                 Ok(channel) => break channel,
                 Err(_) => {
-                    proxy.daemons.forget(id);
+                    proxy.daemons.forget(id).await;
                     return;
                 }
             },
@@ -118,7 +118,7 @@ async fn connection(socket: WebSocket, proxy: Arc<Proxy>) {
                 // The ask ended before the half came: the caller
                 // declined the connection, or the run is over.
                 Some(Answer::Finish) | None => {
-                    proxy.daemons.forget(id);
+                    proxy.daemons.forget(id).await;
                     return;
                 }
             },

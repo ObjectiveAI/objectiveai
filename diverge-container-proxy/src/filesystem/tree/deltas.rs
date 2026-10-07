@@ -2,7 +2,7 @@
 
 use std::fs;
 use std::path::{Component, Path};
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 use diverge_sdk::shared::filetree::response::Frame;
 use notify::EventKind;
@@ -57,9 +57,9 @@ pub fn map(event: notify::Event, ignore: &Ignore, watch: &Mutex<Watch>) -> Mappe
         EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(RenameMode::To))
     );
     let dark = {
-        let Ok(mut watch) = watch.lock() else {
-            return Mapped::Frames(Vec::new());
-        };
+        // Blocking: this runs under `spawn_blocking`, on no runtime
+        // thread.
+        let mut watch = watch.blocking_lock();
         if arriving {
             for path in &event.paths {
                 if !ignore.excluded(path)
