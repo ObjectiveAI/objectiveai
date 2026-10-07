@@ -110,6 +110,17 @@ Two populations, kept apart by type and by fate:
   account through the same front dispatch a client gets; Postgres pairs,
   handshaken and relayed to the served database; MCP, enqueue and
   dequeue, filetree, vault — each as the provider protocol states.
+- **Who may see or join a tool from outside is an admission.** A
+  provider asks the daemon two questions about a tool it runs there:
+  may this lister see the container, and may this connector attach. The
+  answers come from ADMISSIONS on the tool, records put down by
+  `tools::admit` and taken back by `tools::unadmit`: an identity on the
+  provider, an address if one, and what it admits — list, connect, or
+  both. A list is yes when an admission names the lister's identity and
+  admits a list; a connect is yes when the connector's authorization is
+  an admission's key — minted and answered once, as an account's — and
+  the admission admits a connect. Default deny. A connected tool is
+  somebody else's, and its runner admits.
 - **Templates are the definitions.** An agent or a tool is a template
   plus what its create added — mounts, account, provider — and the record
   is that; the container is work made from it, and remade from it after a

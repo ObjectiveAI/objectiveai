@@ -118,6 +118,8 @@ pub fn every_grant() -> Vec<Grant> {
                 to::Over::Upload,
                 to::Over::Transfer,
                 to::Over::Filetree,
+                to::Over::Admit,
+                to::Over::Unadmit,
             ],
             within: Within::Any,
         }),

@@ -116,6 +116,8 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ResourcesUntag(_) => refused(scope, encoded(&endpoints::resources::untag::server::response::Frame::Error(not_served()))).await,
         ClientRequest::PostgresGet(_) => refused(scope, encoded(&endpoints::postgres::get::server::response::Frame::Error(not_served()))).await,
         ClientRequest::PostgresConnections(_) => refused(scope, encoded(&endpoints::postgres::connections::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::ToolsAdmit(_) => refused(scope, encoded(&endpoints::tools::admit::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::ToolsUnadmit(_) => refused(scope, encoded(&endpoints::tools::unadmit::server::response::Frame::Error(not_served()))).await,
         ClientRequest::Invalid(_) => refused(scope, None).await,
     }
 }
