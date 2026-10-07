@@ -174,7 +174,7 @@ call gives, made BY the container. Per-tool paths are separate edges.
 
 Every commit passed `cargo check -p diverge-sdk` and
 `cargo doc --no-deps -p diverge-sdk` with zero warnings, and the
-provider commits `cargo check -p diverge-provider-server`, plus a
+provider commits `cargo check -p diverge-provider`, plus a
 throwaway round-trip example asserting the tag values and the JSON
 shapes, deleted after. The site commits passed the order check and
 `pnpm build`. Nothing was run live. The remote branch was rewritten

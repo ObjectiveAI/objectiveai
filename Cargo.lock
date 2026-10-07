@@ -1856,7 +1856,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "diverge-provider-server"
+name = "diverge-provider"
 version = "2.3.0"
 dependencies = [
  "axum",

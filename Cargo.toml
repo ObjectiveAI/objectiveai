@@ -16,7 +16,7 @@ members = [
     "diverge-agentic-loop-openrouter",
     "diverge-agentic-loop-python",
     "diverge-sdk-rs",
-    "diverge-provider-server",
+    "diverge-provider",
     "diverge-postgres",
     "diverge-daemon",
     "objectiveai-sdk-rs",
