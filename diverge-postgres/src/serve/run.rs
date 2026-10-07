@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::pin::pin;
 
 use diverge_sdk::file_lock;
+use diverge_sdk::postgres_supervisor::{Command, Ready};
 use futures_util::future::{self, Either};
 use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 
@@ -12,7 +13,6 @@ use crate::cluster;
 use crate::config::Config;
 use crate::install;
 use crate::postmaster;
-use crate::stdio::{Command, Ready};
 
 /// Run the cluster in `dir` on `config` until a shutdown line, a
 /// signal, or the postmaster's own exit.

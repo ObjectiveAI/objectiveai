@@ -35,12 +35,13 @@
 //! [`config`] is what the program is told; [`install`] the binaries;
 //! [`cluster`] the password and the initialization; [`postmaster`]
 //! the stop, the start and the readiness of the server process;
-//! [`stdio`] the two lines that cross stdin and stdout; [`serve`] the
-//! whole, in order, and the stop.
+//! [`serve`] the whole, in order, and the stop. The two lines that
+//! cross its stdio are the SDK's
+//! [`postgres_supervisor`](diverge_sdk::postgres_supervisor), so the
+//! daemon that starts it names them from the same place.
 
 pub mod cluster;
 pub mod config;
 pub mod install;
 pub mod postmaster;
 pub mod serve;
-pub mod stdio;

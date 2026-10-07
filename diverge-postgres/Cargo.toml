@@ -27,8 +27,8 @@ diverge-sdk = { path = "../diverge-sdk-rs" }
 # the extraction's commands, `rustls` because that is the TLS the
 # workspace builds with; the default native TLS is left off.
 postgresql_embedded = { version = "0.20", default-features = false, features = ["bundled", "theseus", "tokio", "rustls"] }
-# The two lines that cross stdio — the ready line out, the shutdown
-# line in — are JSON, one object each.
+# `config.yaml` is a document, and the two lines that cross stdio —
+# the SDK's `postgres_supervisor` types — are JSON, one object each.
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 # `config.yaml`, and the path to whatever in it was wrong.
