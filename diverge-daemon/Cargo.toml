@@ -23,6 +23,9 @@ path = "src/main.rs"
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The socket: a WebSocket upgrade accepted at any path on the port.
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "ws"] }
+# The one frame the daemon reads off a socket itself: the credential,
+# to tell a client from a provider before either half is built.
+bytes = { version = "1.11.1", default-features = false }
 # The time a record was made, as Postgres keeps it and the wire
 # carries it.
 chrono = { version = "0.4.39", default-features = false, features = ["std", "clock", "serde"] }
@@ -46,6 +49,8 @@ sha2 = "0.10.9"
 # database at build time — over tokio with rustls; `chrono` and `json`
 # for the columns of those types.
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "json"] }
+# The outgoing socket: `connect` is how the daemon dials a provider.
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect"] }
 # `net` for the port; `fs` for the directory; `process` and `io-util`
 # for the local Postgres beside the daemon and its two stdio lines;
 # `time` for how long its stop is given; `signal` for Ctrl-C and

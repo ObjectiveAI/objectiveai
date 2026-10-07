@@ -9,8 +9,9 @@
 //! role and the one account seeded into a database that had no
 //! `accounts` table before, so that somebody can be the first to
 //! connect — and both are ordinary records from then on, editable and
-//! deletable. [`accounts`] and [`roles`] are the records of each kind,
-//! loaded whole and written whole; [`of_account`] is what an account may
+//! deletable. [`accounts`], [`roles`], [`providers_outgoing`] and
+//! [`providers_incoming`] are the records of each kind, loaded whole
+//! and written whole; [`of_account`] is what an account may
 //! do, read fresh for every request; [`tags`] is the one way a set of
 //! tags is kept; the ids are [`AccountId`] and [`RoleId`], so that an
 //! id of one kind is never handed to a query of the other.
@@ -45,5 +46,7 @@ pub use schema::*;
 pub use store::*;
 
 pub mod accounts;
+pub mod providers_incoming;
+pub mod providers_outgoing;
 pub mod roles;
 pub mod tags;

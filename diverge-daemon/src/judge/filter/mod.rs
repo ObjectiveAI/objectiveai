@@ -7,7 +7,8 @@
 //! with no member passes everything. A member that lists candidates
 //! passes a record that is any one of them; `all_tags` a record that
 //! carries every one; `any_tags` any one; an empty list is absent.
-//! [`accounts`] and [`roles`] are the two tests.
+//! [`accounts`], [`roles`], [`providers_outgoing`] and
+//! [`providers_incoming`] are the tests.
 //!
 //! Evaluated here, in the daemon, against records loaded whole, and
 //! not translated into the database's own queries: one truth for the
@@ -16,4 +17,6 @@
 //! SQL as kinds are added.
 
 pub mod accounts;
+pub mod providers_incoming;
+pub mod providers_outgoing;
 pub mod roles;

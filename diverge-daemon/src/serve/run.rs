@@ -11,6 +11,7 @@ use super::{Error, listen};
 use crate::config::Config;
 use crate::daemon::Daemon;
 use crate::postgres;
+use crate::providers;
 use crate::store;
 
 /// Run the daemon on `config`, in `dir`, until Ctrl-C or, on Unix,
@@ -19,8 +20,10 @@ use crate::store;
 /// In order: the database the configuration names is started, or
 /// named; the store is opened on it, its schema applied and root
 /// seeded into a fresh one; the daemon is built; the port is listened
-/// on until the signal; the listener drains; and the database that
-/// was started is stopped. A store that cannot be opened stops the
+/// on until the signal, every outgoing provider on record dialled
+/// meanwhile; the listener drains; the dials are ended, and their
+/// connections with them; and the database that was started is
+/// stopped. A store that cannot be opened stops the
 /// database it just started before the error is returned.
 pub async fn run(config: Config, dir: PathBuf) -> Result<(), Error> {
     let (postgres, url) = postgres::start(&config.postgres, &dir).await.map_err(Error::Postgres)?;
@@ -32,6 +35,10 @@ pub async fn run(config: Config, dir: PathBuf) -> Result<(), Error> {
         }
     };
     let daemon = Arc::new(Daemon::new(store));
+    if let Err(error) = providers::dial_all(&daemon).await {
+        postgres.stop().await;
+        return Err(Error::Store(error));
+    }
     let (stop, stopped) = watch::channel(false);
     let listening = pin!(listen(config.port, stopped, Arc::clone(&daemon)));
     let signal = pin!(shutdown());
@@ -42,6 +49,7 @@ pub async fn run(config: Config, dir: PathBuf) -> Result<(), Error> {
             listening.await
         }
     };
+    daemon.live.stop_dials().await;
     postgres.stop().await;
     outcome
 }

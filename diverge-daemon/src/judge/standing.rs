@@ -48,4 +48,20 @@ impl Standing {
             _ => None,
         })
     }
+
+    /// The grants over outgoing providers.
+    pub fn providers_outgoing(&self) -> impl Iterator<Item = &grant::providers_outgoing::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::ProvidersOutgoing(permission) => Some(permission),
+            _ => None,
+        })
+    }
+
+    /// The grants over incoming credentials.
+    pub fn providers_incoming(&self) -> impl Iterator<Item = &grant::providers_incoming::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::ProvidersIncoming(permission) => Some(permission),
+            _ => None,
+        })
+    }
 }

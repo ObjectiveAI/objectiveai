@@ -6,24 +6,27 @@ use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{accounts, roles};
+use std::sync::Arc;
+
+use super::{accounts, providers, roles, tools};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
 /// What every request nothing serves yet is answered with.
-const NOT_SERVED: &str = "not served: the daemon serves accounts and roles, and nothing else yet";
+const NOT_SERVED: &str = "not served: the daemon serves accounts, roles and providers, and nothing else yet";
 
 /// Read `payload` as the request that opened `scope` and hand it to
 /// its handler, which answers and finishes the scope.
 ///
 /// One arm per request of the wire, so that a request added to the
-/// SDK is a request this cannot compile without. The fourteen over
-/// accounts and roles have handlers; every other is answered with its
+/// SDK is a request this cannot compile without. The twenty-five over
+/// accounts, roles, providers and a provider's tool containers have
+/// handlers; every other is answered with its
 /// endpoint's own `Error`, carrying one sentence saying so, encoded as
 /// the endpoint encodes it, then the finish. A payload that is no
 /// request at all is finished with nothing before it, which is what
 /// the wire means by a request that was not served.
-pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Daemon) {
+pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
     match ClientRequest::decode(payload).unwrap_or_else(|never| match never {}) {
         ClientRequest::AgentsCreate(_) => refused(scope, encoded(&endpoints::agents::create::server::response::Frame::Error(not_served()))).await,
         ClientRequest::AgentsGet(_) => refused(scope, encoded(&endpoints::agents::get::server::response::Frame::Error(not_served()))).await,
@@ -44,7 +47,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Dae
         ClientRequest::ToolsGet(_) => refused(scope, encoded(&endpoints::tools::get::server::response::Frame::Error(not_served()))).await,
         ClientRequest::ToolsEdit(_) => refused(scope, encoded(&endpoints::tools::edit::server::response::Frame::Error(not_served()))).await,
         ClientRequest::ToolsConnect(_) => refused(scope, encoded(&endpoints::tools::connect::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsListFor(_) => refused(scope, encoded(&endpoints::tools::list_for::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::ToolsListFor(frame) => tools::list_for::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsAttach(_) => refused(scope, encoded(&endpoints::tools::attach::server::response::Frame::Error(not_served()))).await,
         ClientRequest::ToolsDetach(_) => refused(scope, encoded(&endpoints::tools::detach::server::response::Frame::Error(not_served()))).await,
         ClientRequest::ToolsDelete(_) => refused(scope, encoded(&endpoints::tools::delete::server::response::Frame::Error(not_served()))).await,
@@ -63,16 +66,16 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Dae
         ClientRequest::ResourcesUpload(_) => refused(scope, encoded(&endpoints::resources::upload::server::response::Frame::Error(not_served()))).await,
         ClientRequest::ResourcesList(_) => refused(scope, encoded(&endpoints::resources::list::server::response::Frame::Error(not_served()))).await,
         ClientRequest::ResourcesDelete(_) => refused(scope, encoded(&endpoints::resources::delete::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersOutgoingAdd(_) => refused(scope, encoded(&endpoints::providers::outgoing::add::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersOutgoingGet(_) => refused(scope, encoded(&endpoints::providers::outgoing::get::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersOutgoingList(_) => refused(scope, encoded(&endpoints::providers::outgoing::list::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersOutgoingDelete(_) => refused(scope, encoded(&endpoints::providers::outgoing::delete::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersOutgoingEdit(_) => refused(scope, encoded(&endpoints::providers::outgoing::edit::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersIncomingAdd(_) => refused(scope, encoded(&endpoints::providers::incoming::add::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersIncomingGet(_) => refused(scope, encoded(&endpoints::providers::incoming::get::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersIncomingList(_) => refused(scope, encoded(&endpoints::providers::incoming::list::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersIncomingDelete(_) => refused(scope, encoded(&endpoints::providers::incoming::delete::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ProvidersIncomingEdit(_) => refused(scope, encoded(&endpoints::providers::incoming::edit::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::ProvidersOutgoingAdd(frame) => providers::outgoing::add::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersOutgoingGet(frame) => providers::outgoing::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersOutgoingList(frame) => providers::outgoing::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersOutgoingDelete(frame) => providers::outgoing::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersOutgoingEdit(frame) => providers::outgoing::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersIncomingAdd(frame) => providers::incoming::add::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersIncomingGet(frame) => providers::incoming::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersIncomingList(frame) => providers::incoming::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersIncomingDelete(frame) => providers::incoming::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersIncomingEdit(frame) => providers::incoming::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsCreate(frame) => accounts::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsGet(frame) => accounts::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsList(frame) => accounts::list::handle(scope, frame, who, daemon).await,

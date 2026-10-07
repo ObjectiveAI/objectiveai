@@ -1831,6 +1831,7 @@ name = "diverge-daemon"
 version = "2.3.0"
 dependencies = [
  "axum",
+ "bytes",
  "chrono",
  "diverge-sdk",
  "futures-util",
@@ -1843,6 +1844,7 @@ dependencies = [
  "sha2",
  "sqlx",
  "tokio",
+ "tokio-tungstenite 0.29.0",
 ]
 
 [[package]]

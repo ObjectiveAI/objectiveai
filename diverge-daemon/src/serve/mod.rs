@@ -12,9 +12,12 @@
 //! one accepted socket for its life: the credential that must come
 //! first, [`admit`](crate::judge::admit)ted, and then every request,
 //! read as a [`ClientRequest`](diverge_sdk::daemon::endpoints::ClientRequest)
-//! and handed by [`dispatch`] to its handler — [`accounts`] and
-//! [`roles`] have one per request — or, for the requests nothing
-//! serves yet, answered with that endpoint's own error. [`reply`] is
+//! and handed by [`dispatch`] to its handler — [`accounts`],
+//! [`roles`], [`providers`] and [`tools`] have one per request served
+//! — or, for the requests nothing serves yet, answered with that
+//! endpoint's own error. A credential that admits a provider rather
+//! than a client hands the socket to [`providers`](crate::providers)
+//! instead, where the daemon is the caller. [`reply`] is
 //! how every handler sends a frame and how a store failure becomes the
 //! wire's error. [`Error`] is why the daemon could not start or could
 //! not listen, the one report a failed start gets; the daemon prints
@@ -49,4 +52,6 @@ pub use reply::*;
 pub use run::*;
 
 pub mod accounts;
+pub mod providers;
 pub mod roles;
+pub mod tools;

@@ -12,14 +12,21 @@
 //!
 //! # What serves today
 //!
-//! Accounts and roles, whole: the fourteen requests over them are
-//! served as the wire states them, every other request is answered
-//! with its endpoint's own error saying it is not served yet, and
-//! every connection is judged. The records live in the one Postgres
+//! Accounts, roles and providers, whole: the twenty-five requests
+//! over them — the fourteen of the first two, the ten over outgoing
+//! providers and incoming credentials, and the listing of a tenant's
+//! tool containers through a provider — are served as the wire
+//! states them, every other request is answered with its endpoint's
+//! own error saying it is not served yet, and every connection is
+//! judged. An outgoing provider on record is dialled and dialled
+//! again for the daemon's life; a provider that dials in is admitted
+//! by a credential the daemon minted; on either connection the daemon
+//! is the caller of the provider protocol, [`providers`]. The records live in the one Postgres
 //! the daemon runs on — its own, started beside it, or a remote one,
 //! as [`config`] says — in a schema of the daemon's, [`store`]; who a
 //! connection is and what each request may do is [`judge`]; what is
 //! live and shared is [`daemon`]; the local Postgres is [`postgres`];
+//! the connections to providers are [`providers`];
 //! and [`serve`] is the daemon running: the port bound, every
 //! connection read, every request dispatched, and the stop.
 //!
@@ -45,5 +52,6 @@ pub mod config;
 pub mod daemon;
 pub mod judge;
 pub mod postgres;
+pub mod providers;
 pub mod serve;
 pub mod store;

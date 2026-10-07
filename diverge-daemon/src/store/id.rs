@@ -9,3 +9,11 @@ pub struct AccountId(pub i64);
 /// A role's row id, likewise.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct RoleId(pub i64);
+
+/// An outgoing provider's row id, likewise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct OutgoingId(pub i64);
+
+/// An incoming credential's row id, likewise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct IncomingId(pub i64);
