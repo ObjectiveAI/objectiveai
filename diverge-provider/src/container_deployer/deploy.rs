@@ -3,7 +3,6 @@
 //! run.
 
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
 use diverge_sdk::provider::server::caller::Caller;
@@ -12,12 +11,13 @@ use futures_util::future;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::TcpStream;
 use tokio::process::Child;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OnceCell};
 use tokio::time::{Duration, sleep};
 
 use super::mounts::{Bound, bind, release};
 use super::source::find;
 use super::{Container, ContainerDeployer, Error, Source};
+use crate::Held;
 use crate::tools::{podman, start};
 
 /// Where the proxy is bound inside every container.
@@ -38,21 +38,14 @@ pub(super) async fn deploy(
     digest: &str,
     caller: &Caller,
 ) -> Result<Container, Error> {
-    if !deployer.shared.disk.take(deployment.disk) {
+    let Some(disk) = deployer.shared.disk.take(deployment.disk) else {
         return Err(Error::Disk);
-    }
-    if !deployer.shared.memory.take(deployment.memory) {
-        deployer.shared.disk.give(deployment.disk);
+    };
+    let Some(memory) = deployer.shared.memory.take(deployment.memory) else {
         return Err(Error::Memory);
-    }
-    match after_limits(deployer, deployment, name, digest, caller).await {
-        Ok(container) => Ok(container),
-        Err(error) => {
-            deployer.shared.disk.give(deployment.disk);
-            deployer.shared.memory.give(deployment.memory);
-            Err(error)
-        }
-    }
+    };
+    // A failure past here drops both, which gives both back.
+    after_limits(deployer, deployment, name, digest, caller, (disk, memory)).await
 }
 
 /// The steps once the caps are taken: the image and the mounts, both
@@ -65,6 +58,7 @@ async fn after_limits(
     name: &str,
     digest: &str,
     caller: &Caller,
+    caps: (Held, Held),
 ) -> Result<Container, Error> {
     let (image, bound) = future::join(
         image(deployer, name, digest, caller),
@@ -88,12 +82,11 @@ async fn after_limits(
             name,
             address,
             image,
-            disk: deployment.disk,
-            memory: deployment.memory,
+            caps: Mutex::new(Some(caps)),
             bound,
             proxy: Mutex::new(Some(proxy)),
             shared: Arc::clone(&deployer.shared),
-            stopped: AtomicBool::new(false),
+            stopped: OnceCell::new(),
         }),
         Err(error) => {
             deployer.shared.images.ended(&image);

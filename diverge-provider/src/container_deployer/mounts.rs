@@ -108,7 +108,7 @@ async fn one(deployer: &ContainerDeployer, mount: &Mount) -> Result<Bound, Error
     let dir = volume.attach(&deployer.mounts_dir).await.map_err(Error::Mount)?;
     let host = descend(&dir, &mount.volume_relative_path);
     let mut argument = format!("{host}:/{}", mount.container_path.join("/"));
-    match volume.mode() {
+    match volume.mode().await {
         Mode::Persistent => {}
         Mode::Ephemeral => argument.push_str(":O"),
         Mode::ReadOnly => argument.push_str(":ro"),

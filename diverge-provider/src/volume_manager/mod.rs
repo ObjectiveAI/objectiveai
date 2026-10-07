@@ -63,7 +63,7 @@
 //! [`Served`] is a volume answering the FUSE asks for a serve's life;
 //! [`reserve_image`] and [`format_image`] are how an image is made,
 //! at [`image_path`], and [`read_mode`] and [`write_mode`] read and
-//! write the [`Mode`] at [`mode_path`] beside it; the filesystem in
+//! write the [`Mode`](diverge_sdk::provider::endpoints::volumes::Mode) at [`mode_path`] beside it; the filesystem in
 //! one is resized by [`tools::resize`](crate::tools::resize). [`Reservation`] is the
 //! stores and the bytes reserved in
 //! each, kept in memory and taken by compare-and-swap, shared by the

@@ -2,9 +2,8 @@
 
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use std::sync::OnceLock;
-
 use tokio::process::Command;
+use tokio::sync::OnceCell;
 
 use super::super::{Finished, run};
 use crate::tools::Error;
@@ -12,7 +11,7 @@ use crate::tools::Error;
 /// Where podman keeps its data, once the configuration has said:
 /// what every invocation is told. Set once, before the first
 /// invocation, by [`configure`].
-static STORAGE: OnceLock<PathBuf> = OnceLock::new();
+static STORAGE: OnceCell<PathBuf> = OnceCell::const_new();
 
 /// Tell every podman invocation to come where podman's data is:
 /// `containers.podman.storage_path`, resolved. Once; a second call

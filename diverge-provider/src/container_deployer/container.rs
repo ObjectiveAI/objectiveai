@@ -1,14 +1,14 @@
 //! A container the deployer started, and its stop.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use diverge_sdk::provider::server::container;
 use futures_util::future;
 use tokio::process::Child;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OnceCell};
 
 use super::Shared;
+use crate::Held;
 use super::mounts::{Bound, release};
 use crate::tools::podman;
 
@@ -22,10 +22,9 @@ pub struct Container {
     pub(super) address: String,
     /// The id of the image it runs, for the image cache's count.
     pub(super) image: String,
-    /// The `disk` it took from the cap.
-    pub(super) disk: u64,
-    /// The `memory` it took from the cap.
-    pub(super) memory: u64,
+    /// The `disk` and the `memory` it took from the caps, held until
+    /// the stop gives them back by dropping them.
+    pub(super) caps: Mutex<Option<(Held, Held)>>,
     /// Its volume mounts, each to detach.
     pub(super) bound: Vec<Bound>,
     /// The `podman exec` running the proxy, held so the proxy's life
@@ -33,8 +32,8 @@ pub struct Container {
     pub(super) proxy: Mutex<Option<Child>>,
     /// The caps and the image cache to give back to.
     pub(super) shared: Arc<Shared>,
-    /// Whether the stop has happened: it happens once.
-    pub(super) stopped: AtomicBool,
+    /// Set by the stop, which happens once.
+    pub(super) stopped: OnceCell<()>,
 }
 
 impl container::Container for Container {
@@ -49,15 +48,14 @@ impl container::Container for Container {
     /// report one; the container is gone as far as this end can make
     /// it.
     async fn stop(&self) {
-        if self.stopped.swap(true, Ordering::AcqRel) {
+        if self.stopped.set(()).is_err() {
             return;
         }
         let _ = podman::podman(["rm", "--force", "--time", "0", &self.name]).await;
         drop(self.proxy.lock().await.take());
         future::join(release(&self.bound), async {
             self.shared.images.ended(&self.image);
-            self.shared.disk.give(self.disk);
-            self.shared.memory.give(self.memory);
+            drop(self.caps.lock().await.take());
         })
         .await;
     }

@@ -2,7 +2,6 @@
 //! provider since podman trims nothing.
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use dashmap::DashMap;
 use tokio::sync::Mutex;
@@ -55,7 +54,7 @@ pub struct Images {
     /// [`tick`](Self::tick).
     last_used: DashMap<String, u64>,
     /// A clock that only goes up: one per record.
-    tick: AtomicU64,
+    tick: Mutex<u64>,
     /// The measure-and-trim, taken by one deploy at a time, so two
     /// deploys reading one count never both remove for it.
     trim: Mutex<()>,
@@ -69,7 +68,7 @@ impl Images {
             protected: protected.into_iter().collect(),
             running: DashMap::new(),
             last_used: DashMap::new(),
-            tick: AtomicU64::new(0),
+            tick: Mutex::new(0),
             trim: Mutex::new(()),
         }
     }
@@ -105,7 +104,7 @@ impl Images {
             }
             return Err(Error::ImageCache);
         }
-        self.record(id);
+        self.record(id).await;
         Ok(())
     }
 
@@ -136,8 +135,13 @@ impl Images {
     }
 
     /// The image starts a run now.
-    fn record(&self, id: &str) {
-        let tick = self.tick.fetch_add(1, Ordering::AcqRel);
+    async fn record(&self, id: &str) {
+        let tick = {
+            let mut tick = self.tick.lock().await;
+            let now = *tick;
+            *tick += 1;
+            now
+        };
         self.last_used.insert(id.to_string(), tick);
         *self.running.entry(id.to_string()).or_insert(0) += 1;
     }

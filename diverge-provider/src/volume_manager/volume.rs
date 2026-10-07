@@ -3,7 +3,6 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU8, AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
@@ -25,10 +24,6 @@ use tokio::sync::{Mutex, mpsc};
 
 use super::{Error, ModeFile, Reservation, Scratch, Served, Walked, image, mode, walk};
 use crate::tools::{mount, resize};
-
-/// The hold's count when the one exclusive holder has it: every
-/// other value is how many containers have the volume mounted.
-const LOCKED: u32 = u32::MAX;
 
 /// Where a volume is, which is also what kind it is.
 #[derive(Debug, Clone)]
@@ -65,7 +60,7 @@ pub enum Place {
 /// # The hold
 ///
 /// One atomic count: `0` is free, `n` is `n` containers mounting the
-/// volume, and `LOCKED` is the one stat, edit or delete that has it
+/// volume, and `Holders::Locked` is the one stat, edit or delete that has it
 /// to itself. [`mount`](volume::Volume::mount) adds one unless it is
 /// locked, [`unmount`](volume::Volume::unmount) takes one away,
 /// [`lock`](volume::Volume::lock) goes from free to locked and
@@ -91,13 +86,13 @@ pub struct Volume {
 struct Inner {
     name: String,
     place: Place,
-    /// The volume's [`Mode`], as one byte: what its mode file holds,
-    /// or the configuration declares for a fixed volume. Changed only
-    /// under the exclusive hold, so no container and no serve is
-    /// bound while it moves.
-    mode: AtomicU8,
-    /// The SDK's hold: free, some number of mounters, or [`LOCKED`].
-    holders: AtomicU32,
+    /// The volume's [`Mode`]: what its mode file holds, or the
+    /// configuration declares for a fixed volume. Changed only under
+    /// the exclusive hold, so no container and no serve is bound while
+    /// it moves.
+    mode: Mutex<Mode>,
+    /// The SDK's hold: free, some number of mounters, or locked.
+    holders: Mutex<Holders>,
     /// What the last walk found, if one has happened since the
     /// volume was read or last mounted.
     walked: Mutex<Option<Walked>>,
@@ -124,8 +119,8 @@ impl Volume {
             inner: Arc::new(Inner {
                 name: name.to_string(),
                 place,
-                mode: AtomicU8::new(byte(mode)),
-                holders: AtomicU32::new(0),
+                mode: Mutex::new(mode),
+                holders: Mutex::new(Holders::Free),
                 walked: Mutex::new(None),
                 attached: Mutex::new(None),
             }),
@@ -146,8 +141,8 @@ impl Volume {
     /// volume plainly, under an overlay, or read-only, and what a
     /// serve reads to change it in place, on a scratch layer, or not
     /// at all.
-    pub fn mode(&self) -> Mode {
-        of_byte(self.inner.mode.load(Ordering::Acquire))
+    pub async fn mode(&self) -> Mode {
+        *self.inner.mode.lock().await
     }
 
     /// The volume as a listing reports it, read from the filesystem
@@ -167,7 +162,7 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: meta.len(),
                     created: meta.created().or_else(|_| meta.modified()).map(seconds).unwrap_or(0),
-                    mode: self.mode(),
+                    mode: self.mode().await,
                 })
             }
             Place::Fixed { root, bytes, started } => {
@@ -176,7 +171,7 @@ impl Volume {
                     name: self.inner.name.clone(),
                     bytes: *bytes,
                     created: meta.created().map(seconds).unwrap_or(*started),
-                    mode: self.mode(),
+                    mode: self.mode().await,
                 })
             }
         }
@@ -229,7 +224,7 @@ impl Volume {
                 // Only a persistent volume's image is written by the
                 // kernel: an ephemeral one is the lower of podman's
                 // overlay, a read-only one is bound read-only.
-                mount::mount(image, &dir, self.mode() != Mode::Persistent).await?;
+                mount::mount(image, &dir, self.mode().await != Mode::Persistent).await?;
                 *attached = Some(Attached {
                     dir: dir.clone(),
                     count: 1,
@@ -424,24 +419,6 @@ fn tool_path(path: &Path) -> String {
     crate::tools::podman::path(path)
 }
 
-/// A mode as the byte the volume keeps it in.
-fn byte(mode: Mode) -> u8 {
-    match mode {
-        Mode::Persistent => 0,
-        Mode::Ephemeral => 1,
-        Mode::ReadOnly => 2,
-    }
-}
-
-/// The byte back as a mode; a byte this did not write is persistent,
-/// the mode that refuses the most company.
-fn of_byte(byte: u8) -> Mode {
-    match byte {
-        1 => Mode::Ephemeral,
-        2 => Mode::ReadOnly,
-        _ => Mode::Persistent,
-    }
-}
 
 /// A moment as seconds since the Unix epoch; a moment before it is
 /// `0`.
@@ -455,55 +432,54 @@ impl volume::Volume for Volume {
     /// One more mounter, unless the volume is locked — or, for a
     /// persistent volume, held by anyone at all: a persistent volume
     /// has one user at a time, one container or one serve, which is
-    /// what keeps its image under one writer. One compare-and-swap,
-    /// so a lock and a mount at once cannot both succeed.
+    /// what keeps its image under one writer. One step under the
+    /// lock, so a lock and a mount at once cannot both succeed.
     async fn mount(&self) -> bool {
-        let one_user = self.mode() == Mode::Persistent;
-        self.inner
-            .holders
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |holders| match holders {
-                LOCKED => None,
-                0 => Some(1),
-                _ if one_user => None,
-                count => Some(count + 1),
-            })
-            .is_ok()
+        let one_user = self.mode().await == Mode::Persistent;
+        let mut holders = self.inner.holders.lock().await;
+        *holders = match *holders {
+            Holders::Locked => return false,
+            Holders::Free => Holders::Mounted(1),
+            Holders::Mounted(_) if one_user => return false,
+            Holders::Mounted(count) => Holders::Mounted(count + 1),
+        };
+        true
     }
 
     /// One mounter fewer; `false` is a volume with none, or locked.
     async fn unmount(&self) -> bool {
-        self.inner
-            .holders
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |holders| match holders {
-                0 | LOCKED => None,
-                count => Some(count - 1),
-            })
-            .is_ok()
+        let mut holders = self.inner.holders.lock().await;
+        *holders = match *holders {
+            Holders::Free | Holders::Locked => return false,
+            Holders::Mounted(1) => Holders::Free,
+            Holders::Mounted(count) => Holders::Mounted(count - 1),
+        };
+        true
     }
 
     /// Free to locked, and nothing else: a volume anyone has is
     /// refused.
     async fn lock(&self) -> bool {
-        self.inner
-            .holders
-            .compare_exchange(0, LOCKED, Ordering::AcqRel, Ordering::Acquire)
-            .is_ok()
+        let mut holders = self.inner.holders.lock().await;
+        if *holders != Holders::Free {
+            return false;
+        }
+        *holders = Holders::Locked;
+        true
     }
 
     /// Locked to free; `false` is a volume that was not locked.
     async fn unlock(&self) -> bool {
-        self.inner
-            .holders
-            .compare_exchange(LOCKED, 0, Ordering::AcqRel, Ordering::Acquire)
-            .is_ok()
+        let mut holders = self.inner.holders.lock().await;
+        if *holders != Holders::Locked {
+            return false;
+        }
+        *holders = Holders::Free;
+        true
     }
 
     async fn holders(&self) -> Holders {
-        match self.inner.holders.load(Ordering::Acquire) {
-            0 => Holders::Free,
-            LOCKED => Holders::Locked,
-            count => Holders::Mounted(count),
-        }
+        *self.inner.holders.lock().await
     }
 
     /// A stored volume is watched by the container's proxy; a fixed
@@ -610,8 +586,8 @@ impl volume::Volume for Volume {
     async fn serve(&self, overlay_disk: u64) -> Result<Self::Served, Error> {
         *self.inner.walked.lock().await = None;
         match &self.inner.place {
-            Place::Stored { image, scratch, .. } => Served::stored(image, self.mode(), overlay_disk, scratch).await,
-            Place::Fixed { root, .. } => match self.mode() {
+            Place::Stored { image, scratch, .. } => Served::stored(image, self.mode().await, overlay_disk, scratch).await,
+            Place::Fixed { root, .. } => match self.mode().await {
                 Mode::Ephemeral => Err(Error::EphemeralFixed(self.inner.name.clone())),
                 mode => Ok(Served::fixed(root, mode)),
             },
@@ -664,7 +640,7 @@ impl volume::Volume for Volume {
     ///
     /// Under the SDK's exclusive hold, so no container has the image.
     /// A fixed volume is refused whatever the change. A change of the
-    /// size is [`resize`](Self::resize); a change of the mode writes
+    /// size is a resize; a change of the mode writes
     /// the mode file and then what this holds, so a reader never sees
     /// a mode the disk does not; a change of both resizes first and
     /// changes the mode only on `Edited`, so a size refused leaves
@@ -700,7 +676,7 @@ impl Volume {
         };
         let path = mode_file(image);
         mode::write_mode(&path, ModeFile { mode }).await?;
-        self.inner.mode.store(byte(mode), Ordering::Release);
+        *self.inner.mode.lock().await = mode;
         Ok(())
     }
 

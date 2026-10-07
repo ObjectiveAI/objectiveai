@@ -1,11 +1,10 @@
 //! The stores, and the bytes reserved in each.
 
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use futures_util::future;
 use tokio::fs;
-use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, OnceCell};
 
 use super::name;
 use crate::config::volumes::Store;
@@ -49,7 +48,7 @@ struct Slot {
     store: Store,
     /// The bytes every image in the store reserves between them, set
     /// by the one scan.
-    used: OnceCell<AtomicU64>,
+    used: OnceCell<Mutex<u64>>,
 }
 
 impl Reservation {
@@ -78,10 +77,10 @@ impl Reservation {
     /// The store's count, scanned into being the first time it is
     /// asked for. Every caller during the scan waits for it rather
     /// than starting another.
-    async fn used(&self, index: usize) -> &AtomicU64 {
+    async fn used(&self, index: usize) -> &Mutex<u64> {
         let slot = &self.stores[index];
         slot.used
-            .get_or_init(|| async { AtomicU64::new(scan(&slot.store.path).await) })
+            .get_or_init(|| async { Mutex::new(scan(&slot.store.path).await) })
             .await
     }
 
@@ -91,28 +90,26 @@ impl Reservation {
     /// the room, and nothing changed. One compare-and-swap.
     pub async fn reserve(&self, index: usize, bytes: u64) -> bool {
         let capacity = self.stores[index].store.capacity;
-        self.used(index)
-            .await
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
-                (capacity.saturating_sub(used) >= bytes).then(|| used + bytes)
-            })
-            .is_ok()
+        let mut used = self.used(index).await.lock().await;
+        if capacity.saturating_sub(*used) < bytes {
+            return false;
+        }
+        *used += bytes;
+        true
     }
 
     /// Give `bytes` back to the store at `index`. Never takes the
     /// count below zero.
     pub async fn release(&self, index: usize, bytes: u64) {
-        let _ = self
-            .used(index)
-            .await
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| Some(used.saturating_sub(bytes)));
+        let mut used = self.used(index).await.lock().await;
+        *used = used.saturating_sub(bytes);
     }
 
     /// How many bytes the store at `index` has left: its capacity less
     /// its count, as of now. Never below `0`.
     pub async fn room(&self, index: usize) -> u64 {
         let capacity = self.stores[index].store.capacity;
-        capacity.saturating_sub(self.used(index).await.load(Ordering::Acquire))
+        capacity.saturating_sub(*self.used(index).await.lock().await)
     }
 
     /// Every store's room, each asked beside every other, in the

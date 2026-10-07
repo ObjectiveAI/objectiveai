@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::fs;
 
 use super::sparse;
-use crate::Limit;
+use crate::{Held, Limit};
 
 /// The scratch directory and the cap the scratch counts against,
 /// shared by every stored volume.
@@ -24,18 +24,11 @@ pub struct Scratch {
     disk: Arc<Limit>,
 }
 
-/// Bytes held against the cap for one serve; given back on drop, an
-/// atomic and nothing else.
+/// Bytes held against the cap for one serve; given back on drop,
+/// since that is what a [`Held`] does.
 #[derive(Debug)]
 pub struct Lease {
-    disk: Arc<Limit>,
-    bytes: u64,
-}
-
-impl Drop for Lease {
-    fn drop(&mut self) {
-        self.disk.give(self.bytes);
-    }
+    _held: Held,
 }
 
 impl Scratch {
@@ -58,10 +51,7 @@ impl Scratch {
     /// `overlay_disk` taken from the cap, or `None` with nothing
     /// taken.
     pub fn lease(&self, overlay_disk: u64) -> Option<Lease> {
-        self.disk.take(overlay_disk).then(|| Lease {
-            disk: Arc::clone(&self.disk),
-            bytes: overlay_disk,
-        })
+        self.disk.take(overlay_disk).map(|held| Lease { _held: held })
     }
 
     /// A fresh scratch file, handed over as a std handle for the
