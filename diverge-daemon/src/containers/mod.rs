@@ -19,7 +19,9 @@
 //! own content or another provider's volume bridged. [`Key`] names a
 //! container by its record; [`AgentRun`] and [`ToolRun`] are what is
 //! live for one; [`choose`] is which provider; [`container`] is the
-//! request a run is.
+//! request a run is; [`Opened`] is a run as a file operation works on
+//! it, and [`files`] the operations — the container's tree whole, a
+//! file read, a file written — with the daemon's mounts included.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -28,12 +30,15 @@ mod build;
 mod error;
 mod idle;
 mod key;
+mod opened;
 mod provider;
 mod pump;
 mod run;
 mod start;
 mod stop;
 mod tools;
+
+pub mod files;
 
 pub mod answerers;
 pub mod deploy;
@@ -45,6 +50,7 @@ pub use build::*;
 pub use error::*;
 pub use idle::*;
 pub use key::*;
+pub use opened::*;
 pub use provider::*;
 pub use pump::*;
 pub use run::*;

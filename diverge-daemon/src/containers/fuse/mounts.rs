@@ -13,7 +13,8 @@ use diverge_sdk::shared::containers::fuse::Attrs;
 use diverge_sdk::shared::containers::fuse::ack::Refused;
 use diverge_sdk::shared::containers::fuse::stat::Stat;
 use diverge_sdk::shared::containers::request::FuseMount;
-use tokio::sync::Mutex;
+use diverge_sdk::shared::filetree::response::Frame;
+use tokio::sync::{Mutex, broadcast};
 
 use super::{bridge, resources};
 use crate::containers::Key;
@@ -55,6 +56,9 @@ pub struct Mounts {
     /// The directory mounts, likewise.
     pub directories: Vec<FuseMount>,
     overlay: Option<PathBuf>,
+    /// Every change made under a mount, as a frame from the
+    /// container's root, for whoever watches the container.
+    pub(super) changes: broadcast::Sender<Frame>,
 }
 
 impl Mounts {
@@ -66,6 +70,7 @@ impl Mounts {
             files: Vec::new(),
             directories: Vec::new(),
             overlay: None,
+            changes: broadcast::channel(256).0,
         }
     }
 
@@ -82,12 +87,7 @@ impl Mounts {
         volume_files: &[VolumeFuseMount],
         volume_directories: &[VolumeFuseMount],
     ) -> Result<Mounts, String> {
-        let mut mounts = Mounts {
-            sources: HashMap::new(),
-            files: Vec::new(),
-            directories: Vec::new(),
-            overlay: None,
-        };
+        let mut mounts = Mounts::empty();
         let overlay = daemon.overlays.join(match key {
             Key::Agent(id) => format!("agent-{}", id.0),
             Key::Tool(id) => format!("tool-{}", id.0),
@@ -228,7 +228,9 @@ impl Mounts {
         match self.source(id).map_err(Refused::Error)? {
             Source::Volume { serve, prefix } => bridge::write(serve, prefix, path, offset, &bytes).await,
             local => resources::write(local, path, offset, &bytes).await,
-        }
+        }?;
+        self.changed(id, path, false).await;
+        Ok(())
     }
 
     /// The file at the path made `size` long.
@@ -236,7 +238,9 @@ impl Mounts {
         match self.source(id).map_err(Refused::Error)? {
             Source::Volume { serve, prefix } => bridge::truncate(serve, prefix, path, size).await,
             local => resources::truncate(local, path, size).await,
-        }
+        }?;
+        self.changed(id, path, false).await;
+        Ok(())
     }
 
     /// The attributes of what is at the path changed.
@@ -260,7 +264,9 @@ impl Mounts {
         match self.source(id).map_err(Refused::Error)? {
             Source::Volume { serve, prefix } => bridge::remove(serve, prefix, path).await,
             local => resources::remove(local, path).await,
-        }
+        }?;
+        self.removed(id, path);
+        Ok(())
     }
 
     /// What is at `from` moved to `to`.
@@ -268,7 +274,10 @@ impl Mounts {
         match self.source(id).map_err(Refused::Error)? {
             Source::Volume { serve, prefix } => bridge::rename(serve, prefix, from, to).await,
             local => resources::rename(local, from, to).await,
-        }
+        }?;
+        self.removed(id, from);
+        self.changed(id, to, true).await;
+        Ok(())
     }
 
     /// A directory made at the path.
@@ -276,6 +285,8 @@ impl Mounts {
         match self.source(id).map_err(Refused::Error)? {
             Source::Volume { serve, prefix } => bridge::mkdir(serve, prefix, path).await,
             local => resources::mkdir(local, path).await,
-        }
+        }?;
+        self.changed(id, path, true).await;
+        Ok(())
     }
 }

@@ -52,6 +52,11 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
+    match inner::mounts(&mut tx, &standing, daemon, inner.provider.as_ref(), &inner.fuse_file_mounts, &inner.fuse_directory_mounts).await? {
+        Checked::Ok(()) => {}
+        Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
+        Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
+    }
     let deployer = match inner::deployer(&mut tx, inner.deployer_agent.as_ref()).await? {
         Checked::Ok(deployer) => deployer,
         Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),

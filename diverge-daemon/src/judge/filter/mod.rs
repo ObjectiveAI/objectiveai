@@ -27,3 +27,4 @@ pub mod roles;
 pub mod routes;
 pub mod tools;
 pub mod tools_templates;
+pub mod volumes;

@@ -126,6 +126,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         loop_active: watch::channel(false).0,
         touched,
         mounts,
+        volumes: crate::volumes::of_agent(agent),
         served,
         messages: Mutex::new(HashMap::new()),
         tasks: Mutex::new(Vec::new()),
@@ -231,6 +232,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain
         users: Mutex::new(HashSet::new()),
         touched,
         mounts,
+        volumes: crate::volumes::of_tool(tool),
         served,
         tasks: Mutex::new(Vec::new()),
     });

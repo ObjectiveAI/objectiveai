@@ -120,4 +120,12 @@ impl Standing {
             _ => None,
         })
     }
+
+    /// The grants over volumes.
+    pub fn volumes(&self) -> impl Iterator<Item = &grant::volumes::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::Volumes(permission) => Some(permission),
+            _ => None,
+        })
+    }
 }

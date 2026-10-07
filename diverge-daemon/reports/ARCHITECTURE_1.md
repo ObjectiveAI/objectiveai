@@ -127,9 +127,25 @@ Two populations, kept apart by type and by fate:
   plus what its create added — mounts, account, provider — and the record
   is that; the container is work made from it, and remade from it after a
   restart if the record says it should run.
-- **Delete is refused while held.** A volume a container mounts, a
-  resource a transfer reads, a database with a connection open: the live
-  state is consulted before the record is touched, under the kind's lock.
+- **Held, and in use.** A volume is HELD while a running container
+  mounts it — the record names it in its mounts and the run is up — or
+  a download, an upload or a transfer of the daemon's is on it; an
+  edit, a stat, a filetree, a download, an upload and a transfer answer
+  `Held` and are asked again once it is free, and a download, an upload
+  or a transfer takes the volume for its own length. A volume is IN USE
+  for a delete while any record names it in its mounts, running or
+  not, or an operation is on it; `mounted` in a listing is the record
+  rule alone. A resource is in use while a record mounts it; a database
+  scope while a connection is open. The live state is consulted before
+  the record is touched, under the kind's lock. (2026-10-07.)
+- **Parents are made, and an offline provider lists nothing.** A write
+  into a container makes the missing parents, as a write into a volume
+  does, so an upload or a transfer lands as the daemon wire promises;
+  the proxy's own wire says nothing of parents, since what the proxy
+  does internally is no one's business. A provider on record but not
+  connected contributes nothing to a volumes listing; only a connected
+  provider that could not be asked is the listing's error, after what
+  was sent. (Rulings of 2026-10-07.)
 - **A loop is the proxy's word.** Whether an agent is ACTIVE — a loop
   running in it — is read off the run's main stream, where the proxy
   says `active` before a loop's first chunk and `inactive` after its
@@ -231,5 +247,7 @@ Two populations, kept apart by type and by fate:
 6. **Volumes, transfers, filetree.** The file movement across every
    kind, and the held rule.
 
-Each step replaces arms of today's `refuse` and nothing else about the
-front changes; the shape that exists is the shape that ships.
+Each step replaced arms of the front's refusal and nothing else about
+the front changed; the shape that exists is the shape that ships. All
+six are built (2026-10-07): every one of the ninety requests has its
+handler, and the refusal is gone.

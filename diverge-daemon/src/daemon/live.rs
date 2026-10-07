@@ -10,6 +10,8 @@ use tokio::task::AbortHandle;
 
 use chrono::{DateTime, Utc};
 
+use diverge_sdk::daemon::reference;
+
 use crate::containers::{AgentRun, Key, ToolRun};
 use crate::database::Scope;
 use crate::store::{AccountId, AgentId, ToolId};
@@ -56,6 +58,9 @@ pub struct Live {
     connections: Mutex<HashMap<u64, (Key, DateTime<Utc>)>>,
     /// The next connection number.
     next_connection: Mutex<u64>,
+    /// The volumes a download, an upload or a transfer of the daemon's
+    /// is on now, each held by one operation at a time.
+    operations: Mutex<HashSet<reference::Volume>>,
 }
 
 impl std::fmt::Debug for Live {
@@ -314,5 +319,40 @@ impl Live {
         let mut all: Vec<(Key, DateTime<Utc>)> = self.connections.lock().await.values().copied().collect();
         all.sort_by_key(|(_, opened)| *opened);
         all
+    }
+
+    /// Whether a running container has the volume: one whose record
+    /// names it in its mounts.
+    pub async fn volume_in_run(&self, volume: &reference::Volume) -> bool {
+        if self.agents.lock().await.values().any(|run| run.volumes.contains(volume)) {
+            return true;
+        }
+        self.tools.lock().await.values().any(|run| run.volumes.contains(volume))
+    }
+
+    /// Whether an operation of the daemon's is on the volume now.
+    pub async fn volume_operating(&self, volume: &reference::Volume) -> bool {
+        self.operations.lock().await.contains(volume)
+    }
+
+    /// Whether the volume is held: a running container has it, or an
+    /// operation is on it.
+    pub async fn volume_held(&self, volume: &reference::Volume) -> bool {
+        self.volume_operating(volume).await || self.volume_in_run(volume).await
+    }
+
+    /// Take the volume for one operation: `false` when it is held,
+    /// and nothing taken. What is taken is given back with
+    /// [`release_volume`](Self::release_volume), on every path.
+    pub async fn take_volume(&self, volume: &reference::Volume) -> bool {
+        if self.volume_in_run(volume).await {
+            return false;
+        }
+        self.operations.lock().await.insert(volume.clone())
+    }
+
+    /// The operation is over.
+    pub async fn release_volume(&self, volume: &reference::Volume) {
+        self.operations.lock().await.remove(volume);
     }
 }

@@ -18,14 +18,18 @@
 //! through this module and not through the file it lives in.
 
 mod error;
+mod ingest;
 mod paths;
+mod pieces;
 mod place;
 mod read;
 mod receive;
 mod remove;
 
 pub use error::*;
+pub use ingest::*;
 pub use paths::*;
+pub use pieces::*;
 pub use place::*;
 pub use read::*;
 pub use receive::*;

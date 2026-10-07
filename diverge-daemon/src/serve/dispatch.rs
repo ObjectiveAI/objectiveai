@@ -1,31 +1,23 @@
-//! Every request, to its handler — or to the one answer there is.
+//! Every request, to its handler.
 
-use diverge_sdk::daemon::endpoints::{self, ClientRequest};
-use diverge_sdk::shared::error::Error;
+use diverge_sdk::daemon::endpoints::ClientRequest;
 use diverge_sdk::wire::decode::Decode as _;
-use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, postgres, providers, resources, roles, tools};
+use super::{accounts, agents, postgres, providers, resources, roles, tools, volumes};
 use crate::daemon::Daemon;
 use crate::judge::Who;
-
-/// What every request nothing serves yet is answered with.
-const NOT_SERVED: &str = "not served: the daemon serves accounts, roles, providers, templates, resources, agents, tools, routes and the database, and nothing else yet";
 
 /// Read `payload` as the request that opened `scope` and hand it to
 /// its handler, which answers and finishes the scope.
 ///
 /// One arm per request of the wire, so that a request added to the
-/// SDK is a request this cannot compile without. The seventy-two over
-/// accounts, roles, providers, templates, resources, agents, tools,
-/// routes and a provider's tool containers have handlers; every other is answered with its
-/// endpoint's own `Error`, carrying one sentence saying so, encoded as
-/// the endpoint encodes it, then the finish. A payload that is no
-/// request at all is finished with nothing before it, which is what
-/// the wire means by a request that was not served.
+/// SDK is a request this cannot compile without. Every one of the
+/// ninety has a handler. A payload that is no request at all is
+/// finished with nothing before it, which is what the wire means by a
+/// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
     match ClientRequest::decode(payload).unwrap_or_else(|never| match never {}) {
         ClientRequest::AgentsCreate(frame) => agents::create::handle(scope, frame, who, daemon).await,
@@ -90,27 +82,27 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::RolesEdit(frame) => roles::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::RolesTag(frame) => roles::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::RolesUntag(frame) => roles::untag::handle(scope, frame, who, daemon).await,
-        ClientRequest::AgentsDownload(_) => refused(scope, encoded(&endpoints::agents::download::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsUpload(_) => refused(scope, encoded(&endpoints::agents::upload::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsTransfer(_) => refused(scope, encoded(&endpoints::agents::transfer::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsDownload(_) => refused(scope, encoded(&endpoints::tools::download::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsUpload(_) => refused(scope, encoded(&endpoints::tools::upload::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsTransfer(_) => refused(scope, encoded(&endpoints::tools::transfer::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::AgentsDownload(frame) => agents::download::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsUpload(frame) => agents::upload::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsTransfer(frame) => agents::transfer::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsDownload(frame) => tools::download::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsUpload(frame) => tools::upload::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsTransfer(frame) => tools::transfer::handle(scope, frame, who, daemon).await,
         ClientRequest::ResourcesDownload(frame) => resources::download::handle(scope, frame, who, daemon).await,
         ClientRequest::ResourcesTransfer(frame) => resources::transfer::handle(scope, frame, who, daemon).await,
-        ClientRequest::VolumesCreate(_) => refused(scope, encoded(&endpoints::volumes::create::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::VolumesGet(_) => refused(scope, encoded(&endpoints::volumes::get::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::VolumesList(_) => refused(scope, encoded(&endpoints::volumes::list::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::VolumesDelete(_) => refused(scope, encoded(&endpoints::volumes::delete::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::VolumesEdit(_) => refused(scope, encoded(&endpoints::volumes::edit::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::VolumesStat(_) => refused(scope, encoded(&endpoints::volumes::stat::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::VolumesDownload(_) => refused(scope, encoded(&endpoints::volumes::download::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::VolumesUpload(_) => refused(scope, encoded(&endpoints::volumes::upload::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::VolumesTransfer(_) => refused(scope, encoded(&endpoints::volumes::transfer::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::AgentsFiletree(_) => refused(scope, encoded(&endpoints::agents::filetree::server::response::Frame::Error(not_served()))).await,
-        ClientRequest::ToolsFiletree(_) => refused(scope, encoded(&endpoints::tools::filetree::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::VolumesCreate(frame) => volumes::create::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesGet(frame) => volumes::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesList(frame) => volumes::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesDelete(frame) => volumes::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesEdit(frame) => volumes::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesStat(frame) => volumes::stat::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesDownload(frame) => volumes::download::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesUpload(frame) => volumes::upload::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesTransfer(frame) => volumes::transfer::handle(scope, frame, who, daemon).await,
+        ClientRequest::AgentsFiletree(frame) => agents::filetree::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsFiletree(frame) => tools::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::ResourcesFiletree(frame) => resources::filetree::handle(scope, frame, who, daemon).await,
-        ClientRequest::VolumesFiletree(_) => refused(scope, encoded(&endpoints::volumes::filetree::server::response::Frame::Error(not_served()))).await,
+        ClientRequest::VolumesFiletree(frame) => volumes::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::ResourcesGet(frame) => resources::get::handle(scope, frame, who, daemon).await,
         ClientRequest::ResourcesTag(frame) => resources::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::ResourcesUntag(frame) => resources::untag::handle(scope, frame, who, daemon).await,
@@ -118,27 +110,6 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::PostgresConnections(frame) => postgres::connections::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsAdmit(frame) => tools::admit::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsUnadmit(frame) => tools::unadmit::handle(scope, frame, who, daemon).await,
-        ClientRequest::Invalid(_) => refused(scope, None).await,
+        ClientRequest::Invalid(_) => scope.send_response_finish().await,
     }
-}
-
-/// The error every unserved request carries.
-fn not_served() -> Error {
-    Error(serde_json::Value::String(NOT_SERVED.to_string()))
-}
-
-/// Send the one refusal, if it encoded, and finish.
-async fn refused(scope: ScopeHandle, response: Option<Vec<u8>>) {
-    if let Some(bytes) = response {
-        scope.send_response(&bytes).await;
-    }
-    scope.send_response_finish().await;
-}
-
-/// `frame` as its bytes, or `None` for the one way an error frame
-/// cannot be written, its JSON failing.
-fn encoded<F: Encode>(frame: &F) -> Option<Vec<u8>> {
-    let mut bytes = Vec::new();
-    frame.encode(&mut Writer::new(&mut bytes)).ok()?;
-    Some(bytes)
 }

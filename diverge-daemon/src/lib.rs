@@ -12,18 +12,21 @@
 //!
 //! # What serves today
 //!
-//! Accounts, roles, providers, templates, resources, agents, tools
-//! and routes, the containers agents and tools are, and the database
-//! served into them: the seventy-two requests over them — the fourteen of the first two, the ten over
-//! outgoing providers and incoming credentials, the listing of a
-//! tenant's tool containers through a provider, the twelve over the
-//! two template families, the nine over resources, the nine over
-//! agents, their logs and their messages, the twelve over tools,
-//! attachments and admissions, the three over routes, and the two
-//! over the database — are served as the wire states them; every
-//! other request — the volumes, the file movement into and out of
-//! containers — is answered with its endpoint's own error saying it
-//! is not served yet; and every connection is judged. An agent's container runs on
+//! Every request of the wire, all ninety: the fourteen over accounts
+//! and roles, the ten over outgoing providers and incoming
+//! credentials, the listing of a tenant's tool containers through a
+//! provider, the twelve over the two template families, the nine over
+//! resources, the thirteen over agents — their logs, their messages,
+//! and the files of their containers — the sixteen over tools,
+//! attachments and admissions and their containers' files, the three
+//! over routes, the ten over volumes, and the two over the database —
+//! are served as the wire states them, and every connection is
+//! judged. A volume is its provider's, found by asking, judged by what
+//! the provider says and which records mount it, and held for the
+//! length of any file operation on it, [`volumes`]; a file or a
+//! directory moves between a container, a volume and a resource on
+//! the daemon's own connections, [`transfers`], and a watch of a
+//! container's tree has the daemon's mounts spliced in. An agent's container runs on
 //! a provider from its first message and stops after `idle_seconds`
 //! unused; a tool's runs while an agent it is attached to is active;
 //! the provider's asks on a run — the container's `/daemon`
@@ -76,3 +79,5 @@ pub mod postgres;
 pub mod providers;
 pub mod serve;
 pub mod store;
+pub mod transfers;
+pub mod volumes;

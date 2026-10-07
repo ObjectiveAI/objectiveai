@@ -6,9 +6,12 @@ use std::time::Instant;
 
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::connect::client::execute::ExecuteHandle as JoinedHandle;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
+use bytes::Bytes;
+use futures_util::{Stream, StreamExt as _};
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
     ReadResourceResult,
@@ -16,9 +19,10 @@ use rmcp::model::{
 use tokio::sync::{Mutex, watch};
 use tokio::task::AbortHandle;
 
-use super::Key;
 use super::fuse::Mounts;
 use super::mcp::Served;
+use super::{Frames, Key};
+use crate::content::Pieces;
 use crate::store::{AccountId, AgentId, ToolId};
 
 /// A running agent: the scope held on its provider, whether a loop
@@ -46,6 +50,9 @@ pub struct AgentRun {
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
     pub mounts: Arc<Mounts>,
+    /// Every volume its record names in its mounts: held while it
+    /// runs.
+    pub volumes: Vec<reference::Volume>,
     /// The tools it is served: attached ones and its dependencies.
     pub served: Arc<Mutex<Served>>,
     /// The messages enqueued and not yet landed, by key, with who
@@ -117,6 +124,55 @@ impl ToolHandle {
         }
     }
 
+    /// The container's tree, watched.
+    pub async fn filetree(&self) -> Result<Frames, String> {
+        Ok(match self {
+            ToolHandle::Run(handle) => {
+                let stream = handle.filetree().await.map_err(|error| error.to_string())?;
+                Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string())))
+            }
+            ToolHandle::Joined(handle) => {
+                let stream = handle.filetree().await.map_err(|error| error.to_string())?;
+                Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string())))
+            }
+        })
+    }
+
+    /// One file read out of the container.
+    pub async fn read(&self, path: Vec<String>) -> Result<Pieces, String> {
+        Ok(match self {
+            ToolHandle::Run(handle) => {
+                let stream = handle.read(path).await.map_err(|error| error.to_string())?;
+                Box::pin(stream.map(|piece| piece.map_err(|error| error.to_string())))
+            }
+            ToolHandle::Joined(handle) => {
+                let stream = handle.read(path).await.map_err(|error| error.to_string())?;
+                Box::pin(stream.map(|piece| piece.map_err(|error| error.to_string())))
+            }
+        })
+    }
+
+    /// One file written into the container, replaced whole.
+    pub async fn write<S, E>(&self, path: Vec<String>, content: S) -> Result<(), String>
+    where
+        S: Stream<Item = Result<Bytes, E>> + Send + 'static,
+        E: std::fmt::Display + Send + 'static,
+    {
+        match self {
+            ToolHandle::Run(handle) => handle.write(path, content).await.map_err(|error| error.to_string()),
+            ToolHandle::Joined(handle) => handle.write(path, content).await.map_err(|error| error.to_string()),
+        }
+    }
+
+    /// One file copied into the container under `id` on the same
+    /// provider.
+    pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), String> {
+        match self {
+            ToolHandle::Run(handle) => handle.transfer(path, id, destination).await.map_err(|error| error.to_string()),
+            ToolHandle::Joined(handle) => handle.transfer(path, id, destination).await.map_err(|error| error.to_string()),
+        }
+    }
+
     /// End it: the container stopped, or the connector left.
     pub async fn stop(&self) {
         let _ = match self {
@@ -159,6 +215,9 @@ pub struct ToolRun {
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
     pub mounts: Arc<Mounts>,
+    /// Every volume its record names in its mounts: held while it
+    /// runs.
+    pub volumes: Vec<reference::Volume>,
     /// The tools it is served: its own dependencies.
     pub served: Arc<Mutex<Served>>,
     /// The tasks that are the run's: the waiter.
