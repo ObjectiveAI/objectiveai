@@ -48,10 +48,10 @@ pub(crate) async fn transfer<F: Family>(run: Arc<Run>, channel: u32, path: Vec<S
 
 /// The transfer, to its one answer.
 async fn copy<F: Family>(run: &Run, path: Vec<String>, id: &str, destination: Vec<String>) -> Option<Vec<u8>> {
-    if !run.directory.may(id, &run.identity) {
+    if !run.directory.may(id, &run.identity).await {
         return F::transfer_error(&denied());
     }
-    let Some(target) = run.directory.lookup(id) else {
+    let Some(target) = run.directory.lookup(id).await else {
         return F::transfer_error(&denied());
     };
     let pieces = match read::execute(&run.proxy, path).await {

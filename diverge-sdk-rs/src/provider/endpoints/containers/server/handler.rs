@@ -113,7 +113,8 @@ pub(crate) async fn run<R, D, G, V>(
         prepared.begun.begin.tools(),
         prepared.ignore.clone(),
         Arc::clone(&prepared.watched),
-    );
+    )
+    .await;
     send(&scope, R::id(&Id { id: id.clone() })).await;
 
     // The tools were asked of the caller in the setup; the list is
@@ -153,7 +154,7 @@ pub(crate) async fn run<R, D, G, V>(
     }
     let _end = serve::serve::<R>(&run).await;
 
-    directory.remove(&id);
+    directory.remove(&id).await;
     prepared.container.stop().await;
     registry.release(&prepared.repository).await;
     held.give_back().await;

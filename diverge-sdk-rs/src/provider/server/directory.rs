@@ -1,9 +1,9 @@
 //! The containers a provider is running, by id.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use tokio::sync::watch;
+use tokio::sync::{Mutex, watch};
 
 use crate::wire::server::scope_handle::ScopeHandle;
 use crate::provider::endpoints::containers::server::watched::Watched;
@@ -124,7 +124,7 @@ impl Directory {
 
     /// The container is running, for `runner`: from now until
     /// [`remove`](Self::remove), connectors may find it.
-    pub(crate) fn insert(
+    pub(crate) async fn insert(
         &self,
         id: String,
         scope: Arc<ScopeHandle>,
@@ -135,7 +135,7 @@ impl Directory {
         watched: Arc<[Watched]>,
     ) {
         let (ended, _) = watch::channel(false);
-        self.lock().insert(
+        self.entries.lock().await.insert(
             id,
             Entry {
                 scope,
@@ -152,8 +152,8 @@ impl Directory {
 
     /// The run is over: nothing finds it any more, and every
     /// connector attached hears so.
-    pub fn remove(&self, id: &str) {
-        if let Some(entry) = self.lock().remove(id) {
+    pub async fn remove(&self, id: &str) {
+        if let Some(entry) = self.entries.lock().await.remove(id) {
             // `send_replace`, not `send`: a value sent with no receiver
             // is discarded, and a connector that looks later must still
             // read the end.
@@ -164,8 +164,8 @@ impl Directory {
     /// `identity` is attached to the container under `id` as a
     /// connector, from now until [`detach`](Self::detach). `false` is
     /// an id under which nothing is running, and nothing changed.
-    pub fn attach(&self, id: &str, identity: &Arc<str>) -> bool {
-        let mut entries = self.lock();
+    pub async fn attach(&self, id: &str, identity: &Arc<str>) -> bool {
+        let mut entries = self.entries.lock().await;
         let Some(entry) = entries.get_mut(id) else {
             return false;
         };
@@ -177,8 +177,8 @@ impl Directory {
     /// has left; the identity is a connector until the last of them
     /// does. An id no longer running, or an identity not attached,
     /// is nothing to do.
-    pub fn detach(&self, id: &str, identity: &str) {
-        let mut entries = self.lock();
+    pub async fn detach(&self, id: &str, identity: &str) {
+        let mut entries = self.entries.lock().await;
         let Some(entry) = entries.get_mut(id) else {
             return;
         };
@@ -195,8 +195,10 @@ impl Directory {
     /// attached to it as a connector. `false` for an id under which
     /// nothing is running, indistinguishably: whether an id exists is
     /// not told to a caller that may not reach it.
-    pub fn may(&self, id: &str, identity: &str) -> bool {
-        self.lock()
+    pub async fn may(&self, id: &str, identity: &str) -> bool {
+        self.entries
+            .lock()
+            .await
             .get(id)
             .is_some_and(|entry| &*entry.runner == identity || entry.connectors.contains_key(identity))
     }
@@ -205,8 +207,10 @@ impl Directory {
     /// listing asks each runner about, and nothing here is told to
     /// the lister until the runner says so. An agent container is not
     /// among them: it takes no connector, and is listed to nobody.
-    pub fn running_under(&self, runner: &str) -> Vec<Running> {
-        self.lock()
+    pub async fn running_under(&self, runner: &str) -> Vec<Running> {
+        self.entries
+            .lock()
+            .await
             .iter()
             .filter(|(_, entry)| &*entry.runner == runner && entry.begin.is_some())
             .map(|(id, entry)| Running {
@@ -217,8 +221,8 @@ impl Directory {
     }
 
     /// The container under `id`, if it is running.
-    pub fn lookup(&self, id: &str) -> Option<Attached> {
-        self.lock().get(id).map(|entry| Attached {
+    pub async fn lookup(&self, id: &str) -> Option<Attached> {
+        self.entries.lock().await.get(id).map(|entry| Attached {
             scope: Arc::clone(&entry.scope),
             proxy: entry.proxy.clone(),
             begin: entry.begin.clone(),
@@ -228,11 +232,6 @@ impl Directory {
         })
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, Entry>> {
-        // Nothing awaits under the lock and nothing panics under it;
-        // a poisoned map would be one whose contents are still right.
-        self.entries.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
-    }
 }
 
 impl Default for Directory {
@@ -243,6 +242,11 @@ impl Default for Directory {
 
 impl std::fmt::Debug for Directory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Directory").field("running", &self.lock().len()).finish()
+        let mut debug = f.debug_struct("Directory");
+        match self.entries.try_lock() {
+            Ok(entries) => debug.field("running", &entries.len()),
+            Err(_) => debug.field("running", &"locked"),
+        };
+        debug.finish()
     }
 }

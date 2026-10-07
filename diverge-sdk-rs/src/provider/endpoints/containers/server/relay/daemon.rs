@@ -31,9 +31,9 @@ use crate::wire::server::answer::{Answer, answer};
 /// and is finished with nothing. A connection the caller never takes
 /// is forgotten when this returns.
 pub(crate) async fn daemon<R: Runs>(run: Arc<Run>, channel: u32, proxy_id: u32) {
-    let caller_id = run.daemons.open(proxy_id);
+    let caller_id = run.daemons.open(proxy_id).await;
     let Some(payload) = encoded(&R::Ask::from(Own::Daemon(caller_id))) else {
-        run.daemons.forget(caller_id);
+        run.daemons.forget(caller_id).await;
         let _ = run.begin.finish(channel).await;
         return;
     };
@@ -50,5 +50,5 @@ pub(crate) async fn daemon<R: Runs>(run: Arc<Run>, channel: u32, proxy_id: u32) 
         }
     }
     let _ = run.begin.finish(channel).await;
-    run.daemons.forget(caller_id);
+    run.daemons.forget(caller_id).await;
 }

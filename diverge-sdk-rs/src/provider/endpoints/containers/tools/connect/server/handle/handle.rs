@@ -52,7 +52,7 @@ use crate::shared::error::Error;
 pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity: &str, address: IpAddr, directory: Arc<Directory>) {
     let scope = Arc::new(scope);
     let id = request.0.id;
-    let Some(attached) = directory.lookup(&id) else {
+    let Some(attached) = directory.lookup(&id).await else {
         send(&scope, Connect::error(&missing())).await;
         scope.send_response_finish().await;
         return;
@@ -76,7 +76,7 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
         return;
     };
     let identity: Arc<str> = Arc::from(client_identity);
-    if !directory.attach(&id, &identity) {
+    if !directory.attach(&id, &identity).await {
         // Gone between the lookup and now.
         send(&scope, Connect::error(&missing())).await;
         scope.send_response_finish().await;
@@ -106,7 +106,7 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
     .await;
 
     let _end = serve::serve::<Connect>(&run).await;
-    directory.detach(&id, &identity);
+    directory.detach(&id, &identity).await;
     run.shutdown().await;
     scope.send_response_finish().await;
 }

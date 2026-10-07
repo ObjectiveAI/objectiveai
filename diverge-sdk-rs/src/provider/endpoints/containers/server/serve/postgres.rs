@@ -14,7 +14,7 @@ use super::super::run::Run;
 /// end did not mint, or a half already taken, is the finish with
 /// nothing.
 pub(crate) async fn postgres(run: Arc<Run>, channel: u32, caller_id: u32) {
-    if let Some(proxy_id) = run.pairs.take(caller_id)
+    if let Some(proxy_id) = run.pairs.take(caller_id).await
         && let Ok(mut driver) = run.begin.postgres(proxy_id).await
     {
         while let Some(Ok(bytes)) = driver.next().await {

@@ -1,8 +1,8 @@
 //! Database connections whose caller half has not opened yet.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Mutex, MutexGuard};
+
+use tokio::sync::Mutex;
 
 /// The proxy's id for each database connection, kept under the id
 /// this end minted for the caller.
@@ -17,39 +17,46 @@ use std::sync::{Mutex, MutexGuard};
 /// until this end asks for them.
 #[derive(Debug)]
 pub(crate) struct Pairs {
-    next: AtomicU32,
-    waiting: Mutex<HashMap<u32, u32>>,
+    waiting: Mutex<Waiting>,
+}
+
+/// What the lock protects: the next id, and the proxy's id under
+/// each of this end's.
+#[derive(Debug)]
+struct Waiting {
+    next: u32,
+    by_caller_id: HashMap<u32, u32>,
 }
 
 impl Pairs {
     pub(crate) fn new() -> Self {
         Pairs {
-            next: AtomicU32::new(1),
-            waiting: Mutex::new(HashMap::new()),
+            waiting: Mutex::new(Waiting {
+                next: 1,
+                by_caller_id: HashMap::new(),
+            }),
         }
     }
 
     /// Mint an id for the caller, remembering the proxy's under it.
-    pub(crate) fn open(&self, proxy_id: u32) -> u32 {
-        let caller_id = self.next.fetch_add(1, Ordering::Relaxed);
-        self.lock().insert(caller_id, proxy_id);
+    pub(crate) async fn open(&self, proxy_id: u32) -> u32 {
+        let mut waiting = self.waiting.lock().await;
+        let caller_id = waiting.next;
+        waiting.next = waiting.next.wrapping_add(1);
+        waiting.by_caller_id.insert(caller_id, proxy_id);
         caller_id
     }
 
     /// The proxy's id for the connection the caller is opening its
     /// half of, once: [`None`] for an id this end did not mint, or a
     /// half already taken.
-    pub(crate) fn take(&self, caller_id: u32) -> Option<u32> {
-        self.lock().remove(&caller_id)
+    pub(crate) async fn take(&self, caller_id: u32) -> Option<u32> {
+        self.waiting.lock().await.by_caller_id.remove(&caller_id)
     }
 
     /// The provider's half is over before the caller opened its own:
     /// a half opened later finds nothing.
-    pub(crate) fn forget(&self, caller_id: u32) {
-        self.lock().remove(&caller_id);
-    }
-
-    fn lock(&self) -> MutexGuard<'_, HashMap<u32, u32>> {
-        self.waiting.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    pub(crate) async fn forget(&self, caller_id: u32) {
+        self.waiting.lock().await.by_caller_id.remove(&caller_id);
     }
 }

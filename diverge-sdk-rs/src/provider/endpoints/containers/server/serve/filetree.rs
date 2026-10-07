@@ -2,11 +2,10 @@
 //! of every volume the provider watches itself, relayed as one tree.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use futures_util::future::{self, Either};
 use futures_util::{Stream, StreamExt as _};
-use tokio::sync::Notify;
+use tokio::sync::{Notify, OnceCell};
 
 use super::super::family::Family;
 use super::super::render;
@@ -58,7 +57,7 @@ pub(crate) async fn filetree<F: Family>(run: Arc<Run>, channel: u32) {
     let ending = Arc::new(Ending {
         run: Arc::clone(&run),
         channel,
-        done: AtomicBool::new(false),
+        done: OnceCell::new(),
         stop: Notify::new(),
     });
 
@@ -136,19 +135,20 @@ async fn next<S: Stream + Unpin>(stream: &mut S, stop: &Notify) -> Option<Option
 struct Ending {
     run: Arc<Run>,
     channel: u32,
-    done: AtomicBool,
+    /// Set once, by whichever ending comes first.
+    done: OnceCell<()>,
     stop: Notify,
 }
 
 impl Ending {
     /// Whether the channel is over.
     fn over(&self) -> bool {
-        self.done.load(Ordering::Acquire)
+        self.done.initialized()
     }
 
     /// The channel ended with `error`: the error, then the finish.
     async fn fail<F: Family>(&self, error: &Error) {
-        if self.done.swap(true, Ordering::AcqRel) {
+        if self.done.set(()).is_err() {
             return;
         }
         self.run.respond(self.channel, F::filetree_error(error)).await;
@@ -158,7 +158,7 @@ impl Ending {
 
     /// The channel ended: the finish.
     async fn end<F: Family>(&self) {
-        if self.done.swap(true, Ordering::AcqRel) {
+        if self.done.set(()).is_err() {
             return;
         }
         self.run.finish(self.channel).await;

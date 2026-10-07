@@ -16,9 +16,9 @@ use crate::wire::server::answer::{Answer, answer};
 /// empty finish. The caller's own half, quoting this end's id, is
 /// what opens this end's half on the begin scope, in `serve`.
 pub(crate) async fn postgres<R: Runs>(run: Arc<Run>, channel: u32, proxy_id: u32) {
-    let caller_id = run.pairs.open(proxy_id);
+    let caller_id = run.pairs.open(proxy_id).await;
     let Some(payload) = encoded(&R::Ask::from(Own::Postgres(caller_id))) else {
-        run.pairs.forget(caller_id);
+        run.pairs.forget(caller_id).await;
         let _ = run.begin.finish(channel).await;
         return;
     };
@@ -35,5 +35,5 @@ pub(crate) async fn postgres<R: Runs>(run: Arc<Run>, channel: u32, proxy_id: u32
         }
     }
     let _ = run.begin.finish(channel).await;
-    run.pairs.forget(caller_id);
+    run.pairs.forget(caller_id).await;
 }

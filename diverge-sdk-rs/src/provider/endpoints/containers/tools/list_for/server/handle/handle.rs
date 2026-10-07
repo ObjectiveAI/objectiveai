@@ -53,7 +53,7 @@ pub async fn handle(
         identity: client_identity.to_string(),
     };
     let mut asks = JoinSet::new();
-    for running in directory.running_under(&identity) {
+    for running in directory.running_under(&identity).await {
         let scope = Arc::clone(&scope);
         let lister = lister.clone();
         asks.spawn(async move {
