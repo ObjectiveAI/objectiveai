@@ -7,9 +7,11 @@
 //! channels per connection, raw. The daemon is the end that holds the
 //! database — the provider's
 //! [`PostgresDialer`](crate::provider::client::PostgresDialer) is its
-//! part — and it splices every such connection onto exactly one
-//! database, the same for every container, and keeps its own records in
-//! that database too. Which database is the daemon's [`Mode`], and the
+//! part — and it answers each connection's handshake itself, performs
+//! its own toward exactly one database as that container's role, and
+//! relays everything after unread; the database is the same for every
+//! container, and the daemon keeps its own records in it too. Which
+//! database is the daemon's [`Mode`], and the
 //! mode is the daemon's CONFIGURATION, read when it starts: LOCAL, a
 //! Postgres the daemon runs itself, beside it; or REMOTE, one the
 //! daemon dials at a URL its configuration gives. [`get`] answers the
@@ -27,6 +29,20 @@
 //! [database](crate::container_proxy::inside::POSTGRES_DATABASE) every
 //! container names; which Postgres is behind that is the daemon's to
 //! decide, and the mode changes nothing the container is told.
+//!
+//! # One scope per container
+//!
+//! What a container reaches is one schema of its own, made at its
+//! first connection and dropped at its delete: one login role and one
+//! schema of the same name, owned by the role, with the role's search
+//! path pinned to that schema alone. An unqualified table name lands
+//! in it and resolves in it; another container's table is `permission
+//! denied`, as Postgres says it; the role is a member of nothing, so
+//! no `SET ROLE` reaches further. The container holds no credential:
+//! its driver is asked no password, and the daemon authenticates
+//! toward the database for it, from the run scope the connection
+//! arrived on. Two containers never share a scope; what is shared is a
+//! volume or a resource, never a table.
 //!
 //! # The URL is never answered whole
 //!

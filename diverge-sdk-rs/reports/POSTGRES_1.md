@@ -73,11 +73,14 @@ Not asked for, and not used:
   plain password to anything older. Nothing in the design keys on a
   version beyond that.
 
-A set of a remote mode checks these at once, on one connection as the
-URL's role: `rolcreaterole` or `rolsuper` in `pg_roles`, and
-`has_database_privilege(current_database(), 'CREATE')`. A URL the
-daemon cannot connect with, or one whose role lacks either, is the
-set's error, in the server's words, and the mode is as it was.
+The daemon checks these when it first provisions a scope, on its own
+connection as the URL's role: `rolcreaterole` or `rolsuper` in
+`pg_roles`, and `has_database_privilege(current_database(), 'CREATE')`.
+A role lacking either refuses that container's connection — the dial
+declined, and for an agent an `error` item in its log saying which —
+and the daemon runs on: its records need neither, and a mode is
+configuration, so there is no set to answer. (Ruling of 2026-10-07;
+the earlier draft checked at a `set` the API no longer has.)
 
 ## 3. Provisioning: four statements, idempotent, at first use
 
@@ -140,10 +143,15 @@ container's handshake itself and performs its own toward the
 database, and relays everything after.
 
 - **Who the connection is for is known before a byte is read.** The
-  connection arrives on the run scope of one container; the proxy's
-  connection id names it; the daemon maps it to the container, and
-  from the container to the scope. Nothing the container writes is
-  consulted for its identity. The `diverge` user and `diverge`
+  connection arrives on the run scope of one container, and the run
+  scope is the container's: the daemon's answerer for that run takes
+  the dial, and maps the container to the scope. The connection ids
+  the proxy and the provider mint correlate the pair's two halves and
+  name nothing else. Nothing the container writes is consulted for
+  its identity. The dial is taken before a byte of the container's is
+  read — the provider opens its half only after — so the handshake
+  below runs inside the connection the daemon hands back, not inside
+  the taking. The `diverge` user and `diverge`
   database the container's proxy makes every container send are
   placeholders, read and discarded.
 - **Toward the container.** An `SSLRequest` is answered `N`: the leg
@@ -227,9 +235,9 @@ container.
   what "nothing carried over, the old one not touched" promises. An
   operator who wants it gone drops every `diverge_*` schema and role
   there; the daemon never does, since it no longer has that database.
-- **Swapped under nothing.** A set is answered `InUse` while any
-  container connection is open, as the API already states; a session
-  cannot be moved, and this design does not try.
+- **Swapped under nothing.** The mode is configuration and changes
+  only by a restart, which ends every container connection with the
+  daemon; a session is never moved, and this design does not try.
 
 ## 7. What this does and does not guarantee
 
@@ -296,12 +304,13 @@ catalog, and local and remote being one code path.
 
 ## 9. What the API already says, and one sentence to change
 
-Nothing in the daemon API changes for this. `postgres::get`, `set`
-and `connections`, `Mode`, `InUse` and the `postgres` grant kind are
-as they are, and the `diverge` user and database the proxy constants
-name stay as the placeholders they now are. One sentence in the
-`postgres` family doc — that a container connection is "a splice of
-bytes the daemon does not read" — becomes "relayed unread after a
-handshake the daemon performs", and a paragraph states the scope as a
-guarantee: one schema per container, implicit, inescapable, no
-credential in the container.
+Nothing in the daemon API changes for this. `postgres::get` and
+`connections`, `Mode` and the `postgres` grant kind are as they are,
+and the `diverge` user and database the proxy constants name stay as
+the placeholders they now are. One sentence in the `postgres` family
+doc — that the daemon "splices every such connection onto exactly one
+database" — becomes that it answers each connection's handshake
+itself, performs its own toward that database as the container's
+role, and relays everything after unread; and a paragraph states the
+scope as a guarantee: one schema per container, implicit, inescapable,
+no credential in the container.
