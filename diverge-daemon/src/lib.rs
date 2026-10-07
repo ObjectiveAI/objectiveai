@@ -12,11 +12,12 @@
 //!
 //! # What serves today
 //!
-//! Accounts, roles and providers, whole: the twenty-five requests
-//! over them — the fourteen of the first two, the ten over outgoing
-//! providers and incoming credentials, and the listing of a tenant's
-//! tool containers through a provider — are served as the wire
-//! states them, every other request is answered with its endpoint's
+//! Accounts, roles, providers, templates and resources, whole: the
+//! forty-six requests over them — the fourteen of the first two, the
+//! ten over outgoing providers and incoming credentials, the listing
+//! of a tenant's tool containers through a provider, the twelve over
+//! the two template families, and the nine over resources — are
+//! served as the wire states them, every other request is answered with its endpoint's
 //! own error saying it is not served yet, and every connection is
 //! judged. An outgoing provider on record is dialled and dialled
 //! again for the daemon's life; a provider that dials in is admitted
@@ -26,7 +27,8 @@
 //! as [`config`] says — in a schema of the daemon's, [`store`]; who a
 //! connection is and what each request may do is [`judge`]; what is
 //! live and shared is [`daemon`]; the local Postgres is [`postgres`];
-//! the connections to providers are [`providers`];
+//! the connections to providers are [`providers`]; the bytes of every
+//! resource are [`content`]'s, under `<dir>/resources/`;
 //! and [`serve`] is the daemon running: the port bound, every
 //! connection read, every request dispatched, and the stop.
 //!
@@ -46,9 +48,10 @@
 //! `--config <dir>`, else `DIVERGE_DAEMON_CONFIG`, else
 //! `~/.diverge/daemon/`, holding `config.yaml`, optional, and
 //! `postgres/`, the local cluster's own directory when the daemon
-//! runs one.
+//! runs one, and `resources/`, every resource's bytes by its hash.
 
 pub mod config;
+pub mod content;
 pub mod daemon;
 pub mod judge;
 pub mod postgres;

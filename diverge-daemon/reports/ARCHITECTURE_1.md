@@ -66,8 +66,10 @@ Two populations, kept apart by type and by fate:
   there. (Ruling of 2026-10-06; the earlier draft wanted a separate
   store and a live mode swap.)
 - **Content lives beside the store, not in it.** Resource bytes under
-  `resources/<hash>`, agent logs appended under `agents/<id>/log` with an
-  index, both read by streaming. The store holds the index of a thing,
+  `<dir>/resources/<id>` — a file as that path, a directory as that
+  tree — with uploads still arriving under `resources/incoming/`; agent
+  logs appended under `agents/<id>/log` with an index; both read by
+  streaming. The store holds the index of a thing,
   never the thing.
 - **Counters are records.** The once-and-for-all identity — template and
   index — is a durable, monotonic counter per template, advanced in the

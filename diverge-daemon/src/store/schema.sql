@@ -81,3 +81,38 @@ CREATE TABLE IF NOT EXISTS diverge.providers_incoming (
     created  TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator  JSONB NOT NULL
 );
+
+-- A template is held by the hash of its own JSON; a deleted one keeps
+-- its row, so that one made anew is the one that was deleted, with the
+-- first create's creator and time.
+CREATE TABLE IF NOT EXISTS diverge.agents_templates (
+    id       TEXT PRIMARY KEY,
+    template JSONB NOT NULL,
+    tags     TEXT[] NOT NULL DEFAULT '{}',
+    created  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator  JSONB NOT NULL,
+    deleted  BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE TABLE IF NOT EXISTS diverge.tools_templates (
+    id       TEXT PRIMARY KEY,
+    template JSONB NOT NULL,
+    tags     TEXT[] NOT NULL DEFAULT '{}',
+    created  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator  JSONB NOT NULL,
+    deleted  BOOLEAN NOT NULL DEFAULT false
+);
+
+-- A resource is held by the hash of its bytes, which live on disk
+-- under <dir>/resources/<id>; the row is what is known about them.
+CREATE TABLE IF NOT EXISTS diverge.resources (
+    id          TEXT PRIMARY KEY,
+    -- `file` or `directory`.
+    kind        TEXT NOT NULL,
+    description TEXT NOT NULL,
+    bytes       BIGINT NOT NULL,
+    tags        TEXT[] NOT NULL DEFAULT '{}',
+    created     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator     JSONB NOT NULL,
+    deleted     BOOLEAN NOT NULL DEFAULT false
+);

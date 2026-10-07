@@ -20,6 +20,8 @@ pub enum Error {
     Postgres(postgres::Error),
     /// The store could not be opened, or its schema applied.
     Store(store::Error),
+    /// The content directory could not be made.
+    Resources(io::Error),
     /// The port could not be bound.
     Bind(io::Error),
     /// The listener stopped on its own.
@@ -33,6 +35,7 @@ impl fmt::Display for Error {
             Error::Config(error) => write!(f, "the configuration could not be used: {error}"),
             Error::Postgres(error) => write!(f, "the local Postgres could not be started: {error}"),
             Error::Store(error) => write!(f, "the store could not be opened: {error}"),
+            Error::Resources(error) => write!(f, "the resources directory could not be made: {error}"),
             Error::Bind(error) => write!(f, "the port could not be bound: {error}"),
             Error::Serve(error) => write!(f, "the listener stopped: {error}"),
         }
@@ -48,7 +51,7 @@ impl fmt::Debug for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Runtime(error) | Error::Bind(error) | Error::Serve(error) => Some(error),
+            Error::Runtime(error) | Error::Bind(error) | Error::Serve(error) | Error::Resources(error) => Some(error),
             Error::Config(error) => Some(error),
             Error::Postgres(error) => Some(error),
             Error::Store(error) => Some(error),

@@ -34,7 +34,12 @@ pub async fn run(config: Config, dir: PathBuf) -> Result<(), Error> {
             return Err(Error::Store(error));
         }
     };
-    let daemon = Arc::new(Daemon::new(store));
+    let resources = dir.join("resources");
+    if let Err(error) = tokio::fs::create_dir_all(resources.join("incoming")).await {
+        postgres.stop().await;
+        return Err(Error::Resources(error));
+    }
+    let daemon = Arc::new(Daemon::new(store, resources));
     if let Err(error) = providers::dial_all(&daemon).await {
         postgres.stop().await;
         return Err(Error::Store(error));

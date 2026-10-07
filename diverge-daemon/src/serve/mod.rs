@@ -52,6 +52,8 @@ pub use reply::*;
 pub use run::*;
 
 pub mod accounts;
+pub mod agents;
 pub mod providers;
+pub mod resources;
 pub mod roles;
 pub mod tools;
