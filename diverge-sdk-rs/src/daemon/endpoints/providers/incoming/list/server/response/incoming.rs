@@ -16,9 +16,9 @@ pub struct Incoming {
     /// Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub credential: Credential,
-    /// Whether a provider is connected through it now: the one that is,
-    /// as the credential's identity, since one credential admits one
-    /// identity.
+    /// Whether a provider is connected through it now: exactly one is,
+    /// as the credential's identity, or none — a credential admits one
+    /// connection at a time.
     pub connected: bool,
     /// When the add made it. On the wire an RFC 3339 timestamp in UTC.
     pub created: DateTime<Utc>,

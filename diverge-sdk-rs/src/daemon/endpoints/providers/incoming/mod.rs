@@ -21,6 +21,16 @@
 //! [`Incoming`](list::server::response::Incoming): the credential,
 //! which carries no key, with who is connected through it.
 //!
+//! # One connection per credential
+//!
+//! A provider connected through a credential holds it, and holds the
+//! identity it names, for the connection's life. A second connection
+//! that presents the same credential, or that is admitted as the same
+//! identity, is closed without a word — as a credential the daemon
+//! does not hold is — until the first connection has ended. So a
+//! credential is connected through by exactly one provider or by none,
+//! and `connected` in a list or a get says which.
+//!
 //! # The key is answered once
 //!
 //! A client never chooses a key and is never told one twice. The daemon

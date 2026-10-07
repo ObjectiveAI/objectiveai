@@ -6,8 +6,8 @@
 //! identity is another credential's, forbidden, or that it failed, and
 //! the scope finishes. This is how a key rotates, and how an address or
 //! an identity changes. A connection a provider holds through the
-//! credential now is not dropped; the next one is judged by the new
-//! key.
+//! credential now is closed by the daemon once the edit is done; the
+//! next one is judged by the new key.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is
