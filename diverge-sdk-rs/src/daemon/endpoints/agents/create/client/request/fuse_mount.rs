@@ -57,18 +57,21 @@ use crate::daemon::endpoints::agents::logs::server::response::Identity;
 /// new directory is refused by the volume's provider, the program
 /// seeing a read-only filesystem.
 ///
-/// # The volume is held for the agent's life
+/// # The volume is held for the run's life
 ///
-/// As its provider holds a volume a container mounts: from the create
-/// until the agent is deleted, the volume is served, and its provider
-/// refuses to examine, read, write, walk, resize or delete it
-/// meanwhile. Any number of the caller's agents may mount one
-/// ephemeral or read-only volume at once, beside any container of
-/// that provider that mounts it; a persistent volume has one user at
-/// a time, and the daemon's serve for this agent is that user. A
-/// serve the provider refuses at the create — no such volume, one
-/// held to itself, a persistent one held by anyone — is the create's
-/// error.
+/// As its provider holds a volume a container mounts: from the
+/// moment the agent's container starts until its run ends — the
+/// container stopped as unused, deleted, or gone with its provider —
+/// the volume is served, and its provider refuses to examine, read,
+/// write, walk, resize or delete it meanwhile; between runs it is
+/// free. Any number of the caller's agents may mount one ephemeral
+/// or read-only volume at once, beside any container of that
+/// provider that mounts it; a persistent volume has one user at a
+/// time, and the daemon's serve for this agent's run is that user. A
+/// serve the provider refuses at a start — no such volume, one held
+/// to itself, a persistent one held by anyone — is the start's
+/// error, kept in the agent's log; the create checks only that the
+/// provider is one the daemon knows.
 ///
 /// A FILE mount is one regular file that can be read and overwritten
 /// in place — opened, truncated, written, closed — but never deleted
