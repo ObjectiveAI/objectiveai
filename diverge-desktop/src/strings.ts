@@ -124,6 +124,10 @@ export const t = {
   profile: {
     personas: "Your names",
     personasNote: "Each is a separate you. A room sees only the one you use there.",
+    theme: "Theme",
+    themeNote: "How this app looks on this computer. Nobody else sees it.",
+    // Every theme in theme.css, by its id there.
+    themes: { plum: "Plum and gold", navy: "Navy and orange" } as Record<string, string>,
     usualTag: "usual",
     inRooms: "In",
     noRooms: "Not in any room yet",

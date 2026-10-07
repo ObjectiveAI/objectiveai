@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { t } from "./strings";
 
 type RGBA = [number, number, number, number];
 
@@ -14,29 +15,33 @@ const blocks = [...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{
   selector: m[1].trim(),
   props: [...m[2].matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((p) => [p[1], p[2].trim()] as [string, string]),
 }));
-const base = new Map(blocks.filter((b) => b.selector === ":root").flatMap((b) => b.props));
+const themeOf = (selector: string) => selector.match(/\[data-theme="([\w-]+)"\]/)?.[1];
+// The default's block is plain :root too; every other theme's block is only `[data-theme="<id>"]`.
+const base = new Map(blocks.filter((b) => b.selector.split(/\s*,\s*/).includes(":root")).flatMap((b) => b.props));
 
-// Every theme in theme.css: plain :root is the default, and each :root[data-theme="<id>"] block swaps in its own
-// five. A theme added there is checked here; there is no list to forget to add it to.
-const THEMES: Record<string, Map<string, string>> = { "the default (:root)": new Map(base) };
+// Every theme in theme.css, each its own five over everything mixed from them. A theme added there is checked
+// here; there is no list to forget to add it to.
+const THEMES: Record<string, Map<string, string>> = {};
 for (const b of blocks) {
-  const id = b.selector.match(/^:root\[data-theme="([\w-]+)"\]$/)?.[1];
+  const id = themeOf(b.selector);
   if (id) THEMES[id] = new Map([...base, ...b.props]);
 }
+const themeBlocks = blocks.filter((b) => themeOf(b.selector));
 
 describe("theme.css", () => {
   it("has the default and at least one more theme", () => {
     expect(Object.keys(THEMES).length).toBeGreaterThanOrEqual(2);
+    expect(themeBlocks.filter((b) => b.selector.includes(":root")).map((b) => themeOf(b.selector))).toHaveLength(1);
   });
   it("puts colours only in :root and in theme blocks", () => {
-    expect(blocks.filter((b) => b.props.length).map((b) => b.selector).filter((s) => s !== ":root" && !/^:root\[data-theme="[\w-]+"\]$/.test(s))).toEqual([]);
+    expect(blocks.filter((b) => b.props.length && b.selector !== ":root" && !themeOf(b.selector)).map((b) => b.selector)).toEqual([]);
   });
-  it.each(blocks.filter((b) => b.selector.startsWith(":root[")).map((b) => [b.selector, b.props.map(([k]) => k)] as const))(
-    "%s sets exactly the five colours",
-    (_s, names) => {
-      expect([...names].sort()).toEqual([...FIVE].sort());
-    },
-  );
+  it.each(themeBlocks.map((b) => [b.selector, b.props.map(([k]) => k)] as const))("%s sets exactly the five colours", (_s, names) => {
+    expect([...names].sort()).toEqual([...FIVE].sort());
+  });
+  it("every theme has a name on screen", () => {
+    expect(Object.keys(t.profile.themes).sort()).toEqual(Object.keys(THEMES).sort());
+  });
   it("the default sets each of the five as a colour, and nothing else is a bare colour", () => {
     const hex = [...base].filter(([, v]) => /^#[0-9a-f]{6}$/i.test(v)).map(([k]) => k);
     // ok and bad are the only invented values (see theme.css); every other colour is one of the five or mixed from them.

@@ -259,6 +259,19 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .kind.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
 .kind.on:focus-visible { box-shadow: var(--focus); }
 .kind-title { font-weight: 650; }
+.themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.theme { display: flex; flex-direction: column; gap: var(--space-2); border: 1px solid var(--line-strong); background: var(--bg); border-radius: var(--radius-md); padding: var(--space-3); }
+.theme:hover { background: var(--surface-3); border-color: var(--line-hover); }
+.theme.on, .theme.on:hover { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.theme.on:focus-visible { box-shadow: var(--focus); }
+.theme-name { font-weight: 650; }
+.theme-swatch { display: flex; height: var(--space-6); border: 1px solid var(--line-strong); }
+.theme-swatch > span { flex: 1; }
+.sw-ground { background: var(--ground); }
+.sw-raised { background: var(--raised); }
+.sw-accent { background: var(--accent); }
+.sw-ink { background: var(--ink); }
+.sw-here { background: var(--here); }
 .kind-blurb { font-size: var(--text-sm); color: var(--text-2); line-height: 1.35; }
 
 /* --- files ------------------------------------------------------------------ */

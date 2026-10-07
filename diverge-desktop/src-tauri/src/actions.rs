@@ -60,7 +60,7 @@ pub struct AppState {
     pub agent_mounts: Mutex<HashMap<String, AgentMounts>>,
     /// Your card as you keep it; none until you first save one.
     pub card: Mutex<Option<crate::card::Card>>,
-    /// The theme you picked, by its id in theme.css; none is the default.
+    /// The theme you picked, by its id in theme.css; none until you pick one (the default shows).
     pub theme: Mutex<Option<String>>,
     /// What waits for the first-run page to be finished: anything that acts as you.
     pub after_first_run: Mutex<Vec<AfterFirstRun>>,
@@ -1802,12 +1802,11 @@ pub async fn machines_remove(state: State<'_, AppState>, identity: ProviderView)
 
 // --- the theme -------------------------------------------------------------
 
-/// The themes theme.css holds besides the default: the id of each
-/// `:root[data-theme="<id>"]` block. Read from the sheet itself, so there is no
-/// second list to keep.
+/// The themes theme.css holds: the id of each `[data-theme="<id>"]` block, the
+/// default's first. Read from the sheet itself, so there is no second list to keep.
 pub fn theme_ids() -> Vec<&'static str> {
     const CSS: &str = include_str!("../../src/theme.css");
-    CSS.split(":root[data-theme=\"").skip(1).filter_map(|rest| rest.split_once("\"]").map(|(id, _)| id))
+    CSS.split("[data-theme=\"").skip(1).filter_map(|rest| rest.split_once("\"]").map(|(id, _)| id))
         // Only real ids: the sheet's own comment names the pattern as `<id>`.
         .filter(|id| !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'))
         .collect()
@@ -2657,7 +2656,7 @@ mod tests {
 
     #[test]
     fn the_themes_are_read_from_theme_css() {
-        assert_eq!(theme_ids(), vec!["navy"]);
+        assert_eq!(theme_ids(), vec!["plum", "navy"]);
     }
 
     #[tokio::test]

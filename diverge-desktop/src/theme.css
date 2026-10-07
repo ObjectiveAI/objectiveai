@@ -11,9 +11,10 @@
    Every other colour is mixed from those five, below, the same way in every
    theme. The first theme, plum and gold, comes from the protocol site
    (diverge-provider-web/src/layouts/Layout.astro on main, the palette of
-   2026-09-14). A theme is one block, `:root[data-theme="<id>"]`, setting the
-   five; plum and gold is the default and sits on plain `:root`. Add a block
-   and src/theme.test.ts checks it with the rest.
+   2026-09-14). A theme is one block, `[data-theme="<id>"]`, setting the five;
+   plum and gold is the default, so its block is also plain `:root`. The
+   picker's swatches set data-theme on themselves to show a theme's five while
+   another is on. Add a block and src/theme.test.ts checks it with the rest.
 
    The roles:
      --bg, --rail          the ground everything sits on
@@ -40,7 +41,7 @@
    They are the only invented values here, and the product owner's to replace. */
 
 /* plum and gold, the default */
-:root {
+:root, [data-theme="plum"] {
   --ground: #11000e;
   --raised: #22091d;
   --accent: #ffb2ff;
@@ -49,7 +50,7 @@
 }
 
 /* navy and orange */
-:root[data-theme="navy"] {
+[data-theme="navy"] {
   --ground: #000411;
   --raised: #090f22;
   --accent: #b2c5ff;

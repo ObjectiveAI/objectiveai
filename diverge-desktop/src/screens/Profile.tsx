@@ -40,6 +40,8 @@ export function Profile() {
           {p.profile ? <Button small kind="tertiary" onClick={() => open({ kind: "space", id: p.profile! })}>{t.profile.visit}</Button> : null}
         </Section>
 
+        <ThemePicker />
+
         <CardEditor name={p.personas.find((q) => q.usual)?.name ?? ""} />
 
         {p.profile ? (
@@ -153,5 +155,36 @@ function PersonaRow(props: { id: string; name: string; usual: boolean; rooms: st
       )}
       <span className="muted small">{props.rooms.length ? `${t.profile.inRooms} ${props.rooms.map((id) => { const r = spaces.find((x) => x.id === id); return r ? spaceTitle(r) : id; }).join(", ")}` : t.profile.noRooms}</span>
     </li>
+  );
+}
+
+/** The themes in theme.css, each shown as its five colours and its name. A click puts it on at once. */
+function ThemePicker() {
+  const [on, setOn] = useState<string | null>(null);
+  useEffect(() => {
+    api.theme().then((id) => setOn(id ?? Object.keys(t.profile.themes)[0]));
+  }, []);
+  const pick = (id: string) =>
+    api.themeSet(id).then((kept) => {
+      if (kept) document.documentElement.dataset.theme = kept;
+      setOn(kept);
+    });
+  return (
+    <Section title={t.profile.theme} note={t.profile.themeNote}>
+      <div className="themes">
+        {Object.entries(t.profile.themes).map(([id, name]) => (
+          <Row key={id} className="theme" choice on={on === id} onClick={() => pick(id)}>
+            <span className="theme-swatch" data-theme={id} aria-hidden>
+              <span className="sw-ground" />
+              <span className="sw-raised" />
+              <span className="sw-accent" />
+              <span className="sw-ink" />
+              <span className="sw-here" />
+            </span>
+            <span className="theme-name">{name}</span>
+          </Row>
+        ))}
+      </div>
+    </Section>
   );
 }
