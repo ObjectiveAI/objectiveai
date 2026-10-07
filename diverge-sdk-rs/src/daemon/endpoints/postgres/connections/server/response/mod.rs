@@ -2,7 +2,7 @@
 //! failure. [`Frame`] is what a response frame holds — one
 //! [`Connection`](crate::daemon::endpoints::postgres::Connection),
 //! forbidden, or a failure; the connection is defined beside the
-//! family, where a set's `InUse` carries the same.
+//! family.
 
 mod frame;
 

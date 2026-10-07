@@ -2,8 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Which database the daemon splices container connections onto. On the
-/// wire one object naming its kind: `{"kind":"local"}`, or
+/// Which database the daemon splices container connections onto, and
+/// keeps its own records in: its configuration, as a get answers it. On
+/// the wire one object naming its kind: `{"kind":"local"}`, or
 /// `{"kind":"remote","url":…}`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]

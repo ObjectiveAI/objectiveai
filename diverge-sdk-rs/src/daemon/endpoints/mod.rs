@@ -13,7 +13,7 @@
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`volumes`] | create a volume on a provider; get one; list them across providers, narrowed; delete one; change its size or mode; walk one for its use and its hash; download files out of one, upload files into one, transfer files out of one; see one's tree |
-//! | [`postgres`] | see which database containers are served, the daemon's own or a remote one; swap it, when no container connection is open through it; list the container connections open through it |
+//! | [`postgres`] | see which database containers are served, the daemon's own or a remote one, as the daemon is configured; list the container connections open through it |
 //!
 //! # The tags
 //!
@@ -111,10 +111,9 @@
 //! | `84` | [`resources::tag`] |
 //! | `85` | [`resources::untag`] |
 //! | `86` | [`postgres::get`] |
-//! | `87` | [`postgres::set`] |
-//! | `88` | [`postgres::connections`] |
+//! | `87` | [`postgres::connections`] |
 //!
-//! Eighty-nine, so far. Tags are handed out in the order scopes are
+//! Eighty-eight, so far. Tags are handed out in the order scopes are
 //! defined and nothing reads them in order; a new scope takes the next
 //! value wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

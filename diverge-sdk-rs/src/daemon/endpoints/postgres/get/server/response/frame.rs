@@ -22,9 +22,9 @@ use crate::daemon::endpoints::postgres::Mode;
 /// [`Mode`](Self::Mode) is the ANSWER, and there is always one: the
 /// daemon serves exactly one database, so a get never finds nothing. A
 /// remote mode's URL comes back with its password taken out; the rest
-/// of it is as the set gave it. An [`Error`](Self::Error) is the
-/// absence of an answer: the daemon could not say, for whatever reason
-/// it knows.
+/// of it is as the configuration gave it. An [`Error`](Self::Error) is
+/// the absence of an answer: the daemon could not say, for whatever
+/// reason it knows.
 ///
 /// # Forbidden
 ///

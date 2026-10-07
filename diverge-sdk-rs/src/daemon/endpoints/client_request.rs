@@ -201,9 +201,7 @@ pub enum ClientRequest<'a> {
     ResourcesUntag(resources::untag::client::request::Frame),
     /// Tag `86`. Read which database the daemon serves.
     PostgresGet(postgres::get::client::request::Frame),
-    /// Tag `87`. Swap which database the daemon serves.
-    PostgresSet(postgres::set::client::request::Frame),
-    /// Tag `88`. List the container connections open through the database.
+    /// Tag `87`. List the container connections open through the database.
     PostgresConnections(postgres::connections::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -312,7 +310,6 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ResourcesTag(frame) => frame.encode(out),
             ClientRequest::ResourcesUntag(frame) => frame.encode(out),
             ClientRequest::PostgresGet(frame) => frame.encode(out),
-            ClientRequest::PostgresSet(frame) => frame.encode(out),
             ClientRequest::PostgresConnections(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -599,10 +596,7 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             86 => postgres::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::PostgresGet)
                 .ok(),
-            87 => postgres::set::client::request::Frame::decode(bytes)
-                .map(ClientRequest::PostgresSet)
-                .ok(),
-            88 => postgres::connections::client::request::Frame::decode(bytes)
+            87 => postgres::connections::client::request::Frame::decode(bytes)
                 .map(ClientRequest::PostgresConnections)
                 .ok(),
             _ => None,
@@ -701,7 +695,6 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ResourcesTag(_) => f.write_str("resources tag"),
             ClientRequest::ResourcesUntag(_) => f.write_str("resources untag"),
             ClientRequest::PostgresGet(_) => f.write_str("postgres get"),
-            ClientRequest::PostgresSet(_) => f.write_str("postgres set"),
             ClientRequest::PostgresConnections(_) => f.write_str("postgres connections"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }

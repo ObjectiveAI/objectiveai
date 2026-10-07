@@ -36,16 +36,6 @@
 //! `{"postgres":["get","connections"]}`: there is nothing to name and
 //! nothing to narrow, so holding the action is the whole of it, as for
 //! making.
-//! - **Over the one thing.** For the database, of which the daemon
-//!   serves exactly one, a bare array of its actions,
-//! `{"postgres":["get","connections"]}`: there is nothing to name and
-//! nothing to narrow, so holding the action is the whole of it, as for
-//! making.
-//! - **Over the one thing.** For the database, of which the daemon
-//!   serves exactly one, a bare array of its actions,
-//! `{"postgres":["get","connections"]}`: there is nothing to name and
-//! nothing to narrow, so holding the action is the whole of it, as for
-//! making.
 //!
 //! Each shape is its own variant with its own members, and an object
 //! that is none of them does not decode: an action of one shape among

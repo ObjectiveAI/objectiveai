@@ -10,9 +10,6 @@ pub enum Action {
     /// Read which database the daemon serves, a remote URL without its
     /// password.
     Get,
-    /// Swap which database the daemon serves, giving a remote URL
-    /// whole.
-    Set,
     /// List the container connections open through it.
     Connections,
 }

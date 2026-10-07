@@ -24,11 +24,10 @@ use crate::daemon::endpoints::postgres::Connection;
 /// # A finish with nothing is an answer
 ///
 /// No container connection is open: a scope that finishes with no
-/// response before it is that answer, not a failure — and the moment a
-/// set would not be refused. An [`Error`](Self::Error) is a failure:
-/// the daemon could not list, for whatever reason it knows. What was
-/// sent before the failure precedes the error; nothing follows it, and
-/// the list is not whole.
+/// response before it is that answer, not a failure. An
+/// [`Error`](Self::Error) is a failure: the daemon could not list, for
+/// whatever reason it knows. What was sent before the failure precedes
+/// the error; nothing follows it, and the list is not whole.
 ///
 /// # Forbidden
 ///

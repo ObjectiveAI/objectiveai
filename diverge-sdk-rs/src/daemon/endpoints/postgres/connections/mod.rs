@@ -3,10 +3,8 @@
 //! [`Connection`](crate::daemon::endpoints::postgres::Connection) per
 //! container connection open through the database it serves now, oldest
 //! opened first, and finishes — or finishes with nothing when none is
-//! open. What a set would be refused over is exactly this list at that
-//! moment; it is what a client reads to know what to end, and reads
-//! again to know it is gone. There is no filter and no count: the list
-//! is whole, and short.
+//! open. It is what a client reads to know what is on the database now.
+//! There is no filter and no count: the list is whole, and short.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is
