@@ -83,7 +83,7 @@ pub enum ClientRequest<'a> {
     ToolsRoutesSet(tools::routes::set::client::request::Frame),
     /// Tag `27`. Take a route up.
     ToolsRoutesDelete(tools::routes::delete::client::request::Frame),
-    /// Tag `28`. List the caller's routes, narrowed.
+    /// Tag `28`. List the caller's routes, narrowed, and keep the list.
     ToolsRoutesList(tools::routes::list::client::request::Frame),
     /// Tag `29`. Make a tool template.
     ToolsTemplatesCreate(tools::templates::create::client::request::Frame),
