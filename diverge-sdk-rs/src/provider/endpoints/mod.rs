@@ -8,7 +8,7 @@
 //! |----------|--------|
 //! | [`containers`] | run an agent or a tool server in a container; join a tool server; find the tool containers an identity runs |
 //! | [`images`] | ask whether an image can be supplied |
-//! | [`volumes`] | list what a provider offers; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
+//! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
 //! | [`version`] | ask what a provider is |
 //!
 //! # The tags

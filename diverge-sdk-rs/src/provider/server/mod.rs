@@ -157,4 +157,5 @@ pub mod mount;
 pub mod proxy;
 pub mod served;
 pub mod volume;
+pub mod volume_changes;
 pub mod volume_manager;

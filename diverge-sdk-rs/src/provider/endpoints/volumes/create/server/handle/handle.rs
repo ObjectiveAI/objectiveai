@@ -1,10 +1,13 @@
 //! Answering a creation, from a scope and a manager.
 
 
+use std::sync::Arc;
+
 use super::super::response;
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::volumes::create::client::request;
 use crate::wire::server::scope_handle::ScopeHandle;
+use crate::provider::server::volume_changes::VolumeChanges;
 use crate::provider::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
@@ -14,7 +17,8 @@ use crate::shared::error::Error;
 /// whole answer: the name the caller chose is the name it already has,
 /// so there is no identifier to hand back and nothing to describe that
 /// a [`list`](crate::provider::endpoints::volumes::list) would not describe
-/// better.
+/// better — and every listing open hears of it, by name, once the
+/// manager has made it.
 ///
 /// # The manager says whether there was room
 ///
@@ -42,6 +46,7 @@ pub async fn handle<M>(
     request: request::Frame,
     client_identity: &str,
     manager: &M,
+    changes: Arc<VolumeChanges>,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
@@ -50,7 +55,10 @@ pub async fn handle<M>(
         .create(client_identity, &request.name, request.bytes, request.mode)
         .await
     {
-        Ok(response::Creation::Created) => response::Frame::Created,
+        Ok(response::Creation::Created) => {
+            changes.changed(client_identity, &request.name);
+            response::Frame::Created
+        }
         Ok(response::Creation::InsufficientCapacity) => {
             response::Frame::InsufficientCapacity
         }

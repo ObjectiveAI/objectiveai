@@ -1,18 +1,22 @@
 //! Answering an edit, from a scope and a manager.
 
+use std::sync::Arc;
+
 use super::super::response;
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::volumes::edit::client::request;
 use crate::provider::endpoints::volumes::refusal;
 use crate::wire::server::scope_handle::ScopeHandle;
 use crate::provider::server::volume::Volume as _;
+use crate::provider::server::volume_changes::VolumeChanges;
 use crate::provider::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
 /// Change the volume and end the scope.
 ///
 /// A name and a change: there a [`create`](crate::provider::endpoints::volumes::create)
-/// makes the name, here it is found.
+/// makes the name, here it is found. A change made is told to every
+/// listing open, by name; a change refused is told to nobody.
 ///
 /// # Under the exclusive hold
 ///
@@ -50,12 +54,16 @@ pub async fn handle<M>(
     request: request::Frame,
     client_identity: &str,
     manager: &M,
+    changes: Arc<VolumeChanges>,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
     let frame = match edit(manager, client_identity, &request.name, request.change).await {
-        Ok(response::Edit::Edited) => response::Frame::Edited,
+        Ok(response::Edit::Edited) => {
+            changes.changed(client_identity, &request.name);
+            response::Frame::Edited
+        }
         Ok(response::Edit::InsufficientCapacity) => {
             response::Frame::InsufficientCapacity
         }

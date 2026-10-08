@@ -2,7 +2,7 @@
 //!
 //! [`handle`] takes the scope a
 //! [`Session`](crate::wire::server::session::Session) yielded and
-//! answers it.
+//! answers it, and keeps answering it until the caller stops.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

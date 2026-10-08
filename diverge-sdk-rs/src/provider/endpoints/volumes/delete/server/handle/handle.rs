@@ -1,11 +1,14 @@
 //! Answering a deletion, from a scope and a manager.
 
+use std::sync::Arc;
+
 use super::super::response;
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::volumes::delete::client::request;
 use crate::provider::endpoints::volumes::refusal;
 use crate::wire::server::scope_handle::ScopeHandle;
 use crate::provider::server::volume::Volume as _;
+use crate::provider::server::volume_changes::VolumeChanges;
 use crate::provider::server::volume_manager::VolumeManager;
 use crate::shared::error::Error;
 
@@ -29,6 +32,7 @@ use crate::shared::error::Error;
 ///
 /// A name the caller has no volume by is [`refusal::unknown`]; a
 /// manager or a volume that will not answer is its error, flattened.
+/// A volume gone is told to every listing open, by name.
 ///
 /// # The request arrives decoded
 ///
@@ -41,12 +45,16 @@ pub async fn handle<M>(
     request: request::Frame,
     client_identity: &str,
     manager: &M,
+    changes: Arc<VolumeChanges>,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,
 {
     let frame = match delete(manager, client_identity, &request.name).await {
-        Ok(true) => response::Frame::Deleted,
+        Ok(true) => {
+            changes.changed(client_identity, &request.name);
+            response::Frame::Deleted
+        }
         Ok(false) => response::Frame::Mounted,
         Err(error) => response::Frame::Error(error),
     };

@@ -1,7 +1,8 @@
 //! Volumes — what a provider will let a caller look at, and the whole
 //! life of one.
 //!
-//! [`list`] says which volumes exist; [`stat`] names one and says how
+//! [`list`] says which volumes exist, and keeps saying as they come
+//! and go; [`stat`] names one and says how
 //! much of it is used and what is in it; [`read`] takes one file out
 //! of one, [`write`](mod@write) puts one in, and [`filetree`] says what one
 //! holds, once; [`serve`] holds one mounted, answers a FUSE mount's
