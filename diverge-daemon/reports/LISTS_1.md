@@ -41,7 +41,7 @@ the daemon's live state alone.
 
 | Tag | Request | Item | Filter members | Live in the item |
 |---|---|---|---|---|
-| 50 | `accounts list` | `Account` | names, identities, named, credentialed, roles, connected, creators, all_tags, any_tags, created_from, created_to | `connected` |
+| 50 | `accounts list` | `Account` | names, identities, named, credentialed, roles, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-08 |
 | 57 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | — |
 | 40 | `providers outgoing list` | `Outgoing` | addresses, kinds, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |
 | 45 | `providers incoming list` | `Incoming` | identities, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |

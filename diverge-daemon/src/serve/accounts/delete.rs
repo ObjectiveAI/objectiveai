@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::accounts::delete::server::response::Frame;
 use diverge_sdk::daemon::grant::accounts::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, accounts};
@@ -45,5 +45,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     accounts::delete(&mut tx, account.id).await?;
     tx.commit().await?;
+    daemon.live.changed(Kind::Accounts);
+    daemon.live.changed(Kind::Roles);
     Ok(Frame::Deleted)
 }

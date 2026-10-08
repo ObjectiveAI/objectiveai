@@ -43,7 +43,7 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
 | 6 | 28 | `tools routes list` | The record (set, delete; a tool deleted); a tool renamed. **Built 2026-10-08.** |
 | 7 | 36 | `resources list` | The record (upload, a transfer into a new resource, tag, untag, delete); an agent or tool made or deleted, for `in_use`. **Built 2026-10-08.** |
 | 8 | 11, 31 | `agents templates list`, `tools templates list` | The record (create, tag, untag, delete; an agent or tool made from one for `in_use`). **Built 2026-10-08.** |
-| 9 | 50 | `accounts list` | The record (create, edit, tag, untag, delete, a role assigned or unassigned); `Live.connected` (a client connecting or leaving). |
+| 9 | 50 | `accounts list` | The record (create, edit, tag, untag, delete); a role renamed or deleted; `Live.connected` (a client connecting or leaving). **Built 2026-10-08.** |
 | 10 | 57 | `roles list` | The record (create, edit, tag, untag, delete, grant, ungrant; an account assigned or unassigned). |
 | 11 | 40, 45 | `providers outgoing list`, `providers incoming list` | The record (add, edit, delete); `Live.providers` (a connection taken or given back); `last_connected` written by the dial. **Built 2026-10-07, first of the record lists.** |
 

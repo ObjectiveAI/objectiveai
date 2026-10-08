@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::roles::create::client::request;
 use diverge_sdk::daemon::endpoints::roles::create::server::response::Frame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, roles};
@@ -44,5 +44,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         roles::Created::Exists => return Ok(Frame::Exists),
     }
     tx.commit().await?;
+    daemon.live.changed(Kind::Roles);
     Ok(Frame::Created)
 }

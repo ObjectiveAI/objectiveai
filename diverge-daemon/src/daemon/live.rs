@@ -99,17 +99,36 @@ impl Live {
     /// Count a connection as the account in. The connection counts
     /// itself out with [`leave`](Self::leave) when it ends.
     pub async fn enter(&self, id: AccountId) {
-        *self.connected.lock().await.entry(id).or_insert(0) += 1;
+        let first = {
+            let mut connected = self.connected.lock().await;
+            let count = connected.entry(id).or_insert(0);
+            *count += 1;
+            *count == 1
+        };
+        if first {
+            self.changes.changed(Kind::Accounts);
+        }
     }
 
     /// Count a connection as the account out.
     pub async fn leave(&self, id: AccountId) {
-        let mut connected = self.connected.lock().await;
-        if let Some(count) = connected.get_mut(&id) {
-            *count -= 1;
-            if *count == 0 {
-                connected.remove(&id);
+        let last = {
+            let mut connected = self.connected.lock().await;
+            match connected.get_mut(&id) {
+                Some(count) => {
+                    *count -= 1;
+                    if *count == 0 {
+                        connected.remove(&id);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                None => false,
             }
+        };
+        if last {
+            self.changes.changed(Kind::Accounts);
         }
     }
 

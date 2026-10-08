@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::roles::untag::server::response::Frame;
 use diverge_sdk::daemon::grant::Tagging;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, roles, tags};
@@ -39,5 +39,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     roles::set_tags(&mut tx, role.id, &tags::without(&role.tags, &frame.tags)).await?;
     tx.commit().await?;
+    daemon.live.changed(Kind::Roles);
     Ok(Frame::Untagged)
 }

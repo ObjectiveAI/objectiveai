@@ -9,7 +9,7 @@ use diverge_sdk::daemon::grant::accounts::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{NamedRoles, named_roles};
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, key};
 use crate::serve::reply;
 use crate::store::{self, accounts};
@@ -98,6 +98,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         accounts::set_roles(&mut tx, account.id, &roles).await?;
     }
     tx.commit().await?;
+    daemon.live.changed(Kind::Accounts);
+    daemon.live.changed(Kind::Roles);
     Ok(Frame::Edited(minted))
 }
 
