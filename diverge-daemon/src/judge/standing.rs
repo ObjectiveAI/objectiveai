@@ -73,14 +73,6 @@ impl Standing {
         })
     }
 
-    /// The grants over resources.
-    pub fn resources(&self) -> impl Iterator<Item = &grant::resources::Permission> {
-        self.grants.iter().filter_map(|grant| match grant {
-            Grant::Resources(permission) => Some(permission),
-            _ => None,
-        })
-    }
-
     /// The grants over incoming credentials.
     pub fn providers_incoming(&self) -> impl Iterator<Item = &grant::providers_incoming::Permission> {
         self.grants.iter().filter_map(|grant| match grant {

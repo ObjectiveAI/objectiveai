@@ -29,7 +29,7 @@ use crate::store;
 /// database it just started before the error is returned.
 pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     let dir = root.join("daemon");
-    tokio::fs::create_dir_all(&dir).await.map_err(Error::Resources)?;
+    tokio::fs::create_dir_all(&dir).await.map_err(Error::Directory)?;
     let (postgres, url) = postgres::start(&config.postgres, &root).await.map_err(Error::Postgres)?;
     let store = match store::open(&url, postgres.is_local()).await {
         Ok(store) => store,
@@ -38,20 +38,10 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
             return Err(Error::Store(error));
         }
     };
-    let resources = dir.join("resources");
-    if let Err(error) = tokio::fs::create_dir_all(resources.join("incoming")).await {
-        postgres.stop().await;
-        return Err(Error::Resources(error));
-    }
     let logs = dir.join("agents");
     if let Err(error) = tokio::fs::create_dir_all(&logs).await {
         postgres.stop().await;
-        return Err(Error::Resources(error));
-    }
-    let overlays = dir.join("overlays");
-    if let Err(error) = tokio::fs::create_dir_all(&overlays).await {
-        postgres.stop().await;
-        return Err(Error::Resources(error));
+        return Err(Error::Directory(error));
     }
     let database = match database::Target::parse(&url, postgres.is_local()) {
         Ok(database) => database,
@@ -60,14 +50,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
             return Err(Error::Database(error));
         }
     };
-    let daemon = Arc::new(Daemon::new(
-        store,
-        resources,
-        logs,
-        overlays,
-        std::time::Duration::from_secs(config.idle_seconds),
-        database,
-    ));
+    let daemon = Arc::new(Daemon::new(store, logs, std::time::Duration::from_secs(config.idle_seconds), database));
     if let Err(error) = providers::dial_all(&daemon).await {
         postgres.stop().await;
         return Err(Error::Store(error));

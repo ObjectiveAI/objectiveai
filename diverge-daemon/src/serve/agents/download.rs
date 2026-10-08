@@ -28,8 +28,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` for an agent the grants do not reach; the container
 /// started if it was not up, which failing is the `Error`; `NotFound`
 /// for a path at which nothing is; else every file at the path as
-/// chunks, as a resource download sends them, the daemon's mounts
-/// read from their sources.
+/// chunks, the daemon's mounts read from their sources.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {

@@ -25,8 +25,7 @@ pub enum Judged {
 }
 
 /// A transfer lands by `upload` over the destination agent, tool or
-/// volume, or by the resources `upload` make for a new resource —
-/// the grant an upload there would take.
+/// volume — the grant an upload there would take.
 pub async fn judged(conn: &mut PgConnection, daemon: &Daemon, standing: &Standing, destination: &Destination) -> Result<Judged, store::Error> {
     Ok(match destination {
         Destination::Agent { agent, .. } => {
@@ -59,12 +58,5 @@ pub async fn judged(conn: &mut PgConnection, daemon: &Daemon, standing: &Standin
             Located::None => Judged::NoDestination,
             Located::Failed(error) => Judged::Error(error),
         },
-        Destination::Resource { .. } => {
-            if judge::resources::create(standing) {
-                Judged::Allowed
-            } else {
-                Judged::Forbidden
-            }
-        }
     })
 }

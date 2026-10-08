@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use diverge_sdk::daemon::creator::{Client, Creator};
 use diverge_sdk::daemon::endpoints::volumes::transfer::client::request;
 use diverge_sdk::daemon::endpoints::volumes::transfer::server::response::Frame;
 use diverge_sdk::daemon::grant::volumes::Over;
@@ -32,8 +31,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// the grants do not reach, or a destination they do not; `NotFound`
 /// for a path at which nothing is; `NoDestination`; `Held` for a
 /// volume at either end that is held; else the copy, and
-/// `Transferred` with the new resource's id when the destination was
-/// one.
+/// `Transferred`.
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -60,11 +58,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         Judged::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
     drop(conn);
-    let creator = Creator::Client(Client {
-        identity: standing.identity.clone(),
-    });
-    Ok(match transfers::copy(daemon, Source::Volume(frame.volume), &frame.path, frame.to, creator).await {
-        Ok(id) => Frame::Transferred(id),
+    Ok(match transfers::copy(daemon, Source::Volume(frame.volume), &frame.path, frame.to).await {
+        Ok(()) => Frame::Transferred,
         Err(Fail::NotFound) => Frame::NotFound,
         Err(Fail::NoDestination) => Frame::NoDestination,
         Err(Fail::Held) => Frame::Held,

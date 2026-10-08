@@ -1,11 +1,9 @@
 //! What containers hold: the templates they were made from, the
-//! resources those templates mount, the accounts they run under.
+//! accounts they run under.
 //!
-//! A template is in use while a container made from it exists; a
-//! resource while a template that mounts it has a container; an
-//! account while a container names it. All three are facts of the
-//! records, not of what runs, so they survive a restart as the
-//! records do.
+//! A template is in use while a container made from it exists; an
+//! account while a container names it. Both are facts of the records,
+//! not of what runs, so they survive a restart as the records do.
 
 use std::collections::HashSet;
 
@@ -21,22 +19,6 @@ pub async fn agents_templates(conn: &mut PgConnection) -> Result<HashSet<String>
 /// The ids of every tool template some created tool was made from.
 pub async fn tools_templates(conn: &mut PgConnection) -> Result<HashSet<String>, Error> {
     ids(conn, "SELECT DISTINCT template AS id FROM diverge.tools WHERE kind = 'created'").await
-}
-
-/// The ids of every resource mounted by a template that has a
-/// container, of either family.
-pub async fn resources(conn: &mut PgConnection) -> Result<HashSet<String>, Error> {
-    ids(
-        conn,
-        "SELECT DISTINCT m->>'resource' AS id FROM ( \
-             SELECT t.template FROM diverge.agents a JOIN diverge.agents_templates t ON t.id = a.template \
-             UNION ALL \
-             SELECT t.template FROM diverge.tools c JOIN diverge.tools_templates t ON t.id = c.template \
-         ) used, \
-         jsonb_array_elements(COALESCE(used.template->'fuse_file_mounts', '[]'::jsonb) \
-             || COALESCE(used.template->'fuse_directory_mounts', '[]'::jsonb)) m",
-    )
-    .await
 }
 
 /// Whether some agent or tool runs under the account.

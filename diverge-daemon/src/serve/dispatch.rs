@@ -6,7 +6,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::{accounts, agents, postgres, providers, resources, roles, tools, volumes};
+use super::{accounts, agents, postgres, providers, roles, tools, volumes};
 use crate::daemon::Daemon;
 use crate::judge::Who;
 
@@ -15,7 +15,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// ninety has a handler. A payload that is no request at all is
+/// eighty-one has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -55,9 +55,6 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ToolsTemplatesDelete(frame) => tools::templates::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTemplatesTag(frame) => tools::templates::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTemplatesUntag(frame) => tools::templates::untag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ResourcesUpload(frame) => resources::upload::handle(scope, frame, who, daemon).await,
-        ClientRequest::ResourcesList(frame) => resources::list::handle(scope, frame, who, daemon).await,
-        ClientRequest::ResourcesDelete(frame) => resources::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersOutgoingAdd(frame) => providers::outgoing::add::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersOutgoingGet(frame) => providers::outgoing::get::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersOutgoingList(frame) => providers::outgoing::list::handle(scope, frame, who, daemon).await,
@@ -88,8 +85,6 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ToolsDownload(frame) => tools::download::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsUpload(frame) => tools::upload::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTransfer(frame) => tools::transfer::handle(scope, frame, who, daemon).await,
-        ClientRequest::ResourcesDownload(frame) => resources::download::handle(scope, frame, who, daemon).await,
-        ClientRequest::ResourcesTransfer(frame) => resources::transfer::handle(scope, frame, who, daemon).await,
         ClientRequest::VolumesCreate(frame) => volumes::create::handle(scope, frame, who, daemon).await,
         ClientRequest::VolumesGet(frame) => volumes::get::handle(scope, frame, who, daemon).await,
         ClientRequest::VolumesList(frame) => volumes::list::handle(scope, frame, who, daemon).await,
@@ -101,11 +96,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::VolumesTransfer(frame) => volumes::transfer::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsFiletree(frame) => agents::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsFiletree(frame) => tools::filetree::handle(scope, frame, who, daemon).await,
-        ClientRequest::ResourcesFiletree(frame) => resources::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::VolumesFiletree(frame) => volumes::filetree::handle(scope, frame, who, daemon).await,
-        ClientRequest::ResourcesGet(frame) => resources::get::handle(scope, frame, who, daemon).await,
-        ClientRequest::ResourcesTag(frame) => resources::tag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ResourcesUntag(frame) => resources::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::PostgresGet(frame) => postgres::get::handle(scope, frame, who, daemon).await,
         ClientRequest::PostgresList(frame) => postgres::list::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsAdmit(frame) => tools::admit::handle(scope, frame, who, daemon).await,

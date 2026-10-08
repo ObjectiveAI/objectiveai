@@ -27,7 +27,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// the grants do not reach; `Held` while a running container has it
 /// or an operation is on it — the download takes it for its length;
 /// `NotFound` for a path at which nothing is; else every file at the
-/// path as chunks, as a resource download sends them.
+/// path as chunks.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {

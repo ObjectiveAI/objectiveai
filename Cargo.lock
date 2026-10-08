@@ -1882,7 +1882,6 @@ name = "diverge-daemon"
 version = "2.3.0"
 dependencies = [
  "axum",
- "base64 0.22.1",
  "bytes",
  "chrono",
  "diverge-sdk",

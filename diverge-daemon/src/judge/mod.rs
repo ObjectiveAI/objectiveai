@@ -11,7 +11,7 @@
 //! holds, read fresh inside the request's own transaction — and
 //! [`accounts`], [`roles`], [`providers_outgoing`],
 //! [`providers_incoming`], [`agents_templates`], [`tools_templates`],
-//! [`resources`], [`agents`], [`tools`], [`routes`], [`postgres`] and [`volumes`] are the pure functions that say whether a
+//! [`agents`], [`tools`], [`routes`], [`postgres`] and [`volumes`] are the pure functions that say whether a
 //! standing holds a making action, holds an action over a record, or
 //! holds a tagging action over a record and its tags, by the rule the
 //! wire states: any one grant allowing is the whole of it, nothing
@@ -44,7 +44,6 @@ pub mod key;
 pub mod postgres;
 pub mod providers_incoming;
 pub mod providers_outgoing;
-pub mod resources;
 pub mod roles;
 pub mod routes;
 pub mod tools;

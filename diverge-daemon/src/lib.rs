@@ -1,8 +1,8 @@
 //! The Diverge daemon: the server of the daemon protocol.
 //!
 //! A daemon is what a client of the daemon protocol —
-//! [`diverge_sdk::daemon`] — asks for agents, tools, resources,
-//! providers, accounts, roles, volumes and the database. The SDK
+//! [`diverge_sdk::daemon`] — asks for agents, tools, providers,
+//! accounts, roles, volumes and the database. The SDK
 //! defines every request and every answer, and the frame-level
 //! server, [`diverge_sdk::wire::server`], that reads scopes off a
 //! socket; what it does not hold is the daemon itself — the judgment
@@ -12,11 +12,10 @@
 //!
 //! # What serves today
 //!
-//! Every request of the wire, all ninety: the fourteen over accounts
+//! Every request of the wire, all eighty-one: the fourteen over accounts
 //! and roles, the ten over outgoing providers and incoming
 //! credentials, the listing of a tenant's tool containers through a
-//! provider, the twelve over the two template families, the nine over
-//! resources, the thirteen over agents — their logs, their messages,
+//! provider, the twelve over the two template families, the thirteen over agents — their logs, their messages,
 //! and the files of their containers — the sixteen over tools,
 //! attachments and admissions and their containers' files, the three
 //! over routes, the ten over volumes, and the two over the database —
@@ -24,7 +23,7 @@
 //! judged. A volume is its provider's, found by asking, judged by what
 //! the provider says and which records mount it, and held for the
 //! length of any file operation on it, [`volumes`]; a file or a
-//! directory moves between a container, a volume and a resource on
+//! directory moves between containers and volumes on
 //! the daemon's own connections, [`transfers`], and a watch of a
 //! container's tree has the daemon's mounts spliced in. An agent's container runs on
 //! a provider from its first message and stops after `idle_seconds`
@@ -43,8 +42,8 @@
 //! [`store`]; who a
 //! connection is and what each request may do is [`judge`]; what is
 //! live and shared is [`daemon`]; the local Postgres is [`postgres`];
-//! the connections to providers are [`providers`]; the bytes of every
-//! resource are [`content`]'s, under `<dir>/resources/`; every agent's
+//! the connections to providers are [`providers`]; what every file
+//! movement is made of is [`content`]; every agent's
 //! log is [`logs`]', under `<dir>/agents/`; what runs, and
 //! everything that runs through it, is [`containers`];
 //! and [`serve`] is the daemon running: the port bound, every
@@ -67,9 +66,8 @@
 //! else `~/.diverge/` — holds the one `config.yaml`, and the daemon
 //! keeps its state under `<root>/daemon/`, which is `<dir>` wherever
 //! this crate says it: `postgres/`, the local cluster's own directory
-//! when the daemon runs one, `resources/`, every resource's bytes by
-//! its hash, `agents/`, every agent's log by its id, and `overlays/`,
-//! an ephemeral mount's own layer for the run's life.
+//! when the daemon runs one, and `agents/`, every agent's log by its
+//! id.
 
 pub mod containers;
 pub mod content;

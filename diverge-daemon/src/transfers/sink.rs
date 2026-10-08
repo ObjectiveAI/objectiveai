@@ -28,11 +28,6 @@ pub enum Sink {
         /// The path in it.
         path: Vec<String>,
     },
-    /// A new resource, with its description.
-    Resource {
-        /// What it is for.
-        description: String,
-    },
 }
 
 impl Sink {
@@ -83,9 +78,6 @@ impl Sink {
                     Err(error) => Err(Fail::from(error)),
                 }
             }
-            Destination::Resource { resource } => Ok(Sink::Resource {
-                description: resource.description,
-            }),
         }
     }
 

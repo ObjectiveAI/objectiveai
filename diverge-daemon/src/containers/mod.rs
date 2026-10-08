@@ -15,8 +15,7 @@
 //! [`mcp`] is the one tool list an agent sees and the routing of its
 //! calls; [`deploy`] answers a container's declared dependencies — by
 //! a route, by an attachment, or by the deployer agent's queue;
-//! [`fuse`] serves the mounts, a resource's bytes from the daemon's
-//! own content or another provider's volume bridged. [`Key`] names a
+//! [`fuse`] serves the mounts, another provider's volume bridged. [`Key`] names a
 //! container by its record; [`AgentRun`] and [`ToolRun`] are what is
 //! live for one; [`choose`] is which provider; [`container`] is the
 //! request a run is; [`Opened`] is a run as a file operation works on

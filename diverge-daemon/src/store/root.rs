@@ -69,7 +69,7 @@ pub async fn seed(conn: &mut PgConnection) -> Result<(), Error> {
 pub fn every_grant() -> Vec<Grant> {
     use grant::{
         accounts as ac, agents as ag, agents_templates as at, postgres as pg, providers_incoming as pi,
-        providers_outgoing as po, resources as re, roles as ro, routes as rt, tools as to, tools_templates as tt,
+        providers_outgoing as po, roles as ro, routes as rt, tools as to, tools_templates as tt,
         volumes as vo,
     };
     let tagging = vec![Tagging::Tag, Tagging::Untag];
@@ -142,23 +142,6 @@ pub fn every_grant() -> Vec<Grant> {
         Grant::Routes(rt::Permission::Over {
             actions: vec![rt::Over::Delete, rt::Over::List],
             within: Within::Any,
-        }),
-        Grant::Resources(re::Permission::Make(vec![re::Make::Upload])),
-        Grant::Resources(re::Permission::Over {
-            actions: vec![
-                re::Over::Get,
-                re::Over::List,
-                re::Over::Delete,
-                re::Over::Download,
-                re::Over::Transfer,
-                re::Over::Filetree,
-            ],
-            within: Within::Any,
-        }),
-        Grant::Resources(re::Permission::Tags {
-            actions: tagging.clone(),
-            within: Within::Any,
-            tags: Within::Any,
         }),
         Grant::ProvidersOutgoing(po::Permission::Make(vec![po::Make::Add])),
         Grant::ProvidersOutgoing(po::Permission::Over {

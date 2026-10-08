@@ -21,8 +21,6 @@ path = "src/main.rs"
 # the SDK is named by where it lives rather than by a version pin
 # version.sh would have to chase.
 diverge-sdk = { path = "../diverge-sdk-rs" }
-# A directory resource's id is `h1:` and the base64 of a hash.
-base64 = "0.22.1"
 # The MCP types a container's tool calls carry: what the served
 # tools answer, merged.
 rmcp = { version = "3.1.2", default-features = false }
@@ -72,8 +70,7 @@ sha2 = "0.10.9"
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "json"] }
 # The outgoing socket: `connect` is how the daemon dials a provider.
 tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect"] }
-# The name of the directory an upload is received into, before its
-# hash is known.
+# The key a message is enqueued under, minted by the daemon.
 uuid = { version = "1.26.1", default-features = false, features = ["v4"] }
 # `net` for the port; `fs` for the directory; `process` and `io-util`
 # for the local Postgres beside the daemon and its two stdio lines;

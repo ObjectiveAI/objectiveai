@@ -77,8 +77,6 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         Mounts::build(
             daemon,
             Key::Agent(agent.id),
-            &template.template.fuse_file_mounts,
-            &template.template.fuse_directory_mounts,
             &agent.fuse_file_mounts,
             &agent.fuse_directory_mounts,
         )
@@ -186,8 +184,6 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain
                 Mounts::build(
                     daemon,
                     Key::Tool(tool.id),
-                    &template.template.fuse_file_mounts,
-                    &template.template.fuse_directory_mounts,
                     &tool.fuse_file_mounts,
                     &tool.fuse_directory_mounts,
                 )

@@ -46,8 +46,8 @@ pub fn validate(paths: &[String]) -> Result<Vec<Vec<String>>, Error> {
     Ok(all)
 }
 
-/// The components a download or a filetree names inside a resource,
-/// checked: each a name. Empty is the resource itself.
+/// The components a download or a filetree names inside what it
+/// reads, checked: each a name. Empty is the root itself.
 pub fn inside(path: &[String]) -> Result<(), Error> {
     match path.iter().find(|component| !is_name(component)) {
         Some(bad) => Err(Error::Path(bad.clone())),

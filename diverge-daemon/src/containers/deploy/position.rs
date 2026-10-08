@@ -23,8 +23,6 @@ pub fn template_of(tool: &Tool) -> Result<String, serde_json::Error> {
         },
         memory: tool.memory,
         disk: tool.disk,
-        fuse_file_mounts: Vec::new(),
-        fuse_directory_mounts: Vec::new(),
         arguments: tool.arguments.clone(),
     };
     hash::template_id(&template)

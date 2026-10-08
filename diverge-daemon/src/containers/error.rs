@@ -15,8 +15,8 @@ pub enum StartError {
     NoTemplate(String),
     /// No provider to run on.
     Provider(NoProvider),
-    /// A mount could not be served: a resource not held, a volume the
-    /// provider refused.
+    /// A mount could not be served: a volume the provider refused, or
+    /// a provider not connected.
     Mounts(String),
     /// The provider did not run it, in its own words or the wire's.
     Run(String),

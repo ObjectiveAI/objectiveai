@@ -25,7 +25,7 @@ pub enum Error {
     /// The database URL could not be read for where and how to dial.
     Database(database::TargetError),
     /// The daemon's directory, or one under it, could not be made.
-    Resources(io::Error),
+    Directory(io::Error),
     /// The port could not be bound.
     Bind(io::Error),
     /// The listener stopped on its own.
@@ -40,7 +40,7 @@ impl fmt::Display for Error {
             Error::Postgres(error) => write!(f, "the local Postgres could not be started: {error}"),
             Error::Store(error) => write!(f, "the store could not be opened: {error}"),
             Error::Database(error) => write!(f, "{error}"),
-            Error::Resources(error) => write!(f, "the daemon's directory could not be made: {error}"),
+            Error::Directory(error) => write!(f, "the daemon's directory could not be made: {error}"),
             Error::Bind(error) => write!(f, "the port could not be bound: {error}"),
             Error::Serve(error) => write!(f, "the listener stopped: {error}"),
         }
@@ -56,7 +56,7 @@ impl fmt::Debug for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Runtime(error) | Error::Bind(error) | Error::Serve(error) | Error::Resources(error) => Some(error),
+            Error::Runtime(error) | Error::Bind(error) | Error::Serve(error) | Error::Directory(error) => Some(error),
             Error::Config(error) => Some(error),
             Error::Postgres(error) => Some(error),
             Error::Store(error) => Some(error),

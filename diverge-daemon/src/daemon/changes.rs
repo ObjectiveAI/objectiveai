@@ -26,8 +26,6 @@ pub enum Kind {
     AgentsTemplates,
     /// Tool templates: the records, and which are in use.
     ToolsTemplates,
-    /// Resources: the records, and which are in use.
-    Resources,
     /// Agents: the records, what is attached, which run.
     Agents,
     /// Tools: the records, what is attached, admitted and routed,

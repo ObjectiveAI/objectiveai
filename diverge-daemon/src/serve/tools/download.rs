@@ -28,8 +28,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` for a tool the grants do not reach; the container
 /// started, or the connected tool joined, for the operation, which
 /// failing is the `Error`; `NotFound` for a path at which nothing is;
-/// else every file at the path as chunks, as a resource download
-/// sends them; the container released after.
+/// else every file at the path as chunks; the container released
+/// after.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
