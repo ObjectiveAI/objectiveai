@@ -37,7 +37,7 @@ pub enum ClientRequest<'a> {
     AgentsMessage(agents::message::client::request::Frame),
     /// Tag `4`. Read an agent's log, filtered, and perhaps kept open.
     AgentsLogs(agents::logs::client::request::Frame),
-    /// Tag `5`. List the caller's agents, narrowed.
+    /// Tag `5`. List the caller's agents, narrowed, and keep the list.
     AgentsList(agents::list::client::request::Frame),
     /// Tag `6`. Change an agent.
     AgentsEdit(agents::edit::client::request::Frame),
