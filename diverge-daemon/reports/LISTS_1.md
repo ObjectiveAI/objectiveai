@@ -52,7 +52,7 @@ the daemon's live state alone.
 | 23 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active` |
 | 28 | `tools routes list` | `Route` | agents, templates, tools, creators, created_from, created_to | — |
 | 72 | `volumes list` | `Volume` | providers, names, modes, mounted, created_from, created_to | `mounted` (filter only) |
-| 19 | `tools list_for` | `Container` | none: `provider`, `tenant` | all of it |
+| 19 | `tools list_for` | `Container` | none: `provider`, `tenant` | all of it; the provider's listing is a stream, read to its `listed` word |
 | 87 | `postgres list` | `Connection` | none | all of it |
 
 `Forbidden` for `list_for` also covers the provider the grants do not
@@ -158,6 +158,11 @@ list would be shaped after.
 ## 6. What is not here
 
 `tools list_for` and `volumes list` are a provider's answers, not the
-daemon's; a watch of either would be a watch of a provider, and the
-provider wire has no such thing. `get` endpoints answer one item as a
+daemon's. The provider's `list_for` is a stream since 2026-10-07 —
+containers added as their runners allow, the word that the listing is
+whole, then added and removed as runs begin and end, until the lister
+stops — and the daemon reads it to the word and stops, so its own
+list stays instant; a watch through the daemon is for the one
+resource stream to come. `volumes list` is a provider's one-shot
+answer, and the provider wire has no watch of it. `get` endpoints answer one item as a
 list would, and are not lists.

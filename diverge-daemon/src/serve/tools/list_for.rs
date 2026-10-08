@@ -6,6 +6,7 @@ use diverge_sdk::daemon::endpoints::tools::list_for::server::response::Frame;
 use diverge_sdk::daemon::grant::{providers_incoming, providers_outgoing};
 use diverge_sdk::provider::endpoints::containers::tools::list_for::client::execute::{self, ExecuteStreamError};
 use diverge_sdk::provider::endpoints::containers::tools::list_for::client::request as asked;
+use diverge_sdk::provider::endpoints::containers::tools::list_for::server::response;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use futures_util::StreamExt as _;
 
@@ -27,9 +28,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// one not on record; the daemon's error for one on record that is
 /// not connected now; else the provider protocol's own `list_for`
 /// opened on the provider with the tenant, and what comes back
-/// relayed — one container per response as the provider sends it,
-/// the provider's error as the error, and the finish when the
-/// provider's scope finishes. Nothing is narrowed and nothing is
+/// relayed — one container per response as the provider adds it,
+/// the provider's error as the error — until the provider says the
+/// listing is whole, on which the daemon stops the listing and
+/// finishes: the listing as it stood, once, and nothing of what the
+/// provider would send after. Nothing is narrowed and nothing is
 /// transformed.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
@@ -71,22 +74,35 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         reply::reply(scope, &Frame::Error(reply::failure(&"the provider is not connected now"))).await;
         return Ok(());
     };
-    let mut containers = match execute::execute(&handle, &asked::Frame(frame.tenant)).await {
-        Ok(containers) => containers,
+    let (mut listing, stop) = match execute::execute(&handle, &asked::Frame(frame.tenant)).await {
+        Ok(opened) => opened,
         Err(error) => {
             reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
             return Ok(());
         }
     };
-    while let Some(container) = containers.next().await {
-        match container {
-            Ok(container) => reply::reply(scope, &Frame::Container(container)).await,
+    let mut stopped = false;
+    while let Some(item) = listing.next().await {
+        match item {
+            Ok(response::Frame::Added(container)) if !stopped => reply::reply(scope, &Frame::Container(container)).await,
+            // The listing as it stood is what this answers; what the
+            // provider sends after the stop, until its finish, is
+            // nobody's here.
+            Ok(response::Frame::Added(_)) | Ok(response::Frame::Removed(_)) | Ok(response::Frame::Error(_)) => {}
+            Ok(response::Frame::Listed) => {
+                if !stopped {
+                    stopped = true;
+                    stop.stop().await;
+                }
+            }
             Err(ExecuteStreamError::Refused(error)) => {
                 reply::reply(scope, &Frame::Error(error)).await;
                 break;
             }
             Err(error) => {
-                reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
+                if !stopped {
+                    reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
+                }
                 break;
             }
         }
