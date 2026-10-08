@@ -127,7 +127,7 @@ pub enum ClientRequest<'a> {
     AccountsCreate(accounts::create::client::request::Frame),
     /// Tag `49`. Get one account.
     AccountsGet(accounts::get::client::request::Frame),
-    /// Tag `50`. List the accounts, narrowed.
+    /// Tag `50`. List the accounts, narrowed, and keep the list.
     AccountsList(accounts::list::client::request::Frame),
     /// Tag `51`. Delete an account.
     AccountsDelete(accounts::delete::client::request::Frame),

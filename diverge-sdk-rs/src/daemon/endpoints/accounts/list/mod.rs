@@ -3,12 +3,16 @@
 //! filter lets through — by name, by identity, by whether it has a name
 //! or a credential, by the roles it holds, by whether a client is
 //! connected as it now, by creator, by tags, by when it was created —
-//! one response each, oldest created first, and finishes: each the
-//! account, its credential without its key, its roles, who is connected
-//! as it, its tags, when it was created and by whom. A count caps what
-//! comes back. A request that says nothing is every account the grants
-//! reach. A caller whose grants reach none that matches sees the finish
-//! and nothing before it. The daemon does not stay open.
+//! one response each, oldest created first, then the word that the
+//! list is whole, and keeps the scope open: each account added, changed
+//! or removed, as the records, the roles and the connections change,
+//! until the client cancels, the one channel it opens on the scope.
+//! Each is the account, its credential without its key, its roles,
+//! whether a client is connected as it, its tags, when it was created
+//! and by whom. A count keeps the list to the first that many that
+//! match. A request that says nothing is every account the grants
+//! reach. A caller whose grants reach none that matches is told the
+//! list is whole at once, and watched.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is
