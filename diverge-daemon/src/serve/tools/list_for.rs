@@ -1,4 +1,5 @@
-//! Asking a provider which tool containers a tenant runs.
+//! Asking a provider which tool containers somebody runs, and
+//! keeping the answer.
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::endpoints::tools::list_for::client::request;
@@ -12,10 +13,10 @@ use futures_util::StreamExt as _;
 
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
-use crate::serve::reply;
+use crate::serve::{files, reply};
 use crate::store;
 
-/// Send the listing and finish the scope.
+/// Send the listing and its changes, then finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
     if let Err(error) = serve(&scope, frame, who, daemon).await {
         reply::reply(&scope, &Frame::Error(reply::failure(&error))).await;
@@ -28,12 +29,12 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// one not on record; the daemon's error for one on record that is
 /// not connected now; else the provider protocol's own `list_for`
 /// opened on the provider with the tenant, and what comes back
-/// relayed — one container per response as the provider adds it,
-/// the provider's error as the error — until the provider says the
-/// listing is whole, on which the daemon stops the listing and
-/// finishes: the listing as it stood, once, and nothing of what the
-/// provider would send after. Nothing is narrowed and nothing is
-/// transformed.
+/// relayed as it comes — a container added, the word that the
+/// listing is whole, a container removed — until the client cancels,
+/// on which the provider's listing is stopped and the scope finishes
+/// after the provider's; until the provider's scope ends; or until
+/// the provider's error, relayed as the error. Nothing is narrowed
+/// and nothing is transformed.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -82,30 +83,36 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Da
         }
     };
     let mut stopped = false;
-    while let Some(item) = listing.next().await {
-        match item {
-            Ok(response::Frame::Added(container)) if !stopped => reply::reply(scope, &Frame::Container(container)).await,
-            // The listing as it stood is what this answers; what the
-            // provider sends after the stop, until its finish, is
-            // nobody's here.
-            Ok(response::Frame::Added(_)) | Ok(response::Frame::Removed(_)) | Ok(response::Frame::Error(_)) => {}
-            Ok(response::Frame::Listed) => {
-                if !stopped {
-                    stopped = true;
-                    stop.stop().await;
+    loop {
+        tokio::select! {
+            item = listing.next() => match item {
+                Some(Ok(frame)) if !stopped => match frame {
+                    response::Frame::Added(container) => reply::reply(scope, &Frame::Added(container)).await,
+                    response::Frame::Removed(container) => reply::reply(scope, &Frame::Removed(container)).await,
+                    response::Frame::Listed => reply::reply(scope, &Frame::Listed).await,
+                    response::Frame::Error(_) => {}
+                },
+                // After the stop, until the provider's finish, what the
+                // provider sends is nobody's here.
+                Some(Ok(_)) => {}
+                Some(Err(ExecuteStreamError::Refused(error))) => {
+                    if !stopped {
+                        reply::reply(scope, &Frame::Error(error)).await;
+                    }
+                    return Ok(());
                 }
-            }
-            Err(ExecuteStreamError::Refused(error)) => {
-                reply::reply(scope, &Frame::Error(error)).await;
-                break;
-            }
-            Err(error) => {
-                if !stopped {
-                    reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
+                Some(Err(error)) => {
+                    if !stopped {
+                        reply::reply(scope, &Frame::Error(reply::failure(&error))).await;
+                    }
+                    return Ok(());
                 }
-                break;
+                None => return Ok(()),
+            },
+            () = files::cancelled(scope), if !stopped => {
+                stopped = true;
+                stop.stop().await;
             }
         }
     }
-    Ok(())
 }
