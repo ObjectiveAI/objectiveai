@@ -38,7 +38,9 @@
 //! by a credential the daemon minted; on either connection the daemon
 //! is the caller of the provider protocol, [`providers`]. The records live in the one Postgres
 //! the daemon runs on — its own, started beside it, or a remote one,
-//! as [`config`] says — in a schema of the daemon's, [`store`]; who a
+//! as its block of the one `config.yaml` says,
+//! [`diverge_sdk::config::daemon`] — in a schema of the daemon's,
+//! [`store`]; who a
 //! connection is and what each request may do is [`judge`]; what is
 //! live and shared is [`daemon`]; the local Postgres is [`postgres`];
 //! the connections to providers are [`providers`]; the bytes of every
@@ -61,14 +63,14 @@
 //!
 //! # The directory
 //!
-//! `--config <dir>`, else `DIVERGE_DAEMON_CONFIG`, else
-//! `~/.diverge/daemon/`, holding `config.yaml`, optional, and
-//! `postgres/`, the local cluster's own directory when the daemon
-//! runs one, `resources/`, every resource's bytes by its hash,
-//! `agents/`, every agent's log by its id, and `overlays/`, an
-//! ephemeral mount's own layer for the run's life.
+//! The root the SDK finds — `--config <dir>`, else `DIVERGE_CONFIG`,
+//! else `~/.diverge/` — holds the one `config.yaml`, and the daemon
+//! keeps its state under `<root>/daemon/`, which is `<dir>` wherever
+//! this crate says it: `postgres/`, the local cluster's own directory
+//! when the daemon runs one, `resources/`, every resource's bytes by
+//! its hash, `agents/`, every agent's log by its id, and `overlays/`,
+//! an ephemeral mount's own layer for the run's life.
 
-pub mod config;
 pub mod containers;
 pub mod content;
 pub mod daemon;

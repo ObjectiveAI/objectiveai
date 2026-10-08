@@ -3,7 +3,8 @@
 use std::fmt;
 use std::io;
 
-use crate::config;
+use diverge_sdk::config;
+
 use crate::database;
 use crate::postgres;
 use crate::store;
@@ -15,7 +16,7 @@ use crate::store;
 pub enum Error {
     /// The runtime could not be built.
     Runtime(io::Error),
-    /// The directory or the file could not be used.
+    /// The root or the file could not be used.
     Config(config::Error),
     /// The local Postgres could not be started.
     Postgres(postgres::Error),
@@ -23,7 +24,7 @@ pub enum Error {
     Store(store::Error),
     /// The database URL could not be read for where and how to dial.
     Database(database::TargetError),
-    /// The content directory or the logs directory could not be made.
+    /// The daemon's directory, or one under it, could not be made.
     Resources(io::Error),
     /// The port could not be bound.
     Bind(io::Error),
@@ -39,7 +40,7 @@ impl fmt::Display for Error {
             Error::Postgres(error) => write!(f, "the local Postgres could not be started: {error}"),
             Error::Store(error) => write!(f, "the store could not be opened: {error}"),
             Error::Database(error) => write!(f, "{error}"),
-            Error::Resources(error) => write!(f, "the resources or agents directory could not be made: {error}"),
+            Error::Resources(error) => write!(f, "the daemon's directory could not be made: {error}"),
             Error::Bind(error) => write!(f, "the port could not be bound: {error}"),
             Error::Serve(error) => write!(f, "the listener stopped: {error}"),
         }

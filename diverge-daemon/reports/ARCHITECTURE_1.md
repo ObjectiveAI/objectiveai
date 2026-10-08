@@ -199,8 +199,8 @@ Two populations, kept apart by type and by fate:
   idle clock: it resets on every use — a message delivered, a tool call
   relayed, a file moved in or out, a request the container itself makes
   of the daemon — and it does not run while the container is ACTIVE,
-  handling something. When it reaches `idle_seconds`, a key of
-  `config.yaml` beside `postgres`, default `10`, the daemon ends the
+  handling something. When it reaches `idle_seconds`, a key of the
+  daemon's block of `config.yaml` beside `postgres`, default `10`, the daemon ends the
   container's run. The record stays; the container is work, and the next
   use starts it again from the record and its continuation. Nothing a
   client holds — a logs watch, a filetree watch — counts as use, so a

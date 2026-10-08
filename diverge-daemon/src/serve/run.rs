@@ -4,11 +4,11 @@ use std::path::PathBuf;
 use std::pin::pin;
 use std::sync::Arc;
 
+use diverge_sdk::config::daemon::Config;
 use futures_util::future::{self, Either};
 use tokio::sync::watch;
 
 use super::{Error, listen};
-use crate::config::Config;
 use crate::containers;
 use crate::daemon::Daemon;
 use crate::database;
@@ -16,10 +16,10 @@ use crate::postgres;
 use crate::providers;
 use crate::store;
 
-/// Run the daemon on `config`, in `dir`, until Ctrl-C or, on Unix,
-/// SIGTERM.
+/// Run the daemon on `config`, its block of the file at `root`, under
+/// `<root>/daemon/`, until Ctrl-C or, on Unix, SIGTERM.
 ///
-/// In order: the database the configuration names is started, or
+/// In order: the directory is made; the database the configuration names is started, or
 /// named; the store is opened on it, its schema applied and root
 /// seeded into a fresh one; the daemon is built; the port is listened
 /// on until the signal, every outgoing provider on record dialled
@@ -27,8 +27,10 @@ use crate::store;
 /// connections with them; and the database that was started is
 /// stopped. A store that cannot be opened stops the
 /// database it just started before the error is returned.
-pub async fn run(config: Config, dir: PathBuf) -> Result<(), Error> {
-    let (postgres, url) = postgres::start(&config.postgres, &dir).await.map_err(Error::Postgres)?;
+pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
+    let dir = root.join("daemon");
+    tokio::fs::create_dir_all(&dir).await.map_err(Error::Resources)?;
+    let (postgres, url) = postgres::start(&config.postgres, &root).await.map_err(Error::Postgres)?;
     let store = match store::open(&url, postgres.is_local()).await {
         Ok(store) => store,
         Err(error) => {

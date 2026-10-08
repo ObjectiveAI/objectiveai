@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use diverge_sdk::daemon::endpoints::postgres::Mode;
+use diverge_sdk::config;
 
 use super::{Error, Local};
 
@@ -16,16 +16,17 @@ pub enum Postgres {
     Remote,
 }
 
-/// Start, or name, the database `mode` says, in `dir`, and hand back
-/// what is held and the URL the store opens: the local cluster's,
-/// which names no database, or the remote URL exactly as configured.
-pub async fn start(mode: &Mode, dir: &Path) -> Result<(Postgres, String), Error> {
-    match mode {
-        Mode::Local => {
-            let (local, url) = super::spawn(dir).await?;
+/// Start, or name, the database `postgres` says, for the file at
+/// `root`, and hand back what is held and the URL the store opens:
+/// the local cluster's, which names no database, or the remote URL
+/// exactly as configured.
+pub async fn start(postgres: &config::daemon::Postgres, root: &Path) -> Result<(Postgres, String), Error> {
+    match postgres {
+        config::daemon::Postgres::Local { .. } => {
+            let (local, url) = super::spawn(root).await?;
             Ok((Postgres::Local(local), url))
         }
-        Mode::Remote { url } => Ok((Postgres::Remote, url.clone())),
+        config::daemon::Postgres::Remote { url } => Ok((Postgres::Remote, url.clone())),
     }
 }
 

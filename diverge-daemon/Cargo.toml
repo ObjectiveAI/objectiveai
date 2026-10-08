@@ -58,13 +58,11 @@ futures-util = { version = "0.3.33", default-features = false, features = ["allo
 hex = "0.4.3"
 # The bytes of a minted key.
 rand = { version = "0.9.2", default-features = false, features = ["std", "std_rng", "os_rng"] }
-# `config.yaml`, and the path to whatever in it was wrong; the one
-# error every refusal carries, as JSON; and what a record keeps as
-# JSON — a creator, a role's grants.
+# The one error every refusal carries, as JSON; and what a record
+# keeps as JSON — a creator, a role's grants. `config.yaml` is the
+# SDK's to read.
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-serde_path_to_error = "0.1.20"
-serde_yaml_ng = "0.10.0"
 # The hash a credential is kept and looked up by: a key is compared
 # as its SHA-256, so the key itself is nowhere on disk.
 sha2 = "0.10.9"
