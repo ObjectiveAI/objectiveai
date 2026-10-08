@@ -73,7 +73,7 @@ pub enum ClientRequest<'a> {
     ToolsDetach(tools::detach::client::request::Frame),
     /// Tag `22`. Delete a tool.
     ToolsDelete(tools::delete::client::request::Frame),
-    /// Tag `23`. List the caller's tools, narrowed.
+    /// Tag `23`. List the caller's tools, narrowed, and keep the list.
     ToolsList(tools::list::client::request::Frame),
     /// Tag `24`. Put tags on a tool.
     ToolsTag(tools::tag::client::request::Frame),

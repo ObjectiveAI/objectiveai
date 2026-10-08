@@ -1,7 +1,8 @@
-//! The list response: the tools, one each, forbidden, or a failure.
+//! The list response: a tool added, changed or removed, the word
+//! that the list is whole, forbidden, or a failure.
 //!
-//! [`Frame`] is what a response frame holds — one [`Tool`], forbidden,
-//! or a failure. [`Tool`] is what one is: one tool as the daemon holds
+//! [`Frame`] is what a response frame holds — one [`Tool`] as it comes
+//! to be listed, changes, or goes, the word, forbidden, or a failure. [`Tool`] is what one is: one tool as the daemon holds
 //! it — its name, where it comes from — its [`Origin`], created from a
 //! template or connected to somebody else's container — and its number
 //! among the tools made with the same, who made it — its
