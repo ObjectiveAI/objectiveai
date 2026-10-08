@@ -11,7 +11,7 @@ the wire.
 One process, one directory, one port. It is the thing a client of the
 daemon protocol talks to, and it is the thing providers run containers
 FOR. It holds the records — accounts, roles, templates, agents, tools,
-routes, resources, providers, the database mode — judges every request
+routes, providers, the database mode — judges every request
 by the account's grants, and does the work: running containers on
 providers, carrying what those containers ask back in, serving them a
 database, moving files between everything. It serves nothing of its own
@@ -54,7 +54,7 @@ Two populations, kept apart by type and by fate:
 
 | | durable records | live state |
 |---|---|---|
-| what | accounts, roles, grants, templates, agent and tool definitions, routes, resource index, providers, the mode, counters | running containers, their scopes and channels, open database connections, held volumes, transfers, uploads |
+| what | accounts, roles, grants, templates, agent and tool definitions, routes, providers, the mode, counters | running containers, their scopes and channels, open database connections, held volumes, transfers, uploads |
 | where | the store | memory, under the `Daemon` |
 | at restart | reloaded | gone; the records say what SHOULD be running and the daemon converges |
 
@@ -65,11 +65,10 @@ Two populations, kept apart by type and by fate:
   another database is another start, and what the old one holds stays
   there. (Ruling of 2026-10-06; the earlier draft wanted a separate
   store and a live mode swap.)
-- **Content lives beside the store, not in it.** Resource bytes under
-  `<dir>/resources/<id>` — a file as that path, a directory as that
-  tree — with uploads still arriving under `resources/incoming/`; agent
-  logs appended under `agents/<id>/log` with an index; both read by
-  streaming. The store holds the index of a thing,
+- **Logs live beside the store, not in it.** Agent logs appended
+  under `agents/<id>/log` with an index, read by streaming. (The
+  content store of resources went on 2026-10-08: a container's content
+  is a provider's volume.) The store holds the index of a thing,
   never the thing.
 - **Counters are records.** The once-and-for-all identity — template and
   index — is a durable, monotonic counter per template, advanced in the
@@ -145,8 +144,7 @@ Two populations, kept apart by type and by fate:
   or a transfer takes the volume for its own length. A volume is IN USE
   for a delete while any record names it in its mounts, running or
   not, or an operation is on it; `mounted` in a listing is the record
-  rule alone. A resource is in use while a record mounts it; a database
-  scope while a connection is open. The live state is consulted before
+  rule alone. A database scope is in use while a connection is open. The live state is consulted before
   the record is touched, under the kind's lock. (2026-10-07.)
 - **Parents are made, and an offline provider lists nothing.** A write
   into a container makes the missing parents, as a write into a volume
@@ -272,7 +270,8 @@ Two populations, kept apart by type and by fate:
    roles, grants, and the judge made real. The first `Forbidden` and the
    first `Created`.
 2. **Providers.** Outgoing added and dialled, incoming judged, `list_for`.
-3. **Templates and resources.** The definitions and the content store.
+3. **Templates.** The definitions. (Resources, the content store, were
+   built here and removed on 2026-10-08.)
 4. **Agents and tools.** Create, run on a provider, the run scope, the
    `/daemon` pair served through the front, logs, message, delete,
    restart convergence.
@@ -283,5 +282,5 @@ Two populations, kept apart by type and by fate:
 
 Each step replaced arms of the front's refusal and nothing else about
 the front changed; the shape that exists is the shape that ships. All
-six are built (2026-10-07): every one of the ninety requests has its
+six are built (2026-10-07): every one of the eighty-one requests has its
 handler, and the refusal is gone.

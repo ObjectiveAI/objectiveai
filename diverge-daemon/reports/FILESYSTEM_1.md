@@ -52,8 +52,8 @@ Two things to hold onto before the trees:
 
 - **The provider and the daemon share the file and nothing else.**
   Neither reads the other's block or the other's directory; they talk
-  to each other over the wire. A volume's bytes are the provider's; a
-  resource's bytes and an agent's log are the daemon's.
+  to each other over the wire. A volume's bytes are the provider's; an
+  agent's log is the daemon's.
 - **The daemon's Postgres lives inside the daemon's directory, and
   reads the daemon's block.** The daemon runs
   `diverge-postgres --config <root>`; the supervisor takes
@@ -166,28 +166,19 @@ as shares.
 ```text
 <root>/daemon/                      made at start
 ├── postgres/                       ONLY when daemon.postgres is {kind: local}; see §4
-├── resources/                      every resource's bytes, by content hash
-│   ├── incoming/                   uploads still arriving
-│   │   └── <uuid>/                 one per upload; a file resource lands as <uuid>/file
-│   └── <id>                        a held resource: a file, or a directory tree
-├── agents/                         every agent's log, by record id
-│   └── <id>/
-│       ├── log                     one JSON ItemWrapper per line, appended
-│       └── index                   16 bytes per item: offset u64 BE, length u64 BE
-└── overlays/                       an ephemeral mount's own layer, for the run's life
-    ├── agent-<id>/                 one per running agent that has one
-    │   └── r<n>                    a copy of resource mount n (a file, or a tree)
-    └── tool-<id>/                  the same for a running tool
-        └── r<n>
+└── agents/                         every agent's log, by record id
+    └── <id>/
+        ├── log                     one JSON ItemWrapper per line, appended
+        └── index                   16 bytes per item: offset u64 BE, length u64 BE
 ```
 
-`resources/`, `resources/incoming/`, `agents/` and `overlays/` are
-made at every start. The records themselves — accounts, roles,
-providers, agents, tools, templates, routes, resources' metadata,
-tags, grants — are not files: they are rows in Postgres, local or
-remote, under the daemon's own schema. Volumes have no files here at
-all; the daemon mirrors each provider's listing in memory and serves
-FUSE mounts of them through the provider.
+`agents/` is made at every start. The records themselves — accounts,
+roles, providers, agents, tools, templates, routes, tags, grants — are
+not files: they are rows in Postgres, local or remote, under the
+daemon's own schema. Volumes have no files here at all; the daemon
+mirrors each provider's listing in memory and serves FUSE mounts of
+them through the provider. Nothing else of a container's content is
+the daemon's: what a container needs is a provider's volume.
 
 ### 3.1 The `daemon` block
 
@@ -208,13 +199,7 @@ this same block.
 
 | Path | Made | Written by | Removed |
 |---|---|---|---|
-| `resources/incoming/<uuid>/` | each upload or transfer-in | the receive, hashing as it lands | renamed to `resources/<id>` on success, or removed; an id already held discards the arrival |
-| `resources/<id>` | the rename | never after placing | `resources delete` |
 | `agents/<id>/{log,index}` | first append (the `Active` item of the first run) | every chunk, every loop word, every start error, under the agent's live lock | `agents delete` |
-| `overlays/{agent,tool}-<id>/r<n>` | `Mounts::build` at run start, for `ephemeral` resource mounts only | the FUSE serve answering the container's writes | `Mounts::stop` at run end |
-
-A `read_only` resource mount is served from `resources/<id>` in
-place; only `ephemeral` ones get a copy under `overlays/`.
 
 ## 4. The Postgres supervisor: `<root>/daemon/postgres/`
 
@@ -252,9 +237,7 @@ the last one left, under `init.lock`.
 │   └── podman_data/{ephemeral/<uuid>, …podman's store…}
 └── daemon/
     ├── postgres/{password, data.ready, data/, bin/<version>/, bin/locks/}
-    ├── resources/{incoming/<uuid>/, <id>}
-    ├── agents/<id>/{log, index}
-    └── overlays/{agent,tool}-<id>/r<n>
+    └── agents/<id>/{log, index}
 
 elsewhere, named by the provider block:
 <store.path>/<identity>/{<name>, .<name>}

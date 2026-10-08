@@ -1,6 +1,6 @@
 # The lists that become streams
 
-Which of the daemon wire's thirteen lists ([`LISTS_1.md`](LISTS_1.md))
+Which of the daemon wire's twelve lists ([`LISTS_1.md`](LISTS_1.md))
 become streams kept open, in what order, and what each needs. The
 purpose is a visual client: one that opens a list once and is told
 every change as it occurs, rather than asking again.
@@ -31,21 +31,20 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
   what it last sent per item and tells only a difference, so a change
   that leaves the item as it was is nothing.
 
-## 2. The thirteen, in the order they are built
+## 2. The twelve, in the order they are built
 
 | Order | Tag | List | What tells the daemon something changed |
 |---|---|---|---|
 | 1 | 19 | `tools list_for` | The provider's own stream, relayed; the client's cancel forwarded as the provider's stop. **Built 2026-10-07.** |
-| 2 | 87 | `postgres list` | `Live.connections`: a connection opened or closed. **Built 2026-10-08.** |
-| 3 | 72 | `volumes list` | Each connected provider's own stream, merged; a provider connecting or leaving; the records that mount a volume (an agent or tool created, edited, deleted). **Built 2026-10-08: the daemon mirrors one listing per connected provider (`volumes::Mirror`, `volumes::watch`).** |
+| 2 | 78 | `postgres list` | `Live.connections`: a connection opened or closed. **Built 2026-10-08.** |
+| 3 | 67 | `volumes list` | Each connected provider's own stream, merged; a provider connecting or leaving; the records that mount a volume (an agent or tool created, edited, deleted). **Built 2026-10-08: the daemon mirrors one listing per connected provider (`volumes::Mirror`, `volumes::watch`).** |
 | 4 | 5 | `agents list` | The record (create, edit, tag, untag, delete, attach, detach, a tool renamed); `Live.agents` (a run starting or ending, its loop active or inactive, a start failed). **Built 2026-10-08.** The log's length is read at those changes and not per line: see §3. |
 | 5 | 23 | `tools list` | The record (create, connect, edit, tag, untag, delete, attach, detach, admit, unadmit, a route set or deleted, an agent renamed); `Live.tools` (a run inserted or removed). **Built 2026-10-08.** |
 | 6 | 28 | `tools routes list` | The record (set, delete; a tool deleted); a tool renamed. **Built 2026-10-08.** |
-| 7 | 36 | `resources list` | The record (upload, a transfer into a new resource, tag, untag, delete); an agent or tool made or deleted, for `in_use`. **Built 2026-10-08.** |
 | 8 | 11, 31 | `agents templates list`, `tools templates list` | The record (create, tag, untag, delete; an agent or tool made from one for `in_use`). **Built 2026-10-08.** |
-| 9 | 50 | `accounts list` | The record (create, edit, tag, untag, delete); a role renamed or deleted; `Live.connected` (a client connecting or leaving). **Built 2026-10-08.** |
-| 10 | 57 | `roles list` | The record (create, edit, tag, untag, delete); an account made, edited or deleted. **Built 2026-10-08.** |
-| 11 | 40, 45 | `providers outgoing list`, `providers incoming list` | The record (add, edit, delete); `Live.providers` (a connection taken or given back); `last_connected` written by the dial. **Built 2026-10-07, first of the record lists.** |
+| 9 | 47 | `accounts list` | The record (create, edit, tag, untag, delete); a role renamed or deleted; `Live.connected` (a client connecting or leaving). **Built 2026-10-08.** |
+| 10 | 54 | `roles list` | The record (create, edit, tag, untag, delete); an account made, edited or deleted. **Built 2026-10-08.** |
+| 11 | 37, 42 | `providers outgoing list`, `providers incoming list` | The record (add, edit, delete); `Live.providers` (a connection taken or given back); `last_connected` written by the dial. **Built 2026-10-07, first of the record lists.** |
 
 ## 3. What the record lists need, once
 
@@ -65,8 +64,8 @@ the records, reads them again on every word, and tells the
 difference — the shape the provider's `volumes::list` has, where the
 word says when to look and the store is the truth. Which kinds a
 write touches is part of the handler's knowledge: an attach touches
-agents and tools; a mount named touches resources and volumes; a
-route set touches routes and tools.
+agents and tools; a mount named touches volumes; a route set
+touches routes and tools.
 
 **Not per log line.** A log grows by one item per chunk, and chunks are
 token-level deltas: hundreds per reply. The agents word is sent at an
@@ -84,7 +83,7 @@ of its listings are streams; `tools list_for` is relayed through and
 
 ## 5. Done
 
-All thirteen are built as of 2026-10-08, in the one shape of §1: a
+All twelve are built as of 2026-10-08 (the resources list went with the resources feature the same day), in the one shape of §1: a
 word per kind (`daemon::Kind`, `Live::changed`), one loop
 (`serve::stream::listing` over a `Source`, the difference told by
 key), the client's cancel as the end, and the agents rule of §3 —

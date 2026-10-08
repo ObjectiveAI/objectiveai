@@ -1,15 +1,15 @@
 # The lists of the daemon wire
 
-Every list the daemon serves, as of 2026-10-07, in one page: what is
+Every list the daemon serves, as of 2026-10-08 (resources gone, tags renumbered), in one page: what is
 asked, what comes back, where each part of an item comes from, and
 what already streams. Written so that a watchable list — a list kept
 open, sending what changes — can be decided over it. Decided and
-built: as of 2026-10-08 every one of the thirteen is a stream kept
+built: as of 2026-10-08 every one of the twelve is a stream kept
 open, in the one shape `STREAMS_1.md` states; the rows below say so.
 
 ## 1. One shape
 
-Eleven lists are over the daemon's records. Every one is the same
+Ten lists are over the daemon's records. Every one is the same
 exchange:
 
 - **The request** is one frame: a `filter`, flattened, whose every
@@ -36,26 +36,25 @@ exchange:
   sent.
 
 Two lists are not over records, and have no filter and no count:
-`tools list_for` (19) asks a provider, and `postgres list` (87) reads
+`tools list_for` (19) asks a provider, and `postgres list` (78) reads
 the daemon's live state alone.
 
-## 2. The thirteen
+## 2. The twelve
 
 | Tag | Request | Item | Filter members | Live in the item |
 |---|---|---|---|---|
-| 50 | `accounts list` | `Account` | names, identities, named, credentialed, roles, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-08 |
-| 57 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | —; a stream since 2026-10-08 |
-| 40 | `providers outgoing list` | `Outgoing` | addresses, kinds, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |
-| 45 | `providers incoming list` | `Incoming` | identities, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |
+| 47 | `accounts list` | `Account` | names, identities, named, credentialed, roles, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-08 |
+| 54 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | —; a stream since 2026-10-08 |
+| 37 | `providers outgoing list` | `Outgoing` | addresses, kinds, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |
+| 42 | `providers incoming list` | `Incoming` | identities, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |
 | 11 | `agents templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
 | 31 | `tools templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
-| 36 | `resources list` | `Listed` | ids, kinds, in_use, creators, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
 | 5 | `agents list` | `Agent` | names, templates, creators, active, all_tags, any_tags, created_from, created_to | `active`, `logs_index`; a stream since 2026-10-08 |
 | 23 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active`; a stream since 2026-10-08 |
 | 28 | `tools routes list` | `Route` | agents, templates, tools, creators, created_from, created_to | —; a stream since 2026-10-08 |
-| 72 | `volumes list` | `Volume` | providers, names, modes, mounted, created_from, created_to | `mounted` (filter only); a stream since 2026-10-08, over the daemon's mirror of each connected provider's listing |
+| 67 | `volumes list` | `Volume` | providers, names, modes, mounted, created_from, created_to | `mounted` (filter only); a stream since 2026-10-08, over the daemon's mirror of each connected provider's listing |
 | 19 | `tools list_for` | `Container` | none: `provider`, `tenant` | all of it; a stream since 2026-10-07, the provider's relayed (see `STREAMS_1.md`) |
-| 87 | `postgres list` | `Connection` | none | all of it; a stream since 2026-10-08 |
+| 78 | `postgres list` | `Connection` | none | all of it; a stream since 2026-10-08 |
 
 `Forbidden` for `list_for` also covers the provider the grants do not
 reach; `NoProvider` is a provider not on record.
@@ -83,9 +82,6 @@ are read at list time.
   definition whole), `tags`, `created`, `creator`. `in_use` is not in
   the item: it is a filter member, read from the records that name the
   template (agents or tools made from it).
-- **`Listed`** (resources) — `id`, `kind`, `description`, `bytes`,
-  `tags`, `created`, `creator`. `in_use` is a filter member: a record
-  mounts the resource.
 - **`Agent`** — `name`, `template`, `index`, `creator`,
   `deployer_agent`, `created`, `provider` (pinned, if any),
   `last_active` (record), `tools` (keys of the attached tools, joined),
@@ -119,7 +115,7 @@ kind, and — for items that join other records — an attach or detach
 (agents' `tools`, tools' `agents`), a route set or deleted (tools'
 `routes`), an admission (tools' `admissions`), a role assigned or
 unassigned (accounts' `roles`, roles' `accounts`), a template's use
-(templates' `in_use`), a mount named (resources' `in_use`, volumes'
+(templates' `in_use`), a mount named (volumes'
 `agents`/`tools`), a dial opening or closing (`last_connected`), a
 run (`last_active`). The store is written by the handler of each
 request, in its transaction; nothing is told afterwards except
