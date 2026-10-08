@@ -10,6 +10,7 @@ use super::served::Served;
 use crate::provider::endpoints::volumes::edit::client::request::Change;
 use crate::provider::endpoints::volumes::edit::server::response::Edit;
 use crate::provider::endpoints::volumes::stat::server::response::Stat;
+use crate::provider::endpoints::volumes::Mode;
 use crate::shared::error::Error;
 use crate::shared::filetree::response::{Frame, Node};
 
@@ -29,7 +30,7 @@ use crate::shared::filetree::response::{Frame, Node};
 /// # Two holds: many mounters, or one editor
 ///
 /// Who may hold a volume at once is its
-/// [`Mode`](crate::provider::endpoints::volumes::Mode): an ephemeral or a
+/// [`Mode`]: an ephemeral or a
 /// read-only volume may be mounted in any number of containers of its
 /// caller and served on any number of scopes at once; a persistent
 /// volume has one user at a time. Whatever the mode, nothing
@@ -51,7 +52,13 @@ use crate::shared::filetree::response::{Frame, Node};
 ///   one, answering the mount's asks itself, and refused where a run
 ///   is. The provider's [`mount`](Self::mount) knows the mode: for a
 ///   persistent volume it answers `true` only when nobody holds the
-///   volume.
+///   volume. A run's every mount and a serve's request state the
+///   mode they mean the volume to have, and the handler reads
+///   [`mode`](Self::mode) once the hold is taken: a volume in another
+///   mode has the hold given back and the request refused,
+///   [`VolumeMode`](crate::shared::containers::response::VolumeMode),
+///   with the mode it is in — after the hold, so that an edit cannot
+///   land between the look and the answer.
 /// - A [`stat`](crate::provider::endpoints::volumes::stat) takes the EXCLUSIVE
 ///   hold, [`lock`](Self::lock), for the length of the examination,
 ///   a [`read`](crate::provider::endpoints::volumes::read) for the length of
@@ -116,6 +123,11 @@ pub trait Volume: Send + Sync {
     /// never answered. So this answers at once, and what a `false`
     /// means is the handler's to decide; see the trait.
     fn mount(&self) -> impl Future<Output = bool> + Send;
+
+    /// The mode the volume is in now, as its listing reports it. Read
+    /// by the run and the serve handlers under the shared hold, which
+    /// is what keeps an edit from changing it meanwhile.
+    fn mode(&self) -> impl Future<Output = Mode> + Send;
 
     /// Give one shared hold back: `true` is one mounter fewer, and
     /// there was one; `false` is a volume with no shared hold to give
@@ -265,7 +277,7 @@ pub trait Volume: Send + Sync {
     /// gives it back when the scope ends, after the last ask. A
     /// stored volume opens its image once here and answers every ask
     /// on it; a fixed volume answers from its directory. The
-    /// [`Mode`](crate::provider::endpoints::volumes::Mode) is the provider's to
+    /// [`Mode`] is the provider's to
     /// keep in what it returns: a persistent volume changes in place;
     /// an ephemeral one takes every change into a layer of this
     /// serve's own, discarded with what this returns, of at most
@@ -279,7 +291,7 @@ pub trait Volume: Send + Sync {
     fn serve(&self, overlay_disk: u64) -> impl Future<Output = Result<Self::Served, Self::Error>> + Send;
 
     /// Change how big the volume may be, in BYTES, its
-    /// [`Mode`](crate::provider::endpoints::volumes::Mode), or both.
+    /// [`Mode`], or both.
     ///
     /// The two things that can change, and nothing else. Called under
     /// the exclusive hold, so no container has the volume while its

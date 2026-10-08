@@ -4,13 +4,16 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
+use crate::shared::containers::response::VolumeMode;
 use crate::shared::error::Error;
 
 /// The volume is served, or the news that it will not be.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Serving`](Self::Serving), `1` for [`Error`](Self::Error) — and
-/// the rest is that variant's own bytes, of which `Serving` has none.
+/// [`Serving`](Self::Serving), `1` for
+/// [`VolumeMode`](Self::VolumeMode), `2` for [`Error`](Self::Error)
+/// — and the rest is that variant's own JSON, of which `Serving` has
+/// none.
 ///
 /// # How the scope runs
 ///
@@ -18,6 +21,7 @@ use crate::shared::error::Error;
 /// |-----------|-------|
 /// | a serving, then quiet, and stays open | the volume is held, and every ask the caller opens is answered on its channel |
 /// | a serving, then a finish | the caller stopped, and the volume is given back |
+/// | a volume mode, then a finish | it was not served: the volume is not in the mode the request means |
 /// | an error, then a finish | it was not served: no volume of the caller's has the name, or it is held exclusively |
 ///
 /// Exactly one response, first. Nothing else comes on channel `0`;
@@ -26,7 +30,13 @@ use crate::shared::error::Error;
 pub enum Frame {
     /// The volume is held, and asks may be opened. Tag `0`.
     Serving,
-    /// A failure. Tag `1`.
+    /// The volume is not in the mode the request means it to have.
+    /// Tag `1`.
+    ///
+    /// Nothing is held and nothing changed; the volume is in the mode
+    /// reported. See [`VolumeMode`].
+    VolumeMode(VolumeMode),
+    /// A failure. Tag `2`.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
@@ -36,8 +46,11 @@ pub enum Frame {
 /// Tag for [`Frame::Serving`].
 const SERVING: u8 = 0;
 
+/// Tag for [`Frame::VolumeMode`].
+const VOLUME_MODE: u8 = 1;
+
 /// Tag for [`Frame::Error`].
-const ERROR: u8 = 1;
+const ERROR: u8 = 2;
 
 impl Encode for Frame {
     /// The ordinary JSON failure, from the half that has one.
@@ -51,6 +64,10 @@ impl Encode for Frame {
                 out.extend_from_slice(&[SERVING]);
                 Ok(())
             }
+            Frame::VolumeMode(refused) => {
+                out.extend_from_slice(&[VOLUME_MODE]);
+                serde_json::to_writer(out, refused)
+            }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
@@ -60,7 +77,7 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail, and only one of them is a parse.
+    /// Four ways to fail, and two of them are parses.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
@@ -68,6 +85,7 @@ impl Decode<'_> for Frame {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             SERVING => Ok(Frame::Serving),
+            VOLUME_MODE => serde_json::from_slice(rest).map(Frame::VolumeMode).map_err(FrameError::VolumeMode),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -79,8 +97,10 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
+    /// The mode refusal did not parse.
+    VolumeMode(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -90,6 +110,7 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("volume serve response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown volume serve response frame tag {tag}"),
+            FrameError::VolumeMode(error) => write!(f, "volume serve mode refusal did not parse: {error}"),
             FrameError::Error(error) => write!(f, "volume serve error did not parse: {error}"),
         }
     }
@@ -98,7 +119,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Error(error) => Some(error),
+            FrameError::VolumeMode(error) | FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

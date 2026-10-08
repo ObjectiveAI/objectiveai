@@ -24,7 +24,7 @@ use crate::provider::endpoints::containers::server::serve::agent;
 use crate::provider::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy::outside::endpoints::agents::begin::client::execute as begin;
 use crate::shared;
-use crate::shared::containers::response::{Id, VolumeHeld};
+use crate::shared::containers::response::{Id, VolumeHeld, VolumeMode};
 use crate::shared::containers::{fuse, oci, postgres, tools, vault};
 use crate::shared::containers::daemon;
 use crate::shared::mcp;
@@ -147,6 +147,10 @@ impl Runs for Agents {
 
     fn volume_held(refused: &VolumeHeld) -> Option<Vec<u8>> {
         encoded(&response::Frame::VolumeHeld(refused.clone()))
+    }
+
+    fn volume_mode(refused: &VolumeMode) -> Option<Vec<u8>> {
+        encoded(&response::Frame::VolumeMode(refused.clone()))
     }
 }
 

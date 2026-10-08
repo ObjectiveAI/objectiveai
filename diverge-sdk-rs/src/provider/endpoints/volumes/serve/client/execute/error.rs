@@ -6,6 +6,7 @@ use super::super::super::server::response;
 use crate::wire::client::handle::SendError;
 use crate::container_proxy::outside::endpoints::fuse::mount::server::channel_request::FrameEncodeError;
 use crate::wire::frame;
+use crate::shared::containers::response::VolumeMode;
 use crate::shared::error::Error;
 
 /// A serve that did not open, or was not answered.
@@ -26,6 +27,9 @@ pub enum ExecuteError {
     Misrouted,
     /// The provider's answer did not decode.
     Response(response::FrameError),
+    /// The provider refused to serve: the volume is not in the mode
+    /// the request means it to have, and this is the mode it is in.
+    VolumeMode(VolumeMode),
     /// The provider refused to serve: a volume the caller cannot see,
     /// one held exclusively, one it could not open.
     Refused(Error),
@@ -41,6 +45,9 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Unanswered => f.write_str("the provider could not serve the volume"),
             ExecuteError::Misrouted => f.write_str("a frame that cannot open a serve answered it"),
             ExecuteError::Response(error) => write!(f, "{error}"),
+            ExecuteError::VolumeMode(refused) => {
+                write!(f, "the volume `{}` is in mode `{:?}`, not the mode the serve means", refused.name, refused.mode)
+            }
             ExecuteError::Refused(_) => f.write_str("the provider refused to serve the volume"),
         }
     }
@@ -53,7 +60,7 @@ impl std::error::Error for ExecuteError {
             ExecuteError::Request(error) => Some(error),
             ExecuteError::Frame(error) => Some(error),
             ExecuteError::Response(error) => Some(error),
-            ExecuteError::Closed | ExecuteError::Unanswered | ExecuteError::Misrouted | ExecuteError::Refused(_) => None,
+            ExecuteError::Closed | ExecuteError::Unanswered | ExecuteError::Misrouted | ExecuteError::VolumeMode(_) | ExecuteError::Refused(_) => None,
         }
     }
 }

@@ -71,7 +71,9 @@ impl ExecuteHandle {
                     // Sent only as the first response, before the
                     // id; after it, neither is a fact of the run, and
                     // the wire forbids them.
-                    server::response::Frame::Id(_) | server::response::Frame::VolumeHeld(_) => Decoded::Skip,
+                    server::response::Frame::Id(_)
+                    | server::response::Frame::VolumeHeld(_)
+                    | server::response::Frame::VolumeMode(_) => Decoded::Skip,
                     server::response::Frame::Error(error) => Decoded::Error(error),
                 })
             })

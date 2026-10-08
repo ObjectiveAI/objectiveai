@@ -21,6 +21,7 @@ use crate::provider::server::volume::Volume as _;
 use crate::provider::server::volume_manager::VolumeManager;
 use crate::shared::containers::fuse;
 use crate::shared::containers::fuse::ack::Refused;
+use crate::shared::containers::response::VolumeMode;
 use crate::shared::error::Error;
 use crate::shared::filetree::response::{Frame as Tree, Node};
 
@@ -79,6 +80,20 @@ where
     };
     if !volume.mount().await {
         return refuse(scope, refusal::mounted(&request.name)).await;
+    }
+    let mode = volume.mode().await;
+    if mode != request.mode {
+        volume.unmount().await;
+        send(
+            &scope,
+            &response::Frame::VolumeMode(VolumeMode {
+                name: request.name.clone(),
+                mode,
+            }),
+        )
+        .await;
+        scope.send_response_finish().await;
+        return;
     }
     let served = match volume.serve(request.overlay_disk).await {
         Ok(served) => Arc::new(served),

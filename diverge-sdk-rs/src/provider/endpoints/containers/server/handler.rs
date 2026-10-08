@@ -76,11 +76,16 @@ pub(crate) async fn run<R, D, G, V>(
         return;
     }
 
-    let names: Vec<&str> = request.volume_mounts.iter().map(|mount| mount.volume_name.as_str()).collect();
-    let held = match Held::take(manager, client_identity, names).await {
+    let mounts = request.volume_mounts.iter().map(|mount| (mount.volume_name.as_str(), mount.mode));
+    let held = match Held::take(manager, client_identity, mounts).await {
         Ok(held) => held,
         Err(Refused::Held(name)) => {
             send(&scope, R::volume_held(&VolumeHeld { name })).await;
+            scope.send_response_finish().await;
+            return;
+        }
+        Err(Refused::Mode(refused)) => {
+            send(&scope, R::volume_mode(&refused)).await;
             scope.send_response_finish().await;
             return;
         }

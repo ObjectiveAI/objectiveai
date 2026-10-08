@@ -5,9 +5,11 @@ use std::sync::Arc;
 
 use futures_util::future;
 
+use crate::provider::endpoints::volumes::Mode;
 use crate::provider::endpoints::volumes::refusal;
 use crate::provider::server::volume::Volume;
 use crate::provider::server::volume_manager::VolumeManager;
+use crate::shared::containers::response::VolumeMode;
 use crate::shared::error::Error;
 
 /// Every volume a run's request names, held shared, from before
@@ -51,13 +53,20 @@ pub(crate) enum Refused {
     /// any container or serve — and this is its name. The run's own
     /// [`VolumeHeld`](crate::shared::containers::response::VolumeHeld).
     Held(String),
+    /// A volume the request names is not in the mode its mount means
+    /// it to have — or two mounts name it under two modes, one of
+    /// which it is not in — and this is its name and the mode it is
+    /// in. The run's own
+    /// [`VolumeMode`](crate::shared::containers::response::VolumeMode).
+    Mode(VolumeMode),
     /// A volume the request names is not the caller's, or the
     /// provider could not answer for one: the run's error.
     Error(Error),
 }
 
 impl<V: Volume> Held<V> {
-    /// Hold every volume `names` names, once each, or none of them.
+    /// Hold every volume `mounts` names, once each, or none of them,
+    /// each in the mode its mounts mean.
     ///
     /// Every distinct name is [`got`](VolumeManager::get) beside
     /// every other — a lookup may run a provider's hook, a process,
@@ -71,17 +80,21 @@ impl<V: Volume> Held<V> {
     /// that will not answer a lookup is [`Refused::Error`] with its
     /// error; both before anything is held. A volume that will not
     /// take the hold is [`Refused::Held`], with the holds taken
-    /// before it given back.
+    /// before it given back. A volume that took the hold is read for
+    /// its [`mode`](Volume::mode) under it: one not in the mode every
+    /// mount naming it means is [`Refused::Mode`], its own hold and
+    /// every one before it given back.
     pub async fn take<'a, M>(
         manager: &M,
         client_identity: &str,
-        names: impl IntoIterator<Item = &'a str>,
+        mounts: impl IntoIterator<Item = (&'a str, Mode)>,
     ) -> Result<Self, Refused>
     where
         M: VolumeManager<Volume = V>,
         M::Error: Into<Error>,
     {
-        let names: Vec<&str> = names.into_iter().collect();
+        let mounts: Vec<(&str, Mode)> = mounts.into_iter().collect();
+        let names: Vec<&str> = mounts.iter().map(|(name, _)| *name).collect();
         let mut distinct: Vec<&str> = Vec::with_capacity(names.len());
         for name in &names {
             if !distinct.contains(name) {
@@ -109,6 +122,15 @@ impl<V: Volume> Held<V> {
             if !volume.mount().await {
                 held.give_back().await;
                 return Err(Refused::Held(name.to_string()));
+            }
+            let mode = volume.mode().await;
+            if mounts.iter().any(|(named, meant)| named == name && *meant != mode) {
+                volume.unmount().await;
+                held.give_back().await;
+                return Err(Refused::Mode(VolumeMode {
+                    name: name.to_string(),
+                    mode,
+                }));
             }
             let volume = Arc::new(volume);
             held.held.push(Arc::clone(&volume));

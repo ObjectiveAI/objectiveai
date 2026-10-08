@@ -11,9 +11,13 @@ use serde::{Deserialize, Serialize};
 /// by a [`listing`](super::list::server::response::Volume::mode),
 /// changed only by an [`edit`](super::edit::client::request::Change::Mode)
 /// under the exclusive hold, and never a mount's or a serve's to
-/// choose. Every container that mounts the volume and every
-/// [`serve`](super::serve) of it is bound under the mode the volume
-/// has when it takes the volume, and the mode does not change under
+/// change. Each STATES the mode it means the volume to have — a run's
+/// every [mount](crate::shared::containers::request::VolumeMount::mode),
+/// a [`serve`](super::serve)'s request — and a volume in another mode
+/// refuses it,
+/// [`VolumeMode`](crate::shared::containers::response::VolumeMode), so
+/// that every container that mounts the volume and every serve of it
+/// runs under the mode it meant, and the mode does not change under
 /// it.
 ///
 /// | mode | a container's writes | a serve's mutations | at rest ([`write`](mod@super::write)) | who may hold it |

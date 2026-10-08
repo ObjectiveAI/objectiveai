@@ -20,7 +20,7 @@ use crate::shared::containers::daemon;
 use crate::shared::containers::postgres;
 use crate::shared::containers::response::Id;
 use crate::shared::containers::write_bytes;
-use crate::shared::containers::response::VolumeHeld;
+use crate::shared::containers::response::{VolumeHeld, VolumeMode};
 use crate::shared::error::Error;
 
 /// Run an agent container, and hold it.
@@ -101,6 +101,9 @@ where
         server::response::Frame::Id(id) => id,
         server::response::Frame::VolumeHeld(refused) => {
             return Err(ExecuteError::VolumeHeld(refused));
+        }
+        server::response::Frame::VolumeMode(refused) => {
+            return Err(ExecuteError::VolumeMode(refused));
         }
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
         // The agent speaks only after the id, and no loop runs before
@@ -191,6 +194,11 @@ pub enum ExecuteError {
     /// deployed; wait for that to end, or name another volume, and
     /// ask again.
     VolumeHeld(VolumeHeld),
+    /// The provider refused the run: the named volume is not in the
+    /// mode the mount means it to have. Nothing was fetched and
+    /// nothing was deployed; edit the volume or the mount, and ask
+    /// again.
+    VolumeMode(VolumeMode),
     /// The provider could not run the container, and said so.
     Provider(Error),
 }
@@ -212,6 +220,11 @@ impl fmt::Display for ExecuteError {
                 "the volume `{}` is under a stat, an edit or a delete",
                 refused.name
             ),
+            ExecuteError::VolumeMode(refused) => write!(
+                f,
+                "the volume `{}` is in mode `{:?}`, not the mode the mount names",
+                refused.name, refused.mode
+            ),
             ExecuteError::Provider(_) => f.write_str("the provider could not run the container"),
         }
     }
@@ -231,6 +244,7 @@ impl std::error::Error for ExecuteError {
             | ExecuteError::Unanswered
             | ExecuteError::Misrouted
             | ExecuteError::VolumeHeld(_)
+            | ExecuteError::VolumeMode(_)
             | ExecuteError::Provider(_) => None,
         }
     }

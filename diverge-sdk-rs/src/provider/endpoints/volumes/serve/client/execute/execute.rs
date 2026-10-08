@@ -28,6 +28,7 @@ pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<Execut
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
         response::Frame::Serving => Ok(ExecuteHandle::new(handle.clone(), scope)),
+        response::Frame::VolumeMode(refused) => Err(ExecuteError::VolumeMode(refused)),
         response::Frame::Error(error) => Err(ExecuteError::Refused(error)),
     }
 }

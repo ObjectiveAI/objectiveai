@@ -119,9 +119,11 @@ pub struct FuseMount {
     /// states it and
     /// [`volumes::edit`](crate::provider::endpoints::volumes::edit)
     /// changes it; see [`Mode`] — and this states which mode this
-    /// mount means the volume to have. What the daemon does with a
-    /// volume whose mode differs at the create, this revision does
-    /// not state.
+    /// mount means the volume to have. The daemon sends it to the
+    /// provider with the mount, and a volume in another mode refuses
+    /// the run — or, for a mount served across providers, its serve —
+    /// which is the agent's or tool's start error; nothing changes a
+    /// volume's mode but a `volumes edit`.
     pub volume_mode: Mode,
     /// The most bytes the serve's own layer may hold, for an
     /// ephemeral volume: present exactly when

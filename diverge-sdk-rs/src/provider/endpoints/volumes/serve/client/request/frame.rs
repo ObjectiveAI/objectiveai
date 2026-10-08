@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
+use crate::provider::endpoints::volumes::Mode;
 
 /// Serve one volume: hold it mounted, and answer the FUSE asks the
 /// caller opens on the scope from it.
@@ -22,6 +23,16 @@ use crate::wire::encode::{Encode, Writer};
 /// and a [`delete`](crate::provider::endpoints::volumes::delete) have, for the
 /// same reason: a provider resolves a name it published, against the
 /// caller it published it to, and nothing else.
+///
+/// # The mode is stated, and a volume in another refuses
+///
+/// The request says which [`Mode`] it means the volume to have, as a
+/// run's mount does, and a volume in another mode is not served:
+/// the provider answers
+/// [`VolumeMode`](crate::shared::containers::response::VolumeMode)
+/// with the mode it is in, after holding the volume and giving the
+/// hold back, and changes nothing. Only an
+/// [`edit`](crate::provider::endpoints::volumes::edit) changes a volume's mode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame {
     /// Which volume, by the name a listing gave it.
@@ -30,6 +41,10 @@ pub struct Frame {
     /// [`Volume::name`](crate::provider::endpoints::volumes::list::server::response::Volume::name)
     /// and mean nothing outside the provider that published them.
     pub name: String,
+    /// The mode the serve means the volume to have: `persistent`,
+    /// `ephemeral` or `read_only`. A volume in another mode refuses
+    /// the serve.
+    pub mode: Mode,
     /// The most bytes this serve's own layer may hold, for an
     /// ephemeral volume.
     ///

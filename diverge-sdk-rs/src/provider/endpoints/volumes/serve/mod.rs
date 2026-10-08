@@ -25,7 +25,10 @@
 //! mounted for the scope's life, any number of serves and runs may
 //! hold it at once, and a stat, a read, a write, a filetree, an edit
 //! or a delete of it is refused meanwhile. A volume held exclusively
-//! when the serve asks is the serve refused.
+//! when the serve asks is the serve refused. The request states the
+//! mode it means the volume to have, and a volume in another mode is
+//! the serve refused too, with the mode it is in, the hold given back
+//! and nothing changed.
 //!
 //! # The three modes
 //!
