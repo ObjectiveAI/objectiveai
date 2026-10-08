@@ -13,7 +13,6 @@ use diverge_sdk::shared::error::Error;
 use super::Family;
 use crate::encode::encoded;
 use crate::proxy::{Begun, Proxy};
-use crate::stamp::Stamp;
 use crate::{inside, program, tool};
 
 /// Serve the begin for the connection's life.
@@ -26,7 +25,7 @@ use crate::{inside, program, tool};
 /// scope is published to every surface inside the container, and
 /// every channel the server opens on the scope is served on a task
 /// of its own: the schema once, one exchange with the tool's server
-/// each — its answer carrying the container's image under `_meta` —
+/// each — its answer as the tool's server gave it —
 /// the notifications for as long as the channel lives, the server's
 /// half of a database connection until the driver hangs up.
 /// A channel this end cannot read is finished with nothing.
@@ -35,7 +34,6 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
         refuse(&scope, super::agents::begun()).await;
         return;
     }
-    let stamp = Stamp::new(&frame.image);
     let tools = match program::register(&proxy.upstream, frame.arguments).await {
         Ok(tools) => tools,
         Err(error) => {
@@ -51,7 +49,6 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
     proxy.publish(Begun {
         scope: Arc::clone(&scope),
         family: Family::Tools,
-        stamp: stamp.clone(),
     });
 
     while let Some(bytes) = scope.recv_channel_request().await {
@@ -60,7 +57,6 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
         };
         let proxy = Arc::clone(&proxy);
         let scope = Arc::clone(&scope);
-        let stamp = stamp.clone();
         match channel_request::Frame::decode(payload) {
             Ok(channel_request::Frame::Daemon(request)) => {
                 tokio::spawn(inside::daemon::attach(proxy, scope, channel, request.connection_id));
@@ -72,19 +68,19 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
                 tokio::spawn(program::schema(proxy, scope, channel));
             }
             Ok(channel_request::Frame::McpListTools(request)) => {
-                tokio::spawn(async move { tool::list_tools(&proxy.tool, &stamp, &scope, channel, request).await });
+                tokio::spawn(async move { tool::list_tools(&proxy.tool, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::McpListResources(request)) => {
-                tokio::spawn(async move { tool::list_resources(&proxy.tool, &stamp, &scope, channel, request).await });
+                tokio::spawn(async move { tool::list_resources(&proxy.tool, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::McpCallTool(request)) => {
-                tokio::spawn(async move { tool::call_tool(&proxy.tool, &stamp, &scope, channel, request).await });
+                tokio::spawn(async move { tool::call_tool(&proxy.tool, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::McpReadResource(request)) => {
-                tokio::spawn(async move { tool::read_resource(&proxy.tool, &stamp, &scope, channel, request).await });
+                tokio::spawn(async move { tool::read_resource(&proxy.tool, &scope, channel, request).await });
             }
             Ok(channel_request::Frame::McpNotifications(_)) => {
-                tokio::spawn(async move { tool::notifications(&proxy.tool, &stamp, &scope, channel).await });
+                tokio::spawn(async move { tool::notifications(&proxy.tool, &scope, channel).await });
             }
             Err(_) => {
                 tokio::spawn(async move { scope.send_channel_response_finish(channel).await });

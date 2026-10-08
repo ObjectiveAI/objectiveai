@@ -15,7 +15,6 @@ use tokio::sync::oneshot;
 
 use crate::program::{refused, status_error};
 use crate::proxy::Proxy;
-use crate::stamp::Stamp;
 
 /// Start one loop on `messages`, on a task of its own: what comes back
 /// is the `2xx` response whose body is the loop, or the error — a
@@ -56,9 +55,9 @@ pub fn start(proxy: Arc<Proxy>, messages: Vec<Message>) -> oneshot::Receiver<Res
 /// Relay the loop, on a task of its own: first the proxy's own word
 /// that the loop began, `Active`, one byte; then every event's data
 /// out on the begin scope's main stream as one `Chunk`, its JSON as
-/// the agent's server wrote it with the container's image under its
-/// `_meta` — the messages' user parts first, then whatever the agent
-/// says — until the stream ends — cleanly, or by dying — which is the
+/// the agent's server wrote it, nothing set under its `_meta` — the
+/// messages' user parts first, then whatever the agent says — until
+/// the stream ends — cleanly, or by dying — which is the
 /// loop over; then the proxy's word that it ended, `Inactive`, one
 /// byte. The receiver hears the end as its sender dropping. The two
 /// words are the proxy's alone: the agent's server produces chunks,
@@ -66,18 +65,18 @@ pub fn start(proxy: Arc<Proxy>, messages: Vec<Message>) -> oneshot::Receiver<Res
 /// either. Nothing is said about HOW the loop ended: an error on the
 /// stream would end the scope, and a loop that failed already said
 /// so in a fatal notification chunk.
-pub fn relay(response: reqwest::Response, scope: Arc<ScopeHandle>, stamp: Stamp) -> oneshot::Receiver<()> {
+pub fn relay(response: reqwest::Response, scope: Arc<ScopeHandle>) -> oneshot::Receiver<()> {
     let (sender, receiver) = oneshot::channel::<()>();
     tokio::spawn(async move {
         scope.send_response(&[ACTIVE]).await;
         let mut events = pin!(response.bytes_stream().eventsource());
         while let Some(Ok(event)) = events.next().await {
             // The chunk's tag, then its JSON as the agent's server
-            // wrote it, the image under its `_meta`.
-            let chunk = stamp.chunk(&event.data);
+            // wrote it.
+            let chunk = event.data.as_bytes();
             let mut bytes = Vec::with_capacity(1 + chunk.len());
             bytes.push(CHUNK);
-            bytes.extend_from_slice(&chunk);
+            bytes.extend_from_slice(chunk);
             scope.send_response(&bytes).await;
         }
         scope.send_response(&[INACTIVE]).await;

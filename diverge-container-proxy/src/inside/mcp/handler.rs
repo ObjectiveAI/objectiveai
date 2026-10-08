@@ -14,16 +14,16 @@ use rmcp::service::{NotificationContext, RequestContext};
 use rmcp::{ErrorData, RoleServer, ServerHandler};
 
 use crate::ask::{self, Asked};
+use super::carry;
 use crate::own::Own;
 use crate::proxy::{Begun, Proxy};
 
 /// A compliant MCP server whose answers all live somewhere else.
 ///
-/// Each method puts the container's image under the params' `_meta`
-/// — with the program's own `_meta`, which rmcp took off the wire
-/// into the context — sends its exchange as one of the proxy's own
-/// asks on the begin scope, and decodes the one frame that answers
-/// it. The
+/// Each method puts the program's own `_meta`, which rmcp took off
+/// the wire into the context, back into the params and sets nothing
+/// else there, sends its exchange as one of the proxy's own asks on
+/// the begin scope, and decodes the one frame that answers it. The
 /// errors an MCP server on the far side sent travel through as
 /// themselves — their JSON-RPC codes are content — and the failures
 /// of the relay itself arrive as internal errors in the same
@@ -58,9 +58,8 @@ impl Handler {
         F::decode(&bytes).map_err(|_| unreadable())
     }
 
-    /// The begin, waited for as every ask waits for it: the stamp is
-    /// its, and a proxy without one is a proxy whose connection is
-    /// gone.
+    /// The begin, waited for as every ask waits for it: a proxy
+    /// without one is a proxy whose connection is gone.
     async fn begun(&self) -> Result<Begun, ErrorData> {
         self.proxy.begun().await.ok_or_else(gone)
     }
@@ -94,7 +93,8 @@ impl ServerHandler for Handler {
         context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, ErrorData> {
         let mut request = request.unwrap_or_default();
-        self.begun().await?.stamp.request(&mut request, &context.meta);
+        self.begun().await?;
+        carry(&mut request, &context.meta);
         match self
             .exchange(Own::McpListTools(
                 mcp::list_tools::request::Request(Some(request)),
@@ -112,7 +112,8 @@ impl ServerHandler for Handler {
         context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
         let mut request = request.unwrap_or_default();
-        self.begun().await?.stamp.request(&mut request, &context.meta);
+        self.begun().await?;
+        carry(&mut request, &context.meta);
         match self
             .exchange(Own::McpListResources(
                 mcp::list_resources::request::Request(Some(request)),
@@ -135,11 +136,10 @@ impl ServerHandler for Handler {
         mut request: CallToolRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
-        let begun = match self.begun().await {
-            Ok(begun) => begun,
-            Err(error) => return Ok(failed(error).into()),
-        };
-        begun.stamp.request(&mut request, &context.meta);
+        if let Err(error) = self.begun().await {
+            return Ok(failed(error).into());
+        }
+        carry(&mut request, &context.meta);
         let result = match self
             .exchange(Own::McpCallTool(
                 mcp::call_tool::request::Request(request),
@@ -158,7 +158,8 @@ impl ServerHandler for Handler {
         mut request: ReadResourceRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResponse, ErrorData> {
-        self.begun().await?.stamp.request(&mut request, &context.meta);
+        self.begun().await?;
+        carry(&mut request, &context.meta);
         match self
             .exchange(Own::McpReadResource(
                 mcp::read_resource::request::Request(request),
