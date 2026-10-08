@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::tools::templates::untag::client::request;
 use diverge_sdk::daemon::endpoints::tools::templates::untag::server::response::Frame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, tools_templates, tags};
@@ -42,5 +42,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     tools_templates::set_tags(&mut tx, &record.id, &tags::without(&record.tags, &frame.tags)).await?;
     tx.commit().await?;
+    daemon.live.changed(Kind::ToolsTemplates);
     Ok(Frame::Untagged)
 }

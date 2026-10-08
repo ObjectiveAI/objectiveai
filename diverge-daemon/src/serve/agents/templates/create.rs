@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::agents::templates::create::client::request;
 use diverge_sdk::daemon::endpoints::agents::templates::create::server::response::Frame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, agents_templates};
@@ -43,6 +43,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     };
     let made = agents_templates::create(&mut tx, &new).await?;
     tx.commit().await?;
+    daemon.live.changed(Kind::AgentsTemplates);
     Ok(match made {
         agents_templates::Created::Created => Frame::Created(id),
         agents_templates::Created::Exists => Frame::Exists(id),
