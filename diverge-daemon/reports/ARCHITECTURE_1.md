@@ -161,6 +161,14 @@ Two populations, kept apart by type and by fate:
   says `active` before a loop's first chunk and `inactive` after its
   last; the program's output is chunks and cannot say either. Nothing
   is derived from quiet. (Wire change of 2026-10-06.)
+- **Every list is a stream kept open.** Each of the thirteen lists sends
+  what matches as added, the word that the list is whole, and from then
+  on each item added, changed or removed, until the client's cancel.
+  A word per kind (`daemon::Kind`, said by every handler after its
+  commit and by the live state at every transition that reaches an
+  item) tells a listing to read again and tell the difference by key;
+  nothing is announced per log line. `STREAMS_1.md` is the whole of
+  it. (2026-10-08.)
 - **A provider's volumes are mirrored for the connection.** The daemon
   opens one `volumes::list` on every provider as it attaches and keeps
   it for the connection's life; what the provider's volumes are is read

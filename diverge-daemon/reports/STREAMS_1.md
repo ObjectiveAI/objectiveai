@@ -44,7 +44,7 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
 | 7 | 36 | `resources list` | The record (upload, a transfer into a new resource, tag, untag, delete); an agent or tool made or deleted, for `in_use`. **Built 2026-10-08.** |
 | 8 | 11, 31 | `agents templates list`, `tools templates list` | The record (create, tag, untag, delete; an agent or tool made from one for `in_use`). **Built 2026-10-08.** |
 | 9 | 50 | `accounts list` | The record (create, edit, tag, untag, delete); a role renamed or deleted; `Live.connected` (a client connecting or leaving). **Built 2026-10-08.** |
-| 10 | 57 | `roles list` | The record (create, edit, tag, untag, delete, grant, ungrant; an account assigned or unassigned). |
+| 10 | 57 | `roles list` | The record (create, edit, tag, untag, delete); an account made, edited or deleted. **Built 2026-10-08.** |
 | 11 | 40, 45 | `providers outgoing list`, `providers incoming list` | The record (add, edit, delete); `Live.providers` (a connection taken or given back); `last_connected` written by the dial. **Built 2026-10-07, first of the record lists.** |
 
 ## 3. What the record lists need, once
@@ -79,5 +79,13 @@ The log as it grows is `agents logs`, which has its own per-agent watch.
 
 `get` endpoints answer one item once. `agents logs` and the two
 `filetree` watches stream already. The provider wire is done: both
-of its listings are streams, and the daemon reads them to the word
-for its own instant answers until each becomes a stream here.
+of its listings are streams; `tools list_for` is relayed through and
+`volumes list` mirrored, one per connected provider.
+
+## 5. Done
+
+All thirteen are built as of 2026-10-08, in the one shape of §1: a
+word per kind (`daemon::Kind`, `Live::changed`), one loop
+(`serve::stream::listing` over a `Source`, the difference told by
+key), the client's cancel as the end, and the agents rule of §3 —
+never a word per log line.

@@ -3,7 +3,9 @@
 Every list the daemon serves, as of 2026-10-07, in one page: what is
 asked, what comes back, where each part of an item comes from, and
 what already streams. Written so that a watchable list — a list kept
-open, sending what changes — can be decided over it.
+open, sending what changes — can be decided over it. Decided and
+built: as of 2026-10-08 every one of the thirteen is a stream kept
+open, in the one shape `STREAMS_1.md` states; the rows below say so.
 
 ## 1. One shape
 
@@ -42,7 +44,7 @@ the daemon's live state alone.
 | Tag | Request | Item | Filter members | Live in the item |
 |---|---|---|---|---|
 | 50 | `accounts list` | `Account` | names, identities, named, credentialed, roles, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-08 |
-| 57 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | — |
+| 57 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | —; a stream since 2026-10-08 |
 | 40 | `providers outgoing list` | `Outgoing` | addresses, kinds, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |
 | 45 | `providers incoming list` | `Incoming` | identities, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |
 | 11 | `agents templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
