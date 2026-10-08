@@ -24,9 +24,10 @@ the response, and no frame follows the finish.
   error.
 - **The deletion.** When the server sends the byte `0`, the volume no
   longer exists, and its content is gone. From that moment, every
-  [volumes::list](/endpoints/volumes-list/) request by the client
-  omits the volume: no listing the server sends after the byte `0`
-  contains it. The name then names no volume of the client, and every
+  [volumes::list](/endpoints/volumes-list/) scope the client opens
+  omits the volume, and every list scope the client holds open that
+  was sent the volume as added is sent it as removed: no listing the
+  server sends as whole after the byte `0` contains it. The name then names no volume of the client, and every
   request naming it is answered with an error, until a
   [volumes::create](/endpoints/volumes-create/) request by the client
   makes a new volume of that name. Deletion is not emptying: a client

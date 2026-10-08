@@ -18,7 +18,8 @@ finish follows the response, and no frame follows the finish.
   `ephemeral` and `read_only`, and the volume has that mode from the
   moment it exists, until a [volumes::edit](/endpoints/volumes-edit/)
   request changes it. Every [volumes::list](/endpoints/volumes-list/)
-  listing of the client reports it as `mode`. When it is
+  listing of the client reports it as `mode`, and every listing the
+  client holds open reports a change to it. When it is
   `persistent`, every change a container makes to the volume is in
   the volume when the container ends, every change a
   [volumes::serve](/endpoints/volumes-serve/) makes is in the volume,
@@ -36,9 +37,10 @@ finish follows the response, and no frame follows the finish.
   states anything about it.
 - **The volume.** When the server sends the byte `0`, the volume
   exists. From that moment, every
-  [volumes::list](/endpoints/volumes-list/) request by the client
-  lists the volume, under the name the client gave and with `bytes`
-  equal to the size the client gave, until a
+  [volumes::list](/endpoints/volumes-list/) scope the client opens
+  lists the volume, and every list scope the client holds open is
+  sent the volume as added, under the name the client gave and with
+  `bytes` equal to the size the client gave, until a
   [volumes::delete](/endpoints/volumes-delete/) request by the client
   deletes it. The end of the scope, and the end
   of every connection of the client, leave the volume in existence.

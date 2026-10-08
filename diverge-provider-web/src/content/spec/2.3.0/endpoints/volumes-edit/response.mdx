@@ -20,12 +20,15 @@ finish follows the response, and no frame follows the finish.
   response precedes states that the request was not served, as
   [Endpoints](/endpoints/) provides; the size and the mode of the
   volume are then not stated, and the client learns them from a
-  [volumes::list](/endpoints/volumes-list/) or a
+  [volumes::list](/endpoints/volumes-list/) scope or a
   [volumes::stat](/endpoints/volumes-stat/) request.
 - **Edited.** A payload whose first byte is `0` states that the
-  volume has what the change stated: the size, the mode, or both. The server sends it after the volume has them, and a
-  `volumes::list` or a `volumes::stat` request the client makes after
-  receiving it reports the size as `bytes` and the mode as `mode`.
+  volume has what the change stated: the size, the mode, or both. The
+  server sends it after the volume has them; a `volumes::list` scope
+  the client opens or a `volumes::stat` request the client makes
+  after receiving it reports the size as `bytes` and the mode as
+  `mode`, and a list scope the client holds open is sent the volume
+  as changed.
   The server sends nothing after the byte `0`, and a client ignores
   every byte that follows it.
 - **Insufficient capacity.** A payload whose first byte is `1` states

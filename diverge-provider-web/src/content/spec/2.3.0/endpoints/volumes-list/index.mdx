@@ -1,31 +1,39 @@
 ---
 title: 'volumes::list'
-summary: 'Tag 4: a client asks which volumes are available to it; the server sends exactly one response carrying every such volume by name, size, age and mode, or an error, and the scope finishes.'
+summary: 'Tag 4: a client asks which volumes are available to it; the server sends every such volume as added, says when the listing is whole, keeps sending as volumes are created, edited and deleted, and finishes when the client stops.'
 order: 4
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`4` and nothing more. The server sends exactly one response, which is
-either the listing or an error. The response finish follows the
-response, and no frame follows the finish.
+`4` and nothing more. The server sends every volume available to the
+client, one response each, then the word that the listing is whole,
+and keeps the scope open: a volume created is sent as added, a volume
+edited as changed, a volume deleted as removed, for as long as the
+scope lives. The scope ends at the client's stop, at the client's
+connection ending, or at an error; the response finish follows, and no
+frame follows the finish.
 
 - **The request.** The request carries no parameter; the tag is the
   whole of it. [Request](/endpoints/volumes-list/request/) states its
   form.
+- **The response.** [Response](/endpoints/volumes-list/response/)
+  states the responses and the sequence of the main stream.
+- **The channels.** The client opens the one channel of
+  [Client Channels](/endpoints/volumes-list/client/), the stop. The
+  server opens no channel on a list scope.
 - **The listing.** The listing is zero or more volumes. The listing
   contains every volume that the client created by a
   [volumes::create](/endpoints/volumes-create/) request and has not
   deleted by a [volumes::delete](/endpoints/volumes-delete/) request.
-  The listing may contain other volumes; which other volumes it contains
-  is the server's to decide. Every volume in the listing is available
-  to the client to mount, and the client may name it wherever this
-  specification names a volume by its name. A volume absent from the
-  listing is one the client cannot name. What a volume holds — the
-  number of bytes in use and the hash of its content — is reported
-  by [volumes::stat](/endpoints/volumes-stat/), one volume at a time.
-  [Response](/endpoints/volumes-list/response/) states the form of
-  the listing.
+  The listing may contain other volumes; which other volumes it
+  contains is the server's to decide. Every volume in the listing is
+  available to the client to mount, and the client may name it
+  wherever this specification names a volume by its name. A volume
+  absent from the listing is one the client cannot name. What a
+  volume holds — the number of bytes in use and the hash of its
+  content — is reported by [volumes::stat](/endpoints/volumes-stat/),
+  one volume at a time.
 - **The client.** The client is the identity under which the
   connection was authorized, as [Authorization](/authorization/)
   provides. The listing is that identity's listing.
@@ -44,10 +52,56 @@ response, and no frame follows the finish.
   [volumes::delete](/endpoints/volumes-delete/) of a volume is
   refused while any container has it mounted or any serve holds it,
   and a run or a serve naming a volume is refused while one of those
-  six is in flight.
-- **An empty listing.** An empty listing is an answer. It states that
-  no volume is available to the client. An empty listing is not an
-  error.
-- **The error.** An error states that the server did not list, and
-  that nothing was determined about the volumes available to the
-  client. An error is not an empty listing.
+  six is in flight. A listing holds nothing: a volume is listed, and
+  stays listed, whoever holds it.
+
+## The order
+
+1. **The server reads the request.** A request whose payload has no
+   byte is not a request of any endpoint, as [Endpoints](/endpoints/)
+   provides.
+2. **The server sends the listing.** The server sends every volume
+   available to the client, one response each, the byte `0` followed
+   by the volume. A client with no volume is sent none.
+3. **The server says the listing is whole.** The server sends exactly
+   one response whose payload is the byte `3` and nothing else. The
+   server sends it exactly once on a scope, after every response of
+   step 2 and before any other response.
+4. **The server keeps the listing.** For the life of the scope: when
+   the server has sent the byte `0` of a
+   [volumes::create](/endpoints/volumes-create/) request by the
+   client, it sends the volume made as added; when it has sent the
+   byte `0` of a [volumes::edit](/endpoints/volumes-edit/) request by
+   the client, it sends the volume edited as changed, with its `bytes`
+   and `mode` as they are then; when it has sent the byte `0` of a
+   [volumes::delete](/endpoints/volumes-delete/) request by the
+   client, it sends the volume deleted as removed. A volume the server
+   offers on its own account that comes to be available, changes, or
+   ceases to be available is sent the same way when the server learns
+   of it; when the server learns of it is the server's to determine.
+5. **The server ends the scope.** When the server receives the
+   client's [stop](/endpoints/volumes-list/client/stop/), or the
+   client's connection ends, the server sends the response finish.
+   When the server cannot list, it sends the byte `4` followed by an
+   error and the response finish.
+
+## The rules that hold throughout
+
+- **No end of its own.** The server does not end the scope because
+  the client has no volume, nor because every volume listed has been
+  removed. The client's stop, the client's connection ending, and an
+  error are the only ends.
+- **Once per name.** The server sends a volume as added exactly once
+  while it is listed, as changed only while it is listed and only
+  when its `bytes` or its `mode` differ from what the server last
+  sent for it, and as removed exactly once, only after it was sent as
+  added. A volume deleted and created again under the same name is
+  sent as removed and then as added.
+- **An empty listing.** The byte `3` with no response before it
+  states that no volume is available to the client. An empty listing
+  is not an error.
+- **The error.** An error states that the server did not list, or
+  could not keep listing, and that nothing is determined about the
+  volumes available to the client from the moment it is sent.
+  Responses sent before the error were sent as the listing stood. An
+  error is not an empty listing.

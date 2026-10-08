@@ -32,13 +32,15 @@ follows the response, and no frame follows the finish.
   size stated. From that moment, every
   [volumes::list](/endpoints/volumes-list/) listing and every
   [volumes::stat](/endpoints/volumes-stat/) response of the client
-  reports that size as `bytes`, until a later edit changes it.
+  reports that size as `bytes`, and every list scope the client holds
+  open is sent the volume as changed, until a later edit changes it.
 - **The mode.** A change that states a mode states the mode the
   volume has after the edit, `persistent`, `ephemeral` or
   `read_only`, as [volumes::create](/endpoints/volumes-create/)
   defines the three. When the server sends the byte `0`, the volume
   has the mode stated. From that moment, every listing and every stat
-  of the client reports that mode as `mode`, until a later edit
+  of the client reports that mode as `mode`, and every list scope the
+  client holds open is sent the volume as changed, until a later edit
   changes it, and every container the client mounts the volume in
   after that moment, and every serve of it after that moment, is
   bound under that mode. The content of the volume is as it was: a

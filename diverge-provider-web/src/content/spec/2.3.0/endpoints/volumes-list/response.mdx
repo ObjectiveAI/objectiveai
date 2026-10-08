@@ -1,40 +1,67 @@
 ---
 title: 'Response'
-summary: 'The server sends exactly one response, whose payload begins with the byte 0 followed by the listing in the postcard wire format or with the byte 1 followed by an error as one JSON value, and the response finish follows it.'
+summary: 'Responses of the byte 0, 1 or 2 followed by one volume in the postcard wire format, added, changed or removed; the byte 3, once, when the listing is whole; or the byte 4 followed by an error as one JSON value, last; and the response finish.'
 order: 2
 draft: false
 ---
 
-The server sends exactly one response on the scope. The response
-finish follows the response, and no frame follows the finish.
-
 ```text
-[0][listing, postcard …]
-[1][error JSON …]
+[0][volume, postcard …]   per volume added
+[1][volume, postcard …]   per volume changed, after it was added
+[2][volume, postcard …]   per volume removed, after it was added
+[3]                       once, when the listing is whole
+[4][error JSON …]         at most once, last
 ```
 
-- **The sequence.** Exactly one response precedes the response
-  finish, and nothing follows the finish. A response finish that no
-  response precedes states that the request was not served, as
-  [Endpoints](/endpoints/) provides.
-- **The listing.** A payload whose first byte is `0` carries the
-  listing after that byte, running to the end of the payload. The
-  listing is the `Vec<Volume>` defined below, encoded as the
-  postcard reading of [Notation](/endpoints/#notation) provides: a
-  varint count, followed by that many volumes; each volume is its
+- **The sequence.** Zero or more responses of the byte `0` followed
+  by one volume, one per volume available to the client when the
+  scope opened; exactly one response of the byte `3` and nothing
+  else; then zero or more responses of the byte `0`, `1` or `2`, each
+  followed by one volume, as volumes are created, edited and deleted;
+  the response finish follows the last of them, when the client stops
+  or the client's connection ends. Or: the responses sent so far,
+  exactly one response of the byte `4` followed by an error, and the
+  response finish. No response follows the error. The server sends no
+  response of the byte `1` or `2` before the byte `3`.
+- **The volume.** A payload whose first byte is `0`, `1` or `2`
+  carries one volume after that byte, running to the end of the
+  payload. The volume is the `Volume` defined below, encoded as the
+  postcard reading of [Notation](/endpoints/#notation) provides: its
   `name` as a varint byte length followed by that many bytes of
   UTF-8, followed by `bytes` as a varint, followed by `created` as a
-  varint, followed by `mode` as one byte. A count of `0` is the
-  empty listing, and the payload is then exactly the one byte `0`.
+  varint, followed by `mode` as one byte.
+- **Added.** A response of the byte `0` states that the volume is
+  available to the client. The server sends it exactly once per name
+  while the volume is listed: for every volume available when the
+  scope opened, before the byte `3`; for a volume that becomes
+  available after, when it does.
+- **Changed.** A response of the byte `1` states that the volume's
+  `bytes` or `mode` are now what the response carries. The server
+  sends it only for a volume it has sent as added on this scope and
+  not since as removed, and only when `bytes` or `mode` differ from
+  what it last sent for that name. The `name` and the `created` of a
+  volume do not change.
+- **Removed.** A response of the byte `2` states that the volume is
+  no longer available to the client, and carries the volume as the
+  server last sent it. The server sends it only for a volume it has
+  sent as added on this scope and not since as removed, and exactly
+  once for it.
+- **Whole.** A payload that is the byte `3` and nothing else states
+  that every volume available to the client when the scope opened has
+  been sent as added. A client that wants the listing once reads to
+  this byte and [stops](/endpoints/volumes-list/client/stop/). A
+  payload whose first byte is `3` is read by that byte alone; bytes
+  after it are not read.
 - **`name`.** The name of the volume, UTF-8. The name is the only
   handle of a volume: every request of this specification that names
-  a volume names it by this string. No two volumes in one listing
+  a volume names it by this string. No two volumes listed at once
   share a name.
 - **`bytes`.** The size of the volume, in bytes. For a volume the
   client created, `bytes` is the size the client last stated for it,
-  in its [volumes::create](/endpoints/volumes-create/) request or in
-  a later [volumes::edit](/endpoints/volumes-edit/) request. The number of bytes in use is
-  reported by [volumes::stat](/endpoints/volumes-stat/).
+  in its [volumes::create](/endpoints/volumes-create/) request or in a
+  later [volumes::edit](/endpoints/volumes-edit/) request. The number
+  of bytes in use is reported by
+  [volumes::stat](/endpoints/volumes-stat/).
 - **`created`.** The time at which the volume came into being, in
   seconds since `1970-01-01T00:00:00Z`, unsigned. What "came into
   being" marks is the server's to determine.
@@ -44,36 +71,38 @@ finish follows the response, and no frame follows the finish.
   mode the client last stated for it, in its
   [volumes::create](/endpoints/volumes-create/) request or in a later
   [volumes::edit](/endpoints/volumes-edit/) request; for another
-  volume, the mode is the server's to determine. What each mode
-  means for a container that mounts the volume, for a
+  volume, the mode is the server's to determine. What each mode means
+  for a container that mounts the volume, for a
   [volumes::serve](/endpoints/volumes-serve/) of it, and for how many
   may hold it at once, [volumes::create](/endpoints/volumes-create/)
   states. Every container the client mounts the volume in and every
-  serve of it is bound under this mode. A byte other than `0`, `1`
-  and `2` does not decode.
-- **Order.** The order of the volumes in the listing is not
-  prescribed. A client reads nothing into the position of a volume.
-- **The error.** A payload whose first byte is `1` carries an error
+  serve of it is bound under this mode. A byte other than `0`, `1` and
+  `2` does not decode.
+- **Order.** The order of the volumes is not prescribed. A client
+  reads nothing into the position of a volume.
+- **A finish with nothing before it.** The request was not served, as
+  [Endpoints](/endpoints/) provides, or the client stopped before the
+  server had sent anything. The server does not say which.
+- **The error.** A payload whose first byte is `4` carries an error
   after that byte, running to the end of the payload. The error is
   exactly one JSON value. This revision prescribes nothing about its
   content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is neither `0` nor `1`, a payload whose bytes after `0` do not
-  decode as the listing, and a payload whose bytes after `1` are not
-  one JSON value are malformed.
+  is none of `0`, `1`, `2`, `3` and `4`, a payload whose bytes after
+  `0`, `1` or `2` do not decode as one volume, and a payload whose
+  bytes after `4` are not one JSON value are malformed.
 
-The response frame is defined by
-`diverge-sdk-rs/src/provider/endpoints/volumes/list/server/response/frame.rs`:
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/list/server/response/frame.rs`:
 
 ```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/list/server/response/frame.rs
 ```
 
-A volume is defined by `diverge-sdk-rs/src/provider/endpoints/volumes/list/server/response/volume.rs`:
+and by `diverge-sdk-rs/src/provider/endpoints/volumes/list/server/response/volume.rs`:
 
 ```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/list/server/response/volume.rs
 ```
 
-The error is defined by `diverge-sdk-rs/src/shared/error.rs`:
+and the error by `diverge-sdk-rs/src/shared/error.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/error.rs
 ```

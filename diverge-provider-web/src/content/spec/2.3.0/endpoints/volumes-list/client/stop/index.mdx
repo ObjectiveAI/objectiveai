@@ -1,0 +1,23 @@
+---
+title: 'Stop'
+summary: 'Tag 0: the client ends the scope; the server sends nothing on the channel, alters no volume, and sends the response finish of the scope.'
+order: 0
+draft: false
+---
+
+The client ends the scope by opening this channel. The server sends
+no frame on the channel; the response finish of the scope is its
+answer.
+
+- **The request.** The payload is the tag byte `0` and nothing more.
+  [Request](/endpoints/volumes-list/client/stop/request/) states its form.
+- **The response.** The server sends nothing on the channel.
+  [Response](/endpoints/volumes-list/client/stop/response/) states the sequence.
+- **The effect.** When the server receives the channel request, it
+  ends the listing and sends the response finish of the scope. No
+  volume is altered. The server reads no further channel request on
+  the scope.
+- **The one end the client has.** A listing does not end because the
+  client has no volume. A client that has read what it wanted — the
+  byte `3`, for a client that wanted the listing once — ends the
+  scope with this, or by ending its connection.

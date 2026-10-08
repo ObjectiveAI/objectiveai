@@ -19,11 +19,12 @@ finish follows the response, and no frame follows the finish.
   response precedes states that the request was not served, as
   [Endpoints](/endpoints/) provides; whether the volume exists is
   then not stated, and the client learns it from a
-  [volumes::list](/endpoints/volumes-list/) request.
+  [volumes::list](/endpoints/volumes-list/) scope.
 - **Created.** A payload whose first byte is `0` states that the
-  volume exists. The server sends it after the volume exists, and a
-  `volumes::list` request the client makes after receiving it lists
-  the volume. The server sends nothing after the byte `0`, and a
+  volume exists. The server sends it after the volume exists; a
+  `volumes::list` scope the client opens after receiving it lists
+  the volume, and a list scope the client holds open is sent the
+  volume as added. The server sends nothing after the byte `0`, and a
   client ignores every byte that follows it.
 - **Insufficient capacity.** A payload whose first byte is `1` states
   that the server cannot reserve the size stated and did not create
