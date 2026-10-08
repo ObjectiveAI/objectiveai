@@ -16,7 +16,7 @@ use super::answerers::Answerer;
 use super::fuse::Mounts;
 use super::mcp::Served;
 use super::{AgentRun, Key, StartError, ToolHandle, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, stop};
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::store::agents::Agent;
 use crate::store::tools::{Origin, Tool, attachments};
 use crate::store::{agents, agents_templates, tools as tool_records, tools_templates};
@@ -50,6 +50,7 @@ pub async fn agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun>,
             {
                 log.latest.send_replace(wrapper.logs_index);
             }
+            daemon.live.changed(Kind::Agents);
             Err(error)
         }
     }
@@ -145,6 +146,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         agents::set_last(&mut conn, agent.id, &identity, Utc::now()).await?;
     }
     daemon.live.insert_agent(Arc::clone(&run)).await;
+    daemon.live.changed(Kind::Agents);
     let pumping = tokio::spawn(pump::pump(Arc::clone(daemon), Arc::clone(&run), stream));
     let clock = tokio::spawn(idle::idle(Arc::clone(daemon), Arc::clone(&run)));
     run.tasks.lock().await.extend([pumping.abort_handle(), clock.abort_handle()]);

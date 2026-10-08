@@ -7,7 +7,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{Failure, active};
 use crate::containers;
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::database;
 use crate::judge::{self, Standing, Who};
 use crate::logs;
@@ -55,5 +55,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     containers::stop_agent(daemon, agent.id).await;
     daemon.live.end_log(agent.id).await;
     logs::remove(&daemon.logs, agent.id).await?;
+    daemon.live.changed(Kind::Agents);
+    daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::Volumes);
     Ok(Frame::Deleted)
 }

@@ -10,7 +10,7 @@ use futures_util::StreamExt as _;
 
 use super::mcp::{self, Context};
 use super::{AgentRun, Key, stop, tools};
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::logs;
 use crate::store::AgentId;
 
@@ -41,11 +41,13 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
             }
             Ok(Event::Active) => {
                 run.loop_active.send_replace(true);
+                daemon.live.changed(Kind::Agents);
                 run.touch();
                 mcp::start_all(&context).await;
             }
             Ok(Event::Inactive) => {
                 run.loop_active.send_replace(false);
+                daemon.live.changed(Kind::Agents);
                 run.touch();
                 let ids = run.served.lock().await.ids();
                 for id in ids {

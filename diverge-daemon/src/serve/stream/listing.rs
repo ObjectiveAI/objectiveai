@@ -7,7 +7,6 @@ use tokio::sync::broadcast;
 use super::{Change, Source, diff};
 use crate::daemon::{Daemon, Kind};
 use crate::serve::{files, reply};
-use crate::store;
 
 /// Send the listing and keep it, until the client cancels or is gone.
 ///
@@ -18,9 +17,9 @@ use crate::store;
 /// behind the words, the source is read again, the first `count`
 /// kept as the listing, and the difference against what was last
 /// sent is told: `Added`, `Changed`, `Removed`. The client's cancel
-/// ends it, as does the client's connection ending; a store that
-/// could not be read is the error, for the handler to send.
-pub async fn listing<S, F, Fr>(scope: &ScopeHandle, daemon: &Daemon, kinds: &[Kind], count: Option<u64>, source: &S, frame: F) -> Result<(), store::Error>
+/// ends it, as does the client's connection ending; a source that
+/// could not be read is its error, for the handler to send.
+pub async fn listing<S, F, Fr>(scope: &ScopeHandle, daemon: &Daemon, kinds: &[Kind], count: Option<u64>, source: &S, frame: F) -> Result<(), S::Error>
 where
     S: Source,
     F: Fn(Change<S::Item>) -> Fr,

@@ -8,7 +8,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{active, agents_of};
 use crate::containers;
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::agents;
 use crate::serve::reply;
@@ -56,6 +56,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     attachments::detach(&mut tx, tool.id, agent.id).await?;
     tx.commit().await?;
+    daemon.live.changed(Kind::Agents);
+    daemon.live.changed(Kind::Tools);
     if let Some(run) = daemon.live.agent_run(agent.id).await
         && run.served.lock().await.remove(tool.id).is_some()
     {

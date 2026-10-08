@@ -6,7 +6,7 @@ use chrono::Utc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 
 use super::{AgentRun, Key, ToolRun, pump, tools};
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::store::{AgentId, agents, tools as tool_records};
 
 /// Stop the agent's run, if one is up: the container is told to stop,
@@ -48,6 +48,7 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     if let Ok(mut conn) = daemon.store.acquire().await {
         let _ = agents::set_last(&mut conn, run.id, &run.provider, Utc::now()).await;
     }
+    daemon.live.changed(Kind::Agents);
 }
 
 /// The tool's run has ended: forgotten as live, its tasks ended, its

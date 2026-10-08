@@ -65,6 +65,7 @@ struct Listed<'a> {
 impl Source for Listed<'_> {
     type Key = String;
     type Item = Incoming;
+    type Error = store::Error;
 
     fn read(&self) -> impl Future<Output = Result<Vec<(String, Incoming)>, store::Error>> + Send {
         async move {

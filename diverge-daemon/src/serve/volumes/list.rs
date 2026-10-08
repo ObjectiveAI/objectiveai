@@ -79,6 +79,7 @@ struct Mirrored<'a> {
 impl Source for Mirrored<'_> {
     type Key = reference::Volume;
     type Item = response::Volume;
+    type Error = store::Error;
 
     fn read(&self) -> impl Future<Output = Result<Vec<(reference::Volume, response::Volume)>, store::Error>> + Send {
         async move {

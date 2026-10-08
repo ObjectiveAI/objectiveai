@@ -38,7 +38,7 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
 | 1 | 19 | `tools list_for` | The provider's own stream, relayed; the client's cancel forwarded as the provider's stop. **Built 2026-10-07.** |
 | 2 | 87 | `postgres list` | `Live.connections`: a connection opened or closed. **Built 2026-10-08.** |
 | 3 | 72 | `volumes list` | Each connected provider's own stream, merged; a provider connecting or leaving; the records that mount a volume (an agent or tool created, edited, deleted). **Built 2026-10-08: the daemon mirrors one listing per connected provider (`volumes::Mirror`, `volumes::watch`).** |
-| 4 | 5 | `agents list` | The record (create, edit, tag, untag, delete, attach, detach); `Live.agents` (a run starting or ending, its loop active or inactive); the log's length. |
+| 4 | 5 | `agents list` | The record (create, edit, tag, untag, delete, attach, detach, a tool renamed); `Live.agents` (a run starting or ending, its loop active or inactive, a start failed). **Built 2026-10-08.** The log's length is read at those changes and not per line: see §3. |
 | 5 | 23 | `tools list` | The record (create, connect, edit, tag, untag, delete, attach, detach, admit, unadmit, a route set or deleted); `Live.tools`. |
 | 6 | 28 | `tools routes list` | The record (set, delete; a tool deleted). |
 | 7 | 36 | `resources list` | The record (upload, tag, untag, delete; a mount named or unnamed by an agent or tool for `in_use`). |
@@ -67,6 +67,13 @@ word says when to look and the store is the truth. Which kinds a
 write touches is part of the handler's knowledge: an attach touches
 agents and tools; a mount named touches resources and volumes; a
 route set touches routes and tools.
+
+**Not per log line.** A log grows by one item per chunk, and chunks are
+token-level deltas: hundreds per reply. The agents word is sent at an
+agent's changes of state — the run starting and ending, the loop
+beginning and ending, a start that failed — and never on an append, so
+`logs_index` on the item is the length as of the last change of state.
+The log as it grows is `agents logs`, which has its own per-agent watch.
 
 ## 4. What stays as it is
 

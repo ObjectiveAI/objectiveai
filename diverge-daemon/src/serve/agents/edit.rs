@@ -7,7 +7,7 @@ use diverge_sdk::daemon::grant::agents::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::active;
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner::{self, Checked};
 use crate::serve::reply;
@@ -126,5 +126,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::InUse);
     }
     tx.commit().await?;
+    daemon.live.changed(Kind::Agents);
+    daemon.live.changed(Kind::Volumes);
     Ok(Frame::Edited)
 }

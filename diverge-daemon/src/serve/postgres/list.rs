@@ -61,6 +61,7 @@ struct Open<'a> {
 impl Source for Open<'_> {
     type Key = u64;
     type Item = Connection;
+    type Error = store::Error;
 
     fn read(&self) -> impl Future<Output = Result<Vec<(u64, Connection)>, store::Error>> + Send {
         async move {
