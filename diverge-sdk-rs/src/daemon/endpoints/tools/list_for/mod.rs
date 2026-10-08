@@ -4,9 +4,11 @@
 //! provider; the daemon opens the provider protocol's
 //! [`containers::tools::list_for`](crate::provider::endpoints::containers::tools::list_for)
 //! on that provider with the identity, and relays what comes back: one
-//! response per tool container the provider sends, as it sends it, in
-//! the order it does, and the finish when the provider's scope
-//! finishes. A provider the caller does not have is answered by exactly
+//! response per tool container the provider adds, as it adds it, in
+//! the order it does, until the provider says the listing is whole —
+//! on which the daemon stops the provider's listing, which is a stream
+//! kept open, and finishes: the listing as it stood, once. A provider
+//! the caller does not have is answered by exactly
 //! one response saying so, and the finish. What is listed is a
 //! container somebody else runs, named by the id its runner was given:
 //! what a [`connect`](super::connect) then offers, with an

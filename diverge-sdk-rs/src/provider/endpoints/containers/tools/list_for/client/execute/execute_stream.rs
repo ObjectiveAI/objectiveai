@@ -1,4 +1,4 @@
-//! The containers, as they are sent.
+//! The listing, as it is sent.
 
 use std::fmt;
 use std::pin::Pin;
@@ -13,10 +13,13 @@ use crate::shared::error::Error;
 use crate::wire::decode::Decode as _;
 use crate::wire::frame;
 
-/// The listing, one container per item, in the order the provider
-/// sends them — each the moment its runner said yes, so no order a
-/// caller may rely on. Ends at the provider's finish; an error from
-/// the provider is the last item, and nothing follows it.
+/// The listing, one [`response::Frame`] per item, in the order the
+/// provider sends them: containers added as their runners say yes,
+/// the word that the listing is whole, and from then on containers
+/// added and removed as the identity's runs begin and end. Ends at
+/// the provider's finish — after the stop, or the connection ending —
+/// and an error from the provider is the last item, with nothing
+/// after it.
 #[must_use = "a scope that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct ExecuteStream {
@@ -33,14 +36,14 @@ impl ExecuteStream {
     }
 
     /// End the stream with `error` as its last item.
-    fn end(&mut self, error: ExecuteStreamError) -> Poll<Option<Result<response::Container, ExecuteStreamError>>> {
+    fn end(&mut self, error: ExecuteStreamError) -> Poll<Option<Result<response::Frame, ExecuteStreamError>>> {
         self.receiver = None;
         Poll::Ready(Some(Err(error)))
     }
 }
 
 impl Stream for ExecuteStream {
-    type Item = Result<response::Container, ExecuteStreamError>;
+    type Item = Result<response::Frame, ExecuteStreamError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let Some(receiver) = &mut self.receiver else {
@@ -62,8 +65,8 @@ impl Stream for ExecuteStream {
             _ => return self.end(ExecuteStreamError::Misrouted),
         };
         match response::Frame::decode(payload) {
-            Ok(response::Frame::Container(container)) => Poll::Ready(Some(Ok(container))),
             Ok(response::Frame::Error(error)) => self.end(ExecuteStreamError::Refused(error)),
+            Ok(frame) => Poll::Ready(Some(Ok(frame))),
             Err(error) => self.end(ExecuteStreamError::Response(error)),
         }
     }

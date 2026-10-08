@@ -15,7 +15,8 @@
 //! And one scope of the tools family that reaches into nothing:
 //! [`tools::list_for`] names an identity and is told, one at a time
 //! and each with its runner's leave, the tool containers that
-//! identity runs — the ids a connect then offers.
+//! identity runs — the ids a connect then offers — and, for as long
+//! as the lister keeps the scope, those it starts and ends after.
 //!
 //! Everything else is identical, and it is most of the wire: the
 //! request that makes a container carries its arguments — a JSON value

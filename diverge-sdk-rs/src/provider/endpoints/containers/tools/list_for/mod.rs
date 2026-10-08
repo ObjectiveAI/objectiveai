@@ -13,10 +13,17 @@
 //! connector — and sends each container the moment its runner says
 //! yes, one response each, in whatever order the answers come. A
 //! runner that says no, or does not answer, keeps its container
-//! unlisted. The scope finishes when every runner has answered or
-//! gone. Agent containers are not asked about and never listed: an
-//! agent container takes no connector, so there is nothing a lister
-//! could do with its id.
+//! unlisted. Once every runner asked at the opening has answered or
+//! gone, the provider says the listing is whole, and keeps the scope
+//! open: a tool container the identity starts after is asked about
+//! the same way and sent as added when its runner allows, and one
+//! whose run ends is sent as removed to every lister it was sent to.
+//! The scope has no end of its own — an identity that runs nothing
+//! is still watched — and ends at the lister's stop, the one channel
+//! a lister opens on it, at the lister's connection ending, or at
+//! the provider's error. Agent containers are not asked about and
+//! never listed: an agent container takes no connector, so there is
+//! nothing a lister could do with its id.
 //!
 //! What a listing does NOT do is join anything. A container listed
 //! is a container named: the id is what a [`connect`](super::connect)
