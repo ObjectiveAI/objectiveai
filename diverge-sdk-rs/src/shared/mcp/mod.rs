@@ -27,26 +27,26 @@
 //! Same five exchanges, opposite ways round. A shape defined once per
 //! endpoint would be four definitions that agree until they do not.
 //!
-//! # The image under `_meta`
+//! # Who is on the other side, under `_meta`
 //!
 //! A container never addresses one server over another: it sees its
 //! proxy, and the caller merges its servers into one list. So the
-//! proxy says which image is which, under one `_meta` key,
-//! `diverge.network/image`, whose value is an object of the
-//! container's `name` and `digest` as the run request named them —
-//! the proxy learns them on its begin. On the four requests a
-//! program sends outward the proxy sets the key on the params, so a
-//! tool container that receives the call knows which image is
-//! calling. On what a tool container's own server answers — the
-//! result of each of the four, each tool and each resource of a
-//! list, and each notification — the proxy sets the key too, so a
-//! program that reads a merged list knows which image serves each
-//! tool. And on every chunk an agent says, which is not MCP but has
-//! the same `_meta` at its top level, the proxy sets the key, so a
-//! caller knows which image spoke. The proxy replaces a value the
-//! program set under that key
-//! and leaves every other key as it was sent; the provider's server
-//! relays all of it verbatim. The key's form is MCP's own rule for
+//! caller says who is which, under three `_meta` keys — [`IMAGE`],
+//! [`AGENT`], [`TOOL`], set by [`attest`] — and the caller is the
+//! daemon. On the four requests a program sends outward the daemon
+//! sets them on the params before it forwards the call, so a tool
+//! container that receives it knows which agent is calling: its
+//! image, its template and its index. On what a tool container's own
+//! server answers — the result of each of the four, each tool and
+//! each resource of a list, and each notification — the daemon sets
+//! them as it relays the answer back, so a program that reads a
+//! merged list knows which tool serves each entry. And on every chunk
+//! an agent says, which is not MCP but has the same `_meta` at its
+//! top level, the daemon sets them as it keeps the chunk, so a reader
+//! of the log knows which agent spoke. The daemon replaces a value
+//! set under those keys and leaves every other key as it was sent;
+//! the proxy and the provider's server set nothing under `_meta` and
+//! relay all of it as sent. The keys' form is MCP's own rule for
 //! `_meta` names: a prefix of dotted labels, a slash, a name.
 //!
 //! # What is not here
@@ -60,8 +60,10 @@
 //! channel request wants it.
 
 mod frame_error;
+mod meta;
 
 pub use frame_error::*;
+pub use meta::*;
 
 pub mod call_tool;
 pub mod list_resources;

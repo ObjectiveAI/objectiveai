@@ -1,5 +1,6 @@
 //! The agentic loop chunk — the unit of a streaming response.
 
+use rmcp::model::MetaObject;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -9,6 +10,8 @@ use super::{
     ToolResponseChunk, UsageChunk, UserAudioContentChunk, UserImageContentChunk, UserResourceChunk,
     UserResourceLinkChunk, UserTextContentChunk,
 };
+use crate::shared::containers::request::Image;
+use crate::shared::mcp::{Who, attest};
 
 /// One chunk of a streaming agentic loop.
 ///
@@ -51,14 +54,14 @@ use super::{
 /// parts under one key; the first chunks of every run are the parts
 /// of the message it started on; see [`user_parts`](super::user_parts).
 ///
-/// # The image under `_meta`
+/// # Who spoke, under `_meta`
 ///
 /// Every kind of chunk has a `_meta` at its top level — MCP's own on
 /// the flattened content and results, this crate's on the rest — and
-/// the container's proxy sets one key on each as it relays the
-/// stream, `diverge.network/image`, an object of the container's
-/// `name` and `digest`: which image said the chunk. See
-/// [`shared::mcp`](crate::shared::mcp) for the key and its rule.
+/// the daemon sets the keys of [`shared::mcp`](crate::shared::mcp)
+/// on each as it keeps the stream, by [`attest`](Self::attest): the
+/// speaking agent's image, template and index. The proxy and the
+/// provider relay each chunk as the agent's server produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AgenticLoopChunk {
@@ -94,4 +97,30 @@ pub enum AgenticLoopChunk {
     Usage(UsageChunk),
     /// Something about the run itself. See [`NotificationChunk`].
     Notification(NotificationChunk),
+}
+
+impl AgenticLoopChunk {
+    /// Set the keys of [`shared::mcp`](crate::shared::mcp) on this
+    /// chunk's `_meta`, whichever kind it is — made when the chunk
+    /// carried none: the speaking agent's image and key, in place of
+    /// whatever was under those keys and beside everything else.
+    pub fn attest(&mut self, image: Option<&Image>, who: Who<'_>) {
+        let meta: &mut MetaObject = match self {
+            AgenticLoopChunk::AssistantReasoning(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::AssistantTextContent(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::AssistantImageContent(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::AssistantAudioContent(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::AssistantToolCall(chunk) => &mut **chunk.meta.get_or_insert_default(),
+            AgenticLoopChunk::AssistantRefusal(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::ToolResponse(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::UserTextContent(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::UserImageContent(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::UserAudioContent(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::UserResource(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::UserResourceLink(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::Usage(chunk) => chunk.meta.get_or_insert_default(),
+            AgenticLoopChunk::Notification(chunk) => chunk.meta.get_or_insert_default(),
+        };
+        attest(meta, image, who);
+    }
 }

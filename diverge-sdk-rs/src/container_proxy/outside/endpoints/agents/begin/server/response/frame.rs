@@ -83,9 +83,9 @@ pub enum Frame {
     /// One chunk of the agent's conversation. Tag `2`.
     ///
     /// After `Begun`, zero or more, for as long as the connection
-    /// lives, as the agent's server streamed them with the container's
-    /// image under each one's `_meta` — see
-    /// [`shared::mcp`](crate::shared::mcp) for the key; never before
+    /// lives, each as the agent's server streamed it — the proxy sets
+    /// nothing under its `_meta`; the daemon that keeps it does, see
+    /// [`shared::mcp`](crate::shared::mcp); never before
     /// `Begun`, never outside an [`Active`](Self::Active) and its
     /// [`Inactive`](Self::Inactive), and never after a finish. See
     /// [`AgenticLoopChunk`] for what one is.

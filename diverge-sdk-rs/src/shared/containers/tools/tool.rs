@@ -26,8 +26,8 @@ pub struct Tool {
     /// container, and the label the caller uses if it prefixes the
     /// tool's tools when it merges lists. Unique in the list. The
     /// program never finds a server by it — it calls tools by whatever
-    /// names the caller's merged list shows, and knows which image
-    /// serves each by the image under `_meta`, see
+    /// names the caller's merged list shows, and knows which tool
+    /// serves each by the keys under `_meta`, see
     /// [`shared::mcp`](crate::shared::mcp).
     pub name: String,
     /// The image: a name and a digest, the pair a

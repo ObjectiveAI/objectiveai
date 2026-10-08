@@ -137,7 +137,7 @@ where
         }
     };
 
-    let begun = match R::begin(&proxy, arguments, request.image.clone()).await {
+    let begun = match R::begin(&proxy, arguments).await {
         Ok(begun) => begun,
         Err(error) => {
             undo(&container, &repository, registry).await;

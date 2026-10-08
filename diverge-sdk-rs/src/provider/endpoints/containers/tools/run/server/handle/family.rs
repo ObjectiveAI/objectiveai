@@ -24,7 +24,6 @@ use crate::provider::endpoints::containers::server::serve::tool;
 use crate::provider::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy::outside::endpoints::tools::begin::client::execute as begin;
 use crate::shared;
-use crate::shared::containers::request::Image;
 use crate::shared::containers::response::{Id, VolumeHeld};
 use crate::shared::containers::{fuse, oci, postgres, tools, vault};
 use crate::shared::containers::daemon;
@@ -122,10 +121,10 @@ impl Family for Tools {
 impl Runs for Tools {
     type Ask<'a> = ask::Frame<'a>;
 
-    fn begin(proxy: &Handle, arguments: Value, image: Image) -> impl Future<Output = Result<Begun, Error>> + Send {
+    fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send {
         let proxy = proxy.clone();
         async move {
-            match begin::execute(&proxy, arguments, image).await {
+            match begin::execute(&proxy, arguments).await {
                 Ok((handle, asks, finish, tools)) => Ok(Begun {
                     begin: Begin::Tools(handle),
                     asks,

@@ -16,9 +16,10 @@
 //! nothing else. What a tool is FOR is being attached to agents: an
 //! [`attach`] puts it among the MCP servers the daemon answers an
 //! agent's tool calls with, under the tool's name, and the agent's
-//! merged tool list says which image serves each tool under `_meta`, as
-//! the provider protocol provides. A tool may be attached to any number
-//! of agents at once, and a [`detach`] takes it back from one.
+//! merged tool list says which tool serves each entry under `_meta`,
+//! its image and its key, as [`shared::mcp`](crate::shared::mcp)
+//! states. A tool may be attached to any number of agents at once, and
+//! a [`detach`] takes it back from one.
 //!
 //! # One container per tool
 //!
