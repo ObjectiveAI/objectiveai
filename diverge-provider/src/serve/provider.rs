@@ -9,6 +9,7 @@ use tokio::sync::Mutex;
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::server::authorization::Authorization;
 use diverge_sdk::provider::server::directory::Directory;
+use diverge_sdk::provider::server::volume_changes::VolumeChanges;
 use diverge_sdk::provider::server::handle::handle;
 use diverge_sdk::wire::server::session::Session;
 
@@ -47,6 +48,8 @@ pub struct Provider {
     directory: Arc<Directory>,
     /// The peers connected now, one per identity and per credential.
     peers: Arc<Peers>,
+    /// Every change to any caller's volumes, for the listings open.
+    volume_changes: Arc<VolumeChanges>,
 }
 
 impl Provider {
@@ -82,6 +85,7 @@ impl Provider {
             registry,
             directory: Arc::new(Directory::new()),
             peers: Arc::new(Peers::default()),
+            volume_changes: Arc::new(VolumeChanges::new()),
         })
     }
 
@@ -119,6 +123,7 @@ impl Provider {
             Arc::clone(&self.checker),
             Arc::clone(&self.registry),
             Arc::clone(&self.directory),
+            Arc::clone(&self.volume_changes),
         )
         .await;
     }
