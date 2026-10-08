@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::providers::outgoing::delete::server::respons
 use diverge_sdk::daemon::grant::providers_outgoing::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, providers_outgoing};
@@ -45,6 +45,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     providers_outgoing::delete(&mut tx, provider.id).await?;
     tx.commit().await?;
+    daemon.live.changed(Kind::ProvidersOutgoing);
     daemon.live.stop_dial(&provider.address).await;
     Ok(Frame::Deleted)
 }

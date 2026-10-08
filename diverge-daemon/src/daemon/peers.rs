@@ -64,12 +64,15 @@ impl Peers {
         Some(evict)
     }
 
-    /// The slot given back, and the credential it held with it.
-    pub fn release(&mut self, identity: &Identity) {
-        if let Some(slot) = self.slots.remove(identity)
-            && let Some(hash) = slot.credential
-        {
+    /// The slot given back, and the credential it held with it;
+    /// `false` when there was none to give.
+    pub fn release(&mut self, identity: &Identity) -> bool {
+        let Some(slot) = self.slots.remove(identity) else {
+            return false;
+        };
+        if let Some(hash) = slot.credential {
             self.credentials.remove(&hash);
         }
+        true
     }
 }

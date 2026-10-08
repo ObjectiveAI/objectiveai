@@ -14,7 +14,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
 use super::{Refusing, attach, url};
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::store::{self, providers_outgoing};
 
 /// How long after a connection ends, or a dial fails, the next dial
@@ -93,7 +93,9 @@ async fn on_record(daemon: &Daemon, address: &str) -> Result<Option<providers_ou
 /// Record that the connection opened or closed now.
 async fn connected_now(daemon: &Daemon, id: store::OutgoingId) -> Result<(), store::Error> {
     let mut conn = daemon.store.acquire().await?;
-    providers_outgoing::set_last_connected(&mut conn, id).await
+    providers_outgoing::set_last_connected(&mut conn, id).await?;
+    daemon.live.changed(Kind::ProvidersOutgoing);
+    Ok(())
 }
 
 /// The peer's address, off the TCP stream under the WebSocket. With

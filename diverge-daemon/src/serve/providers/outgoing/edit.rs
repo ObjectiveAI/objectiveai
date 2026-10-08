@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::providers::outgoing::edit::server::response:
 use diverge_sdk::daemon::grant::providers_outgoing::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, providers_outgoing};
@@ -41,5 +41,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     providers_outgoing::update_mode(&mut tx, provider.id, &frame.mode).await?;
     tx.commit().await?;
+    daemon.live.changed(Kind::ProvidersOutgoing);
     Ok(Frame::Edited)
 }

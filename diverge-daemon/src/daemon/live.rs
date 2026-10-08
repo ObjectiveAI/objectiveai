@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 
 use diverge_sdk::daemon::reference;
 
-use super::Peers;
+use super::{Changes, Kind, Peers};
 use crate::containers::{AgentRun, Key, ToolRun};
 use crate::database::Scope;
 use crate::store::{AccountId, AgentId, ToolId};
@@ -63,6 +63,8 @@ pub struct Live {
     /// The volumes a download, an upload or a transfer of the daemon's
     /// is on now, each held by one operation at a time.
     operations: Mutex<HashSet<reference::Volume>>,
+    /// The word that a kind changed, for the lists kept open.
+    changes: Changes,
 }
 
 impl std::fmt::Debug for Live {
@@ -126,7 +128,12 @@ impl Live {
     /// newcomer is refused; else the slot's eviction word. What is
     /// taken is given back with `disconnect_provider`, on every path.
     pub async fn take_provider(&self, identity: Identity, credential: Option<String>) -> Option<Arc<Notify>> {
-        self.providers.lock().await.take(identity, credential)
+        let kind = Kind::of_provider(&identity);
+        let taken = self.providers.lock().await.take(identity, credential);
+        if taken.is_some() {
+            self.changes.changed(kind);
+        }
+        taken
     }
 
     /// The provider answered its version, and this is the handle on
@@ -140,7 +147,20 @@ impl Live {
     /// The provider's connection ended: its slot given back, with the
     /// credential it held.
     pub async fn disconnect_provider(&self, identity: &Identity) {
-        self.providers.lock().await.release(identity);
+        if self.providers.lock().await.release(identity) {
+            self.changes.changed(Kind::of_provider(identity));
+        }
+    }
+
+    /// The kind changed: every list of it kept open reads again.
+    pub fn changed(&self, kind: Kind) {
+        self.changes.changed(kind);
+    }
+
+    /// Every word from now on, for a list kept open: subscribed
+    /// before the records are read.
+    pub fn changes(&self) -> tokio::sync::broadcast::Receiver<Kind> {
+        self.changes.subscribe()
     }
 
     /// End the provider's connection: its own task is told, closes

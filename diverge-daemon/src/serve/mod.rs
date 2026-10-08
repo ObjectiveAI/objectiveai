@@ -60,5 +60,6 @@ pub mod postgres;
 pub mod providers;
 pub mod resources;
 pub mod roles;
+pub mod stream;
 pub mod tools;
 pub mod volumes;

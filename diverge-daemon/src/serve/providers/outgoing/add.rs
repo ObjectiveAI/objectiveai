@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::providers::outgoing::add::client::request;
 use diverge_sdk::daemon::endpoints::providers::outgoing::add::server::response::Frame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::providers;
 use crate::serve::reply;
@@ -46,6 +46,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         providers_outgoing::Created::Exists => return Ok(Frame::Exists),
     }
     tx.commit().await?;
+    daemon.live.changed(Kind::ProvidersOutgoing);
     providers::start(daemon, frame.address).await;
     Ok(Frame::Added)
 }

@@ -45,14 +45,18 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
 | 8 | 11, 31 | `agents templates list`, `tools templates list` | The record (create, tag, untag, delete; an agent or tool made from one for `in_use`). |
 | 9 | 50 | `accounts list` | The record (create, edit, tag, untag, delete, a role assigned or unassigned); `Live.connected` (a client connecting or leaving). |
 | 10 | 57 | `roles list` | The record (create, edit, tag, untag, delete, grant, ungrant; an account assigned or unassigned). |
-| 11 | 40, 45 | `providers outgoing list`, `providers incoming list` | The record (add, edit, delete); `Live.providers` (a connection taken or given back); `last_connected` written by the dial. |
+| 11 | 40, 45 | `providers outgoing list`, `providers incoming list` | The record (add, edit, delete); `Live.providers` (a connection taken or given back); `last_connected` written by the dial. **Built 2026-10-07, first of the record lists.** |
 
 ## 3. What the record lists need, once
 
-Nothing announces a record write today: each handler commits its
-transaction and answers. Lists 4–11 need one thing built before the
-first of them: a word, per kind, that the kind's records changed —
-sent by every handler after its commit, and by the live state at
+The word exists since 2026-10-07: `daemon::Kind`, one variant per
+kind, and `Live::changed(kind)` / `Live::changes()`, a broadcast of
+kinds. The two provider kinds send it after each add, edit and
+delete commit, at a slot taken or given back, and at each write of
+`last_connected`; `serve::stream::listing` is the loop every record
+list runs over a `Source`, with `diff` telling added, changed and
+removed by key. Each remaining list needs its word sent — by every
+handler of the kind after its commit, and by the live state at
 every transition that reaches an item (`Live.enter`/`leave`,
 `connect_provider`/`disconnect_provider`, a run inserted or removed,
 its loop's `watch`, a log appended, a database connection opened or
