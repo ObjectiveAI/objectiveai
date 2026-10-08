@@ -13,10 +13,12 @@ use super::Error;
 /// once. Any other argument, or a `--config` with nothing after it,
 /// is [`Error::Arguments`]. With no argument,
 /// `DIVERGE_POSTGRES_CONFIG` names the directory; with neither, it is
-/// `.diverge/postgres` under the home directory — `HOME`, or
-/// `USERPROFILE` on Windows — and a host with no home is
-/// [`Error::Home`]. The path is made absolute against the working
-/// directory without following links.
+/// `.diverge/daemon/postgres` under the home directory — `HOME`, or
+/// `USERPROFILE` on Windows — the place the daemon runs the supervisor
+/// on, so that a supervisor started by hand and one the daemon starts
+/// are the same cluster; a host with no home is [`Error::Home`]. The
+/// path is made absolute against the working directory without
+/// following links.
 pub async fn dir(args: impl Iterator<Item = OsString>) -> Result<PathBuf, Error> {
     let mut given: Option<PathBuf> = None;
     let mut args = args;
@@ -32,7 +34,7 @@ pub async fn dir(args: impl Iterator<Item = OsString>) -> Result<PathBuf, Error>
     }
     let dir = match given.or_else(|| std::env::var_os("DIVERGE_POSTGRES_CONFIG").map(PathBuf::from)) {
         Some(dir) => dir,
-        None => home()?.join(".diverge").join("postgres"),
+        None => home()?.join(".diverge").join("daemon").join("postgres"),
     };
     let dir = std::path::absolute(&dir).map_err(|source| Error::Io {
         path: dir.clone(),

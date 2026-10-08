@@ -2,8 +2,8 @@
 //! and what it says.
 //!
 //! - `--config <dir>`, else `DIVERGE_POSTGRES_CONFIG`, else
-//!   `~/.diverge/postgres/`, names the DIRECTORY, created if absent —
-//!   see [`dir`].
+//!   `~/.diverge/daemon/postgres/`, names the DIRECTORY, created if
+//!   absent — see [`dir`].
 //! - `<dir>/config.yaml` is read if present; absent means the built-in
 //!   defaults, [`Config::default`]. No other name or extension is
 //!   looked for — see [`load`].

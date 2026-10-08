@@ -26,7 +26,8 @@
 //! # The directory
 //!
 //! `--config <dir>`, else `DIVERGE_POSTGRES_CONFIG`, else
-//! `~/.diverge/postgres/`. Inside it: `config.yaml`, optional; `bin/`,
+//! `~/.diverge/daemon/postgres/`, the daemon's own place for it. Inside
+//! it: `config.yaml`, optional; `bin/`,
 //! where the binaries are extracted and where EVERY lock file lives,
 //! under `bin/locks/`; `data/`, the cluster, with `data.ready` beside
 //! it as the mark that its initialization finished; and `password`,
