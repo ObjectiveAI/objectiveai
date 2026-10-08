@@ -429,6 +429,11 @@ fn seconds(time: SystemTime) -> u64 {
 impl volume::Volume for Volume {
     type Error = Error;
 
+    /// The mode as of now, read under the hold the handler took.
+    async fn mode(&self) -> Mode {
+        *self.inner.mode.lock().await
+    }
+
     /// One more mounter, unless the volume is locked — or, for a
     /// persistent volume, held by anyone at all: a persistent volume
     /// has one user at a time, one container or one serve, which is
