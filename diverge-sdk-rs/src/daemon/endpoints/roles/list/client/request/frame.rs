@@ -11,18 +11,20 @@ use super::Filter;
 /// wire — is every role the caller's grants reach. The members but
 /// `count` together are the filter. The daemon applies the filter,
 /// oldest first, and sends each role it lets through as a
-/// [`Role`](crate::daemon::endpoints::roles::list::server::response::Role).
-/// The count caps what comes back.
+/// [`Role`](crate::daemon::endpoints::roles::list::server::response::Role),
+/// and keeps sending as the roles change. The count keeps the list
+/// to the first that many that match.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Frame {
     /// The filter: see [`Filter`]. Flattened, so its members are this
     /// object's own.
     #[serde(flatten)]
     pub filter: Filter,
-    /// How many roles to send at most, counting what comes back and not
-    /// what the filter reads; once that many have been sent the scope
-    /// finishes, whether or not more would have matched. `0` sends
-    /// nothing and finishes at once. Absent, no cap.
+    /// How many roles the list is kept to, counting what matches and
+    /// not what the filter reads: the first that many that match are
+    /// the list, and one leaving that window is removed as one entering
+    /// it is added. `0` is a list of nothing, told whole at once.
+    /// Absent, no cap.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub count: Option<u64>,
 }

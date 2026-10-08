@@ -141,7 +141,7 @@ pub enum ClientRequest<'a> {
     RolesCreate(roles::create::client::request::Frame),
     /// Tag `56`. Get one role.
     RolesGet(roles::get::client::request::Frame),
-    /// Tag `57`. List the roles, narrowed.
+    /// Tag `57`. List the roles, narrowed, and keep the list.
     RolesList(roles::list::client::request::Frame),
     /// Tag `58`. Delete a role.
     RolesDelete(roles::delete::client::request::Frame),
