@@ -6,8 +6,9 @@ draft: false
 ---
 
 The server opens this channel on the run scope when a
-[containers::tools::list_for](/endpoints/containers-tools-list-for/) request names the
-identity of this run. The runner's answer decides whether the
+[containers::tools::list_for](/endpoints/containers-tools-list-for/) scope names the
+identity of this run, whether the run was open when the list scope
+opened or began after. The runner's answer decides whether the
 container is sent on the list scope.
 
 - **The request.** The tag byte `4` followed by the address and the
@@ -24,6 +25,10 @@ container is sent on the list scope.
   tool run the identity holds, without waiting on any other's answer,
   and sends each container the moment its own answer arrives. No
   agent run is asked.
+- **And every runner after.** While a list scope naming the identity
+  is open, the server opens this channel on every tool run the
+  identity begins, when that run has been answered with its id. The
+  server opens it exactly once per container per list scope.
 - **Seeing is not joining.** A yes tells the lister the container's
   id and family, and nothing else. A connector that joins is asked
   for on the [authorize-connect](/endpoints/containers-tools-run/server/authorize-connect/) channel,

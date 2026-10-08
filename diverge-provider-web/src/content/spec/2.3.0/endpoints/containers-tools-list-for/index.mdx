@@ -1,6 +1,6 @@
 ---
 title: 'containers::tools::list_for'
-summary: 'Tag 3: a client names an identity; the server asks the runner of every tool container that identity runs, on its run scope, whether the client may see it, sends each container the moment its runner answers yes, and finishes when every runner has answered or gone.'
+summary: 'Tag 3: a client names an identity; the server asks the runner of every tool container that identity runs whether the client may see it, sends each container the moment its runner answers yes, says when the listing is whole, keeps sending as the identity starts and ends tool containers, and finishes when the client stops.'
 order: 3
 draft: false
 ---
@@ -10,15 +10,23 @@ the tag byte `3` followed by the request as JSON: an identity, named
 by the mode it authenticates in. The server asks the runner of every
 tool container that identity is running whether the lister may see it,
 and sends the lister each container whose runner says so, one
-response each, the moment that answer arrives. The response finish
-follows once every runner has answered or gone, and no frame follows
-the finish. This section states what the server does, in the order it
-does it. It states nothing about the lister or the runners.
+response each, the moment that answer arrives. When every runner asked
+at the opening has answered or gone, the server sends the word that
+the listing is whole, and keeps the scope open: a tool container the
+identity starts after is asked about the same way and sent as added
+when its runner allows, and a container whose run ends is sent as
+removed to a lister it was sent to. The scope ends at the lister's
+stop, at the lister's connection ending, or at an error; the response
+finish follows, and no frame follows the finish. This section states
+what the server does, in the order it does it. It states nothing about
+the lister or the runners.
 
 - **The request.** [Request](/endpoints/containers-tools-list-for/request/) states its form.
 - **The response.** [Response](/endpoints/containers-tools-list-for/response/) states the responses and
   the sequence of the main stream.
-- **The channels.** Neither side opens a channel on a list scope.
+- **The channels.** The lister opens the one channel of
+  [Client Channels](/endpoints/containers-tools-list-for/client/), the
+  stop. The server opens no channel on a list scope.
 
 ## The order
 
@@ -32,7 +40,7 @@ does it. It states nothing about the lister or the runners.
    its runner alone: a container the identity is attached to as a
    connector is not among them, and no agent container is among them,
    whoever runs it. An identity that runs no tool container is
-   answered by the response finish with no response before it.
+   answered by the byte `2` at once, and the scope stays open.
 3. **The server asks every runner, all at once.** For each container
    found, the server opens an
    [authorize-list](/endpoints/containers-tools-run/server/authorize-list/)
@@ -43,19 +51,44 @@ does it. It states nothing about the lister or the runners.
    every such channel without waiting on any other's answer.
 4. **The server sends each container as its runner allows.** The byte
    `1` on a channel is answered on the list scope by exactly one
-   response carrying that container, sent when the byte arrives and
-   not held for any other runner. The byte `0`, a channel response
-   finish with no frame before it, and a runner that is gone are
-   each answered by nothing: the container is not sent.
-5. **The server ends the scope.** When every channel it opened has
-   finished, the server sends the response finish.
+   response carrying that container as added, sent when the byte
+   arrives and not held for any other runner. The byte `0`, a channel
+   response finish with no frame before it, and a runner that is gone
+   are each answered by nothing: the container is not sent. A
+   container whose run ends before its runner's byte arrives is not
+   sent, whatever the byte.
+5. **The server says the listing is whole.** When every channel
+   opened in step 3 has finished, the server sends exactly one
+   response whose payload is the byte `2` and nothing else. The server
+   sends it exactly once on a scope.
+6. **The server keeps the listing.** For the life of the scope, a
+   tool container the identity starts — a
+   [containers::tools::run](/endpoints/containers-tools-run/) scope
+   under that identity that has been answered with its id — is asked
+   about as in step 3 and sent as in step 4; a tool container the
+   identity stops, whose run scope ends, is answered on the list
+   scope by exactly one response carrying that container as removed
+   when the server has sent it as added, and by nothing otherwise.
+   The server asks each runner about each container exactly once per
+   list scope.
+7. **The server ends the scope.** When the server receives the
+   lister's [stop](/endpoints/containers-tools-list-for/client/stop/),
+   or the lister's connection ends, the server lets go of every ask
+   not yet answered and sends the response finish. An ask let go is
+   answered on its own channel as its runner answers it, and the
+   server sends nothing of that answer.
 
 ## The rules that hold throughout
 
 - **No timeout.** The server times nothing out: a runner that does
-  not answer holds the scope open.
+  not answer holds the byte `2` back, and holds nothing else.
+- **No end of its own.** The server does not end the scope because
+  the identity runs no tool container, nor because every container
+  sent has been removed. The lister's stop, the lister's connection
+  ending, and an error are the only ends.
 - **No order.** The server sends containers in the order the runners'
-  answers arrive, and promises no other.
+  answers arrive, and promises no other. A container is sent as
+  removed only after it was sent as added.
 - **Nothing but the id.** A container is sent as its id and nothing
   else of it: not its image, not its mounts, not who is attached to
   it.
