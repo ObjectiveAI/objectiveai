@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the sixteen endpoints and their
+types, the authorization handshake, the seventeen endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,15 +94,15 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the sixteen scope-opening requests
+1.9 **"Endpoint"** means one of the seventeen scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
-`containers::tools::connect`, `3` `volumes::list`, `4`
-`volumes::stat`, `5` `volumes::read`, `6` `volumes::write`, `7`
-`volumes::filetree`, `8` `volumes::serve`, `9`
-`volumes::create_capacity`, `10` `volumes::create`, `11`
-`volumes::edit_capacity`, `12` `volumes::edit`, `13`
-`volumes::delete`, `14` `images::check`, `15` `version`.
+`containers::tools::connect`, `3` `containers::tools::list_for`, `4`
+`volumes::list`, `5` `volumes::stat`, `6` `volumes::read`, `7`
+`volumes::write`, `8` `volumes::filetree`, `9` `volumes::serve`, `10`
+`volumes::create_capacity`, `11` `volumes::create`, `12`
+`volumes::edit_capacity`, `13` `volumes::edit`, `14`
+`volumes::delete`, `15` `images::check`, `16` `version`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
 a container request by a repository path and a manifest digest, as
@@ -187,6 +187,8 @@ into a tool Container.
 1.19 **"Runner"** means the Client on whose `containers::tools::run`
 scope a Container is running. **"Connector"** means a Client that
 opens a `containers::tools::connect` scope naming that Container.
+**"Lister"** means a Client that opens a `containers::tools::list_for`
+scope naming an identity.
 
 1.20 **"Obligation"** means each requirement this Agreement imposes on
 the Provider, including every requirement incorporated from the
@@ -406,7 +408,7 @@ byte the Specification does not require.
 that follow a request, the Provider shall ignore them and shall not
 treat the request as malformed on their account.
 
-### 5.5 `version` (tag 15)
+### 5.5 `version` (tag 16)
 
 The Provider shall answer every `version` request with exactly one
 Response whose payload is the string `2.3.0` encoded as UTF-8 with no
@@ -414,7 +416,7 @@ tag and no length prefix, followed by the Response Finish. The
 Provider shall not send any other string, shall not send an empty
 string, and shall not send an error on this Endpoint.
 
-### 5.6 `images::check` (tag 14)
+### 5.6 `images::check` (tag 15)
 
 The Provider shall answer every `images::check` request with exactly
 one Response and the Response Finish: the byte `0` followed by exactly
@@ -428,16 +430,32 @@ determine the answer. An available answer reserves nothing.
 ### 5.7 Volumes
 
 (a) **Listing.** The Provider shall answer every `volumes::list`
-request with exactly one Response: the byte `0` followed by the
-listing in the postcard form the Specification states, or the byte
-`1` followed by an error. The listing shall contain every Volume the
-Identity created by `volumes::create` and has not deleted by
-`volumes::delete`; it may contain other Volumes at the Provider's
-discretion; every Volume it contains shall be available to the
-Identity to mount; no two Volumes in one listing shall share a name.
-The Provider shall report for each Volume its `name`, its `bytes`,
-its `created` and its `mode` as the Specification defines them, and
-nothing more.
+request with a Scope kept open: first, for every Volume available to
+the Identity when the Scope opened, exactly one Response, the byte `0`
+followed by the Volume in the postcard form the Specification states;
+then exactly one Response whose payload is the byte `3` and nothing
+else, sent once on the Scope; then, for the life of the Scope, a
+Volume that becomes available to the Identity as the byte `0`
+followed by the Volume, a Volume whose `bytes` or `mode` changes as
+the byte `1` followed by the Volume, and a Volume that ceases to be
+available as the byte `2` followed by the Volume as the Provider last
+sent it, each sent after the Provider has sent the byte `0` of the
+request that made the change; and the Response Finish when the
+Provider receives the Identity's `stop` Channel request or the
+Identity's Connection ends, or the byte `4` followed by an error and
+the Response Finish when the Provider cannot list. The listing shall
+contain every Volume the Identity created by `volumes::create` and
+has not deleted by `volumes::delete`; it may contain other Volumes at
+the Provider's discretion, reported as the Provider learns of them;
+every Volume it contains shall be available to the Identity to mount;
+no two Volumes listed at once shall share a name. The Provider shall
+send a Volume as added exactly once while it is listed, as changed
+only while it is listed and only when its `bytes` or `mode` differ
+from what the Provider last sent for it, and as removed exactly once
+and only after it sent the Volume as added; shall report for each
+Volume its `name`, its `bytes`, its `created` and its `mode` as the
+Specification defines them, and nothing more; and shall not end the
+Scope because the Identity has no Volume.
 
 (b) **Stat.** The Provider shall answer every `volumes::stat` request
 naming a Volume in the Identity's listing with exactly one Response
@@ -567,8 +585,9 @@ of the stated name, size and mode exists for the Identity; the
 byte `1` when
 the Provider cannot reserve the size stated; or the byte `2` followed
 by an error for any other reason. From the moment the Provider sends
-the byte `0`, every listing the Provider sends the Identity shall
-contain the Volume until it is deleted. A Volume shall be created
+the byte `0`, every listing the Provider opens for the Identity shall
+contain the Volume, and every listing it holds open for the Identity
+shall tell the Volume as added, until it is deleted. A Volume shall be created
 empty, and the Provider shall not write to, remove from, or otherwise
 alter the content of a Volume on its own account: only a Container in
 which the Identity mounts the Volume changes its content. The
@@ -591,8 +610,10 @@ under a `volumes::stat`, another `volumes::edit` or a
 `volumes::delete` at the time of the request, with the byte `3`
 followed by an error. The size and the mode are the only properties
 an edit changes. From the moment the Provider sends the byte `0`,
-every listing and every stat the Provider sends the Identity shall
-report the new size and the new mode, and every Container in which
+every listing the Provider opens for the Identity and every stat it
+sends the Identity shall report the new size and the new mode, every
+listing it holds open for the Identity shall tell the Volume as
+changed, and every Container in which
 the Identity mounts the Volume after that moment, and every serve of
 it after that moment, shall be bound under the new mode.
 
@@ -605,10 +626,11 @@ under a `volumes::serve`, or under a `volumes::stat`, a
 request; or the byte `2` followed by an error for any other reason.
 The Provider shall not delete a Volume that is mounted in a running
 Container at the time of the request. From the moment the Provider
-sends the byte `0`, every listing the Provider sends the Identity
-shall omit the Volume, and no listing shall contain a Volume that has
-been deleted. An error shall leave the Volume, its content and the
-listing as they were.
+sends the byte `0`, every listing the Provider opens for the Identity
+shall omit the Volume, every listing it holds open for the Identity
+that told the Volume as added shall tell it as removed, and no listing
+shall tell as available a Volume that has been deleted. An error shall
+leave the Volume, its content and the listing as they were.
 
 (k) **Identity of the Volume namespace.** The Provider shall resolve
 every Volume name against the Identity of the Connection on which it
@@ -847,7 +869,39 @@ nothing and releasing nothing. The Provider shall not send anything on
 the connect Scope, and shall serve no Channel of it, before the Runner
 has answered.
 
-### 5.11 Prohibitions
+### 5.11 `containers::tools::list_for` (tag 3)
+
+For every list_for request, the Provider shall, in order: (a) read the
+request and answer a payload that does not decode by a Bare Finish;
+(b) find every tool Container it is running whose Runner is the
+identity the request names, by the Runner alone — no agent Container
+and no Container the identity is attached to as a Connector among
+them; (c) open an `authorize-list` Channel on the run Scope of each
+such Container, carrying the peer IP address of the Lister's
+Connection as the Provider observed it and the identity under which
+the Provider authorized the Lister's Connection, without waiting on
+any other's answer, and answer the byte `1` on a Channel by exactly
+one Response, the byte `0` followed by that Container's id and nothing
+else of it, sent when the byte arrives and not held for any other
+Runner, and the byte `0`, any other byte, a Bare Finish, or a Runner
+that is gone by nothing; (d) send exactly one Response whose payload
+is the byte `2` and nothing else when every Channel opened under (c)
+has finished, and send it exactly once on the Scope; (e) for the life
+of the Scope, ask under (c) about every tool Container the identity
+begins after, when its run has been answered with its id, exactly
+once per Container per Scope, and answer a Container whose run ends,
+when the Provider has sent it under (c) or (e), by exactly one
+Response, the byte `1` followed by its id; (f) end the Scope by the
+Response Finish when it receives the Lister's `stop` Channel request
+or the Lister's Connection ends, letting go of every ask not yet
+answered, or by the byte `3` followed by an error and the Response
+Finish when it cannot ask. The Provider shall not end the Scope
+because the identity runs no tool Container, shall time no Runner
+out, shall send a Container as added at most once per Scope and as
+removed only after it sent it as added, and shall send nothing of a
+Container but its id.
+
+### 5.12 Prohibitions
 
 The Provider shall never: (a) refuse, alter or withhold a FUSE ask on
 its own account, whether a change to a FUSE Mount is allowed being the
@@ -865,7 +919,7 @@ Finish, or a Bare Finish where the Specification states a Response;
 anything a Client chose; or (j) serve a Scope under an Identity other
 than that of the Connection on which the Scope was opened.
 
-### 5.12 The Container Proxy
+### 5.13 The Container Proxy
 
 The Provider shall place inside every Container a Container Proxy
 that conforms in full to the Specification's Container Proxy and
@@ -918,7 +972,7 @@ only what is required.
 that: (a) it has full power and authority to enter into and perform
 this Agreement; (b) every Server it holds out as conforming is and
 will remain Conforming for the Term; (c) every Container Proxy it
-places inside a Container conforms to Section 5.12; (d) its
+places inside a Container conforms to Section 5.13; (d) its
 performance of this Agreement does not and will not violate any
 agreement to which it is a party or any applicable law; and (e) the
 Deployment Infrastructure it uses is adequate to perform every
