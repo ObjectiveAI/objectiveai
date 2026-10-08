@@ -7,7 +7,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::in_use;
 use crate::content;
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, resources};
@@ -47,6 +47,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     resources::delete(&mut tx, &record.id).await?;
     tx.commit().await?;
+    daemon.live.changed(Kind::Resources);
     // The record is gone first, so a reader that finds no record never
     // finds the bytes either; bytes that will not go are left, and the
     // next hold of the same content finds them in place.

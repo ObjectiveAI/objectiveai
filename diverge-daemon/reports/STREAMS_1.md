@@ -41,7 +41,7 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
 | 4 | 5 | `agents list` | The record (create, edit, tag, untag, delete, attach, detach, a tool renamed); `Live.agents` (a run starting or ending, its loop active or inactive, a start failed). **Built 2026-10-08.** The log's length is read at those changes and not per line: see §3. |
 | 5 | 23 | `tools list` | The record (create, connect, edit, tag, untag, delete, attach, detach, admit, unadmit, a route set or deleted, an agent renamed); `Live.tools` (a run inserted or removed). **Built 2026-10-08.** |
 | 6 | 28 | `tools routes list` | The record (set, delete; a tool deleted); a tool renamed. **Built 2026-10-08.** |
-| 7 | 36 | `resources list` | The record (upload, tag, untag, delete; a mount named or unnamed by an agent or tool for `in_use`). |
+| 7 | 36 | `resources list` | The record (upload, a transfer into a new resource, tag, untag, delete); an agent or tool made or deleted, for `in_use`. **Built 2026-10-08.** |
 | 8 | 11, 31 | `agents templates list`, `tools templates list` | The record (create, tag, untag, delete; an agent or tool made from one for `in_use`). |
 | 9 | 50 | `accounts list` | The record (create, edit, tag, untag, delete, a role assigned or unassigned); `Live.connected` (a client connecting or leaving). |
 | 10 | 57 | `roles list` | The record (create, edit, tag, untag, delete, grant, ungrant; an account assigned or unassigned). |

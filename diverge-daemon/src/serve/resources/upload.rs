@@ -8,7 +8,7 @@ use diverge_sdk::daemon::endpoints::resources::upload::server::response::Frame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::content;
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, resources};
@@ -84,6 +84,7 @@ async fn serve(scope: Arc<ScopeHandle>, frame: request::Frame, who: Who, daemon:
             return Err(Failure::Content(error));
         }
         tx.commit().await.map_err(store::Error::from).map_err(Failure::Store)?;
+        daemon.live.changed(Kind::Resources);
         held
     };
     Ok(match held {
