@@ -99,7 +99,7 @@ pub enum ClientRequest<'a> {
     ToolsTemplatesUntag(tools::templates::untag::client::request::Frame),
     /// Tag `35`. Upload a file or a directory.
     ResourcesUpload(resources::upload::client::request::Frame),
-    /// Tag `36`. List the resources, narrowed.
+    /// Tag `36`. List the resources, narrowed, and keep the list.
     ResourcesList(resources::list::client::request::Frame),
     /// Tag `37`. Delete a resource by id.
     ResourcesDelete(resources::delete::client::request::Frame),
