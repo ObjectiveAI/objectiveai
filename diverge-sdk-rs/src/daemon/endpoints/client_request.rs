@@ -49,7 +49,7 @@ pub enum ClientRequest<'a> {
     AgentsTemplatesCreate(agents::templates::create::client::request::Frame),
     /// Tag `10`. Get one template by id.
     AgentsTemplatesGet(agents::templates::get::client::request::Frame),
-    /// Tag `11`. List the caller's templates, narrowed.
+    /// Tag `11`. List the caller's templates, narrowed, and keep the list.
     AgentsTemplatesList(agents::templates::list::client::request::Frame),
     /// Tag `12`. Delete a template by id.
     AgentsTemplatesDelete(agents::templates::delete::client::request::Frame),
@@ -89,7 +89,7 @@ pub enum ClientRequest<'a> {
     ToolsTemplatesCreate(tools::templates::create::client::request::Frame),
     /// Tag `30`. Get one tool template by id.
     ToolsTemplatesGet(tools::templates::get::client::request::Frame),
-    /// Tag `31`. List the caller's tool templates, narrowed.
+    /// Tag `31`. List the caller's tool templates, narrowed, and keep the list.
     ToolsTemplatesList(tools::templates::list::client::request::Frame),
     /// Tag `32`. Delete a tool template by id.
     ToolsTemplatesDelete(tools::templates::delete::client::request::Frame),
