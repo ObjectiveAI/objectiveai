@@ -13,18 +13,19 @@ Each program has ONE directory, found the same way by all three:
 1. `--config <dir>`, the one argument any of them takes;
 2. else an environment variable — `DIVERGE_PROVIDER_CONFIG`,
    `DIVERGE_DAEMON_CONFIG`, `DIVERGE_POSTGRES_CONFIG`;
-3. else `.diverge/<program>` under the home directory, `HOME` or,
-   on Windows, `USERPROFILE`.
+3. else a fixed place under the home directory, `HOME` or, on
+   Windows, `USERPROFILE`: `.diverge/provider`, `.diverge/daemon`,
+   and for the supervisor `.diverge/daemon/postgres`.
 
 The path is made absolute against the working directory without
 following links, and the directory is made if absent. So with no
-argument and no variable the three live side by side:
+argument and no variable, two directories, the third inside one:
 
 ```text
 ~/.diverge/                         <diverge>
 ├── provider/                       the provider's directory
-├── daemon/                         the daemon's directory
-└── postgres/                       diverge-postgres run ON ITS OWN only
+└── daemon/                         the daemon's directory
+    └── postgres/                   the supervisor's directory, by the daemon or by hand
 ```
 
 Two things to hold onto before the trees:
@@ -36,9 +37,10 @@ Two things to hold onto before the trees:
   provider's; a resource's bytes and an agent's log are the daemon's.
 - **The daemon's Postgres lives inside the daemon's directory.** The
   daemon runs `diverge-postgres --config <diverge>/daemon/postgres`,
-  so `~/.diverge/postgres/` is only ever made by a `diverge-postgres`
-  started by hand. Under the daemon, the whole postgres tree in §4 is
-  `<diverge>/daemon/postgres/`.
+  and the supervisor's own default, with no argument and no variable,
+  is that same `~/.diverge/daemon/postgres/`: one started by hand and
+  one the daemon starts are the same cluster. The whole postgres tree
+  in §4 is `<diverge>/daemon/postgres/`.
 
 Beside the directories there are two binaries each program expects
 NEXT TO ITS OWN EXECUTABLE, not under `<diverge>`:
@@ -191,7 +193,7 @@ exists and the daemon dials the URL.
 A `read_only` resource mount is served from `resources/<id>` in
 place; only `ephemeral` ones get a copy under `overlays/`.
 
-## 4. The Postgres supervisor: `<daemon>/postgres/` (or `<diverge>/postgres/`)
+## 4. The Postgres supervisor: `<diverge>/daemon/postgres/`
 
 What `diverge-postgres` makes in the directory it is given:
 
@@ -231,7 +233,7 @@ the last one left, under `init.lock`.
 │   ├── resources/{incoming/<uuid>/, <id>}
 │   ├── agents/<id>/{log, index}
 │   └── overlays/{agent,tool}-<id>/r<n>
-└── (postgres/ — only if diverge-postgres is run by hand)
+└── (nothing else)
 
 elsewhere, named by provider/config.yaml:
 <store.path>/<identity>/{<name>, .<name>}
