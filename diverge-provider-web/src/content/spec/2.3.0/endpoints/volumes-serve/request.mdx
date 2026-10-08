@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 9 followed by the name of the volume as a varint length and UTF-8 bytes and overlay_disk as a varint, in the postcard wire format.'
+summary: 'The payload is the tag byte 9 followed by the name of the volume as a varint length and UTF-8 bytes, the mode as a varint, and overlay_disk as a varint, in the postcard wire format.'
 order: 1
 draft: false
 ---
@@ -10,12 +10,16 @@ the postcard wire format, as the postcard reading of
 [Notation](/endpoints/#notation) provides:
 
 ```text
-[9][name_len: varint][name: utf8 …][overlay_disk: varint]
+[9][name_len: varint][name: utf8 …][mode: varint][overlay_disk: varint]
 ```
 
 - **`name`.** The name of the volume, UTF-8, preceded by its byte
   length as a varint. It is the `name` of a volume in the client's
   [volumes::list](/endpoints/volumes-list/) listing.
+- **`mode`.** The mode the serve means the volume to have, as a
+  varint: `0` persistent, `1` ephemeral, `2` read only. A volume in
+  another mode is not served, as the [response](/endpoints/volumes-serve/response/)
+  states; a serve never changes a volume's mode.
 - **`overlay_disk`.** The most bytes the serve's layer may hold, as a
   varint, for a volume whose `mode` is `ephemeral`: the server sets
   that many bytes aside for the serve's life, refuses the serve with

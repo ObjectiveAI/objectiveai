@@ -530,18 +530,21 @@ with an error.
 (f) **Serving.** The Provider shall answer every `volumes::serve`
 request naming a Volume in the Identity's listing with exactly one
 Response: the byte `0` only after it holds the Volume as a running
-Container that mounts it holds it, or the byte `1` followed by an
-error. The Provider shall hold the Volume so from that moment until
-the Response Finish; shall permit any number of `volumes::serve`
-Scopes and running Containers to hold one `ephemeral` or `read_only`
-Volume at once; shall refuse, by the byte `1` followed by an error, a
-serve of a `persistent` Volume that any running Container mounts or
+Container that mounts it holds it; the byte `1` followed by the name
+of the Volume and the mode it is in as JSON, when the request's
+`mode` is not the Volume's, after holding the Volume and releasing
+it, changing nothing; or the byte `2` followed by an error. The
+Provider shall hold the Volume so from the byte `0` until the
+Response Finish; shall permit any number of `volumes::serve` Scopes
+and running Containers to hold one `ephemeral` or `read_only` Volume
+at once; shall refuse, by the byte `2` followed by an error, a serve
+of a `persistent` Volume that any running Container mounts or
 another serve holds at the time of the request; shall answer a
 `volumes::stat`, `volumes::read`, `volumes::write`,
 `volumes::filetree`, `volumes::edit` or `volumes::delete` naming the
 Volume with an error for as long as it holds it; and shall answer a
 request naming a Volume under one of those six at the time of the
-request with the byte `1` followed by an error. After the byte `0`
+request with the byte `2` followed by an error. After the byte `0`
 the Provider shall answer every Channel the Client opens on the Scope
 carrying one of the nine FUSE asks, in the form the Specification
 states for a mount's ask of the same tag, with exactly one Channel
@@ -554,7 +557,7 @@ shall buffer no content of the Volume on the Client's behalf. For a
 `persistent` Volume the Provider shall make every change it answers
 `ok` in the Volume. For an `ephemeral` Volume the Provider shall set
 aside the request's `overlay_disk` bytes for the serve's life,
-refusing the serve by the byte `1` followed by an error when it
+refusing the serve by the byte `2` followed by an error when it
 cannot; shall make every change it answers `ok` in a layer of that
 serve alone, which every later ask of the same serve sees and no
 other serve, Container or request sees; shall keep the layer within
@@ -665,7 +668,15 @@ has one user at a time: the Provider shall answer a request naming a
 `volumes::serve` holds at the time of the request as it answers one
 naming a Volume under a `volumes::stat`, by the byte `1` followed by
 the name. A request that names one Volume more than once mounts it at
-each path named and is one user of it.
+each path named and is one user of it. Every Volume Mount states the
+`mode` it means the Volume to have: the Provider shall, after holding
+a Volume, compare the Volume's mode with the `mode` of every mount
+naming it, and shall answer a request naming a Volume under a `mode`
+the Volume is not in, or under two modes, by exactly one Response,
+the byte `2` followed by the name of that Volume and the mode it is
+in as JSON, and the Response Finish, releasing every Volume held for
+the request, fetching nothing, deploying nothing, and changing no
+Volume's mode.
 
 (b) **Obtain the image.** The Provider shall obtain the image the
 digest names, from a source of its own choosing; the Specification
@@ -755,13 +766,15 @@ never on a connect Scope.
 unique among the Containers it is running and not derivable from the
 request, from the Identity, or from any other id, and shall send it as
 exactly one Response; a run refused for a held Volume has the byte `1`
+and the name as its only Response, and a run refused for a Volume in
+another mode has the byte `2`
 and the name as its only Response, and a run that fails has the error
 as its only Response. From that moment the Container is running for
 the Client and shall be findable by a `containers::tools::connect`
 request naming the id. After the id the Provider shall send, for a
 tool container, no further Response on the Scope, and, for an agent
 container, every chunk the Proxy sends on the begin Scope's main
-stream as one Response, the byte `3` followed by the chunk verbatim,
+stream as one Response, the byte `4` followed by the chunk verbatim,
 in the order the Proxy sent them, and no other Response.
 
 (j) **Serve the Scope.** For as long as the Scope lives, and

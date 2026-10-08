@@ -58,6 +58,13 @@ error, and no channel is served.
   is refused while a serve holds it, as
   [containers::agents::run](/endpoints/containers-agents-run/)
   states.
+- **The request states the mode.** A serve names the `mode` it means
+  the volume to have. The server compares it with the volume's
+  `mode` after it holds the volume: a volume in another mode is not
+  served, the request is answered with the mode the volume is in,
+  the hold is given back, and nothing changes. A serve never changes
+  a volume's mode; only [volumes::edit](/endpoints/volumes-edit/)
+  does.
 - **The asks are the mount's.** Each ask is, byte for byte, the ask a
   FUSE mount's scope carries on the container proxy, with no id: the
   scope is the volume, as the mount scope is the mount. Each answer is
@@ -99,4 +106,7 @@ error, and no channel is served.
   `persistent` volume mounted in a running container or held by
   another serve at the time of the request, an `ephemeral` volume
   whose `overlay_disk` the server cannot set aside, and a volume the
-  server could not open are each answered with an error.
+  server could not open are each answered with an error. A volume
+  that is not in the mode the request means is answered with the
+  mode it is in, which is not an error: the [response](/endpoints/volumes-serve/response/)
+  states it.

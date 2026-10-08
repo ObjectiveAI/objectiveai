@@ -6,13 +6,14 @@ draft: false
 ---
 
 The server sends exactly one response on the scope: the id, the
-volume that refused the run, or an error. The response finish ends
+volume that refused the run — held, or in another mode — or an error. The response finish ends
 the scope. No frame bearing the scope follows the finish.
 
 ```text
 [0][id JSON …]                  once, when the container is running
-[1][volume-held JSON …]         once, when a named volume is under a stat, an edit or a delete
-[2][error JSON …]               once, when it is not running for another reason
+[1][volume-held JSON …]         once, when a named volume is held
+[2][volume-mode JSON …]         once, when a named volume is not in the mode its mount names
+[3][error JSON …]               once, when it is not running for another reason
 ```
 
 - **The sequence.** Before the id, the server sends no response.
@@ -36,18 +37,31 @@ the scope. No frame bearing the scope follows the finish.
   [volumes::stat](/endpoints/volumes-stat/),
   [volumes::edit](/endpoints/volumes-edit/) or
   [volumes::delete](/endpoints/volumes-delete/) at the time of the
-  request. A volume mounted in another container does not refuse a
-  run: a volume may be mounted in any number of containers at once.
-  The server sends it before it fetches or deploys anything, and the
-  finish follows. The container was not started.
-- **The error.** A payload whose first byte is `2` carries an error
+  request, or a `persistent` volume that a running container mounts
+  or a [volumes::serve](/endpoints/volumes-serve/) holds at the time
+  of the request. An `ephemeral` or a `read_only` volume mounted in
+  another container does not refuse a run: it may be mounted in any
+  number of containers of the client at once. The server sends it
+  before it fetches or deploys anything, and the finish follows. The
+  container was not started.
+- **Volume mode.** A payload whose first byte is `2` carries, after
+  that byte as JSON, an object with the members `name`, a string, and
+  `mode`, a string: the `volume_name` of a volume the request named
+  under a `mode` the volume is not in, and the mode the volume is in,
+  as the client's listing reports it, one of `persistent`,
+  `ephemeral` and `read_only`. The server sends it after it has held
+  the volume and given the hold back, before it fetches or deploys
+  anything, and the finish follows. The container was not started,
+  and the volume is as it was. A request naming one volume under two
+  modes is answered the same way, with the mode the volume is in.
+- **The error.** A payload whose first byte is `3` carries an error
   after that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is none of `0`, `1` and `2`, a payload whose bytes after `0` do not
-  parse as the id, a payload whose bytes after `1` do not parse as
-  the refusal and a payload whose bytes after `2` are not one JSON
+  is none of `0`, `1`, `2` and `3`, a payload whose bytes after `0`
+  do not parse as the id, a payload whose bytes after `1` or `2` do
+  not parse as the refusal and a payload whose bytes after `3` are not one JSON
   value are malformed.
 
 The response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/tools/run/server/response/frame.rs`:

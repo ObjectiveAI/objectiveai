@@ -29,8 +29,13 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   in the volume when the container ends; `ephemeral`, the volume is
   as it was before the run, and the container sees the volume's
   content as of its start; `read_only`, the container cannot change
-  it. A mount states nothing about it. A request may name one volume
-  at several paths; it is one user of the volume.
+  it. `mode` is the mode the mount means the volume to have, one of
+  the strings `persistent`, `ephemeral` and `read_only`. A mount
+  does not change the volume's mode: a volume whose mode differs
+  from `mode` refuses the run, as the [response](/endpoints/containers-agents-run/response/) states. A request may name one
+  volume at several paths; it is one user of the volume, and it
+  names one mode for it, a request naming it under two modes being
+  refused the same way.
 - **`fuse_file_mounts`, `fuse_directory_mounts`.** Each names a path
   and an `id` the client chose. Every one is mounted before the id
   is sent. A directory mount is a tree the client serves: every entry

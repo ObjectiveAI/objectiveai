@@ -136,6 +136,13 @@ about the client, which may open any channel at any time.
   or a delete of a volume so held is refused for as long as any run
   holds it, and a run naming a volume under a stat, an edit or a
   delete is refused for as long as that is in flight.
+- **A mount states the mode.** Every volume mount names the `mode`
+  it means the volume to have. The server compares it with the
+  volume's `mode` after it holds the volume: a volume in another
+  mode refuses the run with `VolumeMode`, which carries the mode the
+  volume is in, the hold is given back, and nothing is fetched,
+  deployed or changed. A mount never changes a volume's mode; only
+  [volumes::edit](/endpoints/volumes-edit/) does.
 - **The means of deployment.** This revision prescribes no runtime,
   no operating system, no virtualization, no network topology and no
   vendor. The server may deploy the container on hardware it
