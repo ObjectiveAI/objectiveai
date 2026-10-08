@@ -2,8 +2,10 @@
 //! the caller allowed to mount them.
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
+use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::grant::volumes::Over;
 use diverge_sdk::daemon::reference;
+use diverge_sdk::provider::endpoints::volumes::list::server::response::Volume;
 use sqlx::PgConnection;
 
 use super::Checked;
@@ -46,11 +48,24 @@ pub async fn mounts(
     if !judge::volumes::holds(standing, Over::Mount) {
         return Ok(Checked::Forbidden);
     }
+    // One listing per provider named, since a listing is a scope
+    // opened and stopped, and a container may name several volumes of
+    // one provider.
+    let mut listings: Vec<(Identity, Vec<Volume>)> = Vec::new();
     for volume in named {
-        let found = match volumes::find(daemon, &volume).await {
-            Ok(Some(found)) => found,
-            Ok(None) => return Ok(Checked::Error(format!("the provider lists no volume named {}", volume.name))),
-            Err(error) => return Ok(Checked::Error(format!("the volume {} could not be looked up: {error}", volume.name))),
+        if !listings.iter().any(|(provider, _)| *provider == volume.provider) {
+            match volumes::list(daemon, &volume.provider).await {
+                Ok(listed) => listings.push((volume.provider.clone(), listed)),
+                Err(error) => return Ok(Checked::Error(format!("the volume {} could not be looked up: {error}", volume.name))),
+            }
+        }
+        let found = listings
+            .iter()
+            .find(|(provider, _)| *provider == volume.provider)
+            .and_then(|(_, listed)| listed.iter().find(|listed| listed.name == volume.name))
+            .cloned();
+        let Some(found) = found else {
+            return Ok(Checked::Error(format!("the provider lists no volume named {}", volume.name)));
         };
         let (agents, tools) = volumes::mounters(conn, &volume).await?;
         let listed = Listed {
