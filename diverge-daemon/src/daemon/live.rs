@@ -353,18 +353,28 @@ impl Live {
             *next
         };
         self.connections.lock().await.insert(id, (key, Utc::now()));
+        self.changes.changed(Kind::Postgres);
         id
     }
 
     /// The connection is closed.
     pub async fn close_connection(&self, id: u64) {
-        self.connections.lock().await.remove(&id);
+        if self.connections.lock().await.remove(&id).is_some() {
+            self.changes.changed(Kind::Postgres);
+        }
     }
 
-    /// Every container connection open now, oldest opened first.
-    pub async fn connections(&self) -> Vec<(Key, DateTime<Utc>)> {
-        let mut all: Vec<(Key, DateTime<Utc>)> = self.connections.lock().await.values().copied().collect();
-        all.sort_by_key(|(_, opened)| *opened);
+    /// Every container connection open now, oldest opened first, each
+    /// by the daemon's own number for it.
+    pub async fn connections(&self) -> Vec<(u64, Key, DateTime<Utc>)> {
+        let mut all: Vec<(u64, Key, DateTime<Utc>)> = self
+            .connections
+            .lock()
+            .await
+            .iter()
+            .map(|(id, (key, opened))| (*id, *key, *opened))
+            .collect();
+        all.sort_by_key(|(id, _, opened)| (*opened, *id));
         all
     }
 
