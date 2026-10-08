@@ -27,6 +27,7 @@
 //! through this module and not through the file it lives in.
 
 mod build;
+mod caller;
 mod error;
 mod idle;
 mod key;
@@ -47,6 +48,7 @@ pub mod mcp;
 pub mod message;
 
 pub use build::*;
+pub use caller::*;
 pub use error::*;
 pub use idle::*;
 pub use key::*;

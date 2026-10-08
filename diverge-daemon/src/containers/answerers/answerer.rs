@@ -7,7 +7,7 @@ use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::provider::client::Answerers;
 use tokio::sync::{Mutex, watch};
 
-use crate::containers::Key;
+use crate::containers::{Caller, Key};
 use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
 use crate::daemon::Daemon;
@@ -19,6 +19,9 @@ pub struct Answerer {
     pub daemon: Arc<Daemon>,
     /// The container the run is.
     pub key: Key,
+    /// Who the run is, for the daemon to attest under `_meta` on every
+    /// MCP call it sends outward for it.
+    pub caller: Caller,
     /// The container as a sender.
     pub sender: Creator,
     /// The account it runs under, if any: who its `/daemon`

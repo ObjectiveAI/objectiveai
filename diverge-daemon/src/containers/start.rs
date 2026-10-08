@@ -15,7 +15,7 @@ use tokio::sync::{Mutex, watch};
 use super::answerers::Answerer;
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{AgentRun, Key, StartError, ToolHandle, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, stop};
+use super::{AgentRun, Caller, Key, StartError, ToolHandle, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::store::agents::Agent;
 use crate::store::tools::{Origin, Tool, attachments};
@@ -87,6 +87,7 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
     );
     let volumes = agent.provider.as_ref().map(|provider| provider.volume_mounts.as_slice()).unwrap_or(&[]);
     let container = build::container(&template.template, volumes, &mounts);
+    let image = container.image.clone();
     let served = Arc::new(Mutex::new(Served::new()));
     {
         let mut set = served.lock().await;
@@ -99,6 +100,10 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
     let answerer = Arc::new(Answerer {
         daemon: Arc::clone(daemon),
         key: Key::Agent(agent.id),
+        caller: Caller::Agent {
+            key: agent.key(),
+            image: image.clone(),
+        },
         sender: sender_of_agent(agent),
         account: agent.account,
         root: agent.name.clone(),
@@ -119,6 +124,8 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
     let run = Arc::new(AgentRun {
         id: agent.id,
         name: agent.name.clone(),
+        key: agent.key(),
+        image,
         sender: sender_of_agent(agent),
         account: agent.account,
         provider: identity.clone(),
@@ -164,7 +171,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain
     }
     let served = Arc::new(Mutex::new(Served::new()));
     let touched = watch::channel(Instant::now()).0;
-    let (identity, container, handle, mounts) = match &tool.origin {
+    let (identity, container, handle, mounts, image) = match &tool.origin {
         Origin::Created { template, provider: pinned } => {
             let template = {
                 let mut conn = daemon.store.acquire().await?;
@@ -189,9 +196,14 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain
             );
             let volumes = pinned.as_ref().map(|provider| provider.volume_mounts.as_slice()).unwrap_or(&[]);
             let container = build::container(&template.template, volumes, &mounts);
+            let image = container.image.clone();
             let answerer = Arc::new(Answerer {
                 daemon: Arc::clone(daemon),
                 key: Key::Tool(tool.id),
+                caller: Caller::Tool {
+                    key: tool.key(),
+                    image: Some(image.clone()),
+                },
                 sender: sender_of_tool(tool),
                 account: tool.account,
                 root,
@@ -202,7 +214,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain
                 touched: touched.clone(),
             });
             match tools_run::execute(&handle, &tools_request::Frame(container), answerer.set()).await {
-                Ok((id, handle)) => (identity, Some(id.id), ToolHandle::Run(handle), mounts),
+                Ok((id, handle)) => (identity, Some(id.id), ToolHandle::Run(handle), mounts, Some(image)),
                 Err(error) => {
                     mounts.stop().await;
                     return Err(StartError::Run(format!("{error:?}")));
@@ -221,11 +233,13 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain
                 .await
                 .map_err(|error| StartError::Run(format!("{error:?}")))?;
             let mounts = Arc::new(Mounts::empty());
-            (provider.clone(), None, ToolHandle::Joined(joined), mounts)
+            (provider.clone(), None, ToolHandle::Joined(joined), mounts, None)
         }
     };
     let run = Arc::new(ToolRun {
         id: tool.id,
+        key: tool.key(),
+        image,
         sender: sender_of_tool(tool),
         account: tool.account,
         provider: identity.clone(),

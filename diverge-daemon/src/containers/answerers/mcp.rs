@@ -17,6 +17,7 @@ impl Answerer {
         Context {
             daemon: Arc::clone(&self.daemon),
             user: self.key,
+            caller: self.caller.clone(),
             root: self.root.clone(),
             chain: self.chain.clone(),
             served: Arc::clone(&self.served),

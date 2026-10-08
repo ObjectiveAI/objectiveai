@@ -5,11 +5,13 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use diverge_sdk::daemon::creator::Creator;
+use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::connect::client::execute::ExecuteHandle as JoinedHandle;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
+use diverge_sdk::shared::containers::request::Image;
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt as _};
 use rmcp::model::{
@@ -34,6 +36,11 @@ pub struct AgentRun {
     /// Its name as it was when started: the root of every chain of
     /// dependencies its run begins.
     pub name: Option<String>,
+    /// The agent as the daemon attests it under `_meta`, on every call
+    /// it sends outward and every chunk it says: template, index, name.
+    pub key: key::Agent,
+    /// The image it was made from, attested beside the key.
+    pub image: Image,
     /// The agent as a sender and a maker.
     pub sender: Creator,
     /// The account it runs under, if any.
@@ -199,6 +206,12 @@ impl ToolHandle {
 pub struct ToolRun {
     /// The record.
     pub id: ToolId,
+    /// The tool as the daemon attests it under `_meta`, on everything
+    /// its server answers: origin, index, name.
+    pub key: key::Tool,
+    /// The image it was made from, attested beside the key; none for
+    /// a connected tool, whose image the daemon never sees.
+    pub image: Option<Image>,
     /// The tool as a sender and a maker.
     pub sender: Creator,
     /// The account it runs under, if any.

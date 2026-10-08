@@ -4,14 +4,15 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use futures_util::{Stream, StreamExt as _, stream};
+use diverge_sdk::shared::mcp::{Who, attest, attest_request};
 use rmcp::model::{
-    CallToolRequestParams, CallToolResult, ErrorData, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
+    CallToolRequestParams, CallToolResult, ErrorData, GetMeta as _, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
     ReadResourceResult, ServerNotification,
 };
 use tokio::sync::{Mutex, mpsc};
 
 use super::{Entry, Served, exposed, split};
-use crate::containers::{Key, ToolRun, tools};
+use crate::containers::{Caller, Key, ToolRun, tools};
 use crate::daemon::Daemon;
 use crate::store::ToolId;
 
@@ -26,6 +27,7 @@ pub struct Context {
     pub daemon: Arc<Daemon>,
     /// The container.
     pub user: Key,
+    pub caller: Caller,
     /// The root of the chain, by name.
     pub root: Option<String>,
     /// The templates down the chain so far.
@@ -72,10 +74,13 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
         let Some(prefix) = context.served.lock().await.prefix(id) else {
             continue;
         };
-        if let Ok(result) = run.handle.list_tools(None).await {
+        let mut params = PaginatedRequestParams::default();
+        attest_request(&mut params, context.caller.image(), context.caller.who());
+        if let Ok(result) = run.handle.list_tools(Some(params)).await {
             run.touch();
             for mut tool in result.tools {
                 tool.name = exposed(&prefix, &tool.name).into();
+                attest(tool.meta.get_or_insert_default(), run.image.as_ref(), Who::Tool(&run.key));
                 tools.push(tool);
             }
         }
@@ -91,9 +96,14 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
         let Ok(run) = running(context, id).await else {
             continue;
         };
-        if let Ok(result) = run.handle.list_resources(None).await {
+        let mut params = PaginatedRequestParams::default();
+        attest_request(&mut params, context.caller.image(), context.caller.who());
+        if let Ok(result) = run.handle.list_resources(Some(params)).await {
             run.touch();
-            resources.extend(result.resources);
+            for mut resource in result.resources {
+                attest(resource.meta.get_or_insert_default(), run.image.as_ref(), Who::Tool(&run.key));
+                resources.push(resource);
+            }
         }
     }
     Ok(ListResourcesResult::with_all_items(resources))
@@ -111,15 +121,20 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     let name = name.to_string();
     let run = running(context, id).await.map_err(|error| ErrorData::internal_error(error, None))?;
     params.name = name.into();
+    attest_request(&mut params, context.caller.image(), context.caller.who());
     run.touch();
-    run.handle
+    let mut result = run
+        .handle
         .call_tool(params)
         .await
-        .map_err(|error| ErrorData::internal_error(error, None))
+        .map_err(|error| ErrorData::internal_error(error, None))?;
+    attest(result.meta.get_or_insert_default(), run.image.as_ref(), Who::Tool(&run.key));
+    Ok(result)
 }
 
 /// The read, from the first served tool that answers it.
-pub async fn read_resource(context: &Context, params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
+pub async fn read_resource(context: &Context, mut params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
+    attest_request(&mut params, context.caller.image(), context.caller.who());
     let ids = context.served.lock().await.ids();
     let mut last = None;
     for id in ids {
@@ -127,8 +142,9 @@ pub async fn read_resource(context: &Context, params: ReadResourceRequestParams)
             continue;
         };
         match run.handle.read_resource(params.clone()).await {
-            Ok(result) => {
+            Ok(mut result) => {
                 run.touch();
+                attest(result.meta.get_or_insert_default(), run.image.as_ref(), Who::Tool(&run.key));
                 return Ok(result);
             }
             Err(error) => last = Some(error),
@@ -154,7 +170,10 @@ pub async fn notifications(context: &Context) -> Notifications {
             tokio::spawn(async move {
                 while let Some(item) = stream.next().await {
                     let forwarded = match item {
-                        Ok(notification) => Ok(notification),
+                        Ok(mut notification) => {
+                            attest(notification.get_meta_mut(), run.image.as_ref(), Who::Tool(&run.key));
+                            Ok(notification)
+                        }
                         Err(error) => Err(ErrorData::internal_error(format!("{error:?}"), None)),
                     };
                     if sender.send(forwarded).is_err() {
