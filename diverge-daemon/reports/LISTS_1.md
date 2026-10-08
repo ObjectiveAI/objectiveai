@@ -51,7 +51,7 @@ the daemon's live state alone.
 | 5 | `agents list` | `Agent` | names, templates, creators, active, all_tags, any_tags, created_from, created_to | `active`, `logs_index` |
 | 23 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active` |
 | 28 | `tools routes list` | `Route` | agents, templates, tools, creators, created_from, created_to | — |
-| 72 | `volumes list` | `Volume` | providers, names, modes, mounted, created_from, created_to | `mounted` (filter only); each provider's listing is a stream, read to its `listed` word |
+| 72 | `volumes list` | `Volume` | providers, names, modes, mounted, created_from, created_to | `mounted` (filter only); a stream since 2026-10-08, over the daemon's mirror of each connected provider's listing |
 | 19 | `tools list_for` | `Container` | none: `provider`, `tenant` | all of it; a stream since 2026-10-07, the provider's relayed (see `STREAMS_1.md`) |
 | 87 | `postgres list` | `Connection` | none | all of it; a stream since 2026-10-08 |
 
@@ -162,7 +162,9 @@ daemon's. The provider's `list_for` is a stream since 2026-10-07 —
 containers added as their runners allow, the word that the listing is
 whole, then added and removed as runs begin and end, until the lister
 stops — and so is the provider's `volumes list`, with a volume
-changed beside added and removed. The daemon reads each to the word
-and stops, so its own lists stay instant; a watch through the daemon
-is for the one resource stream to come. `get` endpoints answer one item as a
+changed beside added and removed. The daemon reads `tools list_for`
+through to its client, and holds one `volumes list` of each connected
+provider for the connection's life, mirrored in `Live`, which every
+reading of a provider's volumes on the daemon reads — no scope per
+call. `get` endpoints answer one item as a
 list would, and are not lists.

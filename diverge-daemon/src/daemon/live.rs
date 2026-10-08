@@ -13,6 +13,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::reference;
 
 use super::{Changes, Kind, Peers};
+use crate::volumes::Mirror;
 use crate::containers::{AgentRun, Key, ToolRun};
 use crate::database::Scope;
 use crate::store::{AccountId, AgentId, ToolId};
@@ -65,6 +66,8 @@ pub struct Live {
     operations: Mutex<HashSet<reference::Volume>>,
     /// The word that a kind changed, for the lists kept open.
     changes: Changes,
+    /// Each connected provider's volumes, as its listing streams them.
+    volumes: Mutex<HashMap<Identity, Arc<Mirror>>>,
 }
 
 impl std::fmt::Debug for Live {
@@ -150,6 +153,22 @@ impl Live {
         if self.providers.lock().await.release(identity) {
             self.changes.changed(Kind::of_provider(identity));
         }
+        if self.volumes.lock().await.remove(identity).is_some() {
+            self.changes.changed(Kind::Volumes);
+        }
+    }
+
+    /// A fresh mirror for the provider's volumes, kept for its
+    /// connection's life: what its listing's watch fills.
+    pub async fn mirror_provider(&self, identity: Identity) -> Arc<Mirror> {
+        let mirror = Arc::new(Mirror::new());
+        self.volumes.lock().await.insert(identity, Arc::clone(&mirror));
+        mirror
+    }
+
+    /// The provider's mirror, if it is connected.
+    pub async fn mirror(&self, identity: &Identity) -> Option<Arc<Mirror>> {
+        self.volumes.lock().await.get(identity).cloned()
     }
 
     /// The kind changed: every list of it kept open reads again.

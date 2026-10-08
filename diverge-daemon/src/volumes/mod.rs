@@ -3,8 +3,11 @@
 //!
 //! The daemon keeps no record of a volume. A volume is a provider's,
 //! named by the provider's identity and the name the provider lists
-//! it under, and known by asking: [`list`] and [`find`] are the
-//! provider's listing, [`Listed`] one volume with what the daemon adds
+//! it under, and known by the provider's listing: the daemon holds one
+//! `volumes::list` stream of each connected provider for the
+//! connection's life, [`watch`], and keeps what it tells in a
+//! [`Mirror`], which [`list`] and [`find`] read — [`Listed`] is one
+//! volume with what the daemon adds
 //! — the agents and tools whose records name it in their mounts,
 //! [`mounters`] — as a list reports it. What the daemon decides is
 //! who may, by the grants; whether the volume is HELD now — a running
@@ -27,15 +30,19 @@ mod held;
 mod io;
 mod listed;
 mod manage;
+mod mirror;
 mod mounters;
 mod provider;
 mod tree;
+mod watch;
 
 pub use fail::*;
 pub use held::*;
 pub use io::*;
 pub use listed::*;
 pub use manage::*;
+pub use mirror::*;
 pub use mounters::*;
 pub use provider::*;
 pub use tree::*;
+pub use watch::*;

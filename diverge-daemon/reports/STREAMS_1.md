@@ -37,7 +37,7 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
 |---|---|---|---|
 | 1 | 19 | `tools list_for` | The provider's own stream, relayed; the client's cancel forwarded as the provider's stop. **Built 2026-10-07.** |
 | 2 | 87 | `postgres list` | `Live.connections`: a connection opened or closed. **Built 2026-10-08.** |
-| 3 | 72 | `volumes list` | Each connected provider's own stream, merged; a provider connecting or leaving; the records that mount a volume (an agent or tool created, edited, deleted). |
+| 3 | 72 | `volumes list` | Each connected provider's own stream, merged; a provider connecting or leaving; the records that mount a volume (an agent or tool created, edited, deleted). **Built 2026-10-08: the daemon mirrors one listing per connected provider (`volumes::Mirror`, `volumes::watch`).** |
 | 4 | 5 | `agents list` | The record (create, edit, tag, untag, delete, attach, detach); `Live.agents` (a run starting or ending, its loop active or inactive); the log's length. |
 | 5 | 23 | `tools list` | The record (create, connect, edit, tag, untag, delete, attach, detach, admit, unadmit, a route set or deleted); `Live.tools`. |
 | 6 | 28 | `tools routes list` | The record (set, delete; a tool deleted). |

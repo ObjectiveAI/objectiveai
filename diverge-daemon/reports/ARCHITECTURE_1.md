@@ -161,6 +161,11 @@ Two populations, kept apart by type and by fate:
   says `active` before a loop's first chunk and `inactive` after its
   last; the program's output is chunks and cannot say either. Nothing
   is derived from quiet. (Wire change of 2026-10-06.)
+- **A provider's volumes are mirrored for the connection.** The daemon
+  opens one `volumes::list` on every provider as it attaches and keeps
+  it for the connection's life; what the provider's volumes are is read
+  from that mirror, never asked per request, and every change the
+  provider streams is a word to the lists kept open. (2026-10-08.)
 - **A cross-provider mount is served for the run.** The `volumes::serve`
   scope the daemon holds on another provider's volume for a FUSE mount
   is opened when the container's run starts and let go when it ends —
