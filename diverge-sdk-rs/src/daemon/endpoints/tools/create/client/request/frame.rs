@@ -10,7 +10,7 @@ use crate::wire::encode::{Encode, Writer};
 /// Ask the daemon to create a tool under a name, from a template.
 ///
 /// What every tool made from the template shares — the image, the
-/// limits, the resources, the arguments — is the
+/// limits, the arguments — is the
 /// [`template`](Inner::template), named by its id; what is this
 /// tool's own is here: the provider it runs on with the volumes it
 /// mounts there, its FUSE mounts of providers' volumes, and the name

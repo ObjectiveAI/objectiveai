@@ -4,8 +4,8 @@
 //! [`Config`] is the block; [`Postgres`] its `postgres`, which the
 //! daemon reads for which database it runs on and the supervisor
 //! reads for the cluster it runs. The daemon keeps its state under
-//! `<root>/daemon/`: `resources/`, `agents/`, `overlays/`, and
-//! `postgres/`, the local cluster's own directory.
+//! `<root>/daemon/`: `agents/`, and `postgres/`, the local cluster's
+//! own directory.
 //!
 //! ```yaml
 //! daemon:

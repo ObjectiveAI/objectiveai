@@ -11,8 +11,8 @@
 //! its own: agents, the tools attached to them, the templates both are
 //! made from — one shape, [`template`], shared by the two families'
 //! endpoints, as what their creates share is one [`create`](mod@create)
-//! and what their edits share one [`edit`](mod@edit) — the resources
-//! served into them, the providers it dials and the credentials of
+//! and what their edits share one [`edit`](mod@edit) — the providers
+//! it dials and the credentials of
 //! those that dial it, the volumes those providers hold, and the one
 //! [database](endpoints::postgres) it serves into every container, its
 //! own or a remote one. Who may ask for any of it is an

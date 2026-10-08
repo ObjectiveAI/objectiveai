@@ -10,9 +10,7 @@ use crate::daemon::reference;
 /// Ask the daemon to put files into an agent's container: one file at a
 /// path, or a directory of files at a path.
 ///
-/// JSON-tagged by `kind`, as
-/// [`resources::upload`](crate::daemon::endpoints::resources::upload)
-/// is. A [`File`](Self::File) names the file's destination, and the
+/// JSON-tagged by `kind`. A [`File`](Self::File) names the file's destination, and the
 /// daemon opens one content channel for it. A
 /// [`Directory`](Self::Directory) names the directory's destination and
 /// every file in it, by path from the directory's root, `/`-separated,
@@ -57,7 +55,7 @@ pub enum Frame {
 /// whole allocation. The values are chosen across modules that do not
 /// know about each other, so the table is the only place they can be
 /// seen at once.
-const TAG: u8 = 63;
+const TAG: u8 = 60;
 
 /// JSON, as every request of the daemon's is.
 impl Encode for Frame {

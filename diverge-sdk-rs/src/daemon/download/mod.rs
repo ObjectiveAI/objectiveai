@@ -3,7 +3,7 @@
 //! A download — an
 //! [agent's](crate::daemon::endpoints::agents::download), a
 //! [tool's](crate::daemon::endpoints::tools::download), a
-//! [resource's](crate::daemon::endpoints::resources::download) — is a
+//! [volume's](crate::daemon::endpoints::volumes::download) — is a
 //! stream of [`Chunk`]s, each a piece of one file and the path of that
 //! file relative to what was asked for, so that a reader writes every
 //! chunk at its destination joined with the chunk's path and needs no

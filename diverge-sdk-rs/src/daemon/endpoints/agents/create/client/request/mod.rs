@@ -5,8 +5,7 @@
 //! create and flattened into the [`Frame`]:
 //! the [`Frame`] names the
 //! [`template`](crate::daemon::endpoints::agents::templates) the
-//! agent is made from — its image, its limits, its resources, its
-//! arguments — and carries what is the agent's own: the one
+//! agent is made from — its image, its limits, its arguments — and carries what is the agent's own: the one
 //! [`Provider`] it is pinned to with the [`VolumeMount`]s it has
 //! there, if any, its [`FuseMount`]s from whichever providers hold
 //! them, and the name. [`Image`] is the shape a template and a tool

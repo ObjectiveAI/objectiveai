@@ -1,8 +1,8 @@
 //! Grants: what a role allows, kind by kind.
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
-//! agents, agent templates, tools, tool templates, routes, resources,
-//! outgoing providers, incoming credentials, accounts, roles, volumes,
+//! agents, agent templates, tools, tool templates, routes, outgoing
+//! providers, incoming credentials, accounts, roles, volumes,
 //! the database — and a [role](crate::daemon::endpoints::roles) is a
 //! list of them, held by
 //! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
@@ -71,11 +71,9 @@
 //! Moving files is two-sided. A download takes `download` over its
 //! source; an upload takes `upload` over the agent, the tool or the
 //! volume it lands in; a transfer takes `transfer` over its source and
-//! `upload` over the agent, the tool or the volume it lands in, or the
-//! `upload` making action over resources when it lands in a new
-//! resource. A grant reaches a container, a volume or a resource whole:
-//! which paths within it may be read or written is not a grant's to
-//! narrow.
+//! `upload` over the agent, the tool or the volume it lands in. A
+//! grant reaches a container or a volume whole: which paths within it
+//! may be read or written is not a grant's to narrow.
 //!
 //! Mounting is two-sided the same way: naming a volume in a container's
 //! mounts — a volume mount of the provider it is pinned to, or a FUSE
@@ -96,7 +94,6 @@ pub mod agents_templates;
 pub mod tools;
 pub mod tools_templates;
 pub mod routes;
-pub mod resources;
 pub mod providers_outgoing;
 pub mod providers_incoming;
 pub mod accounts;

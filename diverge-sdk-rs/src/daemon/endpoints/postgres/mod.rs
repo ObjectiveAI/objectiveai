@@ -42,7 +42,7 @@
 //! its driver is asked no password, and the daemon authenticates
 //! toward the database for it, from the run scope the connection
 //! arrived on. Two containers never share a scope; what is shared is a
-//! volume or a resource, never a table.
+//! volume, never a table.
 //!
 //! # The URL is never answered whole
 //!

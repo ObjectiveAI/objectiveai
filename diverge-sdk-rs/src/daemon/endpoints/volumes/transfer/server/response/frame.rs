@@ -18,9 +18,7 @@ use crate::shared::error::Error;
 /// [`NoDestination`](Self::NoDestination), `3` for
 /// [`Held`](Self::Held), `4` for [`Forbidden`](Self::Forbidden), `5`
 /// for [`Error`](Self::Error) — and the rest is that variant's own
-/// JSON: for the first, the new resource's id as a JSON string when the
-/// destination was a resource and `null` otherwise; nothing for the
-/// next four; the error for the last.
+/// JSON: nothing for the first five; the error for the last.
 ///
 /// # Answers, and one failure
 ///
@@ -47,10 +45,8 @@ use crate::shared::error::Error;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// Everything landed. The new resource's id when the destination
-    /// was a resource — the same id as before when those bytes were
-    /// held already — and nothing otherwise. Tag `0`.
-    Transferred(Option<String>),
+    /// Everything landed. Tag `0`.
+    Transferred,
     /// No volume is the one named, or nothing is at the path; nothing
     /// landed. Tag `1`.
     NotFound,
@@ -98,9 +94,9 @@ impl Encode for Frame {
     // called `Error`, so the associated type is ambiguous by that name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Transferred(id) => {
+            Frame::Transferred => {
                 out.extend_from_slice(&[TRANSFERRED]);
-                serde_json::to_writer(out, id)
+                Ok(())
             }
             Frame::NotFound => {
                 out.extend_from_slice(&[NOT_FOUND]);
@@ -127,14 +123,14 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Four ways to fail, and each names which half failed.
+    /// Three ways to fail, and each names which half failed.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            TRANSFERRED => serde_json::from_slice(rest).map(Frame::Transferred).map_err(FrameError::Id),
+            TRANSFERRED => Ok(Frame::Transferred),
             NOT_FOUND => Ok(Frame::NotFound),
             NO_DESTINATION => Ok(Frame::NoDestination),
             HELD => Ok(Frame::Held),
@@ -152,8 +148,6 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's six.
     UnknownTag(u8),
-    /// The id did not parse as a JSON string or `null`.
-    Id(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -163,7 +157,6 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Empty => f.write_str("volumes transfer response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown volumes transfer response frame tag {tag}"),
-            FrameError::Id(error) => write!(f, "volumes transfer id did not parse: {error}"),
             FrameError::Error(error) => write!(f, "volumes transfer error did not parse: {error}"),
         }
     }
@@ -172,7 +165,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Id(error) | FrameError::Error(error) => Some(error),
+            FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

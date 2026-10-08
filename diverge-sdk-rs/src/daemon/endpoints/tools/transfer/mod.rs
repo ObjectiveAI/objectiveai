@@ -1,18 +1,16 @@
 //! Copying a file or a directory out of a tool's container into an
-//! agent, a tool, a volume or a new resource, without the client in
+//! agent, a tool or a volume, without the client in
 //! between.
 //!
 //! A client names a tool, a path in it, and a
 //! [`Destination`](crate::daemon::transfer::Destination); the daemon
 //! copies what is at the path — a file, or every file under a directory
 //! — to the destination on its own connections, and answers once that
-//! it landed, with the new resource's id when the destination is a
-//! resource, that no tool is the one named or nothing is at the path,
+//! it landed, that no tool is the one named or nothing is at the path,
 //! that the destination names an agent, a tool or a volume that is
 //! none, that a volume at either end is held, forbidden, or that it
 //! failed, and the scope finishes. The bytes never reach the client.
-//! What lands where, and what a resource destination makes, is the
-//! destination's to say. A created tool's container that is not running
+//! What lands where is the destination's to say. A created tool's container that is not running
 //! is started for the operation and stopped when it finishes; one the
 //! daemon has running anyway — an attached agent active — is used as it
 //! runs. A connected tool is joined for the operation through the

@@ -13,8 +13,6 @@ pub struct Stat {
     pub bytes_used: u64,
     /// The hash of the volume's content, as of the walk: Go's `dirhash`
     /// of its root, `HashDir(root, "", Hash1)`, the `h1:` string,
-    /// exactly as the provider defines it and as a directory
-    /// [resource](crate::daemon::endpoints::resources)'s id is
-    /// computed.
+    /// exactly as the provider defines it.
     pub dirhash: String,
 }

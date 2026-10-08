@@ -17,7 +17,7 @@ pub struct Inner {
     /// The template the container is made from, by its id — the hash
     /// its family's `templates::create` answered. An id no template of
     /// the caller's has, or one of the other family, is the create's
-    /// error. The template's image, limits, resources and arguments are
+    /// error. The template's image, limits and arguments are
     /// the container's for its life.
     pub template: String,
     /// The account the container runs under, if any — a NAMED
@@ -55,8 +55,7 @@ pub struct Inner {
     /// volume's file in place. The file is
     /// overwritten in place only; a program that replaces its file by
     /// rename needs a directory mount. Its container path is no other
-    /// mount's — the template's resource mounts included — and lies
-    /// inside none, as every mount's.
+    /// mount's, and lies inside none, as every mount's.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of providers' volumes served LIVE across the

@@ -14,9 +14,9 @@
 //! in it — is used as it runs, and nothing else about the agent
 //! changes.
 //!
-//! The content travels on channels the daemon opens for the reason
-//! [`resources::upload`](crate::daemon::endpoints::resources::upload)
-//! gives: only a responder can end a channel.
+//! The content travels on channels the daemon opens, since only a
+//! responder can end a channel: the client could not say which piece
+//! was its last.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in [`client`] — and the daemon answers, so the answer is

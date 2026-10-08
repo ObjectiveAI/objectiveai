@@ -1,18 +1,16 @@
 //! What an agent or a tool is made from, less its name, its
-//! provider and its own mounts.
+//! provider and its mounts.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::daemon::endpoints::agents::create::client::request::Image;
-use super::{ResourceDirectoryMount, ResourceFileMount};
 
 /// Everything an agent or a tool is made from that is the same for
 /// every one made from it: what it is for, how to make one in words,
-/// the image, the limits, the resources mounted over FUSE, the
-/// arguments. What is not here is
-/// what differs one to the next — the name, the provider it runs on,
-/// and the mounts of that provider's volumes — which the
+/// the image, the limits, the arguments. What is not here is what
+/// differs one to the next — the name, the provider it runs on, and
+/// every mount of providers' volumes — which the
 /// [agent's](crate::daemon::endpoints::agents::create) or the
 /// [tool's](crate::daemon::endpoints::tools::create) create states.
 ///
@@ -84,19 +82,6 @@ pub struct Template<Type> {
     /// Bytes rather than megabytes, for the reason
     /// [`memory`](Self::memory) gives.
     pub disk: u64,
-    /// File resources served live into every container made from this,
-    /// mounted one each over FUSE: see [`ResourceFileMount`]. Each
-    /// names a file resource, its mode, and its path in the
-    /// container. Absent from the hashed JSON when empty.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_file_mounts: Vec<ResourceFileMount>,
-    /// Directory resources, or subtrees of them, served live into
-    /// every container made from this, mounted one each over FUSE: see
-    /// [`ResourceDirectoryMount`]. Each names a directory resource, a
-    /// path in it, its mode, and its path in the container. Absent
-    /// from the hashed JSON when empty.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fuse_directory_mounts: Vec<ResourceDirectoryMount>,
     /// What the image is told once, as the image defines it, for the
     /// container's life.
     ///

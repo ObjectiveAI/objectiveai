@@ -6,7 +6,7 @@ use std::fmt;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-use super::{accounts, agents, postgres, providers, resources, roles, tools, volumes};
+use super::{accounts, agents, postgres, providers, roles, tools, volumes};
 
 /// The payload of a
 /// [`Request`](crate::wire::frame::client::ClientFrame::Request).
@@ -97,115 +97,97 @@ pub enum ClientRequest<'a> {
     ToolsTemplatesTag(tools::templates::tag::client::request::Frame),
     /// Tag `34`. Take tags off a tool template.
     ToolsTemplatesUntag(tools::templates::untag::client::request::Frame),
-    /// Tag `35`. Upload a file or a directory.
-    ResourcesUpload(resources::upload::client::request::Frame),
-    /// Tag `36`. List the resources, narrowed, and keep the list.
-    ResourcesList(resources::list::client::request::Frame),
-    /// Tag `37`. Delete a resource by id.
-    ResourcesDelete(resources::delete::client::request::Frame),
-    /// Tag `38`. Add a provider to dial.
+    /// Tag `35`. Add a provider to dial.
     ProvidersOutgoingAdd(providers::outgoing::add::client::request::Frame),
-    /// Tag `39`. Get one outgoing provider.
+    /// Tag `36`. Get one outgoing provider.
     ProvidersOutgoingGet(providers::outgoing::get::client::request::Frame),
-    /// Tag `40`. List the caller's outgoing providers, narrowed.
+    /// Tag `37`. List the caller's outgoing providers, narrowed.
     ProvidersOutgoingList(providers::outgoing::list::client::request::Frame),
-    /// Tag `41`. Forget an outgoing provider.
+    /// Tag `38`. Forget an outgoing provider.
     ProvidersOutgoingDelete(providers::outgoing::delete::client::request::Frame),
-    /// Tag `42`. Replace an outgoing provider's mode.
+    /// Tag `39`. Replace an outgoing provider's mode.
     ProvidersOutgoingEdit(providers::outgoing::edit::client::request::Frame),
-    /// Tag `43`. Add a credential of incoming providers.
+    /// Tag `40`. Add a credential of incoming providers.
     ProvidersIncomingAdd(providers::incoming::add::client::request::Frame),
-    /// Tag `44`. Get one credential.
+    /// Tag `41`. Get one credential.
     ProvidersIncomingGet(providers::incoming::get::client::request::Frame),
-    /// Tag `45`. List the credentials, narrowed.
+    /// Tag `42`. List the credentials, narrowed.
     ProvidersIncomingList(providers::incoming::list::client::request::Frame),
-    /// Tag `46`. Take a credential out.
+    /// Tag `43`. Take a credential out.
     ProvidersIncomingDelete(providers::incoming::delete::client::request::Frame),
-    /// Tag `47`. Replace a credential.
+    /// Tag `44`. Replace a credential.
     ProvidersIncomingEdit(providers::incoming::edit::client::request::Frame),
-    /// Tag `48`. Create an account.
+    /// Tag `45`. Create an account.
     AccountsCreate(accounts::create::client::request::Frame),
-    /// Tag `49`. Get one account.
+    /// Tag `46`. Get one account.
     AccountsGet(accounts::get::client::request::Frame),
-    /// Tag `50`. List the accounts, narrowed, and keep the list.
+    /// Tag `47`. List the accounts, narrowed, and keep the list.
     AccountsList(accounts::list::client::request::Frame),
-    /// Tag `51`. Delete an account.
+    /// Tag `48`. Delete an account.
     AccountsDelete(accounts::delete::client::request::Frame),
-    /// Tag `52`. Change an account.
+    /// Tag `49`. Change an account.
     AccountsEdit(accounts::edit::client::request::Frame),
-    /// Tag `53`. Put tags on an account.
+    /// Tag `50`. Put tags on an account.
     AccountsTag(accounts::tag::client::request::Frame),
-    /// Tag `54`. Take tags off an account.
+    /// Tag `51`. Take tags off an account.
     AccountsUntag(accounts::untag::client::request::Frame),
-    /// Tag `55`. Create a role.
+    /// Tag `52`. Create a role.
     RolesCreate(roles::create::client::request::Frame),
-    /// Tag `56`. Get one role.
+    /// Tag `53`. Get one role.
     RolesGet(roles::get::client::request::Frame),
-    /// Tag `57`. List the roles, narrowed, and keep the list.
+    /// Tag `54`. List the roles, narrowed, and keep the list.
     RolesList(roles::list::client::request::Frame),
-    /// Tag `58`. Delete a role.
+    /// Tag `55`. Delete a role.
     RolesDelete(roles::delete::client::request::Frame),
-    /// Tag `59`. Change a role.
+    /// Tag `56`. Change a role.
     RolesEdit(roles::edit::client::request::Frame),
-    /// Tag `60`. Put tags on a role.
+    /// Tag `57`. Put tags on a role.
     RolesTag(roles::tag::client::request::Frame),
-    /// Tag `61`. Take tags off a role.
+    /// Tag `58`. Take tags off a role.
     RolesUntag(roles::untag::client::request::Frame),
-    /// Tag `62`. Send the client files out of an agent's container.
+    /// Tag `59`. Send the client files out of an agent's container.
     AgentsDownload(agents::download::client::request::Frame),
-    /// Tag `63`. Put files into an agent's container.
+    /// Tag `60`. Put files into an agent's container.
     AgentsUpload(agents::upload::client::request::Frame),
-    /// Tag `64`. Copy files out of an agent's container elsewhere.
+    /// Tag `61`. Copy files out of an agent's container elsewhere.
     AgentsTransfer(agents::transfer::client::request::Frame),
-    /// Tag `65`. Send the client files out of a tool's container.
+    /// Tag `62`. Send the client files out of a tool's container.
     ToolsDownload(tools::download::client::request::Frame),
-    /// Tag `66`. Put files into a tool's container.
+    /// Tag `63`. Put files into a tool's container.
     ToolsUpload(tools::upload::client::request::Frame),
-    /// Tag `67`. Copy files out of a tool's container elsewhere.
+    /// Tag `64`. Copy files out of a tool's container elsewhere.
     ToolsTransfer(tools::transfer::client::request::Frame),
-    /// Tag `68`. Send the client a resource, or a part of one.
-    ResourcesDownload(resources::download::client::request::Frame),
-    /// Tag `69`. Copy a resource, or a part of one, elsewhere.
-    ResourcesTransfer(resources::transfer::client::request::Frame),
-    /// Tag `70`. Create a volume on a provider.
+    /// Tag `65`. Create a volume on a provider.
     VolumesCreate(volumes::create::client::request::Frame),
-    /// Tag `71`. Get one volume.
+    /// Tag `66`. Get one volume.
     VolumesGet(volumes::get::client::request::Frame),
-    /// Tag `72`. List the volumes, narrowed.
+    /// Tag `67`. List the volumes, narrowed.
     VolumesList(volumes::list::client::request::Frame),
-    /// Tag `73`. Delete a volume.
+    /// Tag `68`. Delete a volume.
     VolumesDelete(volumes::delete::client::request::Frame),
-    /// Tag `74`. Change a volume's size or mode.
+    /// Tag `69`. Change a volume's size or mode.
     VolumesEdit(volumes::edit::client::request::Frame),
-    /// Tag `75`. Walk a volume for its use and its hash.
+    /// Tag `70`. Walk a volume for its use and its hash.
     VolumesStat(volumes::stat::client::request::Frame),
-    /// Tag `76`. Send the client files out of a volume.
+    /// Tag `71`. Send the client files out of a volume.
     VolumesDownload(volumes::download::client::request::Frame),
-    /// Tag `77`. Put files into a volume.
+    /// Tag `72`. Put files into a volume.
     VolumesUpload(volumes::upload::client::request::Frame),
-    /// Tag `78`. Copy files out of a volume elsewhere.
+    /// Tag `73`. Copy files out of a volume elsewhere.
     VolumesTransfer(volumes::transfer::client::request::Frame),
-    /// Tag `79`. Watch an agent's container whole.
+    /// Tag `74`. Watch an agent's container whole.
     AgentsFiletree(agents::filetree::client::request::Frame),
-    /// Tag `80`. Watch a tool's container whole.
+    /// Tag `75`. Watch a tool's container whole.
     ToolsFiletree(tools::filetree::client::request::Frame),
-    /// Tag `81`. See a directory resource's tree, once.
-    ResourcesFiletree(resources::filetree::client::request::Frame),
-    /// Tag `82`. See a volume's tree, once.
+    /// Tag `76`. See a volume's tree, once.
     VolumesFiletree(volumes::filetree::client::request::Frame),
-    /// Tag `83`. Get one resource by id.
-    ResourcesGet(resources::get::client::request::Frame),
-    /// Tag `84`. Put tags on a resource.
-    ResourcesTag(resources::tag::client::request::Frame),
-    /// Tag `85`. Take tags off a resource.
-    ResourcesUntag(resources::untag::client::request::Frame),
-    /// Tag `86`. Read which database the daemon serves.
+    /// Tag `77`. Read which database the daemon serves.
     PostgresGet(postgres::get::client::request::Frame),
-    /// Tag `87`. List the container connections open through the database.
+    /// Tag `78`. List the container connections open through the database.
     PostgresList(postgres::list::client::request::Frame),
-    /// Tag `88`. Admit a lister or a connector to a tool.
+    /// Tag `79`. Admit a lister or a connector to a tool.
     ToolsAdmit(tools::admit::client::request::Frame),
-    /// Tag `89`. Take an admission off a tool.
+    /// Tag `80`. Take an admission off a tool.
     ToolsUnadmit(tools::unadmit::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -262,9 +244,6 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsTemplatesDelete(frame) => frame.encode(out),
             ClientRequest::ToolsTemplatesTag(frame) => frame.encode(out),
             ClientRequest::ToolsTemplatesUntag(frame) => frame.encode(out),
-            ClientRequest::ResourcesUpload(frame) => frame.encode(out),
-            ClientRequest::ResourcesList(frame) => frame.encode(out),
-            ClientRequest::ResourcesDelete(frame) => frame.encode(out),
             ClientRequest::ProvidersOutgoingAdd(frame) => frame.encode(out),
             ClientRequest::ProvidersOutgoingGet(frame) => frame.encode(out),
             ClientRequest::ProvidersOutgoingList(frame) => frame.encode(out),
@@ -295,8 +274,6 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ToolsDownload(frame) => frame.encode(out),
             ClientRequest::ToolsUpload(frame) => frame.encode(out),
             ClientRequest::ToolsTransfer(frame) => frame.encode(out),
-            ClientRequest::ResourcesDownload(frame) => frame.encode(out),
-            ClientRequest::ResourcesTransfer(frame) => frame.encode(out),
             ClientRequest::VolumesCreate(frame) => frame.encode(out),
             ClientRequest::VolumesGet(frame) => frame.encode(out),
             ClientRequest::VolumesList(frame) => frame.encode(out),
@@ -308,11 +285,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesTransfer(frame) => frame.encode(out),
             ClientRequest::AgentsFiletree(frame) => frame.encode(out),
             ClientRequest::ToolsFiletree(frame) => frame.encode(out),
-            ClientRequest::ResourcesFiletree(frame) => frame.encode(out),
             ClientRequest::VolumesFiletree(frame) => frame.encode(out),
-            ClientRequest::ResourcesGet(frame) => frame.encode(out),
-            ClientRequest::ResourcesTag(frame) => frame.encode(out),
-            ClientRequest::ResourcesUntag(frame) => frame.encode(out),
             ClientRequest::PostgresGet(frame) => frame.encode(out),
             ClientRequest::PostgresList(frame) => frame.encode(out),
             ClientRequest::ToolsAdmit(frame) => frame.encode(out),
@@ -446,169 +419,142 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             34 => tools::templates::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTemplatesUntag)
                 .ok(),
-            35 => resources::upload::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ResourcesUpload)
-                .ok(),
-            36 => resources::list::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ResourcesList)
-                .ok(),
-            37 => resources::delete::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ResourcesDelete)
-                .ok(),
-            38 => providers::outgoing::add::client::request::Frame::decode(bytes)
+            35 => providers::outgoing::add::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingAdd)
                 .ok(),
-            39 => providers::outgoing::get::client::request::Frame::decode(bytes)
+            36 => providers::outgoing::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingGet)
                 .ok(),
-            40 => providers::outgoing::list::client::request::Frame::decode(bytes)
+            37 => providers::outgoing::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingList)
                 .ok(),
-            41 => providers::outgoing::delete::client::request::Frame::decode(bytes)
+            38 => providers::outgoing::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingDelete)
                 .ok(),
-            42 => providers::outgoing::edit::client::request::Frame::decode(bytes)
+            39 => providers::outgoing::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersOutgoingEdit)
                 .ok(),
-            43 => providers::incoming::add::client::request::Frame::decode(bytes)
+            40 => providers::incoming::add::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingAdd)
                 .ok(),
-            44 => providers::incoming::get::client::request::Frame::decode(bytes)
+            41 => providers::incoming::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingGet)
                 .ok(),
-            45 => providers::incoming::list::client::request::Frame::decode(bytes)
+            42 => providers::incoming::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingList)
                 .ok(),
-            46 => providers::incoming::delete::client::request::Frame::decode(bytes)
+            43 => providers::incoming::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingDelete)
                 .ok(),
-            47 => providers::incoming::edit::client::request::Frame::decode(bytes)
+            44 => providers::incoming::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersIncomingEdit)
                 .ok(),
-            48 => accounts::create::client::request::Frame::decode(bytes)
+            45 => accounts::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AccountsCreate)
                 .ok(),
-            49 => accounts::get::client::request::Frame::decode(bytes)
+            46 => accounts::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AccountsGet)
                 .ok(),
-            50 => accounts::list::client::request::Frame::decode(bytes)
+            47 => accounts::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AccountsList)
                 .ok(),
-            51 => accounts::delete::client::request::Frame::decode(bytes)
+            48 => accounts::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AccountsDelete)
                 .ok(),
-            52 => accounts::edit::client::request::Frame::decode(bytes)
+            49 => accounts::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AccountsEdit)
                 .ok(),
-            53 => accounts::tag::client::request::Frame::decode(bytes)
+            50 => accounts::tag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AccountsTag)
                 .ok(),
-            54 => accounts::untag::client::request::Frame::decode(bytes)
+            51 => accounts::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AccountsUntag)
                 .ok(),
-            55 => roles::create::client::request::Frame::decode(bytes)
+            52 => roles::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::RolesCreate)
                 .ok(),
-            56 => roles::get::client::request::Frame::decode(bytes)
+            53 => roles::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::RolesGet)
                 .ok(),
-            57 => roles::list::client::request::Frame::decode(bytes)
+            54 => roles::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::RolesList)
                 .ok(),
-            58 => roles::delete::client::request::Frame::decode(bytes)
+            55 => roles::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::RolesDelete)
                 .ok(),
-            59 => roles::edit::client::request::Frame::decode(bytes)
+            56 => roles::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::RolesEdit)
                 .ok(),
-            60 => roles::tag::client::request::Frame::decode(bytes)
+            57 => roles::tag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::RolesTag)
                 .ok(),
-            61 => roles::untag::client::request::Frame::decode(bytes)
+            58 => roles::untag::client::request::Frame::decode(bytes)
                 .map(ClientRequest::RolesUntag)
                 .ok(),
-            62 => agents::download::client::request::Frame::decode(bytes)
+            59 => agents::download::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsDownload)
                 .ok(),
-            63 => agents::upload::client::request::Frame::decode(bytes)
+            60 => agents::upload::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsUpload)
                 .ok(),
-            64 => agents::transfer::client::request::Frame::decode(bytes)
+            61 => agents::transfer::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsTransfer)
                 .ok(),
-            65 => tools::download::client::request::Frame::decode(bytes)
+            62 => tools::download::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsDownload)
                 .ok(),
-            66 => tools::upload::client::request::Frame::decode(bytes)
+            63 => tools::upload::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsUpload)
                 .ok(),
-            67 => tools::transfer::client::request::Frame::decode(bytes)
+            64 => tools::transfer::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsTransfer)
                 .ok(),
-            68 => resources::download::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ResourcesDownload)
-                .ok(),
-            69 => resources::transfer::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ResourcesTransfer)
-                .ok(),
-            70 => volumes::create::client::request::Frame::decode(bytes)
+            65 => volumes::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreate)
                 .ok(),
-            71 => volumes::get::client::request::Frame::decode(bytes)
+            66 => volumes::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesGet)
                 .ok(),
-            72 => volumes::list::client::request::Frame::decode(bytes)
+            67 => volumes::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesList)
                 .ok(),
-            73 => volumes::delete::client::request::Frame::decode(bytes)
+            68 => volumes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDelete)
                 .ok(),
-            74 => volumes::edit::client::request::Frame::decode(bytes)
+            69 => volumes::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEdit)
                 .ok(),
-            75 => volumes::stat::client::request::Frame::decode(bytes)
+            70 => volumes::stat::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesStat)
                 .ok(),
-            76 => volumes::download::client::request::Frame::decode(bytes)
+            71 => volumes::download::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDownload)
                 .ok(),
-            77 => volumes::upload::client::request::Frame::decode(bytes)
+            72 => volumes::upload::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesUpload)
                 .ok(),
-            78 => volumes::transfer::client::request::Frame::decode(bytes)
+            73 => volumes::transfer::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesTransfer)
                 .ok(),
-            79 => agents::filetree::client::request::Frame::decode(bytes)
+            74 => agents::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsFiletree)
                 .ok(),
-            80 => tools::filetree::client::request::Frame::decode(bytes)
+            75 => tools::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsFiletree)
                 .ok(),
-            81 => resources::filetree::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ResourcesFiletree)
-                .ok(),
-            82 => volumes::filetree::client::request::Frame::decode(bytes)
+            76 => volumes::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesFiletree)
                 .ok(),
-            83 => resources::get::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ResourcesGet)
-                .ok(),
-            84 => resources::tag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ResourcesTag)
-                .ok(),
-            85 => resources::untag::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ResourcesUntag)
-                .ok(),
-            86 => postgres::get::client::request::Frame::decode(bytes)
+            77 => postgres::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::PostgresGet)
                 .ok(),
-            87 => postgres::list::client::request::Frame::decode(bytes)
+            78 => postgres::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::PostgresList)
                 .ok(),
-            88 => tools::admit::client::request::Frame::decode(bytes)
+            79 => tools::admit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsAdmit)
                 .ok(),
-            89 => tools::unadmit::client::request::Frame::decode(bytes)
+            80 => tools::unadmit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsUnadmit)
                 .ok(),
             _ => None,
@@ -655,9 +601,6 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsTemplatesDelete(_) => f.write_str("tools templates delete"),
             ClientRequest::ToolsTemplatesTag(_) => f.write_str("tools templates tag"),
             ClientRequest::ToolsTemplatesUntag(_) => f.write_str("tools templates untag"),
-            ClientRequest::ResourcesUpload(_) => f.write_str("resources upload"),
-            ClientRequest::ResourcesList(_) => f.write_str("resources list"),
-            ClientRequest::ResourcesDelete(_) => f.write_str("resources delete"),
             ClientRequest::ProvidersOutgoingAdd(_) => f.write_str("providers outgoing add"),
             ClientRequest::ProvidersOutgoingGet(_) => f.write_str("providers outgoing get"),
             ClientRequest::ProvidersOutgoingList(_) => f.write_str("providers outgoing list"),
@@ -688,8 +631,6 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ToolsDownload(_) => f.write_str("tools download"),
             ClientRequest::ToolsUpload(_) => f.write_str("tools upload"),
             ClientRequest::ToolsTransfer(_) => f.write_str("tools transfer"),
-            ClientRequest::ResourcesDownload(_) => f.write_str("resources download"),
-            ClientRequest::ResourcesTransfer(_) => f.write_str("resources transfer"),
             ClientRequest::VolumesCreate(_) => f.write_str("volumes create"),
             ClientRequest::VolumesGet(_) => f.write_str("volumes get"),
             ClientRequest::VolumesList(_) => f.write_str("volumes list"),
@@ -701,11 +642,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::VolumesTransfer(_) => f.write_str("volumes transfer"),
             ClientRequest::AgentsFiletree(_) => f.write_str("agents filetree"),
             ClientRequest::ToolsFiletree(_) => f.write_str("tools filetree"),
-            ClientRequest::ResourcesFiletree(_) => f.write_str("resources filetree"),
             ClientRequest::VolumesFiletree(_) => f.write_str("volumes filetree"),
-            ClientRequest::ResourcesGet(_) => f.write_str("resources get"),
-            ClientRequest::ResourcesTag(_) => f.write_str("resources tag"),
-            ClientRequest::ResourcesUntag(_) => f.write_str("resources untag"),
             ClientRequest::PostgresGet(_) => f.write_str("postgres get"),
             ClientRequest::PostgresList(_) => f.write_str("postgres list"),
             ClientRequest::ToolsAdmit(_) => f.write_str("tools admit"),

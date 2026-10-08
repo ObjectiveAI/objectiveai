@@ -4,7 +4,7 @@
 //! provider protocol's `containers::tools::run` — that the daemon holds
 //! under a name of the caller's choosing. It comes to be one of two
 //! ways: a [`create`] makes it from a [`template`](templates) — the
-//! image, the limits, the resources and the arguments, held by its hash
+//! image, the limits and the arguments, held by its hash
 //! — with the provider it is pinned to and the mounts that are its own,
 //! exactly as an [`agent`](super::agents) is, and the daemon runs it;
 //! or a [`connect`] names a container somebody else runs, by its
@@ -43,8 +43,8 @@
 //! tool containers somebody runs, the ids a [`connect`] then offers;
 //! [`download`] sends the client a file or a directory out of a tool's
 //! container, [`upload`] puts files into it, and [`transfer`] copies
-//! out of it into an agent, another tool, a volume or a new resource,
-//! the bytes never reaching the client. [`routes`] answer a dependency
+//! out of it into an agent, another tool or a volume, the bytes never
+//! reaching the client. [`routes`] answer a dependency
 //! a container declares at register time with a tool the caller already
 //! has, at one position in the chain of dependencies, so that no
 //! deployer is asked.

@@ -22,7 +22,7 @@ use crate::wire::encode::{Encode, Writer};
 /// is writing. Files come in bytewise order of their paths. A zero-byte
 /// file is exactly one chunk with an empty body, so that a file is
 /// never sent as nothing. A directory with no file in it is not sent: a
-/// download is files, as a resource is.
+/// download is files.
 ///
 /// # On the wire
 ///

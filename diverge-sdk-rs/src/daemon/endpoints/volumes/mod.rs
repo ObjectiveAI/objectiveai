@@ -14,8 +14,8 @@
 //! walks one for how much of it is used and the hash of its content;
 //! [`filetree`] answers one's tree, once; [`download`] sends the client
 //! a file or a directory out of one, [`upload`] puts files into one,
-//! and [`transfer`] copies out of one into an agent, a tool, another
-//! volume or a new resource, the bytes never reaching the client. A
+//! and [`transfer`] copies out of one into an agent, a tool or another
+//! volume, the bytes never reaching the client. A
 //! volume is a [`Destination`](crate::daemon::transfer::Destination) of
 //! every other family's transfer too.
 //!
