@@ -3,11 +3,14 @@
 //! A client names a provider of its own and an identity on that
 //! provider; the daemon opens the provider protocol's
 //! [`containers::tools::list_for`](crate::provider::endpoints::containers::tools::list_for)
-//! on that provider with the identity, and relays what comes back: one
-//! response per tool container the provider adds, as it adds it, in
-//! the order it does, until the provider says the listing is whole —
-//! on which the daemon stops the provider's listing, which is a stream
-//! kept open, and finishes: the listing as it stood, once. A provider
+//! on that provider with the identity, and relays what comes back as
+//! it comes: one response per tool container the provider adds, in
+//! the order it does, the provider's word that the listing is whole,
+//! and then every container added and removed as the identity's runs
+//! begin and end, for as long as the client keeps the scope — a
+//! listing is a stream kept open, and ends at the client's cancel,
+//! the one channel a client opens on it, which the daemon passes on
+//! to the provider as its stop. A provider
 //! the caller does not have is answered by exactly
 //! one response saying so, and the finish. What is listed is a
 //! container somebody else runs, named by the id its runner was given:
