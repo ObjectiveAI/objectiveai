@@ -15,7 +15,7 @@ use tokio::fs;
 use diverge_sdk::provider::endpoints::volumes::Mode;
 
 use super::{Error, Identity, ModeFile, Place, Reservation, Scratch, Volume, image, mode, name};
-use crate::config::volumes::{Fixed, HookInput, HookOutput, Volumes};
+use diverge_sdk::config::provider::volumes::{Fixed, HookInput, HookOutput, Volumes};
 use crate::hook;
 
 /// The provider's volumes: the directories it offers every identity,

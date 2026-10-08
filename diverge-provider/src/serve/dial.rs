@@ -10,7 +10,7 @@ use tokio::time::{Duration, sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
 use super::Provider;
-use crate::config::clients::Unbrokered;
+use diverge_sdk::config::provider::clients::Unbrokered;
 
 /// Dial `peer` at `ws://<address>/`, present its key as the first
 /// frame under its identity, serve the connection until it ends,

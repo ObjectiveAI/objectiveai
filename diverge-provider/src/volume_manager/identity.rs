@@ -8,7 +8,7 @@ use tokio::fs::DirEntry;
 use tokio::sync::{Mutex, OnceCell};
 
 use super::{Place, Reservation, Scratch, Volume, mode, name};
-use crate::config::volumes::Store;
+use diverge_sdk::config::provider::volumes::Store;
 
 /// The volumes one identity created, held by name.
 ///

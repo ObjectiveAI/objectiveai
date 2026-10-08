@@ -30,9 +30,11 @@
 //! and e2fsprogs, `mount` and `ssh` through it or beside it — and
 //! the one way it runs them. [`watch`] is a directory of this host
 //! walked and watched, the filetree of a fixed volume, one module
-//! for every host through `notify`. [`config`] is what the provider
-//! is told,
-//! and [`serve`] is the provider running: the pieces built once, a
+//! for every host through `notify`. What the provider is told is the
+//! `provider` block of the one `config.yaml`,
+//! [`diverge_sdk::config::provider`], read from the root the SDK
+//! finds; the provider keeps its state under `<root>/provider/`.
+//! [`serve`] is the provider running: the pieces built once, a
 //! WebSocket accepted on its port or dialled to each peer it is told
 //! of, every connection handed to the SDK, and the stop.
 
@@ -40,7 +42,6 @@ mod limit;
 
 pub use limit::*;
 
-pub mod config;
 pub mod container_deployer;
 pub mod hook;
 pub mod image_checker;

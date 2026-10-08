@@ -17,7 +17,7 @@ use super::deploy::deploy;
 use super::mounts::tool_path;
 use super::{Container, Error, Images, Shared, name_ok};
 use crate::Limit;
-use crate::config::containers::{Containers, Podman};
+use diverge_sdk::config::provider::containers::{Containers, Podman};
 use crate::tools::{mount, podman};
 use crate::volume_manager::VolumeManager;
 

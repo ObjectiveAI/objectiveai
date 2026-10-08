@@ -8,7 +8,7 @@ use diverge_sdk::provider::server::image_checker;
 use futures_util::future;
 
 use super::Error;
-use crate::config::containers::{Registry, ServerImage};
+use diverge_sdk::config::provider::containers::{Registry, ServerImage};
 use crate::tools::podman;
 
 /// The provider's image checker: the configured `server_images`, as

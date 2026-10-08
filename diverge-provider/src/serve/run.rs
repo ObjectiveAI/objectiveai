@@ -8,18 +8,21 @@ use futures_util::future::{self, Either};
 use tokio::sync::watch;
 use tokio::task::JoinSet;
 
-use super::{Error, Provider, dial, listen};
-use crate::config::Config;
+use diverge_sdk::config::provider::Config;
 
-/// Run the provider on `config`, in `dir`, until Ctrl-C or, on Unix,
-/// SIGTERM. The pieces are built by [`Provider::start`]; one task per
+use super::{Error, Provider, dial, listen};
+
+/// Run the provider on `config`, its block of the file at `root`,
+/// under `<root>/provider/`, until Ctrl-C or, on Unix, SIGTERM. The
+/// pieces are built by [`Provider::start`]; one task per
 /// peer of `clients.unbrokered` dials; the port is listened on until
 /// the signal, and then the listener drains, every dial task is
 /// ended, every container and loop mount of this provider is swept
 /// away, and the provider is dropped — the registry's server and the
 /// machine's tunnel with it. A port that could not be bound is the
 /// error, after the same sweep.
-pub async fn run(config: Config, dir: PathBuf) -> Result<(), Error> {
+pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
+    let dir = root.join("provider");
     let port = config.port;
     let peers = config.clients.as_ref().and_then(|clients| clients.unbrokered.clone()).unwrap_or_default();
     let provider = Arc::new(Provider::start(config, dir).await?);

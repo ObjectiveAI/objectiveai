@@ -2,20 +2,31 @@
 
 use std::fmt;
 use std::io;
+use std::path::PathBuf;
 
-use crate::config;
+use diverge_sdk::config;
+
 use crate::container_deployer;
 use crate::image_registry;
 
-/// What [`run`](super::run) fails with: the configuration, a piece
-/// that could not be made, or the port. A `main` returning one of
+/// What [`run`](super::run) fails with: the configuration, what it
+/// names on disk, a piece that could not be made, or the port. A `main` returning one of
 /// these prints it, and that is the one report a failed start gets,
 /// so its `Debug` is its `Display`.
 pub enum Error {
     /// The runtime could not be built.
     Runtime(io::Error),
-    /// The directory or the file could not be used.
+    /// The root or the file could not be used.
     Config(config::Error),
+    /// A directory of the provider's could not be made.
+    Directory(PathBuf, io::Error),
+    /// A fixed volume's path is not an existing directory.
+    FixedMissing(PathBuf),
+    /// A store's capacity is `0`.
+    Capacity(PathBuf),
+    /// A fixed volume's name is not one a volume may have, or two
+    /// fixed volumes have it.
+    FixedName(String),
     /// The image registry could not start.
     Registry(image_registry::Error),
     /// The deployer could not be made: podman, its machine, the proxy
@@ -35,6 +46,10 @@ impl fmt::Display for Error {
         match self {
             Error::Runtime(error) => write!(f, "the runtime could not be built: {error}"),
             Error::Config(error) => write!(f, "the configuration could not be used: {error}"),
+            Error::Directory(path, error) => write!(f, "`{}` could not be made: {error}", path.display()),
+            Error::FixedMissing(path) => write!(f, "the fixed volume `{}` is not a directory that exists", path.display()),
+            Error::Capacity(path) => write!(f, "the store `{}` has a capacity of 0", path.display()),
+            Error::FixedName(name) => write!(f, "the fixed volume name `{name}` is not usable, or is used twice"),
             Error::Registry(error) => write!(f, "the image registry could not start: {error}"),
             Error::Deployer(error) => write!(f, "the deployer could not be made: {error}"),
             Error::Bind(error) => write!(f, "the port could not be bound: {error}"),
@@ -55,6 +70,8 @@ impl std::error::Error for Error {
         match self {
             Error::Runtime(error) => Some(error),
             Error::Config(error) => Some(error),
+            Error::Directory(_, error) => Some(error),
+            Error::FixedMissing(_) | Error::Capacity(_) | Error::FixedName(_) => None,
             Error::Registry(error) => Some(error),
             Error::Deployer(error) => Some(error),
             Error::Bind(error) => Some(error),

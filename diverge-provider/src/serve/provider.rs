@@ -1,7 +1,8 @@
 //! What every connection is served with.
 
+use std::collections::HashSet;
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
@@ -13,16 +14,17 @@ use diverge_sdk::provider::server::volume_changes::VolumeChanges;
 use diverge_sdk::provider::server::handle::handle;
 use diverge_sdk::wire::server::session::Session;
 
+use diverge_sdk::config::provider::Config;
+use diverge_sdk::config::provider::auth::Auth;
+use diverge_sdk::config::provider::volumes::Volumes;
+
 use super::{Error, Peers};
-use crate::config::Config;
-use crate::config::auth::Auth;
-use crate::config::volumes::Volumes;
 use crate::container_deployer::ContainerDeployer;
 use crate::image_checker::ImageChecker;
 use crate::image_registry::ImageRegistry;
 use crate::tools::podman;
 use crate::unbrokered_authorizer::{Slot, UnbrokeredAuthorizer};
-use crate::volume_manager::{Scratch, VolumeManager};
+use crate::volume_manager::{self, Scratch, VolumeManager};
 use crate::Limit;
 
 /// The provider's pieces, built once and shared by every connection:
@@ -34,7 +36,7 @@ pub struct Provider {
     /// The `auth` section, from which an authorizer is made for each
     /// connection that dials in.
     auth: Option<Auth>,
-    /// `<dir>/hooks/`, for that authorizer.
+    /// `<root>/provider/hooks/`, for that authorizer.
     hooks_dir: PathBuf,
     /// The deployer, held to the end so its tunnel lives as long.
     pub(super) deployer: Arc<ContainerDeployer>,
@@ -54,7 +56,11 @@ pub struct Provider {
 
 impl Provider {
     /// Everything made, in the order its parts depend on each other:
-    /// podman told where its data is; the registry started, since the
+    /// the provider's disk readied — `dir`, `<root>/provider/`, with
+    /// `hooks/` and `run/`, podman's `storage_path` and every store
+    /// made, every fixed volume found to be a directory, every store's
+    /// capacity and every fixed name checked; podman told where its
+    /// data is; the registry started, since the
     /// deployer is told its address; the container overlay cap and
     /// the scratch directory under podman's storage, swept; the
     /// volumes; the deployer, which
@@ -62,6 +68,7 @@ impl Provider {
     /// auth file and opens the tunnel; the image checker, given that
     /// auth file; and the directory.
     pub async fn start(config: Config, dir: PathBuf) -> Result<Self, Error> {
+        ready(&config, &dir).await?;
         podman::configure(config.containers.podman.storage_path.clone());
         let hooks_dir = dir.join("hooks");
         let registry = Arc::new(ImageRegistry::start().await.map_err(Error::Registry)?);
@@ -127,4 +134,39 @@ impl Provider {
         )
         .await;
     }
+}
+
+/// The provider's disk, as its block names it: `dir` with `hooks/`
+/// and `run/` inside it, `storage_path` and every store made if
+/// absent; a fixed volume whose path is not an existing directory
+/// refused, since a fixed volume is content the operator already has;
+/// a store whose capacity is `0` refused; a fixed volume whose name
+/// is not one a volume may have, or is another fixed volume's,
+/// refused. What the file said is the SDK's to read; what it names
+/// here is the provider's to check.
+async fn ready(config: &Config, dir: &Path) -> Result<(), Error> {
+    for made in [dir.join("hooks"), dir.join("run"), config.containers.podman.storage_path.clone()] {
+        tokio::fs::create_dir_all(&made).await.map_err(|source| Error::Directory(made, source))?;
+    }
+    let Some(volumes) = &config.volumes else {
+        return Ok(());
+    };
+    for store in volumes.stores.iter().flatten() {
+        if store.capacity == 0 {
+            return Err(Error::Capacity(store.path.clone()));
+        }
+        tokio::fs::create_dir_all(&store.path)
+            .await
+            .map_err(|source| Error::Directory(store.path.clone(), source))?;
+    }
+    let mut names = HashSet::new();
+    for fixed in volumes.fixed.iter().flatten() {
+        if !tokio::fs::metadata(&fixed.path).await.is_ok_and(|found| found.is_dir()) {
+            return Err(Error::FixedMissing(fixed.path.clone()));
+        }
+        if !volume_manager::ok(&fixed.name) || !names.insert(fixed.name.as_str()) {
+            return Err(Error::FixedName(fixed.name.clone()));
+        }
+    }
+    Ok(())
 }
