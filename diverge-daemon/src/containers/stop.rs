@@ -68,6 +68,7 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     if let Ok(mut conn) = daemon.store.acquire().await {
         let _ = tool_records::set_last(&mut conn, run.id, &run.provider, Utc::now()).await;
     }
+    daemon.live.changed(Kind::Tools);
 }
 
 /// The daemon stops: every run told to stop and taken down now,

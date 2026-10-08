@@ -39,7 +39,7 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
 | 2 | 87 | `postgres list` | `Live.connections`: a connection opened or closed. **Built 2026-10-08.** |
 | 3 | 72 | `volumes list` | Each connected provider's own stream, merged; a provider connecting or leaving; the records that mount a volume (an agent or tool created, edited, deleted). **Built 2026-10-08: the daemon mirrors one listing per connected provider (`volumes::Mirror`, `volumes::watch`).** |
 | 4 | 5 | `agents list` | The record (create, edit, tag, untag, delete, attach, detach, a tool renamed); `Live.agents` (a run starting or ending, its loop active or inactive, a start failed). **Built 2026-10-08.** The log's length is read at those changes and not per line: see §3. |
-| 5 | 23 | `tools list` | The record (create, connect, edit, tag, untag, delete, attach, detach, admit, unadmit, a route set or deleted); `Live.tools`. |
+| 5 | 23 | `tools list` | The record (create, connect, edit, tag, untag, delete, attach, detach, admit, unadmit, a route set or deleted, an agent renamed); `Live.tools` (a run inserted or removed). **Built 2026-10-08.** |
 | 6 | 28 | `tools routes list` | The record (set, delete; a tool deleted). |
 | 7 | 36 | `resources list` | The record (upload, tag, untag, delete; a mount named or unnamed by an agent or tool for `in_use`). |
 | 8 | 11, 31 | `agents templates list`, `tools templates list` | The record (create, tag, untag, delete; an agent or tool made from one for `in_use`). |

@@ -127,6 +127,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     tx.commit().await?;
     daemon.live.changed(Kind::Agents);
+    daemon.live.changed(Kind::Tools);
     daemon.live.changed(Kind::Volumes);
     Ok(Frame::Edited)
 }

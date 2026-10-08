@@ -5,7 +5,7 @@ use diverge_sdk::daemon::endpoints::tools::routes::set::client::request;
 use diverge_sdk::daemon::endpoints::tools::routes::set::server::response::Frame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, routes, tools};
@@ -53,5 +53,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     tx.commit().await?;
     daemon.live.answered.notify_waiters();
+    daemon.live.changed(Kind::Routes);
+    daemon.live.changed(Kind::Tools);
     Ok(Frame::Set)
 }

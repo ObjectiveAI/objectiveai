@@ -6,7 +6,7 @@ use diverge_sdk::daemon::grant::Tagging;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{active, agents_of};
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, tags, tools};
@@ -41,5 +41,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     tools::set_tags(&mut tx, tool.id, &tags::with(&tool.tags, &frame.tags)).await?;
     tx.commit().await?;
+    daemon.live.changed(Kind::Tools);
     Ok(Frame::Tagged)
 }

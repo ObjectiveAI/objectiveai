@@ -7,7 +7,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{active, agents_of};
 use crate::containers;
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::database;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
@@ -51,5 +51,8 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     database::provision::drop(&mut tx, &database::role_of(&database::container_of_tool(&tool))).await?;
     tx.commit().await?;
     daemon.live.forget_scope(containers::Key::Tool(tool.id)).await;
+    daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::Routes);
+    daemon.live.changed(Kind::Volumes);
     Ok(Frame::Deleted)
 }

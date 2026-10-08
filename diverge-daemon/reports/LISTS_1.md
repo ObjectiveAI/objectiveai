@@ -49,7 +49,7 @@ the daemon's live state alone.
 | 31 | `tools templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only) |
 | 36 | `resources list` | `Listed` | ids, kinds, in_use, creators, all_tags, any_tags, created_from, created_to | `in_use` (filter only) |
 | 5 | `agents list` | `Agent` | names, templates, creators, active, all_tags, any_tags, created_from, created_to | `active`, `logs_index`; a stream since 2026-10-08 |
-| 23 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active` |
+| 23 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active`; a stream since 2026-10-08 |
 | 28 | `tools routes list` | `Route` | agents, templates, tools, creators, created_from, created_to | — |
 | 72 | `volumes list` | `Volume` | providers, names, modes, mounted, created_from, created_to | `mounted` (filter only); a stream since 2026-10-08, over the daemon's mirror of each connected provider's listing |
 | 19 | `tools list_for` | `Container` | none: `provider`, `tenant` | all of it; a stream since 2026-10-07, the provider's relayed (see `STREAMS_1.md`) |

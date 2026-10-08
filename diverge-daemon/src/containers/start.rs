@@ -243,6 +243,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain
         tool_records::set_last(&mut conn, tool.id, &identity, Utc::now()).await?;
     }
     daemon.live.insert_tool(Arc::clone(&run)).await;
+    daemon.live.changed(Kind::Tools);
     let waiter = {
         let daemon = Arc::clone(daemon);
         let run = Arc::clone(&run);

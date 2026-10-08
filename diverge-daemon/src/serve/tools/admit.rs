@@ -8,7 +8,7 @@ use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{active, agents_of};
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, key};
 use crate::serve::reply;
 use crate::store::tools::admissions;
@@ -57,5 +57,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         admissions::Created::Exists => return Ok(Frame::Exists),
     }
     tx.commit().await?;
+    daemon.live.changed(Kind::Tools);
     Ok(Frame::Admitted(minted))
 }

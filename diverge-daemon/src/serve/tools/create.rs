@@ -6,7 +6,7 @@ use diverge_sdk::daemon::endpoints::tools::create::server::response::Frame;
 use diverge_sdk::daemon::grant::tools::Make;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner::{self, Checked};
 use crate::serve::reply;
@@ -81,5 +81,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         tools::Created::Exists => return Ok(Frame::InUse),
     }
     tx.commit().await?;
+    daemon.live.changed(Kind::Tools);
+    daemon.live.changed(Kind::Volumes);
     Ok(Frame::Created)
 }
