@@ -11,5 +11,5 @@ pub enum Action {
     /// password.
     Get,
     /// List the container connections open through it.
-    Connections,
+    List,
 }

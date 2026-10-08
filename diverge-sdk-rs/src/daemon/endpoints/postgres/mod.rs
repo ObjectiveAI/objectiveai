@@ -15,7 +15,7 @@
 //! mode is the daemon's CONFIGURATION, read when it starts: LOCAL, a
 //! Postgres the daemon runs itself, beside it; or REMOTE, one the
 //! daemon dials at a URL its configuration gives. [`get`] answers the
-//! mode; [`connections`] lists the container connections open through
+//! mode; [`list`] lists the container connections open through
 //! the database now. Nothing on this wire changes the mode: a daemon
 //! that is to serve another database is configured and started again,
 //! and what the old database holds stays there.
@@ -59,5 +59,5 @@ pub use connection::*;
 pub use container::*;
 pub use mode::*;
 
-pub mod connections;
 pub mod get;
+pub mod list;

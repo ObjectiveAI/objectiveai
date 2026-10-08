@@ -1,4 +1,4 @@
-//! What a server's response frame carries for connections.
+//! What a server's response frame carries for a postgres list.
 
 use std::fmt;
 
@@ -119,10 +119,10 @@ pub enum FrameError {
 impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("postgres connections response frame is empty"),
-            FrameError::UnknownTag(tag) => write!(f, "unknown postgres connections response frame tag {tag}"),
-            FrameError::Connection(error) => write!(f, "postgres connections connection did not parse: {error}"),
-            FrameError::Error(error) => write!(f, "postgres connections error did not parse: {error}"),
+            FrameError::Empty => f.write_str("postgres list response frame is empty"),
+            FrameError::UnknownTag(tag) => write!(f, "unknown postgres list response frame tag {tag}"),
+            FrameError::Connection(error) => write!(f, "postgres list connection did not parse: {error}"),
+            FrameError::Error(error) => write!(f, "postgres list error did not parse: {error}"),
         }
     }
 }

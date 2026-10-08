@@ -111,7 +111,7 @@
 //! | `84` | [`resources::tag`] |
 //! | `85` | [`resources::untag`] |
 //! | `86` | [`postgres::get`] |
-//! | `87` | [`postgres::connections`] |
+//! | `87` | [`postgres::list`] |
 //! | `88` | [`tools::admit`] |
 //! | `89` | [`tools::unadmit`] |
 //!

@@ -6,7 +6,7 @@ use crate::daemon::client::stream;
 use crate::wire::client::handle::Handle;
 use crate::wire::decode::Decode as _;
 
-/// A postgres connections list that did not open.
+/// A postgres list list that did not open.
 pub type OpenError = stream::OpenError<serde_json::Error>;
 
 /// The stream: one [`response::Frame`] per response, ended by the

@@ -202,7 +202,7 @@ pub enum ClientRequest<'a> {
     /// Tag `86`. Read which database the daemon serves.
     PostgresGet(postgres::get::client::request::Frame),
     /// Tag `87`. List the container connections open through the database.
-    PostgresConnections(postgres::connections::client::request::Frame),
+    PostgresList(postgres::list::client::request::Frame),
     /// Tag `88`. Admit a lister or a connector to a tool.
     ToolsAdmit(tools::admit::client::request::Frame),
     /// Tag `89`. Take an admission off a tool.
@@ -314,7 +314,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ResourcesTag(frame) => frame.encode(out),
             ClientRequest::ResourcesUntag(frame) => frame.encode(out),
             ClientRequest::PostgresGet(frame) => frame.encode(out),
-            ClientRequest::PostgresConnections(frame) => frame.encode(out),
+            ClientRequest::PostgresList(frame) => frame.encode(out),
             ClientRequest::ToolsAdmit(frame) => frame.encode(out),
             ClientRequest::ToolsUnadmit(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
@@ -602,8 +602,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             86 => postgres::get::client::request::Frame::decode(bytes)
                 .map(ClientRequest::PostgresGet)
                 .ok(),
-            87 => postgres::connections::client::request::Frame::decode(bytes)
-                .map(ClientRequest::PostgresConnections)
+            87 => postgres::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::PostgresList)
                 .ok(),
             88 => tools::admit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ToolsAdmit)
@@ -707,7 +707,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ResourcesTag(_) => f.write_str("resources tag"),
             ClientRequest::ResourcesUntag(_) => f.write_str("resources untag"),
             ClientRequest::PostgresGet(_) => f.write_str("postgres get"),
-            ClientRequest::PostgresConnections(_) => f.write_str("postgres connections"),
+            ClientRequest::PostgresList(_) => f.write_str("postgres list"),
             ClientRequest::ToolsAdmit(_) => f.write_str("tools admit"),
             ClientRequest::ToolsUnadmit(_) => f.write_str("tools unadmit"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),

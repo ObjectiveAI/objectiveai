@@ -1,4 +1,4 @@
-//! Performing a postgres connections: the exchange, rather than the
+//! Performing a postgres list: the exchange, rather than the
 //! description of it.
 //!
 //! Its own files are flattened into it, so everything is named through

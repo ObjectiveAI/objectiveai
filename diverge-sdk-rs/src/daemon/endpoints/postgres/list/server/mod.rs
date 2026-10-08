@@ -1,4 +1,4 @@
-//! The server side of a connections list: what the daemon sends.
+//! The server side of a postgres list: what the daemon sends.
 //!
 //! [`response`] is the whole of it. The daemon answers and is done; it
 //! opens no channels of its own for this, so there is no `request`
