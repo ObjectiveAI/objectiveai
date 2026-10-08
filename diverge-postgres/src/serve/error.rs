@@ -4,10 +4,10 @@ use std::fmt;
 use std::io;
 use std::process::ExitStatus;
 
+use diverge_sdk::config;
 use diverge_sdk::file_lock;
 
 use crate::cluster;
-use crate::config;
 use crate::install;
 use crate::postmaster;
 
@@ -17,8 +17,13 @@ use crate::postmaster;
 pub enum Error {
     /// The runtime could not be built.
     Runtime(io::Error),
-    /// The directory or the file could not be used.
+    /// The root or the file could not be used.
     Config(config::Error),
+    /// The daemon's block names a remote database: no cluster is
+    /// wanted, and this program has nothing to run.
+    Remote,
+    /// The cluster's directory could not be made.
+    Directory(io::Error),
     /// The binaries could not be had.
     Install(install::Error),
     /// The init lock could not be taken.
@@ -43,6 +48,8 @@ impl fmt::Display for Error {
         match self {
             Error::Runtime(error) => write!(f, "the runtime could not be built: {error}"),
             Error::Config(error) => write!(f, "the configuration could not be used: {error}"),
+            Error::Remote => write!(f, "the daemon is configured for a remote database; no cluster is wanted here"),
+            Error::Directory(error) => write!(f, "the cluster's directory could not be made: {error}"),
             Error::Install(error) => write!(f, "the binaries could not be had: {error}"),
             Error::Lock(error) => write!(f, "the init lock could not be taken: {error}"),
             Error::Cluster(error) => write!(f, "the cluster could not be made ready: {error}"),
@@ -64,8 +71,9 @@ impl fmt::Debug for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Runtime(error) | Error::Stdout(error) | Error::Wait(error) => Some(error),
+            Error::Runtime(error) | Error::Stdout(error) | Error::Wait(error) | Error::Directory(error) => Some(error),
             Error::Config(error) => Some(error),
+            Error::Remote => None,
             Error::Install(error) => Some(error),
             Error::Lock(error) => Some(error),
             Error::Cluster(error) => Some(error),
