@@ -74,6 +74,7 @@ impl Mounts {
             };
             let request = ServeRequest {
                 name: mount.volume_name.clone(),
+                mode: mount.volume_mode,
                 overlay_disk: mount.overlay_disk.unwrap_or(0),
             };
             let serve = match execute::execute(&handle, &request).await {

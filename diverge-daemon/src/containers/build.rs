@@ -9,9 +9,9 @@ use super::fuse::Mounts;
 
 /// The container to run: the template's image, limits and arguments;
 /// the pinned provider's volumes as the record names them — a mount
-/// states which mode it means the volume to have, and the volume's
-/// own mode is the provider's to keep; and every FUSE mount under the
-/// id the daemon serves it by.
+/// states which mode it means the volume to have, which the provider
+/// holds the volume to, refusing the run for one in another mode;
+/// and every FUSE mount under the id the daemon serves it by.
 pub fn container<T>(template: &Template<T>, volumes: &[VolumeMount], mounts: &Mounts) -> request::Container {
     request::Container {
         image: request::Image {
@@ -25,6 +25,7 @@ pub fn container<T>(template: &Template<T>, volumes: &[VolumeMount], mounts: &Mo
             .map(|mount| request::VolumeMount {
                 volume_name: mount.volume_name.clone(),
                 volume_relative_path: mount.volume_relative_path.clone(),
+                mode: mount.volume_mode,
                 container_path: mount.container_path.clone(),
             })
             .collect(),
