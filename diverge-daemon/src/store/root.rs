@@ -206,6 +206,6 @@ pub fn every_grant() -> Vec<Grant> {
             ],
             within: Within::Any,
         }),
-        Grant::Postgres(pg::Permission(vec![pg::Action::Get, pg::Action::Connections])),
+        Grant::Postgres(pg::Permission(vec![pg::Action::Get, pg::Action::List])),
     ]
 }

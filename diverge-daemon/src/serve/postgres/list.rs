@@ -1,8 +1,8 @@
 //! The container connections open through the database.
 
 use diverge_sdk::daemon::endpoints::postgres::Connection;
-use diverge_sdk::daemon::endpoints::postgres::connections::client::request;
-use diverge_sdk::daemon::endpoints::postgres::connections::server::response::Frame;
+use diverge_sdk::daemon::endpoints::postgres::list::client::request;
+use diverge_sdk::daemon::endpoints::postgres::list::server::response::Frame;
 use diverge_sdk::daemon::grant::postgres::Action;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
@@ -20,7 +20,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// One `Forbidden` without the `connections` grant; else every
+/// One `Forbidden` without the `list` grant; else every
 /// connection a container holds open now, oldest opened first, one
 /// frame each, the container named as the database names it — and
 /// nothing at all, which is an answer, when none is open. One whose
@@ -31,7 +31,7 @@ async fn serve(scope: &ScopeHandle, _: request::Frame, who: Who, daemon: &Daemon
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     };
-    if !judge::postgres::holds(&standing, Action::Connections) {
+    if !judge::postgres::holds(&standing, Action::List) {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }

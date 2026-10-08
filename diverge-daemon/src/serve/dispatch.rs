@@ -107,7 +107,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ResourcesTag(frame) => resources::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::ResourcesUntag(frame) => resources::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::PostgresGet(frame) => postgres::get::handle(scope, frame, who, daemon).await,
-        ClientRequest::PostgresConnections(frame) => postgres::connections::handle(scope, frame, who, daemon).await,
+        ClientRequest::PostgresList(frame) => postgres::list::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsAdmit(frame) => tools::admit::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsUnadmit(frame) => tools::unadmit::handle(scope, frame, who, daemon).await,
         ClientRequest::Invalid(_) => scope.send_response_finish().await,
