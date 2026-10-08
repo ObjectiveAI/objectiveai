@@ -10,6 +10,7 @@
 //! | [`container_proxy`] | the proxy beside every container's program, from both sides: [`outside`](container_proxy::outside), the WebSocket a provider opens into it; [`inside`](container_proxy::inside), the loopback the program dials it on |
 //! | [`file_lock`] | one exclusive lock per file across processes, let go on drop — how Diverge programs take turns at a directory; nothing of it crosses a wire |
 //! | [`postgres_supervisor`] | the two lines a daemon and the `diverge-postgres` it runs beside itself exchange over that program's stdio: the ready line out, the shutdown line in |
+//! | [`config`] | the one `config.yaml` every Diverge program reads: the root it is found at, the document, and the block each program takes; nothing of it crosses a wire |
 //!
 //! # Nothing is optional
 //!
@@ -45,6 +46,7 @@
 //! and are enforced by construction in the halves here so an author
 //! cannot violate a requirement that only a document states.
 
+pub mod config;
 pub mod container_proxy;
 pub mod daemon;
 pub mod file_lock;

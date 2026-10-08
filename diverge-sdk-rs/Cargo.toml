@@ -52,10 +52,15 @@ serde = { version = "1.0.229", features = ["derive"] }
 # `preserve_order`: what is relayed keeps the order it arrived in.
 # `raw_value`: MCP bodies pass through byte-identical.
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# `config`: the one `config.yaml`, and the path to whatever in it was
+# wrong.
+serde_path_to_error = "0.1.20"
+serde_yaml_ng = "0.10.0"
 # `net` and `rt` for the sockets and the tasks of both halves; `sync`
 # for every queue between them, and the in-container client's
-# once-made session.
-tokio = { version = "1.53.1", default-features = false, features = ["net", "rt", "sync"] }
+# once-made session; `fs` for the one file `config` reads and the
+# root it makes.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "net", "rt", "sync"] }
 # The outgoing socket: `stream` names it, `connect` is the one place
 # this crate dials — the provider's server into the proxy inside a
 # container, see `provider::server::proxy`.
