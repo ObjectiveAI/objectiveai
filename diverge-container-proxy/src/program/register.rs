@@ -12,7 +12,8 @@ use super::{Upstream, refused, status_error};
 
 /// Register `arguments` with the program's server. A `2xx` is the
 /// arguments held for the container's life, and its body the tools
-/// the program depends on, which `Begun` carries; a non-`2xx` is the
+/// the program depends on, which an agent container's `Begun` carries
+/// and a tool container's begin ignores; a non-`2xx` is the
 /// image refusing them, in its own words, and a server that cannot be
 /// reached is the refusal too. So is a `2xx` whose body is not the
 /// response: the tools are part of registration, and a registration
