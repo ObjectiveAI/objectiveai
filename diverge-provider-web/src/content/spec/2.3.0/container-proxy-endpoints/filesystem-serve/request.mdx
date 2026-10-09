@@ -1,0 +1,26 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 6 followed by the path of the directory as JSON: an array of components from the root of the container, empty for the root.'
+order: 1
+draft: false
+---
+
+```text
+[6][request JSON …]
+```
+
+- **`path`.** An array of strings: the components of the directory
+  to serve, from the root of the container. An empty array names the
+  root of the container. No component is empty, `.` or `..`, or
+  contains `/` or NUL; a path with such a component is answered with
+  an error, not as malformed.
+- **No mode, and nothing left out.** The request carries nothing
+  else: a container has no mode, and the server leaves out of a
+  serve what it leaves out of every tree.
+- **Malformed.** A payload that does not decode as stated is answered
+  by a response finish that no response precedes.
+
+The request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/filesystem/serve/client/request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/filesystem/serve/client/request/frame.rs
+```

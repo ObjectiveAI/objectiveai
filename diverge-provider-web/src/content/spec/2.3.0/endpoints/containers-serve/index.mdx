@@ -1,0 +1,100 @@
+---
+title: 'containers::serve'
+summary: 'Tag 4: a client names a container it is running, by id, and a directory of it; the server opens a serve of that directory on the proxy of the container, answers Serving once, and for as long as the scope lives relays on channels the client opens the nine asks a FUSE mount makes, each answered from the filesystem of the container, and the tree of the directory as the container holds it; the client stops the scope, or the container ends.'
+order: 4
+draft: false
+---
+
+A client opens the scope with a request whose payload is the tag byte
+`4` followed by the request as JSON: the id of a container the client
+is running and the path of a directory of it. The server sends
+exactly one response, which is either `Serving` or an error. After
+`Serving` the scope stays open: the client opens on it, as channels,
+the nine asks a FUSE mount makes of a client — a stat, a read of a
+piece, a write of a piece, a truncate, a setattr, a listing, a
+removal, a rename and a mkdir — and the server relays each to the
+proxy of the container, which answers it from the filesystem of the
+container. The client's stop ends the scope, and so does the end of
+the container: the response finish follows the last answer, and no
+frame follows the finish. After an error the response finish follows
+the error, and no channel is served.
+
+- **The request.** The request carries the id of one container and
+  the path of one directory of it, as components from the root of the
+  container. [Request](/endpoints/containers-serve/request/) states its form.
+- **The container named.** The client names a container by the `id`
+  the response of its run carried, as [containers::agents::run](/endpoints/containers-agents-run/)
+  and [containers::tools::run](/endpoints/containers-tools-run/) state it. The
+  server resolves the id among the containers it is running whose
+  runner is the identity under which the connection was authorized,
+  as [Authorization](/authorization/) provides. An id that names no
+  such container is answered with an error. A connector attached to
+  a tool container is not its runner, and cannot serve it. A client
+  cannot serve another client's container, and cannot learn from the
+  answer whether an id it holds is another client's.
+- **Either family.** An agent container and a tool container are
+  served alike. The serve rides neither family's exchange: it is a
+  scope of its own, on whatever connection of the runner it is
+  opened.
+- **The response.** [Response](/endpoints/containers-serve/response/) states the one
+  response and what follows it.
+- **The channels.** The client opens the channels that
+  [Client Channels](/endpoints/containers-serve/client/) defines: the nine asks, the
+  stop, and the filetree. The server opens no channel on a serve
+  scope.
+- **The conduit.** The server holds one
+  [filesystem::serve](/container-proxy-endpoints/filesystem-serve/) scope on the proxy of
+  the container for the life of the serve, carrying the path of the
+  request, and relays every channel the client opens on the serve
+  scope as one channel on that scope, the bytes of the channel request
+  verbatim, and every channel response of the proxy as the channel
+  response of the client's channel, verbatim. The server reads
+  nothing of an ask or an answer, alters nothing, reorders nothing
+  within one channel, and sends nothing twice.
+- **The scope is the subtree.** Every path in an ask is relative to
+  the directory the request named: the empty path is that directory.
+  A path that names the root of the container serves the container
+  whole, less `/proc`, `/sys` and `/dev`, under which the proxy
+  answers nothing.
+- **The tree as the container holds it.** A [filetree](/endpoints/containers-serve/client/filetree/)
+  channel carries the tree of the served directory as a snapshot,
+  followed by one channel response per change in it — the asks of
+  this serve and the program running in the container alike — until
+  the scope ends.
+- **Every ask passes through.** A container has no mode: there is no
+  layer and no read-only answer. Every mutation the proxy answers
+  `ok` is in the container, and the program running in it sees the
+  change as it sees any other change to its filesystem.
+- **Every piece crosses as it is.** A read is one piece at an offset,
+  a write lands one piece in place, and a stat is the entry's kind,
+  size, mode, owner, group and times as the filesystem of the
+  container records them at the time of the answer. The server
+  buffers no content of the container on the client's behalf.
+- **Asks in flight at once.** A client may have any number of asks
+  open at once. The server relays each on its own channel, and
+  answers each in whatever order the proxy answers them.
+- **Nothing is held.** A serve holds nothing of the container: the
+  run of the container is unaffected, its mounts are unaffected, and
+  any number of serves of one container, of one directory or of
+  several, may be open at once, on one connection of the runner or on
+  several.
+- **The stop.** The client ends the scope by opening the stop channel.
+  The server stops the serve it holds on the proxy, answers every ask
+  still open as the proxy answers it, and sends the response finish.
+  The server sends nothing on the stop's own channel. A connection
+  that closes with a serve scope open ends the scope the same way.
+- **The end of the container.** When the run of the container ends —
+  the runner's stop, or the container's own end — the server ends
+  every serve of the container: every ask still open is answered or
+  finished with nothing, every filetree channel is finished, and the
+  response finish follows. The server sends no error on the main
+  stream for it.
+- **The error.** An error states that the directory is not served,
+  and that nothing was determined about the container. An id that
+  names no container the client is running is answered with exactly
+  the error `{"kind":"missing"}`. A path that is not a directory of
+  the container, a path with a component that is empty, `.`, `..`,
+  or contains `/` or NUL, and a path under `/proc`, `/sys` or `/dev`
+  are each answered with the error the proxy answered the
+  [filesystem::serve](/container-proxy-endpoints/filesystem-serve/) request with. A proxy
+  that could not be reached is answered with an error.

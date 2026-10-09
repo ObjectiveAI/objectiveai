@@ -1,0 +1,70 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0][filetree frame, postcard …]      the snapshot, or one change
+[1][error JSON …]                    last
+```
+
+- **The sequence.** The first channel response is the snapshot, or an
+  error. Zero or more channel responses follow, each one change or a
+  further snapshot. An error, when the server sends one, is the last
+  channel response. The channel response finish follows the last
+  channel response: the server sends it when the scope ends. A
+  channel response finish that no channel response precedes states
+  that the server did not serve the watch.
+- **The filetree frame.** After the byte `0`, the payload is one
+  filetree frame, running to the end of the payload, in the form the
+  [filetree](/endpoints/containers-agents-run/client/filetree/response/)
+  channel of a running container defines: the same four variants,
+  the same nodes, the same paths, encoded as the postcard reading of
+  [Notation](/endpoints/#notation) provides. Every `path` is a
+  sequence of components from the root of the served subtree.
+- **The snapshot.** The first channel response of every filetree
+  channel is a `Snapshot` carrying the tree of the subtree as the
+  container holds it at that time. A further `Snapshot` is sent
+  whenever the proxy has lost events. Every `Snapshot` replaces the
+  tree whole. A `Directory` the proxy could not watch has `changes`
+  `0`; every other has `changes` `1`.
+- **A change.** After a snapshot, one channel response is sent for
+  each change the proxy observes in the subtree, in the order it
+  observes them, in the form the running container's filetree channel
+  provides: an entry that appears is `Inserted` with the node
+  complete, an entry that changes is `Modified` with the node's
+  complete new value, an entry that goes is `Removed`, and a rename is
+  `Removed` at the path it left and `Inserted` at the path it arrived
+  at.
+- **Order and repetition.** As the running container's filetree
+  channel provides: a channel response for one change may be sent
+  more than once, a `Snapshot` may be sent at any time, and every
+  channel response places or clears exactly one place in the tree.
+- **The tree the client holds.** The client applies each channel
+  response as the running container's filetree channel provides.
+- **The error.** After the byte `1`, exactly one JSON value in the
+  form defined on the [volumes::list response](/endpoints/volumes-list/response/)
+  page. The server sends it when it could not watch the subtree,
+  could not walk it, or lost the watch.
+
+The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/serve/server/channel_response/filetree/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/serve/server/channel_response/filetree/frame.rs
+```
+
+and by `diverge-sdk-rs/src/provider/endpoints/volumes/serve/server/channel_response/filetree/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/serve/server/channel_response/filetree/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/filetree/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/filetree/response/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/filetree/response/node.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/filetree/response/node.rs
+```

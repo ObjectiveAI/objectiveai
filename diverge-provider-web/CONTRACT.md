@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the seventeen endpoints and their
+types, the authorization handshake, the eighteen endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,15 +94,16 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the seventeen scope-opening requests
+1.9 **"Endpoint"** means one of the eighteen scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `containers::tools::connect`, `3` `containers::tools::list_for`, `4`
-`volumes::list`, `5` `volumes::stat`, `6` `volumes::read`, `7`
-`volumes::write`, `8` `volumes::filetree`, `9` `volumes::serve`, `10`
-`volumes::create_capacity`, `11` `volumes::create`, `12`
-`volumes::edit_capacity`, `13` `volumes::edit`, `14`
-`volumes::delete`, `15` `images::check`, `16` `version`.
+`containers::serve`, `5` `volumes::list`, `6` `volumes::stat`, `7`
+`volumes::read`, `8` `volumes::write`, `9` `volumes::filetree`, `10`
+`volumes::serve`, `11` `volumes::create_capacity`, `12`
+`volumes::create`, `13` `volumes::edit_capacity`, `14`
+`volumes::edit`, `15` `volumes::delete`, `16` `images::check`, `17`
+`version`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
 a container request by a repository path and a manifest digest, as
@@ -408,7 +409,7 @@ byte the Specification does not require.
 that follow a request, the Provider shall ignore them and shall not
 treat the request as malformed on their account.
 
-### 5.5 `version` (tag 16)
+### 5.5 `version` (tag 17)
 
 The Provider shall answer every `version` request with exactly one
 Response whose payload is the string `2.3.0` encoded as UTF-8 with no
@@ -416,7 +417,7 @@ tag and no length prefix, followed by the Response Finish. The
 Provider shall not send any other string, shall not send an empty
 string, and shall not send an error on this Endpoint.
 
-### 5.6 `images::check` (tag 15)
+### 5.6 `images::check` (tag 16)
 
 The Provider shall answer every `images::check` request with exactly
 one Response and the Response Finish: the byte `0` followed by exactly
@@ -916,14 +917,50 @@ out, shall send a Container as added at most once per Scope and as
 removed only after it sent it as added, and shall send nothing of a
 Container but its id.
 
-### 5.12 Prohibitions
+### 5.12 `containers::serve` (tag 4)
+
+For every serve request, the Provider shall, in order: (a) read the
+request and answer a payload that does not decode by a Bare Finish;
+(b) look the `id` up among the Containers it is running whose Runner
+is the Identity of the Connection, and answer an id that names none —
+no Container at all, or one the Identity is attached to as a
+Connector or does not run — by exactly one Response, the byte `1`
+followed by exactly `{"kind":"missing"}`, and the Response Finish;
+(c) open exactly one `filesystem::serve` Scope on the Container's
+Proxy carrying the request's `path` verbatim, and answer the Proxy's
+error by exactly one Response, the byte `1` followed by that error
+verbatim, and the Response Finish, and a Proxy that cannot be reached
+by exactly one Response, the byte `1` followed by an error, and the
+Response Finish; (d) answer exactly one Response, the byte `0` and
+nothing else, only after the Proxy has answered its byte `0`; (e) for
+the life of the Scope, relay every Channel the Client opens on it —
+each of the nine asks, and each filetree — as exactly one Channel on
+the `filesystem::serve` Scope carrying the bytes of the Client's
+Channel Request verbatim, and relay every Channel Response of the
+Proxy on that Channel as a Channel Response on the Client's Channel,
+byte for byte, in order, and the Proxy's Channel Response Finish as
+the Client's Channel Response Finish, answering a Channel Request that
+does not decode by a Bare Finish; (f) end the Scope by the Response
+Finish, after the last answer, when it receives the Client's `stop`
+Channel request, when the Client's Connection ends, and when the run
+of the Container ends, stopping the `filesystem::serve` Scope on the
+Proxy and holding and releasing nothing of the Container. The Provider
+shall serve a Container of either family alike, shall serve any number
+of serve Scopes of one Container at once, shall hold no Volume and no
+mount on account of a serve, shall time nothing out, and shall send
+nothing on the main stream of a serve Scope after the byte `0`.
+
+### 5.13 Prohibitions
 
 The Provider shall never: (a) refuse, alter or withhold a FUSE ask on
 its own account, whether a change to a FUSE Mount is allowed being the
-Client's answer to that ask; (b) write to a Volume or a mount on its
-own account, a `volumes::write` request of the Identity, and a write
-a `volumes::serve` ask of the Identity directs, being on the
-Identity's account; (c) send a second id on a run Scope; (d) send an error on
+Client's answer to that ask, and whether a change to a served
+Container is made being the Proxy's answer to that ask; (b) write to
+a Volume, a mount or a Container on its own account, a `volumes::write`
+request of the Identity, a write a `volumes::serve` ask of the
+Identity directs, a `write` the Identity opens on a run or a connect,
+and a write a `containers::serve` ask of the Identity directs, being
+on the Identity's account; (c) send a second id on a run Scope; (d) send an error on
 the main stream of a run Scope after the id; (e) retry any ask; (f)
 read, inspect, parse, log the content of, or act upon the content of
 a Relayed Exchange, save to the extent necessary to relay it; (g)
@@ -934,7 +971,7 @@ Finish, or a Bare Finish where the Specification states a Response;
 anything a Client chose; or (j) serve a Scope under an Identity other
 than that of the Connection on which the Scope was opened.
 
-### 5.13 The Container Proxy
+### 5.14 The Container Proxy
 
 The Provider shall place inside every Container a Container Proxy
 that conforms in full to the Specification's Container Proxy and
@@ -951,8 +988,13 @@ mount
 Scope's mount before answering it and holds every mount for its life,
 asking for what the mount needs on channels of that Scope; that
 leaves out of every filetree the paths the tree Scope's request names
-and `/proc`, `/sys` and `/dev`; that ignores text data frames; and
-that imposes no timeout. Where the Provider uses a program other than
+and `/proc`, `/sys` and `/dev`; that serves a directory of the
+Container live on a `filesystem::serve` Scope, answering the nine
+asks from the Container's filesystem, every change in place and none
+refused on its own account, and every filetree of the Scope with the
+directory's tree and every change in it, under `/proc`, `/sys` and
+`/dev` nothing; that ignores text data frames; and that imposes no
+timeout. Where the Provider uses a program other than
 the one Diverge publishes, the Provider warrants that program's
 conformance.
 
@@ -988,7 +1030,7 @@ only what is required.
 that: (a) it has full power and authority to enter into and perform
 this Agreement; (b) every Server it holds out as conforming is and
 will remain Conforming for the Term; (c) every Container Proxy it
-places inside a Container conforms to Section 5.13; (d) its
+places inside a Container conforms to Section 5.14; (d) its
 performance of this Agreement does not and will not violate any
 agreement to which it is a party or any applicable law; and (e) the
 Deployment Infrastructure it uses is adequate to perform every

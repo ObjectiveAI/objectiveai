@@ -1,0 +1,50 @@
+---
+title: 'Client Channels'
+summary: 'The channels the client opens on a serve scope, by tag: the nine asks a FUSE mount makes, each answered by exactly one channel response from the container, the stop that ends the scope, and the filetree that streams the tree of the served subtree.'
+order: 3
+draft: false
+---
+
+The client opens each of these channels on the scope, as
+[Channels](/frames/channels/) provides, after the server's `Serving`.
+The payload of the channel request begins with one tag byte
+designating the channel; the remainder is the channel's request, which
+names no container: the scope is the subtree. The channel request is,
+byte for byte, the channel request of a
+[volumes::serve](/endpoints/volumes-serve/client/) scope: tags `0`
+through `8` are the asks of a FUSE mount's scope on the container
+proxy — the same tags, the same forms — tag `9` is the stop, and tag
+`10` is the filetree. The server answers each ask on its channel with
+exactly one channel response and the channel response finish, answers
+the filetree with a stream that ends with the scope, and answers a
+channel request that does not decode by a channel response finish
+that no channel response precedes.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [read](/endpoints/containers-serve/client/read/) |
+| `1` | [write](/endpoints/containers-serve/client/write/) |
+| `2` | [list](/endpoints/containers-serve/client/list/) |
+| `3` | [remove](/endpoints/containers-serve/client/remove/) |
+| `4` | [rename](/endpoints/containers-serve/client/rename/) |
+| `5` | [mkdir](/endpoints/containers-serve/client/mkdir/) |
+| `6` | [stat](/endpoints/containers-serve/client/stat/) |
+| `7` | [truncate](/endpoints/containers-serve/client/truncate/) |
+| `8` | [setattr](/endpoints/containers-serve/client/setattr/) |
+| `9` | [stop](/endpoints/containers-serve/client/stop/) |
+| `10` | [filetree](/endpoints/containers-serve/client/filetree/) |
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/serve/client/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/serve/client/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/provider/endpoints/volumes/serve/client/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/volumes/serve/client/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/container_proxy/outside/endpoints/fuse/mount/server/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/fuse/mount/server/channel_request/frame.rs
+```

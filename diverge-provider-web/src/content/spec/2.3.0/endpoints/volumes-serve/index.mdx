@@ -1,12 +1,12 @@
 ---
 title: 'volumes::serve'
-summary: 'Tag 9: a client names a volume from its listing and a cap for an ephemeral layer; the server holds the volume as a mount holds it, answers Serving once, and for as long as the scope lives answers on channels the client opens the nine asks a FUSE mount makes, from the volume as its mode allows, a piece at a time, and streams the tree of the volume as served; the client stops the scope.'
-order: 9
+summary: 'Tag 10: a client names a volume from its listing and a cap for an ephemeral layer; the server holds the volume as a mount holds it, answers Serving once, and for as long as the scope lives answers on channels the client opens the nine asks a FUSE mount makes, from the volume as its mode allows, a piece at a time, and streams the tree of the volume as served; the client stops the scope.'
+order: 10
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`9` followed by the name of a volume and `overlay_disk`. The server
+`10` followed by the name of a volume and `overlay_disk`. The server
 sends exactly one response, which is either `Serving` or an error.
 After `Serving` the scope stays open: the client opens on it, as
 channels, the nine asks a FUSE mount makes of a client — a stat, a

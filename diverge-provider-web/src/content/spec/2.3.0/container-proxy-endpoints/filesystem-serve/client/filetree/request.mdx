@@ -1,0 +1,18 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request: the tag byte 10 and the request of the channel.'
+order: 1
+draft: false
+---
+
+```text
+[10]
+```
+
+- **No parameter.** The channel request carries nothing after the
+  tag. A server ignores every byte that follows the tag.
+
+The channel request is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/filesystem/serve/client/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/filesystem/serve/client/channel_request/frame.rs
+```

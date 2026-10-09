@@ -1,0 +1,27 @@
+---
+title: 'Response'
+summary: 'The sequence of channel responses that answers the channel, what ends it, and what a finish with nothing before it means.'
+order: 2
+draft: false
+---
+
+```text
+[0]             ok
+[1][message …]  an error, UTF-8
+[2]             read only: never sent for a container
+```
+
+- **The sequence.** Exactly one channel response, ok or an error, followed
+  by the channel response finish.
+- **The message.** The bytes after the error byte are UTF-8, not JSON.
+- **Read only.** The byte `2` is defined by the answer and is never
+  sent on a serve of a container: a container has no mode, and the server
+  answers every change `ok` or with an error.
+- **A finish with nothing.** A channel response finish that no
+  channel response precedes states that the server could not serve
+  the ask. The client decides whether to ask again.
+
+The channel response is defined by `diverge-sdk-rs/src/container_proxy/outside/endpoints/filesystem/serve/server/channel_response/mkdir/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/container_proxy/outside/endpoints/filesystem/serve/server/channel_response/mkdir/frame.rs
+```

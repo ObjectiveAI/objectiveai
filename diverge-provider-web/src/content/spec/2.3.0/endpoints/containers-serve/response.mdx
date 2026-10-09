@@ -1,0 +1,45 @@
+---
+title: 'Response'
+summary: 'The server sends exactly one response: the byte 0 alone, Serving, after which the scope stays open until the client stops it or the container ends; or the byte 1 followed by an error as one JSON value, and the response finish.'
+order: 2
+draft: false
+---
+
+The server sends exactly one response on the scope, and sends it
+before it serves any channel.
+
+```text
+[0]                  serving: the proxy serves the directory, and the asks are answered
+[1][error JSON …]    not served
+```
+
+- **The sequence.** Exactly one response, first. After a response
+  whose payload is exactly the one byte `0`, the scope stays open:
+  the server sends no other response on the scope, answers every
+  channel the client opens as [Client Channels](/endpoints/containers-serve/client/) states,
+  and sends the response finish after the last answer when the client
+  stops or the container ends. After a response whose first byte is
+  `1`, the response finish follows the response, and no frame follows
+  the finish. A response finish that no response precedes states that
+  the request was not served, as [Endpoints](/endpoints/) provides.
+- **Serving.** The server sends the byte `0` only after the proxy of
+  the container has answered `Serving` on the
+  [filesystem::serve](/container-proxy-endpoints/filesystem-serve/) scope the server
+  opened for the request.
+- **The error.** A payload whose first byte is `1` carries an error
+  after that byte, running to the end of the payload. The error is
+  exactly one JSON value, in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  An id that names no container the client is running is answered
+  with exactly `{"kind":"missing"}`; a directory the proxy refused is
+  answered with the error the proxy sent, verbatim. This revision
+  prescribes nothing else about its content.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is neither `0` nor `1`, a payload whose first byte is `0` and that
+  has a byte after it, and a payload whose bytes after `1` are not
+  one JSON value are malformed.
+
+The response is defined by `diverge-sdk-rs/src/provider/endpoints/containers/serve/server/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/serve/server/response/frame.rs
+```

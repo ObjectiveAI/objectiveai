@@ -1,0 +1,76 @@
+---
+title: 'filesystem::serve'
+summary: 'Tag 6: the client names one directory of the container; the server answers Serving once, and for as long as the scope lives answers on channels the client opens the nine asks a FUSE mount makes, from the filesystem of the container, and streams the tree of the directory; the client stops the scope.'
+order: 6
+draft: false
+---
+
+The client opens the scope with a request whose payload is the tag
+byte `6` followed by the path of one directory of the container, as
+JSON. The server sends exactly one response, which is either
+`Serving` or an error. After `Serving` the scope stays open: the
+client opens on it, as channels, the nine asks a FUSE mount makes —
+a stat, a read of a piece, a write of a piece, a truncate, a setattr,
+a listing, a removal, a rename and a mkdir — and the server answers
+each from the filesystem of the container, and the client opens the
+filetree, which the server answers with the tree of the directory and
+every change in it. The client's stop ends the scope: the response
+finish follows the last answer, and no frame follows the finish.
+After an error the response finish follows the error, and no channel
+is served.
+
+- **The request.** [Request](/container-proxy-endpoints/filesystem-serve/request/) states its form.
+- **The response.** [Response](/container-proxy-endpoints/filesystem-serve/response/) states the one
+  response and what follows it.
+- **The channels.** The client opens the channels that
+  [Client Channels](/container-proxy-endpoints/filesystem-serve/client/) defines: the nine asks,
+  the stop, and the filetree. The server opens no channel on a serve
+  scope.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Container Proxy Endpoints](/container-proxy-endpoints/) provides. A path that has
+   a component that is empty, `.`, `..`, or contains `/` or NUL, a
+   path under `/proc`, `/sys` or `/dev`, and a path that is not a
+   directory of the container are each answered by exactly one error
+   response and the finish.
+2. **The server answers `Serving`.** Exactly one response, the byte
+   `0`, before any channel is served.
+3. **The server answers every channel.** Each ask is answered from
+   the filesystem of the container on its own channel, with exactly
+   one channel response and the channel response finish; each
+   filetree is answered with a snapshot and one channel response per
+   change, until the scope ends. Asks are answered in whatever order
+   the server completes them.
+4. **The server answers the stop.** It serves no ask opened after the
+   stop, answers every ask still open, finishes every filetree
+   channel, and sends the response finish. The server drops every
+   watch the scope held.
+
+## The rules that hold throughout
+
+- **The scope is the subtree.** Every path in an ask is relative to
+  the directory the request named: the empty path is that directory.
+  The root of every filetree is that directory.
+- **The asks are the mount's.** Each ask is, byte for byte, the ask
+  the server opens on a [mount scope](/container-proxy-endpoints/fuse-mount/), with the
+  roles reversed: the client asks, and the server answers from the
+  filesystem of the container as the client answers from its storage
+  on a mount scope. Each answer is the answer that ask defines.
+- **Every ask passes through.** The server answers from the filesystem
+  of the container as it is at the time of the answer, and changes
+  the container as the ask asks before it answers `ok`. There is no
+  layer and no read-only answer: the server never sends the read-only
+  byte. The program beside the server sees every change as it sees
+  any other change to its filesystem.
+- **Left out.** `/proc`, `/sys` and `/dev` are left out of every
+  serve: a path under one of them is answered as nothing at the path
+  by a stat, a read or a list, and with an error by a write, a
+  truncate, a setattr, a removal, a rename or a mkdir; an entry there
+  is absent from every listing and every filetree.
+- **Nothing is held.** A serve holds nothing: the server serves any
+  number of serves at once, of one directory or of several, beside
+  every mount, tree, read and write.
+- **No timeout.** The server imposes no timeout on the scope.

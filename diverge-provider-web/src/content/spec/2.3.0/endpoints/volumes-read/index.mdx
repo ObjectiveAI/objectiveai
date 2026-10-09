@@ -1,12 +1,12 @@
 ---
 title: 'volumes::read'
-summary: 'Tag 6: a client names a volume from its listing and one file in it; the server sends the bytes of the file as responses of at most CHUNK_SIZE bytes each and the finish, or an error last, while the volume is mounted nowhere.'
-order: 6
+summary: 'Tag 7: a client names a volume from its listing and one file in it; the server sends the bytes of the file as responses of at most CHUNK_SIZE bytes each and the finish, or an error last, while the volume is mounted nowhere.'
+order: 7
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`6` followed by the name of a volume and the path of one file in it.
+`7` followed by the name of a volume and the path of one file in it.
 The server sends the bytes of the file as zero or more responses and
 the response finish, or the responses sent so far, exactly one error
 response and the response finish. Neither party opens a channel on a

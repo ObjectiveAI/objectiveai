@@ -1,0 +1,33 @@
+---
+title: 'FUSE read'
+summary: 'Tag 0: the client reads a piece of a file of the served subtree, by the path of the entry within the subtree, in the form the FUSE mount ask of the same tag has on a mount scope; the server answers with exactly one channel response, the bytes, the absence of the file, or an error, from the filesystem of the container.'
+order: 0
+draft: false
+---
+
+The client opens this channel to perform on the served subtree what a
+program in a container performs on a FUSE mount: it is the last hop
+of the [FUSE read](/endpoints/containers-serve/client/read/) channel of a
+container serve. The ask names the entry by its path within the
+subtree, and names no subtree: the scope is the subtree. It is, byte
+for byte, the ask of tag `0` the server opens on a
+[mount scope](/container-proxy-endpoints/fuse-mount/), going the other
+way, and the server answers it from the filesystem of the container.
+
+- **The request.** The tag byte `0` followed by the ask.
+  [Request](/container-proxy-endpoints/filesystem-serve/client/read/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/container-proxy-endpoints/filesystem-serve/client/read/response/) states the
+  sequence.
+- **The meaning.** What the ask means, and what its answer means,
+  [FUSE read](/container-proxy-endpoints/fuse-mount/server/read/) states for the mount; the
+  same holds here, the filesystem of the container standing where the
+  client's storage stands there.
+- **The filesystem answers.** The server answers from the filesystem
+  of the container as it is at the time of the answer, and changes
+  the container as the ask asks before it answers `ok`. A symbolic
+  link is the link itself, a file. The server buffers nothing on the
+  client's behalf.
+- **Left out.** Under `/proc`, `/sys` and `/dev` nothing is answered:
+  a path there, or a path with a component `.` or `..`, is answered
+  as nothing at the path.

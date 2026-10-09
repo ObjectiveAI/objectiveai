@@ -1,0 +1,32 @@
+---
+title: 'filetree'
+summary: 'Tag 10: the client asks for the tree of the served subtree; the server sends a snapshot of the subtree and one channel response per change in it, as the tree scope sends the tree of the container, until the scope ends.'
+order: 10
+draft: false
+---
+
+The client opens this channel to watch the served subtree.
+
+- **The request.** The payload is the tag byte `10` and nothing more.
+  [Request](/container-proxy-endpoints/filesystem-serve/client/filetree/request/) states its form.
+- **The response.** A snapshot, one channel response per change, and
+  the channel response finish when the scope ends.
+  [Response](/container-proxy-endpoints/filesystem-serve/client/filetree/response/) states the sequence.
+- **As a tree scope.** The server watches and walks the subtree as
+  [filesystem::tree](/container-proxy-endpoints/filesystem-tree/) watches and walks the
+  container: the watch armed before the walk, the snapshot first, one
+  channel response per change in the order the changes were observed,
+  a directory the server could not watch present with `changes` `0`
+  and no change under it sent, and lost events answered by a fresh
+  snapshot. The root of the tree is the directory the request named,
+  and every `path` is a sequence of components from that root.
+- **Left out.** `/proc`, `/sys` and `/dev` are left out of every
+  subtree, as of every tree. No other path is left out: the paths a
+  tree scope's request names do not apply to a serve.
+- **Every channel is whole.** Each filetree channel begins with its
+  own snapshot. Two filetree channels on one scope are two streams,
+  and each reports every change.
+- **Ended with the scope.** The channel response finish of a filetree
+  channel is sent when the scope ends, after the last change. The
+  client ends a filetree channel by ending the scope, and not
+  otherwise.

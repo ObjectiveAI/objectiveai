@@ -1,0 +1,39 @@
+---
+title: 'FUSE setattr'
+summary: 'Tag 8: the client sets the mode, the owner, the group or the times of an entry of the served subtree, by the path of the entry within the subtree, in the form the FUSE mount ask of the same tag has on the container proxy; the server relays the ask to the proxy of the container and answers with exactly one channel response, ok or an error, as the proxy answered it.'
+order: 8
+draft: false
+---
+
+The client opens this channel to perform on the served subtree what a
+program in a container performs on a FUSE mount. The ask names the
+entry by its path within the subtree, and names no container: the
+scope is the subtree. It is, byte for byte, the ask of tag `8` a FUSE
+mount's scope carries on the container proxy, and the server relays
+it to the proxy of the container, which answers it from the
+container's filesystem.
+
+- **The request.** The tag byte `8` followed by the ask.
+  [Request](/endpoints/containers-serve/client/setattr/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/endpoints/containers-serve/client/setattr/response/) states the
+  sequence.
+- **The meaning.** What the ask means, and what its answer means,
+  [FUSE setattr](/container-proxy-endpoints/fuse-mount/server/setattr/) states for the mount, and
+  [FUSE setattr](/endpoints/containers-agents-run/server/fuse-setattr/) states
+  for the relay; the same holds here, the container's filesystem
+  standing where the client's storage stands there.
+- **The container answers.** The server opens one channel on the
+  [filesystem::serve](/container-proxy-endpoints/filesystem-serve/) scope it holds on the
+  proxy of the container, carrying the bytes of this channel request,
+  and sends the proxy's channel response as this channel's, byte for
+  byte. The proxy answers from the container's filesystem as it is at
+  the time of the answer, and changes the container as the ask asks
+  before it answers `ok`. The server buffers nothing on the client's
+  behalf and reads nothing of the ask or the answer.
+- **No mode.** A container has no mode. Every change the proxy
+  answers `ok` is in the container, where the program running in it
+  sees it; the read-only byte is never sent.
+- **Left out.** Under `/proc`, `/sys` and `/dev` nothing is answered:
+  a path there, or a path with a component `.` or `..`, is answered
+  with an error, and the container is as it was.

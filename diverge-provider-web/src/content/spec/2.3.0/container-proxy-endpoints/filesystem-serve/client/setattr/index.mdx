@@ -1,0 +1,36 @@
+---
+title: 'FUSE setattr'
+summary: 'Tag 8: the client sets the mode, the owner, the group or the times of an entry of the served subtree, by the path of the entry within the subtree, in the form the FUSE mount ask of the same tag has on a mount scope; the server answers with exactly one channel response, ok or an error, from the filesystem of the container.'
+order: 8
+draft: false
+---
+
+The client opens this channel to perform on the served subtree what a
+program in a container performs on a FUSE mount: it is the last hop
+of the [FUSE setattr](/endpoints/containers-serve/client/setattr/) channel of a
+container serve. The ask names the entry by its path within the
+subtree, and names no subtree: the scope is the subtree. It is, byte
+for byte, the ask of tag `8` the server opens on a
+[mount scope](/container-proxy-endpoints/fuse-mount/), going the other
+way, and the server answers it from the filesystem of the container.
+
+- **The request.** The tag byte `8` followed by the ask.
+  [Request](/container-proxy-endpoints/filesystem-serve/client/setattr/request/) states its form.
+- **The response.** Exactly one channel response and the channel
+  response finish. [Response](/container-proxy-endpoints/filesystem-serve/client/setattr/response/) states the
+  sequence.
+- **The meaning.** What the ask means, and what its answer means,
+  [FUSE setattr](/container-proxy-endpoints/fuse-mount/server/setattr/) states for the mount; the
+  same holds here, the filesystem of the container standing where the
+  client's storage stands there.
+- **The filesystem answers.** The server answers from the filesystem
+  of the container as it is at the time of the answer, and changes
+  the container as the ask asks before it answers `ok`. A symbolic
+  link is the link itself, a file. The server buffers nothing on the
+  client's behalf.
+- **No mode.** A container has no mode. Every change the server
+  answers `ok` is in the container, where the program beside the
+  proxy sees it; the read-only byte is never sent.
+- **Left out.** Under `/proc`, `/sys` and `/dev` nothing is answered:
+  a path there, or a path with a component `.` or `..`, is answered
+  with an error, and the container is as it was.

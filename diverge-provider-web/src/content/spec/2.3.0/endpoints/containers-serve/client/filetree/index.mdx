@@ -1,0 +1,41 @@
+---
+title: 'filetree'
+summary: 'Tag 10: the client asks for the tree of the served subtree as the container holds it; the server relays the filetree channel of the serve it holds on the proxy of the container, a snapshot of the subtree and one channel response per change in it, until the scope ends.'
+order: 10
+draft: false
+---
+
+The client opens this channel to watch the served subtree as the
+container holds it.
+
+- **The request.** The payload is the tag byte `10` and nothing more.
+  [Request](/endpoints/containers-serve/client/filetree/request/) states its form.
+- **The response.** A snapshot, one channel response per change, and
+  the channel response finish when the scope ends.
+  [Response](/endpoints/containers-serve/client/filetree/response/) states the sequence.
+- **The proxy watches.** The server opens one
+  [filetree](/container-proxy-endpoints/filesystem-serve/client/filetree/) channel on the
+  [filesystem::serve](/container-proxy-endpoints/filesystem-serve/) scope it holds on the
+  proxy of the container, and sends every channel response of that
+  channel as a channel response of this one, byte for byte, until the
+  proxy finishes it.
+- **The tree is the container's.** The snapshot is the subtree as the
+  container holds it at that time, less what the proxy leaves out of
+  every tree. The root of the tree is the directory the request
+  named. Every `path` is a sequence of components from that root.
+- **What changes.** A change is every change in the subtree: a
+  mutation this serve's asks make, and whatever the program running
+  in the container does, as the proxy observes it. A directory the
+  proxy could not watch is in the snapshot with `changes` `0`, and no
+  change under it is sent.
+- **Every channel is whole.** Each filetree channel begins with its
+  own snapshot. Two filetree channels on one scope are two streams,
+  and each reports every change.
+- **Ended with the scope.** The channel response finish of a filetree
+  channel is sent when the scope ends, after the last change. The
+  client ends a filetree channel by ending the scope, and not
+  otherwise.
+- **Not the run's filetree.** The [filetree](/endpoints/containers-agents-run/client/filetree/)
+  channel of the container's run is unaffected by a serve and shows
+  the subtree as part of the container's tree; this channel shows the
+  subtree alone, from its own root.

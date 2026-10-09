@@ -1,0 +1,18 @@
+---
+title: 'stop'
+summary: 'Tag 9: the client ends the serve; the server answers every ask still open, finishes every filetree channel, sends the response finish on the scope, and sends nothing on the stop channel itself.'
+order: 9
+draft: false
+---
+
+The client opens this channel to end the serve. The server serves no
+ask opened after the stop, answers every ask still open, finishes
+every filetree channel of the scope, and sends the response finish on
+the scope. The server drops every watch the scope held and changes
+nothing in the container.
+
+- **The request.** The tag byte `9` and nothing after it.
+  [Request](/container-proxy-endpoints/filesystem-serve/client/stop/request/) states its form.
+- **The response.** Nothing. [Response](/container-proxy-endpoints/filesystem-serve/client/stop/response/)
+  states what the server sends instead.
+- **Once.** A second stop on one scope changes nothing.
