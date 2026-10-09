@@ -4,8 +4,11 @@
 //! SDK's [`container_proxy_endpoints`] wire with the provider's
 //! server over ONE WebSocket, dialled once on `14979` for the
 //! container's life. On it the server opens scopes — the begin, each
-//! FUSE mount, every tree, read and write — and the proxy answers
-//! each; on the begin scope the proxy opens channels of its own for
+//! FUSE mount, every tree, read, write and serve — and the proxy
+//! answers each, a serve being a subtree of the container answered
+//! ask by ask, as a volume serve answers a mount, and watched for as
+//! long as the server wants it; on the begin scope the proxy opens
+//! channels of its own for
 //! everything the container asks of the world outside: its database
 //! connections, its commands, its vault, its tool calls outward.
 //!

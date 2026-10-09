@@ -43,12 +43,13 @@ pub enum Mapped {
 /// - **Remove** — `Removed`.
 /// - **Access**, and anything else — nothing; the tree did not change.
 ///
-/// A path that is excluded, or is the root itself, is dropped; the
-/// path a frame carries is the event's components after `/`. A
-/// watched directory being renamed yields its `From` twice — once
-/// from its parent's watch, once from its own — which is a second
-/// `Removed` of a path already empty, and the fold drops it.
-pub fn map(event: notify::Event, ignore: &Ignore, watch: &Mutex<Watch>) -> Mapped {
+/// A path that is excluded, is the root itself, or lies outside the
+/// root, is dropped; the path a frame carries is the event's
+/// components after `root`. A watched directory being renamed yields
+/// its `From` twice — once from its parent's watch, once from its
+/// own — which is a second `Removed` of a path already empty, and
+/// the fold drops it.
+pub fn map(event: notify::Event, ignore: &Ignore, watch: &Mutex<Watch>, root: &Path) -> Mapped {
     if event.need_rescan() {
         return Mapped::Resync;
     }
@@ -76,7 +77,7 @@ pub fn map(event: notify::Event, ignore: &Ignore, watch: &Mutex<Watch>) -> Mappe
         EventKind::Create(_)
         | EventKind::Modify(ModifyKind::Name(RenameMode::To)) => {
             for path in &event.paths {
-                let Some(components) = components(path, ignore) else {
+                let Some(components) = components(path, ignore, root) else {
                     continue;
                 };
                 if let Some(node) = node(path, ignore, &dark) {
@@ -90,7 +91,7 @@ pub fn map(event: notify::Event, ignore: &Ignore, watch: &Mutex<Watch>) -> Mappe
         EventKind::Modify(ModifyKind::Name(RenameMode::From))
         | EventKind::Remove(_) => {
             for path in &event.paths {
-                if let Some(components) = components(path, ignore) {
+                if let Some(components) = components(path, ignore, root) {
                     frames.push(Frame::Removed { path: components });
                 }
             }
@@ -98,7 +99,7 @@ pub fn map(event: notify::Event, ignore: &Ignore, watch: &Mutex<Watch>) -> Mappe
         EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {}
         EventKind::Modify(_) => {
             for path in &event.paths {
-                let Some(components) = components(path, ignore) else {
+                let Some(components) = components(path, ignore, root) else {
                     continue;
                 };
                 frames.push(match node(path, ignore, &dark) {
@@ -115,13 +116,15 @@ pub fn map(event: notify::Event, ignore: &Ignore, watch: &Mutex<Watch>) -> Mappe
     Mapped::Frames(frames)
 }
 
-/// The path's components after `/`: `None` for the root itself and
-/// for an excluded path.
-fn components(path: &Path, ignore: &Ignore) -> Option<Vec<String>> {
+/// The path's components after `root`: `None` for the root itself,
+/// for a path outside it, and for an excluded path.
+fn components(path: &Path, ignore: &Ignore, root: &Path) -> Option<Vec<String>> {
     if ignore.excluded(path) {
         return None;
     }
     let components: Vec<String> = path
+        .strip_prefix(root)
+        .ok()?
         .components()
         .filter_map(|component| match component {
             Component::Normal(name) => Some(name.to_string_lossy().into_owned()),
