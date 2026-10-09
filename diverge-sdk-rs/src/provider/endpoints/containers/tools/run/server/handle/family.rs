@@ -1,6 +1,5 @@
 //! This scope's frames, named for the machinery.
 
-use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 
@@ -13,6 +12,7 @@ use super::super::super::client::channel_response::write_bytes;
 use super::super::channel_response::{filetree, read, transfer, write_path};
 use super::super::{channel_request as ask, response};
 use crate::wire::client::handle::Handle;
+use crate::wire::server::scope_handle::ScopeHandle;
 use crate::container_proxy::outside::client::Ask;
 use crate::container_proxy::outside::endpoints::fuse::mount::client::execute::Ask as MountAsk;
 use crate::wire::decode::Decode as _;
@@ -125,12 +125,12 @@ impl Runs for Tools {
         let proxy = proxy.clone();
         async move {
             match begin::execute(&proxy, arguments).await {
-                Ok((handle, asks, finish, tools)) => Ok(Begun {
+                Ok((handle, asks, finish)) => Ok(Begun {
                     begin: Begin::Tools(handle),
                     asks,
                     chunks: None,
                     finish: Some(finish),
-                    tools,
+                    tools: Vec::new(),
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -140,6 +140,11 @@ impl Runs for Tools {
 
     fn relayed<'a>(ask: &'a Ask) -> Option<ask::Frame<'a>> {
         Some(relayed(ask)?)
+    }
+
+    /// A tool container declares nothing: nothing is asked.
+    fn deploy(_: &ScopeHandle, _: &[tools::Tool]) -> impl Future<Output = Result<(), Error>> + Send {
+        async { Ok(()) }
     }
 
     fn fuse<'a>(mount_id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {
@@ -215,9 +220,6 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
             Own::OciHas { name, digest } => ask::Frame::OciHas(oci::has::request::Request {
                 name: name.to_string(),
                 digest: digest.to_string(),
-            }),
-            Own::Tools(declared) => ask::Frame::Tools(tools::request::Request {
-                tools: Cow::Borrowed(declared),
             }),
             Own::Daemon(connection_id) => ask::Frame::Daemon(daemon::request::Daemon { connection_id }),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),

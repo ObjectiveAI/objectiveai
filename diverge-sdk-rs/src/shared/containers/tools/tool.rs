@@ -1,13 +1,13 @@
-//! One tool container a program depends on.
+//! One tool container an agent's program depends on.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::super::request::Image;
 
-/// One tool container the program depends on: everything the caller
-/// needs to run it that the image can know, and nothing the caller
-/// alone can know.
+/// One tool container an agent's program depends on: everything the
+/// caller needs to run it that the image can know, and nothing the
+/// caller alone can know. A tool container depends on nothing.
 ///
 /// A [`Container`](crate::shared::containers::request::Container) is
 /// an image, two limits, mounts and arguments. The first four are
@@ -23,8 +23,8 @@ use super::super::request::Image;
 #[derive(schemars::JsonSchema)]
 pub struct Tool {
     /// What the program calls it: the caller's handle for the tool
-    /// container, and the label the caller uses if it prefixes the
-    /// tool's tools when it merges lists. Unique in the list. The
+    /// container, and the label the caller uses when it prefixes the
+    /// tool's MCP tools as it merges lists. Unique in the list. The
     /// program never finds a server by it — it calls tools by whatever
     /// names the caller's merged list shows, and knows which tool
     /// serves each by the keys under `_meta`, see

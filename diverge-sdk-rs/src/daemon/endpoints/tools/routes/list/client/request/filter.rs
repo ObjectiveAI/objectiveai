@@ -21,8 +21,8 @@ pub struct Filter {
     /// Paths beginning at any one of these agents, by name.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<String>,
-    /// Paths ending at any one of these templates, by id: the
-    /// dependency's template.
+    /// Paths at any one of these templates, by id: the dependency's
+    /// template.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
     /// Routed to any one of these tools, by name as the tool is called

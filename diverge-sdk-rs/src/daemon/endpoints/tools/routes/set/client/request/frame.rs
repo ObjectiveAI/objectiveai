@@ -11,7 +11,7 @@ use crate::daemon::reference;
 /// tool, there. The tool is
 /// named by its name or by its template and index, as
 /// [`reference`](crate::daemon::reference) states, and has to be made
-/// from the position's last template: the dependency IS that template.
+/// from the position's template: the dependency IS that template.
 /// A position already routed is refused; delete the route first.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {

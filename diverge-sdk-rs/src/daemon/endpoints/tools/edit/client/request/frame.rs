@@ -9,7 +9,7 @@ use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
 /// Ask the daemon to change a tool: its name, its account, its
-/// mounts, its deployer.
+/// mounts.
 ///
 /// The tool is named by its name, by its template and its index, or
 /// by the provider and id it joined, as
@@ -30,8 +30,8 @@ pub struct Frame {
     /// once and for all. See [`reference::Tool`].
     pub tool: reference::Tool,
     /// What an agent's edit and a tool's share — the name, the account,
-    /// the mounts, the deployer, every one optional: see
-    /// [`Edit`]. Flattened, so its members are this object's own.
+    /// the mounts, every one optional: see [`Edit`]. Flattened, so its
+    /// members are this object's own.
     #[serde(flatten)]
     pub edit: Edit,
 }

@@ -45,9 +45,9 @@
 //! container, [`upload`] puts files into it, and [`transfer`] copies
 //! out of it into an agent, another tool or a volume, the bytes never
 //! reaching the client. [`routes`] answer a dependency
-//! a container declares at register time with a tool the caller already
-//! has, at one position in the chain of dependencies, so that no
-//! deployer is asked.
+//! an agent declares at register time with a tool the caller already
+//! has, at that agent's position for the template, so that no
+//! deployer is asked. A tool declares no dependencies.
 
 mod admission;
 mod admits;

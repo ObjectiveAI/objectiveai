@@ -4,7 +4,6 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::tools::Tool;
 use crate::shared::error::Error;
 
 /// A begin's answer: that the connection has begun, and then nothing,
@@ -12,13 +11,13 @@ use crate::shared::error::Error;
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Begun`](Self::Begun), `1` for [`Error`](Self::Error) — and the
-/// rest is that variant's own JSON.
+/// rest is the error's JSON; `Begun` carries nothing after the byte.
 ///
 /// # Silence is the good case
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | a begun, then nothing, and stays open | the connection has begun and the container's tools are known; either side may open channels on it |
+/// | a begun, then nothing, and stays open | the connection has begun; either side may open channels on it |
 /// | an error, then a finish | it has not — this connection had already begun, or the arguments were refused |
 /// | a finish, with no error | the proxy is ending |
 ///
@@ -29,16 +28,16 @@ use crate::shared::error::Error;
 /// opened.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The connection has begun, the container holds its arguments
-    /// for its life, and these are the tools it declared. Tag `0`.
+    /// The connection has begun, and the container holds its arguments
+    /// for its life. Tag `0`, and nothing after it.
     ///
     /// Arrives once, when the container's server has taken the
-    /// arguments and answered with its tools — as JSON, a list, empty
-    /// for a program that needs none; see
-    /// [`tools`](crate::shared::containers::tools) for what one is
-    /// and what the provider does with the list. A channel on this
+    /// arguments. A tool container declares no dependencies: a list
+    /// its program answers its registration with is ignored, and
+    /// nothing rides here — see
+    /// [`tools`](crate::shared::containers::tools). A channel on this
     /// scope is opened only after it.
-    Begun(Vec<Tool>),
+    Begun,
     /// A failure. Tag `1`.
     ///
     /// A second begin on a connection that had one, or arguments the
@@ -56,9 +55,9 @@ const BEGUN: u8 = 0;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 1;
 
-/// A tag, and that variant's own JSON.
+/// A tag, and the error's own JSON.
 impl Encode for Frame {
-    /// The ordinary JSON failure.
+    /// The ordinary JSON failure; `Begun` cannot fail.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -68,9 +67,9 @@ impl Encode for Frame {
         out: &mut Writer<'_>,
     ) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Begun(tools) => {
+            Frame::Begun => {
                 out.extend_from_slice(&[BEGUN]);
-                serde_json::to_writer(out, tools)
+                Ok(())
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -88,7 +87,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            BEGUN => serde_json::from_slice(rest).map(Frame::Begun).map_err(FrameError::Begun),
+            BEGUN => Ok(Frame::Begun),
             ERROR => {
                 Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
             }
@@ -104,8 +103,6 @@ pub enum FrameError {
     Empty,
     /// A tag that is neither of this frame's two.
     UnknownTag(u8),
-    /// The tools did not parse.
-    Begun(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -117,9 +114,6 @@ impl fmt::Display for FrameError {
             FrameError::UnknownTag(tag) => {
                 write!(f, "unknown tools begin response frame tag {tag}")
             }
-            FrameError::Begun(error) => {
-                write!(f, "tools begin tools did not parse: {error}")
-            }
             FrameError::Error(error) => {
                 write!(f, "tools begin error did not parse: {error}")
             }
@@ -130,7 +124,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Begun(error) | FrameError::Error(error) => Some(error),
+            FrameError::Error(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

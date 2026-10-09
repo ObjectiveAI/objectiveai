@@ -3,11 +3,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
-use crate::daemon::reference;
 
 /// Everything a container is made of that its template does not say and
 /// its name is not: the template, the account it runs under, the
-/// provider pin and its volumes, the FUSE mounts, the deployer.
+/// provider pin and its volumes, the FUSE mounts. The deployer is an
+/// agent's alone, on its own create: a tool has no dependencies.
 /// Flattened into an
 /// [agent's](crate::daemon::endpoints::agents::create) and a
 /// [tool's](crate::daemon::endpoints::tools::create) create, so its
@@ -72,16 +72,4 @@ pub struct Inner {
     /// mount may lie inside it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The agent of the caller's the daemon hands this container's
-    /// declared tool dependencies to — each as the template and the
-    /// instructions the container returned at register time — when no
-    /// [route](crate::daemon::endpoints::tools::routes) answers them.
-    /// The deployer makes the tool, attaches it, and may set a route so
-    /// that the next ask at that position is answered without it. By
-    /// name, or by template and index: see [`reference::Agent`].
-    /// Absent, the daemon deploys nothing itself: a dependency no
-    /// route answers is not met, and the container's tools channel is
-    /// answered with an error.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployer_agent: Option<reference::Agent>,
 }

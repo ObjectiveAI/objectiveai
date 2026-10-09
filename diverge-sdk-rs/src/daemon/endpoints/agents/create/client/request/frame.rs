@@ -5,6 +5,7 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::create::Inner;
+use crate::daemon::reference;
 
 /// Ask the daemon to create an agent under a name, from a template.
 ///
@@ -37,11 +38,23 @@ use crate::daemon::create::Inner;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// What an agent's create and a tool's share — the template, the
-    /// provider and its volumes, the FUSE mounts, the account, the
-    /// deployer: see [`Inner`]. Flattened, so its members are this
-    /// object's own.
+    /// provider and its volumes, the FUSE mounts, the account: see
+    /// [`Inner`]. Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub inner: Inner,
+    /// The agent of the caller's the daemon hands this agent's
+    /// declared tool dependencies to — each as the template and the
+    /// instructions the agent returned at register time — when no
+    /// [route](crate::daemon::endpoints::tools::routes) answers them.
+    /// The deployer makes the tool, attaches it, and may set a route so
+    /// that the next ask at that position is answered without it. By
+    /// name, or by template and index: see [`reference::Agent`].
+    /// Absent, the daemon deploys nothing itself: a dependency no
+    /// route answers is not met, and the agent's tools channel is
+    /// answered with an error. An agent's alone: a tool container
+    /// declares no dependencies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployer_agent: Option<reference::Agent>,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's agents, by which the agent is reached
     /// afterwards beside its template and its index. Absent, the

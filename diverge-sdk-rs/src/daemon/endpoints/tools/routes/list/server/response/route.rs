@@ -14,7 +14,7 @@ pub struct Route {
     /// The position: see [`Path`].
     pub path: Path,
     /// The tool served there, as it was when routed: its template, its
-    /// index and its name. The template is the path's last.
+    /// index and its name. The template is the path's.
     pub tool: creator::Tool,
     /// When the set put it down.
     pub created: DateTime<Utc>,

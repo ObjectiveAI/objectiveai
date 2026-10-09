@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::reference;
 
-use crate::daemon::edit::Edit;
+use crate::daemon::edit::{Change, Edit};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -29,10 +29,16 @@ pub struct Frame {
     /// [`reference::Agent`].
     pub agent: reference::Agent,
     /// What an agent's edit and a tool's share — the name, the account,
-    /// the mounts, the deployer, every one optional: see
-    /// [`Edit`]. Flattened, so its members are this object's own.
+    /// the mounts, every one optional: see [`Edit`]. Flattened, so its
+    /// members are this object's own.
     #[serde(flatten)]
     pub edit: Edit,
+    /// The deployer: see the create's
+    /// [`deployer_agent`](crate::daemon::endpoints::agents::create::client::request::Frame::deployer_agent).
+    /// Absent, as it is; `delete`, none, and the agent's dependencies
+    /// are routed or unmet. Changes live.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployer_agent: Option<Change<reference::Agent>>,
 }
 
 /// This frame's tag among the scope-opening requests.

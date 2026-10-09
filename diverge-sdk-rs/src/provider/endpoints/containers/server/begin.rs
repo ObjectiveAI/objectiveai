@@ -97,7 +97,8 @@ pub(crate) struct Begun {
     /// read for nothing else; [`None`] for an agent container, whose
     /// chunks end at the same finish.
     pub finish: Option<Finish>,
-    /// The tools the container declared at registration, off
-    /// `Begun`: what the caller is asked to deploy, when any.
+    /// The tools an agent container declared at registration, off
+    /// its `Begun`: what the caller is asked to deploy, when any. A
+    /// tool container's is empty: it declares nothing.
     pub tools: Vec<Tool>,
 }

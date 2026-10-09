@@ -1,7 +1,5 @@
 //! What the provider asks a caller for on its own account.
 
-use crate::shared::containers::tools::Tool;
-
 /// The provider's own asks, before the container's: what a run
 /// handler needs from the caller that no container asked for. The
 /// two authorizations are not here: they are the tools family's
@@ -25,7 +23,6 @@ pub(crate) enum Own<'a> {
         digest: &'a str,
     },
     /// The tools the container declared, to deploy.
-    Tools(&'a [Tool]),
     /// This end's half of a database connection, by the id it minted.
     /// A daemon connection the proxy announced, by an id of this
     /// end's own. See

@@ -9,8 +9,8 @@ use serde_json::Value;
 use super::begin::Begun;
 use super::encoded::encoded;
 use super::family::Runs;
-use super::held::Held;
 use super::own::Own;
+use super::held::Held;
 use super::render;
 use super::watched::{Watched, Watching};
 use crate::wire::client::handle::Handle;
@@ -75,10 +75,12 @@ pub(crate) struct Mount {
 /// 2. The container is deployed, its proxy listening.
 /// 3. The proxy is dialled: one WebSocket, for the container's life.
 /// 4. The family's `begin` is opened on it — carrying the arguments
-///    and the image — and its `Begun` awaited, with the tools the
-///    container declared.
+///    — and its `Begun` awaited, with the tools an agent container
+///    declared.
 /// 5. Beside each other: the caller is asked to deploy those tools,
-///    when there are any — see [`deploy`] — and one `fuse::mount`
+///    when there are any — the agents family's
+///    [`deploy`](Runs::deploy); a tool container declares nothing —
+///    and one `fuse::mount`
 ///    scope per mount is opened, file mounts first, each answered
 ///    before the next. Both are awaited to their end before either's
 ///    failure is acted on.
@@ -145,7 +147,7 @@ where
         }
     };
 
-    let (deployed, mounts) = future::join(deploy::<R>(scope, &begun.tools), mounts(&proxy, request)).await;
+    let (deployed, mounts) = future::join(R::deploy(scope, &begun.tools), mounts(&proxy, request)).await;
     let mounts = match (deployed, mounts) {
         (Ok(()), Ok(mounts)) => mounts,
         (Err(error), _) | (Ok(()), Err(error)) => {
@@ -176,21 +178,14 @@ where
     registry.release(repository).await;
 }
 
-/// The tools the container declared, asked of the caller: nothing
-/// when it declared none; else one channel on the run scope, one
-/// frame back, read to the finish so its number comes back to the
-/// run. A deploy is `Ok`; the caller's refusal is the run's error in
-/// the caller's words; a finish with nothing, or an answer this end
-/// cannot read, is the run's error too.
-async fn deploy<R: Runs>(scope: &ScopeHandle, declared: &[tools::Tool]) -> Result<(), Error> {
-    if declared.is_empty() {
-        return Ok(());
-    }
-    let ask: R::Ask<'_> = Own::Tools(declared).into();
-    let Some(payload) = encoded(&ask) else {
-        return Err(render::tools_failed("the tools ask did not encode"));
-    };
-    let mut channel = scope.send_channel_request(&payload).await;
+/// The caller's answer to a tools ask, read to the finish so its
+/// number comes back to the run: one frame back — a deploy is `Ok`;
+/// the caller's refusal is the run's error in the caller's words; a
+/// finish with nothing, or an answer this end cannot read, is the
+/// run's error too. The agents family opens the ask; a tool container
+/// declares nothing and opens none.
+pub(crate) async fn deployed(scope: &ScopeHandle, payload: &[u8]) -> Result<(), Error> {
+    let mut channel = scope.send_channel_request(payload).await;
     let mut outcome = Err(render::tools_unserved());
     while let Some(bytes) = channel.response_receiver.recv().await {
         match answer(&bytes) {

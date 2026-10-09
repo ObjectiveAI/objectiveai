@@ -16,7 +16,6 @@ use crate::shared::error::Error;
 /// per run, before the id, and only when the container declared at
 /// least one; the run goes on to its id on `Ok` and ends on `Err`,
 /// the container stopped, with the error carried to the caller as the
-/// run's own. Whether a tool's own tools are deployed in turn is the
 /// caller's policy.
 pub trait ToolDeployer: Send + Sync {
     /// Run every tool, or say why not.

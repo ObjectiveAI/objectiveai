@@ -15,8 +15,9 @@ use crate::wire::encode::{Encode, Writer};
 /// tool's own is here: the provider it runs on with the volumes it
 /// mounts there, its FUSE mounts of providers' volumes, and the name
 /// the tool is held under from then on. The agents create's shape
-/// member for member — the one [`Inner`] flattened into both —
-/// because a tool container is made of what an agent container is
+/// less the deployer — the one [`Inner`] flattened into both; a tool
+/// declares no dependencies and has no deployer — because a tool
+/// container is made of what an agent container is
 /// made of; what makes it a tool is the image,
 /// which runs an MCP server, and what the daemon does with it, which
 /// is to serve it to the agents it is attached to. What a caller may
@@ -38,9 +39,8 @@ use crate::wire::encode::{Encode, Writer};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
     /// What an agent's create and a tool's share — the template, the
-    /// provider and its volumes, the FUSE mounts, the account, the
-    /// deployer: see [`Inner`]. Flattened, so its members are this
-    /// object's own.
+    /// provider and its volumes, the FUSE mounts, the account: see
+    /// [`Inner`]. Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub inner: Inner,
     /// The name, if any: a string of the caller's choosing, unique

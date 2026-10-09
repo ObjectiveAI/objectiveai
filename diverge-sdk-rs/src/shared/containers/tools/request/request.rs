@@ -9,10 +9,10 @@ use super::super::Tool;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// The list, as the container's proxy answered `Begun` with it.
+/// The list, as the agent container's proxy answered `Begun` with it.
 ///
 /// Borrowed where the provider encodes it — the list is the
-/// [`Begun`](crate::container_proxy::outside::endpoints::tools::begin::server::response::Frame::Begun)'s
+/// [`Begun`](crate::container_proxy::outside::endpoints::agents::begin::server::response::Frame::Begun)'s
 /// for the run's life — and owned where the caller decodes it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request<'a> {

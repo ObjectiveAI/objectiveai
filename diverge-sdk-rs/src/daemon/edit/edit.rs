@@ -3,7 +3,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::agents::create::client::request::{FuseMount, VolumeMount};
-use crate::daemon::reference;
 use super::Change;
 
 /// Everything about a container that changes after its create, every
@@ -12,13 +11,14 @@ use super::Change;
 /// — a list of mounts is the new list entire, the name the new name —
 /// and nothing is merged. A request with every member absent changes
 /// nothing and is not a failure. What is not here does not change: the
-/// template, the provider pin, the index, who made it.
+/// template, the provider pin, the index, who made it. The deployer
+/// is an agent's alone, on its own edit.
 ///
 /// # What waits for the container to be inactive
 ///
 /// The mounts: a request that names any of the three mount lists is
-/// refused while the container is active, and left as it is. The name,
-/// the account and the deployer change live.
+/// refused while the container is active, and left as it is. The name
+/// and the account change live.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Edit {
     /// The name, unique among the caller's agents or tools as the
@@ -58,10 +58,4 @@ pub struct Edit {
     /// The new list whole. Absent, as it is; `delete`, none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fuse_directory_mounts: Option<Change<Vec<FuseMount>>>,
-    /// The deployer: see the create's
-    /// [`deployer_agent`](crate::daemon::create::Inner::deployer_agent).
-    /// Absent, as it is; `delete`, none, and the container's
-    /// dependencies are routed or unmet.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployer_agent: Option<Change<reference::Agent>>,
 }

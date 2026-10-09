@@ -21,6 +21,8 @@ use crate::provider::endpoints::containers::server::family::{Family, Opened, Run
 use crate::provider::endpoints::containers::server::own::Own;
 use crate::provider::endpoints::containers::server::run::Run;
 use crate::provider::endpoints::containers::server::serve::agent;
+use crate::provider::endpoints::containers::server::setup::deployed;
+use crate::wire::server::scope_handle::ScopeHandle;
 use crate::provider::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy::outside::endpoints::agents::begin::client::execute as begin;
 use crate::shared;
@@ -137,6 +139,23 @@ impl Runs for Agents {
         Some(relayed(ask)?)
     }
 
+    /// The tools the agent declared, asked of the caller on this
+    /// family's `tools` channel: nothing when it declared none.
+    fn deploy(scope: &ScopeHandle, declared: &[tools::Tool]) -> impl Future<Output = Result<(), Error>> + Send {
+        let payload = (!declared.is_empty()).then(|| {
+            encoded(&ask::Frame::Tools(tools::request::Request {
+                tools: Cow::Borrowed(declared),
+            }))
+        });
+        async move {
+            match payload {
+                None => Ok(()),
+                Some(Some(payload)) => deployed(scope, &payload).await,
+                Some(None) => Err(render::tools_failed("the tools ask did not encode")),
+            }
+        }
+    }
+
     fn fuse<'a>(mount_id: &'a str, ask: &'a MountAsk) -> ask::Frame<'a> {
         fuse(mount_id, ask)
     }
@@ -210,9 +229,6 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
             Own::OciHas { name, digest } => ask::Frame::OciHas(oci::has::request::Request {
                 name: name.to_string(),
                 digest: digest.to_string(),
-            }),
-            Own::Tools(declared) => ask::Frame::Tools(tools::request::Request {
-                tools: Cow::Borrowed(declared),
             }),
             Own::Daemon(connection_id) => ask::Frame::Daemon(daemon::request::Daemon { connection_id }),
             Own::Postgres(connection_id) => ask::Frame::Postgres(postgres::request::Postgres { connection_id }),
