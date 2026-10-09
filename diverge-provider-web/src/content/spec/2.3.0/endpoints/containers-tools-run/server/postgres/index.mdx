@@ -11,7 +11,7 @@ the server's half of the
 connection; the client's half is a [postgres](/endpoints/containers-tools-run/client/postgres/)
 channel the client opens, quoting the same id.
 
-- **The request.** The tag byte `7` followed by a connection id, four
+- **The request.** The tag byte `6` followed by a connection id, four
   bytes, that the server minted.
   [Request](/endpoints/containers-tools-run/server/postgres/request/) states its form.
 - **The response.** What the database says, as channel responses,

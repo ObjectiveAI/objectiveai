@@ -753,14 +753,16 @@ nor read such a Channel before the last FUSE Mount is complete.
 else. A begin the Proxy answers with an error is the run's error, and
 the Provider shall stop the Container.
 
-(h) **Deploy the tools.** When the Proxy's answer to the begin Scope
-carries one or more tools, the Provider shall open exactly one `tools`
-Channel on the run Scope carrying them verbatim, before the id and
-beside the FUSE Mounts, and shall read the Client's answer to its
-finish; the Provider shall treat the byte `1`, a Bare Finish, and a
-Client that is gone as the run's error and shall stop the Container.
-The Provider shall open no `tools` Channel when the list is empty, and
-never on a connect Scope.
+(h) **Deploy the tools.** On a `containers::agents::run` Scope, when
+the Proxy's answer to the begin Scope carries one or more tools, the
+Provider shall open exactly one `tools` Channel on the run Scope
+carrying them verbatim, before the id and beside the FUSE Mounts, and
+shall read the Client's answer to its finish; the Provider shall treat
+the byte `1`, a Bare Finish, and a Client that is gone as the run's
+error and shall stop the Container. The Provider shall open no `tools`
+Channel when the list is empty, never on a `containers::tools::run`
+Scope — a tool Container declares no dependencies, and its begin's
+answer carries none — and never on a connect Scope.
 
 (i) **Mint and send the id.** The Provider shall choose an id that is
 unique among the Containers it is running and not derivable from the
@@ -940,8 +942,9 @@ Container Proxy Endpoints layers:
 that listens on TCP port 14979 and accepts one WebSocket connection
 there; that speaks the Protocol's own frames on it and sends no auth
 frame; that answers exactly one begin Scope per connection, holding the
-arguments it carries for the Container's life and answering with the
-tools the program declared; that sets nothing under `_meta` on any
+arguments it carries for the Container's life and answering, for an
+agent Container, with the tools the program declared and, for a tool
+Container, with nothing; that sets nothing under `_meta` on any
 MCP exchange it relays, in either direction, or on any chunk of an
 agent's conversation, and alters nothing of them; that makes each
 mount

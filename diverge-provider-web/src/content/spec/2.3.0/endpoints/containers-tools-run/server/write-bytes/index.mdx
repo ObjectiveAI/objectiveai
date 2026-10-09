@@ -9,7 +9,7 @@ The server opens this channel in answer to a [write](/endpoints/containers-tools
 channel the client opened, quoting the client's write id. What
 arrives on it is the content of the file.
 
-- **The request.** The tag byte `6` followed by the write id,
+- **The request.** The tag byte `5` followed by the write id,
   four bytes. [Request](/endpoints/containers-tools-run/server/write-bytes/request/) states
   its form.
 - **The response.** The content in zero or more channel responses,
