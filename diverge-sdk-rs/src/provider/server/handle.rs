@@ -88,7 +88,7 @@ use crate::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — sixteen endpoints have sixteen error vocabularies, and an
+/// answer — eighteen endpoints have eighteen error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -246,6 +246,16 @@ where
                 scopes.spawn(async move {
                     endpoints::containers::tools::list_for::server::handle::handle(
                         scope, frame, &identity, address, directory,
+                    )
+                    .await;
+                });
+            }
+            ClientRequest::ContainersServe(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let directory = Arc::clone(&directory);
+                scopes.spawn(async move {
+                    endpoints::containers::serve::server::handle::handle(
+                        scope, frame, &identity, directory,
                     )
                     .await;
                 });

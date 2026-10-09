@@ -29,9 +29,9 @@
 //!
 //! # What is here
 //!
-//! [`endpoints`] is the request vocabulary: the six scopes the server
+//! [`endpoints`] is the request vocabulary: the seven scopes the server
 //! opens on the proxy, each with what it sends and what comes back,
-//! and the tag table that names them. [`client`] is what the six
+//! and the tag table that names them. [`client`] is what the seven
 //! scopes' executors share — the asks a proxy opens on a scope, read
 //! as a stream — for the provider's server, which is the client
 //! here.

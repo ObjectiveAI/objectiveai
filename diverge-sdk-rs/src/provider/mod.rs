@@ -11,7 +11,7 @@
 //! protocol is hand-authored alongside them, so nothing can drift
 //! from what the protocol actually is.
 //!
-//! [`endpoints`] is the request vocabulary — the sixteen scopes a
+//! [`endpoints`] is the request vocabulary — the eighteen scopes a
 //! caller opens, each with what it sends and what comes back — over
 //! the [`wire`](crate::wire) and the [`shared`](crate::shared)
 //! shapes. [`client`] is what a caller supplies while a container

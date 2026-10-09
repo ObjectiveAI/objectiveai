@@ -1,0 +1,16 @@
+//! The channels a client opens on a container serve scope: the nine
+//! asks, the stop, and the tree. See [`Frame`].
+//!
+//! The asks are the proxy's own frames — the ones a mount opens on
+//! its scope, with no mount id, because the scope is the subtree as
+//! the mount scope is the mount — and the frame is the
+//! [`volumes::serve`](crate::provider::endpoints::volumes::serve) scope's
+//! very frame, so a caller bridging a mount to a container forwards
+//! each ask as it is, exactly as it would to a volume: [`Path`],
+//! [`Read`], [`Write`], [`Rename`], [`Truncate`] and [`Setattr`] are
+//! theirs.
+
+mod frame;
+
+pub use frame::*;
+pub use crate::container_proxy::outside::endpoints::fuse::mount::server::channel_request::{Path, Read, Rename, Setattr, Truncate, Write};

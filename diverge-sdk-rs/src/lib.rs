@@ -5,7 +5,7 @@
 //! |--------|------------|
 //! | [`wire`] | one WebSocket, nine-byte frames, scopes and channels, the encode/decode contract, and the frame-level cores of both halves — what every protocol here is spoken over |
 //! | [`shared`] | the shapes more than one endpoint is made of: the one error, what a container asks and is answered, filetrees, MCP |
-//! | [`provider`] | the provider protocol: its sixteen endpoints, the caller half and the provider half — the normative artifact of the specification |
+//! | [`provider`] | the provider protocol: its eighteen endpoints, the caller half and the provider half — the normative artifact of the specification |
 //! | [`daemon`] | the daemon protocol: its endpoints, over the same wire |
 //! | [`container_proxy`] | the proxy beside every container's program, from both sides: [`outside`](container_proxy::outside), the WebSocket a provider opens into it; [`inside`](container_proxy::inside), the loopback the program dials it on |
 //! | [`file_lock`] | one exclusive lock per file across processes, let go on drop — how Diverge programs take turns at a directory; nothing of it crosses a wire |

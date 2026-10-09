@@ -47,8 +47,11 @@ use crate::container_proxy::outside::endpoints::tools::begin::client::execute::E
 /// run handler and by the connect handler as a connector attaches and
 /// leaves — so that a transfer, which names a container by id, can be
 /// held to its rule: the caller must be running or connected to the
-/// container it names. Nothing else reads them, and an id is still
-/// never enumerated.
+/// container it names; and so that a
+/// [`serve`](crate::provider::endpoints::containers::serve), which names
+/// one the same way, can be held to its stricter one: the caller must
+/// be running it. Nothing else reads them, and an id is still never
+/// enumerated.
 ///
 /// # Not the volumes in use
 ///
@@ -252,6 +255,19 @@ impl Directory {
             .await
             .get(id)
             .is_some_and(|entry| &*entry.runner == identity || entry.connectors.contains_key(identity))
+    }
+
+    /// Whether `identity` is running the container under `id`: the
+    /// runner alone, no connector. `false` for an id under which
+    /// nothing is running, indistinguishably, as [`may`](Self::may)
+    /// is. What a serve of the container asks, since a serve is the
+    /// runner's alone.
+    pub async fn runs(&self, id: &str, identity: &str) -> bool {
+        self.entries
+            .lock()
+            .await
+            .get(id)
+            .is_some_and(|entry| &*entry.runner == identity)
     }
 
     /// Every tool container `runner` is running, in no order: what a

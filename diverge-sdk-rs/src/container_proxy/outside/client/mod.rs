@@ -1,4 +1,4 @@
-//! What the six scopes' executors share: the asks a proxy opens on a
+//! What the seven scopes' executors share: the asks a proxy opens on a
 //! scope, read as a stream.
 //!
 //! [`Asks`] reads a scope's inbox — the channel requests the proxy

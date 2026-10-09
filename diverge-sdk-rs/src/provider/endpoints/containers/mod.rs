@@ -1,5 +1,5 @@
-//! Containers: one substrate, and the two things a caller does with
-//! it.
+//! Containers: one substrate, the two things a caller does with it,
+//! and a way into either's files.
 //!
 //! A provider runs a container for a caller — an image, limits, the
 //! caller's mounts — and the caller then works with what runs inside.
@@ -17,6 +17,12 @@
 //! and each with its runner's leave, the tool containers that
 //! identity runs — the ids a connect then offers — and, for as long
 //! as the lister keeps the scope, those it starts and ends after.
+//!
+//! And one scope of neither family: [`serve`] names a container the
+//! caller is running, of either family, and a directory of it, and
+//! answers the nine FUSE asks from it live — the volume serve's own
+//! vocabulary, with a container at the far end — so that a mount
+//! elsewhere can be a running container's directory.
 //!
 //! Everything else is identical, and it is most of the wire: the
 //! request that makes a container carries its arguments — a JSON value
@@ -78,6 +84,7 @@
 //! written once.
 
 pub mod agents;
+pub mod serve;
 pub mod tools;
 
 pub mod client;

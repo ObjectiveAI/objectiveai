@@ -1,5 +1,5 @@
 //! What a provider's server asks of the proxy inside a container:
-//! the six scopes, and the tag table that names them.
+//! the seven scopes, and the tag table that names them.
 //!
 //! Each of these is one SCOPE — a request that opens one, whatever
 //! channels either side needs inside it, and the answer that comes
@@ -13,14 +13,17 @@
 //! | `3` | [`filesystem::tree`] |
 //! | `4` | [`filesystem::read`] |
 //! | `5` | [`filesystem::write`] |
+//! | `6` | [`filesystem::serve`] |
 //!
-//! Six. A `begin` leads, one per family, because it is the server's
+//! Seven. A `begin` leads, one per family, because it is the server's
 //! first act on every connection: the scope the proxy's own asks ride —
 //! the container's database connections, its daemon connection, its
 //! vault, its tool calls outward — and the family's own exchanges with
 //! it. A mount is a scope because the asks a mount makes ride it, and a
 //! tree is one because it does not end by itself. A read and a write
-//! are scopes because each is a stream of its own.
+//! are scopes because each is a stream of its own. A serve is one
+//! because the asks the server makes of a subtree ride it, for as
+//! long as the server wants them answered.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to
@@ -35,8 +38,8 @@
 //! `begin` first, before anything else, and exactly once — carrying
 //! the arguments. Then every FUSE mount, each its own scope, and
 //! every one answered before the next step. Then
-//! trees, reads, writes and the family's own exchanges, as the server
-//! pleases, in parallel and in any order.
+//! trees, reads, writes, serves and the family's own exchanges, as
+//! the server pleases, in parallel and in any order.
 //! A channel on `begin` is opened, by either side, only after its
 //! [`Begun`](agents::begin::server::response::Frame::Begun) has
 //! arrived.
