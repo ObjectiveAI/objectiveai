@@ -55,7 +55,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
-    let deployer = match inner::deployer(&mut tx, inner.deployer_agent.as_ref()).await? {
+    let deployer = match inner::deployer(&mut tx, frame.deployer_agent.as_ref()).await? {
         Checked::Ok(deployer) => deployer,
         Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),

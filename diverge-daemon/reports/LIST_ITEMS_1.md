@@ -489,9 +489,13 @@ pub struct Volume {
 /// by a [`listing`](super::list::server::response::Volume::mode),
 /// changed only by an [`edit`](super::edit::client::request::Change::Mode)
 /// under the exclusive hold, and never a mount's or a serve's to
-/// choose. Every container that mounts the volume and every
-/// [`serve`](super::serve) of it is bound under the mode the volume
-/// has when it takes the volume, and the mode does not change under
+/// change. Each STATES the mode it means the volume to have — a run's
+/// every [mount](crate::shared::containers::request::VolumeMount::mode),
+/// a [`serve`](super::serve)'s request — and a volume in another mode
+/// refuses it,
+/// [`VolumeMode`](crate::shared::containers::response::VolumeMode), so
+/// that every container that mounts the volume and every serve of it
+/// runs under the mode it meant, and the mode does not change under
 /// it.
 ///
 /// | mode | a container's writes | a serve's mutations | at rest ([`write`](mod@super::write)) | who may hold it |
@@ -755,11 +759,6 @@ pub struct Tool {
     /// One [`Creator`](crate::daemon::creator::Creator), the direct
     /// maker; the maker's own maker is on the maker's list item.
     pub creator: Creator,
-    /// The agent its create named as deployer, if any, as that agent
-    /// was: its template, its index and its name, stable past its
-    /// deletion. See the create's `deployer_agent`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployer_agent: Option<creator::Agent>,
     /// When the create or the connect made it.
     pub created: DateTime<Utc>,
     /// Whether the tool is active now: for a created tool, its
@@ -888,25 +887,23 @@ pub enum Origin {
 `diverge-sdk-rs/src/daemon/endpoints/tools/routes/path.rs`
 
 ```rust
-/// Where in a chain of dependencies a tool is asked for: the agent
-/// whose run began the chain, by name, and the template ids down the
-/// chain, the last being the template of the dependency itself. An
-/// agent `a` whose tool of template `t1` declares a dependency of
-/// template `t2` asks for `t2` at
-/// `{"agent":"a","templates":["t1","t2"]}`; `a`'s own dependency of
-/// template `t1` is asked for at `{"agent":"a","templates":["t1"]}`.
+/// Where a tool is asked for: the agent whose run asks, by name, and
+/// the template of the dependency itself. An agent `a` that declares
+/// a dependency of template `t1` asks for `t1` at
+/// `{"agent":"a","template":"t1"}`. Only an agent has dependencies —
+/// a tool container declares none — so a position is one agent and
+/// one template, and no chain.
 ///
 /// The agent is named by name, not by template and index, because a
 /// route is the caller's standing instruction: it answers whatever
 /// agent of that name runs, now and after the name is given again.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Path {
-    /// The agent that began the chain, by name.
+    /// The agent that asks, by name.
     pub agent: String,
-    /// The template ids down the chain, at least one; the last is the
-    /// dependency's template, and the only template a tool routed
-    /// here may be made from.
-    pub templates: Vec<String>,
+    /// The dependency's template, by id: the only template a tool
+    /// routed here may be made from.
+    pub template: String,
 }
 ```
 
@@ -939,7 +936,7 @@ pub enum Admits {
 }
 ```
 
-Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::key::Agent` (under `volumes list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity` (under `postgres list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Provider` (under `agents list`).
+Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::key::Agent` (under `volumes list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity` (under `postgres list`), `diverge_sdk::daemon::endpoints::agents::logs::server::response::Provider` (under `agents list`).
 
 ## `tools list_for` (tag 19)
 
@@ -981,7 +978,7 @@ pub struct Route {
     /// The position: see [`Path`].
     pub path: Path,
     /// The tool served there, as it was when routed: its template, its
-    /// index and its name. The template is the path's last.
+    /// index and its name. The template is the path's.
     pub tool: creator::Tool,
     /// When the set put it down.
     pub created: DateTime<Utc>,
@@ -2514,8 +2511,8 @@ pub struct Filter {
     /// Paths beginning at any one of these agents, by name.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<String>,
-    /// Paths ending at any one of these templates, by id: the
-    /// dependency's template.
+    /// Paths at any one of these templates, by id: the dependency's
+    /// template.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
     /// Routed to any one of these tools, by name as the tool is called

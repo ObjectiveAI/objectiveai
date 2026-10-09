@@ -60,10 +60,6 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
     }
-    let ids = run.served.lock().await.ids();
-    for id in ids {
-        tools::release(daemon, id, Key::Tool(run.id)).await;
-    }
     run.mounts.stop().await;
     if let Ok(mut conn) = daemon.store.acquire().await {
         let _ = tool_records::set_last(&mut conn, run.id, &run.provider, Utc::now()).await;

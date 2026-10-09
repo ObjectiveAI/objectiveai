@@ -105,7 +105,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
             Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
         }
     }
-    let deployer = match edit.deployer_agent {
+    let deployer = match frame.deployer_agent {
         None => agent.deployer.clone(),
         Some(Change::Delete) => None,
         Some(Change::Set(reference)) => match inner::deployer(&mut tx, Some(&reference)).await? {

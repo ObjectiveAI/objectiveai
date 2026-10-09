@@ -31,9 +31,9 @@ pub enum Created {
 
 /// Insert the route.
 pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error> {
-    let inserted = sqlx::query("INSERT INTO diverge.routes (agent, templates, tool, creator) VALUES ($1, $2, $3, $4)")
+    let inserted = sqlx::query("INSERT INTO diverge.routes (agent, template, tool, creator) VALUES ($1, $2, $3, $4)")
         .bind(&new.path.agent)
-        .bind(&new.path.templates)
+        .bind(&new.path.template)
         .bind(new.tool.0)
         .bind(Json(&new.creator))
         .execute(&mut *conn)

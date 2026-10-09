@@ -10,10 +10,10 @@ use crate::store::ToolId;
 /// A route row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Route {
-    /// The agent whose run begins the chain, by name.
+    /// The agent that asks, by name.
     pub agent: String,
-    /// The templates down the chain, the last the dependency's own.
-    pub templates: Vec<String>,
+    /// The dependency's template.
+    pub template: String,
     /// The tool that answers there.
     pub tool: ToolId,
     /// When it was put down.
@@ -27,7 +27,7 @@ impl Route {
     pub fn path(&self) -> Path {
         Path {
             agent: self.agent.clone(),
-            templates: self.templates.clone(),
+            template: self.template.clone(),
         }
     }
 

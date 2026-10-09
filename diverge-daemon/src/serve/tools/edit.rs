@@ -29,8 +29,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// holds no `assign` over; `Active` for a change of any mount list
 /// while the tool is active; `NotOwned` for mounts or an account
 /// named on a connected tool, which has neither to change;
-/// `NoAccount`; the error for a provider or a deployer that is not
-/// there, or volumes named on a tool pinned to no provider; `InUse`
+/// `NoAccount`; the error for a provider that is not there, or
+/// volumes named on a tool pinned to no provider; `InUse`
 /// for a name another tool has; else the tool as the request states,
 /// whole or not at all.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -116,22 +116,12 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
             Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
         }
     }
-    let deployer = match edit.deployer_agent {
-        None => tool.deployer.clone(),
-        Some(Change::Delete) => None,
-        Some(Change::Set(reference)) => match inner::deployer(&mut tx, Some(&reference)).await? {
-            Checked::Ok(deployer) => deployer,
-            Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
-            Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
-        },
-    };
     let columns = tools::Columns {
         name,
         account,
         provider,
         fuse_file_mounts,
         fuse_directory_mounts,
-        deployer,
     };
     if let tools::Updated::InUse = tools::update(&mut tx, tool.id, &columns).await? {
         return Ok(Frame::InUse);

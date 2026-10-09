@@ -27,11 +27,11 @@ pub struct Answerer {
     /// The account it runs under, if any: who its `/daemon`
     /// connections are served for.
     pub account: Option<AccountId>,
-    /// The root of the chain of dependencies, by name.
+    /// The container's name, if it has one: what a dependency's
+    /// position names an agent by.
     pub root: Option<String>,
-    /// The templates down the chain so far.
-    pub chain: Vec<String>,
-    /// The deployer agent, as the record names it.
+    /// The deployer agent, as an agent's record names it; none for a
+    /// tool, which declares no dependencies.
     pub deployer: Option<creator::Agent>,
     /// The mounts the run serves.
     pub mounts: Arc<Mounts>,

@@ -21,8 +21,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` without the `set` grant; `NoTool`; `Mismatch` for a
-/// tool not made from the position's last template — a connected
-/// tool, made from none, among them; `Exists` for a position with a
+/// tool not made from the position's template — a connected tool,
+/// made from none, among them; `Exists` for a position with a
 /// route; else the route down: a run reaching the position is served
 /// the tool and asks no deployer.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -36,8 +36,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     let Some(tool) = tools::by_reference(&mut tx, &frame.tool, false).await? else {
         return Ok(Frame::NoTool);
     };
-    let last = frame.path.templates.last().map(String::as_str);
-    if last.is_none() || tool.template() != last {
+    if tool.template() != Some(frame.path.template.as_str()) {
         return Ok(Frame::Mismatch);
     }
     let new = routes::New {

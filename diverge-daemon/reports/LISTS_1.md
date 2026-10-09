@@ -88,7 +88,7 @@ are read at list time.
   `tags`; live: `active` (`Live.agents`, the run's loop), `logs_index`
   (the log's length on disk).
 - **`Tool`** — `name`, `origin` (created from a template, or connected
-  through a provider), `index`, `creator`, `deployer_agent`,
+  through a provider), `index`, `creator`,
   `created`, `last_active`, `agents` (keys of the agents it is attached
   to), `routes` (paths routed to it), `admissions`, `tags`; live:
   `active` (`Live.tools`).

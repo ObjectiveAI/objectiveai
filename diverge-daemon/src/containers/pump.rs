@@ -30,7 +30,6 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
             image: run.image.clone(),
         },
         root: run.name.clone(),
-        chain: Vec::new(),
         served: Arc::clone(&run.served),
     };
     while let Some(event) = stream.next().await {

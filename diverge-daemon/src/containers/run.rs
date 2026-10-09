@@ -33,8 +33,8 @@ use crate::store::{AccountId, AgentId, ToolId};
 pub struct AgentRun {
     /// The record.
     pub id: AgentId,
-    /// Its name as it was when started: the root of every chain of
-    /// dependencies its run begins.
+    /// Its name as it was when started: what a dependency's position
+    /// names it by.
     pub name: Option<String>,
     /// The agent as the daemon attests it under `_meta`, on every call
     /// it sends outward and every chunk it says: template, index, name.
@@ -202,7 +202,7 @@ impl ToolHandle {
 }
 
 /// A running tool: the scope held on it, which containers use it,
-/// and what it mounts and is served.
+/// and what it mounts.
 pub struct ToolRun {
     /// The record.
     pub id: ToolId,
@@ -231,8 +231,6 @@ pub struct ToolRun {
     /// Every volume its record names in its mounts: held while it
     /// runs.
     pub volumes: Vec<reference::Volume>,
-    /// The tools it is served: its own dependencies.
-    pub served: Arc<Mutex<Served>>,
     /// The tasks that are the run's: the waiter.
     pub tasks: Mutex<Vec<AbortHandle>>,
 }

@@ -105,7 +105,6 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
         sender: sender_of_agent(agent),
         account: agent.account,
         root: agent.name.clone(),
-        chain: Vec::new(),
         deployer: agent.deployer.clone(),
         mounts: Arc::clone(&mounts),
         served: Arc::clone(&served),
@@ -159,15 +158,13 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
 }
 
 /// The tool's run, started now: a created tool's container run on a
-/// provider, with its mounts served and its own dependencies
-/// deployable; a connected tool's container joined through its
-/// provider. A waiter takes the run down when it ends. The chain is
-/// the one the first user's run is on.
-pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain: Vec<String>) -> Result<Arc<ToolRun>, StartError> {
+/// provider, with its mounts served; a connected tool's container
+/// joined through its provider. A waiter takes the run down when it
+/// ends. A tool declares no dependencies, so nothing is served to it.
+pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, StartError> {
     if let Some(run) = daemon.live.tool_run(tool.id).await {
         return Ok(run);
     }
-    let served = Arc::new(Mutex::new(Served::new()));
     let touched = watch::channel(Instant::now()).0;
     let (identity, container, handle, mounts, image) = match &tool.origin {
         Origin::Created { template, provider: pinned } => {
@@ -202,11 +199,10 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain
                 },
                 sender: sender_of_tool(tool),
                 account: tool.account,
-                root,
-                chain,
-                deployer: tool.deployer.clone(),
+                root: tool.name.clone(),
+                deployer: None,
                 mounts: Arc::clone(&mounts),
-                served: Arc::clone(&served),
+                served: Arc::new(Mutex::new(Served::new())),
                 touched: touched.clone(),
             });
             match tools_run::execute(&handle, &tools_request::Frame(container), answerer.set()).await {
@@ -245,7 +241,6 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool, root: Option<String>, chain
         touched,
         mounts,
         volumes: crate::volumes::of_tool(tool),
-        served,
         tasks: Mutex::new(Vec::new()),
     });
     {

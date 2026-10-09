@@ -17,9 +17,9 @@ pub async fn all(conn: &mut PgConnection) -> Result<Vec<Route>, Error> {
 /// for the transaction.
 pub async fn by_path(conn: &mut PgConnection, path: &Path, lock: bool) -> Result<Option<Route>, Error> {
     let locking = if lock { " FOR UPDATE" } else { "" };
-    let row = sqlx::query(&format!("{SELECT} WHERE agent = $1 AND templates = $2{locking}"))
+    let row = sqlx::query(&format!("{SELECT} WHERE agent = $1 AND template = $2{locking}"))
         .bind(&path.agent)
-        .bind(&path.templates)
+        .bind(&path.template)
         .fetch_optional(&mut *conn)
         .await?;
     row.as_ref().map(row::route).transpose()

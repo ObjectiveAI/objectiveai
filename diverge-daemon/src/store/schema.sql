@@ -153,7 +153,6 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     account               BIGINT REFERENCES diverge.accounts(id) ON DELETE RESTRICT,
     fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
     fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
-    deployer              JSONB,
     last_provider         JSONB,
     last_active           TIMESTAMPTZ,
     tags                  TEXT[] NOT NULL DEFAULT '{}',
@@ -193,13 +192,14 @@ CREATE TABLE IF NOT EXISTS diverge.admissions (
     PRIMARY KEY (tool, identity)
 );
 
--- A route: at one position in a chain of dependencies, this tool
--- answers, and no deployer is asked. The tool gone takes the route.
+-- A route: at one position — an agent, by name, and the template of
+-- a dependency it declares — this tool answers, and no deployer is
+-- asked. The tool gone takes the route.
 CREATE TABLE IF NOT EXISTS diverge.routes (
     agent       TEXT NOT NULL,
-    templates   TEXT[] NOT NULL,
+    template    TEXT NOT NULL,
     tool        BIGINT NOT NULL REFERENCES diverge.tools(id) ON DELETE CASCADE,
     created     TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator     JSONB NOT NULL,
-    PRIMARY KEY (agent, templates)
+    PRIMARY KEY (agent, template)
 );

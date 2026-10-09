@@ -21,17 +21,15 @@ use crate::store::ToolId;
 pub type Notifications = Pin<Box<dyn Stream<Item = Result<ServerNotification, ErrorData>> + Send>>;
 
 /// Who is asking, and whose tools: the daemon, the container asking,
-/// the chain its run began, and its served set.
+/// and its served set.
 pub struct Context {
     /// The daemon.
     pub daemon: Arc<Daemon>,
     /// The container.
     pub user: Key,
     pub caller: Caller,
-    /// The root of the chain, by name.
+    /// The container's name, if it has one.
     pub root: Option<String>,
-    /// The templates down the chain so far.
-    pub chain: Vec<String>,
     /// The served set.
     pub served: Arc<Mutex<Served>>,
 }
@@ -46,7 +44,7 @@ pub async fn running(context: &Context, id: ToolId) -> Result<Arc<ToolRun>, Stri
             None => return Err(format!("no tool is served as {}", id.0)),
         }
     };
-    let run = tools::use_tool(&context.daemon, &idle, context.user, context.root.clone(), context.chain.clone())
+    let run = tools::use_tool(&context.daemon, &idle, context.user)
         .await
         .map_err(|error| error.to_string())?;
     context.served.lock().await.running(id, Arc::clone(&run));

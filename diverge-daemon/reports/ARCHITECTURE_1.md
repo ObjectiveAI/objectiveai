@@ -203,12 +203,14 @@ Two populations, kept apart by type and by fate:
   use starts it again from the record and its continuation. Nothing a
   client holds — a logs watch, a filetree watch — counts as use, so a
   watcher never keeps a container alive.
-- **Dependencies are templates, and the deployer is a queue.** A
-  container declares its tool dependencies when it registers, each a
-  tool TEMPLATE on record with instructions; a dependency naming no
-  template of the caller's is unmet, and that is a failure of the start.
-  A position a route already answers is served from the route. One no
-  route answers goes to the container's `deployer_agent` as an INTERNAL
+- **Dependencies are templates, and the deployer is a queue.** An
+  AGENT declares its tool dependencies when it registers, each a tool
+  TEMPLATE on record with instructions; a tool container declares none
+  — only an agent has tools (2026-10-08), so a position is one agent and
+  one template, and there is no chain. A dependency naming no template
+  of the caller's is unmet, and that is a failure of the start. A
+  position a route already answers is served from the route. One no
+  route answers goes to the agent's `deployer_agent` as an INTERNAL
   MESSAGE — the position, the template, the instructions — handled
   like any message: the deployer's output lands in its log, and the
   deployer is an agent like any other. The deployer holds a queue and
@@ -217,8 +219,8 @@ Two populations, kept apart by type and by fate:
   that template attached at the position, by the deployer's attach or
   by a route it set — or the deployer going INACTIVE. Answered, the
   start goes on; inactive first, the dependency is unmet, and the
-  container being started is failed then and there: its run ended, its
-  create or its message answered with the error. A container with no
+  agent being started is failed then and there: its run ended, its
+  create or its message answered with the error. An agent with no
   deployer and no route for a dependency fails the same way.
 
 ## 6. The database

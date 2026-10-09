@@ -1,7 +1,7 @@
 //! Making a tool: from a template, or joined to somebody else's
 //! container.
 
-use diverge_sdk::daemon::creator::{self, Creator};
+use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::FuseMount;
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
@@ -24,8 +24,6 @@ pub struct New {
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes.
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The deployer agent as it is now, if any.
-    pub deployer: Option<creator::Agent>,
     /// Who makes it.
     pub creator: Creator,
 }
@@ -71,8 +69,8 @@ pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error
     };
     let inserted = sqlx::query(
         "INSERT INTO diverge.tools (kind, template, provider, connected_provider, connected_id, authorization, index, name, \
-         account, fuse_file_mounts, fuse_directory_mounts, deployer, creator) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
+         account, fuse_file_mounts, fuse_directory_mounts, creator) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
     )
     .bind(kind)
     .bind(template)
@@ -85,7 +83,6 @@ pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error
     .bind(new.account.map(|account| account.0))
     .bind(Json(&new.fuse_file_mounts))
     .bind(Json(&new.fuse_directory_mounts))
-    .bind(new.deployer.as_ref().map(Json))
     .bind(Json(&new.creator))
     .fetch_one(&mut *conn)
     .await;

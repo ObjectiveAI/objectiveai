@@ -19,7 +19,6 @@ impl Answerer {
             user: self.key,
             caller: self.caller.clone(),
             root: self.root.clone(),
-            chain: self.chain.clone(),
             served: Arc::clone(&self.served),
         }
     }

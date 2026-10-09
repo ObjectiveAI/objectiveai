@@ -21,7 +21,7 @@ pub async fn open_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Opened, S
 /// user of its own; [`close`] releases it, which stops it when nothing
 /// else uses it.
 pub async fn open_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Opened, String> {
-    containers::use_tool(daemon, tool, Key::Tool(tool.id), None, Vec::new())
+    containers::use_tool(daemon, tool, Key::Tool(tool.id))
         .await
         .map(Opened::Tool)
         .map_err(|error| error.to_string())

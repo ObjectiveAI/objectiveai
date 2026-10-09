@@ -24,8 +24,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` without the `create` grant, or without `assign` over
-/// the account named; the error for a template, a provider or a
-/// deployer that is not there; `NoAccount`; `InUse` for a name another
+/// the account named; the error for a template or a provider that is
+/// not there; `NoAccount`; `InUse` for a name another
 /// tool has; else the tool made, its index the next for its template,
 /// nothing running: the container runs while an attached agent is
 /// active.
@@ -57,11 +57,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
-    let deployer = match inner::deployer(&mut tx, inner.deployer_agent.as_ref()).await? {
-        Checked::Ok(deployer) => deployer,
-        Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
-        Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
-    };
     let new = tools::New {
         origin: Origin::Created {
             template: inner.template,
@@ -71,7 +66,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         account,
         fuse_file_mounts: inner.fuse_file_mounts,
         fuse_directory_mounts: inner.fuse_directory_mounts,
-        deployer,
         creator: Creator::Client(Client {
             identity: standing.identity.clone(),
         }),

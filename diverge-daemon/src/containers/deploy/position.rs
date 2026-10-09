@@ -1,5 +1,5 @@
-//! A declared dependency as a template, and its position in the
-//! chain.
+//! A declared dependency as a template, and its position: the agent
+//! and that template.
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::Image;
 use diverge_sdk::daemon::endpoints::tools::routes::Path;
@@ -28,16 +28,11 @@ pub fn template_of(tool: &Tool) -> Result<String, serde_json::Error> {
     hash::template_id(&template)
 }
 
-/// The position of a dependency: the agent whose run began the chain,
-/// by name, and the templates down the chain so far with the
-/// dependency's own last. A chain that began at a nameless agent has
 /// no position a route can name.
-pub fn position(root: Option<&str>, chain: &[String], template: &str) -> Option<Path> {
+pub fn position(root: Option<&str>, template: &str) -> Option<Path> {
     let agent = root?;
-    let mut templates = chain.to_vec();
-    templates.push(template.to_string());
     Some(Path {
         agent: agent.to_string(),
-        templates,
+        template: template.to_string(),
     })
 }

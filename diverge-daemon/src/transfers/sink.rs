@@ -62,7 +62,7 @@ impl Sink {
                 let Some(record) = record else {
                     return Err(Fail::NoDestination);
                 };
-                let run = containers::use_tool(daemon, &record, Key::Tool(record.id), None, Vec::new())
+                let run = containers::use_tool(daemon, &record, Key::Tool(record.id))
                     .await
                     .map_err(|error| Fail::Error(error.to_string()))?;
                 Ok(Sink::Opened {

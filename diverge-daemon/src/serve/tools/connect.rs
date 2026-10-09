@@ -25,8 +25,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` without the `connect` grant; the error for a provider
 /// the daemon does not know; `InUse` for a name another tool has;
-/// else the tool held — a connected one, with no account, no mounts
-/// and no deployer, its index the next among tools joined to that
+/// else the tool held — a connected one, with no account and no
+/// mounts, its index the next among tools joined to that
 /// container — and nothing joined: the connect scope is held while an
 /// attached agent is active.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -50,7 +50,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         account: None,
         fuse_file_mounts: Vec::new(),
         fuse_directory_mounts: Vec::new(),
-        deployer: None,
         creator: Creator::Client(Client {
             identity: standing.identity.clone(),
         }),

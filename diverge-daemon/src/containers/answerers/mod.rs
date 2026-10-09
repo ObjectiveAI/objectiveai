@@ -3,7 +3,7 @@
 //! One type, [`Answerer`], is every one of the provider client's
 //! answerer traits for one run: it holds what the asks need — the
 //! daemon, which container, its account, the mounts, the served
-//! tools, the chain and the deployer — and each trait's impl is one
+//! tools and an agent's deployer — and each trait's impl is one
 //! file. Real: the authorizations, from the tool's admissions; the
 //! tool deployer; the `/daemon` pair, served by the same session a
 //! socket gets; MCP, the served tools merged; FUSE, the mounts. The

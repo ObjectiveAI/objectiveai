@@ -1,4 +1,4 @@
-//! Deploying one container's dependencies.
+//! Deploying one agent's dependencies.
 
 use std::sync::Arc;
 
@@ -15,21 +15,19 @@ use crate::containers::mcp::Served;
 use crate::containers::{Key, message, start, tools};
 use crate::daemon::Daemon;
 use crate::store::tools::{Tool, attachments};
-use crate::store::{self, AgentId, agents, routes, tools as tool_records, tools_templates};
+use crate::store::{self, agents, routes, tools as tool_records, tools_templates};
 
-/// What a deploy is for: the container, the chain its run is on, the
-/// deployer it may ask, and the served set the answers land in.
+/// What a deploy is for: the agent, the deployer it may ask, and the
+/// served set the answers land in.
 pub struct Deploy {
     /// The daemon.
     pub daemon: Arc<Daemon>,
-    /// The container whose dependencies these are.
+    /// The agent whose dependencies these are.
     pub user: Key,
-    /// The container as a sender.
+    /// The agent as a sender.
     pub sender: creator::Creator,
-    /// The root of the chain, by name, if it has one.
+    /// The agent's name, if it has one: what a position names it by.
     pub root: Option<String>,
-    /// The templates down the chain so far.
-    pub chain: Vec<String>,
     /// The deployer agent as the record names it.
     pub deployer: Option<creator::Agent>,
     /// Where answered dependencies are served.
@@ -47,14 +45,7 @@ pub async fn deploy(deploy: &Deploy, declared: Vec<Declared>) -> Result<(), Erro
                 "error": why,
             }))
         })?;
-        let chain = {
-            let mut chain = deploy.chain.clone();
-            if let Some(template) = tool.template() {
-                chain.push(template.to_string());
-            }
-            chain
-        };
-        let run = tools::use_tool(&deploy.daemon, &tool, deploy.user, deploy.root.clone(), chain)
+        let run = tools::use_tool(&deploy.daemon, &tool, deploy.user)
             .await
             .map_err(|error| {
                 Error(serde_json::json!({
@@ -71,7 +62,7 @@ pub async fn deploy(deploy: &Deploy, declared: Vec<Declared>) -> Result<(), Erro
 }
 
 /// The tool that answers one dependency: by a route, by an
-/// attachment at the root, or by the deployer; else why not.
+/// attachment, or by the deployer; else why not.
 async fn answer(deploy: &Deploy, dependency: &Declared) -> Result<Tool, String> {
     let template = template_of(dependency).map_err(|error| error.to_string())?;
     let mut conn = deploy.daemon.store.acquire().await.map_err(|error| error.to_string())?;
@@ -82,7 +73,7 @@ async fn answer(deploy: &Deploy, dependency: &Declared) -> Result<Tool, String> 
     {
         return Err(format!("the dependency names no tool template on record: {template}"));
     }
-    let path = position(deploy.root.as_deref(), &deploy.chain, &template);
+    let path = position(deploy.root.as_deref(), &template);
     if let Some(tool) = answered(&mut conn, deploy, path.as_ref(), &template)
         .await
         .map_err(|error| error.to_string())?
@@ -97,8 +88,7 @@ async fn answer(deploy: &Deploy, dependency: &Declared) -> Result<Tool, String> 
 }
 
 /// Whether the position is answered now: a route there whose tool is
-/// of the template, or — at the chain's root — a tool of the template
-/// attached to the agent.
+/// of the template, or a tool of the template attached to the agent.
 async fn answered(conn: &mut sqlx::PgConnection, deploy: &Deploy, path: Option<&Path>, template: &str) -> Result<Option<Tool>, store::Error> {
     if let Some(path) = path
         && let Some(route) = routes::by_path(conn, path, false).await?
@@ -107,9 +97,7 @@ async fn answered(conn: &mut sqlx::PgConnection, deploy: &Deploy, path: Option<&
     {
         return Ok(Some(tool));
     }
-    if deploy.chain.is_empty()
-        && let Key::Agent(agent) = deploy.user
-    {
+    if let Key::Agent(agent) = deploy.user {
         for id in attachments::of_agent(conn, agent).await? {
             if let Some(tool) = tool_records::by_id(conn, id, false).await?
                 && tool.template() == Some(template)
@@ -187,10 +175,3 @@ async fn ask_deployer(deploy: &Deploy, deployer: &creator::Agent, dependency: &D
     }
 }
 
-/// The agent a deploy is for, when it is one.
-pub fn agent_of(user: Key) -> Option<AgentId> {
-    match user {
-        Key::Agent(id) => Some(id),
-        Key::Tool(_) => None,
-    }
-}
