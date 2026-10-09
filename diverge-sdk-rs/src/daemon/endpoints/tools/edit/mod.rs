@@ -1,4 +1,4 @@
-//! Editing a tool: its name, its account, its mounts, its deployer.
+//! Editing a tool: its name, its account, its mounts.
 //!
 //! One request, one answer. A client names a tool of its own and
 //! states anew whichever of those it names — each replaced whole, the
