@@ -8,7 +8,7 @@ use serde_json::json;
 use crate::shared::error::Error;
 
 /// The error for a name the caller has no volume by:
-/// [`get`](crate::provider::server::volume_manager::VolumeManager::get)
+/// `get`
 /// answered [`None`].
 ///
 /// ```json
@@ -22,7 +22,7 @@ pub fn unknown(name: &str) -> Error {
 }
 
 /// The error for a volume whose exclusive hold,
-/// [`lock`](crate::provider::server::volume::Volume::lock), could not be taken:
+/// `lock`, could not be taken:
 /// mounted in a running container or served, or under a stat, a
 /// read, a write, a filetree, an edit or a delete in flight. What a
 /// stat, a read, a write, a filetree and an edit answer, since none

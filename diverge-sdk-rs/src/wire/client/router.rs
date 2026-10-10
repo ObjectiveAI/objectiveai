@@ -407,7 +407,7 @@ impl Router {
 ///
 /// What [`Router::run`] returns instead of ending cleanly, and the
 /// caller-half mirror of the server's
-/// [`HandleError::InvalidAuthorize`](crate::provider::server::handle::HandleError::InvalidAuthorize):
+/// `HandleError::InvalidAuthorize`:
 /// a connection has one credential, presented by the side that dialled
 /// before anything else, and
 /// [`authorize`](super::authorize::authorize) already consumed it. A

@@ -9,7 +9,7 @@
 //! on a channel, not here.
 //!
 //! They live here rather than in either family because
-//! [`ContainerDeployer`](crate::provider::server::container_deployer::ContainerDeployer)
+//! `ContainerDeployer`
 //! serves both, and a generic deployer naming one family's type would
 //! be the thing this crate spends its exceptions avoiding.
 

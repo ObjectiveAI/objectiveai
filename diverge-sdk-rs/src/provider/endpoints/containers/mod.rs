@@ -63,13 +63,6 @@
 //! channel the provider opens. What the two share is [`client`],
 //! written once.
 //!
-//! # And a way to serve them
-//!
-//! Each scope's `server::handle` answers the request: a run brings the
-//! container up in order — content, registry, deploy, the proxy dialled
-//! and begun, every mount made — sends the id, and then relays
-//! everything the container asks and serves everything the caller opens
-//! until the run ends. What the two share is [`server`], written once.
 
 pub mod agents;
 pub mod serve;
@@ -77,4 +70,3 @@ pub mod tools;
 
 pub mod client;
 
-pub mod server;

@@ -48,7 +48,7 @@ use crate::shared::error::Error;
 /// own variant, because a caller acts on it differently from a
 /// failure: edit the volume or the mount, wait for the edit, or name
 /// another volume, and ask again. The hold is the volume's
-/// [`mount`](crate::provider::server::volume::Volume::mount), taken by the run
+/// `mount`, taken by the run
 /// handler and given back on every ending.
 ///
 /// # The conversation is this stream

@@ -65,10 +65,10 @@ use crate::wire::frame::server::ServerFrame;
 /// whoever holds this stream; the credential a provider owes on an
 /// [`Outgoing`](crate::wire::connection::Connection::Outgoing)
 /// connection goes out through the session too, sent by
-/// [`handle`](crate::provider::server::handle::handle) before it reads.
+/// `handle` before it reads.
 /// This type carries them and takes no position on either — the
 /// handshake's rules live with the handshake, in
-/// [`handle`](crate::provider::server::handle::handle).
+/// `handle`.
 #[derive(Debug)]
 pub struct Session {
     /// The read half of the connection.
@@ -247,7 +247,7 @@ impl Session {
     /// The one thing a session ever writes: everything else a provider
     /// says goes through the [`ScopeHandle`]s it hands out, and a
     /// credential belongs to the connection rather than to any scope.
-    /// [`handle`](crate::provider::server::handle::handle) calls it
+    /// `handle` calls it
     /// exactly once, on an
     /// [`Outgoing`](super::authorization::Authorization::Outgoing)
     /// connection, before it reads anything — "nothing may precede it"

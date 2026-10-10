@@ -19,7 +19,7 @@ use super::scope_handle::ScopeHandle;
 /// frame is the only place a credential belongs — and that a connection
 /// the provider dialled should never produce one at all — is the
 /// handshake's rule, enforced where the handshake is:
-/// [`handle`](crate::provider::server::handle::handle). A session that policed it would
+/// `handle`. A session that policed it would
 /// be a second copy of the rule, one connection layer below the thing
 /// that acts on it.
 #[derive(Debug)]

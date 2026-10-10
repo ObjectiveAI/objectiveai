@@ -27,7 +27,7 @@ use crate::wire::frame::server::ServerFrame;
 /// provider's identity beside it.
 ///
 /// The mirror of the handshake at the top of the server's
-/// [`handle`](crate::provider::server::handle::handle), with the dial direction
+/// `handle`, with the dial direction
 /// inverted: the identity comes from the same two places, the
 /// argument on one variant and the [`UnbrokeredAuthorizer`] on the
 /// other, and `address` is the peer's, as the OS reported it, for the

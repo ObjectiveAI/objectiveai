@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 /// one that is held exclusively is answered with this — the first
 /// and only response of its scope, then the finish — with nothing
 /// fetched and nothing deployed for it. On the server half the hold
-/// is the volume's [`mount`](crate::provider::server::volume::Volume::mount),
+/// is the volume's `mount`,
 /// which the run handler takes before anything else and gives back
 /// on every ending.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

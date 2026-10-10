@@ -4,11 +4,9 @@
 //! identity, or the refusal. [`channel_request`] is the one channel
 //! the provider opens, the provider's half of a connection.
 //! [`channel_response`] answers the daemon's half with the
-//! connector's frames. And [`handle`] answers the request: the scope
+//! connector's frames. And the provider crate's `handle` answers the request: the scope
 //! served whole, from the request to the finish.
 
 pub mod channel_request;
 pub mod channel_response;
 pub mod response;
-
-pub mod handle;

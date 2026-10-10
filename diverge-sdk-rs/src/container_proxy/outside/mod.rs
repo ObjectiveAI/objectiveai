@@ -49,7 +49,7 @@
 //! Every scope's `client::execute` performs the exchange rather than
 //! describing it, for the provider's server: hand it the
 //! [`Handle`](crate::wire::client::handle::Handle) that
-//! [`proxy::dial`](crate::provider::server::proxy::dial) made and what the
+//! `proxy::dial` made and what the
 //! request carries, and get back the scope's answer — the begin's
 //! asks and chunks, a mount's asks, a tree's frames, a file's bytes,
 //! a write's fate. The party that executes here is the provider; what
@@ -64,7 +64,7 @@ pub mod endpoints;
 /// outside, at the root path.
 ///
 /// One port, always the same one, so a
-/// [`Deployment`](crate::provider::server::deployment::Deployment) names none:
+/// `Deployment` names none:
 /// a deployer makes it reachable on every container it deploys and
 /// reports where, and the entrypoint's own port is behind the proxy,
 /// on the loopback inside, never published.

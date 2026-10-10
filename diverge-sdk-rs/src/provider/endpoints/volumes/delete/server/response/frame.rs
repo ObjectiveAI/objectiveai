@@ -30,7 +30,7 @@ use crate::shared::error::Error;
 /// failure. The distinction is what a caller acts on: a mounted
 /// volume is one to stop the container over and ask again, and a
 /// failure is not. On the server half the handler answers it from
-/// the volume's [`lock`](crate::provider::server::volume::Volume::lock), which
+/// the volume's `lock`, which
 /// a running container holds for its life; the manager is never
 /// asked.
 ///

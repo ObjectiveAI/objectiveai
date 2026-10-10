@@ -6,7 +6,7 @@ use std::net::IpAddr;
 /// How a provider decides whether a dialling peer may connect, and who
 /// it is.
 ///
-/// Consumed by [`handle`](crate::provider::server::handle::handle) on an
+/// Consumed by `handle` on an
 /// [`Incoming`](super::authorization::Authorization::Incoming)
 /// connection: the peer's first frame carries an
 /// [`Auth::Unbrokered`](crate::wire::frame::auth::Auth::Unbrokered)
@@ -28,10 +28,10 @@ use std::net::IpAddr;
 ///
 /// [`Ok`] is the `client_identity` that everything downstream receives:
 /// every handler, and through them the
-/// [`ContainerDeployer`](crate::provider::server::container_deployer::ContainerDeployer),
-/// the [`VolumeManager`](crate::provider::server::volume_manager::VolumeManager), the
-/// [`ImageChecker`](crate::provider::server::image_checker::ImageChecker) and every
-/// [`Mount`](crate::provider::server::mount::Mount). It is the same opaque string those
+/// `ContainerDeployer`,
+/// the `VolumeManager`, the
+/// `ImageChecker` and every
+/// `Mount`. It is the same opaque string those
 /// have taken all along; this is where it finally comes from.
 ///
 /// # A refusal earns the peer nothing
@@ -42,7 +42,7 @@ use std::net::IpAddr;
 /// close, and a peer that has not authenticated cannot make this end
 /// compose a reply — no bytes to amplify, no answer to read a reason
 /// out of. The error surfaces only in what
-/// [`handle`](crate::provider::server::handle::handle) returns, for the provider's own
+/// `handle` returns, for the provider's own
 /// log.
 ///
 /// Which is also why the error type is the provider's own, like every
