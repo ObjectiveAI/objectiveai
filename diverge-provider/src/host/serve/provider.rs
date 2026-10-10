@@ -83,12 +83,11 @@ impl Provider {
         let scratch = Scratch::new(config.containers.podman.storage_path.join("ephemeral"), Arc::clone(&disk));
         scratch.sweep().await.map_err(Error::Scratch)?;
         let volumes = Arc::new(VolumeManager::new(config.volumes, hooks_dir.clone(), scratch));
-        let images = config.containers.server_images.clone();
         let registries = config.containers.podman.registries.clone();
         let deployer = ContainerDeployer::new(config.containers, dir, Arc::clone(&volumes), registry.address(), shares, disk)
             .await
             .map_err(Error::Deployer)?;
-        let checker = Arc::new(ImageChecker::new(&images, &registries, deployer.auth_file().to_path_buf()));
+        let checker = Arc::new(ImageChecker::new(&registries, deployer.auth_file().to_path_buf()));
         Ok(Provider {
             auth: config.auth,
             hooks_dir,

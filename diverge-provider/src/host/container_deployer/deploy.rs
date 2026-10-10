@@ -18,7 +18,7 @@ use super::mounts::{Bound, bind, release};
 use super::source::find;
 use super::{Container, ContainerDeployer, Error, Source};
 use crate::host::Held;
-use crate::host::tools::{podman, start};
+use crate::host::tools::{capture, podman, start};
 
 /// Where the proxy is bound inside every container.
 const PROXY_INSIDE: &str = "/.diverge/diverge-container-proxy";
@@ -72,7 +72,7 @@ async fn after_limits(
             return Err(error);
         }
         (Ok((_, image)), Err(error)) => {
-            deployer.shared.images.ended(&image);
+            deployer.shared.images.ended(&image).await;
             return Err(error);
         }
         (Err(error), Err(_)) => return Err(error),
@@ -89,28 +89,27 @@ async fn after_limits(
             stopped: OnceCell::new(),
         }),
         Err(error) => {
-            deployer.shared.images.ended(&image);
+            deployer.shared.images.ended(&image).await;
             release(&bound).await;
             Err(error)
         }
     }
 }
 
-/// The image: found — in the store, when the configuration lists the
-/// pair; else in whichever of every listed registry and the caller
-/// first answers that it holds it — pulled where it is not in the
-/// store, its id read, and counted in the cache. The source and the
-/// id.
+/// The image: in the store, found by digest under any name or none,
+/// run as its id with nothing pulled and nobody asked; else wherever
+/// of every listed registry and the caller first answers that it
+/// holds it, pulled from there, which answers the id. Either way
+/// counted in the cache. The source and the id.
 async fn image(deployer: &ContainerDeployer, name: &str, digest: &str, caller: &Caller) -> Result<(Source, String), Error> {
-    let source = if deployer.offered(name, digest) {
-        Source::Server(format!("{name}@{digest}"))
-    } else {
-        find(deployer, name, digest, caller).await?
+    let (source, image) = match podman::image_by_digest(digest).await.map_err(Error::Podman)? {
+        Some(image) => (Source::Local(image.clone()), image),
+        None => {
+            let source = find(deployer, name, digest, caller).await?;
+            let image = pull(deployer, &source).await?;
+            (source, image)
+        }
     };
-    if source.pulled() {
-        pull(deployer, &source).await?;
-    }
-    let image = podman::image_id(source.reference()).await.map_err(Error::Podman)?;
     deployer.shared.images.starting(&image).await?;
     Ok((source, image))
 }
@@ -142,27 +141,30 @@ async fn after_run(name: &str) -> Result<(String, Child), Error> {
     Ok((format!("ws://127.0.0.1:{port}"), proxy))
 }
 
-/// `podman pull` of the source: with the provider's auth file, and,
-/// for the provider's own registry, without TLS, since it speaks
-/// plain HTTP on the loopback. On the hosts with a machine the pull
-/// from the provider's registry goes through the tunnel, which has to
-/// be open still.
-async fn pull(deployer: &ContainerDeployer, source: &Source) -> Result<(), Error> {
+/// `podman pull` of the source, quiet, so its one answer is the id
+/// of the image pulled: with the provider's auth file, and, for the
+/// provider's own registry, without TLS, since it speaks plain HTTP
+/// on the loopback. The cache is told the pull is in flight before
+/// and what it brought after, so no trim removes the image between
+/// its arrival and its record. On the hosts with a machine the pull
+/// from the provider's registry goes through the tunnel, which has
+/// to be open still.
+async fn pull(deployer: &ContainerDeployer, source: &Source) -> Result<String, Error> {
     #[cfg(not(target_os = "linux"))]
     if source.own() && !deployer.tunnel.open_still().await {
         return Err(Error::Tunnel);
     }
     let auth_file = deployer.auth_file.to_string_lossy().into_owned();
-    let mut args = vec!["pull", "--authfile", &auth_file];
+    let mut args = vec!["pull", "--quiet", "--authfile", &auth_file];
     if source.own() {
         args.push("--tls-verify=false");
     }
     args.push(source.reference());
-    podman::podman(args)
-        .await
-        .map_err(Error::Pull)?
-        .require("podman", |status| status.success())
-        .map_err(Error::Pull)
+    deployer.shared.images.pull_begins().await;
+    let pulled = capture("podman", podman::command(args)).await.map_err(Error::Pull);
+    let image = pulled.as_deref().ok().map(str::trim);
+    deployer.shared.images.pull_ends(image).await;
+    pulled.map(|answer| answer.trim().to_string())
 }
 
 /// `podman run`, detached, named, labelled as this provider's, from

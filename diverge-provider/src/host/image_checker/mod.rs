@@ -5,10 +5,11 @@
 //! wherever the provider finds them — its own store, a registry it
 //! uses, or the caller. A check asks the same question with the
 //! caller left out, since the caller knows what it holds: is the
-//! pair one the configuration lists under `containers.server_images`,
-//! or does any registry the configuration lists serve it? The list
-//! is a lookup; the registries are asked all at once, each with the
-//! credential listed, and any yes is the answer. The identity asking
+//! digest in the store, under any name or none, or does any registry
+//! the configuration lists serve the pair? The store is asked first,
+//! and an image there ends the question; only then are the
+//! registries asked, all at once, each with the credential listed,
+//! and any yes is the answer. The identity asking
 //! is not consulted: the configuration has no image policy per
 //! caller, and every caller gets the same answer.
 //!

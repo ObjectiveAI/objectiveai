@@ -12,8 +12,8 @@
 //! volume mount is resolved through the
 //! [`VolumeManager`](crate::host::volume_manager::VolumeManager) and, for a
 //! stored volume, loop-mounted on a directory of the provider's,
-//! while the image is found, pulled unless it is one of the
-//! provider's own, and the image cache measured and trimmed; then the
+//! while the image is found, pulled unless the store has it, and the
+//! image cache measured and trimmed; then the
 //! container is started with the proxy binary bound in, port `14979`
 //! published to a loopback port podman picks, `/dev/fuse` and the
 //! privilege to mount, and no environment but the request's; the
@@ -54,14 +54,16 @@
 //! # The images
 //!
 //! An image is a name and a digest, and where the bytes come from is
-//! this provider's decision. An image the configuration lists as the
-//! provider's own is run from the store as `<name>@<digest>`, with
-//! nothing pulled. Any other is looked for everywhere at once: every
-//! registry the configuration lists, asked with the credential
-//! listed through an auth file the provider writes for podman, and
-//! the caller, asked on its scope whether it holds the image. The
-//! first to say yes is the source, and the image is pulled from
-//! there: from a registry as `<host>/<name>@<digest>`; from the
+//! this provider's decision. The store is looked in first, by the
+//! digest alone — the name an image is held under there, or no name,
+//! does not matter — and an image there is run as its id, with
+//! nothing pulled and nobody asked. Any other is looked for
+//! everywhere else at once: every registry the configuration lists,
+//! asked with the credential listed through an auth file the
+//! provider writes for podman, and the caller, asked on its scope
+//! whether it holds the image. The first to say yes is the source,
+//! and the image is pulled from there: from a registry as
+//! `<host>/<name>@<digest>`; from the
 //! caller through the provider's own registry, which listens on this
 //! host's loopback and fetches from the caller by digest — on Linux
 //! podman pulls on the host and reaches it there; on macOS and
@@ -71,11 +73,14 @@
 //! nowhere is the run's error.
 //!
 //! Podman evicts nothing from its image store, so the provider does:
-//! every image present when the provider starts is protected and
-//! counted, and what the provider pulled since is removed, least
-//! recently run first and only while no container runs it, whenever
-//! the store's count passes `image_cache_disk` after a pull. A store
-//! still over the cap after that refuses the run.
+//! whenever the store's count passes `image_cache_disk`, images are
+//! removed until it does not — one the provider never recorded
+//! before one it did, then the least recently run first — never one
+//! a container runs, never one whose config carries the label
+//! `diverge.network/keep`, and never, while a pull of the provider's
+//! is in flight, one the provider has not recorded, since that may
+//! be the one arriving. A store still over the cap after that
+//! refuses the run.
 //!
 //! # What is here
 //!

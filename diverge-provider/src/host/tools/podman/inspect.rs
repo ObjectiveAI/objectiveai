@@ -1,5 +1,6 @@
 //! What the provider asks podman, read out of podman's answers.
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use serde::Deserialize;
@@ -7,14 +8,24 @@ use serde::Deserialize;
 use super::{command, podman};
 use crate::host::tools::{Error, capture};
 
+/// The label an image carries to be kept: present in the image's
+/// config, with any value, it exempts the image from the cache's
+/// eviction. Set with `LABEL diverge.network/keep=true` when the
+/// image is built.
+pub const KEEP_LABEL: &str = "diverge.network/keep";
+
 /// One image in podman's storage, as `podman image ls` lists it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Listed {
-    /// The image id, the full hexadecimal, as `podman image inspect`
-    /// reports it too.
+    /// The image id, the full hexadecimal, as `podman pull` answers
+    /// it too.
     pub id: String,
     /// Its size in BYTES, every layer counted, shared or not.
     pub size: u64,
+    /// When the image was built, in seconds since the epoch.
+    pub created: i64,
+    /// Whether its config carries [`KEEP_LABEL`].
+    pub keep: bool,
 }
 
 /// One row of `podman image ls --format json`.
@@ -24,6 +35,10 @@ struct ListedRow {
     id: String,
     #[serde(rename = "Size")]
     size: u64,
+    #[serde(rename = "Created")]
+    created: i64,
+    #[serde(rename = "Labels")]
+    labels: Option<HashMap<String, String>>,
 }
 
 /// Every image in the store, once each: `podman image ls` lists an
@@ -31,17 +46,39 @@ struct ListedRow {
 /// deduplicated here, so a count over the answer counts every image
 /// once.
 pub async fn images() -> Result<Vec<Listed>, Error> {
-    let answer = capture("podman", command(["image", "ls", "--no-trunc", "--format", "json"])).await?;
-    let rows: Vec<ListedRow> = serde_json::from_str(&answer).map_err(|_| Error::Output {
-        program: "podman".to_string(),
-    })?;
-    let mut listed: Vec<Listed> = Vec::with_capacity(rows.len());
+    let rows = listed(&["image", "ls", "--no-trunc", "--format", "json"]).await?;
+    let mut images: Vec<Listed> = Vec::with_capacity(rows.len());
     for row in rows {
-        if listed.iter().all(|seen| seen.id != row.id) {
-            listed.push(Listed { id: row.id, size: row.size });
+        if images.iter().all(|seen| seen.id != row.id) {
+            images.push(Listed {
+                id: row.id,
+                size: row.size,
+                created: row.created,
+                keep: row.labels.is_some_and(|labels| labels.contains_key(KEEP_LABEL)),
+            });
         }
     }
-    Ok(listed)
+    Ok(images)
+}
+
+/// The image in the store with `digest` among the manifest digests
+/// podman recorded for it, under any name or none: its id, or `None`
+/// where the store has no such image. `podman image ls --filter
+/// digest=<digest>` matches every digest an image was pulled by, so
+/// no name is needed; an image loaded into the store with no digest
+/// recorded is not matched, which is podman's limit.
+pub async fn image_by_digest(digest: &str) -> Result<Option<String>, Error> {
+    let filter = format!("digest={digest}");
+    let rows = listed(&["image", "ls", "--no-trunc", "--filter", &filter, "--format", "json"]).await?;
+    Ok(rows.into_iter().next().map(|row| row.id))
+}
+
+/// `podman` with `args`, a listing of images, its rows read.
+async fn listed(args: &[&str]) -> Result<Vec<ListedRow>, Error> {
+    let answer = capture("podman", command(args)).await?;
+    serde_json::from_str(&answer).map_err(|_| Error::Output {
+        program: "podman".to_string(),
+    })
 }
 
 /// Whether the registry `reference` names serves its manifest:
@@ -56,14 +93,6 @@ pub async fn manifest_exists(auth_file: &Path, reference: &str) -> Result<bool, 
     let reference = format!("docker://{reference}");
     let finished = podman(["manifest", "inspect", "--authfile", &auth_file, &reference]).await?;
     Ok(finished.status.success())
-}
-
-/// The id of the image `reference` names in the store: the full
-/// hexadecimal. A reference the store does not hold is podman's
-/// refusal.
-pub async fn image_id(reference: &str) -> Result<String, Error> {
-    let answer = capture("podman", command(["image", "inspect", "--format", "{{.Id}}", reference])).await?;
-    Ok(answer.trim().to_string())
 }
 
 /// The host port podman published the container's `inside` port to:

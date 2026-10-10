@@ -1,6 +1,5 @@
 //! The deployer.
 
-use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -27,10 +26,6 @@ use crate::host::volume_manager::VolumeManager;
 pub struct ContainerDeployer {
     /// The `podman` section: the registries and their credentials.
     pub(super) podman: Podman,
-    /// Every `(name, digest)` the configuration lists as the
-    /// provider's own: in the store already, the first place a run
-    /// looks.
-    offered: HashSet<(String, String)>,
     /// The proxy binary on this host, as podman is handed it for the
     /// bind: the host path on Linux, the machine's view elsewhere.
     pub(super) proxy_path: String,
@@ -63,10 +58,9 @@ impl ContainerDeployer {
     /// everything after asks podman; the proxy
     /// binary found beside the executable; `run/` and `run/mounts/`
     /// made and the auth file written; every container and every
-    /// loop mount of an earlier life of this provider swept away; the
-    /// store's images recorded as protected; and, on the hosts with a
-    /// machine, the tunnel opened. Each beside the others where
-    /// nothing orders them.
+    /// loop mount of an earlier life of this provider swept away;
+    /// and, on the hosts with a machine, the tunnel opened. Each
+    /// beside the others where nothing orders them.
     pub async fn new(
         containers: Containers,
         dir: PathBuf,
@@ -95,10 +89,10 @@ impl ContainerDeployer {
         let mounts_dir = run_dir.join("mounts");
         tokio::fs::create_dir_all(&mounts_dir).await?;
         let auth_file = run_dir.join("auth.json");
-        let (proxy_path, (), protected) = future::try_join3(
+        let (proxy_path, (), ()) = future::try_join3(
             proxy_present(&proxy),
             write_auth_file(&auth_file, &containers.podman),
-            sweep_then_list(&label, &mounts_dir),
+            sweep_all(&label, &mounts_dir),
         )
         .await?;
         #[cfg(not(target_os = "linux"))]
@@ -106,15 +100,10 @@ impl ContainerDeployer {
         #[cfg(target_os = "linux")]
         let _ = registry;
         Ok(ContainerDeployer {
-            offered: containers
-                .server_images
-                .iter()
-                .map(|image| (image.name.clone(), image.digest.clone()))
-                .collect(),
             shared: Arc::new(Shared {
                 disk,
                 memory: Limit::new(containers.podman.memory),
-                images: Images::new(containers.podman.image_cache_disk, protected),
+                images: Images::new(containers.podman.image_cache_disk),
             }),
             podman: containers.podman,
             proxy_path,
@@ -130,10 +119,9 @@ impl ContainerDeployer {
     /// Everything of this provider's that podman or the host still
     /// holds, gone: every container carrying its label removed at
     /// once, and every loop mount under `run/mounts/` unmounted and
-    /// its directory removed. What the construction does before it
-    /// counts the store, and what a shutdown does after the
-    /// connections are gone. A refusal is not reported, since there
-    /// is nobody to report it to.
+    /// its directory removed. What the construction does, and what a
+    /// shutdown does after the connections are gone. A refusal is not
+    /// reported, since there is nobody to report it to.
     pub async fn sweep(&self) {
         let _ = sweep_all(&self.label, &self.mounts_dir).await;
     }
@@ -142,12 +130,6 @@ impl ContainerDeployer {
     /// and every look into a registry is given.
     pub fn auth_file(&self) -> &Path {
         &self.auth_file
-    }
-
-    /// Whether the configuration lists the pair as the provider's
-    /// own: in the store already, pulled from nowhere.
-    pub(super) fn offered(&self, name: &str, digest: &str) -> bool {
-        self.offered.contains(&(name.to_string(), digest.to_string()))
     }
 
     /// The port podman reaches the provider's registry at: the
@@ -224,15 +206,6 @@ async fn write_auth_file(path: &std::path::Path, podman: &Podman) -> Result<(), 
         tokio::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).await?;
     }
     Ok(())
-}
-
-/// Everything of an earlier life swept away, then every image in the
-/// store listed: the protected set, taken after the sweep so a
-/// container of the earlier life holds nothing back.
-async fn sweep_then_list(label: &str, mounts_dir: &Path) -> Result<Vec<String>, Error> {
-    sweep_all(label, mounts_dir).await?;
-    let images = podman::images().await.map_err(Error::Podman)?;
-    Ok(images.into_iter().map(|image| image.id).collect())
 }
 
 /// Every container carrying `label` removed at once, then every

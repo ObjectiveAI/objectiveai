@@ -19,16 +19,16 @@ pub enum Source {
     /// `127.0.0.1:<port>/<repository>/<name>@<digest>`, pulled over
     /// plain HTTP.
     Client(String),
-    /// In the store, as one of the provider's own: `<name>@<digest>`,
-    /// pulled from nowhere.
-    Server(String),
+    /// In the store already, found by digest: its id, run from the
+    /// store, pulled from nowhere.
+    Local(String),
     /// In a registry the configuration lists:
     /// `<host>/<name>@<digest>`, pulled with that host's credential.
     Registry(String),
 }
 
-/// Where the image is, among the places the provider looks all at
-/// once: every registry the configuration lists, asked with the
+/// Where the image is, once the store has not got it, among the
+/// places the provider looks all at once: every registry the configuration lists, asked with the
 /// credential listed, and the caller, asked on its scope. The first
 /// to answer that it holds the pair is the source, and the rest are
 /// not waited for — a look into a registry still running is a podman
@@ -73,13 +73,13 @@ impl Source {
     /// The reference podman is handed.
     pub fn reference(&self) -> &str {
         match self {
-            Source::Client(reference) | Source::Server(reference) | Source::Registry(reference) => reference,
+            Source::Client(reference) | Source::Local(reference) | Source::Registry(reference) => reference,
         }
     }
 
     /// Whether the image is pulled before the run.
     pub fn pulled(&self) -> bool {
-        !matches!(self, Source::Server(_))
+        !matches!(self, Source::Local(_))
     }
 
     /// Whether the pull is from the provider's own registry, which

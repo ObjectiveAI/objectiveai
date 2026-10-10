@@ -54,7 +54,7 @@ impl container::Container for Container {
         let _ = podman::podman(["rm", "--force", "--time", "0", &self.name]).await;
         drop(self.proxy.lock().await.take());
         future::join(release(&self.bound), async {
-            self.shared.images.ended(&self.image);
+            self.shared.images.ended(&self.image).await;
             drop(self.caps.lock().await.take());
         })
         .await;
