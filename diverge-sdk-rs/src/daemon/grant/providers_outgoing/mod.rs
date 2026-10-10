@@ -2,13 +2,12 @@
 //!
 //! What a role may allow over outgoing providers, in the three shapes
 //! [`grant`](crate::daemon::grant) states: [`Make`], the actions that
-//! bring one into being; [`Over`], the actions over those that exist;
-//! and [`Permission`], one grant's worth of either.
+//! bring one into being, and [`Over`], the actions over those that
+//! exist — both defined once in
+//! [`shared::permission`](crate::shared::permission) and re-exported;
+//! and [`Permission`], one grant's worth of either, or of tagging.
 
-mod make;
-mod over;
 mod permission;
 
-pub use make::*;
-pub use over::*;
+pub use crate::shared::permission::providers_outgoing::{Make, Over};
 pub use permission::*;

@@ -5,9 +5,10 @@
 //! Its identity is the address, as
 //! [`Identity`](crate::daemon::endpoints::agents::logs::server::response::Identity)
 //! states. [`add`] names one; [`get`] answers one as a list would;
-//! [`list`] lists them, narrowed; [`delete`] forgets one no container
-//! is pinned to; [`edit`] replaces its mode, which is how a credential
-//! rotates.
+//! [`list`] lists them, narrowed, with their tags; [`delete`] forgets
+//! one no container is pinned to; [`edit`] replaces its mode, which is
+//! how a credential rotates; [`tag`] and [`untag`] change its tags,
+//! which are the caller's.
 
 mod kind;
 mod mode;
@@ -20,3 +21,5 @@ pub mod delete;
 pub mod edit;
 pub mod get;
 pub mod list;
+pub mod tag;
+pub mod untag;

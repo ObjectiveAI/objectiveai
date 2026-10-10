@@ -9,7 +9,7 @@ use crate::daemon::endpoints::providers::outgoing::Kind;
 /// One outgoing provider of the caller's: its address, which is its
 /// identity, the kind of its mode without the credential, whether the
 /// daemon holds a connection to it now, when it last did, when it was
-/// added and by whom.
+/// added and by whom, and its tags.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Outgoing {
     /// The address, as the add gave it: the provider's identity.
@@ -31,4 +31,9 @@ pub struct Outgoing {
     /// One [`Creator`](crate::daemon::creator::Creator), the direct
     /// maker.
     pub creator: Creator,
+    /// The tags on it, as
+    /// [`tag`](crate::daemon::endpoints::providers::outgoing::tag) put
+    /// them. Absent when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
 }

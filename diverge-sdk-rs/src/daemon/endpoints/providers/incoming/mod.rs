@@ -13,10 +13,12 @@
 //!
 //! A credential is named by its identity, and nothing else: one
 //! credential per identity. [`add`] makes one, and answers the key;
-//! [`get`] answers one as a list would; [`list`] lists them, narrowed;
-//! [`delete`] takes one out, unless a provider is connected through it;
-//! [`edit`] replaces one with another, answering a new key, which is
-//! how a key rotates and how an address or an identity changes. What a
+//! [`get`] answers one as a list would; [`list`] lists them, narrowed,
+//! with their tags; [`delete`] takes one out, unless a provider is
+//! connected through it; [`edit`] replaces one with another, answering
+//! a new key, which is how a key rotates and how an address or an
+//! identity changes; [`tag`] and [`untag`] change its tags, which are
+//! the caller's. What a
 //! list and a get report is an
 //! [`Incoming`](list::server::response::Incoming): the credential,
 //! which carries no key, with who is connected through it.
@@ -47,3 +49,5 @@ pub mod delete;
 pub mod edit;
 pub mod get;
 pub mod list;
+pub mod tag;
+pub mod untag;

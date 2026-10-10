@@ -35,7 +35,7 @@ pub enum Frame {
     /// arguments. A tool container declares no dependencies: a list
     /// its program answers its registration with is ignored, and
     /// nothing rides here — see
-    /// [`tools`](crate::shared::containers::tools). A channel on this
+    /// [`dependencies`](crate::shared::containers::dependencies). A channel on this
     /// scope is opened only after it.
     Begun,
     /// A failure. Tag `1`.

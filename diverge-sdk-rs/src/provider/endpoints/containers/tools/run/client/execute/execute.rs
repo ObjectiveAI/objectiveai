@@ -7,7 +7,7 @@ use super::super::{channel_request, channel_response, request};
 use super::execute_handle::ExecuteHandle;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::provider::client::{
-    Answerers, Daemon, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, ToolDeployer,
+    Answerers, Daemon, ConnectionAuthorizer, FuseServer, McpServer, OciStore, PostgresDialer, DependencyDeployer,
     Vault,
 };
 use crate::wire::decode::Decode as _;
@@ -58,7 +58,7 @@ pub async fn execute<O, A, T, P, D, V, M, F>(
 where
     O: OciStore + 'static,
     A: ConnectionAuthorizer + 'static,
-    T: ToolDeployer + 'static,
+    T: DependencyDeployer + 'static,
     P: PostgresDialer + 'static,
     D: Daemon + 'static,
     V: Vault + 'static,

@@ -23,9 +23,9 @@
 //!   serve the caller's manifests and blobs; the deploy, with the
 //!   caller's help at hand and the source the deployer's; the one
 //!   connection to the proxy, and on it the family's `begin` —
-//!   carrying the arguments, answered with the tools the container
-//!   declared — and then, beside each other, the caller asked to
-//!   deploy those tools and one `fuse::mount` scope per mount, each
+//!   carrying the arguments, answered with the dependencies the
+//!   container declared — and then, beside each other, the caller
+//!   asked to deploy those dependencies and one `fuse::mount` scope per mount, each
 //!   complete before the next. Nothing the caller opens is read until
 //!   all of it is done and the id is out.
 //! - `relay`, the proxy's asks — the channels it opens on `begin`,

@@ -122,14 +122,14 @@ pub(crate) async fn run<R, D, G, V>(
     .await;
     send(&scope, R::id(&Id { id: id.clone() })).await;
 
-    // The tools were asked of the caller in the setup; the list is
-    // not needed again.
+    // The dependencies were asked of the caller in the setup; the
+    // list is not needed again.
     let Begun {
         begin,
         asks,
         chunks,
         finish,
-        tools: _,
+        dependencies: _,
     } = prepared.begun;
     let run = Arc::new(Run::new(
         Arc::clone(&scope),

@@ -27,7 +27,7 @@
 //! names, and the proxy dials it, forwarding what the provider's
 //! server asks: `/register` and `/schema` on either kind of
 //! container — [`register`] is the one's body and its answer, the
-//! tools the program depends on — and, for an agent
+//! dependencies the program declares — and, for an agent
 //! container, the loop's `/run`, `/enqueue` and `/dequeue` that
 //! [`agent`] states; for a tool container, the MCP server at `/mcp`
 //! that [`tool`] states. Each surface is stated there, once, and

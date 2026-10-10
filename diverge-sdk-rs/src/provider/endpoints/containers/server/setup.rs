@@ -30,7 +30,7 @@ use crate::wire::server::scope_handle::ScopeHandle;
 use crate::provider::server::volume::Volume;
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::request::{Container, FuseMount};
-use crate::shared::containers::tools;
+use crate::shared::containers::dependencies;
 use crate::shared::error::Error;
 
 /// A container brought up and ready to serve.
@@ -75,10 +75,10 @@ pub(crate) struct Mount {
 /// 2. The container is deployed, its proxy listening.
 /// 3. The proxy is dialled: one WebSocket, for the container's life.
 /// 4. The family's `begin` is opened on it — carrying the arguments
-///    — and its `Begun` awaited, with the tools an agent container
-///    declared.
-/// 5. Beside each other: the caller is asked to deploy those tools,
-///    when there are any — the agents family's
+///    — and its `Begun` awaited, with the dependencies an agent
+///    container declared.
+/// 5. Beside each other: the caller is asked to deploy those
+///    dependencies, when there are any — the agents family's
 ///    [`deploy`](Runs::deploy); a tool container declares nothing —
 ///    and one `fuse::mount`
 ///    scope per mount is opened, file mounts first, each answered
@@ -147,7 +147,7 @@ where
         }
     };
 
-    let (deployed, mounts) = future::join(R::deploy(scope, &begun.tools), mounts(&proxy, request)).await;
+    let (deployed, mounts) = future::join(R::deploy(scope, &begun.dependencies), mounts(&proxy, request)).await;
     let mounts = match (deployed, mounts) {
         (Ok(()), Ok(mounts)) => mounts,
         (Err(error), _) | (Ok(()), Err(error)) => {
@@ -178,7 +178,7 @@ where
     registry.release(repository).await;
 }
 
-/// The caller's answer to a tools ask, read to the finish so its
+/// The caller's answer to a dependencies ask, read to the finish so its
 /// number comes back to the run: one frame back — a deploy is `Ok`;
 /// the caller's refusal is the run's error in the caller's words; a
 /// finish with nothing, or an answer this end cannot read, is the
@@ -186,14 +186,14 @@ where
 /// declares nothing and opens none.
 pub(crate) async fn deployed(scope: &ScopeHandle, payload: &[u8]) -> Result<(), Error> {
     let mut channel = scope.send_channel_request(payload).await;
-    let mut outcome = Err(render::tools_unserved());
+    let mut outcome = Err(render::dependencies_unserved());
     while let Some(bytes) = channel.response_receiver.recv().await {
         match answer(&bytes) {
             Some(Answer::Frame(payload)) => {
-                outcome = match tools::response::Frame::decode(&payload) {
-                    Ok(tools::response::Frame::Deployed) => Ok(()),
-                    Ok(tools::response::Frame::Error(error)) => Err(error),
-                    Err(error) => Err(render::tools_failed(error)),
+                outcome = match dependencies::response::Frame::decode(&payload) {
+                    Ok(dependencies::response::Frame::Deployed) => Ok(()),
+                    Ok(dependencies::response::Frame::Error(error)) => Err(error),
+                    Err(error) => Err(render::dependencies_failed(error)),
                 };
             }
             Some(Answer::Finish) => break,

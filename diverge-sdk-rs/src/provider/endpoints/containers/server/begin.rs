@@ -8,7 +8,7 @@ use crate::container_proxy::outside::client::{Ask, Asks};
 use crate::container_proxy::outside::endpoints::tools::begin::client::execute::{ExecuteHandle as ToolsBegin, Finish};
 use crate::provider::endpoints::containers::client::answered::{Daemon, Postgres, Schema};
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError};
-use crate::shared::containers::tools::Tool;
+use crate::shared::containers::dependencies::Template;
 
 /// The begin scope on a container's proxy connection: the place the
 /// proxy's asks ride, and the family's own exchanges.
@@ -82,7 +82,7 @@ impl Begin {
 }
 
 /// What a begin hands the machinery: the scope, the asks the proxy
-/// will open on it, the tools the container declared, and — for an
+/// will open on it, the dependencies the container declared, and — for an
 /// agent container — the conversation.
 #[derive(Debug)]
 pub(crate) struct Begun {
@@ -97,8 +97,8 @@ pub(crate) struct Begun {
     /// read for nothing else; [`None`] for an agent container, whose
     /// chunks end at the same finish.
     pub finish: Option<Finish>,
-    /// The tools an agent container declared at registration, off
-    /// its `Begun`: what the caller is asked to deploy, when any. A
-    /// tool container's is empty: it declares nothing.
-    pub tools: Vec<Tool>,
+    /// The dependencies an agent container declared at registration,
+    /// off its `Begun`: what the caller is asked to deploy, when any.
+    /// A tool container's is empty: it declares nothing.
+    pub dependencies: Vec<Template>,
 }

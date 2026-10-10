@@ -9,14 +9,14 @@
 //!
 //! | the proxy calls | with | the program answers |
 //! |-----------------|------|---------------------|
-//! | `POST /register` | the [`register::request::Request`](crate::container_proxy::inside::register::request::Request) JSON | `2xx` with the [`register::response::Response`](crate::container_proxy::inside::register::response::Response) JSON, the tools the program depends on, the arguments held for the container's life; or a non-`2xx` |
+//! | `POST /register` | the [`register::request::Request`](crate::container_proxy::inside::register::request::Request) JSON | `2xx` with the [`register::response::Response`](crate::container_proxy::inside::register::response::Response) JSON, the dependencies the program declares, the arguments held for the container's life; or a non-`2xx` |
 //! | `GET /schema` | nothing | `2xx` with the JSON Schema of the arguments; or a non-`2xx` |
 //! | `/mcp` | MCP over Streamable HTTP | the server itself: every exchange the caller opens on the provider, made by the proxy's one client |
 //!
 //! # Registration comes first, and once
 //!
 //! The arguments are fixed for the container's life, and so are the
-//! tools the program answers with. The proxy registers them exactly
+//! dependencies the program answers with. The proxy registers them exactly
 //! once, before it dials the MCP server; the program refuses any
 //! second `/register`, whatever it carries (`{"kind":"registered"}`,
 //! `409`). What the program makes of the arguments — which tools it

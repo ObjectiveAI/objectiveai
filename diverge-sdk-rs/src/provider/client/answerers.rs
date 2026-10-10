@@ -9,7 +9,8 @@ use std::sync::Arc;
 /// A run executor takes one of these and answers every server-opened
 /// channel through it: the image's pieces from [`oci`](Self::oci), a
 /// connector's admission from [`authorizer`](Self::authorizer), the
-/// tools the container declared from [`tools`](Self::tools), the
+/// dependencies the container declared from
+/// [`dependencies`](Self::dependencies), the
 /// container's database connections through [`postgres`](Self::postgres),
 /// its daemon connection through [`daemon`](Self::daemon), its secrets
 /// through [`vault`](Self::vault), its tool calls through
@@ -32,9 +33,9 @@ pub struct Answerers<O, A, T, P, D, V, M, F> {
     /// Whether a connector may attach
     /// ([`ConnectionAuthorizer`](super::ConnectionAuthorizer)).
     pub authorizer: Arc<A>,
-    /// The tool containers the container declared, run
-    /// ([`ToolDeployer`](super::ToolDeployer)).
-    pub tools: Arc<T>,
+    /// The dependencies the container declared, run
+    /// ([`DependencyDeployer`](super::DependencyDeployer)).
+    pub dependencies: Arc<T>,
     /// The database the container dials
     /// ([`PostgresDialer`](super::PostgresDialer)).
     pub postgres: Arc<P>,
@@ -56,7 +57,7 @@ impl<O, A, T, P, D, V, M, F> Clone for Answerers<O, A, T, P, D, V, M, F> {
         Answerers {
             oci: Arc::clone(&self.oci),
             authorizer: Arc::clone(&self.authorizer),
-            tools: Arc::clone(&self.tools),
+            dependencies: Arc::clone(&self.dependencies),
             postgres: Arc::clone(&self.postgres),
             daemon: Arc::clone(&self.daemon),
             vault: Arc::clone(&self.vault),

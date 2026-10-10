@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::{daemon, fuse, oci, postgres, tools, vault, write_bytes};
+use crate::shared::containers::{daemon, dependencies, fuse, oci, postgres, vault, write_bytes};
 use crate::shared::mcp;
 
 /// What a provider asks a caller for while an agent container runs.
@@ -18,7 +18,7 @@ use crate::shared::mcp;
 /// | `0` | [`OciManifest`](Self::OciManifest) |
 /// | `1` | [`OciBlob`](Self::OciBlob) |
 /// | `2` | [`OciHas`](Self::OciHas) |
-/// | `3` | [`Tools`](Self::Tools) |
+/// | `3` | [`Dependencies`](Self::Dependencies) |
 /// | `4` | [`Write`](Self::Write) |
 /// | `5` | [`Postgres`](Self::Postgres) |
 /// | `6` | [`Daemon`](Self::Daemon) |
@@ -47,7 +47,7 @@ use crate::shared::mcp;
 /// taking no connector, and listed to nobody — is never asked, so every
 /// tag after them is two less here. The first five are the provider's
 /// own asks — whether the caller holds an image, its manifest and
-/// blobs, the tools the container declared, a write's content — and the
+/// blobs, the dependencies the container declared, a write's content — and the
 /// rest are the CONTAINER's, relayed: its database connections, its
 /// daemon connection, its vault, its tool calls outward to the caller's
 /// MCP servers, and the files the caller mounted live. A connector's
@@ -74,12 +74,12 @@ pub enum Frame<'a> {
     /// before it asks for anything of it; see
     /// [`oci`](crate::shared::containers::oci).
     OciHas(oci::has::request::Request),
-    /// Deploy the tools the container declared. Tag `3`.
+    /// Deploy the dependencies the container declared. Tag `3`.
     ///
     /// Opened once, after the proxy's `Begun` carried a non-empty
     /// list and before the id; never on a connect. See
-    /// [`tools`](crate::shared::containers::tools).
-    Tools(tools::request::Request<'a>),
+    /// [`dependencies`](crate::shared::containers::dependencies).
+    Dependencies(dependencies::request::Request<'a>),
     /// Send the content for a write. Tag `4`.
     ///
     /// Opened in answer to a write the caller started. A write cannot
@@ -181,8 +181,8 @@ const OCI_BLOB: u8 = 1;
 /// Tag for [`Frame::OciHas`].
 const OCI_HAS: u8 = 2;
 
-/// Tag for [`Frame::Tools`].
-const TOOLS: u8 = 3;
+/// Tag for [`Frame::Dependencies`].
+const DEPENDENCIES: u8 = 3;
 
 /// Tag for [`Frame::Write`].
 const WRITE: u8 = 4;
@@ -270,8 +270,8 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[OCI_HAS]);
                 request.encode(out).map_err(FrameEncodeError::Json)
             }
-            Frame::Tools(request) => {
-                out.extend_from_slice(&[TOOLS]);
+            Frame::Dependencies(request) => {
+                out.extend_from_slice(&[DEPENDENCIES]);
                 request.encode(out).map_err(FrameEncodeError::Json)
             }
             Frame::Write(request) => {
@@ -418,9 +418,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             OCI_HAS => oci::has::request::Request::decode(rest)
                 .map(Frame::OciHas)
                 .map_err(FrameError::Oci),
-            TOOLS => tools::request::Request::decode(rest)
-                .map(Frame::Tools)
-                .map_err(FrameError::Tools),
+            DEPENDENCIES => dependencies::request::Request::decode(rest)
+                .map(Frame::Dependencies)
+                .map_err(FrameError::Dependencies),
             WRITE => write_bytes::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
@@ -506,8 +506,8 @@ pub enum FrameError {
     UnknownTag(u8),
     /// An image ask did not parse.
     Oci(serde_json::Error),
-    /// The tools did not parse.
-    Tools(serde_json::Error),
+    /// The dependencies did not parse.
+    Dependencies(serde_json::Error),
     /// The write content request did not decode.
     Write(write_bytes::request::RequestError),
     /// The connection id was not four bytes.
@@ -537,8 +537,8 @@ impl fmt::Display for FrameError {
             FrameError::Oci(error) => {
                 write!(f, "image ask did not parse: {error}")
             }
-            FrameError::Tools(error) => {
-                write!(f, "tools did not parse: {error}")
+            FrameError::Dependencies(error) => {
+                write!(f, "dependencies did not parse: {error}")
             }
             FrameError::Write(error) => {
                 write!(f, "write content request did not decode: {error}")
@@ -559,7 +559,7 @@ impl std::error::Error for FrameError {
         match self {
             FrameError::Daemon(error) => Some(error),
             FrameError::Oci(error)
-            | FrameError::Tools(error)
+            | FrameError::Dependencies(error)
             | FrameError::McpParams(error) => Some(error),
             FrameError::Write(error) => Some(error),
             FrameError::Postgres(error) => Some(error),

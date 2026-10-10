@@ -21,6 +21,11 @@
 //! common, which is everything but one exchange each: asking for a
 //! container, working with its files, and the asks it makes back.
 //!
+//! [`permission`] is what a grant is made of — the actions over each
+//! kind of thing the daemon holds, and the grants that reach by tags
+//! alone, which a dependency tool template carries and the daemon's
+//! own grants are built of.
+//!
 //! [`error`] is the odd one out: a shape nothing carries yet. It is
 //! here rather than beside whichever frame first needs it, because a
 //! failure that means different things in different modules is a
@@ -36,3 +41,4 @@ pub mod containers;
 pub mod error;
 pub mod filetree;
 pub mod mcp;
+pub mod permission;

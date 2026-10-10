@@ -80,14 +80,23 @@
 //! mount of a file or a directory in it — at the container's create or
 //! edit takes `mount` over the volume, beside the `create` or `edit`
 //! grant over the container.
+//!
+//! # The actions are the shared ones
+//!
+//! Every kind's `Make` and `Over`, with [`Tagging`] and [`Within`], are
+//! defined once in [`shared::permission`](crate::shared::permission)
+//! and re-exported here: the grants a dependency tool template carries
+//! are made of the same actions, reaching by tags alone, and a grant
+//! here reaches by the kind's own filter. Every kind but the database
+//! carries tags — agents, templates, tools, providers, credentials,
+//! accounts, roles and volumes alike — so every kind but the database
+//! has the tagging shape. Routes alone have no shared actions: a route
+//! names a position, and travels nowhere.
 
 mod grant;
-mod tagging;
-mod within;
 
 pub use grant::*;
-pub use tagging::*;
-pub use within::*;
+pub use crate::shared::permission::{Tagging, Within};
 
 pub mod agents;
 pub mod agents_templates;
@@ -99,4 +108,4 @@ pub mod providers_incoming;
 pub mod accounts;
 pub mod roles;
 pub mod volumes;
-pub mod postgres;
+pub use crate::shared::permission::postgres;

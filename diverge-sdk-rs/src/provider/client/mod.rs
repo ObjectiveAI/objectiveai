@@ -20,7 +20,7 @@
 //! |-------|---------|
 //! | [`OciStore`] | whether the caller holds an image, and its manifest and blobs |
 //! | [`ConnectionAuthorizer`] | whether a connector may attach |
-//! | [`ToolDeployer`] | the tool containers the container declared, run |
+//! | [`DependencyDeployer`] | the dependencies the container declared, each a tool container, run |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`Daemon`] | the frames of the container's daemon connection, answered by the daemon's session for it |
 //! | [`Vault`] | the container's secrets, with locks |
@@ -38,19 +38,19 @@
 mod answerers;
 mod daemon;
 mod connection_authorizer;
+mod dependency_deployer;
 mod fuse_server;
 mod mcp_server;
 mod oci_store;
 mod postgres_dialer;
-mod tool_deployer;
 mod vault;
 
 pub use answerers::*;
 pub use daemon::*;
 pub use connection_authorizer::*;
+pub use dependency_deployer::*;
 pub use fuse_server::*;
 pub use mcp_server::*;
 pub use oci_store::*;
 pub use postgres_dialer::*;
-pub use tool_deployer::*;
 pub use vault::*;

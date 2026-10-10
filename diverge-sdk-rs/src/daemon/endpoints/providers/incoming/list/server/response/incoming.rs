@@ -8,8 +8,8 @@ use crate::daemon::endpoints::providers::incoming::Credential;
 
 /// One credential: the identity it names and the address it is accepted
 /// from — never the key — whether a provider is connected through it
-/// now, when it was added and by whom. A list sends them oldest added
-/// first.
+/// now, when it was added and by whom, and its tags. A list sends them
+/// oldest added first.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Incoming {
     /// The credential, which carries no key: see [`Credential`].
@@ -26,4 +26,9 @@ pub struct Incoming {
     /// tool of the client's that did so through the daemon. One
     /// [`Creator`](crate::daemon::creator::Creator), the direct maker.
     pub creator: Creator,
+    /// The tags on it, as
+    /// [`tag`](crate::daemon::endpoints::providers::incoming::tag) put
+    /// them. Absent when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
 }

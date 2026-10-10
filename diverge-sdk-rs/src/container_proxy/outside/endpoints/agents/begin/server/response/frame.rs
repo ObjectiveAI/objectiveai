@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::tools::Tool;
+use crate::shared::containers::dependencies::Template;
 use crate::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use crate::shared::error::Error;
 
@@ -23,7 +23,7 @@ use crate::shared::error::Error;
 ///
 /// | the scope | means |
 /// |-----------|-------|
-/// | a begun, then quiet, and stays open | the container holds its arguments and its tools are known, and no loop has run |
+/// | a begun, then quiet, and stays open | the container holds its arguments and its dependencies are known, and no loop has run |
 /// | a begun, an active, then chunks, and stays open | a loop is running, and the agent is speaking |
 /// | …an active, chunks, an inactive, and stays open | that loop ran and ended; the agent is quiet until the next message |
 /// | an error, then a finish | it has not begun — this connection had already begun, or the arguments were refused |
@@ -62,15 +62,16 @@ use crate::shared::error::Error;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The connection has begun, the container holds its arguments
-    /// for its life, and these are the tools it declared. Tag `0`.
+    /// for its life, and these are the dependencies it declared. Tag
+    /// `0`.
     ///
     /// Arrives once, when the container's server has taken the
-    /// arguments and answered with its tools — as JSON, a list, empty
-    /// for a program that needs none; see
-    /// [`tools`](crate::shared::containers::tools) for what one is
-    /// and what the provider does with the list. A channel on this
-    /// scope is opened only after it.
-    Begun(Vec<Tool>),
+    /// arguments and answered with its dependencies — as JSON, a
+    /// list, empty for a program that needs none; see
+    /// [`dependencies`](crate::shared::containers::dependencies) for
+    /// what one is and what the provider does with the list. A
+    /// channel on this scope is opened only after it.
+    Begun(Vec<Template>),
     /// A failure. Tag `1`.
     ///
     /// A second begin on a connection that had one, or arguments the
@@ -136,9 +137,9 @@ impl Encode for Frame {
         out: &mut Writer<'_>,
     ) -> Result<(), serde_json::Error> {
         match self {
-            Frame::Begun(tools) => {
+            Frame::Begun(dependencies) => {
                 out.extend_from_slice(&[BEGUN]);
-                serde_json::to_writer(out, tools)
+                serde_json::to_writer(out, dependencies)
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -194,7 +195,7 @@ pub enum FrameError {
     /// a variant says so, rather than reading somebody else's bytes as
     /// its own.
     UnknownTag(u8),
-    /// The tools did not parse.
+    /// The dependencies did not parse.
     Begun(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
@@ -212,7 +213,7 @@ impl fmt::Display for FrameError {
                 write!(f, "unknown agents begin response frame tag {tag}")
             }
             FrameError::Begun(error) => {
-                write!(f, "agents begin tools did not parse: {error}")
+                write!(f, "agents begin dependencies did not parse: {error}")
             }
             FrameError::Error(error) => {
                 write!(f, "agents begin error did not parse: {error}")

@@ -25,7 +25,7 @@ use crate::provider::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy::outside::endpoints::tools::begin::client::execute as begin;
 use crate::shared;
 use crate::shared::containers::response::{Id, VolumeHeld, VolumeMode};
-use crate::shared::containers::{fuse, oci, postgres, tools, vault};
+use crate::shared::containers::{dependencies, fuse, oci, postgres, vault};
 use crate::shared::containers::daemon;
 use crate::shared::mcp;
 use crate::shared::error::Error;
@@ -130,7 +130,7 @@ impl Runs for Tools {
                     asks,
                     chunks: None,
                     finish: Some(finish),
-                    tools: Vec::new(),
+                    dependencies: Vec::new(),
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -143,7 +143,7 @@ impl Runs for Tools {
     }
 
     /// A tool container declares nothing: nothing is asked.
-    fn deploy(_: &ScopeHandle, _: &[tools::Tool]) -> impl Future<Output = Result<(), Error>> + Send {
+    fn deploy(_: &ScopeHandle, _: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
         async { Ok(()) }
     }
 

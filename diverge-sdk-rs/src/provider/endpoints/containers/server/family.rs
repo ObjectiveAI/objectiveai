@@ -20,7 +20,7 @@ use crate::container_proxy::outside::endpoints::fuse::mount::client::execute::As
 use crate::wire::decode::Decode;
 use crate::wire::encode::Encode;
 use crate::shared::containers::response::{Id, VolumeHeld, VolumeMode};
-use crate::shared::containers::tools::Tool;
+use crate::shared::containers::dependencies::Template;
 use crate::wire::server::scope_handle::ScopeHandle;
 use crate::shared::error::Error;
 use crate::shared::filetree;
@@ -80,12 +80,13 @@ pub(crate) trait Runs: Family {
     /// error is the run's, in the proxy's words where it refused.
     fn begin(proxy: &Handle, arguments: Value) -> impl Future<Output = Result<Begun, Error>> + Send;
 
-    /// The tools the container declared, asked of the caller before
-    /// the id: an agent container's on its `tools` channel, nothing
-    /// when it declared none; a tool container declares nothing and
-    /// nothing is asked. A deploy is `Ok`; anything else is the run's
-    /// error, in the caller's words where it refused.
-    fn deploy(scope: &ScopeHandle, declared: &[Tool]) -> impl Future<Output = Result<(), Error>> + Send;
+    /// The dependencies the container declared, asked of the caller
+    /// before the id: an agent container's on its `dependencies`
+    /// channel, nothing when it declared none; a tool container
+    /// declares nothing and nothing is asked. A deploy is `Ok`;
+    /// anything else is the run's error, in the caller's words where
+    /// it refused.
+    fn deploy(scope: &ScopeHandle, declared: &[Template]) -> impl Future<Output = Result<(), Error>> + Send;
 
     /// The proxy's ask on the begin scope, as this family's frame to
     /// the caller — or [`None`] for the one that is not carried as it

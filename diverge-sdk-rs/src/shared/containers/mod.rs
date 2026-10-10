@@ -44,7 +44,7 @@ pub mod read;
 pub mod request;
 pub mod response;
 pub mod schema;
-pub mod tools;
+pub mod dependencies;
 pub mod transfer;
 pub mod vault;
 pub mod write_bytes;

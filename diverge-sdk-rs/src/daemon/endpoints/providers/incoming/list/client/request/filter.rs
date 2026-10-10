@@ -30,6 +30,16 @@ pub struct Filter {
     /// and then added by anybody.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creators: Vec<Creator>,
+    /// Every one of these among the credential's tags, as
+    /// [`tag`](crate::daemon::endpoints::providers::incoming::tag) put them. Absent
+    /// when empty, and then any tags.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub all_tags: Vec<String>,
+    /// Any one of these among the credential's tags, as
+    /// [`tag`](crate::daemon::endpoints::providers::incoming::tag) put them; with
+    /// `all_tags`, both hold. Absent when empty, and then any tags.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub any_tags: Vec<String>,
     /// The earliest `created` to list, inclusive; absent, no earliest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_from: Option<DateTime<Utc>>,

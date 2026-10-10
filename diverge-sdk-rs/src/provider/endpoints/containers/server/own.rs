@@ -22,7 +22,6 @@ pub(crate) enum Own<'a> {
         /// The manifest digest.
         digest: &'a str,
     },
-    /// The tools the container declared, to deploy.
     /// This end's half of a database connection, by the id it minted.
     /// A daemon connection the proxy announced, by an id of this
     /// end's own. See

@@ -9,7 +9,7 @@
 //! by its [`reference::Volume`](crate::daemon::reference::Volume): the
 //! provider's identity and the name. [`create`] asks a provider for a
 //! volume; [`get`] answers one as a list would; [`list`] lists them
-//! across providers, narrowed; [`delete`] destroys one nothing uses;
+//! across providers, narrowed, with their tags; [`delete`] destroys one nothing uses;
 //! [`edit`] changes how much one reserves, its mode, or both; [`stat`]
 //! walks one for how much of it is used and the hash of its content;
 //! [`filetree`] answers one's tree, once; [`download`] sends the client
@@ -43,11 +43,14 @@
 //!
 //! # What a volume is not
 //!
-//! A volume carries no tags and no creator: it is the provider's, not
-//! the daemon's, and a provider that offers one on its own made it with
-//! no account of the daemon's. Naming a volume in a container's mounts,
-//! at the container's create or edit, takes the `mount` grant over it:
-//! see [`grant`](crate::daemon::grant).
+//! A volume carries no creator: it is the provider's, not the
+//! daemon's, and a provider that offers one on its own made it with no
+//! account of the daemon's. Its tags are the daemon's — [`tag`] and
+//! [`untag`] change them, and a list reports them beside what the
+//! provider says — kept for the volume's reference and dropped when
+//! the provider stops listing it. Naming a volume in a container's
+//! mounts, at the container's create or edit, takes the `mount` grant
+//! over it: see [`grant`](crate::daemon::grant).
 
 pub mod create;
 pub mod delete;
@@ -57,5 +60,7 @@ pub mod filetree;
 pub mod get;
 pub mod list;
 pub mod stat;
+pub mod tag;
 pub mod transfer;
+pub mod untag;
 pub mod upload;

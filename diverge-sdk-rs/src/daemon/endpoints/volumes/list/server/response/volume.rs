@@ -10,10 +10,10 @@ use crate::provider::endpoints::volumes::Mode;
 /// One volume: the provider that holds it, and what that provider's
 /// listing says of it — its name, how many bytes it reserves, when it
 /// came into being, its mode — with the agents and the tools of the
-/// daemon's that name it in their mounts. No creator and no tags: a
-/// volume is the provider's. How much of it is used, and the hash of
-/// its content, cost the provider a walk, and are a
-/// [`stat`](crate::daemon::endpoints::volumes::stat)'s.
+/// daemon's that name it in their mounts, and its tags, which are the
+/// daemon's. No creator: a volume is the provider's. How much of it is
+/// used, and the hash of its content, cost the provider a walk, and
+/// are a [`stat`](crate::daemon::endpoints::volumes::stat)'s.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Volume {
     /// The provider that holds it: see [`Identity`].
@@ -38,4 +38,8 @@ pub struct Volume {
     /// [`key::Tool`]. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<key::Tool>,
+    /// The tags on it, as [`tag`](crate::daemon::endpoints::volumes::tag)
+    /// put them: the daemon's, not the provider's. Absent when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
 }

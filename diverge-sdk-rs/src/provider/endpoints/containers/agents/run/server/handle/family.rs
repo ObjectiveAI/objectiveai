@@ -27,7 +27,7 @@ use crate::provider::endpoints::containers::server::{encoded::encoded, render};
 use crate::container_proxy::outside::endpoints::agents::begin::client::execute as begin;
 use crate::shared;
 use crate::shared::containers::response::{Id, VolumeHeld, VolumeMode};
-use crate::shared::containers::{fuse, oci, postgres, tools, vault};
+use crate::shared::containers::{dependencies, fuse, oci, postgres, vault};
 use crate::shared::containers::daemon;
 use crate::shared::mcp;
 use crate::shared::error::Error;
@@ -122,12 +122,12 @@ impl Runs for Agents {
         let proxy = proxy.clone();
         async move {
             match begin::execute(&proxy, arguments).await {
-                Ok((handle, asks, chunks, tools)) => Ok(Begun {
+                Ok((handle, asks, chunks, dependencies)) => Ok(Begun {
                     begin: Begin::Agents(handle),
                     asks,
                     chunks: Some(chunks),
                     finish: None,
-                    tools,
+                    dependencies,
                 }),
                 Err(begin::ExecuteError::Refused(error)) => Err(error),
                 Err(error) => Err(render::proxy(error)),
@@ -139,19 +139,20 @@ impl Runs for Agents {
         Some(relayed(ask)?)
     }
 
-    /// The tools the agent declared, asked of the caller on this
-    /// family's `tools` channel: nothing when it declared none.
-    fn deploy(scope: &ScopeHandle, declared: &[tools::Tool]) -> impl Future<Output = Result<(), Error>> + Send {
+    /// The dependencies the agent declared, asked of the caller on
+    /// this family's `dependencies` channel: nothing when it declared
+    /// none.
+    fn deploy(scope: &ScopeHandle, declared: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
         let payload = (!declared.is_empty()).then(|| {
-            encoded(&ask::Frame::Tools(tools::request::Request {
-                tools: Cow::Borrowed(declared),
+            encoded(&ask::Frame::Dependencies(dependencies::request::Request {
+                dependencies: Cow::Borrowed(declared),
             }))
         });
         async move {
             match payload {
                 None => Ok(()),
                 Some(Some(payload)) => deployed(scope, &payload).await,
-                Some(None) => Err(render::tools_failed("the tools ask did not encode")),
+                Some(None) => Err(render::dependencies_failed("the dependencies ask did not encode")),
             }
         }
     }
