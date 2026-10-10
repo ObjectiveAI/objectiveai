@@ -19,6 +19,7 @@ use crate::host::Limit;
 use diverge_sdk::config::provider::containers::{Containers, Podman};
 use crate::host::tools::{mount, podman};
 use crate::host::volume_manager::VolumeManager;
+use diverge_sdk::shared::containers::request::Image;
 
 /// The provider's container deployer: podman, with the caps, the
 /// image cache, the volumes, and the way to the registry.
@@ -151,21 +152,20 @@ impl container_deployer::ContainerDeployer for ContainerDeployer {
     type Container = Container;
     type Error = Error;
 
-    /// The name checked as a repository path; then the deploy — the
-    /// image found and pulled beside the volumes bound, and the
-    /// container run.
+    /// Every reference's name checked as a repository path; then the
+    /// deploy — the image found and pulled beside the volumes bound,
+    /// and the container run.
     async fn deploy(
         &self,
         _client_identity: &str,
         deployment: &Deployment,
-        name: &str,
-        digest: &str,
+        image: &Image,
         caller: &Caller,
     ) -> Result<Container, Error> {
-        if !name_ok(name) {
-            return Err(Error::Name(name.to_string()));
+        if let Some(reference) = image.references.iter().find(|reference| !name_ok(&reference.name)) {
+            return Err(Error::Name(reference.name.clone()));
         }
-        deploy(self, deployment, name, digest, caller).await
+        deploy(self, deployment, image, caller).await
     }
 }
 

@@ -38,10 +38,7 @@ pub async fn handle<C>(
     C: ImageChecker,
     C::Error: Into<Error>,
 {
-    let frame = match checker
-        .check(client_identity, &request.name, &request.digest)
-        .await
-    {
+    let frame = match checker.check(client_identity, &request.0).await {
         Ok(response) => response::Frame::Response(response),
         Err(error) => response::Frame::Error(error.into()),
     };

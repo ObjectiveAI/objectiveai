@@ -19,6 +19,7 @@ use super::source::find;
 use super::{Container, ContainerDeployer, Error, Source};
 use crate::host::Held;
 use crate::host::tools::{capture, podman, start};
+use diverge_sdk::shared::containers::request::Image;
 
 /// Where the proxy is bound inside every container.
 const PROXY_INSIDE: &str = "/.diverge/diverge-container-proxy";
@@ -34,8 +35,7 @@ const PROXY_INSIDE: &str = "/.diverge/diverge-container-proxy";
 pub(super) async fn deploy(
     deployer: &ContainerDeployer,
     deployment: &Deployment,
-    name: &str,
-    digest: &str,
+    image: &Image,
     caller: &Caller,
 ) -> Result<Container, Error> {
     let Some(disk) = deployer.shared.disk.take(deployment.disk) else {
@@ -45,7 +45,7 @@ pub(super) async fn deploy(
         return Err(Error::Memory);
     };
     // A failure past here drops both, which gives both back.
-    after_limits(deployer, deployment, name, digest, caller, (disk, memory)).await
+    after_limits(deployer, deployment, image, caller, (disk, memory)).await
 }
 
 /// The steps once the caps are taken: the image and the mounts, both
@@ -55,13 +55,12 @@ pub(super) async fn deploy(
 async fn after_limits(
     deployer: &ContainerDeployer,
     deployment: &Deployment,
-    name: &str,
-    digest: &str,
+    image: &Image,
     caller: &Caller,
     caps: (Held, Held),
 ) -> Result<Container, Error> {
     let (image, bound) = future::join(
-        image(deployer, name, digest, caller),
+        obtain(deployer, image, caller),
         bind(deployer, &deployment.mounts),
     )
     .await;
@@ -96,22 +95,23 @@ async fn after_limits(
     }
 }
 
-/// The image: in the store, found by digest under any name or none,
-/// run as its id with nothing pulled and nobody asked; else wherever
-/// of every listed registry and the caller first answers that it
-/// holds it, pulled from there, which answers the id. Either way
-/// counted in the cache. The source and the id.
-async fn image(deployer: &ContainerDeployer, name: &str, digest: &str, caller: &Caller) -> Result<(Source, String), Error> {
-    let (source, image) = match podman::image_by_digest(digest).await.map_err(Error::Podman)? {
-        Some(image) => (Source::Local(image.clone()), image),
+/// The image obtained: in the store, found by digest under any name
+/// or none, run as its id with nothing pulled and nobody asked; else
+/// wherever of every referenced registry the configuration lists and
+/// the caller first answers that it holds it, pulled from there,
+/// which answers the id. Either way counted in the cache. The source
+/// and the id.
+async fn obtain(deployer: &ContainerDeployer, image: &Image, caller: &Caller) -> Result<(Source, String), Error> {
+    let (source, id) = match podman::image_by_digest(&image.digest).await.map_err(Error::Podman)? {
+        Some(id) => (Source::Local(id.clone()), id),
         None => {
-            let source = find(deployer, name, digest, caller).await?;
-            let image = pull(deployer, &source).await?;
-            (source, image)
+            let source = find(deployer, image, caller).await?;
+            let id = pull(deployer, &source).await?;
+            (source, id)
         }
     };
-    deployer.shared.images.starting(&image).await?;
-    Ok((source, image))
+    deployer.shared.images.starting(&id).await?;
+    Ok((source, id))
 }
 
 /// The steps once the image is in the store and counted: the

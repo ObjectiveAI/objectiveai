@@ -73,8 +73,8 @@ pub(crate) struct Mount {
 ///
 /// 1. The registry is told to serve the caller's manifests and blobs
 ///    under a fresh repository, and the deployer is asked for the
-///    image by name and digest, with the caller's help at hand —
-///    whether the caller holds it, and where the registry serves it.
+///    image, with the caller's help at hand — whether the caller holds
+///    it, under what path, and where the registry serves it.
 ///    Where the deployer gets the image is its own.
 /// 2. The container is deployed, its proxy listening.
 /// 3. The proxy is dialled: one WebSocket, for the container's life.
@@ -127,13 +127,12 @@ where
     let caller = Caller::new(
         Arc::clone(scope),
         has_ask::<R>,
-        request.image.name.clone(),
         request.image.digest.clone(),
         registry.address(),
         repository.clone(),
     );
     let container = match deployer
-        .deploy(client_identity, &deployment, &request.image.name, &request.image.digest, &caller)
+        .deploy(client_identity, &deployment, &request.image, &caller)
         .await
     {
         Ok(container) => container,
@@ -309,8 +308,8 @@ where
 
 /// The ask whether the caller holds the image, as this family's
 /// frame.
-fn has_ask<R: Runs>(name: &str, digest: &str) -> Vec<u8> {
-    encoded(&R::Ask::from(Own::OciHas { name, digest })).unwrap_or_default()
+fn has_ask<R: Runs>(digest: &str) -> Vec<u8> {
+    encoded(&R::Ask::from(Own::OciHas(digest))).unwrap_or_default()
 }
 
 /// The ask for a manifest the registry does not hold, as this

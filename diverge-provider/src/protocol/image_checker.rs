@@ -4,6 +4,7 @@
 use std::future::Future;
 
 use diverge_sdk::provider::endpoints::images::check::server::response::Response;
+use diverge_sdk::shared::containers::request::Image;
 
 /// Answers one question: would you supply this image, to this caller.
 ///
@@ -45,13 +46,14 @@ use diverge_sdk::provider::endpoints::images::check::server::response::Response;
 /// whatever authenticated the connection, opaque here, never minted or
 /// compared by this crate.
 ///
-/// # There is no registry in the question
+/// # A reference locates, the digest identifies
 ///
-/// A digest identifies the image and a registry only locates one, so
-/// where a provider would get it — its own mirror, a pull-through
-/// cache, a private registry it holds credentials for, something it
-/// already has on disk — is the provider's business and not part of
-/// what is being asked. See
+/// A digest identifies the image and a reference only states where
+/// its bytes may be fetched, so a provider looks in what it holds by
+/// digest first, asks a referenced registry only where its own policy
+/// lists that registry, ignores a reference naming one it does not,
+/// and may look anywhere else of its own. Which, is the provider's
+/// business and not part of what is being asked. See
 /// [`request::Frame`](diverge_sdk::provider::endpoints::images::check::client::request::Frame),
 /// which says the same from the other side.
 ///
@@ -74,7 +76,8 @@ pub trait ImageChecker: Send + Sync {
     /// and is [`Ok`].
     type Error: Send + 'static;
 
-    /// Would you supply the image named by this repository and digest.
+    /// Would you supply the image this digest names, given where its
+    /// bytes may be fetched.
     ///
     /// [`Available`](diverge_sdk::provider::endpoints::images::check::server::response::Available)
     /// or
@@ -99,7 +102,6 @@ pub trait ImageChecker: Send + Sync {
     fn check(
         &self,
         client_identity: &str,
-        name: &str,
-        digest: &str,
+        image: &Image,
     ) -> impl Future<Output = Result<Response, Self::Error>> + Send;
 }

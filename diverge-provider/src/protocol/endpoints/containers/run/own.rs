@@ -15,13 +15,9 @@ pub(crate) enum Own<'a> {
     OciManifest(&'a str),
     /// A blob of such an image, by digest.
     OciBlob(&'a str),
-    /// Whether the caller holds an image, by name and digest.
-    OciHas {
-        /// The repository path.
-        name: &'a str,
-        /// The manifest digest.
-        digest: &'a str,
-    },
+    /// Whether the caller holds an image, by digest, and under what
+    /// name.
+    OciHas(&'a str),
     /// This end's half of a database connection, by the id it minted.
     /// A daemon connection the proxy announced, by an id of this
     /// end's own. See

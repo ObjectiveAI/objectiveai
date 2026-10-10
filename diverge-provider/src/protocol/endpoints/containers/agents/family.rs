@@ -228,8 +228,7 @@ impl<'a> From<Own<'a>> for ask::Frame<'a> {
             Own::OciBlob(digest) => ask::Frame::OciBlob(oci::blob::request::Request {
                 digest: digest.to_string(),
             }),
-            Own::OciHas { name, digest } => ask::Frame::OciHas(oci::has::request::Request {
-                name: name.to_string(),
+            Own::OciHas(digest) => ask::Frame::OciHas(oci::has::request::Request {
                 digest: digest.to_string(),
             }),
             Own::Daemon(connection_id) => ask::Frame::Daemon(daemon::request::Daemon { connection_id }),

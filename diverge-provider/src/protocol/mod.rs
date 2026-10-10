@@ -103,8 +103,8 @@
 //! the caller, which is the one thing only this crate can be. The
 //! registry's HTTP is the provider's, for the reason above: this
 //! crate serves none. [`caller`] is what a run hands the deployer
-//! beside the image's name and digest: whether the caller holds it,
-//! asked on the scope, and where the registry serves it.
+//! beside the image: whether the caller holds it, asked on the
+//! scope, under what path, and where the registry serves it.
 //!
 //! [`directory`] is the type: every container the provider is running,
 //! by id, shared across connections — because a serve names a

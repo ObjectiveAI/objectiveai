@@ -16,15 +16,13 @@ use crate::host::volume_manager;
 /// what could not be made when the provider started.
 #[derive(Debug)]
 pub enum Error {
-    /// The image name is not a repository path: a segment that is
+    /// A reference's name is not a repository path: a segment that is
     /// not lowercase letters, digits and single separators, or an
     /// empty one. Refused, never normalized, since it lands in a URL.
     Name(String),
     /// The image is nowhere the provider looks: not in its store, not
-    /// in any registry it uses, and not with the caller.
+    /// in any referenced registry it uses, and not with the caller.
     Unavailable {
-        /// The repository path asked for.
-        name: String,
         /// The digest asked for.
         digest: String,
     },
@@ -76,8 +74,8 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Name(name) => write!(f, "the image name `{name}` is not a repository path"),
-            Error::Unavailable { name, digest } => {
-                write!(f, "the image `{name}` at `{digest}` is nowhere the provider looks")
+            Error::Unavailable { digest } => {
+                write!(f, "the image `{digest}` is nowhere the provider looks")
             }
             Error::Disk => write!(f, "the running containers have the provider's disk"),
             Error::Memory => write!(f, "the running containers have the provider's memory"),

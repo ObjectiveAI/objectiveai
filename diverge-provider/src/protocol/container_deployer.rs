@@ -5,6 +5,7 @@ use std::future::Future;
 use super::caller::Caller;
 use super::container::Container;
 use super::deployment::Deployment;
+use diverge_sdk::shared::containers::request::Image;
 
 /// What runs a container for a provider.
 ///
@@ -103,11 +104,13 @@ use super::deployment::Deployment;
 ///
 /// # One method, and the source is the provider's
 ///
-/// An [`Image`](diverge_sdk::shared::containers::request::Image) is a name
-/// and a digest, and says nothing about where the bytes come from.
-/// That is the implementation's decision, made from the pair alone:
-/// its own store, a registry it uses, the caller through the
-/// [`Caller`] it is handed — in whatever order, by whatever policy.
+/// An [`Image`] is a
+/// digest and references, each a registry and a path there, and says
+/// nothing about where the bytes come from beyond them. That is the
+/// implementation's decision: its own store, by digest; a referenced
+/// registry it uses — one its own policy lists, and no other; the
+/// caller through the [`Caller`] it is handed — in whatever order, by
+/// whatever policy.
 /// What the protocol asserts is only that the container runs the
 /// image the digest names, and a runtime that hashes what it pulls
 /// makes that so wherever the bytes were found.
@@ -199,17 +202,19 @@ pub trait ContainerDeployer: Send + Sync {
     /// was for.
     type Error: Send + 'static;
 
-    /// Deploy the image `name` at `digest`, from wherever the
-    /// implementation gets it.
+    /// Deploy the image `image` names, from wherever the implementation
+    /// gets it.
     ///
-    /// Its own store, a mirror, a registry it holds credentials for,
-    /// or the caller: `caller` says whether the caller holds the
-    /// image and where the provider's registry serves it when it
-    /// does, and an implementation that takes the image from there
-    /// points its runtime at `<registry>/<repository>/<name>@<digest>`
-    /// and pulls as from any registry. Which sources it tries, and in
-    /// what order, is its own; a pair it can get from none of them is
-    /// an [`Error`](Self::Error) like any other. The pair is the one
+    /// Its own store, by digest; a referenced registry its policy
+    /// lists; or the caller: `caller` says whether the caller holds
+    /// the image, under what repository path, and where the provider's
+    /// registry serves it when it does, and an implementation that
+    /// takes the image from there points its runtime at
+    /// `<registry>/<repository>/<name>@<digest>`, with `name` the path
+    /// the caller answered, and pulls as from any registry. Which
+    /// sources it tries, and in what order, is its own; an image it
+    /// can get from none of them is an [`Error`](Self::Error) like any
+    /// other. The image is the one
     /// [`images::check`](diverge_sdk::provider::endpoints::images::check) asks about,
     /// so a check that came back available names an image this can
     /// be handed with nothing to translate.
@@ -222,13 +227,14 @@ pub trait ContainerDeployer: Send + Sync {
     /// rather than reimplemented beside it — one cache, and no second
     /// one to disagree with it.
     ///
-    /// # The name is a path fragment, and is not checked
+    /// # A name is a path fragment, and is not checked
     ///
-    /// It lands in a reference by concatenation. A `..` in it walks
-    /// out of the repository segment and into another caller's
-    /// namespace, so an implementation refuses a `name` that is not a
-    /// repository path before concatenating, and normalizes nothing.
-    /// Nothing upstream of here does it.
+    /// A reference's `name`, and the path the caller answers, land in
+    /// a reference by concatenation. A `..` in one walks out of the
+    /// repository segment and into another caller's namespace, so an
+    /// implementation refuses one that is not a repository path before
+    /// concatenating, and normalizes nothing. Nothing upstream of here
+    /// does it.
     ///
     /// The digest needs no such care: the provider's registry hashes
     /// what the caller sent before serving it, and the runtime hashes
@@ -244,8 +250,7 @@ pub trait ContainerDeployer: Send + Sync {
         &self,
         client_identity: &str,
         deployment: &Deployment,
-        name: &str,
-        digest: &str,
+        image: &Image,
         caller: &Caller,
     ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
 }

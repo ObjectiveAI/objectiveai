@@ -53,20 +53,22 @@
 //!
 //! # The images
 //!
-//! An image is a name and a digest, and where the bytes come from is
-//! this provider's decision. The store is looked in first, by the
-//! digest alone — the name an image is held under there, or no name,
-//! does not matter — and an image there is run as its id, with
-//! nothing pulled and nobody asked. Any other is looked for
-//! everywhere else at once: every registry the configuration lists,
-//! asked with the credential listed through an auth file the
-//! provider writes for podman, and the caller, asked on its scope
-//! whether it holds the image. The first to say yes is the source,
-//! and the image is pulled from there: from a registry as
-//! `<host>/<name>@<digest>`; from the
-//! caller through the provider's own registry, which listens on this
-//! host's loopback and fetches from the caller by digest — on Linux
-//! podman pulls on the host and reaches it there; on macOS and
+//! An image is a digest, and references stating where its bytes may
+//! be fetched; where they come from is this provider's decision. The
+//! store is looked in first, by the digest alone — the name an image
+//! is held under there, or no name, does not matter — and an image
+//! there is run as its id, with nothing pulled and nobody asked. Any
+//! other is looked for everywhere else at once: every referenced
+//! registry the configuration lists, asked as
+//! `<registry>/<name>@<digest>` with the credential listed through an
+//! auth file the provider writes for podman — a reference naming a
+//! registry not listed is ignored — and the caller, asked on its
+//! scope whether it holds the image, which answers the path it holds
+//! it under. The first to say yes is the source, and the image is
+//! pulled from there: from a registry as the reference names it; from
+//! the caller through the provider's own registry, which listens on
+//! this host's loopback and fetches from the caller by digest — on
+//! Linux podman pulls on the host and reaches it there; on macOS and
 //! Windows podman pulls inside its machine, and reaches the registry
 //! through one SSH tunnel the provider opens into the machine with
 //! the machine's own settings, for the provider's life. An image
