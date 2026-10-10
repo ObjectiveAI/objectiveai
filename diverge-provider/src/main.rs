@@ -3,11 +3,11 @@
 //! In order: the root is found and the one `config.yaml` read — see
 //! [`config`](diverge_sdk::config) — and the provider run on its
 //! block, under `<root>/provider/`, until it is told to stop — see
-//! [`serve`](diverge_provider::serve). The runtime is built
+//! [`serve`](diverge_provider::host::serve). The runtime is built
 //! here rather than attributed onto `main`, and a start that fails
 //! is the one thing this prints, as the error returned.
 
-use diverge_provider::serve;
+use diverge_provider::host::serve;
 use diverge_sdk::config;
 
 fn main() -> Result<(), serve::Error> {

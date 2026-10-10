@@ -3,7 +3,7 @@ name = "diverge-provider"
 version = "2.3.0"
 edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
-description = "The reference provider of the Diverge provider protocol — a server that serves callers as the specification requires"
+description = "The reference provider of the Diverge provider protocol — the server half for any provider, and one provider built on it"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://diverge.network"
@@ -19,15 +19,19 @@ path = "src/main.rs"
 [dependencies]
 # Path-only: this crate rides the workspace and is never published, so
 # the SDK is named by where it lives rather than by a version pin
-# version.sh would have to chase. `server` is the half that holds the
-# socket and hands this crate the scopes to serve.
+# version.sh would have to chase. The wire, the frames and the clients;
+# the server half is this crate's `protocol`.
 diverge-sdk = { path = "../diverge-sdk-rs" }
 # The volume cache: one lock per identity and per name, so callers
 # of different volumes never wait on each other.
 dashmap = "6.2.1"
-# `Stream`, the shape a volume's watch is handed back as; `alloc` for
-# the join utilities the cache fans out with.
-futures-util = { version = "0.3.33", default-features = false, features = ["alloc"] }
+# `Stream`, the shape a volume's watch is handed back as; `std` for
+# the join and select utilities the cache and the handlers fan out
+# with.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# A deployment's environment and mounts, in the order the request
+# gave them, which is the order the runtime is told them.
+indexmap = { version = "2.14.0", features = ["serde"] }
 # A volume's dirhash, as the specification defines it: Go's `h1:`
 # directory hash, a SHA-256 over SHA-256s, the last written as
 # standard base64 with padding.
@@ -45,8 +49,9 @@ serde_yaml_ng = "0.10.0"
 # `tokio::fs` hands every read to; `net` for the listeners and the
 # dials; `time` for the waits between a redial and the next, and
 # between one look at a starting proxy and the next; `signal` for the
-# Ctrl-C and the SIGTERM that stop the provider.
-tokio = { version = "1.53.1", features = ["process", "io-util", "fs", "sync", "rt", "rt-multi-thread", "net", "time", "signal"] }
+# Ctrl-C and the SIGTERM that stop the provider; `macros` for the
+# selects the handlers race a scope's ends with.
+tokio = { version = "1.53.1", features = ["process", "io-util", "fs", "sync", "rt", "rt-multi-thread", "net", "time", "signal", "macros"] }
 # The image registry a runtime pulls a caller-held image from — the
 # read side of the Distribution API on a loopback port — and the
 # provider's own port, where a caller's WebSocket is accepted and
@@ -59,6 +64,10 @@ axum = { version = "0.8.9", default-features = false, features = ["http1", "toki
 # the SDK's exactly; `connect` alone, since a peer is `host:port` and
 # the dial is `ws://`, with no TLS to speak.
 tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect"] }
+# The MCP types a tool container's exchanges carry, named by the run
+# machinery where it relays them: the SDK's version exactly, with the
+# same features.
+rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
 # A blob's pieces as the SDK hands them, passed through to the
 # runtime's response untouched.
 bytes = { version = "1.11.1", default-features = false }
