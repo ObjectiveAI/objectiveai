@@ -37,9 +37,10 @@ use crate::shared::error::Error;
 /// The id names the container to anything outside — a connector, which joins it by that id, or a
 /// later request — and the handle is the scope: for as long as it is
 /// held the container runs, and every channel a caller may open into
-/// the container is a method on it. The main stream carries nothing
-/// after the id until the run ends, which [`ExecuteHandle::wait`]
-/// reports.
+/// the container is a method on it. The main stream carries, after
+/// the id, every connector attached to the container and every one
+/// leaving, which [`ExecuteHandle::connections`] hands out until the
+/// run ends — the end [`ExecuteHandle::wait`] reports.
 ///
 /// # Dropping the handle ends nothing
 ///
@@ -93,6 +94,12 @@ where
             return Err(ExecuteError::VolumeMode(refused));
         }
         server::response::Frame::Error(error) => return Err(ExecuteError::Provider(error)),
+        // Nobody is connected before the id; either first is a
+        // provider out of order, which is a frame this end cannot
+        // place.
+        server::response::Frame::Connected(_) | server::response::Frame::Disconnected(_) => {
+            return Err(ExecuteError::Misrouted);
+        }
     };
 
     let writes = Arc::new(Writes::new());

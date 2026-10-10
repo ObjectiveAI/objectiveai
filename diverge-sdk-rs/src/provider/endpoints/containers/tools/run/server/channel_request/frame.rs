@@ -19,29 +19,28 @@ use crate::shared::mcp;
 /// | `1` | [`OciBlob`](Self::OciBlob) |
 /// | `2` | [`OciHas`](Self::OciHas) |
 /// | `3` | [`AuthorizeConnect`](Self::AuthorizeConnect) |
-/// | `4` | [`AuthorizeList`](Self::AuthorizeList) |
-/// | `5` | [`Write`](Self::Write) |
-/// | `6` | [`Postgres`](Self::Postgres) |
-/// | `7` | [`Daemon`](Self::Daemon) |
-/// | `8` | [`VaultGet`](Self::VaultGet) |
-/// | `9` | [`VaultSet`](Self::VaultSet) |
-/// | `10` | [`VaultDelete`](Self::VaultDelete) |
-/// | `11` | [`VaultLock`](Self::VaultLock) |
-/// | `12` | [`VaultUnlock`](Self::VaultUnlock) |
-/// | `13` | [`McpListTools`](Self::McpListTools) |
-/// | `14` | [`McpListResources`](Self::McpListResources) |
-/// | `15` | [`McpCallTool`](Self::McpCallTool) |
-/// | `16` | [`McpReadResource`](Self::McpReadResource) |
-/// | `17` | [`McpNotifications`](Self::McpNotifications) |
-/// | `18` | [`FuseRead`](Self::FuseRead) |
-/// | `19` | [`FuseWrite`](Self::FuseWrite) |
-/// | `20` | [`FuseList`](Self::FuseList) |
-/// | `21` | [`FuseRemove`](Self::FuseRemove) |
-/// | `22` | [`FuseRename`](Self::FuseRename) |
-/// | `23` | [`FuseMkdir`](Self::FuseMkdir) |
-/// | `24` | [`FuseStat`](Self::FuseStat) |
-/// | `25` | [`FuseTruncate`](Self::FuseTruncate) |
-/// | `26` | [`FuseSetattr`](Self::FuseSetattr) |
+/// | `4` | [`Write`](Self::Write) |
+/// | `5` | [`Postgres`](Self::Postgres) |
+/// | `6` | [`Daemon`](Self::Daemon) |
+/// | `7` | [`VaultGet`](Self::VaultGet) |
+/// | `8` | [`VaultSet`](Self::VaultSet) |
+/// | `9` | [`VaultDelete`](Self::VaultDelete) |
+/// | `10` | [`VaultLock`](Self::VaultLock) |
+/// | `11` | [`VaultUnlock`](Self::VaultUnlock) |
+/// | `12` | [`McpListTools`](Self::McpListTools) |
+/// | `13` | [`McpListResources`](Self::McpListResources) |
+/// | `14` | [`McpCallTool`](Self::McpCallTool) |
+/// | `15` | [`McpReadResource`](Self::McpReadResource) |
+/// | `16` | [`McpNotifications`](Self::McpNotifications) |
+/// | `17` | [`FuseRead`](Self::FuseRead) |
+/// | `18` | [`FuseWrite`](Self::FuseWrite) |
+/// | `19` | [`FuseList`](Self::FuseList) |
+/// | `20` | [`FuseRemove`](Self::FuseRemove) |
+/// | `21` | [`FuseRename`](Self::FuseRename) |
+/// | `22` | [`FuseMkdir`](Self::FuseMkdir) |
+/// | `23` | [`FuseStat`](Self::FuseStat) |
+/// | `24` | [`FuseTruncate`](Self::FuseTruncate) |
+/// | `25` | [`FuseSetattr`](Self::FuseSetattr) |
 ///
 /// Twenty-seven: the agents family's twenty-six less its `tools`,
 /// which a tool container is never asked — it declares no
@@ -81,10 +80,7 @@ pub enum Frame<'a> {
     /// Opened when one arrives; see
     /// [`authorize`](crate::shared::containers::authorize).
     AuthorizeConnect(authorize::request::AuthorizeConnect),
-    /// Ask the caller whether a lister may see this container: who
-    /// asks, attested. Tag `4`.
-    AuthorizeList(authorize::request::AuthorizeList),
-    /// Send the content for a write. Tag `5`.
+    /// Send the content for a write. Tag `4`.
     ///
     /// Opened in answer to a write the caller started. A write cannot
     /// carry its own content — only a responder can finish a channel —
@@ -92,14 +88,14 @@ pub enum Frame<'a> {
     /// [`write_bytes`](crate::shared::containers::write_bytes).
     Write(write_bytes::request::Request),
     /// The provider's half of a database connection the container
-    /// opened. Tag `6`.
+    /// opened. Tag `5`.
     ///
     /// What comes back is everything the database says; the caller
     /// opens the other half, or declines. See
     /// [`postgres`](crate::shared::containers::postgres).
     Postgres(postgres::request::Postgres),
     /// A daemon connection the program opened, by the id the provider
-    /// minted. Tag `7`.
+    /// minted. Tag `6`.
     ///
     /// This half is the proxy's, relayed under an id of the provider's.
     /// What comes back on it is everything the DAEMON says, as
@@ -108,64 +104,64 @@ pub enum Frame<'a> {
     /// connection declined. See
     /// [`daemon`](crate::shared::containers::daemon) for the pair.
     Daemon(daemon::request::Daemon),
-    /// Read a vault key. Tag `8`.
+    /// Read a vault key. Tag `7`.
     VaultGet(vault::get::request::Request<'a>),
-    /// Write a vault key. Tag `9`.
+    /// Write a vault key. Tag `8`.
     VaultSet(vault::set::request::Request<'a>),
-    /// Remove a vault key. Tag `10`.
+    /// Remove a vault key. Tag `9`.
     VaultDelete(vault::delete::request::Request<'a>),
-    /// Hold a vault key's lock. Tag `11`.
+    /// Hold a vault key's lock. Tag `10`.
     VaultLock(vault::lock::request::Request<'a>),
-    /// Release a vault key's lock. Tag `12`.
+    /// Release a vault key's lock. Tag `11`.
     ///
     /// The five vault asks are the container's; see
     /// [`vault`](crate::shared::containers::vault) for what each
     /// carries and how a lock behaves.
     VaultUnlock(vault::unlock::request::Request<'a>),
-    /// What tools the caller's servers have. Tag `13`.
+    /// What tools the caller's servers have. Tag `12`.
     ///
     /// The container asking OUTWARD: an agent's tool calls go to
     /// servers that live with the caller, so the five exchanges in
     /// [`shared::mcp`](crate::shared::mcp) travel this direction too.
     McpListTools(mcp::list_tools::request::Request),
-    /// What resources they have. Tag `14`.
+    /// What resources they have. Tag `13`.
     McpListResources(mcp::list_resources::request::Request),
-    /// Run one of their tools. Tag `15`.
+    /// Run one of their tools. Tag `14`.
     McpCallTool(mcp::call_tool::request::Request),
-    /// Read one of their resources. Tag `16`.
+    /// Read one of their resources. Tag `15`.
     McpReadResource(mcp::read_resource::request::Request),
-    /// Everything they say on their own account. Tag `17`.
+    /// Everything they say on their own account. Tag `16`.
     McpNotifications(mcp::notifications::request::Request),
     /// Read a piece of a file the caller mounted live, by the mount's
-    /// id, the file's path in it, an offset and a length. Tag `18`.
+    /// id, the file's path in it, an offset and a length. Tag `17`.
     ///
     /// The container's proxy asking on behalf of a FUSE mount: every
     /// `read(2)` of the file. See
     /// [`fuse`](crate::shared::containers::fuse).
     FuseRead(fuse::read::request::Request<'a>),
     /// Write a piece of a file the caller mounted live, in place at
-    /// an offset. Tag `19`.
+    /// an offset. Tag `18`.
     ///
     /// Every `write(2)` of the file.
     FuseWrite(fuse::write::request::Request<'a>),
-    /// List a directory of a tree the caller mounted live. Tag `20`.
+    /// List a directory of a tree the caller mounted live. Tag `19`.
     ///
     /// Every listing in a directory mount: names and kinds.
     FuseList(fuse::list::request::Request<'a>),
-    /// Remove a file or an empty directory of such a tree. Tag `21`.
+    /// Remove a file or an empty directory of such a tree. Tag `20`.
     FuseRemove(fuse::remove::request::Request<'a>),
-    /// Rename an entry within such a tree. Tag `22`.
+    /// Rename an entry within such a tree. Tag `21`.
     FuseRename(fuse::rename::request::Request<'a>),
-    /// Make a directory in such a tree. Tag `23`.
+    /// Make a directory in such a tree. Tag `22`.
     FuseMkdir(fuse::mkdir::request::Request<'a>),
     /// What an entry the caller mounted live is: kind, size, mode,
-    /// owner, group and times. Tag `24`.
+    /// owner, group and times. Tag `23`.
     ///
     /// Every attribute of a file mount, and every lookup and
     /// attribute of an entry in a directory mount: a `stat` costs
     /// fifty-seven bytes back, not the file.
     FuseStat(fuse::stat::request::Request<'a>),
-    /// Set a file the caller mounted live to a length. Tag `25`.
+    /// Set a file the caller mounted live to a length. Tag `24`.
     ///
     /// Every `truncate(2)`, `ftruncate(2)` and `O_TRUNC` open.
     FuseTruncate(fuse::truncate::request::Request<'a>),
@@ -188,74 +184,71 @@ const OCI_HAS: u8 = 2;
 /// Tag for [`Frame::AuthorizeConnect`].
 const AUTHORIZE_CONNECT: u8 = 3;
 
-/// Tag for [`Frame::AuthorizeList`].
-const AUTHORIZE_LIST: u8 = 4;
-
 /// Tag for [`Frame::Write`].
-const WRITE: u8 = 5;
+const WRITE: u8 = 4;
 
 /// Tag for [`Frame::Postgres`].
-const POSTGRES: u8 = 6;
+const POSTGRES: u8 = 5;
 
 /// Tag for [`Frame::Daemon`].
-const DAEMON: u8 = 7;
+const DAEMON: u8 = 6;
 
 /// Tag for [`Frame::VaultGet`].
-const VAULT_GET: u8 = 8;
+const VAULT_GET: u8 = 7;
 
 /// Tag for [`Frame::VaultSet`].
-const VAULT_SET: u8 = 9;
+const VAULT_SET: u8 = 8;
 
 /// Tag for [`Frame::VaultDelete`].
-const VAULT_DELETE: u8 = 10;
+const VAULT_DELETE: u8 = 9;
 
 /// Tag for [`Frame::VaultLock`].
-const VAULT_LOCK: u8 = 11;
+const VAULT_LOCK: u8 = 10;
 
 /// Tag for [`Frame::VaultUnlock`].
-const VAULT_UNLOCK: u8 = 12;
+const VAULT_UNLOCK: u8 = 11;
 
 /// Tag for [`Frame::McpListTools`].
-const MCP_LIST_TOOLS: u8 = 13;
+const MCP_LIST_TOOLS: u8 = 12;
 
 /// Tag for [`Frame::McpListResources`].
-const MCP_LIST_RESOURCES: u8 = 14;
+const MCP_LIST_RESOURCES: u8 = 13;
 
 /// Tag for [`Frame::McpCallTool`].
-const MCP_CALL_TOOL: u8 = 15;
+const MCP_CALL_TOOL: u8 = 14;
 
 /// Tag for [`Frame::McpReadResource`].
-const MCP_READ_RESOURCE: u8 = 16;
+const MCP_READ_RESOURCE: u8 = 15;
 
 /// Tag for [`Frame::McpNotifications`].
-const MCP_NOTIFICATIONS: u8 = 17;
+const MCP_NOTIFICATIONS: u8 = 16;
 
 /// Tag for [`Frame::FuseRead`].
-const FUSE_READ: u8 = 18;
+const FUSE_READ: u8 = 17;
 
 /// Tag for [`Frame::FuseWrite`].
-const FUSE_WRITE: u8 = 19;
+const FUSE_WRITE: u8 = 18;
 
 /// Tag for [`Frame::FuseList`].
-const FUSE_LIST: u8 = 20;
+const FUSE_LIST: u8 = 19;
 
 /// Tag for [`Frame::FuseRemove`].
-const FUSE_REMOVE: u8 = 21;
+const FUSE_REMOVE: u8 = 20;
 
 /// Tag for [`Frame::FuseRename`].
-const FUSE_RENAME: u8 = 22;
+const FUSE_RENAME: u8 = 21;
 
 /// Tag for [`Frame::FuseMkdir`].
-const FUSE_MKDIR: u8 = 23;
+const FUSE_MKDIR: u8 = 22;
 
 /// Tag for [`Frame::FuseStat`].
-const FUSE_STAT: u8 = 24;
+const FUSE_STAT: u8 = 23;
 
 /// Tag for [`Frame::FuseTruncate`].
-const FUSE_TRUNCATE: u8 = 25;
+const FUSE_TRUNCATE: u8 = 24;
 
 /// Tag for [`Frame::FuseSetattr`].
-const FUSE_SETATTR: u8 = 26;
+const FUSE_SETATTR: u8 = 25;
 
 impl Encode for Frame<'_> {
     /// The JSON failure from the asks that are JSON, or a vault key
@@ -280,11 +273,6 @@ impl Encode for Frame<'_> {
             Frame::AuthorizeConnect(authorize) => {
                 out.extend_from_slice(&[AUTHORIZE_CONNECT]);
                 serde_json::to_writer(out, authorize)
-                    .map_err(FrameEncodeError::Json)
-            }
-            Frame::AuthorizeList(list) => {
-                out.extend_from_slice(&[AUTHORIZE_LIST]);
-                serde_json::to_writer(out, list)
                     .map_err(FrameEncodeError::Json)
             }
             Frame::Write(request) => {
@@ -434,9 +422,6 @@ impl<'a> Decode<'a> for Frame<'a> {
             AUTHORIZE_CONNECT => serde_json::from_slice(rest)
                 .map(Frame::AuthorizeConnect)
                 .map_err(FrameError::AuthorizeConnect),
-            AUTHORIZE_LIST => serde_json::from_slice(rest)
-                .map(Frame::AuthorizeList)
-                .map_err(FrameError::AuthorizeList),
             WRITE => write_bytes::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
@@ -518,14 +503,12 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's twenty-eight.
+    /// A tag that is none of this frame's twenty-seven.
     UnknownTag(u8),
     /// An image ask did not parse.
     Oci(serde_json::Error),
     /// The authorization request did not parse.
     AuthorizeConnect(serde_json::Error),
-    /// The listing authorization request did not parse.
-    AuthorizeList(serde_json::Error),
     /// The write content request did not decode.
     Write(write_bytes::request::RequestError),
     /// The connection id was not four bytes.
@@ -558,9 +541,6 @@ impl fmt::Display for FrameError {
             FrameError::AuthorizeConnect(error) => {
                 write!(f, "authorization request did not parse: {error}")
             }
-            FrameError::AuthorizeList(error) => {
-                write!(f, "listing authorization request did not parse: {error}")
-            }
             FrameError::Write(error) => {
                 write!(f, "write content request did not decode: {error}")
             }
@@ -581,7 +561,6 @@ impl std::error::Error for FrameError {
             FrameError::Daemon(error) => Some(error),
             FrameError::Oci(error)
             | FrameError::AuthorizeConnect(error)
-            | FrameError::AuthorizeList(error)
             | FrameError::McpParams(error) => Some(error),
             FrameError::Write(error) => Some(error),
             FrameError::Postgres(error) => Some(error),

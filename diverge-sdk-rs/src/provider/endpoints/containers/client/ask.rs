@@ -30,8 +30,6 @@ pub enum Ask {
     OciHas(String, String),
     /// Whether a connector may attach.
     AuthorizeConnect(authorize::request::AuthorizeConnect),
-    /// Whether a lister may see the container.
-    AuthorizeList(authorize::request::AuthorizeList),
     /// The dependencies the container declared, to deploy, with the
     /// run's id.
     Dependencies {
@@ -156,7 +154,6 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
             Frame::AuthorizeConnect(request) => Ask::AuthorizeConnect(request),
-            Frame::AuthorizeList(request) => Ask::AuthorizeList(request),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
             Frame::Daemon(request) => Ask::Daemon(request.connection_id),

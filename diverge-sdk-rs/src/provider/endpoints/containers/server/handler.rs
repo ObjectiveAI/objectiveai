@@ -112,6 +112,7 @@ pub(crate) async fn run<R, D, G, V>(
 
     let id = prepared.id.clone();
     send(&scope, R::id(&Id { id: id.clone() })).await;
+    directory.announce(&id).await;
 
     // The dependencies were asked of the caller in the setup; the
     // list is not needed again.

@@ -36,36 +36,34 @@ pub enum ClientRequest<'a> {
     ContainersToolsRun(containers::tools::run::client::request::Frame),
     /// Tag `2`. Join a tool container somebody else is running.
     ContainersToolsConnect(containers::tools::connect::client::request::Frame),
-    /// Tag `3`. Find the tool containers an identity runs.
-    ContainersToolsListFor(containers::tools::list_for::client::request::Frame),
-    /// Tag `4`. Serve a subtree of a running container live.
+    /// Tag `3`. Serve a subtree of a running container live.
     ContainersServe(containers::serve::client::request::Frame),
-    /// Tag `5`. List the volumes a provider offers.
+    /// Tag `4`. List the volumes a provider offers.
     VolumesList(volumes::list::client::request::Frame),
-    /// Tag `6`. Examine one of them.
+    /// Tag `5`. Examine one of them.
     VolumesStat(volumes::stat::client::request::Frame),
-    /// Tag `7`. Read one file out of one.
+    /// Tag `6`. Read one file out of one.
     VolumesRead(volumes::read::client::request::Frame),
-    /// Tag `8`. Write one file into one.
+    /// Tag `7`. Write one file into one.
     VolumesWrite(volumes::write::client::request::Frame),
-    /// Tag `9`. See what one holds.
+    /// Tag `8`. See what one holds.
     VolumesFiletree(volumes::filetree::client::request::Frame),
-    /// Tag `10`. Serve one's files live.
+    /// Tag `9`. Serve one's files live.
     VolumesServe(volumes::serve::client::request::Frame),
-    /// Tag `11`. Ask how large a volume may be made.
+    /// Tag `10`. Ask how large a volume may be made.
     VolumesCreateCapacity(volumes::create_capacity::client::request::Frame),
-    /// Tag `12`. Make a volume.
+    /// Tag `11`. Make a volume.
     VolumesCreate(volumes::create::client::request::Frame),
-    /// Tag `13`. Ask how far one may grow.
+    /// Tag `12`. Ask how far one may grow.
     VolumesEditCapacity(volumes::edit_capacity::client::request::Frame),
-    /// Tag `14`. Change how much one reserves, or whether it keeps
+    /// Tag `13`. Change how much one reserves, or whether it keeps
     /// what is written into it.
     VolumesEdit(volumes::edit::client::request::Frame),
-    /// Tag `15`. Destroy one.
+    /// Tag `14`. Destroy one.
     VolumesDelete(volumes::delete::client::request::Frame),
-    /// Tag `16`. Ask whether an image can be supplied.
+    /// Tag `15`. Ask whether an image can be supplied.
     ImagesCheck(images::check::client::request::Frame),
-    /// Tag `17`. Ask what the provider is.
+    /// Tag `16`. Ask what the provider is.
     Version(version::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
@@ -113,9 +111,6 @@ impl Encode for ClientRequest<'_> {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::ContainersToolsConnect(frame) => {
-                frame.encode(out).map_err(ClientRequestEncodeError::Json)
-            }
-            ClientRequest::ContainersToolsListFor(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::ContainersServe(frame) => {
@@ -199,49 +194,46 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             2 => containers::tools::connect::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ContainersToolsConnect)
                 .ok(),
-            3 => containers::tools::list_for::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ContainersToolsListFor)
-                .ok(),
-            4 => containers::serve::client::request::Frame::decode(bytes)
+            3 => containers::serve::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ContainersServe)
                 .ok(),
-            5 => volumes::list::client::request::Frame::decode(bytes)
+            4 => volumes::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesList)
                 .ok(),
-            6 => volumes::stat::client::request::Frame::decode(bytes)
+            5 => volumes::stat::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesStat)
                 .ok(),
-            7 => volumes::read::client::request::Frame::decode(bytes)
+            6 => volumes::read::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesRead)
                 .ok(),
-            8 => volumes::write::client::request::Frame::decode(bytes)
+            7 => volumes::write::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesWrite)
                 .ok(),
-            9 => volumes::filetree::client::request::Frame::decode(bytes)
+            8 => volumes::filetree::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesFiletree)
                 .ok(),
-            10 => volumes::serve::client::request::Frame::decode(bytes)
+            9 => volumes::serve::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesServe)
                 .ok(),
-            11 => volumes::create_capacity::client::request::Frame::decode(bytes)
+            10 => volumes::create_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreateCapacity)
                 .ok(),
-            12 => volumes::create::client::request::Frame::decode(bytes)
+            11 => volumes::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreate)
                 .ok(),
-            13 => volumes::edit_capacity::client::request::Frame::decode(bytes)
+            12 => volumes::edit_capacity::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEditCapacity)
                 .ok(),
-            14 => volumes::edit::client::request::Frame::decode(bytes)
+            13 => volumes::edit::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesEdit)
                 .ok(),
-            15 => volumes::delete::client::request::Frame::decode(bytes)
+            14 => volumes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDelete)
                 .ok(),
-            16 => images::check::client::request::Frame::decode(bytes)
+            15 => images::check::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesCheck)
                 .ok(),
-            17 => version::client::request::Frame::decode(bytes)
+            16 => version::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Version)
                 .ok(),
             _ => None,

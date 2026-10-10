@@ -31,7 +31,7 @@ pub struct Frame(
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 26;
+const TAG: u8 = 25;
 
 /// JSON, as every request of the daemon's is: the template's own JSON,
 /// the very bytes its id is the hash of, after the tag.

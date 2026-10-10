@@ -240,16 +240,6 @@ where
                     .await;
                 });
             }
-            ClientRequest::ContainersToolsListFor(frame) => {
-                let identity = Arc::clone(&client_identity);
-                let directory = Arc::clone(&directory);
-                scopes.spawn(async move {
-                    endpoints::containers::tools::list_for::server::handle::handle(
-                        scope, frame, &identity, address, directory,
-                    )
-                    .await;
-                });
-            }
             ClientRequest::ContainersServe(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let directory = Arc::clone(&directory);

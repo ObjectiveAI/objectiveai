@@ -14,5 +14,4 @@
 //! [`run`] owns the container; [`connect`] joins one.
 
 pub mod connect;
-pub mod list_for;
 pub mod run;

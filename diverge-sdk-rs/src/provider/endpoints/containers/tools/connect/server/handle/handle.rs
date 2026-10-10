@@ -10,9 +10,10 @@ use crate::provider::endpoints::containers::server::family::Family as _;
 use crate::provider::endpoints::containers::server::run::{Run, send};
 use crate::provider::endpoints::containers::server::serve;
 use crate::provider::endpoints::containers::tools::connect::client::request;
+use crate::provider::endpoints::containers::tools::run::server::response::{Connector, Frame as RunFrame};
 use crate::wire::server::answer::{Answer, answer};
 use crate::provider::endpoints::containers::server::begin::Begin;
-use crate::provider::server::directory::Directory;
+use crate::provider::server::directory::{Attached, Directory};
 use crate::wire::server::scope_handle::ScopeHandle;
 use crate::shared::containers::authorize;
 use crate::shared::error::Error;
@@ -30,10 +31,13 @@ use crate::shared::error::Error;
 ///    connector's address — this connection's peer, attested — and
 ///    the authorization it offered, asserted. One frame answers.
 ///    `Denied`, a finish with nothing, or a runner that is gone: the
-///    scope's one `Error`, then the finish. `Authorized`: the main
-///    stream stays quiet, which is the connector attached — and
-///    entered in the directory as such, until it leaves, which is
-///    what lets it transfer into this container from another.
+///    scope's one `Error`, then the finish. `Authorized`: the
+///    connector waits for the run's id to have been sent, is entered
+///    in the directory as attached — which is what lets it transfer
+///    into this container from another — and the runner is told, on
+///    the run scope's main stream, a [`Connected`](RunFrame::Connected)
+///    with the connector's identity and address. The connect scope's
+///    own main stream stays quiet.
 /// 3. The proxy dialled at the run's address, and everything the
 ///    connector opens served — the tree, reads, writes whose content
 ///    this end asks the connector for, transfers, the five MCP
@@ -42,8 +46,11 @@ use crate::shared::error::Error;
 ///    the container's own end, heard through the directory), or the
 ///    connector goes away. A connector's `Postgres` has no pair and
 ///    is finished with nothing.
-/// 4. The tasks ended and the finish, bare. Nothing is stopped and
-///    nothing released: the container is its runner's.
+/// 4. The connector taken out of the directory and the runner told
+///    so, a [`Disconnected`](RunFrame::Disconnected) with the same
+///    identity and address; the tasks ended and the finish, bare.
+///    Nothing is stopped and nothing released: the container is its
+///    runner's.
 ///
 /// # The request arrives decoded
 ///
@@ -70,11 +77,19 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
 
     // An agent container is its runner's alone: it has no begin a
     // connector's exchanges could ride, and is not found.
-    let Some(begin) = attached.begin else {
+    let Some(begin) = attached.begin.clone() else {
         send(&scope, Connect::error(&missing())).await;
         scope.send_response_finish().await;
         return;
     };
+    // Nothing on the run's main stream before its id: a connector
+    // that arrives between the container entering the directory and
+    // the id going out waits for the id, or for the run to end first.
+    if !announced(&attached).await {
+        send(&scope, Connect::error(&missing())).await;
+        scope.send_response_finish().await;
+        return;
+    }
     let identity: Arc<str> = Arc::from(client_identity);
     if !directory.attach(&id, &identity).await {
         // Gone between the lookup and now.
@@ -82,6 +97,11 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
         scope.send_response_finish().await;
         return;
     }
+    let connector = Connector {
+        identity: client_identity.to_string(),
+        address,
+    };
+    send(&attached.scope, encoded(&RunFrame::Connected(connector.clone()))).await;
     let run = Arc::new(Run::new(
         Arc::clone(&scope),
         Arc::clone(&identity),
@@ -107,8 +127,37 @@ pub async fn handle(scope: ScopeHandle, request: request::Frame, client_identity
 
     let _end = serve::serve::<Connect>(&run).await;
     directory.detach(&id, &identity).await;
+    send(&attached.scope, encoded(&RunFrame::Disconnected(connector))).await;
     run.shutdown().await;
     scope.send_response_finish().await;
+}
+
+/// Wait for the run's id to have been sent: `true` when it has,
+/// `false` when the run ended first, or the directory went with the
+/// provider.
+async fn announced(attached: &Attached) -> bool {
+    let mut announced = attached.announced.clone();
+    let mut ended = attached.ended.clone();
+    loop {
+        if *announced.borrow_and_update() {
+            return true;
+        }
+        if *ended.borrow_and_update() {
+            return false;
+        }
+        tokio::select! {
+            changed = announced.changed() => {
+                if changed.is_err() {
+                    return false;
+                }
+            }
+            changed = ended.changed() => {
+                if changed.is_err() {
+                    return false;
+                }
+            }
+        }
+    }
 }
 
 /// Ask the runner, on its scope, and read its one answer. The channel

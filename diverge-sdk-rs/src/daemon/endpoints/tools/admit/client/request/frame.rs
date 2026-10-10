@@ -6,10 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::tools::Admission;
 use crate::daemon::reference;
-/// Ask the daemon to admit a lister or a connector to a tool, by the
-/// tool's name or once and for all. The admission is flattened in: its
-/// `identity`, its `address` if any, and what it `admits`. No key is
-/// chosen here: when the admission admits a connect, the daemon mints
+/// Ask the daemon to admit a connector to a tool, by the tool's name
+/// or once and for all. The admission is flattened in: its `identity`
+/// and its `address` if any. No key is chosen here: the daemon mints
 /// one and answers it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
@@ -35,7 +34,7 @@ pub struct Frame {
 /// whole allocation. The values are chosen across modules that do not
 /// know about each other, so the table is the only place they can be
 /// seen at once.
-const TAG: u8 = 82;
+const TAG: u8 = 81;
 
 /// JSON, as every request of the daemon's is.
 impl Encode for Frame {

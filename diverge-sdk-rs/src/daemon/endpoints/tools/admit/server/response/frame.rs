@@ -7,8 +7,7 @@ use crate::wire::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
 
-/// An admit's answer: the admission is made, with its key or without
-/// one; no tool is the one named; the tool is somebody else's; an
+/// An admit's answer: the admission is made, with its key; no tool is the one named; the tool is somebody else's; an
 /// admission for the identity is there already; or a failure.
 ///
 /// An admit is one question and one reply, so there is exactly one of
@@ -43,10 +42,9 @@ use crate::shared::error::Error;
 /// [`grant`](crate::daemon::grant).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The admission is on the tool. The key the daemon minted when the
-    /// admission admits a connect, answered here and never again;
-    /// `null` for one that admits a list alone. Tag `0`.
-    Admitted(Option<String>),
+    /// The admission is on the tool. The key the daemon minted,
+    /// answered here and never again. Tag `0`.
+    Admitted(String),
     /// No tool of the caller's is the one named; nothing changed. Tag
     /// `1`.
     NotFound,

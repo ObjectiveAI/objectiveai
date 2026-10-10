@@ -57,15 +57,12 @@
 //! `Forbidden` only when no grant allows `list` over the kind at all. A
 //! container created under no account holds no grant.
 //!
-//! Three actions name no endpoint of their own kind: `assign` over
+//! Two actions name no endpoint of their own kind: `assign` over
 //! accounts, naming the account as a container's `account` at an
 //! [agent's](crate::daemon::endpoints::agents::create) or a
 //! [tool's](crate::daemon::endpoints::tools::create) create or edit;
-//! `grant` over roles, naming the role in an account's `roles` at the
-//! account's create or edit; and `list_for` over providers, asking that
-//! provider which tool containers a tenant runs, as
-//! [`tools::list_for`](crate::daemon::endpoints::tools::list_for) does.
-//! A request that names several things — an account and its roles, a
+//! and `grant` over roles, naming the role in an account's `roles` at
+//! the account's create or edit. A request that names several things — an account and its roles, a
 //! tool and an agent — is allowed when every one of them is.
 //!
 //! Moving files is two-sided. A download takes `download` over its

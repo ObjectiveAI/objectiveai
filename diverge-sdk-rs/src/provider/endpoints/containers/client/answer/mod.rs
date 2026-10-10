@@ -57,9 +57,6 @@ pub(crate) async fn answer<O, A, T, P, D, V, M, F>(
         Ask::AuthorizeConnect(request) => {
             authorize::authorize_connect(&handle, scope, channel, request, answerers.authorizer).await
         }
-        Ask::AuthorizeList(request) => {
-            authorize::authorize_list(&handle, scope, channel, request, answerers.authorizer).await
-        }
         Ask::Dependencies { id, dependencies: declared } => {
             dependencies::dependencies(&handle, scope, channel, id, declared, answerers.dependencies).await
         }

@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tokio::sync::{Mutex, broadcast, watch};
+use tokio::sync::{Mutex, watch};
 
 use crate::wire::server::scope_handle::ScopeHandle;
 use crate::provider::endpoints::containers::server::watched::Watched;
@@ -20,25 +20,22 @@ use crate::container_proxy::outside::endpoints::tools::begin::client::execute::E
 /// [`handle`](super::handle::handle): a connector names a container
 /// its runner may have started from another socket entirely, so the
 /// map cannot live in a connection. A run handler inserts its
-/// container once the id is minted and removes it when the run ends,
-/// and a connect handler looks its id up — getting the run scope, to
-/// ask the runner whether the connector may attach; the connection to
-/// the container's proxy and the begin scope on it, which the
-/// connector's channels ride; and a signal for the run ending, which
-/// ends every connection to it.
+/// container once the id is minted, announces it once the id is sent,
+/// and removes it when the run ends; a connect handler looks its id
+/// up — getting the run scope, to ask the runner whether the
+/// connector may attach and to tell the runner it did; the connection
+/// to the container's proxy and the begin scope on it, which the
+/// connector's channels ride; a signal for the id having been sent,
+/// before which no connector is attached; and a signal for the run
+/// ending, which ends every connection to it.
 ///
 /// # The id is a capability
 ///
 /// Minted here, by [`mint`](Self::mint), as a v4 UUID: holding one is
 /// what lets a connector ask, so it is unguessable and never
-/// derived from anything a caller chose. The map is enumerated one
-/// way only, by [`running_under`](Self::running_under), and watched
-/// one way only, by [`subscribe`](Self::subscribe): the tool
-/// containers one runner holds, and those it starts and ends after,
-/// for a
-/// [`list_for`](crate::provider::endpoints::containers::tools::list_for)
-/// that asks that runner, container by container, before it names
-/// any.
+/// derived from anything a caller chose. The map is never enumerated
+/// and never watched: a container is found by its id, and by nothing
+/// else.
 ///
 /// # And who may reach each container
 ///
@@ -61,27 +58,6 @@ use crate::container_proxy::outside::endpoints::tools::begin::client::execute::E
 /// gives back. This is containers only.
 pub struct Directory {
     entries: Mutex<HashMap<String, Entry>>,
-    /// Every tool container starting and ending, for the listings
-    /// open now.
-    changes: broadcast::Sender<Change>,
-}
-
-/// How many changes a listing may fall behind by before it reads
-/// the directory again instead of the changes it missed.
-const CHANGES_BEHIND: usize = 256;
-
-/// A tool container came or went: what a listing watches. An agent
-/// container, listed to nobody, is neither.
-#[derive(Debug, Clone)]
-pub enum Change {
-    /// A tool container's run has its id: it is running, for its
-    /// runner, from now.
-    Started(Running),
-    /// The run under the id is over.
-    Ended {
-        /// The container's id.
-        id: String,
-    },
 }
 
 /// One running container.
@@ -99,25 +75,16 @@ struct Entry {
     ignore: Vec<Vec<String>>,
     /// Every mount the provider watches itself, for a filetree.
     watched: Arc<[Watched]>,
+    /// `true` once the id has been sent on the run scope: nothing is
+    /// sent on that scope's main stream for a connector before it.
+    announced: watch::Sender<bool>,
     ended: watch::Sender<bool>,
-}
-
-/// One tool container an identity runs, as a listing finds it:
-/// enough to ask its runner, and to name it if the runner allows.
-#[derive(Debug, Clone)]
-pub struct Running {
-    /// The container's id.
-    pub id: String,
-    /// The identity running it.
-    pub runner: Arc<str>,
-    /// The run scope: where the runner is asked.
-    pub scope: Arc<ScopeHandle>,
 }
 
 /// What a connector is handed for a container it named.
 #[derive(Debug, Clone)]
 pub struct Attached {
-    /// The run scope: where the runner is asked.
+    /// The run scope: where the runner is asked, and told.
     pub scope: Arc<ScopeHandle>,
     /// The one connection to the container's proxy, which the
     /// connector's tree, read, write and transfer scopes are opened
@@ -133,6 +100,10 @@ pub struct Attached {
     /// Every mount the provider watches itself, which a filetree the
     /// connector opens merges in as the runner's does.
     pub(crate) watched: Arc<[Watched]>,
+    /// `true` once the run's id has been sent, which a connector
+    /// waits for before it is attached. A receiver whose sender is
+    /// gone reads as the run ended.
+    pub announced: watch::Receiver<bool>,
     /// `true` once the run is over. A receiver whose sender is gone
     /// reads the same.
     pub ended: watch::Receiver<bool>,
@@ -140,20 +111,9 @@ pub struct Attached {
 
 impl Directory {
     pub fn new() -> Self {
-        let (changes, _) = broadcast::channel(CHANGES_BEHIND);
         Directory {
             entries: Mutex::new(HashMap::new()),
-            changes,
         }
-    }
-
-    /// Every tool container starting and ending from now on, for a
-    /// listing: subscribed before the directory is read, so that
-    /// nothing between the reading and the watching is missed. A
-    /// subscriber that falls behind by more than the feed keeps is
-    /// told so, and reads the directory again.
-    pub fn subscribe(&self) -> broadcast::Receiver<Change> {
-        self.changes.subscribe()
     }
 
     /// A fresh id.
@@ -162,8 +122,8 @@ impl Directory {
     }
 
     /// The container is running, for `runner`: from now until
-    /// [`remove`](Self::remove), connectors may find it, and a
-    /// listing hears of a tool container the moment it is in.
+    /// [`remove`](Self::remove), connectors may find it — and are
+    /// attached only once it is [`announce`](Self::announce)d.
     pub(crate) async fn insert(
         &self,
         id: String,
@@ -174,34 +134,36 @@ impl Directory {
         ignore: Vec<Vec<String>>,
         watched: Arc<[Watched]>,
     ) {
+        let (announced, _) = watch::channel(false);
         let (ended, _) = watch::channel(false);
         let mut entries = self.entries.lock().await;
-        let listed = begin.is_some();
         entries.insert(
-            id.clone(),
+            id,
             Entry {
-                scope: Arc::clone(&scope),
-                runner: Arc::clone(&runner),
+                scope,
+                runner,
                 connectors: HashMap::new(),
                 proxy,
                 begin,
                 ignore,
                 watched,
+                announced,
                 ended,
             },
         );
-        if listed {
-            // Under the lock, so a listing that read the map just
-            // before sees this as a change and one that reads it just
-            // after sees it in the map, and neither sees it twice or
-            // never. A send with no listing open is nothing.
-            let _ = self.changes.send(Change::Started(Running { id, runner, scope }));
+    }
+
+    /// The run's id has been sent: a connector waiting on it is
+    /// attached from now, and the first response on the run scope is
+    /// behind every one a connector causes.
+    pub(crate) async fn announce(&self, id: &str) {
+        if let Some(entry) = self.entries.lock().await.get(id) {
+            entry.announced.send_replace(true);
         }
     }
 
-    /// The run is over: nothing finds it any more, every connector
-    /// attached hears so, and every listing hears a tool container
-    /// go.
+    /// The run is over: nothing finds it any more, and every connector
+    /// attached hears so.
     pub async fn remove(&self, id: &str) {
         let mut entries = self.entries.lock().await;
         if let Some(entry) = entries.remove(id) {
@@ -209,9 +171,6 @@ impl Directory {
             // is discarded, and a connector that looks later must still
             // read the end.
             entry.ended.send_replace(true);
-            if entry.begin.is_some() {
-                let _ = self.changes.send(Change::Ended { id: id.to_string() });
-            }
         }
     }
 
@@ -270,24 +229,6 @@ impl Directory {
             .is_some_and(|entry| &*entry.runner == identity)
     }
 
-    /// Every tool container `runner` is running, in no order: what a
-    /// listing asks each runner about, and nothing here is told to
-    /// the lister until the runner says so. An agent container is not
-    /// among them: it takes no connector, and is listed to nobody.
-    pub async fn running_under(&self, runner: &str) -> Vec<Running> {
-        self.entries
-            .lock()
-            .await
-            .iter()
-            .filter(|(_, entry)| &*entry.runner == runner && entry.begin.is_some())
-            .map(|(id, entry)| Running {
-                id: id.clone(),
-                runner: Arc::clone(&entry.runner),
-                scope: Arc::clone(&entry.scope),
-            })
-            .collect()
-    }
-
     /// The container under `id`, if it is running.
     pub async fn lookup(&self, id: &str) -> Option<Attached> {
         self.entries.lock().await.get(id).map(|entry| Attached {
@@ -296,10 +237,10 @@ impl Directory {
             begin: entry.begin.clone(),
             ignore: entry.ignore.clone(),
             watched: Arc::clone(&entry.watched),
+            announced: entry.announced.subscribe(),
             ended: entry.ended.subscribe(),
         })
     }
-
 }
 
 impl Default for Directory {

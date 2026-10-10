@@ -20,18 +20,4 @@ pub trait ConnectionAuthorizer: Send + Sync {
         &self,
         request: &authorize::request::AuthorizeConnect,
     ) -> impl Future<Output = authorize::response::Frame> + Send;
-
-    /// Judge one lister: whether whoever a
-    /// [`containers::tools::list_for`](crate::provider::endpoints::containers::tools::list_for)
-    /// names this runner's identity for may be told of this
-    /// container. Both of the lister's claims are the provider's own
-    /// — the address it saw, the identity it authorized — so there is
-    /// nothing asserted to doubt, only a peer to allow or not. A yes
-    /// hands out the container's id and family, and nothing else;
-    /// joining is a connector's own ask. A runner that cannot decide
-    /// has decided no.
-    fn authorize_list(
-        &self,
-        request: &authorize::request::AuthorizeList,
-    ) -> impl Future<Output = authorize::response::Frame> + Send;
 }

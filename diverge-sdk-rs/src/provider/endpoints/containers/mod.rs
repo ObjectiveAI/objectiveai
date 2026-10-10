@@ -12,12 +12,6 @@
 //! - [`tools`]: an MCP server. The caller opens the five MCP exchanges
 //!   into it.
 //!
-//! And one scope of the tools family that reaches into nothing:
-//! [`tools::list_for`] names an identity and is told, one at a time
-//! and each with its runner's leave, the tool containers that
-//! identity runs — the ids a connect then offers — and, for as long
-//! as the lister keeps the scope, those it starts and ends after.
-//!
 //! And one scope of neither family: [`serve`] names a container the
 //! caller is running, of either family, and a directory of it, and
 //! answers the nine FUSE asks from it live — the volume serve's own

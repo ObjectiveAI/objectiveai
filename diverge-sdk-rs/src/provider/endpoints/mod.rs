@@ -6,7 +6,7 @@
 //!
 //! | endpoint | scopes |
 //! |----------|--------|
-//! | [`containers`] | run an agent or a tool server in a container; join a tool server; find the tool containers an identity runs; serve a subtree of a container live |
+//! | [`containers`] | run an agent or a tool server in a container; join a tool server; serve a subtree of a container live |
 //! | [`images`] | ask whether an image can be supplied |
 //! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
 //! | [`version`] | ask what a provider is |
@@ -23,21 +23,20 @@
 //! | `0` | [`containers::agents::run`] |
 //! | `1` | [`containers::tools::run`] |
 //! | `2` | [`containers::tools::connect`] |
-//! | `3` | [`containers::tools::list_for`] |
-//! | `4` | [`containers::serve`] |
-//! | `5` | [`volumes::list`] |
-//! | `6` | [`volumes::stat`] |
-//! | `7` | [`volumes::read`] |
-//! | `8` | [`volumes::write`] |
-//! | `9` | [`volumes::filetree`] |
-//! | `10` | [`volumes::serve`] |
-//! | `11` | [`volumes::create_capacity`] |
-//! | `12` | [`volumes::create`] |
-//! | `13` | [`volumes::edit_capacity`] |
-//! | `14` | [`volumes::edit`] |
-//! | `15` | [`volumes::delete`] |
-//! | `16` | [`images::check`] |
-//! | `17` | [`version`] |
+//! | `3` | [`containers::serve`] |
+//! | `4` | [`volumes::list`] |
+//! | `5` | [`volumes::stat`] |
+//! | `6` | [`volumes::read`] |
+//! | `7` | [`volumes::write`] |
+//! | `8` | [`volumes::filetree`] |
+//! | `9` | [`volumes::serve`] |
+//! | `10` | [`volumes::create_capacity`] |
+//! | `11` | [`volumes::create`] |
+//! | `12` | [`volumes::edit_capacity`] |
+//! | `13` | [`volumes::edit`] |
+//! | `14` | [`volumes::delete`] |
+//! | `15` | [`images::check`] |
+//! | `16` | [`version`] |
 //!
 //! Eighteen, grouped by endpoint and ordered within it. The five
 //! container scopes lead: the agents' run, the tools' run, the connect

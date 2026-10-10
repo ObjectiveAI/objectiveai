@@ -10,10 +10,9 @@
 //! or a [`connect`] names a container somebody else runs, by its
 //! provider, its id and an authorization, and the daemon joins it with
 //! the provider protocol's `containers::tools::connect` and never runs
-//! it. Whom a daemon admits to a tool it runs — a lister on the tool's
-//! provider seeing it, a connector joining it — is an [`Admission`] on
-//! the tool, put down by [`admit`] and taken back by [`unadmit`], and
-//! nothing else. What a tool is FOR is being attached to agents: an
+//! it. Whom a daemon admits to a tool it runs — a connector joining
+//! it — is an [`Admission`] on the tool, put down by [`admit`] and
+//! taken back by [`unadmit`], and nothing else. What a tool is FOR is being attached to agents: an
 //! [`attach`] puts it among the MCP servers the daemon answers an
 //! agent's tool calls with, under the tool's name, and the agent's
 //! merged tool list says which tool serves each entry under `_meta`,
@@ -37,11 +36,9 @@
 //! not; [`delete`] removes a tool that is attached nowhere; [`get`]
 //! answers one as a list would; [`list`] lists them, narrowed, with the
 //! agents each is attached to and its tags; [`tag`] and [`untag`]
-//! change a tool's tags; [`admit`] and [`unadmit`] say who may see a
-//! created tool from its provider and who may join it; [`filetree`]
-//! watches one's container whole; [`list_for`] asks a provider which
-//! tool containers somebody runs, the ids a [`connect`] then offers;
-//! [`download`] sends the client a file or a directory out of a tool's
+//! change a tool's tags; [`admit`] and [`unadmit`] say who may join a
+//! created tool from its provider; [`filetree`] watches one's
+//! container whole; [`download`] sends the client a file or a directory out of a tool's
 //! container, [`upload`] puts files into it, and [`transfer`] copies
 //! out of it into an agent, another tool or a volume, the bytes never
 //! reaching the client. A dependency an agent declares at register
@@ -52,10 +49,8 @@
 //! dependencies.
 
 mod admission;
-mod admits;
 
 pub use admission::*;
-pub use admits::*;
 
 pub mod admit;
 pub mod attach;
@@ -68,7 +63,6 @@ pub mod edit;
 pub mod filetree;
 pub mod get;
 pub mod list;
-pub mod list_for;
 pub mod tag;
 pub mod templates;
 pub mod transfer;

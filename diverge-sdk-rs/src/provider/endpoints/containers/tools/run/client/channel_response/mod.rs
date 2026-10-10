@@ -4,9 +4,8 @@
 //! [`oci_has`] says whether the caller holds the image, and
 //! [`oci_manifest`] and [`oci_blob`] hand it over when the provider
 //! takes it from there; [`authorize_connect`] answers whether a
-//! connector may join, and [`authorize_list`] whether a lister may see
-//! the container; [`write_bytes`] streams the content of a file being
-//! written. The rest answer the CONTAINER, relayed: [`postgres`] is
+//! connector may join; [`write_bytes`] streams the content of a file
+//! being written. The rest answer the CONTAINER, relayed: [`postgres`] is
 //! what its database said, [`daemon`] the server frames that answer a
 //! frame of its daemon connection, the five `vault_*` what its vault
 //! answered, the five `mcp_*` what the caller's MCP servers answered
@@ -15,7 +14,6 @@
 //! whether a change to one took.
 
 pub mod authorize_connect;
-pub mod authorize_list;
 pub mod daemon;
 pub mod fuse_list;
 pub mod fuse_mkdir;
