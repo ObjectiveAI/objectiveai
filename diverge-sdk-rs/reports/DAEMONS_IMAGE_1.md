@@ -3,178 +3,170 @@
 An image prompt for one picture of what landed on 2026-10-10: a tool
 one daemon runs, joined by an agent of another daemon through a
 provider, every container of either daemon powered by one of three
-providers. The picture is a wall, not a diagram: the system drawn the
-way a conspiracy theorist pins it to a corkboard, and the way an
-anarchist stencils it on a shutter. Almost no text. The structure
-carries the meaning.
+providers. The picture is a poster and nothing but the poster, in the
+spirit of a wall that somebody dangerous and sane has been working on
+for a long time. Almost no text. Structure and colour carry the
+meaning.
 
-Every entity in the picture is named in §The cast, every dependency
-tool is defined with the glyph drawn on it, and every string to a
-provider is stated in §The strings. Nothing is left for the
-illustrator to decide about who connects to what.
+Who connects to whom is fixed in the tables below. How it is drawn is
+the image's to decide, within the tone.
 
 ## Prompt
 
-A tall poster, portrait, in a hand-made anarchist / conspiracy-theory
-style: xeroxed zine texture, black spray-paint stencil edges, red
-and blue string pinned between things with real pins, torn newsprint scraps,
-smudged photocopier grain, a corkboard-and-concrete background, white
-chalk and red marker over black. Collage, not vector. Nothing is
-clean; everything is deliberate. No people, no faces, no logos.
-Lettering is stencil or scrawled marker, and there is very little of
-it.
+### The tone
 
-**Across the very top, the only sentence in the picture, stencilled
-in white spray paint, slightly misregistered: `DO NOT BE AFRAID.`**
+The poster is the whole frame. There is no wall behind it, no
+corkboard, no table edge, no room: the paper runs to all four edges
+of the image, as if the camera were pressed flat against it. What
+you are looking at is the thing itself.
 
-The poster is cut into three horizontal bands by two ragged strips of
-black duct tape running edge to edge.
+The tone is anarchist, and it is calm. Not rage: certainty. The hand
+that made this is steady. Black spray-paint stencils with soft
+over-spray, xeroxed grain, photocopied photographs pasted down and
+re-photocopied until the blacks crush, red marker that has bled a
+little into the paper, torn edges, one sentence that reads like an
+instruction left for whoever finds the wall after. The palette is
+cold: ink black, bone white, newsprint grey, one red, and three
+colours of light that are described below. It should feel like a
+samizdat broadsheet, like a pirate-radio schedule, like a diagram
+someone pinned up for people who already know what it means. No
+people, no faces, no logos, no slogans but the one. The image is free
+in composition, texture, how worn the paper is, how the stencils were
+cut, how the light falls across it. It is not free in who is joined
+to whom.
+
+**Across the very top, stencilled in white spray paint, slightly
+misregistered, the only sentence on the poster: `DO NOT BE AFRAID.`**
+
+The poster falls into three horizontal regions, top to bottom,
+separated however the image likes: duct tape, a torn seam, a band of
+black.
+
+### The light, which is the providers
+
+Three providers stand across the bottom of the poster. Each is a
+piece of heavy infrastructure, photocopied and pasted down, and each
+is lit from behind by a glow of its own colour, a halo that bleeds
+out into the paper around it as if the thing were switched on in the
+dark:
+
+| Provider | Photograph | Glow |
+|---|---|---|
+| `I` | a substation transformer, insulators and cooling fins | amber, like a sodium lamp |
+| `II` | a bank of rack servers, cable spaghetti, one lit LED | cold cyan |
+| `III` | a radio mast against a flat sky, guy wires | violet, like a UV tube |
+
+Each is stamped with its stencilled numeral and nothing else.
+
+**That glow is how power is drawn.** Nothing runs from a provider to
+anything. Instead, every agent, tool and dependency tool in the upper
+regions sits in a halo of exactly one of the three colours, the same
+glow its provider has, bleeding out behind it the same way. An amber
+thing runs on the transformer; a cyan thing runs on the servers; a
+violet thing runs on the mast. The three colours are scattered across
+the two daemons so that no cluster is one colour: the eye reads the
+daemons as structure and the light as a second, independent
+structure laid over it. No lines, no arrows, no wires to the
+providers. Only the light.
 
 ### The two shapes
 
-- **A cabinet.** Every agent and every tool is a square photograph
-  of a locked steel cabinet, pasted down, the same size, with its
-  codename stencilled across the door. An agent's door is stamped
-  with a stencilled **eye**; a tool's door is stamped with a
-  stencilled **gear**. That stamp is the only thing that tells an
-  agent from a tool.
+- **A cabinet.** Every agent and every tool is a photocopied
+  photograph of a locked steel cabinet, the same size, its codename
+  stencilled across the door. An agent's door carries a stencilled
+  **eye**; a tool's door carries a stencilled **gear**. That stamp
+  is the only thing that tells an agent from a tool.
 - **A tag.** Every dependency tool is a luggage tag, a third the size
   of a cabinet, hanging under its agent on a short red string. A tag
-  carries two things and nothing else: a **glyph** scratched into it
-  in black marker, stated per tag below, and a four-character hex
-  fragment in tiny monospace in one corner. No tag has a name.
+  carries a **glyph** scratched into it in black marker and a
+  four-character hex fragment in tiny monospace, and nothing else.
+  No tag has a name.
 
-### Band one, the top: DAEMON ALPHA
+Red string is the only line on the poster, and it means one thing:
+one container uses another. It never goes to a provider.
 
-A torn label in the band's upper-left corner reads `DAEMON α`, the
-word stencilled and the alpha drawn large in red marker, circled
-twice as if it mattered.
+### Region one, the top: DAEMON ALPHA
 
-Three cabinets in a row, left to right, equal in size:
+A torn label in the corner reads `DAEMON α`, the alpha drawn large in
+red marker and circled twice.
 
-1. Agent `RED HERRING`, eye stamp.
-2. Agent `DEAD DROP`, eye stamp.
-3. Tool `THE ARCHIVE`, gear stamp.
+Three cabinets in a row, equal in size, left to right:
 
-Under `RED HERRING`, three tags on three short strings, left to right:
+1. Agent `RED HERRING`, eye stamp. **Amber glow** (`I`).
+2. Agent `DEAD DROP`, eye stamp. **Violet glow** (`III`).
+3. Tool `THE ARCHIVE`, gear stamp. **Cyan glow** (`II`).
 
-| Tag | Glyph scratched on it | Fragment |
-|---|---|---|
-| the scraper | a magnifying glass over a torn strip of newsprint | `3f9a` |
-| the drawer | a single filing-cabinet drawer, pulled half open | `b17c` |
-| the cipher | a cipher wheel, two rings of letters, one turned | `e02d` |
+Under `RED HERRING`, three tags on short red strings:
 
-Under `DEAD DROP`, two tags on two short strings, left to right:
+| Tag | Glyph scratched on it | Fragment | Glow |
+|---|---|---|---|
+| the scraper | a magnifying glass over a torn strip of newsprint | `3f9a` | violet (`III`) |
+| the drawer | a single filing-cabinet drawer, pulled half open | `b17c` | cyan (`II`) |
+| the cipher | a cipher wheel, two rings of letters, one turned | `e02d` | violet (`III`) |
 
-| Tag | Glyph scratched on it | Fragment |
-|---|---|---|
-| the courier | an envelope with a wax seal, the seal cracked | `77a1` |
-| the ledger | a ledger book, open, two columns of tally marks | `c5f0` |
+Under `DEAD DROP`, two tags on short red strings:
+
+| Tag | Glyph scratched on it | Fragment | Glow |
+|---|---|---|---|
+| the courier | an envelope with a wax seal, the seal cracked | `77a1` | amber (`I`) |
+| the ledger | a ledger book, open, two columns of tally marks | `c5f0` | cyan (`II`) |
 
 `DEAD DROP` is also attached to `THE ARCHIVE`: a thicker red string
-pinned at both cabinets, with a small paper tag hanging from its
-midpoint that reads only `attached`.
+between the two cabinets, a small paper tag at its midpoint reading
+only `attached`.
 
-### Band two, the middle: DAEMON BETA
+### Region two, the middle: DAEMON BETA
 
-A torn label in the band's upper-left corner reads `DAEMON β`, the
-beta drawn large in red marker and circled the same way.
+A torn label in the corner reads `DAEMON β`, the beta drawn large in
+red marker and circled the same way.
 
 One cabinet: agent `CASSANDRA`, eye stamp, the same size as the three
-above. Under it, three tags on three short strings, left to right:
+above. **Amber glow** (`I`). Under her, three tags on short red
+strings:
 
-| Tag | Glyph scratched on it | Fragment |
+| Tag | Glyph scratched on it | Fragment | Glow |
+|---|---|---|---|
+| the scanner | a dial radio, needle on the band, a lightning mark beside it | `a9e4` | violet (`III`) |
+| the map | a folded road map with three pinholes in it | `0b6c` | cyan (`II`) |
+| the stopwatch | a stopwatch, the hand at twelve | `d18f` | cyan (`II`) |
+
+`CASSANDRA` is also joined to `THE ARCHIVE` up in region one: a long
+red string climbs from her cabinet across the seam into the first
+region and ends at `THE ARCHIVE`. Where it crosses the seam a scrap
+of newsprint over it reads only `exposed`. It is the one line that
+crosses between the daemons, and it is what the poster is about.
+
+### Region three, the bottom: PROVIDERS
+
+A torn label in the corner reads `PROVIDERS`. The three lit
+photographs, as the table above states them, amber on the left, cyan
+in the middle, violet on the right, their glows bleeding up into the
+paper toward the things they power.
+
+### The tally, so the colours are right
+
+| Glow | Provider | Lit by it |
 |---|---|---|
-| the scanner | a dial radio, needle on the band, a lightning mark beside it | `a9e4` |
-| the map | a folded road map with three pinholes in it | `0b6c` |
-| the stopwatch | a stopwatch, the hand at twelve | `d18f` |
+| amber | `I`, the transformer | `RED HERRING`, the courier `77a1`, `CASSANDRA` |
+| cyan | `II`, the servers | the drawer `b17c`, the ledger `c5f0`, `THE ARCHIVE`, the map `0b6c`, the stopwatch `d18f` |
+| violet | `III`, the mast | the scraper `3f9a`, the cipher `e02d`, `DEAD DROP`, the scanner `a9e4` |
 
-`CASSANDRA` is also joined to `THE ARCHIVE` in band one: a long red
-string climbs from her cabinet up through the duct tape into the
-first band and pins into `THE ARCHIVE`'s cabinet. Where the string
-crosses the tape a small scrap of newsprint is pinned over it reading
-only `exposed`. This string is the one line in the picture that
-crosses a band border between the daemons, and it is the thing the
-poster is about.
-
-### Band three, the bottom: PROVIDERS
-
-A torn label in the band's upper-left corner reads `PROVIDERS`.
-
-Three providers across the bottom of the poster, left to right, each
-a grainy black-and-white photograph pasted down and stamped with a
-stencilled numeral and nothing else:
-
-| Position | Photograph | Stamp |
-|---|---|---|
-| left | a substation transformer, insulators and cooling fins | `I` |
-| middle | a bank of rack servers, cable spaghetti, one lit LED | `II` |
-| right | a radio mast against a flat sky, guy wires | `III` |
-
-### The strings to the providers
-
-Twelve entities stand in the two bands above: in band one, two
-agents, one tool and five tags; in band two, one agent and three
-tags. From each of the twelve, exactly one BLUE string runs down into
-the third band and pins into exactly one provider. Twelve strings,
-twelve pins. No entity has two strings; none has none. The
-assignment is exactly this:
-
-| Entity | Band | Provider |
-|---|---|---|
-| `RED HERRING` (agent) | α | `I`, the transformer |
-| the scraper `3f9a` | α | `III`, the mast |
-| the drawer `b17c` | α | `II`, the servers |
-| the cipher `e02d` | α | `III`, the mast |
-| `DEAD DROP` (agent) | α | `III`, the mast |
-| the courier `77a1` | α | `I`, the transformer |
-| the ledger `c5f0` | α | `II`, the servers |
-| `THE ARCHIVE` (tool) | α | `II`, the servers |
-| `CASSANDRA` (agent) | β | `I`, the transformer |
-| the scanner `a9e4` | β | `III`, the mast |
-| the map `0b6c` | β | `II`, the servers |
-| the stopwatch `d18f` | β | `II`, the servers |
-
-So the transformer `I` takes three strings (`RED HERRING`, the
-courier, `CASSANDRA`); the servers `II` take five (the drawer, the
-ledger, `THE ARCHIVE`, the map, the stopwatch); the mast `III` takes
-four (the scraper, the cipher, `DEAD DROP`, the scanner). The pins
-cluster where the strings arrive.
-
-The scramble is the point, and it is built into the table: no agent
-shares a provider with any of its own tags; the two agents of daemon
-alpha go to different providers; `THE ARCHIVE` goes to the servers,
-which neither `DEAD DROP` nor `CASSANDRA` goes to; the scraper, the
-leftmost tag on the poster, runs all the way to the mast on the far
-right; the courier runs from the middle of band one back to the
-transformer on the far left; the three tags under `CASSANDRA` fan
-out to all of `III`, `II`, `II` while she herself goes to `I`. The
-twelve strings cross and recross in a dense blue web over the lower
-half of the poster. Chaotic to look at, simple to trace: each has one
-start and one end.
+Twelve things, twelve glows, one colour each. No agent shares a
+colour with any of its own tags. The two agents of daemon alpha are
+different colours. `THE ARCHIVE` is cyan, which neither `DEAD DROP`
+nor `CASSANDRA` is. The scatter is the point: a daemon is a region,
+not a colour.
 
 ### Everything else
 
-- Two colours of string, and the colour says what a string is.
-  Every string between containers is RED: the short tag strings
-  under each agent, the thicker `attached` string, and the long
-  `exposed` string, which is the longest red one. Every string down
-  to a provider is BLUE, the same cold blue for all twelve, so that
-  the red web of what-uses-what and the blue web of what-runs-where
-  can be read apart at a glance. No string is any other colour, and
-  nothing else connects anything.
-- Pins are real push-pins, drawn with a shadow.
-- Under a few cabinets a scrap of masking tape carries a scrawled
-  marker note too small to read, as if someone annotated the wall
-  and did not want it read from a distance.
-- Texture everywhere: fold creases, a coffee ring on the second
-  band, staple marks at the corners, a corner torn off and left
-  hanging.
-- No other words appear. No legend, no title besides the sentence
-  at the top, no arrows with labels. The eye stamp, the gear stamp,
-  the three band labels, the four codenames, the eight hex
-  fragments, the two tags on strings, and the three numerals are
-  the whole vocabulary.
+- No other words appear: the sentence at the top, the three region
+  labels, the four codenames, the eight hex fragments, the two scraps
+  on strings, the three numerals, and that is all.
+- Texture is free: creases, staple marks, a torn corner, over-spray,
+  the grain of a copy of a copy. The glows are soft and the stencils
+  are hard.
+- Nothing is explained on the poster. Whoever it is for already
+  knows.
 
 ## The cast, against the system
 
@@ -215,8 +207,9 @@ against the code.
   connected to, opens `tools::expose` there, and joins the container
   the expose answers. Daemon beta never runs `THE ARCHIVE` and never
   sees its image; it holds a line to it.
-- **The twelve provider strings** — every container, agent, tool or
-  dependency, runs on exactly one provider, chosen container by
-  container among the connected providers in random order, never
-  daemon by daemon. A daemon has no provider of its own; a daemon is
-  a band, the space its containers stand in.
+- **The glows** — every container, agent, tool or dependency, runs
+  on exactly one provider, chosen container by container among the
+  connected providers in random order, never daemon by daemon. A
+  daemon has no provider of its own; a daemon is a region, the space
+  its containers stand in, and the light falls across it from
+  wherever each container happens to run.
