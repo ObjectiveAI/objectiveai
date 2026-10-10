@@ -1,6 +1,6 @@
 ---
 title: 'Dependencies'
-summary: 'Tag 3: the server asks the client to deploy the dependency tool templates the container declared at registration, carrying them verbatim; the client answers with exactly one channel response, deployed or an error, and the channel response finish; anything but a deploy is the run’s error.'
+summary: 'Tag 3: the server asks the client to deploy the dependency tool templates the container declared at registration, carrying the run’s id and the templates verbatim; the client answers with exactly one channel response, deployed or an error, and the channel response finish; anything but a deploy is the run’s error.'
 order: 3
 draft: false
 ---
@@ -16,8 +16,17 @@ whether the run goes on.
   sent, beside the FUSE mounts. Exactly once per run, and never on a
   connect scope. The server opens no dependencies channel when the
   list is empty.
-- **The request.** The tag byte `3` followed by the dependencies as
-  JSON. [Request](/endpoints/containers-agents-run/server/dependencies/request/) states its form.
+- **The id.** The server mints the run's id before it opens the
+  channel, and enters the container among those it runs before it
+  asks: a [containers::serve](/endpoints/containers-serve/) naming
+  the id is answered while the dependencies are deployed, which is
+  how the client serves the container's paths into them. The id the
+  request carries is the id the server sends as the response after
+  the channel has ended, and no other. The container is listed by
+  nothing and found by no connect before the response: an agent
+  container is never listed and never connected to.
+- **The request.** The tag byte `3` followed by the run's id and the
+  dependencies as JSON. [Request](/endpoints/containers-agents-run/server/dependencies/request/) states its form.
 - **The response.** Exactly one channel response, deployed or an
   error, and the channel response finish.
   [Response](/endpoints/containers-agents-run/server/dependencies/response/) states the sequence.

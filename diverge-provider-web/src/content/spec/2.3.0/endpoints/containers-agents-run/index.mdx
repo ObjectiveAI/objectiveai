@@ -1,6 +1,6 @@
 ---
 title: 'containers::agents::run'
-summary: 'Tag 0: a client asks the server to run an agent container from an image with limits and mounts; the server obtains the image, deploys, injects the proxy, connects to it and begins it with the arguments, has the client deploy the tools the container declared, makes every FUSE mount, sends exactly one id, and relays and serves every channel until the run ends.'
+summary: 'Tag 0: a client asks the server to run an agent container from an image with limits and mounts; the server obtains the image, deploys, injects the proxy, connects to it and begins it with the arguments, mints the id and has the client deploy the tools the container declared, makes every FUSE mount, sends exactly one id, and relays and serves every channel until the run ends.'
 order: 0
 draft: false
 ---
@@ -76,9 +76,14 @@ about the client, which may open any channel at any time.
    The server opens no second connection to a container.
 5. **The server asks the client to deploy the tools.** The `Begun`
    the proxy answers carries the dependencies the container declared.
-   When the list is not empty, the server opens exactly one
+   The server mints the id of step 8 first and enters the container
+   among those it runs, so that a
+   [containers::serve](/endpoints/containers-serve/) naming the id is
+   answered from now on. When the list is not empty, the server opens
+   exactly one
    [dependencies](/endpoints/containers-agents-run/server/dependencies/) channel on the scope
-   carrying it verbatim, and reads the answer to its finish. A deploy
+   carrying the id and the list verbatim, and reads the answer to its
+   finish. A deploy
    lets the run go on. An error, a channel response finish that no
    channel response precedes, and a client that is gone are the run's
    error, and the server stops the container. When the list is empty
@@ -98,11 +103,11 @@ about the client, which may open any channel at any time.
    the order opened, and is neither refused nor read before the last
    FUSE mount is complete and the dependencies channel, when one was
    opened, has ended.
-8. **The server mints and sends the id.** The id is a string the
-   server chooses, unique among the containers it is running, and
-   not derivable from the request, from the identity of the
-   connection, or from any other id. The server
-   sends it as exactly one response. From that moment the container
+8. **The server sends the id.** The id is a string the server chose
+   in step 5, unique among the containers it is running, and not
+   derivable from the request, from the identity of the connection,
+   or from any other id. The server sends it as exactly one
+   response. From that moment the container
    is running for the client, and a
    [containers::tools::connect](/endpoints/containers-tools-connect/)
    request naming the id finds it. After the id, the server sends the

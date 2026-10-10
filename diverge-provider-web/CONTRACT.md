@@ -755,23 +755,30 @@ else. A begin the Proxy answers with an error is the run's error, and
 the Provider shall stop the Container.
 
 (h) **Deploy the dependencies.** On a `containers::agents::run`
-Scope, when the Proxy's answer to the begin Scope carries one or more
+Scope, the Provider shall choose the id of (i) before this step and
+shall enter the Container among those it runs, so that a
+`containers::serve` request naming the id is answered from this step
+on; the Provider shall list the Container to nobody and shall find it
+for no `containers::tools::connect` request before the id is sent.
+When the Proxy's answer to the begin Scope carries one or more
 dependency tool templates, the Provider shall open exactly one
-`dependencies` Channel on the run Scope carrying them verbatim —
-every template whole, its name, image, limits, arguments, database,
-mounts and permissions unread — before the id and beside the FUSE
-Mounts, and shall read the Client's answer to its finish; the
-Provider shall treat the byte `1`, a Bare Finish, and a Client that is
-gone as the run's error and shall stop the Container. The Provider
+`dependencies` Channel on the run Scope carrying the id and the
+templates verbatim — every template whole, its name, image, limits,
+arguments, database, mounts and permissions unread — before the id
+is sent and beside the FUSE Mounts, and shall read the Client's
+answer to its finish; the Provider shall treat the byte `1`, a Bare
+Finish, and a Client that is gone as the run's error and shall stop
+the Container. The Provider
 shall open no `dependencies` Channel when the list is empty, never on
 a `containers::tools::run` Scope — a tool Container declares no
 dependencies, and its begin's answer carries none — and never on a
 connect Scope.
 
-(i) **Mint and send the id.** The Provider shall choose an id that is
-unique among the Containers it is running and not derivable from the
-request, from the Identity, or from any other id, and shall send it as
-exactly one Response; a run refused for a held Volume has the byte `1`
+(i) **Send the id.** The id the Provider chose in (h) shall be unique
+among the Containers it is running and not derivable from the
+request, from the Identity, or from any other id, and the Provider
+shall send it as exactly one Response, the same id the `dependencies`
+Channel carried; a run refused for a held Volume has the byte `1`
 and the name as its only Response, and a run refused for a Volume in
 another mode has the byte `2`
 and the name as its only Response, and a run that fails has the error

@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload of the channel request the server sends: the tag byte 3 and the ask, the dependency tool templates as JSON.'
+summary: 'The payload of the channel request the server sends: the tag byte 3 and the ask, the run’s id and the dependency tool templates as JSON.'
 order: 1
 draft: false
 ---
@@ -9,6 +9,12 @@ draft: false
 [3][request JSON …]
 ```
 
+- **`id`.** A string: the id of the run the dependencies are deployed
+  for, as the server minted it and as the response carries it after
+  the channel has ended. The server has entered the container among
+  those it runs when it sends this, so a
+  [containers::serve](/endpoints/containers-serve/) naming the id is
+  answered while the channel is open.
 - **`dependencies`.** An array of dependency tool templates, in the
   order the program declared them. Each is an object of six members,
   and three that may be absent: `name`, a string, unique in the
