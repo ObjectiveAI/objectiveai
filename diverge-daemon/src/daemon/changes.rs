@@ -28,11 +28,9 @@ pub enum Kind {
     ToolsTemplates,
     /// Agents: the records, what is attached, which run.
     Agents,
-    /// Tools: the records, what is attached, admitted and routed,
-    /// which run.
+    /// Tools: the records, what is attached and admitted, which run,
+    /// and which dependencies run.
     Tools,
-    /// Routes: the records.
-    Routes,
     /// Volumes: a provider's listing, and the records that mount one.
     Volumes,
     /// The container connections open through the database.

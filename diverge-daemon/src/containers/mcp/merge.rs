@@ -12,9 +12,8 @@ use rmcp::model::{
 use tokio::sync::{Mutex, mpsc};
 
 use super::{Entry, Served, exposed, split};
-use crate::containers::{Caller, Key, ToolRun, tools};
+use crate::containers::{Caller, Key, ToolKey, ToolRun, tools};
 use crate::daemon::Daemon;
-use crate::store::ToolId;
 
 /// The notifications a container hears: every served tool's, and the
 /// word that the set changed.
@@ -27,49 +26,50 @@ pub struct Context {
     pub daemon: Arc<Daemon>,
     /// The container.
     pub user: Key,
+    /// Who the container is, for the attestation.
     pub caller: Caller,
-    /// The container's name, if it has one.
-    pub root: Option<String>,
     /// The served set.
     pub served: Arc<Mutex<Served>>,
 }
 
-/// The served tool's run, started now if it was idle.
-pub async fn running(context: &Context, id: ToolId) -> Result<Arc<ToolRun>, String> {
+/// The served tool's run: a dependency's, or an attached tool's,
+/// started now if it was idle.
+pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, String> {
     let idle = {
         let served = context.served.lock().await;
-        match served.entry(id) {
-            Some(Entry::Running(run)) => return Ok(Arc::clone(run)),
-            Some(Entry::Idle(tool)) => tool.clone(),
-            None => return Err(format!("no tool is served as {}", id.0)),
+        match served.entry(key) {
+            Some(Entry::Dependency(run)) => return Ok(Arc::clone(run)),
+            Some(Entry::Attached { run: Some(run), .. }) => return Ok(Arc::clone(run)),
+            Some(Entry::Attached { tool, run: None }) => tool.clone(),
+            None => return Err("no tool is served under that prefix".to_string()),
         }
     };
     let run = tools::use_tool(&context.daemon, &idle, context.user)
         .await
         .map_err(|error| error.to_string())?;
-    context.served.lock().await.running(id, Arc::clone(&run));
+    context.served.lock().await.running(key, Arc::clone(&run));
     Ok(run)
 }
 
 /// Every idle served tool started: what a loop beginning does, so its
 /// calls find their containers up.
 pub async fn start_all(context: &Context) {
-    let ids = context.served.lock().await.ids();
-    for id in ids {
-        let _ = running(context, id).await;
+    let keys = context.served.lock().await.keys();
+    for key in keys {
+        let _ = running(context, key).await;
     }
 }
 
 /// The union of every served tool's tools, each name under its
 /// prefix. A tool that does not answer lists nothing.
 pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) -> Result<ListToolsResult, ErrorData> {
-    let ids = context.served.lock().await.ids();
+    let keys = context.served.lock().await.keys();
     let mut tools = Vec::new();
-    for id in ids {
-        let Ok(run) = running(context, id).await else {
+    for key in keys {
+        let Ok(run) = running(context, key).await else {
             continue;
         };
-        let Some(prefix) = context.served.lock().await.prefix(id) else {
+        let Some(prefix) = context.served.lock().await.prefix(key) else {
             continue;
         };
         let mut params = PaginatedRequestParams::default();
@@ -88,10 +88,10 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
 
 /// The union of every served tool's resources, verbatim.
 pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, ErrorData> {
-    let ids = context.served.lock().await.ids();
+    let keys = context.served.lock().await.keys();
     let mut resources = Vec::new();
-    for id in ids {
-        let Ok(run) = running(context, id).await else {
+    for key in keys {
+        let Ok(run) = running(context, key).await else {
             continue;
         };
         let mut params = PaginatedRequestParams::default();
@@ -113,11 +113,11 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     let Some((prefix, name)) = split(&params.name) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
     };
-    let Some(id) = context.served.lock().await.owner(prefix) else {
+    let Some(key) = context.served.lock().await.owner(prefix) else {
         return Err(ErrorData::invalid_params(format!("no served tool is named {}", params.name), None));
     };
     let name = name.to_string();
-    let run = running(context, id).await.map_err(|error| ErrorData::internal_error(error, None))?;
+    let run = running(context, key).await.map_err(|error| ErrorData::internal_error(error, None))?;
     params.name = name.into();
     attest_request(&mut params, context.caller.image(), context.caller.who());
     run.touch();
@@ -133,10 +133,10 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
 /// The read, from the first served tool that answers it.
 pub async fn read_resource(context: &Context, mut params: ReadResourceRequestParams) -> Result<ReadResourceResult, ErrorData> {
     attest_request(&mut params, context.caller.image(), context.caller.who());
-    let ids = context.served.lock().await.ids();
+    let keys = context.served.lock().await.keys();
     let mut last = None;
-    for id in ids {
-        let Ok(run) = running(context, id).await else {
+    for key in keys {
+        let Ok(run) = running(context, key).await else {
             continue;
         };
         match run.handle.read_resource(params.clone()).await {

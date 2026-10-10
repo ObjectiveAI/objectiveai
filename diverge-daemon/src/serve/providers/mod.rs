@@ -1,4 +1,4 @@
-//! The ten requests over providers, served.
+//! The fourteen requests over providers, served.
 //!
 //! [`outgoing`] has one handler per request over the providers the
 //! daemon dials; [`incoming`] one per request over the credentials of

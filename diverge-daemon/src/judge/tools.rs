@@ -4,20 +4,18 @@
 //! create, the connect — is held or it is not; an action over a tool
 //! is allowed by a grant that holds it and whose `within` reaches the
 //! tool — `any`, or the tools list filter as [`filter::tools::test`]
-//! reads it, with whether the tool is active now and which agents it
-//! is attached to, which the caller knows; a tagging action by a
-//! grant that holds it, reaches the tool, and covers every tag named.
-//! An attach and a detach also need `edit` over the agent, which is
+//! reads it, over the [`Facts`] of a record or a dependency, which
+//! the caller knows; a tagging action by a grant that holds it,
+//! reaches the tool, and covers every tag named. An attach and a
+//! detach also need `edit` over the agent, which is
 //! [`agents`](super::agents)' to judge.
 
 use diverge_sdk::daemon::endpoints::tools::list::client::request::Filter;
 use diverge_sdk::daemon::grant::tools::{Make, Over, Permission};
 use diverge_sdk::daemon::grant::{Tagging, Within};
-use diverge_sdk::daemon::key;
 
 use super::Standing;
-use super::filter;
-use crate::store::tools::Tool;
+use super::filter::{self, tools::Facts};
 
 /// Whether the standing may make a tool the way `make` says.
 pub fn make(standing: &Standing, make: Make) -> bool {
@@ -33,11 +31,11 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
         .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
 }
 
-/// Whether the standing may do `action` to `tool`, given whether it
-/// is active now and the agents it is attached to.
-pub fn over(standing: &Standing, action: Over, tool: &Tool, active: bool, attached: &[key::Agent]) -> bool {
+/// Whether the standing may do `action` to the tool the facts
+/// describe.
+pub fn over(standing: &Standing, action: Over, facts: &Facts<'_>) -> bool {
     standing.tools().any(|permission| match permission {
-        Permission::Over { actions, within } => actions.contains(&action) && reaches(within, tool, active, attached),
+        Permission::Over { actions, within } => actions.contains(&action) && reaches(within, facts),
         _ => false,
     })
 }
@@ -50,24 +48,24 @@ pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
         .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
 }
 
-/// Whether the standing may put `tags` on `tool`, or take them off,
+/// Whether the standing may put `tags` on the tool, or take them off,
 /// as `action` says.
-pub fn tagging(standing: &Standing, action: Tagging, tool: &Tool, active: bool, attached: &[key::Agent], tags: &[String]) -> bool {
+pub fn tagging(standing: &Standing, action: Tagging, facts: &Facts<'_>, tags: &[String]) -> bool {
     standing.tools().any(|permission| match permission {
         Permission::Tags {
             actions,
             within,
             tags: scope,
-        } => actions.contains(&action) && reaches(within, tool, active, attached) && covers(scope, tags),
+        } => actions.contains(&action) && reaches(within, facts) && covers(scope, tags),
         _ => false,
     })
 }
 
 /// Whether a grant's `within` reaches the tool.
-fn reaches(within: &Within<Filter>, tool: &Tool, active: bool, attached: &[key::Agent]) -> bool {
+fn reaches(within: &Within<Filter>, facts: &Facts<'_>) -> bool {
     match within {
         Within::Any => true,
-        Within::Only(filter) => filter::tools::test(filter, tool, active, attached),
+        Within::Only(filter) => filter::tools::test(filter, facts),
     }
 }
 

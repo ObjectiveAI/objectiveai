@@ -14,18 +14,18 @@ use diverge_sdk::daemon::reference;
 
 use super::{Changes, Kind, Peers};
 use crate::volumes::Mirror;
-use crate::containers::{AgentRun, Key, ToolRun};
+use crate::containers::{AgentRun, DependencyId, Key, ToolKey, ToolRun};
 use crate::database::Scope;
-use crate::store::{AccountId, AgentId, ToolId};
+use crate::store::{AccountId, AgentId};
 
 /// The live state of the daemon: which accounts have a client
 /// connected as them, and how many; which providers the daemon holds
 /// a connection to, and the handle it speaks to each on; and the dial
 /// tasks keeping the outgoing ones connected; every agent's log as
-/// it is appended and watched; which agents and tools run, and what
-/// is live for each; the deployer agents' queues; and the word that a
-/// dependency's position was answered. Behind async mutexes, held for
-/// a lookup and never across anything that waits on the outside.
+/// it is appended and watched; which agents and tools run — a tool
+/// on record, or a dependency deployed for an agent — and what is
+/// live for each. Behind async mutexes, held for a lookup and never
+/// across anything that waits on the outside.
 #[derive(Default)]
 pub struct Live {
     /// Connections per account, for the accounts with any.
@@ -42,14 +42,10 @@ pub struct Live {
     logs: Mutex<HashMap<AgentId, Arc<Log>>>,
     /// The agents running now.
     agents: Mutex<HashMap<AgentId, Arc<AgentRun>>>,
-    /// The tools running now, or joined.
-    tools: Mutex<HashMap<ToolId, Arc<ToolRun>>>,
-    /// One queue per deployer agent: the lock a dependency holds for
-    /// its turn, so the deployer handles one at a time.
-    deployers: Mutex<HashMap<AgentId, Arc<Mutex<()>>>>,
-    /// A route was set or a tool attached: every dependency waiting
-    /// on its position looks again.
-    pub answered: Notify,
+    /// The tools running now, or joined: records and dependencies.
+    tools: Mutex<HashMap<ToolKey, Arc<ToolRun>>>,
+    /// The next dependency number.
+    next_dependency: Mutex<u64>,
     /// Every container's database scope touched since the start: its
     /// password, in memory only.
     scopes: Mutex<HashMap<Key, Arc<Scope>>>,
@@ -296,7 +292,8 @@ impl Live {
         self.agents.lock().await.values().cloned().collect()
     }
 
-    /// The agents a loop runs in now: one snapshot for a list.
+    /// The agents active now — a loop running, or an exchange in
+    /// flight: one snapshot for a list.
     pub async fn active_agents(&self) -> HashSet<AgentId> {
         self.agents
             .lock()
@@ -308,8 +305,8 @@ impl Live {
     }
 
     /// The tool's run, if it is up.
-    pub async fn tool_run(&self, id: ToolId) -> Option<Arc<ToolRun>> {
-        self.tools.lock().await.get(&id).cloned()
+    pub async fn tool_run(&self, key: ToolKey) -> Option<Arc<ToolRun>> {
+        self.tools.lock().await.get(&key).cloned()
     }
 
     /// The tool is running, or joined.
@@ -318,18 +315,18 @@ impl Live {
     }
 
     /// The tool's run is over: what was live for it, once.
-    pub async fn remove_tool(&self, id: ToolId) -> Option<Arc<ToolRun>> {
-        self.tools.lock().await.remove(&id)
+    pub async fn remove_tool(&self, key: ToolKey) -> Option<Arc<ToolRun>> {
+        self.tools.lock().await.remove(&key)
     }
 
-    /// Every tool running now.
+    /// Every tool running now, records and dependencies.
     pub async fn tool_runs(&self) -> Vec<Arc<ToolRun>> {
         self.tools.lock().await.values().cloned().collect()
     }
 
     /// The tools active now, each with its container's id when it has
     /// one: one snapshot for a list.
-    pub async fn active_tools(&self) -> HashMap<ToolId, Option<String>> {
+    pub async fn active_tools(&self) -> HashMap<ToolKey, Option<String>> {
         self.tools
             .lock()
             .await
@@ -338,21 +335,12 @@ impl Live {
             .collect()
     }
 
-    /// Whether an active agent is served the tool now, which is what
-    /// holds a route to it.
-    pub async fn serving(&self, tool: ToolId) -> bool {
-        for run in self.agent_runs().await {
-            if run.is_active() && run.served.lock().await.entry(tool).is_some() {
-                return true;
-            }
-        }
-        false
-    }
-
-    /// The deployer agent's queue: the lock one dependency holds for
-    /// its turn.
-    pub async fn deployer_queue(&self, id: AgentId) -> Arc<Mutex<()>> {
-        Arc::clone(self.deployers.lock().await.entry(id).or_default())
+    /// A number for a dependency about to be deployed, never given
+    /// twice this daemon life.
+    pub async fn mint_dependency(&self) -> DependencyId {
+        let mut next = self.next_dependency.lock().await;
+        *next += 1;
+        DependencyId(*next)
     }
 
     /// The container's database scope, live: the one there is, or one

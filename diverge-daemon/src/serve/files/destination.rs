@@ -7,8 +7,9 @@ use sqlx::PgConnection;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing};
 use crate::serve::volumes::{Located, locate};
+use crate::serve::tools::{Found, READ_ONLY};
 use crate::serve::{agents as serve_agents, tools as serve_tools};
-use crate::store::{self, agents as store_agents, tools as store_tools};
+use crate::store::{self, agents as store_agents};
 
 /// Whether the standing may land files at the destination.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,7 +26,9 @@ pub enum Judged {
 }
 
 /// A transfer lands by `upload` over the destination agent, tool or
-/// volume — the grant an upload there would take.
+/// volume — the grant an upload there would take. A dependency tool
+/// reached is the error an upload into it would be: it is read, not
+/// changed.
 pub async fn judged(conn: &mut PgConnection, daemon: &Daemon, standing: &Standing, destination: &Destination) -> Result<Judged, store::Error> {
     Ok(match destination {
         Destination::Agent { agent, .. } => {
@@ -36,15 +39,15 @@ pub async fn judged(conn: &mut PgConnection, daemon: &Daemon, standing: &Standin
             if judge::agents::over(standing, agents::Over::Upload, &record, active) { Judged::Allowed } else { Judged::Forbidden }
         }
         Destination::Tool { tool, .. } => {
-            let Some(record) = store_tools::by_reference(conn, tool, false).await? else {
+            let Some(found) = serve_tools::resolve(conn, daemon, tool, false).await? else {
                 return Ok(Judged::NoDestination);
             };
-            let attached = serve_tools::agents_of(conn, record.id).await?;
-            let active = serve_tools::active(daemon, record.id).await;
-            if judge::tools::over(standing, tools::Over::Upload, &record, active, &attached) {
-                Judged::Allowed
-            } else {
+            if !serve_tools::reaches(conn, daemon, standing, tools::Over::Upload, &found).await? {
                 Judged::Forbidden
+            } else if let Found::Dependency(_) = found {
+                Judged::Error(READ_ONLY.to_string())
+            } else {
+                Judged::Allowed
             }
         }
         Destination::Volume { volume, .. } => match locate(conn, daemon, volume).await? {

@@ -7,11 +7,11 @@ use diverge_sdk::daemon::endpoints::tools::filetree::server::response::Frame;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{active, agents_of};
+use super::{reaches, resolve};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::{files, reply};
-use crate::store::{self, tools};
+use crate::store;
 
 /// Send the tree and its changes, then finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
@@ -24,7 +24,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` with no `filetree` grant at all; `NotFound`;
 /// `Forbidden` for a tool the grants do not reach; the container
 /// started, or the connected tool joined, for the watch, which
-/// failing is the `Error`; else a snapshot of the whole tree, the
+/// failing is the `Error` — a dependency's running already, for its
+/// agent; else a snapshot of the whole tree, the
 /// daemon's mounts spliced in, then every change until the client
 /// cancels, the run ends, or the stream fails; the container released
 /// after. The watch touches nothing: it never keeps the container up
@@ -39,17 +40,17 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let Some(tool) = tools::by_reference(&mut conn, &frame.tool, false).await? else {
+    let Some(found) = resolve(&mut conn, daemon, &frame.tool, false).await? else {
         reply::reply(scope, &Frame::NotFound).await;
         return Ok(());
     };
-    let attached = agents_of(&mut conn, tool.id).await?;
+    let reached = reaches(&mut conn, daemon, &standing, Over::Filetree, &found).await?;
     drop(conn);
-    if !judge::tools::over(&standing, Over::Filetree, &tool, active(daemon, tool.id).await, &attached) {
+    if !reached {
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    let opened = match files::open_tool(daemon, &tool).await {
+    let opened = match files::open_found(daemon, &found).await {
         Ok(opened) => opened,
         Err(error) => {
             reply::reply(scope, &Frame::Error(reply::failure(&error))).await;

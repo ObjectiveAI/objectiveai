@@ -1,4 +1,5 @@
-//! The container's `/daemon` connections, served as its account.
+//! The container's `/daemon` connections, served as its account or
+//! under its template's grants.
 
 use std::pin::Pin;
 use std::sync::Arc;
@@ -17,17 +18,23 @@ use crate::judge::Who;
 use crate::serve;
 
 /// A connection the container's program opened, taken when the
-/// container runs under an account and declined when it runs under
-/// none: the program's frames go in as a connection carried inside
-/// the process, served by the same session and dispatch a socket
-/// gets, for the account — no credential passes — and the session's
-/// frames come back out as the daemon's half of the pair. Every frame
-/// the program sends is a use of the container.
+/// container has a standing — a record's account, read fresh for
+/// every request, or a dependency's grants, fixed at its deploy — and
+/// declined when it has none: the program's frames go in as a
+/// connection carried inside the process, served by the same session
+/// and dispatch a socket gets, for that standing — no credential
+/// passes — and the session's frames come back out as the daemon's
+/// half of the pair. Every frame the program sends is a use of the
+/// container.
 impl DaemonAnswerer for Answerer {
     type Frames = Pin<Box<dyn Stream<Item = pair::server::Owned> + Send>>;
 
     async fn connect(&self, _: u32, mut from_program: UnboundedReceiver<pair::client::Owned>) -> Option<Self::Frames> {
-        let account = self.account?;
+        let who = match (&self.standing, self.account) {
+            (Some(standing), _) => Who::Dependency(Arc::clone(standing)),
+            (None, Some(account)) => Who::Account(account),
+            (None, None) => return None,
+        };
         let (to_session, incoming) = mpsc::unbounded_channel::<Bytes>();
         let (outgoing, from_session) = mpsc::unbounded_channel::<Bytes>();
         let touched = self.touched.clone();
@@ -45,7 +52,7 @@ impl DaemonAnswerer for Answerer {
         });
         let daemon = Arc::clone(&self.daemon);
         tokio::spawn(async move {
-            serve::client(Connection::Local { incoming, outgoing }, Who { id: account }, daemon).await;
+            serve::client(Connection::Local { incoming, outgoing }, who, daemon).await;
         });
         Some(Box::pin(stream::unfold(from_session, |mut from_session| async move {
             loop {

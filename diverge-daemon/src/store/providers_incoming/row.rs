@@ -10,7 +10,7 @@ use super::Incoming;
 use crate::store::{Error, IncomingId};
 
 /// The columns every incoming credential query selects.
-pub(super) const SELECT: &str = "SELECT id, identity, address, key_hash, created, creator FROM diverge.providers_incoming";
+pub(super) const SELECT: &str = "SELECT id, identity, address, key_hash, tags, created, creator FROM diverge.providers_incoming";
 
 /// The order: oldest added first.
 pub(super) const ORDER: &str = "ORDER BY created, id";
@@ -32,6 +32,7 @@ pub(super) fn incoming(row: &PgRow) -> Result<Incoming, Error> {
         identity: row.try_get("identity")?,
         address,
         key_hash: row.try_get("key_hash")?,
+        tags: row.try_get("tags")?,
         created,
         creator,
     })

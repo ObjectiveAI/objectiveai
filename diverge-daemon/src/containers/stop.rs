@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
+use futures_util::future;
 
-use super::{AgentRun, Key, ToolRun, pump, tools};
+use super::{AgentRun, Key, ToolKey, ToolRun, pump, tools};
 use crate::daemon::{Daemon, Kind};
 use crate::store::{AgentId, agents, tools as tool_records};
 
@@ -18,9 +19,10 @@ pub async fn stop_agent(daemon: &Daemon, id: AgentId) {
 }
 
 /// The agent's run has ended, however it did: forgotten as live, its
-/// tasks ended, its served tools released, its mounts let go, and the
-/// log told it ceased on its provider. Done once: a second call for
-/// one run does nothing.
+/// tasks ended, its dependencies stopped and its attached tools
+/// released — all at once, every container told at the same time —
+/// its mounts let go, and the log told it ceased on its provider.
+/// Done once: a second call for one run does nothing.
 pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     if daemon.live.remove_agent(run.id).await.is_none() {
         return;
@@ -29,10 +31,15 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
     }
-    let ids = run.served.lock().await.ids();
-    for id in ids {
-        tools::release(daemon, id, Key::Agent(run.id)).await;
-    }
+    let (dependencies, attached) = {
+        let served = run.served.lock().await;
+        (served.dependencies(), served.attached_running())
+    };
+    future::join(
+        stop_dependencies(daemon, dependencies),
+        future::join_all(attached.into_iter().map(|key| tools::release(daemon, key, Key::Agent(run.id)))),
+    )
+    .await;
     run.mounts.stop().await;
     let _ = pump::append(
         daemon,
@@ -51,8 +58,23 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     daemon.live.changed(Kind::Agents);
 }
 
+/// Every dependency stopped at once: each told to stop, each waited
+/// for, each taken down.
+pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>) {
+    future::join_all(dependencies.iter().map(|run| async move {
+        run.handle.stop().await;
+        run.handle.wait().await;
+    }))
+    .await;
+    for run in dependencies {
+        ended_tool(daemon, run).await;
+    }
+}
+
 /// The tool's run has ended: forgotten as live, its tasks ended, its
-/// own served dependencies released, its mounts let go.
+/// mounts let go; a record's told where and when it last ran; a
+/// dependency's taken out of its agent's served set, which tells the
+/// agent its tools changed.
 pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     if daemon.live.remove_tool(run.id).await.is_none() {
         return;
@@ -61,8 +83,18 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
         task.abort();
     }
     run.mounts.stop().await;
-    if let Ok(mut conn) = daemon.store.acquire().await {
-        let _ = tool_records::set_last(&mut conn, run.id, &run.provider, Utc::now()).await;
+    match (run.id, &run.dependency) {
+        (ToolKey::Record(id), _) => {
+            if let Ok(mut conn) = daemon.store.acquire().await {
+                let _ = tool_records::set_last(&mut conn, id, &run.provider, Utc::now()).await;
+            }
+        }
+        (ToolKey::Dependency(_), Some(dependency)) => {
+            if let Some(agent) = daemon.live.agent_run(dependency.agent).await {
+                agent.served.lock().await.remove(run.id);
+            }
+        }
+        (ToolKey::Dependency(_), None) => {}
     }
     daemon.live.changed(Kind::Tools);
 }

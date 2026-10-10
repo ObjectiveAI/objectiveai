@@ -69,7 +69,7 @@ impl Source for Open<'_> {
             let mut conn = self.daemon.store.acquire().await?;
             let mut listed = Vec::with_capacity(open.len());
             for (id, key, opened) in open {
-                if let Some(container) = database::container_of(&mut conn, key).await? {
+                if let Some(container) = database::container_of(self.daemon, &mut conn, key).await? {
                     listed.push((id, Connection { container, opened }));
                 }
             }

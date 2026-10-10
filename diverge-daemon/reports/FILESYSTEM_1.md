@@ -173,7 +173,7 @@ as shares.
 ```
 
 `agents/` is made at every start. The records themselves — accounts,
-roles, providers, agents, tools, templates, routes, tags, grants — are
+roles, providers, agents, tools, templates, tags, grants — are
 not files: they are rows in Postgres, local or remote, under the
 daemon's own schema. Volumes have no files here at all; the daemon
 mirrors each provider's listing in memory and serves FUSE mounts of

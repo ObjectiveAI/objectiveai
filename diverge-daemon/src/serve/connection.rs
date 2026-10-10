@@ -59,17 +59,20 @@ pub async fn connection(mut connection: Connection, address: IpAddr, daemon: Arc
 /// Serve a client admitted as `who`, past its handshake, until the
 /// socket ends.
 ///
-/// The connection counts itself in as its account, and every scope
-/// the client opens is read as a request and handed to [`dispatch`]
-/// on a task of its own, so a slow answer never holds the socket; a
-/// second credential ends the connection. When the socket is gone it
-/// is dropped first, which tells every scope still being served that
-/// its feed has closed, and then every task still answering is waited
-/// for, since an answer composed is an answer sent, and the connection
-/// counts itself out.
+/// The connection counts itself in as its account — a dependency
+/// tool's, served under its grants, is no account's — and every
+/// scope the client opens is read as a request and handed to
+/// [`dispatch`] on a task of its own, so a slow answer never holds
+/// the socket; a second credential ends the connection. When the
+/// socket is gone it is dropped first, which tells every scope still
+/// being served that its feed has closed, and then every task still
+/// answering is waited for, since an answer composed is an answer
+/// sent, and the connection counts itself out.
 pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
     let mut session = Session::new(connection);
-    daemon.live.enter(who.id).await;
+    if let Some(account) = who.account() {
+        daemon.live.enter(account).await;
+    }
     let mut scopes = JoinSet::new();
     while let Some(received) = session.next().await {
         while scopes.try_join_next().is_some() {}
@@ -77,11 +80,14 @@ pub async fn client(connection: Connection, who: Who, daemon: Arc<Daemon>) {
             break;
         };
         let daemon = Arc::clone(&daemon);
+        let who = who.clone();
         scopes.spawn(async move {
             dispatch(scope, &payload, who, &daemon).await;
         });
     }
     drop(session);
     while scopes.join_next().await.is_some() {}
-    daemon.live.leave(who.id).await;
+    if let Some(account) = who.account() {
+        daemon.live.leave(account).await;
+    }
 }

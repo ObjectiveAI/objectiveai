@@ -1,177 +1,183 @@
-//! Deploying one agent's dependencies.
+//! Deploying every dependency, at once.
 
+use std::collections::HashSet;
 use std::sync::Arc;
+use std::time::Instant;
 
-use diverge_sdk::daemon::creator;
-use diverge_sdk::daemon::endpoints::tools::routes::Path;
-use diverge_sdk::daemon::reference;
-use diverge_sdk::shared::containers::tools::Tool as Declared;
+use chrono::Utc;
+use diverge_sdk::daemon::creator::{self, Creator};
+use diverge_sdk::daemon::grant::Grant;
+use diverge_sdk::daemon::key;
+use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
+use diverge_sdk::shared::containers::dependencies::Template;
 use diverge_sdk::shared::error::Error;
-use rmcp::model::ContentBlock;
-use tokio::sync::Mutex;
+use futures_util::future;
+use tokio::sync::{Mutex, watch};
 
-use super::{position, template_of};
+use crate::containers::answerers::Answerer;
+use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
-use crate::containers::{Key, message, start, tools};
-use crate::daemon::Daemon;
-use crate::store::tools::{Tool, attachments};
-use crate::store::{self, agents, routes, tools as tool_records, tools_templates};
+use crate::containers::{Caller, Dependency, Key, ToolHandle, ToolKey, ToolRun, build, provider, stop};
+use crate::daemon::Kind;
+use crate::judge::Standing;
+use crate::store::AgentId;
 
-/// What a deploy is for: the agent, the deployer it may ask, and the
-/// served set the answers land in.
-pub struct Deploy {
-    /// The daemon.
-    pub daemon: Arc<Daemon>,
-    /// The agent whose dependencies these are.
-    pub user: Key,
-    /// The agent as a sender.
-    pub sender: creator::Creator,
-    /// The agent's name, if it has one: what a position names it by.
-    pub root: Option<String>,
-    /// The deployer agent as the record names it.
-    pub deployer: Option<creator::Agent>,
-    /// Where answered dependencies are served.
-    pub served: Arc<Mutex<Served>>,
-}
-
-/// Answer every declared dependency, in order; the first unmet is the
-/// failure, in its own words, and the run does not go on.
-pub async fn deploy(deploy: &Deploy, declared: Vec<Declared>) -> Result<(), Error> {
-    for dependency in declared {
-        let tool = answer(deploy, &dependency).await.map_err(|why| {
-            Error(serde_json::json!({
-                "kind": "dependency",
-                "tool": dependency.name,
-                "error": why,
-            }))
-        })?;
-        let run = tools::use_tool(&deploy.daemon, &tool, deploy.user)
-            .await
-            .map_err(|error| {
-                Error(serde_json::json!({
-                    "kind": "dependency",
-                    "tool": dependency.name,
-                    "error": error.to_string(),
-                }))
-            })?;
-        let mut served = deploy.served.lock().await;
-        served.insert(tool.clone(), &dependency.name);
-        served.running(tool.id, run);
+/// Deploy every template for the agent `answerer` answers for, whose
+/// container runs under `id` on the answerer's provider: all at once,
+/// each served to the agent under its declared name once every one is
+/// up. A name declared twice, a tool container asking, no provider
+/// to run on, a path of the agent's that cannot be served, or a
+/// provider that will not run one — every candidate tried — is the
+/// error, in the dependency's name, and every dependency started is
+/// stopped.
+pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -> Result<(), Error> {
+    let (Key::Agent(agent), Caller::Agent { key: agent_key, .. }) = (answerer.key, &answerer.caller) else {
+        return Err(error("", "a tool container declares no dependencies"));
+    };
+    let mut names = HashSet::new();
+    for template in &templates {
+        if !names.insert(template.name.as_str()) {
+            return Err(error(&template.name, "declared twice"));
+        }
+    }
+    let id = id.as_str();
+    let started = future::join_all(templates.into_iter().map(|template| {
+        let name = template.name.clone();
+        async move { (name, start(answerer, agent, agent_key, id, template).await) }
+    }))
+    .await;
+    let mut runs = Vec::with_capacity(started.len());
+    let mut failed = None;
+    for (name, outcome) in started {
+        match outcome {
+            Ok(run) => runs.push(run),
+            Err(reason) => failed = failed.or(Some((name, reason))),
+        }
+    }
+    if let Some((name, reason)) = failed {
+        stop::stop_dependencies(&answerer.daemon, runs).await;
+        return Err(error(&name, &reason));
+    }
+    let mut served = answerer.served.lock().await;
+    for run in runs {
+        if let Some(dependency) = &run.dependency {
+            let name = dependency.name.clone();
+            served.insert_dependency(run, &name);
+        }
     }
     Ok(())
 }
 
-/// The tool that answers one dependency: by a route, by an
-/// attachment, or by the deployer; else why not.
-async fn answer(deploy: &Deploy, dependency: &Declared) -> Result<Tool, String> {
-    let template = template_of(dependency).map_err(|error| error.to_string())?;
-    let mut conn = deploy.daemon.store.acquire().await.map_err(|error| error.to_string())?;
-    if tools_templates::by_id(&mut conn, &template, false)
-        .await
-        .map_err(|error| error.to_string())?
-        .is_none()
-    {
-        return Err(format!("the dependency names no tool template on record: {template}"));
-    }
-    let path = position(deploy.root.as_deref(), &template);
-    if let Some(tool) = answered(&mut conn, deploy, path.as_ref(), &template)
-        .await
-        .map_err(|error| error.to_string())?
-    {
-        return Ok(tool);
-    }
-    drop(conn);
-    let Some(deployer) = &deploy.deployer else {
-        return Err("no route answers the position, and the container has no deployer agent".to_string());
+/// One dependency started: its mounts served from the agent, its
+/// container run on the first candidate provider that will, its run
+/// entered as live with a waiter. The reason it could not be, in a
+/// sentence.
+async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agent_container: &str, template: Template) -> Result<Arc<ToolRun>, String> {
+    let daemon = &answerer.daemon;
+    let candidates = provider::candidates(daemon, None).await.map_err(|error| error.to_string())?;
+    let mounts = Arc::new(Mounts::build_dependency(daemon, &answerer.provider, agent_container, &template).await?);
+    let container = build::dependency(&template, &mounts);
+    let image = container.image.clone();
+    let dependency_id = daemon.live.mint_dependency().await;
+    let key = key::Tool::Dependency {
+        agent: agent_key.clone(),
+        name: template.name.clone(),
     };
-    ask_deployer(deploy, deployer, dependency, path.as_ref(), &template).await
-}
-
-/// Whether the position is answered now: a route there whose tool is
-/// of the template, or a tool of the template attached to the agent.
-async fn answered(conn: &mut sqlx::PgConnection, deploy: &Deploy, path: Option<&Path>, template: &str) -> Result<Option<Tool>, store::Error> {
-    if let Some(path) = path
-        && let Some(route) = routes::by_path(conn, path, false).await?
-        && let Some(tool) = tool_records::by_id(conn, route.tool, false).await?
-        && tool.template() == Some(template)
-    {
-        return Ok(Some(tool));
-    }
-    if let Key::Agent(agent) = deploy.user {
-        for id in attachments::of_agent(conn, agent).await? {
-            if let Some(tool) = tool_records::by_id(conn, id, false).await?
-                && tool.template() == Some(template)
-            {
-                return Ok(Some(tool));
-            }
-        }
-    }
-    Ok(None)
-}
-
-/// The deployer asked, in its queue, and waited on: the position
-/// answered first is the tool; the deployer inactive first is the
-/// dependency unmet.
-async fn ask_deployer(deploy: &Deploy, deployer: &creator::Agent, dependency: &Declared, path: Option<&Path>, template: &str) -> Result<Tool, String> {
-    let reference = reference::Agent::TemplateIndex {
-        template: deployer.template.clone(),
-        index: deployer.index,
-    };
-    let agent = {
-        let mut conn = deploy.daemon.store.acquire().await.map_err(|error| error.to_string())?;
-        agents::by_reference(&mut conn, &reference, false)
-            .await
-            .map_err(|error| error.to_string())?
-            .ok_or_else(|| "the deployer agent named is none the daemon has".to_string())?
-    };
-    let queue = deploy.daemon.live.deployer_queue(agent.id).await;
-    let _turn = queue.lock().await;
-    let run = start::agent(&deploy.daemon, &agent).await.map_err(|error| error.to_string())?;
-    let mut loop_active = run.loop_active.subscribe();
-    let notified = deploy.daemon.live.answered.notified();
-    tokio::pin!(notified);
-    notified.as_mut().enable();
-    let content = vec![ContentBlock::text(
-        serde_json::json!({
-            "dependency": {
-                "name": dependency.name,
-                "template": template,
-                "instructions": dependency.instructions,
-                "position": path,
+    let sender = Creator::Tool(creator::Tool::Dependency {
+        agent: creator::Agent {
+            template: agent_key.template.clone(),
+            index: agent_key.index,
+            name: agent_key.name.clone(),
+        },
+        name: template.name.clone(),
+    });
+    let standing = (!template.permissions.is_empty()).then(|| {
+        let grants: Vec<Grant> = template.permissions.iter().cloned().map(Grant::from).collect();
+        Arc::new(Standing::from_grants(identity(agent_key, &template.name), grants))
+    });
+    let touched = watch::channel(Instant::now()).0;
+    let mut last = String::new();
+    for (identity, handle) in candidates {
+        let run_answerer = Arc::new(Answerer {
+            daemon: Arc::clone(daemon),
+            key: Key::Tool(ToolKey::Dependency(dependency_id)),
+            caller: Caller::Tool {
+                key: key.clone(),
+                image: Some(image.clone()),
             },
-            "for": deploy.sender,
-        })
-        .to_string(),
-    )];
-    match message::enqueue(&run, content, deploy.sender.clone()).await {
-        message::Fate::Delivered => {}
-        message::Fate::Cancelled => return Err("the deployer did not take the dependency".to_string()),
-        message::Fate::Error(error) => return Err(format!("the deployer did not take the dependency: {}", error.0)),
+            sender: sender.clone(),
+            account: None,
+            standing: standing.clone(),
+            provider: identity.clone(),
+            mounts: Arc::clone(&mounts),
+            served: Arc::new(Mutex::new(Served::new())),
+            touched: touched.clone(),
+            inflight: Arc::clone(&answerer.inflight),
+        });
+        let opened = tools_run::execute(&handle, &tools_request::Frame(container.clone()), run_answerer.set()).await;
+        let (container_id, handle) = match opened {
+            Ok(opened) => opened,
+            Err(error) => {
+                last = format!("{error:?}");
+                continue;
+            }
+        };
+        let run = Arc::new(ToolRun {
+            id: ToolKey::Dependency(dependency_id),
+            key: key.clone(),
+            image: Some(image.clone()),
+            sender: sender.clone(),
+            account: None,
+            provider: identity,
+            container: Some(container_id.id),
+            handle: ToolHandle::Run(handle),
+            users: Mutex::new(HashSet::from([Key::Agent(agent)])),
+            touched: touched.clone(),
+            mounts: Arc::clone(&mounts),
+            volumes: Vec::new(),
+            tasks: Mutex::new(Vec::new()),
+            dependency: Some(Dependency {
+                id: dependency_id,
+                agent,
+                agent_key: agent_key.clone(),
+                name: template.name.clone(),
+                template,
+                started: Utc::now(),
+            }),
+        });
+        daemon.live.insert_tool(Arc::clone(&run)).await;
+        daemon.live.changed(Kind::Tools);
+        let waiter = {
+            let daemon = Arc::clone(daemon);
+            let run = Arc::clone(&run);
+            tokio::spawn(async move {
+                run.handle.wait().await;
+                stop::ended_tool(&daemon, run).await;
+            })
+        };
+        run.tasks.lock().await.push(waiter.abort_handle());
+        return Ok(run);
     }
-    // The loop took the message; wait for it to begin, then to end,
-    // and look for the answer at every wake.
-    let _ = loop_active.wait_for(|active| *active).await;
-    loop {
-        {
-            let mut conn = deploy.daemon.store.acquire().await.map_err(|error| error.to_string())?;
-            if let Some(tool) = answered(&mut conn, deploy, path, template).await.map_err(|error| error.to_string())? {
-                return Ok(tool);
-            }
-        }
-        if !*loop_active.borrow() {
-            return Err("the deployer went inactive without answering the position".to_string());
-        }
-        tokio::select! {
-            () = notified.as_mut() => {
-                notified.set(deploy.daemon.live.answered.notified());
-                notified.as_mut().enable();
-            }
-            changed = loop_active.changed() => {
-                if changed.is_err() {
-                    return Err("the deployer's run ended without answering the position".to_string());
-                }
-            }
-        }
-    }
+    mounts.stop().await;
+    Err(format!("no provider ran it; the last said: {last}"))
 }
 
+/// The identity a dependency's requests are served under: the
+/// agent's name, or its template's first eight digits and its index,
+/// then the dependency's name.
+fn identity(agent: &key::Agent, name: &str) -> String {
+    let agent = match &agent.name {
+        Some(name) => name.clone(),
+        None => format!("{}-{}", agent.template.chars().take(8).collect::<String>(), agent.index),
+    };
+    format!("{agent}/{name}")
+}
+
+/// The run's error, naming the dependency.
+fn error(name: &str, reason: &str) -> Error {
+    Error(serde_json::json!({
+        "kind": "dependency",
+        "dependency": name,
+        "error": reason,
+    }))
+}

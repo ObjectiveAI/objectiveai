@@ -1,6 +1,6 @@
 //! Making an agent.
 
-use diverge_sdk::daemon::creator::{self, Creator};
+use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
@@ -9,7 +9,7 @@ use crate::store::{AccountId, AgentId, Error, counters};
 
 /// What a new agent is made of: the create's members, checked by the
 /// caller — the template live, the account found and assignable, the
-/// provider on record, the deployer the caller's.
+/// provider on record.
 #[derive(Debug, Clone)]
 pub struct New {
     /// The template, by id.
@@ -24,8 +24,6 @@ pub struct New {
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes.
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The deployer agent as it is now, if any.
-    pub deployer: Option<creator::Agent>,
     /// Who makes it.
     pub creator: Creator,
 }
@@ -45,8 +43,8 @@ pub enum Created {
 pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error> {
     let index = counters::next(conn, &format!("agents:{}", new.template)).await?;
     let inserted = sqlx::query(
-        "INSERT INTO diverge.agents (template, index, name, account, provider, fuse_file_mounts, fuse_directory_mounts, deployer, creator) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+        "INSERT INTO diverge.agents (template, index, name, account, provider, fuse_file_mounts, fuse_directory_mounts, creator) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
     )
     .bind(&new.template)
     .bind(i64::try_from(index).unwrap_or(i64::MAX))
@@ -55,7 +53,6 @@ pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error
     .bind(new.provider.as_ref().map(Json))
     .bind(Json(&new.fuse_file_mounts))
     .bind(Json(&new.fuse_directory_mounts))
-    .bind(new.deployer.as_ref().map(Json))
     .bind(Json(&new.creator))
     .fetch_one(&mut *conn)
     .await;

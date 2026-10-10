@@ -12,13 +12,14 @@
 //!
 //! # What serves today
 //!
-//! Every request of the wire, all eighty-one: the fourteen over accounts
-//! and roles, the ten over outgoing providers and incoming
-//! credentials, the listing of a tenant's tool containers through a
-//! provider, the twelve over the two template families, the thirteen over agents — their logs, their messages,
-//! and the files of their containers — the sixteen over tools,
-//! attachments and admissions and their containers' files, the three
-//! over routes, the ten over volumes, and the two over the database —
+//! Every request of the wire, all eighty-four: the fourteen over
+//! accounts and roles, the fourteen over outgoing providers and
+//! incoming credentials, the listing of a tenant's tool containers
+//! through a provider, the twelve over the two template families,
+//! the thirteen over agents — their logs, their messages, and the
+//! files of their containers — the sixteen over tools, attachments
+//! and admissions and their containers' files, the twelve over
+//! volumes, and the two over the database —
 //! are served as the wire states them, and every connection is
 //! judged. A volume is its provider's, found by asking, judged by what
 //! the provider says and which records mount it, and held for the
@@ -27,7 +28,10 @@
 //! the daemon's own connections, [`transfers`], and a watch of a
 //! container's tree has the daemon's mounts spliced in. An agent's container runs on
 //! a provider from its first message and stops after `idle_seconds`
-//! unused; a tool's runs while an agent it is attached to is active;
+//! unused — active being a loop running or a call in flight, and
+//! nothing else; a tool's runs while an agent it is attached to is
+//! active; an agent's declared dependencies are deployed the moment
+//! its container asks, tools of its own for its container's life;
 //! the provider's asks on a run — the container's `/daemon`
 //! connections, its tool calls, its mounts, its dependencies, who may
 //! see or join it — are answered by [`containers`]; its database

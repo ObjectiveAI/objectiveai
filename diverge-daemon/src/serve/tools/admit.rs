@@ -7,12 +7,12 @@ use diverge_sdk::daemon::endpoints::tools::admit::server::response::Frame;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{active, agents_of};
+use super::{Found, READ_ONLY, reaches, resolve};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, key};
 use crate::serve::reply;
 use crate::store::tools::admissions;
-use crate::store::{self, tools};
+use crate::store;
 
 /// Answer the admit and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -25,7 +25,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `admit` grant at all; `NotFound`; `Forbidden`
-/// for a tool the grants do not reach; `Connected` for a connected
+/// for a tool the grants do not reach; the error for a dependency,
+/// listed to nobody and joined by nobody; `Connected` for a connected
 /// tool, whose runner admits; `Exists` for an identity admitted
 /// already; else the admission on the tool, with the key minted when
 /// it admits a connect, answered here and never again.
@@ -37,13 +38,15 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::tools::holds(&standing, Over::Admit) {
         return Ok(Frame::Forbidden);
     }
-    let Some(tool) = tools::by_reference(&mut tx, &frame.tool, true).await? else {
+    let Some(found) = resolve(&mut tx, daemon, &frame.tool, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let attached = agents_of(&mut tx, tool.id).await?;
-    if !judge::tools::over(&standing, Over::Admit, &tool, active(daemon, tool.id).await, &attached) {
+    if !reaches(&mut tx, daemon, &standing, Over::Admit, &found).await? {
         return Ok(Frame::Forbidden);
     }
+    let Found::Record(tool) = found else {
+        return Ok(Frame::Error(reply::failure(&READ_ONLY)));
+    };
     if tool.is_connected() {
         return Ok(Frame::Connected);
     }

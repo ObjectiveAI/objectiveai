@@ -6,14 +6,14 @@ use diverge_sdk::daemon::grant::agents::Over as AgentsOver;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{active, agents_of};
-use crate::containers;
+use super::{Found, READ_ONLY, reaches, resolve};
+use crate::containers::{self, Key, ToolKey};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::agents;
 use crate::serve::reply;
 use crate::store::tools::attachments;
-use crate::store::{self, agents as agent_records, tools};
+use crate::store::{self, agents as agent_records};
 
 /// Answer the detach and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -27,7 +27,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `detach` grant over tools or no `edit` grant
 /// over agents at all; `NoTool`; `NoAgent`; `Forbidden` for a tool or
-/// an agent the grants do not reach; `Active` while a loop runs in
+/// an agent the grants do not reach; the error for a dependency,
+/// attached to nothing; `Active` while a loop runs in
 /// the agent, which keeps its tools until the loop ends; else the
 /// tool detached, one not attached nothing to take back.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -38,19 +39,21 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::tools::holds(&standing, Over::Detach) || !judge::agents::holds(&standing, AgentsOver::Edit) {
         return Ok(Frame::Forbidden);
     }
-    let Some(tool) = tools::by_reference(&mut tx, &frame.tool, true).await? else {
+    let Some(found) = resolve(&mut tx, daemon, &frame.tool, true).await? else {
         return Ok(Frame::NoTool);
     };
     let Some(agent) = agent_records::by_reference(&mut tx, &frame.agent, true).await? else {
         return Ok(Frame::NoAgent);
     };
-    let attached = agents_of(&mut tx, tool.id).await?;
     let agent_active = agents::active(daemon, agent.id).await;
-    if !judge::tools::over(&standing, Over::Detach, &tool, active(daemon, tool.id).await, &attached)
+    if !reaches(&mut tx, daemon, &standing, Over::Detach, &found).await?
         || !judge::agents::over(&standing, AgentsOver::Edit, &agent, agent_active)
     {
         return Ok(Frame::Forbidden);
     }
+    let Found::Record(tool) = found else {
+        return Ok(Frame::Error(reply::failure(&READ_ONLY)));
+    };
     if agent_active {
         return Ok(Frame::Active);
     }
@@ -59,9 +62,9 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     daemon.live.changed(Kind::Agents);
     daemon.live.changed(Kind::Tools);
     if let Some(run) = daemon.live.agent_run(agent.id).await
-        && run.served.lock().await.remove(tool.id).is_some()
+        && run.served.lock().await.remove(ToolKey::Record(tool.id)).is_some()
     {
-        containers::release(daemon, tool.id, containers::Key::Agent(agent.id)).await;
+        containers::release(daemon, ToolKey::Record(tool.id), Key::Agent(agent.id)).await;
     }
     Ok(Frame::Detached)
 }

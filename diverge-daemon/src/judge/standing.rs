@@ -6,12 +6,14 @@ use sqlx::PgConnection;
 use super::Who;
 use crate::store;
 
-/// What an account is, for the length of one request: the identity
-/// it is served under, and every grant of every role it holds. Read
-/// inside the request's transaction so that the judgment and the
-/// write see one state; `None` is an account deleted since its client
-/// was admitted, which every handler answers as `Forbidden`.
-#[derive(Debug, Clone)]
+/// Who is asking, for the length of one request: the identity they
+/// are served under, and every grant they hold. An account's is every
+/// grant of every role it holds, read inside the request's
+/// transaction so that the judgment and the write see one state;
+/// `None` is an account deleted since its client was admitted, which
+/// every handler answers as `Forbidden`. A dependency tool's is its
+/// template's grants, fixed when it was deployed.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Standing {
     /// The account's name when it has one, else its credential's
     /// identity: what a `Creator::Client` carries.
@@ -21,14 +23,19 @@ pub struct Standing {
 }
 
 impl Standing {
-    /// The standing of `who` now.
+    /// The standing of `who` now: an account's read fresh, a
+    /// dependency's as it was fixed.
     pub async fn of(conn: &mut PgConnection, who: Who) -> Result<Option<Standing>, store::Error> {
-        Ok(store::of_account(conn, who.id)
-            .await?
-            .map(|(identity, grants)| Standing { identity, grants }))
+        match who {
+            Who::Account(id) => Ok(store::of_account(conn, id)
+                .await?
+                .map(|(identity, grants)| Standing { identity, grants })),
+            Who::Dependency(standing) => Ok(Some((*standing).clone())),
+        }
     }
 
-    /// A standing from grants alone, for judging without a store.
+    /// A standing from grants alone: a dependency tool's, from its
+    /// template.
     pub fn from_grants(identity: String, grants: Vec<Grant>) -> Standing {
         Standing { identity, grants }
     }
@@ -93,14 +100,6 @@ impl Standing {
     pub fn tools(&self) -> impl Iterator<Item = &grant::tools::Permission> {
         self.grants.iter().filter_map(|grant| match grant {
             Grant::Tools(permission) => Some(permission),
-            _ => None,
-        })
-    }
-
-    /// The grants over routes.
-    pub fn routes(&self) -> impl Iterator<Item = &grant::routes::Permission> {
-        self.grants.iter().filter_map(|grant| match grant {
-            Grant::Routes(permission) => Some(permission),
             _ => None,
         })
     }

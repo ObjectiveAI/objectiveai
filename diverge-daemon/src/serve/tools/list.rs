@@ -6,17 +6,19 @@ use std::future::Future;
 use diverge_sdk::daemon::endpoints::tools::Admission;
 use diverge_sdk::daemon::endpoints::tools::list::client::request::{self, Filter};
 use diverge_sdk::daemon::endpoints::tools::list::server::response::{Frame, Tool};
-use diverge_sdk::daemon::endpoints::tools::routes::Path;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::daemon::key;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
+use super::report_dependency;
+use crate::containers::ToolKey;
 use crate::daemon::{Daemon, Kind};
+use crate::judge::filter::tools::Facts;
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Change, Source};
 use crate::serve::reply;
 use crate::store::tools::admissions;
-use crate::store::{self, ToolId, agents, routes, tools};
+use crate::store::{self, ToolId, agents, tools};
 
 /// Send the list and its changes, then finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -27,13 +29,15 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// One `Forbidden` with no `list` grant at all; else every tool any
-/// `list` grant reaches that the request's filter lets through, oldest
-/// created first, the first `count` of them, one frame each, then the
-/// word that the list is whole — and from then on each tool added,
-/// changed or removed as the records, the attachments, the routes,
-/// the admissions and the runs change, until the client cancels. The
-/// attachments, the routes and the admissions are one load each for
-/// the whole list, at every reading.
+/// `list` grant reaches that the request's filter lets through —
+/// every record, oldest created first, and every dependency running
+/// now, oldest deployed first after them — the first `count` of
+/// them, one frame each, then the word that the list is whole — and
+/// from then on each tool added, changed or removed as the records,
+/// the attachments, the admissions and the runs change, a dependency
+/// added when its agent's container starts and removed when it ends,
+/// until the client cancels. The attachments and the admissions are
+/// one load each for the whole list, at every reading.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
@@ -69,11 +73,11 @@ struct Listed<'a> {
 }
 
 impl Source for Listed<'_> {
-    type Key = ToolId;
+    type Key = ToolKey;
     type Item = Tool;
     type Error = store::Error;
 
-    fn read(&self) -> impl Future<Output = Result<Vec<(ToolId, Tool)>, store::Error>> + Send {
+    fn read(&self) -> impl Future<Output = Result<Vec<(ToolKey, Tool)>, store::Error>> + Send {
         async move {
             let mut conn = self.daemon.store.acquire().await?;
             let all = tools::all(&mut conn).await?;
@@ -84,10 +88,6 @@ impl Source for Listed<'_> {
                     attached.entry(attachment.tool).or_default().push(key.clone());
                 }
             }
-            let mut routed: HashMap<ToolId, Vec<Path>> = HashMap::new();
-            for route in routes::all(&mut conn).await? {
-                routed.entry(route.tool).or_default().push(route.path());
-            }
             let mut admitted: HashMap<ToolId, Vec<Admission>> = HashMap::new();
             for record in admissions::all(&mut conn).await? {
                 admitted.entry(record.tool).or_default().push(record.admission);
@@ -97,19 +97,40 @@ impl Source for Listed<'_> {
             let empty = Vec::new();
             let mut listed = Vec::new();
             for tool in &all {
-                let active = states.contains_key(&tool.id);
+                let key = ToolKey::Record(tool.id);
+                let active = states.contains_key(&key);
                 let attached = attached.get(&tool.id).unwrap_or(&empty);
-                if !judge::tools::over(self.standing, Over::List, tool, active, attached) || !filter::tools::test(self.filter, tool, active, attached) {
+                let facts = Facts::record(tool, active, attached);
+                if !judge::tools::over(self.standing, Over::List, &facts) || !filter::tools::test(self.filter, &facts) {
                     continue;
                 }
-                let routes = routed.get(&tool.id).cloned().unwrap_or_default();
                 let admissions = if tool.is_connected() {
                     Vec::new()
                 } else {
                     admitted.get(&tool.id).cloned().unwrap_or_default()
                 };
-                let running = states.get(&tool.id).cloned().flatten();
-                listed.push((tool.id, tool.report(active, running, attached.clone(), routes, admissions)));
+                let running = states.get(&key).cloned().flatten();
+                listed.push((key, tool.report(active, running, attached.clone(), admissions)));
+            }
+            let mut dependencies: Vec<_> = self
+                .daemon
+                .live
+                .tool_runs()
+                .await
+                .into_iter()
+                .filter(|run| run.dependency.is_some())
+                .collect();
+            dependencies.sort_by_key(|run| run.dependency.as_ref().map(|dependency| (dependency.started, dependency.id)));
+            for run in dependencies {
+                let Some(facts) = Facts::dependency(&run) else {
+                    continue;
+                };
+                if !judge::tools::over(self.standing, Over::List, &facts) || !filter::tools::test(self.filter, &facts) {
+                    continue;
+                }
+                if let Some(item) = report_dependency(&run) {
+                    listed.push((run.id, item));
+                }
             }
             Ok(listed)
         }

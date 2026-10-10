@@ -39,22 +39,21 @@ Two lists are not over records, and have no filter and no count:
 `tools list_for` (19) asks a provider, and `postgres list` (78) reads
 the daemon's live state alone.
 
-## 2. The twelve
+## 2. The eleven
 
 | Tag | Request | Item | Filter members | Live in the item |
 |---|---|---|---|---|
-| 47 | `accounts list` | `Account` | names, identities, named, credentialed, roles, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-08 |
-| 54 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | —; a stream since 2026-10-08 |
-| 37 | `providers outgoing list` | `Outgoing` | addresses, kinds, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |
-| 42 | `providers incoming list` | `Incoming` | identities, connected, creators, created_from, created_to | `connected`; a stream since 2026-10-07 |
+| 48 | `accounts list` | `Account` | names, identities, named, credentialed, roles, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-08 |
+| 55 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | —; a stream since 2026-10-08 |
+| 34 | `providers outgoing list` | `Outgoing` | addresses, kinds, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-07 |
+| 41 | `providers incoming list` | `Incoming` | identities, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-07 |
 | 11 | `agents templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
-| 31 | `tools templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
+| 28 | `tools templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
 | 5 | `agents list` | `Agent` | names, templates, creators, active, all_tags, any_tags, created_from, created_to | `active`, `logs_index`; a stream since 2026-10-08 |
-| 23 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active`; a stream since 2026-10-08 |
-| 28 | `tools routes list` | `Route` | agents, templates, tools, creators, created_from, created_to | —; a stream since 2026-10-08 |
-| 67 | `volumes list` | `Volume` | providers, names, modes, mounted, created_from, created_to | `mounted` (filter only); a stream since 2026-10-08, over the daemon's mirror of each connected provider's listing |
+| 23 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active`; every dependency tool running now, as an item of its own while it runs (2026-10-09); a stream since 2026-10-08 |
+| 68 | `volumes list` | `Volume` | providers, names, modes, mounted, all_tags, any_tags, created_from, created_to | `mounted` (filter only); a stream since 2026-10-08, over the daemon's mirror of each connected provider's listing |
 | 19 | `tools list_for` | `Container` | none: `provider`, `tenant` | all of it; a stream since 2026-10-07, the provider's relayed (see `STREAMS_1.md`) |
-| 78 | `postgres list` | `Connection` | none | all of it; a stream since 2026-10-08 |
+| 81 | `postgres list` | `Connection` | none | all of it; a stream since 2026-10-08 |
 
 `Forbidden` for `list_for` also covers the provider the grants do not
 reach; `NoProvider` is a provider not on record.
@@ -83,21 +82,25 @@ are read at list time.
   the item: it is a filter member, read from the records that name the
   template (agents or tools made from it).
 - **`Agent`** — `name`, `template`, `index`, `creator`,
-  `deployer_agent`, `created`, `provider` (pinned, if any),
+  `created`, `provider` (pinned, if any),
   `last_active` (record), `tools` (keys of the attached tools, joined),
   `tags`; live: `active` (`Live.agents`, the run's loop), `logs_index`
   (the log's length on disk).
-- **`Tool`** — `name`, `origin` (created from a template, or connected
-  through a provider), `index`, `creator`,
+- **`Tool`** — `name`, `origin` (created from a template, connected
+  through a provider, or a dependency deployed for an agent — each
+  with its index, the dependency with its agent, its declared name,
+  its template whole, its provider and its container id), `creator`,
   `created`, `last_active`, `agents` (keys of the agents it is attached
-  to), `routes` (paths routed to it), `admissions`, `tags`; live:
-  `active` (`Live.tools`).
-- **`Route`** — `path` (`agent`, `templates`), `tool` (template, index,
-  name), `created`, `creator`. Nothing live.
+  to), `admissions`, `tags`; live: `active` (`Live.tools`). A
+  dependency tool is no record: it is an item while its run is in
+  `Live.tools` and gone after — always `active`, attached to the one
+  agent it was deployed for, no tags, no admissions, made by itself as
+  `Creator::Tool(Dependency)` when it was deployed (2026-10-09).
 - **`Volume`** — `provider`, `name`, `bytes`, `mode`, `created` (the
   provider's listing), `agents` and `tools` (keys of the records that
-  mount it, running or not). `mounted` is a filter member: either list
-  non-empty. The whole item is read from the provider at list time; a
+  mount it, running or not), `tags` (the daemon's, kept in
+  `volume_tags` beside the listing). `mounted` is a filter member:
+  either list non-empty. The whole item is read from the provider at list time; a
   provider not connected contributes nothing.
 - **`Container`** (list_for) — `id`, and what the provider says of the
   container; entirely the provider's answer.
@@ -112,20 +115,20 @@ itself.
 
 **The record changed.** Every create, edit, tag, untag, delete of the
 kind, and — for items that join other records — an attach or detach
-(agents' `tools`, tools' `agents`), a route set or deleted (tools'
-`routes`), an admission (tools' `admissions`), a role assigned or
+(agents' `tools`, tools' `agents`), an admission (tools'
+`admissions`), a role assigned or
 unassigned (accounts' `roles`, roles' `accounts`), a template's use
 (templates' `in_use`), a mount named (volumes'
 `agents`/`tools`), a dial opening or closing (`last_connected`), a
 run (`last_active`). The store is written by the handler of each
-request, in its transaction; nothing is told afterwards except
-`Live.answered`, which an attach and a route set notify so the
-deployer's wait looks again.
+request, in its transaction; nothing is told afterwards but the
+kind's word.
 
 **The live state changed.** A client connecting or leaving
 (`connected`), a provider's slot taken or given back (`connected`), an
 agent's or a tool's run starting, its loop going active or inactive,
-or ending (`active`), a line appended to a log (`logs_index`), a
+or ending (`active`), a dependency deployed or ended with its agent
+(a tools item added or removed), a line appended to a log (`logs_index`), a
 database connection opening or closing (`Connection`), a provider's
 listing of its volumes changing under it (`Volume`). `Live` is a set
 of maps behind mutexes, written in place; the only things watched in

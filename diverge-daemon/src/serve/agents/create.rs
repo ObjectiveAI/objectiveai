@@ -22,8 +22,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` without the `create` grant, or without `assign` over
-/// the account named; the error for a template, a provider or a
-/// deployer that is not there; `NoAccount`; `InUse` for a name another
+/// the account named; the error for a template or a provider that is
+/// not there; `NoAccount`; `InUse` for a name another
 /// agent has; else the agent made, its index the next for its
 /// template, nothing running: the container is work made from the
 /// record on its first use.
@@ -55,11 +55,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
         Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
-    let deployer = match inner::deployer(&mut tx, frame.deployer_agent.as_ref()).await? {
-        Checked::Ok(deployer) => deployer,
-        Checked::NoAccount | Checked::Forbidden => return Ok(Frame::Forbidden),
-        Checked::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
-    };
     let new = agents::New {
         template: inner.template,
         name: frame.name,
@@ -67,7 +62,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         provider: inner.provider,
         fuse_file_mounts: inner.fuse_file_mounts,
         fuse_directory_mounts: inner.fuse_directory_mounts,
-        deployer,
         creator: Creator::Client(Client {
             identity: standing.identity.clone(),
         }),

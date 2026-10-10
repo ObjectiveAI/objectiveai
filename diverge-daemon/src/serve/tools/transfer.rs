@@ -7,13 +7,13 @@ use diverge_sdk::daemon::endpoints::tools::transfer::server::response::Frame;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{active, agents_of};
+use super::{reaches, resolve};
 use crate::content;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::files::{Judged, judged};
 use crate::serve::{files, reply};
-use crate::store::{self, tools};
+use crate::store;
 use crate::transfers::{self, Fail, Source};
 
 /// Answer the transfer and finish the scope.
@@ -30,7 +30,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// `Forbidden` for a tool the grants do not reach, or a destination
 /// they do not; `NoDestination`; the container started, or the
 /// connected tool joined, for the operation, which failing is the
-/// `Error`; `NotFound` for a path at which nothing is; `Held` for a
+/// `Error` — a dependency's running already, for its agent; `NotFound` for a path at which nothing is; `Held` for a
 /// destination volume that is held; else the copy — through the
 /// provider when both ends run on it — and `Transferred`; the
 /// container released after.
@@ -42,11 +42,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if !judge::tools::holds(&standing, Over::Transfer) {
         return Ok(Frame::Forbidden);
     }
-    let Some(tool) = tools::by_reference(&mut conn, &frame.tool, false).await? else {
+    let Some(found) = resolve(&mut conn, daemon, &frame.tool, false).await? else {
         return Ok(Frame::NotFound);
     };
-    let attached = agents_of(&mut conn, tool.id).await?;
-    if !judge::tools::over(&standing, Over::Transfer, &tool, active(daemon, tool.id).await, &attached) {
+    if !reaches(&mut conn, daemon, &standing, Over::Transfer, &found).await? {
         return Ok(Frame::Forbidden);
     }
     if content::inside(&frame.path).is_err() {
@@ -59,7 +58,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
         Judged::Error(error) => return Ok(Frame::Error(reply::failure(&error))),
     }
     drop(conn);
-    let opened = match files::open_tool(daemon, &tool).await {
+    let opened = match files::open_found(daemon, &found).await {
         Ok(opened) => opened,
         Err(error) => return Ok(Frame::Error(reply::failure(&error))),
     };

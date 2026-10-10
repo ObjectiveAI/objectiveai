@@ -14,7 +14,7 @@ use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Change, Source};
 use crate::serve::reply;
-use crate::store::{self, providers_incoming, providers_outgoing};
+use crate::store::{self, providers_incoming, providers_outgoing, volumes as volume_tags};
 use crate::volumes::{self, Listed, Whole};
 
 /// Send the list and its changes, then finish the scope.
@@ -31,8 +31,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// and listed, each volume of its mirror by name, judged and
 /// filtered, the first `count` sent, then the word that the list is
 /// whole — and from then on each volume added, changed or removed as
-/// the providers' listings, the connections and the mounting records
-/// change, until the client cancels. A provider on record but not
+/// the providers' listings, the connections, the mounting records and
+/// the tags change, until the client cancels. The tags are one load
+/// for the whole list, at every reading. A provider on record but not
 /// connected, or not yet listed, contributes nothing until it is;
 /// one whose listing failed contributes nothing until it lists again.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
@@ -90,6 +91,7 @@ impl Source for Mirrored<'_> {
                 .into_iter()
                 .filter(|identity| named.as_ref().is_none_or(|named| named.contains(identity)))
                 .collect();
+            let mut tagged = volume_tags::all(&mut conn).await?;
             let mut listed = Vec::new();
             for identity in providers {
                 let Some(mirror) = self.daemon.live.mirror(&identity).await else {
@@ -109,6 +111,7 @@ impl Source for Mirrored<'_> {
                         volume,
                         agents,
                         tools,
+                        tags: tagged.remove(&reference).unwrap_or_default(),
                     };
                     if !judge::volumes::over(self.standing, Over::List, &item) || !filter::volumes::test(self.filter, &item) {
                         continue;

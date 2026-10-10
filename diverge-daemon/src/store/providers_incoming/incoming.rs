@@ -22,6 +22,8 @@ pub struct Incoming {
     pub address: Option<IpAddr>,
     /// The SHA-256 of the key, hex.
     pub key_hash: String,
+    /// Its tags, sorted bytewise.
+    pub tags: Vec<String>,
     /// When it was added.
     pub created: DateTime<Utc>,
     /// Who added it.
@@ -53,6 +55,7 @@ impl Incoming {
             connected,
             created: self.created,
             creator: self.creator.clone(),
+            tags: self.tags.clone(),
         }
     }
 }

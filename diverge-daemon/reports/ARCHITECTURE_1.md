@@ -11,7 +11,7 @@ the wire.
 One process, one directory, one port. It is the thing a client of the
 daemon protocol talks to, and it is the thing providers run containers
 FOR. It holds the records — accounts, roles, templates, agents, tools,
-routes, providers, the database mode — judges every request
+providers, the database mode — judges every request
 by the account's grants, and does the work: running containers on
 providers, carrying what those containers ask back in, serving them a
 database, moving files between everything. It serves nothing of its own
@@ -54,7 +54,7 @@ Two populations, kept apart by type and by fate:
 
 | | durable records | live state |
 |---|---|---|
-| what | accounts, roles, grants, templates, agent and tool definitions, routes, providers, the mode, counters | running containers, their scopes and channels, open database connections, held volumes, transfers, uploads |
+| what | accounts, roles, grants, templates, agent and tool definitions, providers, the mode, counters, volume tags | running containers, their scopes and channels, open database connections, held volumes, transfers, uploads |
 | where | the store | memory, under the `Daemon` |
 | at restart | reloaded | gone; the records say what SHOULD be running and the daemon converges |
 
@@ -186,7 +186,11 @@ Two populations, kept apart by type and by fate:
 - **A cross-provider mount is served for the run.** The `volumes::serve`
   scope the daemon holds on another provider's volume for a FUSE mount
   is opened when the container's run starts and let go when it ends —
-  the run's, not the record's, since the record outlives any run.
+  the run's, not the record's, since the record outlives any run. A
+  dependency's mounts are the agent's own paths, served into the
+  dependency's container by a `containers::serve` scope on the agent's
+  provider for the dependency's life, spliced into the dependency's
+  tree at `tool_path` and changed as the agent's serve streams.
 - **One tool list, prefixed.** An agent sees the union of its attached
   tools and its dependencies, each MCP tool as `<prefix>_<name>`: the
   prefix is the serve-name folded to `[a-z0-9-]`, escalated to `name-2`,
@@ -196,32 +200,37 @@ Two populations, kept apart by type and by fate:
 - **Unused, a container stops.** Every container, agent or tool, has an
   idle clock: it resets on every use — a message delivered, a tool call
   relayed, a file moved in or out, a request the container itself makes
-  of the daemon — and it does not run while the container is ACTIVE,
-  handling something. When it reaches `idle_seconds`, a key of the
+  of the daemon — and it does not run while the agent is ACTIVE, which
+  is exactly two things: a loop running in it, between the proxy's
+  Active and Inactive, or an MCP exchange in flight for it or for any
+  of its dependency tools. The countdown runs only when neither holds. When it reaches `idle_seconds`, a key of the
   daemon's block of `config.yaml` beside `postgres`, default `10`, the daemon ends the
   container's run. The record stays; the container is work, and the next
   use starts it again from the record and its continuation. Nothing a
   client holds — a logs watch, a filetree watch — counts as use, so a
   watcher never keeps a container alive.
-- **Dependencies are templates, and the deployer is a queue.** An
-  AGENT declares its tool dependencies when it registers, each a tool
-  TEMPLATE on record with instructions; a tool container declares none
-  — only an agent has tools (2026-10-08), so a position is one agent and
-  one template, and there is no chain. A dependency naming no template
-  of the caller's is unmet, and that is a failure of the start. A
-  position a route already answers is served from the route. One no
-  route answers goes to the agent's `deployer_agent` as an INTERNAL
-  MESSAGE — the position, the template, the instructions — handled
-  like any message: the deployer's output lands in its log, and the
-  deployer is an agent like any other. The deployer holds a queue and
-  handles one dependency at a time, in order; a second waits. The daemon
-  waits on whichever comes first: the dependency ANSWERED — a tool of
-  that template attached at the position, by the deployer's attach or
-  by a route it set — or the deployer going INACTIVE. Answered, the
-  start goes on; inactive first, the dependency is unmet, and the
-  agent being started is failed then and there: its run ended, its
-  create or its message answered with the error. An agent with no
-  deployer and no route for a dependency fails the same way.
+- **Dependencies are deployed then and there, for the agent's life.**
+  An AGENT declares its dependencies when it registers, each a
+  dependency tool template — image, limits, arguments, the agent's
+  paths to serve into it, which database scope it gets, the grants its
+  requests are judged by — and the provider asks the daemon to deploy
+  them, the agent's container id with the ask, before the id is out;
+  a tool container declares none (2026-10-09). The daemon deploys
+  every one AT ONCE, each a tool container of the agent's own on any
+  connected provider, the candidates tried in random order and the
+  next tried when one will not run it; the first that cannot be
+  deployed is the run's error, and every one started is stopped. A
+  dependency is no record: it is keyed by a number minted for the
+  deploy, listed as `kind: dependency` while it runs, reachable by the
+  reading tool requests — get, filetree, download, transfer out — and
+  refused by every changing one, since it is its agent's. Its
+  `/daemon` connections are served under its template's grants, fixed
+  at the deploy; its database scope is named by its agent, once and
+  for all, or by its agent's template, as the template's `database`
+  says. When the agent's run ends, every dependency and every attached
+  tool is told to stop at the same time, and the daemon waits for all.
+  An unpinned agent or tool is placed the same way: every connected
+  provider, shuffled, the next tried on a failed run.
 
 ## 6. The database
 

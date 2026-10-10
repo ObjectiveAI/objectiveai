@@ -11,7 +11,9 @@
 //! connect — and both are ordinary records from then on, editable and
 //! deletable. [`accounts`], [`roles`], [`providers_outgoing`],
 //! [`providers_incoming`], [`agents_templates`], [`tools_templates`],
-//! [`agents`], [`tools`] and [`routes`] are the records of each kind,
+//! [`agents`] and [`tools`] are the records of each kind,
+//! and [`volumes`] what the daemon keeps of a volume, which is its
+//! tags alone;
 //! loaded whole and written whole; [`hash`] is the one id that is a
 //! hash; [`counters`] is the once-and-for-all
 //! index of a container; [`in_use`] is what containers hold —
@@ -59,7 +61,7 @@ pub mod in_use;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod roles;
-pub mod routes;
 pub mod tags;
 pub mod tools;
 pub mod tools_templates;
+pub mod volumes;

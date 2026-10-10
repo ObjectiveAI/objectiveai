@@ -65,11 +65,11 @@ pub async fn seed(conn: &mut PgConnection) -> Result<(), Error> {
 
 /// Every grant of every kind: every making action, every action over
 /// what exists reaching everything, both tagging actions over every
-/// tag where the kind has tags, and both actions over the database.
+/// tag, and both actions over the database.
 pub fn every_grant() -> Vec<Grant> {
     use grant::{
         accounts as ac, agents as ag, agents_templates as at, postgres as pg, providers_incoming as pi,
-        providers_outgoing as po, roles as ro, routes as rt, tools as to, tools_templates as tt,
+        providers_outgoing as po, roles as ro, tools as to, tools_templates as tt,
         volumes as vo,
     };
     let tagging = vec![Tagging::Tag, Tagging::Untag];
@@ -138,20 +138,25 @@ pub fn every_grant() -> Vec<Grant> {
             within: Within::Any,
             tags: Within::Any,
         }),
-        Grant::Routes(rt::Permission::Make(vec![rt::Make::Set])),
-        Grant::Routes(rt::Permission::Over {
-            actions: vec![rt::Over::Delete, rt::Over::List],
-            within: Within::Any,
-        }),
         Grant::ProvidersOutgoing(po::Permission::Make(vec![po::Make::Add])),
         Grant::ProvidersOutgoing(po::Permission::Over {
             actions: vec![po::Over::Get, po::Over::List, po::Over::Delete, po::Over::Edit, po::Over::ListFor],
             within: Within::Any,
         }),
+        Grant::ProvidersOutgoing(po::Permission::Tags {
+            actions: tagging.clone(),
+            within: Within::Any,
+            tags: Within::Any,
+        }),
         Grant::ProvidersIncoming(pi::Permission::Make(vec![pi::Make::Add])),
         Grant::ProvidersIncoming(pi::Permission::Over {
             actions: vec![pi::Over::Get, pi::Over::List, pi::Over::Delete, pi::Over::Edit, pi::Over::ListFor],
             within: Within::Any,
+        }),
+        Grant::ProvidersIncoming(pi::Permission::Tags {
+            actions: tagging.clone(),
+            within: Within::Any,
+            tags: Within::Any,
         }),
         Grant::Accounts(ac::Permission::Make(vec![ac::Make::Create])),
         Grant::Accounts(ac::Permission::Over {
@@ -169,7 +174,7 @@ pub fn every_grant() -> Vec<Grant> {
             within: Within::Any,
         }),
         Grant::Roles(ro::Permission::Tags {
-            actions: tagging,
+            actions: tagging.clone(),
             within: Within::Any,
             tags: Within::Any,
         }),
@@ -188,6 +193,11 @@ pub fn every_grant() -> Vec<Grant> {
                 vo::Over::Filetree,
             ],
             within: Within::Any,
+        }),
+        Grant::Volumes(vo::Permission::Tags {
+            actions: tagging,
+            within: Within::Any,
+            tags: Within::Any,
         }),
         Grant::Postgres(pg::Permission(vec![pg::Action::Get, pg::Action::List])),
     ]

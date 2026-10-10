@@ -5,11 +5,12 @@ use diverge_sdk::daemon::endpoints::tools::get::server::response::Frame;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{active, agents_of, report};
+use super::{Found, active, agents_of, report, report_dependency, resolve};
 use crate::daemon::Daemon;
+use crate::judge::filter::tools::Facts;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, tools};
+use crate::store;
 
 /// Answer the get and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -23,7 +24,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `get` grant at all; `NotFound`; `Forbidden`
 /// for a tool the grants do not reach; else the tool as a list
-/// reports it.
+/// reports it — a record, or a dependency that runs now.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -32,12 +33,26 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::tools::holds(&standing, Over::Get) {
         return Ok(Frame::Forbidden);
     }
-    let Some(tool) = tools::by_reference(&mut conn, &frame.tool, false).await? else {
-        return Ok(Frame::NotFound);
-    };
-    let attached = agents_of(&mut conn, tool.id).await?;
-    if !judge::tools::over(&standing, Over::Get, &tool, active(daemon, tool.id).await, &attached) {
-        return Ok(Frame::Forbidden);
+    match resolve(&mut conn, daemon, &frame.tool, false).await? {
+        None => Ok(Frame::NotFound),
+        Some(Found::Record(tool)) => {
+            let attached = agents_of(&mut conn, tool.id).await?;
+            if !judge::tools::over(&standing, Over::Get, &Facts::record(&tool, active(daemon, tool.id).await, &attached)) {
+                return Ok(Frame::Forbidden);
+            }
+            Ok(Frame::Found(report(&mut conn, daemon, &tool).await?))
+        }
+        Some(Found::Dependency(run)) => {
+            let Some(facts) = Facts::dependency(&run) else {
+                return Ok(Frame::NotFound);
+            };
+            if !judge::tools::over(&standing, Over::Get, &facts) {
+                return Ok(Frame::Forbidden);
+            }
+            Ok(match report_dependency(&run) {
+                Some(item) => Frame::Found(item),
+                None => Frame::NotFound,
+            })
+        }
     }
-    Ok(Frame::Found(report(&mut conn, daemon, &tool).await?))
 }

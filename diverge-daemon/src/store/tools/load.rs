@@ -26,9 +26,10 @@ pub async fn by_id(conn: &mut PgConnection, id: ToolId, lock: bool) -> Result<Op
 }
 
 /// The tool the reference names, if any — by name, by template and
-/// index, or by the provider and id it is connected to. With `lock`,
-/// its row is locked for the transaction, so that two edits of one
-/// tool take turns.
+/// index, or by the provider and id it is connected to. A dependency
+/// reference names no record and finds none here. With `lock`, its
+/// row is locked for the transaction, so that two edits of one tool
+/// take turns.
 pub async fn by_reference(conn: &mut PgConnection, reference: &reference::Tool, lock: bool) -> Result<Option<Tool>, Error> {
     let found = match reference {
         reference::Tool::Name { name } => {
@@ -51,6 +52,7 @@ pub async fn by_reference(conn: &mut PgConnection, reference: &reference::Tool, 
                 .fetch_optional(&mut *conn)
                 .await?
         }
+        reference::Tool::Dependency { .. } => None,
     };
     let Some(found) = found else {
         return Ok(None);

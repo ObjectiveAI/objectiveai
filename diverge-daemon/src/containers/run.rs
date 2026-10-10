@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
+use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
@@ -11,6 +12,7 @@ use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::connect::client::execute::ExecuteHandle as JoinedHandle;
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
+use diverge_sdk::shared::containers::dependencies::Template;
 use diverge_sdk::shared::containers::request::Image;
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt as _};
@@ -23,19 +25,16 @@ use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{Frames, Key};
+use super::{DependencyId, Frames, Inflight, Key, ToolKey};
 use crate::content::Pieces;
-use crate::store::{AccountId, AgentId, ToolId};
+use crate::store::{AccountId, AgentId};
 
 /// A running agent: the scope held on its provider, whether a loop
-/// runs in it, when it was last used, what it mounts, the tools it is
-/// served, and the messages in flight.
+/// runs in it, what is in flight for it, when it was last used, what
+/// it mounts, the tools it is served, and the messages in flight.
 pub struct AgentRun {
     /// The record.
     pub id: AgentId,
-    /// Its name as it was when started: what a dependency's position
-    /// names it by.
-    pub name: Option<String>,
     /// The agent as the daemon attests it under `_meta`, on every call
     /// it sends outward and every chunk it says: template, index, name.
     pub key: key::Agent,
@@ -53,6 +52,9 @@ pub struct AgentRun {
     pub handle: AgentHandle,
     /// Whether a loop runs in it now, as the proxy's two words say.
     pub loop_active: watch::Sender<bool>,
+    /// The MCP exchanges in flight for it: its own, and its
+    /// dependencies'. The other thing that makes it active.
+    pub inflight: Arc<Inflight>,
     /// When it was last used; what the idle clock runs from.
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
@@ -75,9 +77,11 @@ impl AgentRun {
         self.touched.send_replace(Instant::now());
     }
 
-    /// Whether a loop runs in it now.
+    /// Whether the agent is active now: a loop runs in it, or an MCP
+    /// exchange is in flight for it or for one of its dependencies.
+    /// Exactly those two, and nothing else.
     pub fn is_active(&self) -> bool {
-        *self.loop_active.borrow()
+        *self.loop_active.borrow() || self.inflight.is_busy()
     }
 }
 
@@ -201,13 +205,32 @@ impl ToolHandle {
     }
 }
 
+/// What a dependency tool is, beyond a tool run: whose it is, what
+/// it was deployed from, and when.
+pub struct Dependency {
+    /// Its number among the dependencies deployed since the start.
+    pub id: DependencyId,
+    /// The agent it was deployed for.
+    pub agent: AgentId,
+    /// That agent, once and for all, with its name: what names the
+    /// dependency beside its own name.
+    pub agent_key: key::Agent,
+    /// The name the agent's program declared it under.
+    pub name: String,
+    /// The template it was deployed from, whole.
+    pub template: Template,
+    /// When it was deployed.
+    pub started: DateTime<Utc>,
+}
+
 /// A running tool: the scope held on it, which containers use it,
-/// and what it mounts.
+/// and what it mounts — a record's container, a connected tool's
+/// joined, or a dependency deployed for an agent.
 pub struct ToolRun {
-    /// The record.
-    pub id: ToolId,
+    /// The record, or the deployment.
+    pub id: ToolKey,
     /// The tool as the daemon attests it under `_meta`, on everything
-    /// its server answers: origin, index, name.
+    /// its server answers.
     pub key: key::Tool,
     /// The image it was made from, attested beside the key; none for
     /// a connected tool, whose image the daemon never sees.
@@ -218,11 +241,13 @@ pub struct ToolRun {
     pub account: Option<AccountId>,
     /// The provider it runs on, or is joined through.
     pub provider: Identity,
-    /// The container's id, for a created tool.
+    /// The container's id, for a container the daemon runs.
     pub container: Option<String>,
     /// The scope.
     pub handle: ToolHandle,
-    /// The containers using it now; the last to leave stops it.
+    /// The containers using it now; the last to leave stops a record's
+    /// run. A dependency has one user for its life, its agent, and is
+    /// stopped with it.
     pub users: Mutex<HashSet<Key>>,
     /// When it was last used.
     pub touched: watch::Sender<Instant>,
@@ -233,6 +258,8 @@ pub struct ToolRun {
     pub volumes: Vec<reference::Volume>,
     /// The tasks that are the run's: the waiter.
     pub tasks: Mutex<Vec<AbortHandle>>,
+    /// What it is as a dependency, when it is one.
+    pub dependency: Option<Dependency>,
 }
 
 impl ToolRun {

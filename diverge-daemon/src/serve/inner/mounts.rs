@@ -11,7 +11,7 @@ use sqlx::PgConnection;
 use super::Checked;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing};
-use crate::store;
+use crate::store::{self, volumes as volume_tags};
 use crate::volumes::{self, Listed};
 
 /// Every volume named — in the pinned provider's volume mounts, and
@@ -68,11 +68,13 @@ pub async fn mounts(
             return Ok(Checked::Error(format!("the provider lists no volume named {}", volume.name)));
         };
         let (agents, tools) = volumes::mounters(conn, &volume).await?;
+        let tags = volume_tags::of_volume(conn, &volume).await?;
         let listed = Listed {
             provider: volume.provider.clone(),
             volume: found,
             agents,
             tools,
+            tags,
         };
         if !judge::volumes::over(standing, Over::Mount, &listed) {
             return Ok(Checked::Forbidden);

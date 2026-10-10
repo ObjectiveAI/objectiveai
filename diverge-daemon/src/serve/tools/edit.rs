@@ -6,7 +6,7 @@ use diverge_sdk::daemon::endpoints::tools::edit::server::response::Frame;
 use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{active, agents_of};
+use super::{Found, READ_ONLY, active, reaches, resolve};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner::{self, Checked};
@@ -26,7 +26,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `edit` grant at all; `NotFound`; `Forbidden`
 /// for a tool the grants do not reach, or an account named the caller
-/// holds no `assign` over; `Active` for a change of any mount list
+/// holds no `assign` over; the error for a dependency, which is its
+/// agent's as deployed; `Active` for a change of any mount list
 /// while the tool is active; `NotOwned` for mounts or an account
 /// named on a connected tool, which has neither to change;
 /// `NoAccount`; the error for a provider that is not there, or
@@ -41,14 +42,16 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::tools::holds(&standing, Over::Edit) {
         return Ok(Frame::Forbidden);
     }
-    let Some(tool) = tools::by_reference(&mut tx, &frame.tool, true).await? else {
+    let Some(found) = resolve(&mut tx, daemon, &frame.tool, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let active = active(daemon, tool.id).await;
-    let attached = agents_of(&mut tx, tool.id).await?;
-    if !judge::tools::over(&standing, Over::Edit, &tool, active, &attached) {
+    if !reaches(&mut tx, daemon, &standing, Over::Edit, &found).await? {
         return Ok(Frame::Forbidden);
     }
+    let Found::Record(tool) = found else {
+        return Ok(Frame::Error(reply::failure(&READ_ONLY)));
+    };
+    let active = active(daemon, tool.id).await;
     let edit = frame.edit;
     let mounts_named = edit.volume_mounts.is_some() || edit.fuse_file_mounts.is_some() || edit.fuse_directory_mounts.is_some();
     if mounts_named && active {

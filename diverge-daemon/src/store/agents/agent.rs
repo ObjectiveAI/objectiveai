@@ -29,8 +29,6 @@ pub struct Agent {
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes, likewise.
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The deployer agent as it was when named, if any.
-    pub deployer: Option<creator::Agent>,
     /// The provider it last ran on, if it ever ran.
     pub last_provider: Option<Identity>,
     /// When it last began or ceased running.
@@ -54,7 +52,7 @@ impl Agent {
         }
     }
 
-    /// The agent as a creator, or as a deployer named: the same three.
+    /// The agent as a creator: the same three.
     pub fn snapshot(&self) -> creator::Agent {
         creator::Agent {
             template: self.template.clone(),
@@ -72,7 +70,6 @@ impl Agent {
             template: self.template.clone(),
             index: self.index,
             creator: self.creator.clone(),
-            deployer_agent: self.deployer.clone(),
             created: self.created,
             active,
             last_active: self.last_active,

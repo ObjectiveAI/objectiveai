@@ -5,8 +5,9 @@ use diverge_sdk::daemon::endpoints::tools::untag::server::response::Frame;
 use diverge_sdk::daemon::grant::Tagging;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use super::{active, agents_of};
+use super::{Found, READ_ONLY, active, agents_of, resolve};
 use crate::daemon::{Daemon, Kind};
+use crate::judge::filter::tools::Facts;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, tags, tools};
@@ -23,7 +24,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `untag` grant at all; `NotFound`; `Forbidden`
 /// for a tool the grants do not reach, or a tag the grant does not
-/// cover; else the tags off the tool, a tag not held not held still.
+/// cover; the error for a dependency, which carries no tags; else the tags off the tool, a tag not held not held still.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -32,13 +33,22 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::tools::holds_tagging(&standing, Tagging::Untag) {
         return Ok(Frame::Forbidden);
     }
-    let Some(tool) = tools::by_reference(&mut tx, &frame.tool, true).await? else {
+    let Some(found) = resolve(&mut tx, daemon, &frame.tool, true).await? else {
         return Ok(Frame::NotFound);
     };
-    let attached = agents_of(&mut tx, tool.id).await?;
-    if !judge::tools::tagging(&standing, Tagging::Untag, &tool, active(daemon, tool.id).await, &attached, &frame.tags) {
-        return Ok(Frame::Forbidden);
-    }
+    let tool = match found {
+        Found::Record(tool) => {
+            let attached = agents_of(&mut tx, tool.id).await?;
+            if !judge::tools::tagging(&standing, Tagging::Untag, &Facts::record(&tool, active(daemon, tool.id).await, &attached), &frame.tags) {
+                return Ok(Frame::Forbidden);
+            }
+            tool
+        }
+        Found::Dependency(run) => {
+            let reached = Facts::dependency(&run).is_some_and(|facts| judge::tools::tagging(&standing, Tagging::Untag, &facts, &frame.tags));
+            return Ok(if reached { Frame::Error(reply::failure(&READ_ONLY)) } else { Frame::Forbidden });
+        }
+    };
     tools::set_tags(&mut tx, tool.id, &tags::without(&tool.tags, &frame.tags)).await?;
     tx.commit().await?;
     daemon.live.changed(Kind::Tools);

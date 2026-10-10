@@ -2,8 +2,9 @@
 //!
 //! [`Incoming`] is one as the store holds it — with the hash of its
 //! key, which the wire never carries. [`all`], [`by_identity`] and
-//! [`by_key_hash`] load; [`create`], [`update`] and [`delete`] write,
-//! each one statement, inside whatever transaction the caller holds.
+//! [`by_key_hash`] load; [`create`], [`update`], [`set_tags`] and
+//! [`delete`] write, each one statement, inside whatever transaction
+//! the caller holds.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -14,9 +15,11 @@ mod edit;
 mod incoming;
 mod load;
 mod row;
+mod tags;
 
 pub use create::*;
 pub use delete::*;
 pub use edit::*;
 pub use incoming::*;
 pub use load::*;
+pub use tags::*;

@@ -21,6 +21,8 @@ pub struct Outgoing {
     /// When the daemon's connection last opened or closed; absent
     /// for one never dialled.
     pub last_connected: Option<DateTime<Utc>>,
+    /// Its tags, sorted bytewise.
+    pub tags: Vec<String>,
     /// When it was added.
     pub created: DateTime<Utc>,
     /// Who added it.
@@ -52,6 +54,7 @@ impl Outgoing {
             last_connected: self.last_connected,
             created: self.created,
             creator: self.creator.clone(),
+            tags: self.tags.clone(),
         }
     }
 }

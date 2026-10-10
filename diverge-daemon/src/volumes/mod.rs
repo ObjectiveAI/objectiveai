@@ -9,7 +9,8 @@
 //! [`Mirror`], which [`list`] and [`find`] read — [`Listed`] is one
 //! volume with what the daemon adds
 //! — the agents and tools whose records name it in their mounts,
-//! [`mounters`] — as a list reports it. What the daemon decides is
+//! [`mounters`], and the tags kept on it,
+//! [`store::volumes`](crate::store::volumes) — as a list reports it. What the daemon decides is
 //! who may, by the grants; whether the volume is HELD now — a running
 //! container has it, or a download, an upload or a transfer of the
 //! daemon's is on it — and whether it is IN USE for a delete — a record

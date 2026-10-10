@@ -1,15 +1,17 @@
 //! Judging requests over volumes.
 //!
-//! Two shapes, since a volume carries no tags: a making action — the
+//! The shape of [`accounts`](super::accounts): a making action — the
 //! create — is held or it is not, judged by nothing else; an action
 //! over a volume is allowed by a grant that holds it and whose
 //! `within` reaches the volume — `any`, or the volumes list filter as
 //! [`filter::volumes::test`] reads it, over the volume as a list
-//! reports it, the agents and tools that mount it included.
+//! reports it, the agents and tools that mount it and its tags
+//! included; a tagging action by a grant that holds it, reaches the
+//! volume, and covers every tag named.
 
 use diverge_sdk::daemon::endpoints::volumes::list::client::request::Filter;
-use diverge_sdk::daemon::grant::Within;
 use diverge_sdk::daemon::grant::volumes::{Make, Over, Permission};
+use diverge_sdk::daemon::grant::{Tagging, Within};
 
 use super::Standing;
 use super::filter;
@@ -33,6 +35,28 @@ pub fn holds(standing: &Standing, action: Over) -> bool {
 pub fn over(standing: &Standing, action: Over, listed: &Listed) -> bool {
     standing.volumes().any(|permission| match permission {
         Permission::Over { actions, within } => actions.contains(&action) && reaches(within, listed),
+        _ => false,
+    })
+}
+
+/// Whether the standing holds the tagging `action` over any volume
+/// at all.
+pub fn holds_tagging(standing: &Standing, action: Tagging) -> bool {
+    standing
+        .volumes()
+        .any(|permission| matches!(permission, Permission::Tags { actions, .. } if actions.contains(&action)))
+}
+
+/// Whether the standing may put `tags` on the volume, or take them
+/// off, as `action` says: one grant must hold the action, reach the
+/// volume, and name every one of the tags or `any`.
+pub fn tagging(standing: &Standing, action: Tagging, listed: &Listed, tags: &[String]) -> bool {
+    standing.volumes().any(|permission| match permission {
+        Permission::Tags {
+            actions,
+            within,
+            tags: scope,
+        } => actions.contains(&action) && reaches(within, listed) && covers(scope, tags),
         _ => false,
     })
 }
@@ -63,5 +87,13 @@ fn reaches(within: &Within<Filter>, listed: &Listed) -> bool {
     match within {
         Within::Any => true,
         Within::Only(filter) => filter::volumes::test(filter, listed),
+    }
+}
+
+/// Whether a grant's tag scope names every one of `tags`.
+fn covers(scope: &Within<Vec<String>>, tags: &[String]) -> bool {
+    match scope {
+        Within::Any => true,
+        Within::Only(allowed) => tags.iter().all(|tag| allowed.contains(tag)),
     }
 }

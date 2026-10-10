@@ -10,6 +10,8 @@ pub fn test(filter: &Filter, listed: &Listed) -> bool {
         && (filter.names.is_empty() || filter.names.contains(&listed.volume.name))
         && (filter.modes.is_empty() || filter.modes.contains(&listed.volume.mode))
         && filter.mounted.is_none_or(|wanted| listed.mounted() == wanted)
+        && filter.all_tags.iter().all(|tag| listed.tags.contains(tag))
+        && (filter.any_tags.is_empty() || filter.any_tags.iter().any(|tag| listed.tags.contains(tag)))
         && filter.created_from.is_none_or(|from| listed.created() >= from)
         && filter.created_to.is_none_or(|to| listed.created() <= to)
 }

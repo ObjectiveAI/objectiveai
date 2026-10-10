@@ -9,7 +9,7 @@ use diverge_sdk::shared::containers::authorize::request::{AuthorizeConnect, Auth
 use diverge_sdk::shared::containers::authorize::response::Frame;
 
 use super::Answerer;
-use crate::containers::Key;
+use crate::containers::{Key, ToolKey};
 use crate::judge::key;
 use crate::store::tools::admissions;
 
@@ -18,10 +18,11 @@ use crate::store::tools::admissions;
 /// list; a connect is yes when the connector's authorization is an
 /// admission's key, the admission is this tool's, its address fits,
 /// and it admits a connect. An agent container, listed to nobody and
-/// taking no connector, is asked neither and would say no.
+/// taking no connector, is asked neither and would say no; a
+/// dependency tool, nobody's record, has no admissions and says no.
 impl ConnectionAuthorizer for Answerer {
     async fn authorize_list(&self, request: &AuthorizeList) -> Frame {
-        let Key::Tool(tool) = self.key else {
+        let Key::Tool(ToolKey::Record(tool)) = self.key else {
             return Frame::Denied;
         };
         let Ok(mut conn) = self.daemon.store.acquire().await else {
@@ -39,7 +40,7 @@ impl ConnectionAuthorizer for Answerer {
     }
 
     async fn authorize_connect(&self, request: &AuthorizeConnect) -> Frame {
-        let Key::Tool(tool) = self.key else {
+        let Key::Tool(ToolKey::Record(tool)) = self.key else {
             return Frame::Denied;
         };
         if request.authorization.is_empty() {

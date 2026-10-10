@@ -3,14 +3,16 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use diverge_sdk::daemon::creator::{self, Creator};
+use diverge_sdk::daemon::creator::Creator;
+use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::provider::client::Answerers;
 use tokio::sync::{Mutex, watch};
 
-use crate::containers::{Caller, Key};
 use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
+use crate::containers::{Caller, Inflight, Key};
 use crate::daemon::Daemon;
+use crate::judge::Standing;
 use crate::store::AccountId;
 
 /// One run's answerer: the eight traits on one value.
@@ -25,20 +27,25 @@ pub struct Answerer {
     /// The container as a sender.
     pub sender: Creator,
     /// The account it runs under, if any: who its `/daemon`
-    /// connections are served for.
+    /// connections are served for, for a record's container.
     pub account: Option<AccountId>,
-    /// The container's name, if it has one: what a dependency's
-    /// position names an agent by.
-    pub root: Option<String>,
-    /// The deployer agent, as an agent's record names it; none for a
-    /// tool, which declares no dependencies.
-    pub deployer: Option<creator::Agent>,
+    /// The standing its `/daemon` connections are served under, for
+    /// a dependency: its template's grants, fixed for its life. None
+    /// for a record's container, whose account is read fresh, and for
+    /// a dependency whose template grants nothing.
+    pub standing: Option<Arc<Standing>>,
+    /// The provider the run is on: where the container's own paths
+    /// are served from, for its dependencies.
+    pub provider: Identity,
     /// The mounts the run serves.
     pub mounts: Arc<Mounts>,
     /// The tools the run is served.
     pub served: Arc<Mutex<Served>>,
     /// Where a use is noted.
     pub touched: watch::Sender<Instant>,
+    /// The MCP exchanges in flight: the agent's own, which a
+    /// dependency shares with its agent.
+    pub inflight: Arc<Inflight>,
 }
 
 /// The answerers of a run: all eight the one [`Answerer`].
@@ -50,7 +57,7 @@ impl Answerer {
         Answerers {
             oci: Arc::clone(self),
             authorizer: Arc::clone(self),
-            tools: Arc::clone(self),
+            dependencies: Arc::clone(self),
             postgres: Arc::clone(self),
             daemon: Arc::clone(self),
             vault: Arc::clone(self),

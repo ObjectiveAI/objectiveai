@@ -6,7 +6,6 @@ use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount,
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as logs, Identity};
 use diverge_sdk::daemon::endpoints::tools::Admission;
 use diverge_sdk::daemon::endpoints::tools::list::server::response;
-use diverge_sdk::daemon::endpoints::tools::routes::Path;
 use diverge_sdk::daemon::key;
 
 use crate::store::{AccountId, ToolId};
@@ -90,18 +89,17 @@ impl Tool {
                 id: id.clone(),
             },
         };
-        key::Tool {
+        key::Tool::Record {
             origin,
             index: self.index,
             name: self.name.clone(),
         }
     }
 
-    /// The tool as a creator, or as a route names it: its template,
-    /// its index and its name. A connected tool, made from no
-    /// template, is neither.
+    /// The tool as a creator: its template, its index and its name.
+    /// A connected tool, made from no template, is none.
     pub fn snapshot(&self) -> Option<creator::Tool> {
-        self.template().map(|template| creator::Tool {
+        self.template().map(|template| creator::Tool::Record {
             template: template.to_string(),
             index: self.index,
             name: self.name.clone(),
@@ -111,38 +109,30 @@ impl Tool {
     /// The tool as a list reports it, given whether its container
     /// runs or its connect scope is held now, the container's id
     /// while it runs, the agents it is attached to in attach order,
-    /// the positions routed to it, and its admissions in the order
-    /// admitted.
-    pub fn report(
-        &self,
-        active: bool,
-        running: Option<String>,
-        agents: Vec<key::Agent>,
-        routes: Vec<Path>,
-        admissions: Vec<Admission>,
-    ) -> response::Tool {
+    /// and its admissions in the order admitted.
+    pub fn report(&self, active: bool, running: Option<String>, agents: Vec<key::Agent>, admissions: Vec<Admission>) -> response::Tool {
         let origin = match &self.origin {
             Origin::Created { template, .. } => response::Origin::Created {
                 template: template.clone(),
+                index: self.index,
                 provider: self.last_provider.clone().map(|identity| logs::Provider { identity }),
                 id: running,
             },
             Origin::Connected { provider, id, .. } => response::Origin::Connected {
                 provider: provider.clone(),
                 id: id.clone(),
+                index: self.index,
             },
         };
         response::Tool {
             name: self.name.clone(),
             origin,
-            index: self.index,
             creator: self.creator.clone(),
             created: self.created,
             active,
             last_active: self.last_active,
             agents,
             tags: self.tags.clone(),
-            routes,
             admissions,
         }
     }

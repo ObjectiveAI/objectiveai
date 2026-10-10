@@ -1,11 +1,13 @@
 //! Which scope is a container's: its role, from its identity.
 
-use diverge_sdk::daemon::endpoints::postgres::Container;
+use diverge_sdk::daemon::endpoints::postgres::{Container, Dependency as Scoped, Parent};
 use diverge_sdk::daemon::reference;
+use diverge_sdk::shared::containers::dependencies::Database;
 use sha2::{Digest, Sha256};
 use sqlx::PgConnection;
 
-use crate::containers::Key;
+use crate::containers::{Dependency, Key, ToolKey};
+use crate::daemon::Daemon;
 use crate::store::agents::Agent;
 use crate::store::tools::{Origin, Tool};
 use crate::store::{self, agents, tools};
@@ -50,11 +52,35 @@ pub fn container_of_tool(tool: &Tool) -> Container {
     })
 }
 
-/// The container the key names, as the database names it, if its
-/// record is there.
-pub async fn container_of(conn: &mut PgConnection, key: Key) -> Result<Option<Container>, store::Error> {
+/// The dependency's scope as the database names it: by its parent
+/// agent, once and for all, or by that agent's template, as the
+/// dependency's template says, and by its declared name.
+pub fn container_of_dependency(dependency: &Dependency) -> Container {
+    let parent = match dependency.template.database {
+        Database::PerAgentInstance => Parent::Agent(reference::Agent::TemplateIndex {
+            template: dependency.agent_key.template.clone(),
+            index: dependency.agent_key.index,
+        }),
+        Database::PerAgentTemplate => Parent::AgentTemplate {
+            template: dependency.agent_key.template.clone(),
+        },
+    };
+    Container::Dependency(Scoped {
+        parent,
+        name: dependency.name.clone(),
+    })
+}
+
+/// The container the key names, as the database names it: a record's
+/// if its record is there, a dependency's if it runs.
+pub async fn container_of(daemon: &Daemon, conn: &mut PgConnection, key: Key) -> Result<Option<Container>, store::Error> {
     Ok(match key {
         Key::Agent(id) => agents::by_id(conn, id, false).await?.map(|agent| container_of_agent(&agent)),
-        Key::Tool(id) => tools::by_id(conn, id, false).await?.map(|tool| container_of_tool(&tool)),
+        Key::Tool(ToolKey::Record(id)) => tools::by_id(conn, id, false).await?.map(|tool| container_of_tool(&tool)),
+        Key::Tool(tool @ ToolKey::Dependency(_)) => daemon
+            .live
+            .tool_run(tool)
+            .await
+            .and_then(|run| run.dependency.as_ref().map(container_of_dependency)),
     })
 }

@@ -11,7 +11,7 @@ use super::Outgoing;
 use crate::store::{Error, OutgoingId};
 
 /// The columns every outgoing provider query selects.
-pub(super) const SELECT: &str = "SELECT id, address, mode, last_connected, created, creator FROM diverge.providers_outgoing";
+pub(super) const SELECT: &str = "SELECT id, address, mode, last_connected, tags, created, creator FROM diverge.providers_outgoing";
 
 /// The order: oldest added first.
 pub(super) const ORDER: &str = "ORDER BY created, id";
@@ -27,6 +27,7 @@ pub(super) fn outgoing(row: &PgRow) -> Result<Outgoing, Error> {
         address: row.try_get("address")?,
         mode,
         last_connected,
+        tags: row.try_get("tags")?,
         created,
         creator,
     })

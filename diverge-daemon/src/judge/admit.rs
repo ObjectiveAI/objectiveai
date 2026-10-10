@@ -41,7 +41,7 @@ pub async fn admit(store: &Store, credential: &str, address: IpAddr) -> Result<O
     if !accepts(account.address, address) {
         return Ok(None);
     }
-    Ok(Some(Who { id: account.id }))
+    Ok(Some(Who::Account(account.id)))
 }
 
 /// The provider `credential` names, presented from `address`: the

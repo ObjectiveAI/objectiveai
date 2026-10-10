@@ -6,7 +6,7 @@ use diverge_sdk::daemon::reference;
 use diverge_sdk::daemon::transfer::Destination;
 
 use super::Fail;
-use crate::containers::{self, Key, Opened};
+use crate::containers::{self, Key, Opened, ToolKey};
 use crate::daemon::Daemon;
 use crate::store::{agents, tools};
 use crate::volumes;
@@ -33,7 +33,8 @@ pub enum Sink {
 impl Sink {
     /// The destination resolved: its agent or tool found and started,
     /// or joined, for the operation, its volume found on its provider;
-    /// `NoDestination` for one that is none.
+    /// `NoDestination` for one that is none — a dependency tool among
+    /// them, which nothing lands in.
     pub async fn resolve(daemon: &Arc<Daemon>, destination: Destination) -> Result<Sink, Fail> {
         match destination {
             Destination::Agent { agent, path } => {
@@ -62,7 +63,7 @@ impl Sink {
                 let Some(record) = record else {
                     return Err(Fail::NoDestination);
                 };
-                let run = containers::use_tool(daemon, &record, Key::Tool(record.id))
+                let run = containers::use_tool(daemon, &record, Key::Tool(ToolKey::Record(record.id)))
                     .await
                     .map_err(|error| Fail::Error(error.to_string()))?;
                 Ok(Sink::Opened {

@@ -15,7 +15,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// eighty-one has a handler. A payload that is no request at all is
+/// eighty-four has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -46,9 +46,6 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ToolsList(frame) => tools::list::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTag(frame) => tools::tag::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsUntag(frame) => tools::untag::handle(scope, frame, who, daemon).await,
-        ClientRequest::ToolsRoutesSet(frame) => tools::routes::set::handle(scope, frame, who, daemon).await,
-        ClientRequest::ToolsRoutesDelete(frame) => tools::routes::delete::handle(scope, frame, who, daemon).await,
-        ClientRequest::ToolsRoutesList(frame) => tools::routes::list::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTemplatesCreate(frame) => tools::templates::create::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTemplatesGet(frame) => tools::templates::get::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsTemplatesList(frame) => tools::templates::list::handle(scope, frame, who, daemon).await,
@@ -60,11 +57,15 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ProvidersOutgoingList(frame) => providers::outgoing::list::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersOutgoingDelete(frame) => providers::outgoing::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersOutgoingEdit(frame) => providers::outgoing::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersOutgoingTag(frame) => providers::outgoing::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersOutgoingUntag(frame) => providers::outgoing::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersIncomingAdd(frame) => providers::incoming::add::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersIncomingGet(frame) => providers::incoming::get::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersIncomingList(frame) => providers::incoming::list::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersIncomingDelete(frame) => providers::incoming::delete::handle(scope, frame, who, daemon).await,
         ClientRequest::ProvidersIncomingEdit(frame) => providers::incoming::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersIncomingTag(frame) => providers::incoming::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersIncomingUntag(frame) => providers::incoming::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsCreate(frame) => accounts::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsGet(frame) => accounts::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AccountsList(frame) => accounts::list::handle(scope, frame, who, daemon).await,
@@ -94,6 +95,8 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::VolumesDownload(frame) => volumes::download::handle(scope, frame, who, daemon).await,
         ClientRequest::VolumesUpload(frame) => volumes::upload::handle(scope, frame, who, daemon).await,
         ClientRequest::VolumesTransfer(frame) => volumes::transfer::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesTag(frame) => volumes::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::VolumesUntag(frame) => volumes::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsFiletree(frame) => agents::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsFiletree(frame) => tools::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::VolumesFiletree(frame) => volumes::filetree::handle(scope, frame, who, daemon).await,

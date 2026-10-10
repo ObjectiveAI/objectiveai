@@ -7,7 +7,7 @@ use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::{Event, ExecuteStream};
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use diverge_sdk::shared::mcp::Who;
-use futures_util::StreamExt as _;
+use futures_util::{StreamExt as _, future};
 
 use super::mcp::{self, Context};
 use super::{AgentRun, Caller, Key, stop, tools};
@@ -17,10 +17,10 @@ use crate::store::AgentId;
 
 /// Read the run's stream to its end: every chunk kept, the agent
 /// attested under its `_meta` — a user part as its sender's, by the
-/// key the message was enqueued under — the
-/// loop's begin and end kept as whether the agent is active, the
-/// served tools started on the begin and released on the end, and
-/// the stream's end or error the run over.
+/// key the message was enqueued under — the loop's begin and end kept
+/// as whether a loop runs, the attached tools started on the begin
+/// and released on the end — the dependencies run on, for the
+/// agent's life — and the stream's end or error the run over.
 pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteStream) {
     let context = Context {
         daemon: Arc::clone(&daemon),
@@ -29,7 +29,6 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
             key: run.key.clone(),
             image: run.image.clone(),
         },
-        root: run.name.clone(),
         served: Arc::clone(&run.served),
     };
     while let Some(event) = stream.next().await {
@@ -55,9 +54,11 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                 run.loop_active.send_replace(false);
                 daemon.live.changed(Kind::Agents);
                 run.touch();
-                let ids = run.served.lock().await.ids();
-                for id in ids {
-                    tools::release(&daemon, id, Key::Agent(run.id)).await;
+                let attached = run.served.lock().await.attached_running();
+                future::join_all(attached.iter().map(|key| tools::release(&daemon, *key, Key::Agent(run.id)))).await;
+                let mut served = run.served.lock().await;
+                for key in attached {
+                    served.idle(key);
                 }
             }
             Err(error) => {

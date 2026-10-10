@@ -9,7 +9,7 @@ use super::{Located, locate};
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store;
+use crate::store::{self, volumes as volume_tags};
 use crate::volumes::{self, Dropped};
 
 /// Answer the delete and finish the scope.
@@ -26,7 +26,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// a provider that could not be asked; `Forbidden` for a volume the
 /// grants do not reach; `InUse` while some record names it in its
 /// mounts, running or not, or an operation is on it, or the provider
-/// says a container mounts it; else `Deleted`.
+/// says a container mounts it; else `Deleted`, its tags gone with
+/// it.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -46,8 +47,11 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if volumes::in_use(&mut conn, daemon, &frame.volume).await? {
         return Ok(Frame::InUse);
     }
-    drop(conn);
-    Ok(match volumes::delete(daemon, &frame.volume).await {
+    let deleted = volumes::delete(daemon, &frame.volume).await;
+    if let Ok(Dropped::Deleted) = deleted {
+        volume_tags::forget(&mut conn, &frame.volume).await?;
+    }
+    Ok(match deleted {
         Ok(Dropped::Deleted) => Frame::Deleted,
         Ok(Dropped::Mounted) | Err(volumes::Fail::Held) => Frame::InUse,
         Err(volumes::Fail::NotFound) => Frame::NotFound,

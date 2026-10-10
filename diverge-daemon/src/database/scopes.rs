@@ -36,14 +36,15 @@ impl Scope {
 }
 
 /// The container's scope, made if it was not this daemon life: the
-/// identity looked up, the daemon's role checked able, the four
-/// statements run once — a pool opening many connections at once
-/// waits on the first. The failure, in a sentence: a record gone, a
-/// role that cannot provision, the store.
+/// identity looked up — a record's row, a dependency's run — the
+/// daemon's role checked able, the four statements run once — a pool
+/// opening many connections at once waits on the first. The failure,
+/// in a sentence: a record gone, a dependency ended, a role that
+/// cannot provision, the store.
 pub async fn scope(daemon: &Daemon, key: Key) -> Result<Arc<Scope>, String> {
     let container = {
         let mut conn = daemon.store.acquire().await.map_err(|error| error.to_string())?;
-        container_of(&mut conn, key)
+        container_of(daemon, &mut conn, key)
             .await
             .map_err(|error| error.to_string())?
             .ok_or_else(|| "the container's record is gone".to_string())?

@@ -1,7 +1,8 @@
-//! The provider a container runs on.
+//! The providers a container may run on.
 
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::wire::client::handle::Handle;
+use rand::seq::SliceRandom as _;
 
 use crate::daemon::Daemon;
 use crate::store::{self, providers_incoming, providers_outgoing};
@@ -30,27 +31,35 @@ impl std::fmt::Display for NoProvider {
     }
 }
 
-/// The provider for a container: the one its record pins it to, which
-/// must be connected now; or, pinned to none, the first connected
-/// provider in record order — outgoing by created, then incoming by
-/// created — which is "whichever the daemon chooses".
-pub async fn choose(daemon: &Daemon, pinned: Option<&Identity>) -> Result<(Identity, Handle), NoProvider> {
+/// The providers a container may run on, in the order to try them:
+/// the one its record pins it to, which must be connected now, and no
+/// other; or, pinned to none, every provider on record that is
+/// connected now, in random order — so that unpinned containers
+/// spread over the providers rather than piling onto the first — and
+/// a start that fails on one goes on to the next. Nothing connected
+/// is [`NoProvider::None`].
+pub async fn candidates(daemon: &Daemon, pinned: Option<&Identity>) -> Result<Vec<(Identity, Handle)>, NoProvider> {
     if let Some(identity) = pinned {
         return match daemon.live.provider(identity).await {
-            Some(handle) => Ok((identity.clone(), handle)),
+            Some(handle) => Ok(vec![(identity.clone(), handle)]),
             None => Err(NoProvider::NotConnected(identity.clone())),
         };
     }
-    let candidates = match on_record(daemon).await {
-        Ok(candidates) => candidates,
+    let on_record = match on_record(daemon).await {
+        Ok(on_record) => on_record,
         Err(_) => Vec::new(),
     };
-    for identity in candidates {
+    let mut connected = Vec::with_capacity(on_record.len());
+    for identity in on_record {
         if let Some(handle) = daemon.live.provider(&identity).await {
-            return Ok((identity, handle));
+            connected.push((identity, handle));
         }
     }
-    Err(NoProvider::None)
+    if connected.is_empty() {
+        return Err(NoProvider::None);
+    }
+    connected.shuffle(&mut rand::rng());
+    Ok(connected)
 }
 
 /// Every provider on record, outgoing first, each oldest first.

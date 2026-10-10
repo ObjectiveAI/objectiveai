@@ -1,18 +1,35 @@
-//! Which container: an agent or a tool, by record.
+//! Which container: an agent or a tool, by record or by deployment.
 
-use diverge_sdk::daemon::creator::{self, Creator};
+use diverge_sdk::daemon::creator::Creator;
 
 use crate::store::agents::Agent;
 use crate::store::tools::Tool;
 use crate::store::{AgentId, ToolId};
 
-/// One container of the daemon's, by the record it is made from.
+/// A dependency tool's number among the dependencies deployed since
+/// the daemon started: minted by [`Live`](crate::daemon::Live), never
+/// given twice, nobody's record. What a dependency run is keyed by
+/// while it lives.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct DependencyId(pub u64);
+
+/// One tool run of the daemon's: a record's, or a dependency's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ToolKey {
+    /// A tool on record, by its row.
+    Record(ToolId),
+    /// A dependency tool, by the number it was deployed under.
+    Dependency(DependencyId),
+}
+
+/// One container of the daemon's: an agent, by the record it is made
+/// from; or a tool, by its record or by its deployment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Key {
     /// An agent.
     Agent(AgentId),
     /// A tool.
-    Tool(ToolId),
+    Tool(ToolKey),
 }
 
 /// What a container is as a maker and as a sender: the agent's or the
@@ -42,9 +59,4 @@ pub fn serve_name(tool: &Tool) -> String {
         Some(template) => format!("{}-{}", template.chars().take(8).collect::<String>(), tool.index),
         None => format!("connected-{}", tool.index),
     }
-}
-
-/// A creator's snapshot of an agent, for the deployer wait.
-pub fn agent_snapshot(agent: &Agent) -> creator::Agent {
-    agent.snapshot()
 }

@@ -1,6 +1,5 @@
 //! Changing what an edit may change about an agent.
 
-use diverge_sdk::daemon::creator;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use sqlx::PgConnection;
 use sqlx::types::Json;
@@ -23,8 +22,6 @@ pub struct Columns {
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes.
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The deployer, if any.
-    pub deployer: Option<creator::Agent>,
 }
 
 /// What an update came to.
@@ -40,7 +37,7 @@ pub enum Updated {
 pub async fn update(conn: &mut PgConnection, id: AgentId, columns: &Columns) -> Result<Updated, Error> {
     let written = sqlx::query(
         "UPDATE diverge.agents SET name = $2, account = $3, provider = $4, fuse_file_mounts = $5, \
-         fuse_directory_mounts = $6, deployer = $7 WHERE id = $1",
+         fuse_directory_mounts = $6 WHERE id = $1",
     )
     .bind(id.0)
     .bind(&columns.name)
@@ -48,7 +45,6 @@ pub async fn update(conn: &mut PgConnection, id: AgentId, columns: &Columns) -> 
     .bind(columns.provider.as_ref().map(Json))
     .bind(Json(&columns.fuse_file_mounts))
     .bind(Json(&columns.fuse_directory_mounts))
-    .bind(columns.deployer.as_ref().map(Json))
     .execute(&mut *conn)
     .await;
     match written {

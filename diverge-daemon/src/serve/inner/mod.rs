@@ -1,7 +1,6 @@
 //! What a create names beside its template, checked: the account, the
-//! providers, the volumes mounted, and — an agent's alone — the
-//! deployer. Shared by the agents and tools creates and edits, which
-//! name the same things.
+//! providers, the volumes mounted. Shared by the agents and tools
+//! creates and edits, which name the same things.
 //!
 //! Each check answers in the create's own vocabulary — [`Checked`] —
 //! so a handler maps the answer to its frame and nothing else.
@@ -11,12 +10,10 @@
 
 mod account;
 mod checked;
-mod deployer;
 mod mounts;
 mod provider;
 
 pub use account::*;
 pub use checked::*;
-pub use deployer::*;
 pub use mounts::*;
 pub use provider::*;

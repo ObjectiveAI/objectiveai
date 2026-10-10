@@ -1,21 +1,29 @@
-//! The requests over tools, served: the twelve over the records —
-//! [`create`], [`connect`], [`get`], [`list`], [`edit`], [`delete`],
-//! [`tag`], [`untag`], [`attach`], [`detach`], [`admit`], [`unadmit`]
-//! — [`routes`], the positions a tool answers at, [`list_for`], the
-//! one that asks a provider rather than the records, and
-//! [`templates`], what tools are made from. Whether a tool is active,
-//! and the id of its container while it runs, are [`active`] and
-//! [`running`], false and none until containers run; what it is
-//! attached to is [`agents_of`]; and [`report`] is one tool as a list
-//! reports it, its attachments, routes and admissions folded in.
+//! The requests over tools, served: the sixteen over the records and
+//! the dependencies — [`create`], [`connect`], [`get`], [`list`],
+//! [`edit`], [`delete`], [`tag`], [`untag`], [`attach`], [`detach`],
+//! [`admit`], [`unadmit`], [`download`], [`upload`], [`transfer`],
+//! [`filetree`] — [`list_for`], the one that asks a provider rather
+//! than the records, and [`templates`], what tools are made from.
+//! What a request names is [`resolve`]d to a [`Found`]: a record, or
+//! a dependency that runs now, which the reading requests reach and
+//! every changing one refuses with [`READ_ONLY`], since a dependency
+//! is its agent's; whether the caller's grants [`reaches`] either is
+//! one test. Whether a record is active, and the id of its container
+//! while it runs, are [`active`] and [`running`], false and none
+//! until containers run; what it is attached to is [`agents_of`]; and
+//! [`report`] is one record as a list reports it, its attachments and
+//! admissions folded in, [`report_dependency`] one dependency from
+//! its run.
 
 mod active;
 mod attached;
 mod report;
+mod resolve;
 
 pub use active::*;
 pub use attached::*;
 pub use report::*;
+pub use resolve::*;
 
 pub mod admit;
 pub mod attach;
@@ -29,7 +37,6 @@ pub mod filetree;
 pub mod get;
 pub mod list;
 pub mod list_for;
-pub mod routes;
 pub mod tag;
 pub mod templates;
 pub mod transfer;

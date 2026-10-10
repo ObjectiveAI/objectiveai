@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS diverge.providers_outgoing (
     -- When the daemon's connection to it last opened or closed; absent
     -- for one never dialled.
     last_connected TIMESTAMPTZ,
+    tags           TEXT[] NOT NULL DEFAULT '{}',
     created        TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator        JSONB NOT NULL
 );
@@ -78,6 +79,7 @@ CREATE TABLE IF NOT EXISTS diverge.providers_incoming (
     -- The one peer address the key is accepted from, as text; absent,
     -- any address.
     address  TEXT,
+    tags     TEXT[] NOT NULL DEFAULT '{}',
     created  TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator  JSONB NOT NULL
 );
@@ -126,8 +128,6 @@ CREATE TABLE IF NOT EXISTS diverge.agents (
     provider              JSONB,
     fuse_file_mounts      JSONB NOT NULL DEFAULT '[]',
     fuse_directory_mounts JSONB NOT NULL DEFAULT '[]',
-    -- The deployer agent as it was when named: template, index, name.
-    deployer              JSONB,
     -- The provider it last ran on, and when it last began or ceased.
     last_provider         JSONB,
     last_active           TIMESTAMPTZ,
@@ -192,14 +192,19 @@ CREATE TABLE IF NOT EXISTS diverge.admissions (
     PRIMARY KEY (tool, identity)
 );
 
--- A route: at one position — an agent, by name, and the template of
--- a dependency it declares — this tool answers, and no deployer is
--- asked. The tool gone takes the route.
-CREATE TABLE IF NOT EXISTS diverge.routes (
-    agent       TEXT NOT NULL,
-    template    TEXT NOT NULL,
-    tool        BIGINT NOT NULL REFERENCES diverge.tools(id) ON DELETE CASCADE,
-    created     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    creator     JSONB NOT NULL,
-    PRIMARY KEY (agent, template)
+-- The tags on a volume: the one thing the daemon keeps of one, which
+-- is its provider's and listed by it. One row per tagged volume; a
+-- volume whose tags are all taken off has none.
+CREATE TABLE IF NOT EXISTS diverge.volume_tags (
+    provider    JSONB NOT NULL,
+    name        TEXT NOT NULL,
+    tags        TEXT[] NOT NULL DEFAULT '{}',
+    PRIMARY KEY (provider, name)
 );
+
+-- What an earlier daemon made, brought up to the above: every
+-- statement idempotent, as the rest are.
+ALTER TABLE diverge.providers_outgoing ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE diverge.providers_incoming ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE diverge.agents DROP COLUMN IF EXISTS deployer;
+DROP TABLE IF EXISTS diverge.routes;

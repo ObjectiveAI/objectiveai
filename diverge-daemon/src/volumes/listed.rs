@@ -8,8 +8,8 @@ use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::volumes::list::server::response::Volume;
 
 /// A volume: the provider that holds it, what the provider's listing
-/// says of it, and the agents and tools of the daemon's whose records
-/// name it in their mounts.
+/// says of it, the agents and tools of the daemon's whose records
+/// name it in their mounts, and the tags the daemon keeps on it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Listed {
     /// The provider.
@@ -20,6 +20,8 @@ pub struct Listed {
     pub agents: Vec<key::Agent>,
     /// The tools that mount it, running or not.
     pub tools: Vec<key::Tool>,
+    /// Its tags, sorted bytewise: the daemon's.
+    pub tags: Vec<String>,
 }
 
 impl Listed {
@@ -51,6 +53,7 @@ impl Listed {
             created: self.created(),
             agents: self.agents.clone(),
             tools: self.tools.clone(),
+            tags: self.tags.clone(),
         }
     }
 }

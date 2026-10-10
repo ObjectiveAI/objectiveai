@@ -6,7 +6,7 @@ use sqlx::PgConnection;
 
 use crate::daemon::Daemon;
 use crate::serve::inner;
-use crate::store;
+use crate::store::{self, volumes as volume_tags};
 use crate::volumes::{self, Listed};
 
 /// What locating a volume came to.
@@ -24,7 +24,7 @@ pub enum Located {
 /// The volume: `None` for a provider not on record or a name its
 /// provider does not list, `Failed` for a provider that could not be
 /// asked, else the listing's entry with the agents and tools that
-/// mount it.
+/// mount it and the tags on it.
 pub async fn locate(conn: &mut PgConnection, daemon: &Daemon, volume: &reference::Volume) -> Result<Located, store::Error> {
     if !inner::on_record(conn, &volume.provider).await? {
         return Ok(Located::None);
@@ -35,10 +35,12 @@ pub async fn locate(conn: &mut PgConnection, daemon: &Daemon, volume: &reference
         Err(fail) => return Ok(Located::Failed(fail.to_string())),
     };
     let (agents, tools) = volumes::mounters(conn, volume).await?;
+    let tags = volume_tags::of_volume(conn, volume).await?;
     Ok(Located::Volume(Listed {
         provider: volume.provider.clone(),
         volume: found,
         agents,
         tools,
+        tags,
     }))
 }
