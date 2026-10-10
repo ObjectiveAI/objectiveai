@@ -35,11 +35,10 @@ exchange:
   The connection to the store is let go before the first frame is
   sent.
 
-Two lists are not over records, and have no filter and no count:
-`tools list_for` (19) asks a provider, and `postgres list` (78) reads
-the daemon's live state alone.
+One list is not over records, and has no filter and no count:
+`postgres list` (81) reads the daemon's live state alone.
 
-## 2. The eleven
+## 2. The ten
 
 | Tag | Request | Item | Filter members | Live in the item |
 |---|---|---|---|---|
@@ -52,11 +51,8 @@ the daemon's live state alone.
 | 5 | `agents list` | `Agent` | names, templates, creators, active, all_tags, any_tags, created_from, created_to | `active`, `logs_index`; a stream since 2026-10-08 |
 | 23 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active`; every dependency tool running now, as an item of its own while it runs (2026-10-09); a stream since 2026-10-08 |
 | 68 | `volumes list` | `Volume` | providers, names, modes, mounted, all_tags, any_tags, created_from, created_to | `mounted` (filter only); a stream since 2026-10-08, over the daemon's mirror of each connected provider's listing |
-| 19 | `tools list_for` | `Container` | none: `provider`, `tenant` | all of it; a stream since 2026-10-07, the provider's relayed (see `STREAMS_1.md`) |
 | 81 | `postgres list` | `Connection` | none | all of it; a stream since 2026-10-08 |
 
-`Forbidden` for `list_for` also covers the provider the grants do not
-reach; `NoProvider` is a provider not on record.
 
 ## 3. The items
 
@@ -103,8 +99,6 @@ are read at list time.
   `volume_tags` beside the listing). `mounted` is a filter member:
   either list non-empty. The whole item is read from the provider at list time; a
   provider not connected contributes nothing.
-- **`Container`** (list_for) — `id`, and what the provider says of the
-  container; entirely the provider's answer.
 - **`Connection`** (postgres) — `container` (as the database names
   it), `opened`; entirely `Live.connections`.
 
@@ -159,13 +153,12 @@ list would be shaped after.
 
 ## 6. What is not here
 
-`tools list_for` and `volumes list` are a provider's answers, not the
-daemon's. The provider's `list_for` is a stream since 2026-10-07 —
-containers added as their runners allow, the word that the listing is
-whole, then added and removed as runs begin and end, until the lister
-stops — and so is the provider's `volumes list`, with a volume
-changed beside added and removed. The daemon reads `tools list_for`
-through to its client, and holds one `volumes list` of each connected
+`volumes list` is a provider's answer, not the daemon's: the
+provider's `volumes list` is a stream since 2026-10-07, with a volume
+changed beside added and removed. (`tools list_for`, the provider's
+other listing, was removed from both wires on 2026-10-09; a tool's
+connectors are told to its runner on the run's own stream instead.)
+The daemon holds one `volumes list` of each connected
 provider for the connection's life, mirrored in `Live`, which every
 reading of a provider's volumes on the daemon reads — no scope per
 call. `get` endpoints answer one item as a

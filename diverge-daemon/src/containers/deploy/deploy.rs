@@ -142,6 +142,7 @@ async fn start(
             container: Some(container_id.id),
             handle: ToolHandle::Run(handle),
             users: Mutex::new(HashSet::from([Key::Agent(agent)])),
+            connectors: watch::channel(0).0,
             touched: touched.clone(),
             mounts: Arc::clone(&mounts),
             volumes: Vec::new(),

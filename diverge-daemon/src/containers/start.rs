@@ -8,14 +8,16 @@ use chrono::Utc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};
 use diverge_sdk::provider::endpoints::containers::tools::connect::client::{execute as tools_connect, request as connect_request};
+use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{Connection, ConnectionsStream};
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
 use diverge_sdk::shared::containers::request::Connect;
+use futures_util::StreamExt as _;
 use tokio::sync::{Mutex, watch};
 
 use super::answerers::Answerer;
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{AgentRun, Caller, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, stop};
+use super::{AgentRun, Caller, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, stop, tools};
 use crate::daemon::{Daemon, Kind};
 use crate::store::agents::Agent;
 use crate::store::tools::{Origin, Tool, attachments};
@@ -258,6 +260,7 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         container,
         handle,
         users: Mutex::new(HashSet::new()),
+        connectors: watch::channel(0).0,
         touched,
         mounts,
         volumes: crate::volumes::of_tool(tool),
@@ -274,10 +277,35 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         let daemon = Arc::clone(daemon);
         let run = Arc::clone(&run);
         tokio::spawn(async move {
-            run.handle.wait().await;
+            match run.handle.connections() {
+                Some(connections) => connectors(&run, connections).await,
+                None => run.handle.wait().await,
+            }
             stop::ended_tool(&daemon, run).await;
         })
     };
     run.tasks.lock().await.push(waiter.abort_handle());
     Ok(run)
+}
+
+/// Read the run's main stream to its end, counting the connectors the
+/// provider tells of: one more on every `Connected`, one fewer on
+/// every `Disconnected` — and when the last leaves with no container
+/// of the daemon's using the tool, the run is stopped. The stream's
+/// end is the run's.
+async fn connectors(run: &Arc<ToolRun>, mut connections: ConnectionsStream) {
+    while let Some(connection) = connections.next().await {
+        match connection {
+            Ok(Connection::Connected(_)) => {
+                run.connectors.send_modify(|count| *count += 1);
+                run.touch();
+            }
+            Ok(Connection::Disconnected(_)) => {
+                run.connectors.send_modify(|count| *count = count.saturating_sub(1));
+                run.touch();
+                tools::disconnected(run).await;
+            }
+            Err(_) => break,
+        }
+    }
 }

@@ -15,7 +15,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// eighty-four has a handler. A payload that is no request at all is
+/// eighty-three has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -39,7 +39,6 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::ToolsGet(frame) => tools::get::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsEdit(frame) => tools::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsConnect(frame) => tools::connect::handle(scope, frame, who, daemon).await,
-        ClientRequest::ToolsListFor(frame) => tools::list_for::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsAttach(frame) => tools::attach::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsDetach(frame) => tools::detach::handle(scope, frame, who, daemon).await,
         ClientRequest::ToolsDelete(frame) => tools::delete::handle(scope, frame, who, daemon).await,

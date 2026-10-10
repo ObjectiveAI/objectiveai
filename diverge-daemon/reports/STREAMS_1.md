@@ -35,7 +35,7 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
 
 | Order | Tag | List | What tells the daemon something changed |
 |---|---|---|---|
-| 1 | 19 | `tools list_for` | The provider's own stream, relayed; the client's cancel forwarded as the provider's stop. **Built 2026-10-07.** |
+| 1 | — | `tools list_for` | **Removed 2026-10-09** with the provider's listing: a tool's connectors are told to its runner on the tools run stream instead. |
 | 2 | 78 | `postgres list` | `Live.connections`: a connection opened or closed. **Built 2026-10-08.** |
 | 3 | 67 | `volumes list` | Each connected provider's own stream, merged; a provider connecting or leaving; the records that mount a volume (an agent or tool created, edited, deleted). **Built 2026-10-08: the daemon mirrors one listing per connected provider (`volumes::Mirror`, `volumes::watch`).** |
 | 4 | 5 | `agents list` | The record (create, edit, tag, untag, delete, attach, detach, a tool renamed); `Live.agents` (a run starting or ending, its loop active or inactive, a start failed). **Built 2026-10-08.** The log's length is read at those changes and not per line: see §3. |
@@ -78,8 +78,8 @@ The log as it grows is `agents logs`, which has its own per-agent watch.
 
 `get` endpoints answer one item once. `agents logs` and the two
 `filetree` watches stream already. The provider wire is done: both
-of its listings are streams; `tools list_for` is relayed through and
-`volumes list` mirrored, one per connected provider.
+of its listings are streams; `volumes list` is mirrored, one per
+connected provider, and `tools list_for` is gone (2026-10-09).
 
 ## 5. Done
 

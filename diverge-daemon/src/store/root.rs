@@ -140,7 +140,7 @@ pub fn every_grant() -> Vec<Grant> {
         }),
         Grant::ProvidersOutgoing(po::Permission::Make(vec![po::Make::Add])),
         Grant::ProvidersOutgoing(po::Permission::Over {
-            actions: vec![po::Over::Get, po::Over::List, po::Over::Delete, po::Over::Edit, po::Over::ListFor],
+            actions: vec![po::Over::Get, po::Over::List, po::Over::Delete, po::Over::Edit],
             within: Within::Any,
         }),
         Grant::ProvidersOutgoing(po::Permission::Tags {
@@ -150,7 +150,7 @@ pub fn every_grant() -> Vec<Grant> {
         }),
         Grant::ProvidersIncoming(pi::Permission::Make(vec![pi::Make::Add])),
         Grant::ProvidersIncoming(pi::Permission::Over {
-            actions: vec![pi::Over::Get, pi::Over::List, pi::Over::Delete, pi::Over::Edit, pi::Over::ListFor],
+            actions: vec![pi::Over::Get, pi::Over::List, pi::Over::Delete, pi::Over::Edit],
             within: Within::Any,
         }),
         Grant::ProvidersIncoming(pi::Permission::Tags {

@@ -179,15 +179,13 @@ CREATE TABLE IF NOT EXISTS diverge.attachments (
 );
 CREATE INDEX IF NOT EXISTS attachments_agent ON diverge.attachments (agent);
 
--- Who may see a created tool from its provider, and who may join it:
--- the key, when the admission admits a connect, is kept as its hash.
+-- Who may join a created tool from its provider: the key is kept as
+-- its hash.
 CREATE TABLE IF NOT EXISTS diverge.admissions (
     tool        BIGINT NOT NULL REFERENCES diverge.tools(id) ON DELETE CASCADE,
     identity    TEXT NOT NULL,
     address     TEXT,
-    -- `list`, `connect` or `both`.
-    admits      TEXT NOT NULL,
-    key_hash    TEXT UNIQUE,
+    key_hash    TEXT NOT NULL UNIQUE,
     created     TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (tool, identity)
 );
@@ -207,4 +205,7 @@ CREATE TABLE IF NOT EXISTS diverge.volume_tags (
 ALTER TABLE diverge.providers_outgoing ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE diverge.providers_incoming ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE diverge.agents DROP COLUMN IF EXISTS deployer;
+DELETE FROM diverge.admissions WHERE key_hash IS NULL;
+ALTER TABLE diverge.admissions DROP COLUMN IF EXISTS admits;
+ALTER TABLE diverge.admissions ALTER COLUMN key_hash SET NOT NULL;
 DROP TABLE IF EXISTS diverge.routes;

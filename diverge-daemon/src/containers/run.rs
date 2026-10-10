@@ -11,7 +11,7 @@ use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
 use diverge_sdk::provider::endpoints::containers::tools::connect::client::execute::ExecuteHandle as JoinedHandle;
-use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
+use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ConnectionsStream, ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
 use diverge_sdk::shared::containers::dependencies::Template;
 use diverge_sdk::shared::containers::request::Image;
 use bytes::Bytes;
@@ -192,6 +192,16 @@ impl ToolHandle {
         };
     }
 
+    /// The connectors coming and going on the run's main stream, for a
+    /// container the daemon runs; none for a joined one, whose
+    /// connectors are its runner's to count.
+    pub fn connections(&self) -> Option<ConnectionsStream> {
+        match self {
+            ToolHandle::Run(handle) => Some(handle.connections()),
+            ToolHandle::Joined(_) => None,
+        }
+    }
+
     /// Wait for its end, however it comes.
     pub async fn wait(&self) {
         match self {
@@ -225,8 +235,9 @@ pub struct Dependency {
 }
 
 /// A running tool: the scope held on it, which containers use it,
-/// and what it mounts — a record's container, a connected tool's
-/// joined, or a dependency deployed for an agent.
+/// who is connected to it from outside, and what it mounts — a
+/// record's container, a connected tool's joined, or a dependency
+/// deployed for an agent.
 pub struct ToolRun {
     /// The record, or the deployment.
     pub id: ToolKey,
@@ -246,10 +257,12 @@ pub struct ToolRun {
     pub container: Option<String>,
     /// The scope.
     pub handle: ToolHandle,
-    /// The containers using it now; the last to leave stops a record's
-    /// run. A dependency has one user for its life, its agent, and is
-    /// stopped with it.
+    /// The containers using it now. A dependency has one user for its
+    /// life, its agent, and is stopped with it.
     pub users: Mutex<HashSet<Key>>,
+    /// The connectors attached to it from outside now, as the provider
+    /// tells of them: the other thing that holds a record's run up.
+    pub connectors: watch::Sender<usize>,
     /// When it was last used.
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
@@ -267,5 +280,13 @@ impl ToolRun {
     /// The container was used.
     pub fn touch(&self) {
         self.touched.send_replace(Instant::now());
+    }
+
+    /// Whether anything holds the run up: a container of the daemon's
+    /// uses it, or a connector is attached from outside. Exactly those
+    /// two; a record's run is stopped when neither holds. Asked under
+    /// the users lock by whoever lets go of either.
+    pub fn is_held(&self, users: &HashSet<Key>) -> bool {
+        !users.is_empty() || *self.connectors.borrow() > 0
     }
 }

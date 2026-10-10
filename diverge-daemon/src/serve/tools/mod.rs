@@ -2,8 +2,7 @@
 //! the dependencies — [`create`], [`connect`], [`get`], [`list`],
 //! [`edit`], [`delete`], [`tag`], [`untag`], [`attach`], [`detach`],
 //! [`admit`], [`unadmit`], [`download`], [`upload`], [`transfer`],
-//! [`filetree`] — [`list_for`], the one that asks a provider rather
-//! than the records, and [`templates`], what tools are made from.
+//! [`filetree`] — and [`templates`], what tools are made from.
 //! What a request names is [`resolve`]d to a [`Found`]: a record, or
 //! a dependency that runs now, which the reading requests reach and
 //! every changing one refuses with [`READ_ONLY`], since a dependency
@@ -36,7 +35,6 @@ pub mod edit;
 pub mod filetree;
 pub mod get;
 pub mod list;
-pub mod list_for;
 pub mod tag;
 pub mod templates;
 pub mod transfer;

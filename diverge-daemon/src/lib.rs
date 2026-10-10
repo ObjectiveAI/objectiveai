@@ -12,10 +12,9 @@
 //!
 //! # What serves today
 //!
-//! Every request of the wire, all eighty-four: the fourteen over
+//! Every request of the wire, all eighty-three: the fourteen over
 //! accounts and roles, the fourteen over outgoing providers and
-//! incoming credentials, the listing of a tenant's tool containers
-//! through a provider, the twelve over the two template families,
+//! incoming credentials, the twelve over the two template families,
 //! the thirteen over agents — their logs, their messages, and the
 //! files of their containers — the sixteen over tools, attachments
 //! and admissions and their containers' files, the twelve over
@@ -29,8 +28,9 @@
 //! container's tree has the daemon's mounts spliced in. An agent's container runs on
 //! a provider from its first message and stops after `idle_seconds`
 //! unused — active being a loop running or a call in flight, and
-//! nothing else; a tool's runs while an agent it is attached to is
-//! active; an agent's declared dependencies are deployed the moment
+//! nothing else; a tool's runs while a container of the daemon's uses
+//! it or a connector is attached to it from outside, and not a moment
+//! longer; an agent's declared dependencies are deployed the moment
 //! its container asks, tools of its own for its container's life;
 //! the provider's asks on a run — the container's `/daemon`
 //! connections, its tool calls, its mounts, its dependencies, who may

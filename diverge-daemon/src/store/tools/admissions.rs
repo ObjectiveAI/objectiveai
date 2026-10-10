@@ -1,24 +1,22 @@
-//! Who may see a created tool from its provider, and who may join it.
+//! Who may join a created tool from its provider.
 
 use chrono::{DateTime, Utc};
-use diverge_sdk::daemon::endpoints::tools::{Admission, Admits};
+use diverge_sdk::daemon::endpoints::tools::Admission;
 use sqlx::postgres::PgRow;
 use sqlx::{PgConnection, Row as _};
 
 use crate::store::{Error, ToolId};
 
 /// One admission as the store holds it: the tool it is on, what the
-/// wire reports, and what it never does — the hash of the key, when
-/// the admission admits a connect.
+/// wire reports, and what it never does — the hash of the key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Record {
     /// The tool.
     pub tool: ToolId,
-    /// The identity, the address if one, and what it admits.
+    /// The identity, and the address if one.
     pub admission: Admission,
-    /// The SHA-256 of the key, hex, when the admission admits a
-    /// connect.
-    pub key_hash: Option<String>,
+    /// The SHA-256 of the key, hex.
+    pub key_hash: String,
     /// When it was put down.
     pub created: DateTime<Utc>,
 }
@@ -34,7 +32,7 @@ pub enum Created {
 }
 
 /// The columns every admission query selects.
-const SELECT: &str = "SELECT tool, identity, address, admits, key_hash, created FROM diverge.admissions";
+const SELECT: &str = "SELECT tool, identity, address, key_hash, created FROM diverge.admissions";
 
 /// Every admission, in the order admitted: what a listing of tools
 /// folds in, loaded once for the whole list.
@@ -64,19 +62,15 @@ pub async fn by_key_hash(conn: &mut PgConnection, key_hash: &str) -> Result<Opti
     row.as_ref().map(record).transpose()
 }
 
-/// Put the admission on the tool, with the hash of its key when it
-/// has one.
-pub async fn create(conn: &mut PgConnection, tool: ToolId, admission: &Admission, key_hash: Option<&str>) -> Result<Created, Error> {
-    let inserted = sqlx::query(
-        "INSERT INTO diverge.admissions (tool, identity, address, admits, key_hash) VALUES ($1, $2, $3, $4, $5)",
-    )
-    .bind(tool.0)
-    .bind(&admission.identity)
-    .bind(admission.address.map(|address| address.to_string()))
-    .bind(admits_text(admission.admits))
-    .bind(key_hash)
-    .execute(&mut *conn)
-    .await;
+/// Put the admission on the tool, with the hash of its key.
+pub async fn create(conn: &mut PgConnection, tool: ToolId, admission: &Admission, key_hash: &str) -> Result<Created, Error> {
+    let inserted = sqlx::query("INSERT INTO diverge.admissions (tool, identity, address, key_hash) VALUES ($1, $2, $3, $4)")
+        .bind(tool.0)
+        .bind(&admission.identity)
+        .bind(admission.address.map(|address| address.to_string()))
+        .bind(key_hash)
+        .execute(&mut *conn)
+        .await;
     match inserted {
         Ok(_) => Ok(Created::Created),
         Err(sqlx::Error::Database(error)) if error.is_unique_violation() => Ok(Created::Exists),
@@ -95,26 +89,8 @@ pub async fn delete(conn: &mut PgConnection, tool: ToolId, identity: &str) -> Re
     Ok(())
 }
 
-/// What the admission admits, as the column holds it.
-fn admits_text(admits: Admits) -> &'static str {
-    match admits {
-        Admits::List => "list",
-        Admits::Connect => "connect",
-        Admits::Both => "both",
-    }
-}
-
 /// The admission a row of [`SELECT`] holds.
 fn record(row: &PgRow) -> Result<Record, Error> {
-    let admits: String = row.try_get("admits")?;
-    let admits = match admits.as_str() {
-        "list" => Admits::List,
-        "connect" => Admits::Connect,
-        "both" => Admits::Both,
-        other => {
-            return Err(Error::Json(serde::de::Error::custom(format!("`{other}` is not what an admission admits"))));
-        }
-    };
     let address: Option<String> = row.try_get("address")?;
     let address = match address {
         Some(value) => Some(value.parse().map_err(|source| Error::Address {
@@ -128,7 +104,6 @@ fn record(row: &PgRow) -> Result<Record, Error> {
         admission: Admission {
             identity: row.try_get("identity")?,
             address,
-            admits,
         },
         key_hash: row.try_get("key_hash")?,
         created: row.try_get("created")?,

@@ -7,8 +7,6 @@
 //! reads it, with whether the daemon holds a connection to the
 //! provider now, which the caller knows; a tagging action by a grant
 //! that holds it, reaches the provider, and covers every tag named.
-//! `ListFor` is judged here like any other action over the provider
-//! it asks.
 
 use diverge_sdk::daemon::endpoints::providers::outgoing::list::client::request::Filter;
 use diverge_sdk::daemon::grant::providers_outgoing::{Make, Over, Permission};

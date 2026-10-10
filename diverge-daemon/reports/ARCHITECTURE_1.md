@@ -113,8 +113,8 @@ Two populations, kept apart by type and by fate:
 - **Where they run.** Every agent and tool runs on a provider: an
   outgoing one the daemon dialled, or an incoming one that dialled in and
   was judged by a credential the daemon minted. The daemon is the caller
-  of the provider protocol — `run`, `connect`, volumes, `list_for` — and
-  holds one run scope per container for its life.
+  of the provider protocol — `run`, `connect`, volumes — and holds one
+  run scope per container for its life.
 - **What comes back through the run.** The proxy inside the container
   opens channels on the run scope, and each kind is one module of the
   work layer: `/daemon` pairs, served as requests of the container's
@@ -197,7 +197,16 @@ Two populations, kept apart by type and by fate:
   `name-3`, … while taken, assigned once per run and kept until the tool
   leaves, so nothing is dropped or renamed while served. A call routes by
   its first `_`.
-- **Unused, a container stops.** Every container, agent or tool, has an
+- **A tool runs while held.** A record tool's container is started
+  for the first container of the daemon's that uses it — an agent's
+  loop beginning, a call outside a loop, a file operation — and
+  stopped when nothing holds it: no user of the daemon's, and no
+  connector attached from outside. The provider tells the runner of
+  every connector coming and going on the run's own stream
+  (`Connected`/`Disconnected`, 2026-10-09), and the daemon counts
+  them; the last of either leaving is the one test. A tool has no
+  idle clock.
+- **Unused, a container stops.** Every agent has an
   idle clock: it resets on every use — a message delivered, a tool call
   relayed, a file moved in or out, a request the container itself makes
   of the daemon — and it does not run while the agent is ACTIVE, which
@@ -294,7 +303,7 @@ Two populations, kept apart by type and by fate:
 1. **Store and accounts.** The store engine, the root key, accounts,
    roles, grants, and the judge made real. The first `Forbidden` and the
    first `Created`.
-2. **Providers.** Outgoing added and dialled, incoming judged, `list_for`.
+2. **Providers.** Outgoing added and dialled, incoming judged.
 3. **Templates.** The definitions. (Resources, the content store, were
    built here and removed on 2026-10-08.)
 4. **Agents and tools.** Create, run on a provider, the run scope, the
