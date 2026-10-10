@@ -29,17 +29,26 @@ pub struct Config {
     /// record stays, and the next use starts the container again.
     /// Absent means ten.
     pub idle_seconds: u64,
+    /// Whether the daemon accepts connections from other daemons
+    /// through the providers it is connected to: when `true`, it opens
+    /// the provider protocol's `daemons::accept` on every provider
+    /// connection it holds, and judges each daemon that connects as it
+    /// judges any client, by the credential presented. When `false`,
+    /// it opens none, and no daemon reaches it or the tools it exposes.
+    /// Absent means `true`.
+    pub accept_daemons: bool,
 }
 
 /// What a daemon runs on before it has written a line of
 /// configuration: the port one above the provider's, a Postgres of
-/// its own, and ten seconds of idleness.
+/// its own, ten seconds of idleness, and other daemons accepted.
 impl Default for Config {
     fn default() -> Self {
         Config {
             port: OUTSIDE_PORT + 1,
             postgres: Postgres::default(),
             idle_seconds: 10,
+            accept_daemons: true,
         }
     }
 }

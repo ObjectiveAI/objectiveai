@@ -4,8 +4,8 @@
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds
 //! — agents, agent templates, tools, tool templates, outgoing
-//! providers, incoming credentials, accounts, roles, volumes, the
-//! database — and on the wire it is one object with one member, named
+//! providers, incoming credentials, daemons, accounts, roles,
+//! volumes, the database — and on the wire it is one object with one member, named
 //! for the kind, whose value is the kind's permission: `{"agents":…}`,
 //! `{"volumes":…}`. The shapes are the daemon's own, stated in
 //! [`daemon::grant`](crate::daemon::grant) — to make, over what
@@ -62,6 +62,7 @@ pub mod accounts;
 pub mod agents;
 pub mod agents_templates;
 pub mod postgres;
+pub mod providers_daemons;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod roles;

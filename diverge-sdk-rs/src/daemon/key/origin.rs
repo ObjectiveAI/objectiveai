@@ -2,13 +2,13 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
+use crate::daemon::reference;
 
 /// What a tool was made with, as much of it as is fixed for its life:
-/// the template a created tool was made from, or the provider and
-/// container id a connected tool joined — and not where a created
-/// tool happens to run, which changes. JSON-tagged by `kind`,
-/// `created` or `connected`, as the tools list's
+/// the template a created tool was made from, or the daemon and the
+/// tool a connected tool joined — and not where a created tool
+/// happens to run, which changes. JSON-tagged by `kind`, `created` or
+/// `connected`, as the tools list's
 /// [`Origin`](crate::daemon::endpoints::tools::list::server::response::Origin)
 /// is. A tool's index counts among the tools ever made with the same
 /// one of these.
@@ -20,12 +20,13 @@ pub enum Origin {
         /// The template, by id.
         template: String,
     },
-    /// Joined by a connect, to somebody else's container.
+    /// Joined by a connect, to another daemon's tool.
     Connected {
-        /// The provider the container runs on, as the connect named
-        /// it.
-        provider: Identity,
-        /// The container's id, as the connect named it.
-        id: String,
+        /// The daemon the tool is on, by the name of its record, as
+        /// the connect named it.
+        daemon: String,
+        /// The tool, as that daemon names it and as the connect named
+        /// it: see [`reference::Tool`].
+        tool: Box<reference::Tool>,
     },
 }

@@ -1,4 +1,5 @@
-//! Providers: the two ways the daemon comes to be connected to one.
+//! Providers: the two ways the daemon comes to be connected to one,
+//! and the daemons it reaches through them.
 //!
 //! A provider is where containers run and volumes live, and the daemon
 //! reaches it one of two ways, which its
@@ -22,6 +23,17 @@
 //! credential's key is the daemon's: the client never gives one — the
 //! daemon mints it when the credential is added or replaced, answers it
 //! in that response, once, and reports it never.
+//!
+//! # And the daemons beyond them
+//!
+//! A [`daemons`] record is another daemon the caller holds an account
+//! on, reached through a provider both are connected to and never
+//! otherwise: its name here, the mode this daemon authenticates to it
+//! in — an outgoing provider's modes, the credential one the remote
+//! holds as an incoming credential — and one link per provider it is
+//! reachable through, each a provider of the caller's and the identity
+//! the remote is known by there. A connected tool names one.
 
+pub mod daemons;
 pub mod incoming;
 pub mod outgoing;

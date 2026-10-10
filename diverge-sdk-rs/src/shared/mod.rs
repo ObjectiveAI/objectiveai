@@ -26,6 +26,10 @@
 //! alone, which a dependency tool template carries and the daemon's
 //! own grants are built of.
 //!
+//! [`daemons`] is what a daemon connecting to another daemon through a
+//! provider is made of: how it authenticates, and what the acceptor is
+//! told of it.
+//!
 //! [`canonical`] is the one form a value is hashed in — compact JSON
 //! with every object key sorted at every depth — which every id that
 //! is a hash is computed over.
@@ -43,6 +47,7 @@
 
 pub mod canonical;
 pub mod containers;
+pub mod daemons;
 pub mod error;
 pub mod filetree;
 pub mod mcp;

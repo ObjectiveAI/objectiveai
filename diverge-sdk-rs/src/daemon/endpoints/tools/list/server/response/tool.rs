@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
-use super::super::super::super::Admission;
 use super::Origin;
 
 /// One tool of the caller's: what the daemon knows of it.
@@ -14,14 +13,14 @@ use super::Origin;
 /// costs no more than the tools it names. What a created tool was
 /// made from is its template's, named by id, and its mounts are the
 /// create's, and neither is repeated here; what a connected tool is
-/// made from is its runner's, and unknown here; what a dependency
+/// made from is the other daemon's, and unknown here; what a dependency
 /// tool was made from is the template its agent's program declared,
 /// carried whole on its origin, since it is on record nowhere else.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tool {
     /// The name, as its create or its connect gave it, if it gave
     /// one; absent for a tool made with none, which is reached by its
-    /// template and its index, or by the provider and id it joined,
+    /// template and its index, or by the daemon and tool it joined,
     /// alone, and absent for a dependency, which has none and is
     /// reached by its agent and its template.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -64,11 +63,4 @@ pub struct Tool {
     /// off. Absent when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
-    /// Who may see it from its provider and who may join it, as
-    /// [`admit`](crate::daemon::endpoints::tools::admit) put them down,
-    /// never with a key, in the order they were admitted. Absent when
-    /// empty, and always for a connected tool, whose runner admits,
-    /// and for a dependency tool, which admits nobody.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub admissions: Vec<Admission>,
 }

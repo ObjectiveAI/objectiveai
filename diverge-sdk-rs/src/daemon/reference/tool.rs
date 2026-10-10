@@ -3,12 +3,11 @@
 use serde::{Deserialize, Serialize};
 
 use super::Agent;
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
 
 /// One tool of the caller's: by its name, by its template and its
-/// index, by — a connected tool — the provider and container id it
-/// joined, or — a dependency tool — the agent it was deployed for and
-/// the name its template declared. See [`reference`](super) for which
+/// index, by — a connected tool — the daemon and the tool it joined,
+/// or — a dependency tool — the agent it was deployed for and the
+/// template it was deployed from. See [`reference`](super) for which
 /// names what. Untagged JSON, one object any way; an object with
 /// members of more than one variant does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -28,14 +27,15 @@ pub enum Tool {
         /// from that template, as its list item carries it.
         index: u64,
     },
-    /// By what it joined: `{"provider":…,"id":…}`. A connected tool
-    /// only, which has no template; the pair names it once and for all,
-    /// as the connect named it.
+    /// By what it joined: `{"daemon":…,"tool":…}`. A connected tool
+    /// only, which has no template; the pair names it once and for
+    /// all, as the connect named it.
     Connected {
-        /// The provider the container runs on, as the connect named it.
-        provider: Identity,
-        /// The container's id, as the connect named it.
-        id: String,
+        /// The daemon the tool is on, by the name of its record.
+        daemon: String,
+        /// The tool, as that daemon names it: any of these, read by
+        /// that daemon and compared by this one.
+        tool: Box<Tool>,
     },
     /// By the agent it was deployed for and its template:
     /// `{"agent":…,"template":…}`. A dependency tool only, which

@@ -28,9 +28,10 @@ use crate::wire::encode::{Encode, Writer};
 /// # Connected carries nothing, and joins nothing
 ///
 /// The name is the caller's handle from now on, and the caller chose
-/// it. Nothing was joined: whether the container is there and admits
-/// this caller is learned when an attached agent is active, as the
-/// tool's `active` in a list and as the agent's tool calls.
+/// it. Nothing was joined: whether the daemon named is reachable and
+/// exposes the tool to this caller is learned when an attached agent
+/// is active, as the tool's `active` in a list and as the agent's tool
+/// calls.
 ///
 /// # Forbidden
 ///

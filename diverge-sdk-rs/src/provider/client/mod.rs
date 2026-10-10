@@ -27,6 +27,10 @@
 //! | [`McpServer`] | the container's tool calls outward |
 //! | [`FuseServer`] | the files and directories mounted live |
 //!
+//! And one apart from a container's run: an [`Acceptor`] takes the
+//! daemon connections other daemons open through the provider, each
+//! announced on the daemon's `daemons::accept` scope.
+//!
 //! Each answers in the wire's own vocabulary — an absence is the
 //! empty finish, a refusal the frame that says so — so none carries
 //! an error type of its own. The executors under
@@ -35,6 +39,7 @@
 //! through these; the connect scope, which is asked for nothing but
 //! the content of its own writes, takes none of them.
 
+mod acceptor;
 mod answerers;
 mod daemon;
 mod connection_authorizer;
@@ -45,6 +50,7 @@ mod oci_store;
 mod postgres_dialer;
 mod vault;
 
+pub use acceptor::*;
 pub use answerers::*;
 pub use daemon::*;
 pub use connection_authorizer::*;

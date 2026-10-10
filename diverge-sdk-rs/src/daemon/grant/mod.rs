@@ -2,8 +2,8 @@
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
 //! agents, agent templates, tools, tool templates, outgoing
-//! providers, incoming credentials, accounts, roles, volumes,
-//! the database — and a [role](crate::daemon::endpoints::roles) is a
+//! providers, incoming credentials, daemons, accounts, roles,
+//! volumes, the database — and a [role](crate::daemon::endpoints::roles) is a
 //! list of them, held by
 //! [accounts](crate::daemon::endpoints::accounts). On the wire a grant
 //! is one object with one member, named for the kind, whose value is
@@ -86,7 +86,7 @@
 //! are made of the same actions, reaching by tags alone, and a grant
 //! here reaches by the kind's own filter. Every kind but the database
 //! carries tags — agents, templates, tools, providers, credentials,
-//! accounts, roles and volumes alike — so every kind but the database
+//! daemons, accounts, roles and volumes alike — so every kind but the database
 //! has the tagging shape. A grant that names nothing becomes one of
 //! these by [`From`]: the same actions, reaching by a filter of the
 //! tags alone, which is how a dependency tool's requests are judged.
@@ -103,6 +103,7 @@ pub mod tools;
 pub mod tools_templates;
 pub mod providers_outgoing;
 pub mod providers_incoming;
+pub mod providers_daemons;
 pub mod accounts;
 pub mod roles;
 pub mod volumes;

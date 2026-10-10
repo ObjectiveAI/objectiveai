@@ -9,6 +9,7 @@
 //! | [`containers`] | run an agent or a tool server in a container; join a tool server; serve a subtree of a container live |
 //! | [`images`] | ask whether an image can be supplied |
 //! | [`volumes`] | list what a provider offers, and keep the listing; examine one; read, write or walk one; serve one's files live and watch them as served; ask how large one may be made; make one; ask how far one may grow; resize it; destroy it |
+//! | [`daemons`] | accept connections from other daemons; connect to another daemon |
 //! | [`version`] | ask what a provider is |
 //!
 //! # The tags
@@ -37,18 +38,22 @@
 //! | `14` | [`volumes::delete`] |
 //! | `15` | [`images::check`] |
 //! | `16` | [`version`] |
+//! | `17` | [`daemons::accept`] |
+//! | `18` | [`daemons::connect`] |
 //!
-//! Eighteen, grouped by endpoint and ordered within it. The five
+//! Nineteen, grouped by endpoint and ordered within it. The four
 //! container scopes lead: the agents' run, the tools' run, the connect
-//! that joins one, the list that finds somebody else's, and the serve
-//! that answers a running container's files live. The eleven volume
+//! that joins one, and the serve that answers a running container's
+//! files live. The eleven volume
 //! scopes follow in the
 //! order a caller uses them: find one, examine it, read a file out of
 //! it, write one in, see its tree, serve its files live, ask how large
 //! one may be made, make one, ask how far one may grow, resize it,
 //! destroy it.
 //! Then the two that ask rather than do:
-//! [`images::check`], and [`version`].
+//! [`images::check`], and [`version`]. Last, the two of
+//! [`daemons`], added after: a daemon accepting connections from
+//! other daemons, and a daemon connecting to one.
 //!
 //! Nothing derives meaning from adjacency, which [`version`] is the
 //! proof of — it is the one a client asks FIRST and it holds the
@@ -84,6 +89,7 @@ mod client_request;
 pub use client_request::*;
 
 pub mod containers;
+pub mod daemons;
 pub mod images;
 pub mod version;
 pub mod volumes;

@@ -1,6 +1,6 @@
 //! A grant that names nothing, as a grant of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, providers_incoming, providers_outgoing, roles, tools, tools_templates, volumes};
+use super::{Grant, accounts, agents, agents_templates, providers_daemons, providers_incoming, providers_outgoing, roles, tools, tools_templates, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
 /// The daemon's grant a shared grant is: the same actions, reaching
@@ -80,6 +80,18 @@ impl From<permission::Grant> for Grant {
                 permission::providers_incoming::Permission::Tags { actions, within, tags } => providers_incoming::Permission::Tags {
                     actions,
                     within: within.map(providers_incoming_filter),
+                    tags,
+                },
+            }),
+            permission::Grant::ProvidersDaemons(permission) => Grant::ProvidersDaemons(match permission {
+                permission::providers_daemons::Permission::Make(makes) => providers_daemons::Permission::Make(makes),
+                permission::providers_daemons::Permission::Over { actions, within } => providers_daemons::Permission::Over {
+                    actions,
+                    within: within.map(providers_daemons_filter),
+                },
+                permission::providers_daemons::Permission::Tags { actions, within, tags } => providers_daemons::Permission::Tags {
+                    actions,
+                    within: within.map(providers_daemons_filter),
                     tags,
                 },
             }),
@@ -176,6 +188,14 @@ fn providers_outgoing_filter(tags: Tags) -> crate::daemon::endpoints::providers:
 
 fn providers_incoming_filter(tags: Tags) -> crate::daemon::endpoints::providers::incoming::list::client::request::Filter {
     crate::daemon::endpoints::providers::incoming::list::client::request::Filter {
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
+        ..Default::default()
+    }
+}
+
+fn providers_daemons_filter(tags: Tags) -> crate::daemon::endpoints::providers::daemons::list::client::request::Filter {
+    crate::daemon::endpoints::providers::daemons::list::client::request::Filter {
         all_tags: tags.all_tags,
         any_tags: tags.any_tags,
         ..Default::default()

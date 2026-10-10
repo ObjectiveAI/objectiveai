@@ -9,12 +9,12 @@ use crate::daemon::reference;
 /// Which container holds a database connection — which is to say,
 /// which database scope it reaches: an agent or a tool on record,
 /// named once and for all — by template and index, or, a connected
-/// tool, by provider and id — since a name may be absent and the
+/// tool, by daemon and tool — since a name may be absent and the
 /// daemon answers the form that always names; or a dependency tool's
 /// scope, which is named by what the dependency's template says it
 /// shares with, see [`Dependency`]. On the wire one object with one
 /// member, named for the family: `{"agent":{"template":…,"index":…}}`,
-/// `{"tool":{"provider":…,"id":…}}` or
+/// `{"tool":{"daemon":…,"tool":…}}` or
 /// `{"dependency":{"parent":…,"template":…}}`. The daemon's role
 /// and schema for the scope name its OWNER first: `diverge_`, the
 /// first twenty hexadecimal characters of the SHA-256 of the owner's

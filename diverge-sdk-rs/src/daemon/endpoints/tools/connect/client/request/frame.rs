@@ -1,34 +1,37 @@
 //! What a client's request frame carries for a connect.
 
-use serde::{Deserialize, Serialize};
-
-use crate::daemon::endpoints::agents::logs::server::response::Identity;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
+use serde::{Deserialize, Serialize};
 
-/// Ask the daemon to hold, under a name, a tool container somebody else
-/// runs.
+use crate::daemon::reference;
+
+/// Ask the daemon to hold, under a name, a tool another daemon holds.
 ///
-/// The three things a runner hands to whoever it lets in — the provider
-/// its container runs on, the container's id, and an authorization —
-/// and the name the tool is held under from then on. Nothing here is
-/// what the container is made from: its image, its limits, its mounts
-/// and its arguments are its runner's, stated in the runner's own
+/// Two things name the tool — the daemon it is on, by a record of
+/// [`providers::daemons`](crate::daemon::endpoints::providers::daemons),
+/// and the tool as that daemon names it — and the name it is held
+/// under here from then on. Nothing here is what the container is made
+/// from: its image, its limits, its mounts and its arguments are the
+/// other daemon's, stated in its own
 /// [`create`](crate::daemon::endpoints::tools::create), and a connected
-/// tool is not [`edit`](crate::daemon::endpoints::tools::edit)ed. Whom
-/// a runner's daemon admits is an
-/// [admission](crate::daemon::endpoints::tools::admit) on the tool
-/// there, and the authorization is the key that admission answered.
+/// tool is not [`edit`](crate::daemon::endpoints::tools::edit)ed.
 ///
 /// # Nothing is joined now
 ///
-/// The daemon records the tool and answers. It opens the provider
-/// protocol's `containers::tools::connect` on the provider named, with
-/// the id and the authorization, while an agent the tool is attached to
-/// is active, and lets the scope go when none is; it never starts or
-/// stops the container. A container that is not there, or an
-/// authorization the runner declines, is not this request's error: it
-/// is the tool inactive in a
+/// The daemon records the tool and answers. While an agent the tool is
+/// attached to is active, it connects to the daemon named — through a
+/// provider both are connected to, as the record's links say — opens
+/// that daemon's [`expose`](crate::daemon::endpoints::tools::expose)
+/// naming the tool, and joins the container the expose answers with:
+/// the provider protocol's `containers::tools::connect` on the provider
+/// the expose names, which has to be one the record links the daemon
+/// through, with the id and the authorization the expose answered; and
+/// lets the join and the expose go when no attached agent is. It never
+/// starts or stops the container itself: the expose does. A daemon
+/// that cannot be reached, a tool it does not have or does not allow,
+/// or a provider the record has no link to it by, is not this
+/// request's error: it is the tool inactive in a
 /// [`list`](crate::daemon::endpoints::tools::list), and the agent's
 /// tool calls failing.
 ///
@@ -39,30 +42,22 @@ use crate::wire::encode::{Encode, Writer};
 /// request whose name is a tool's already, and says so with a variant
 /// of its own, because a caller acts on it differently from a failure —
 /// use the tool it has, or choose another name. A request with no name
-/// is never refused for one: the tool is reached by the provider and id
-/// it joined, which it always has. Nothing here constrains the string's
-/// form; the daemon compares it and does not read it.
+/// is never refused for one: the tool is reached by the daemon and
+/// tool it joined, which it always has. Nothing here constrains the
+/// string's form; the daemon compares it and does not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Frame {
-    /// The provider the container runs on, as the daemon knows it: the
-    /// same object an agent's log names a provider by, and a
-    /// [`FuseMount`](crate::daemon::endpoints::agents::create::client::request::FuseMount)
-    /// names one by — `kind: "outgoing"` and the address the daemon
-    /// dials, or `kind: "incoming_unbrokered"` and the identity the
-    /// daemon's judging of the provider's credential answered. A
-    /// provider the daemon does not know by that identity is the
-    /// connect's error.
-    pub provider: Identity,
-    /// The container's id, as its runner's run answered it: what the
-    /// provider protocol's connect names a container by.
-    pub id: String,
-    /// The authorization the runner judges: the string the provider
-    /// relays to the runner as an authorize ask, whose answer is
-    /// whether the connection opens. Its form is the runner's to state.
-    pub authorization: String,
+    /// The daemon the tool is on, by the name of its record: see
+    /// [`providers::daemons`](crate::daemon::endpoints::providers::daemons).
+    /// A name no record of the caller's has is the connect's error.
+    pub daemon: String,
+    /// The tool, as that daemon names it: by its name there, or by its
+    /// template and its index there. See [`reference::Tool`]. Compared
+    /// by this daemon, and read by that one.
+    pub tool: reference::Tool,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's tools, by which the tool is reached
-    /// afterwards beside the provider and id it joined. Absent, the
+    /// afterwards beside the daemon and tool it joined. Absent, the
     /// tool has none, and is reached by that pair only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -82,7 +77,7 @@ pub struct Frame {
 /// seen at once.
 const TAG: u8 = 18;
 
-/// JSON, as the rest of the daemon's requests are.
+/// JSON, as every request of the daemon's is.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;

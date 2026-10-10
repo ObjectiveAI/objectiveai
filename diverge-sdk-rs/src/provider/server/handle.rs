@@ -7,6 +7,7 @@ use std::sync::Arc;
 use futures_util::StreamExt as _;
 
 use crate::wire::server::authorization::{self, Authorization};
+use super::acceptors::Acceptors;
 use super::container_deployer::ContainerDeployer;
 use super::directory::Directory;
 use super::volume_changes::VolumeChanges;
@@ -45,9 +46,11 @@ use crate::shared::error::Error;
 ///
 /// The rest are the provider's capabilities, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
-/// boxed behind one pointer; and the [`Directory`], one per provider,
+/// boxed behind one pointer; the [`Directory`], one per provider,
 /// through which a connect on this connection finds a run on any
-/// other.
+/// other; and the [`Acceptors`], one per provider likewise, through
+/// which a daemon connecting on this connection finds one accepting
+/// on any other.
 ///
 /// # The handshake comes first
 ///
@@ -88,7 +91,7 @@ use crate::shared::error::Error;
 /// [`ClientRequest::decode`] cannot fail; what it cannot read it
 /// returns as [`Invalid`](ClientRequest::Invalid), and the answer to
 /// one is a finish with nothing in front. There is no other honest
-/// answer — eighteen endpoints have eighteen error vocabularies, and an
+/// answer — nineteen endpoints have nineteen error vocabularies, and an
 /// invalid request names none of them — and a bare finish is already
 /// what the wire means by a request that could not be served. Every
 /// executor reads it as its own "unanswered".
@@ -115,6 +118,7 @@ pub async fn handle<D, V, I, U, R>(
     image_registry: Arc<R>,
     directory: Arc<Directory>,
     volume_changes: Arc<VolumeChanges>,
+    acceptors: Arc<Acceptors>,
 ) -> Result<(), HandleError<U::Error>>
 where
     D: ContainerDeployer + 'static,
@@ -378,6 +382,20 @@ where
                 scopes.spawn(
                     endpoints::version::server::handle::handle(scope),
                 );
+            }
+            ClientRequest::DaemonsAccept(_) => {
+                let identity = Arc::clone(&client_identity);
+                let acceptors = Arc::clone(&acceptors);
+                scopes.spawn(async move {
+                    endpoints::daemons::accept::server::handle::handle(scope, &identity, acceptors).await;
+                });
+            }
+            ClientRequest::DaemonsConnect(frame) => {
+                let identity = Arc::clone(&client_identity);
+                let acceptors = Arc::clone(&acceptors);
+                scopes.spawn(async move {
+                    endpoints::daemons::connect::server::handle::handle(scope, frame, &identity, address, acceptors).await;
+                });
             }
             ClientRequest::Invalid(_) => scope.send_response_finish().await,
         }

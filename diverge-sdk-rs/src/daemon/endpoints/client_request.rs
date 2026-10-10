@@ -189,10 +189,22 @@ pub enum ClientRequest<'a> {
     PostgresGet(postgres::get::client::request::Frame),
     /// Tag `80`. List the container connections open through the database.
     PostgresList(postgres::list::client::request::Frame),
-    /// Tag `81`. Admit a lister or a connector to a tool.
-    ToolsAdmit(tools::admit::client::request::Frame),
-    /// Tag `82`. Take an admission off a tool.
-    ToolsUnadmit(tools::unadmit::client::request::Frame),
+    /// Tag `81`. Expose a tool to another daemon's connect.
+    ToolsExpose(tools::expose::client::request::Frame),
+    /// Tag `82`. Add a daemon to connect to.
+    ProvidersDaemonsAdd(providers::daemons::add::client::request::Frame),
+    /// Tag `83`. Get one daemon.
+    ProvidersDaemonsGet(providers::daemons::get::client::request::Frame),
+    /// Tag `84`. List the caller's daemons, narrowed.
+    ProvidersDaemonsList(providers::daemons::list::client::request::Frame),
+    /// Tag `85`. Forget a daemon.
+    ProvidersDaemonsDelete(providers::daemons::delete::client::request::Frame),
+    /// Tag `86`. Replace a daemon's mode or its links.
+    ProvidersDaemonsEdit(providers::daemons::edit::client::request::Frame),
+    /// Tag `87`. Put tags on a daemon.
+    ProvidersDaemonsTag(providers::daemons::tag::client::request::Frame),
+    /// Tag `88`. Take tags off a daemon.
+    ProvidersDaemonsUntag(providers::daemons::untag::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -294,8 +306,14 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesFiletree(frame) => frame.encode(out),
             ClientRequest::PostgresGet(frame) => frame.encode(out),
             ClientRequest::PostgresList(frame) => frame.encode(out),
-            ClientRequest::ToolsAdmit(frame) => frame.encode(out),
-            ClientRequest::ToolsUnadmit(frame) => frame.encode(out),
+            ClientRequest::ToolsExpose(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsAdd(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsGet(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsList(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsDelete(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsEdit(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsTag(frame) => frame.encode(out),
+            ClientRequest::ProvidersDaemonsUntag(frame) => frame.encode(out),
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
                 Ok(())
@@ -563,11 +581,29 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             80 => postgres::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::PostgresList)
                 .ok(),
-            81 => tools::admit::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsAdmit)
+            81 => tools::expose::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ToolsExpose)
                 .ok(),
-            82 => tools::unadmit::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ToolsUnadmit)
+            82 => providers::daemons::add::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsAdd)
+                .ok(),
+            83 => providers::daemons::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsGet)
+                .ok(),
+            84 => providers::daemons::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsList)
+                .ok(),
+            85 => providers::daemons::delete::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsDelete)
+                .ok(),
+            86 => providers::daemons::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsEdit)
+                .ok(),
+            87 => providers::daemons::tag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsTag)
+                .ok(),
+            88 => providers::daemons::untag::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ProvidersDaemonsUntag)
                 .ok(),
             _ => None,
         };
@@ -659,8 +695,14 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::VolumesFiletree(_) => f.write_str("volumes filetree"),
             ClientRequest::PostgresGet(_) => f.write_str("postgres get"),
             ClientRequest::PostgresList(_) => f.write_str("postgres list"),
-            ClientRequest::ToolsAdmit(_) => f.write_str("tools admit"),
-            ClientRequest::ToolsUnadmit(_) => f.write_str("tools unadmit"),
+            ClientRequest::ToolsExpose(_) => f.write_str("tools expose"),
+            ClientRequest::ProvidersDaemonsAdd(_) => f.write_str("providers daemons add"),
+            ClientRequest::ProvidersDaemonsGet(_) => f.write_str("providers daemons get"),
+            ClientRequest::ProvidersDaemonsList(_) => f.write_str("providers daemons list"),
+            ClientRequest::ProvidersDaemonsDelete(_) => f.write_str("providers daemons delete"),
+            ClientRequest::ProvidersDaemonsEdit(_) => f.write_str("providers daemons edit"),
+            ClientRequest::ProvidersDaemonsTag(_) => f.write_str("providers daemons tag"),
+            ClientRequest::ProvidersDaemonsUntag(_) => f.write_str("providers daemons untag"),
             ClientRequest::Invalid(_) => f.write_str("an invalid request"),
         }
     }

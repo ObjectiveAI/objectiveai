@@ -12,7 +12,7 @@ use crate::wire::encode::{Encode, Writer};
 /// mounts.
 ///
 /// The tool is named by its name, by its template and its index, or
-/// by the provider and id it joined, as
+/// by the daemon and tool it joined, as
 /// [`reference`](crate::daemon::reference) states. Every other member
 /// is an optional `delete` or `set`, replacing the tool's whole: see
 /// [`Edit`]. A tool that is active — its container running, or its

@@ -108,6 +108,9 @@
 //! by id, shared across connections — because a connector names a
 //! container its runner may have started on another socket, and has
 //! to find its run scope to be authorized on, and its address to dial.
+//! [`acceptors`] is its twin for daemons: every daemon accepting
+//! connections through the provider, by identity, which a
+//! `daemons::connect` on any connection finds.
 //!
 //! Nothing implements any of them, and all are consumed:
 //! [`volume_manager`] and [`volume`] by the eleven
@@ -143,6 +146,7 @@
 //! connection ends. One call per connection is the whole of a
 //! provider's loop.
 
+pub mod acceptors;
 pub mod caller;
 pub mod container;
 pub mod container_deployer;
