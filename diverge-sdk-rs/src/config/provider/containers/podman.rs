@@ -28,11 +28,10 @@ pub struct Podman {
     /// an ephemeral serve keeps its scratch. On Linux it
     /// is podman's storage root, the `graphroot`: every podman
     /// invocation the provider makes is given it as `--root`, so it
-    /// is the whole store the provider sees, and an image the provider
-    /// holds itself is loaded into it, not into podman's default
-    /// store; a changed
-    /// path is a fresh, empty store, and the old one is left as it
-    /// was. On macOS and Windows it is where the podman machine
+    /// is the whole store the provider sees — an image loaded into
+    /// it by hand is seen there, and one in podman's default store is
+    /// not; a changed path is a fresh, empty store, and the old one
+    /// is left as it was. On macOS and Windows it is where the podman machine
     /// lives, description and disk: the provider makes the machine
     /// under this path, a changed path is a fresh machine under the
     /// new one, and the machine under the old path is left as it
@@ -51,9 +50,12 @@ pub struct Podman {
     /// does not probe for it.
     pub storage_path: PathBuf,
     /// The most the image cache may hold, in BYTES: the layers of
-    /// every image pulled, kept for the next run of it. The provider
-    /// removes images no running container uses to stay under it,
-    /// and an image larger than it alone cannot be pulled.
+    /// every image in the store, kept for the next run of it. The
+    /// provider removes images no running container uses to stay
+    /// under it, least recently run first, except an image whose
+    /// config carries the label `diverge.network/keep`, which is
+    /// never removed and always counted; an image larger than it
+    /// alone cannot be pulled.
     pub image_cache_disk: u64,
     /// The most the running containers may write between them, in
     /// BYTES: the sum of every running container's requested `disk`
