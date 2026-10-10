@@ -127,8 +127,6 @@ provider:
       image_cache_disk: 34359738368 # 32 GiB
       container_overlay_disk: 34359738368
       memory: 8589934592            # 8 GiB
-    server_images:                  # images the provider holds itself; default none
-      - {name: acme/tools, digest: "sha256:…"}
   volumes:                          # absent = no volume can exist
     stores:                         # made at the provider's start; capacity 0 refused
       - {path: /srv/volumes, capacity: 1099511627776}
