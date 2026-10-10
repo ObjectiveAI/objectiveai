@@ -75,14 +75,14 @@ about the client, which may open any channel at any time.
    server stops the container, and the failure is the run's error.
    The server opens no second connection to a container.
 5. **The server asks the client to deploy the tools.** The `Begun`
-   the proxy answers carries the tools the container declared. When
-   the list is not empty, the server opens exactly one
-   [tools](/endpoints/containers-agents-run/server/tools/) channel on the scope carrying it
-   verbatim, and reads the answer to its finish. A deploy lets the
-   run go on. An error, a channel response finish that no channel
-   response precedes, and a client that is gone are the run's error,
-   and the server stops the container. When the list is empty the
-   server opens no tools channel.
+   the proxy answers carries the dependencies the container declared.
+   When the list is not empty, the server opens exactly one
+   [dependencies](/endpoints/containers-agents-run/server/dependencies/) channel on the scope
+   carrying it verbatim, and reads the answer to its finish. A deploy
+   lets the run go on. An error, a channel response finish that no
+   channel response precedes, and a client that is gone are the run's
+   error, and the server stops the container. When the list is empty
+   the server opens no dependencies channel.
 6. **The server makes every FUSE mount.** For each entry of
    `fuse_file_mounts`, and after the last of them for each entry of
    `fuse_directory_mounts`, in the order of the request, the server
@@ -91,13 +91,13 @@ about the client, which may open any channel at any time.
    mount the proxy does not make is the run's error, and the server
    stops the container. The server opens no tree scope and sends no
    response before the last mount is complete. The mounts and the
-   tools channel proceed beside each other, and the server acts on
-   the failure of either only when both have ended.
+   dependencies channel proceed beside each other, and the server
+   acts on the failure of either only when both have ended.
 7. **The server holds what the client opened.** A channel the client
    opens before the server sends the id is served after the id, in
    the order opened, and is neither refused nor read before the last
-   FUSE mount is complete and the tools channel, when one was opened,
-   has ended.
+   FUSE mount is complete and the dependencies channel, when one was
+   opened, has ended.
 8. **The server mints and sends the id.** The id is a string the
    server chooses, unique among the containers it is running, and
    not derivable from the request, from the identity of the

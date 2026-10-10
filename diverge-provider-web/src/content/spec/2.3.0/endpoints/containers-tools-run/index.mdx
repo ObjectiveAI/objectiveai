@@ -74,10 +74,11 @@ about the client, which may open any channel at any time.
    begin with an error, is a container that did not come up: the
    server stops the container, and the failure is the run's error.
    The server opens no second connection to a container.
-5. **The server deploys no tools.** A tool container declares no
-   dependencies: the `Begun` the proxy answers carries nothing, and
-   the server opens no channel to deploy tools on a tools-run scope.
-   Only an agent container's run has a tools channel, as
+5. **The server deploys no dependencies.** A tool container declares
+   no dependencies: the `Begun` the proxy answers carries nothing,
+   and the server opens no channel to deploy dependencies on a
+   tools-run scope. Only an agent container's run has a dependencies
+   channel, as
    [containers::agents::run](/endpoints/containers-agents-run/)
    states.
 6. **The server makes every FUSE mount.** For each entry of

@@ -6,7 +6,7 @@ draft: false
 ---
 
 ```text
-[0]                  deployed: every tool runs
+[0]                  deployed: every dependency runs
 [1][error JSON …]    not deployed
 ```
 
@@ -19,7 +19,7 @@ draft: false
   channel response finish that no channel response precedes is the
   run's error too.
 
-The channel response is defined by `diverge-sdk-rs/src/shared/containers/tools/response/frame.rs`:
+The channel response is defined by `diverge-sdk-rs/src/shared/containers/dependencies/response/frame.rs`:
 
-```rust include=diverge-sdk-rs/src/shared/containers/tools/response/frame.rs
+```rust include=diverge-sdk-rs/src/shared/containers/dependencies/response/frame.rs
 ```

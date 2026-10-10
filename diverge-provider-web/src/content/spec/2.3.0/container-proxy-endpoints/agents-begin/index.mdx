@@ -1,14 +1,14 @@
 ---
 title: 'agents::begin'
-summary: 'Tag 0: the client begins its work on an agent container, once, first, and hands over the arguments; the server answers Begun, carrying the tools the container declared, once the container holds them and, for the life of the connection, every chunk the agent says on the scope; every channel of the container’s life rides this scope.'
+summary: 'Tag 0: the client begins its work on an agent container, once, first, and hands over the arguments; the server answers Begun, carrying the dependencies the container declared, once the container holds them and, for the life of the connection, every chunk the agent says on the scope; every channel of the container’s life rides this scope.'
 order: 0
 draft: false
 ---
 
 The client opens the scope with a request whose payload is the tag
 byte `0` followed by the arguments as JSON. The server answers with
-exactly one `Begun` response, carrying the tools the container
-declared, once the container holds its arguments, and after it
+exactly one `Begun` response, carrying the dependencies the
+container declared, once the container holds its arguments, and after it
 sends every chunk of the agent's conversation as a response, for as
 long as the connection lives; the server ends the scope by the
 response finish only when the server ends. This section states what

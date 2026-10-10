@@ -1,12 +1,12 @@
 ---
 title: 'Response'
-summary: 'The server sends Begun once, carrying the tools the container declared, or an error and the finish; after Begun it sends Active before each loop, every chunk of that loop as a response, and Inactive after it, and the finish only when the server ends.'
+summary: 'The server sends Begun once, carrying the dependencies the container declared, or an error and the finish; after Begun it sends Active before each loop, every chunk of that loop as a response, and Inactive after it, and the finish only when the server ends.'
 order: 2
 draft: false
 ---
 
 ```text
-[0][tools JSON …]    begun: the container holds its arguments, and these are its tools
+[0][dependencies JSON …]    begun: the container holds its arguments, and these are its dependencies
 [1][error JSON …]    not begun: the connection had begun, or the arguments were refused
 [2][chunk JSON …]    one chunk of the conversation
 [3]                  active: a loop began
@@ -33,9 +33,10 @@ draft: false
   no event is read as either. Neither carries bytes after the first.
   The server sends no byte `3` while a loop is open, and no byte `4`
   while none is.
-- **The tools.** The bytes after the byte `0` are a JSON array of
-  the tools the container's program answered its registration with,
-  each as the [tools](/endpoints/containers-agents-run/server/tools/)
+- **The dependencies.** The bytes after the byte `0` are a JSON
+  array of the dependency tool templates the container's program
+  answered its registration with, each as the
+  [dependencies](/endpoints/containers-agents-run/server/dependencies/)
   channel of the run defines one, in the order the program declared
   them; empty when the program declared none. The server sends the
   array exactly as the program produced it.

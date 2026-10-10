@@ -1,0 +1,80 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the tag byte 3 and the ask, the dependency tool templates as JSON.'
+order: 1
+draft: false
+---
+
+```text
+[3][request JSON …]
+```
+
+- **`dependencies`.** An array of dependency tool templates, in the
+  order the program declared them. Each is an object of six members,
+  and three that may be absent: `name`, a string, unique in the
+  array, the client's label for the tool container — the container
+  never finds a server by it, and calls tools by whatever names the
+  client's merged list shows; `image`, an object of `name` and
+  `digest` as the [request](/endpoints/containers-tools-run/request/)
+  of a tools run names one; `memory` and `disk`, limits in bytes as
+  that request states them; `arguments`, any JSON value, the
+  `arguments` of that request; `database`, the string
+  `per_agent_instance` or `per_agent_template`, which database scope
+  the client gives the tool — one of the tool's own under the agent
+  the dependency is deployed for, or one every tool of this
+  dependency under every agent made from the same agent template
+  shares; `fuse_file_mounts` and `fuse_directory_mounts`, arrays of
+  mounts, each an object of `agent_path` and `tool_path`, both arrays
+  of path components, a file or a directory of the agent container
+  the client serves live at a path of the tool container, absent when
+  empty; and `permissions`, an array of grants in the forms
+  `shared::permission` defines — each one object with one member
+  named for a kind, whose value is a bare array of making actions, an
+  object of `actions` and `within`, or an object of `actions`,
+  `within` and `tags`, where `within` is the string `any` or an
+  object of `all_tags` and `any_tags` and names nothing — absent when
+  empty. The volumes of a tools run are not here: the client chooses
+  them. The server relays every member and reads none.
+- **Malformed.** A channel request whose payload does not decode as
+  stated is answered by a channel response finish that no channel
+  response precedes, and the server does nothing else for it.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/dependencies/request/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/dependencies/request/request.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/dependencies/template.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/dependencies/template.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/dependencies/mount.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/dependencies/mount.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/dependencies/database.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/dependencies/database.rs
+```
+
+and by `diverge-sdk-rs/src/shared/permission/grant.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/permission/grant.rs
+```
+
+and by `diverge-sdk-rs/src/shared/permission/within.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/permission/within.rs
+```
+
+and by `diverge-sdk-rs/src/shared/permission/tags.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/permission/tags.rs
+```
