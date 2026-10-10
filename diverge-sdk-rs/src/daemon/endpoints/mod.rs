@@ -7,7 +7,7 @@
 //! | endpoint | scopes |
 //! |----------|--------|
 //! | [`agents`] | create an agent under a name; get one; delete one; send one a message; read one's log; list them, narrowed; change what one mounts; tag one and untag one; make, get, list, delete, tag and untag the templates agents are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
-//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; ask a provider which tool containers an identity runs; attach one to an agent; detach one; delete one; list them, narrowed; tag one and untag one; admit a lister or a connector to one, take the admission back; set a dependency position's route to a tool, take it up, list the routes; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
+//! | [`tools`] | create a tool under a name; get one; change what one mounts; hold somebody else's under a name; ask a provider which tool containers an identity runs; attach one to an agent; detach one; delete one; list them, narrowed; tag one and untag one; admit a lister or a connector to one, take the admission back; make, get, list, delete, tag and untag the templates tools are made from; download files out of one, upload files into one, transfer files out of one; watch one's container whole |
 //! | [`providers`] | add a provider to dial, get one, list them, forget one, replace its mode; add a credential of providers that dial in, get one, list them, take one out, replace one |
 //! | [`accounts`] | create an account — a name, a credential, or both — with its roles; get one; list them, narrowed; delete one; change one; tag one and untag one |
 //! | [`roles`] | create a role, a named list of grants; get one; list them, narrowed; delete one; change one; tag one and untag one |
@@ -49,69 +49,66 @@
 //! | `23` | [`tools::list`] |
 //! | `24` | [`tools::tag`] |
 //! | `25` | [`tools::untag`] |
-//! | `26` | [`tools::routes::set`] |
-//! | `27` | [`tools::routes::delete`] |
-//! | `28` | [`tools::routes::list`] |
-//! | `29` | [`tools::templates::create`] |
-//! | `30` | [`tools::templates::get`] |
-//! | `31` | [`tools::templates::list`] |
-//! | `32` | [`tools::templates::delete`] |
-//! | `33` | [`tools::templates::tag`] |
-//! | `34` | [`tools::templates::untag`] |
-//! | `35` | [`providers::outgoing::add`] |
-//! | `36` | [`providers::outgoing::get`] |
-//! | `37` | [`providers::outgoing::list`] |
-//! | `38` | [`providers::outgoing::delete`] |
-//! | `39` | [`providers::outgoing::edit`] |
-//! | `40` | [`providers::outgoing::tag`] |
-//! | `41` | [`providers::outgoing::untag`] |
-//! | `42` | [`providers::incoming::add`] |
-//! | `43` | [`providers::incoming::get`] |
-//! | `44` | [`providers::incoming::list`] |
-//! | `45` | [`providers::incoming::delete`] |
-//! | `46` | [`providers::incoming::edit`] |
-//! | `47` | [`providers::incoming::tag`] |
-//! | `48` | [`providers::incoming::untag`] |
-//! | `49` | [`accounts::create`] |
-//! | `50` | [`accounts::get`] |
-//! | `51` | [`accounts::list`] |
-//! | `52` | [`accounts::delete`] |
-//! | `53` | [`accounts::edit`] |
-//! | `54` | [`accounts::tag`] |
-//! | `55` | [`accounts::untag`] |
-//! | `56` | [`roles::create`] |
-//! | `57` | [`roles::get`] |
-//! | `58` | [`roles::list`] |
-//! | `59` | [`roles::delete`] |
-//! | `60` | [`roles::edit`] |
-//! | `61` | [`roles::tag`] |
-//! | `62` | [`roles::untag`] |
-//! | `63` | [`agents::download`] |
-//! | `64` | [`agents::upload`] |
-//! | `65` | [`agents::transfer`] |
-//! | `66` | [`tools::download`] |
-//! | `67` | [`tools::upload`] |
-//! | `68` | [`tools::transfer`] |
-//! | `69` | [`volumes::create`] |
-//! | `70` | [`volumes::get`] |
-//! | `71` | [`volumes::list`] |
-//! | `72` | [`volumes::delete`] |
-//! | `73` | [`volumes::edit`] |
-//! | `74` | [`volumes::tag`] |
-//! | `75` | [`volumes::untag`] |
-//! | `76` | [`volumes::stat`] |
-//! | `77` | [`volumes::download`] |
-//! | `78` | [`volumes::upload`] |
-//! | `79` | [`volumes::transfer`] |
-//! | `80` | [`agents::filetree`] |
-//! | `81` | [`tools::filetree`] |
-//! | `82` | [`volumes::filetree`] |
-//! | `83` | [`postgres::get`] |
-//! | `84` | [`postgres::list`] |
-//! | `85` | [`tools::admit`] |
-//! | `86` | [`tools::unadmit`] |
+//! | `26` | [`tools::templates::create`] |
+//! | `27` | [`tools::templates::get`] |
+//! | `28` | [`tools::templates::list`] |
+//! | `29` | [`tools::templates::delete`] |
+//! | `30` | [`tools::templates::tag`] |
+//! | `31` | [`tools::templates::untag`] |
+//! | `32` | [`providers::outgoing::add`] |
+//! | `33` | [`providers::outgoing::get`] |
+//! | `34` | [`providers::outgoing::list`] |
+//! | `35` | [`providers::outgoing::delete`] |
+//! | `36` | [`providers::outgoing::edit`] |
+//! | `37` | [`providers::outgoing::tag`] |
+//! | `38` | [`providers::outgoing::untag`] |
+//! | `39` | [`providers::incoming::add`] |
+//! | `40` | [`providers::incoming::get`] |
+//! | `41` | [`providers::incoming::list`] |
+//! | `42` | [`providers::incoming::delete`] |
+//! | `43` | [`providers::incoming::edit`] |
+//! | `44` | [`providers::incoming::tag`] |
+//! | `45` | [`providers::incoming::untag`] |
+//! | `46` | [`accounts::create`] |
+//! | `47` | [`accounts::get`] |
+//! | `48` | [`accounts::list`] |
+//! | `49` | [`accounts::delete`] |
+//! | `50` | [`accounts::edit`] |
+//! | `51` | [`accounts::tag`] |
+//! | `52` | [`accounts::untag`] |
+//! | `53` | [`roles::create`] |
+//! | `54` | [`roles::get`] |
+//! | `55` | [`roles::list`] |
+//! | `56` | [`roles::delete`] |
+//! | `57` | [`roles::edit`] |
+//! | `58` | [`roles::tag`] |
+//! | `59` | [`roles::untag`] |
+//! | `60` | [`agents::download`] |
+//! | `61` | [`agents::upload`] |
+//! | `62` | [`agents::transfer`] |
+//! | `63` | [`tools::download`] |
+//! | `64` | [`tools::upload`] |
+//! | `65` | [`tools::transfer`] |
+//! | `66` | [`volumes::create`] |
+//! | `67` | [`volumes::get`] |
+//! | `68` | [`volumes::list`] |
+//! | `69` | [`volumes::delete`] |
+//! | `70` | [`volumes::edit`] |
+//! | `71` | [`volumes::tag`] |
+//! | `72` | [`volumes::untag`] |
+//! | `73` | [`volumes::stat`] |
+//! | `74` | [`volumes::download`] |
+//! | `75` | [`volumes::upload`] |
+//! | `76` | [`volumes::transfer`] |
+//! | `77` | [`agents::filetree`] |
+//! | `78` | [`tools::filetree`] |
+//! | `79` | [`volumes::filetree`] |
+//! | `80` | [`postgres::get`] |
+//! | `81` | [`postgres::list`] |
+//! | `82` | [`tools::admit`] |
+//! | `83` | [`tools::unadmit`] |
 //!
-//! Eighty-seven, so far. Tags are handed out in the order scopes are defined
+//! Eighty-four, so far. Tags are handed out in the order scopes are defined
 //! and nothing reads them in order; a new scope takes the next value
 //! wherever it belongs conceptually. This table is the whole
 //! allocation: each request states its own value and points here,

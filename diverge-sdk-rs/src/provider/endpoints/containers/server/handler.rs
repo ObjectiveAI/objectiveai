@@ -34,12 +34,13 @@ use crate::shared::error::Error;
 ///    the `Held`'s and are given back at every ending below.
 /// 1. The container is brought up — see
 ///    [`setup::prepare`](super::setup::prepare): registry,
-///    deploy, the proxy dialled, the family's begin, then the tools
-///    the container declared asked of the caller beside every mount.
-///    A failure is the run's error, and the scope finishes on it.
-/// 2. The id is minted, the container is entered in the directory —
-///    with its proxy connection and its begin scope, for connectors —
-///    and the id is sent. From here the container is running for the
+///    deploy, the proxy dialled, the family's begin, the id minted
+///    and the container entered in the directory — with its proxy
+///    connection and its begin scope, for connectors and serves —
+///    then the dependencies the container declared asked of the
+///    caller, the id told, beside every mount. A failure is the run's
+///    error, and the scope finishes on it.
+/// 2. The id is sent. From here the container is running for the
 ///    caller.
 /// 3. The relays are spawned: the proxy's asks on the begin scope,
 ///    each mount's asks, and — on an agent container — the agent's
@@ -96,7 +97,8 @@ pub(crate) async fn run<R, D, G, V>(
         }
     };
 
-    let prepared = match setup::prepare::<R, D, G, V::Volume>(&scope, client_identity, request, arguments, deployer, registry, &held)
+    let identity: Arc<str> = Arc::from(client_identity);
+    let prepared = match setup::prepare::<R, D, G, V::Volume>(&scope, &identity, request, arguments, deployer, registry, &held, &directory)
         .await
     {
         Ok(prepared) => prepared,
@@ -108,18 +110,7 @@ pub(crate) async fn run<R, D, G, V>(
         }
     };
 
-    let id = Directory::mint();
-    let identity: Arc<str> = Arc::from(client_identity);
-    directory.insert(
-        id.clone(),
-        Arc::clone(&scope),
-        Arc::clone(&identity),
-        prepared.proxy.clone(),
-        prepared.begun.begin.tools(),
-        prepared.ignore.clone(),
-        Arc::clone(&prepared.watched),
-    )
-    .await;
+    let id = prepared.id.clone();
     send(&scope, R::id(&Id { id: id.clone() })).await;
 
     // The dependencies were asked of the caller in the setup; the

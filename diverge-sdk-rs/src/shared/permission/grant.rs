@@ -12,9 +12,9 @@ use super::{accounts, agents, agents_templates, postgres, providers_incoming, pr
 /// [`permission`](crate::shared::permission) states. Snake case on the
 /// wire: `"agents"`, `"agents_templates"`, `"tools"`,
 /// `"tools_templates"`, `"providers_outgoing"`, `"providers_incoming"`,
-/// `"accounts"`, `"roles"`, `"volumes"`, `"postgres"`. The daemon's
-/// [`Grant`](crate::daemon::grant::Grant) has these kinds and one more,
-/// routes, which names positions and cannot travel.
+/// `"accounts"`, `"roles"`, `"volumes"`, `"postgres"` — the kinds of
+/// the daemon's [`Grant`](crate::daemon::grant::Grant), which is made
+/// of these.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]

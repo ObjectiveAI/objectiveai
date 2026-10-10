@@ -142,9 +142,10 @@ impl Runs for Agents {
     /// The dependencies the agent declared, asked of the caller on
     /// this family's `dependencies` channel: nothing when it declared
     /// none.
-    fn deploy(scope: &ScopeHandle, declared: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
+    fn deploy(scope: &ScopeHandle, id: &str, declared: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
         let payload = (!declared.is_empty()).then(|| {
             encoded(&ask::Frame::Dependencies(dependencies::request::Request {
+                id: Cow::Borrowed(id),
                 dependencies: Cow::Borrowed(declared),
             }))
         });

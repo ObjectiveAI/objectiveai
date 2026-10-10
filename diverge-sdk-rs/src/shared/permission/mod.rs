@@ -23,10 +23,9 @@
 //! account or a role appears anywhere, and no route: a dependency tool
 //! template is meant to travel — handed from one caller to another,
 //! hashed the same everywhere — and a name is one daemon's word for
-//! one thing, while a tag is a convention a template may assume. There
-//! is no `routes` kind, since a route is a position named by an agent
-//! and a path. The database, of which there is one, is a bare array of
-//! actions, as it is for the daemon.
+//! one thing, while a tag is a convention a template may assume. The
+//! database, of which there is one, is a bare array of actions, as it
+//! is for the daemon.
 //!
 //! # The actions are defined once
 //!

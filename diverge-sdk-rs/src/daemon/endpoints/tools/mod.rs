@@ -44,10 +44,12 @@
 //! [`download`] sends the client a file or a directory out of a tool's
 //! container, [`upload`] puts files into it, and [`transfer`] copies
 //! out of it into an agent, another tool or a volume, the bytes never
-//! reaching the client. [`routes`] answer a dependency
-//! an agent declares at register time with a tool the caller already
-//! has, at that agent's position for the template, so that no
-//! deployer is asked. A tool declares no dependencies.
+//! reaching the client. A dependency an agent declares at register
+//! time is deployed by the daemon then and there, as a tool of the
+//! agent's own that lives while the agent's container does: listed
+//! among the tools as `dependency` kind, reached by its agent and its
+//! declared name, read and never changed. A tool declares no
+//! dependencies.
 
 mod admission;
 mod admits;
@@ -67,7 +69,6 @@ pub mod filetree;
 pub mod get;
 pub mod list;
 pub mod list_for;
-pub mod routes;
 pub mod tag;
 pub mod templates;
 pub mod transfer;

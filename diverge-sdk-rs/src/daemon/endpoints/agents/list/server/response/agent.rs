@@ -3,7 +3,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::creator;
 use crate::daemon::creator::Creator;
 use crate::daemon::key;
 use crate::daemon::endpoints::agents::logs::server::response::Provider;
@@ -40,11 +39,6 @@ pub struct Agent {
     /// One [`Creator`](crate::daemon::creator::Creator), the direct
     /// maker; the maker's own maker is on the maker's list item.
     pub creator: Creator,
-    /// The agent its create named as deployer, if any, as that agent
-    /// was: its template, its index and its name, stable past its
-    /// deletion. See the create's `deployer_agent`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployer_agent: Option<creator::Agent>,
     /// When the create made it.
     pub created: DateTime<Utc>,
     /// Whether the agent is active now: a loop is running in it.

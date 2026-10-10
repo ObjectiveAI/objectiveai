@@ -16,6 +16,13 @@ use crate::wire::encode::{Encode, Writer};
 /// for the run's life — and owned where the caller decodes it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request<'a> {
+    /// The run's id: the one the `Id` response carries after the
+    /// deploy, told here first so that the caller can serve the
+    /// container's own paths into the dependencies — a
+    /// `containers::serve` names a container by it — before the id is
+    /// answered. The provider has entered the container among those
+    /// it runs by the time it asks.
+    pub id: Cow<'a, str>,
     /// The dependencies, in the order the program declared them.
     pub dependencies: Cow<'a, [Template]>,
 }

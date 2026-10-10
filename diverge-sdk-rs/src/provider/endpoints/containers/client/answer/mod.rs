@@ -60,7 +60,9 @@ pub(crate) async fn answer<O, A, T, P, D, V, M, F>(
         Ask::AuthorizeList(request) => {
             authorize::authorize_list(&handle, scope, channel, request, answerers.authorizer).await
         }
-        Ask::Dependencies(declared) => dependencies::dependencies(&handle, scope, channel, declared, answerers.dependencies).await,
+        Ask::Dependencies { id, dependencies: declared } => {
+            dependencies::dependencies(&handle, scope, channel, id, declared, answerers.dependencies).await
+        }
         Ask::Write(write_id) => write::write(&handle, scope, channel, write_id, writes, encoders).await,
         Ask::Postgres(connection_id) => {
             postgres::postgres(&handle, scope, channel, connection_id, answerers.postgres, encoders).await

@@ -143,7 +143,7 @@ impl Runs for Tools {
     }
 
     /// A tool container declares nothing: nothing is asked.
-    fn deploy(_: &ScopeHandle, _: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
+    fn deploy(_: &ScopeHandle, _: &str, _: &[dependencies::Template]) -> impl Future<Output = Result<(), Error>> + Send {
         async { Ok(()) }
     }
 

@@ -14,9 +14,8 @@ use crate::wire::encode::{Encode, Writer};
 /// [`template`](Inner::template), named by its id; what is this
 /// tool's own is here: the provider it runs on with the volumes it
 /// mounts there, its FUSE mounts of providers' volumes, and the name
-/// the tool is held under from then on. The agents create's shape
-/// less the deployer — the one [`Inner`] flattened into both; a tool
-/// declares no dependencies and has no deployer — because a tool
+/// the tool is held under from then on. The agents create's shape —
+/// the one [`Inner`] flattened into both — because a tool
 /// container is made of what an agent container is
 /// made of; what makes it a tool is the image,
 /// which runs an MCP server, and what the daemon does with it, which

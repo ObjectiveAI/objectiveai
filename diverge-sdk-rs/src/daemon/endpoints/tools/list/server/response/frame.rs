@@ -17,7 +17,7 @@ use super::Tool;
 /// [`Listed`](Self::Listed); then, for the scope's life, a tool come
 /// to match as `Added`, one that matches still and differs from what
 /// was last sent as [`Changed`](Self::Changed) — its record, the agents it is
-/// attached to, its routes, its admissions, whether its container
+/// attached to, its admissions, whether its container
 /// runs and where, when it last did — one that matches no
 /// more as [`Removed`](Self::Removed) — the listing kept as the first
 /// `count` that match, so one leaving that window is removed and one

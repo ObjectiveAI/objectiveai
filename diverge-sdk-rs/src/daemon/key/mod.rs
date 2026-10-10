@@ -4,8 +4,9 @@
 //! A name is optional and may be given again once its holder is
 //! deleted, so nothing that has to keep pointing at an agent or a
 //! tool points by name. An [`Agent`] is its template and its index;
-//! a [`Tool`] is its [`Origin`] — the template it was made from, or
-//! the provider and container id it joined — and its index; each
+//! a [`Tool`] on record is its [`Origin`] — the template it was made
+//! from, or the provider and container id it joined — and its index,
+//! and a dependency tool is its agent and its declared name; each
 //! carries its name beside, when it has one, for a reader. The
 //! agents list names a tool's attachments this way and the tools
 //! list an agent's, and a [`creator`](crate::daemon::creator) names

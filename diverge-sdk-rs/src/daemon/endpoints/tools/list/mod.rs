@@ -7,12 +7,13 @@
 //! when it was created — one response each, oldest created first,
 //! then the word that the list is whole, and keeps the scope open:
 //! each tool added, changed or removed, as the records, the
-//! attachments, the routes, the admissions and the runs change, until
+//! attachments, the admissions and the runs change — a dependency
+//! tool among them only while its agent's container runs — until
 //! the client cancels, the one channel it opens on the scope. Each is
 //! what the tool is called, where it comes from — the template it was
 //! made from, or the container of somebody else's it joins — whether
 //! it is active now, when that last changed, which agents it is
-//! attached to, its routes, its admissions, and its tags. A count
+//! attached to, its admissions, and its tags. A count
 //! keeps the list to the first that many that match. A request that
 //! says nothing is every tool. A caller with no tool that matches is
 //! told the list is whole at once, and watched.

@@ -5,7 +5,6 @@ use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::create::Inner;
-use crate::daemon::reference;
 
 /// Ask the daemon to create an agent under a name, from a template.
 ///
@@ -13,9 +12,10 @@ use crate::daemon::reference;
 /// limits, the arguments — is the
 /// [`template`](Inner::template), named by its id; what is this
 /// agent's own is here: the provider it runs on with the volumes it
-/// mounts there, its FUSE mounts of providers' volumes, the daemon's
-/// own tools it holds, and the name the agent is held under from then
-/// on. The provider is the agent's and not the template's so that a
+/// mounts there, its FUSE mounts of providers' volumes, and the name
+/// the agent is held under from then on. The dependencies its program
+/// declares are deployed by the daemon when its container starts,
+/// and nothing of them is named here. The provider is the agent's and not the template's so that a
 /// template can be shared. What a caller may not choose is not here at
 /// all rather than here and ignored: the container's name, its ports,
 /// its entrypoint and its environment are the provider's, because they
@@ -42,19 +42,6 @@ pub struct Frame {
     /// [`Inner`]. Flattened, so its members are this object's own.
     #[serde(flatten)]
     pub inner: Inner,
-    /// The agent of the caller's the daemon hands this agent's
-    /// declared tool dependencies to — each as the template and the
-    /// instructions the agent returned at register time — when no
-    /// [route](crate::daemon::endpoints::tools::routes) answers them.
-    /// The deployer makes the tool, attaches it, and may set a route so
-    /// that the next ask at that position is answered without it. By
-    /// name, or by template and index: see [`reference::Agent`].
-    /// Absent, the daemon deploys nothing itself: a dependency no
-    /// route answers is not met, and the agent's tools channel is
-    /// answered with an error. An agent's alone: a tool container
-    /// declares no dependencies.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployer_agent: Option<reference::Agent>,
     /// The name, if any: a string of the caller's choosing, unique
     /// among the caller's agents, by which the agent is reached
     /// afterwards beside its template and its index. Absent, the

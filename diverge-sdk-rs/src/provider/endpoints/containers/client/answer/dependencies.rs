@@ -12,10 +12,11 @@ pub(crate) async fn dependencies<T: DependencyDeployer>(
     handle: &Handle,
     scope: u32,
     channel: u32,
+    id: String,
     declared: Vec<Template>,
     deployer: Arc<T>,
 ) -> Result<(), Stop> {
-    let frame = match deployer.deploy(declared).await {
+    let frame = match deployer.deploy(id, declared).await {
         Ok(()) => response::Frame::Deployed,
         Err(error) => response::Frame::Error(error),
     };

@@ -1,4 +1,4 @@
-//! Editing an agent: its name, its account, its mounts, its deployer.
+//! Editing an agent: its name, its account, its mounts.
 //!
 //! One request, one answer. A client names an agent of its own and
 //! states anew whichever of those it names — each replaced whole,

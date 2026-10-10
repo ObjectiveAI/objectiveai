@@ -22,6 +22,7 @@ use crate::provider::server::caller::Caller;
 use crate::provider::server::container::{self, Container as _};
 use crate::provider::server::container_deployer::ContainerDeployer;
 use crate::provider::server::deployment::Deployment;
+use crate::provider::server::directory::Directory;
 use crate::provider::server::image_registry::ImageRegistry;
 use crate::provider::server::image_source::ImageSource;
 use crate::provider::server::mount::Mount as DeployedMount;
@@ -35,6 +36,9 @@ use crate::shared::error::Error;
 
 /// A container brought up and ready to serve.
 pub(crate) struct Prepared<C> {
+    /// The id, minted here and entered in the directory before the
+    /// dependencies were asked for: what the run answers.
+    pub id: String,
     /// The container, to stop when the run is over.
     pub container: C,
     /// The one connection to its proxy.
@@ -77,25 +81,32 @@ pub(crate) struct Mount {
 /// 4. The family's `begin` is opened on it — carrying the arguments
 ///    — and its `Begun` awaited, with the dependencies an agent
 ///    container declared.
-/// 5. Beside each other: the caller is asked to deploy those
-///    dependencies, when there are any — the agents family's
-///    [`deploy`](Runs::deploy); a tool container declares nothing —
-///    and one `fuse::mount`
+/// 5. The id is minted and the container entered in the directory
+///    under it — with its proxy connection and its begin scope — so
+///    that a `containers::serve` naming the id is answered from now,
+///    which is what lets the caller serve the container's own paths
+///    into its dependencies. The id is not answered yet.
+/// 6. Beside each other: the caller is asked to deploy those
+///    dependencies, when there are any, the id told with them — the
+///    agents family's [`deploy`](Runs::deploy); a tool container
+///    declares nothing — and one `fuse::mount`
 ///    scope per mount is opened, file mounts first, each answered
 ///    before the next. Both are awaited to their end before either's
 ///    failure is acted on.
 ///
-/// Every failure after the deploy stops the container and releases
-/// the repository; the error is the run's. Nothing the caller opened
-/// has been read yet, and the id is not out.
+/// Every failure after the deploy stops the container, takes it out
+/// of the directory and releases the repository; the error is the
+/// run's. Nothing the caller opened has been read yet, and the id is
+/// not out.
 pub(crate) async fn prepare<R, D, G, L>(
     scope: &Arc<ScopeHandle>,
-    client_identity: &str,
+    client_identity: &Arc<str>,
     request: &Container,
     arguments: Value,
     deployer: &D,
     registry: &G,
     held: &Held<L>,
+    directory: &Directory,
 ) -> Result<Prepared<D::Container>, Error>
 where
     R: Runs,
@@ -108,6 +119,7 @@ where
 {
     let deployment = deployment(client_identity, request);
     let (ignore, watched) = excluded(request, held.volumes());
+    let watched: Arc<[Watched]> = Arc::from(watched);
 
     let repository = uuid::Uuid::new_v4().to_string();
     let source = ImageSource::new(Arc::clone(scope), manifest_ask::<R>, blob_ask::<R>);
@@ -147,23 +159,38 @@ where
         }
     };
 
-    let (deployed, mounts) = future::join(R::deploy(scope, &begun.dependencies), mounts(&proxy, request)).await;
+    let id = Directory::mint();
+    directory
+        .insert(
+            id.clone(),
+            Arc::clone(scope),
+            Arc::clone(client_identity),
+            proxy.clone(),
+            begun.begin.tools(),
+            ignore.clone(),
+            Arc::clone(&watched),
+        )
+        .await;
+
+    let (deployed, mounts) = future::join(R::deploy(scope, &id, &begun.dependencies), mounts(&proxy, request)).await;
     let mounts = match (deployed, mounts) {
         (Ok(()), Ok(mounts)) => mounts,
         (Err(error), _) | (Ok(()), Err(error)) => {
+            directory.remove(&id).await;
             undo(&container, &repository, registry).await;
             return Err(error);
         }
     };
 
     Ok(Prepared {
+        id,
         container,
         proxy,
         begun,
         mounts,
         repository,
         ignore,
-        watched: Arc::from(watched),
+        watched,
     })
 }
 

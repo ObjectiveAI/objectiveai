@@ -32,8 +32,14 @@ pub enum Ask {
     AuthorizeConnect(authorize::request::AuthorizeConnect),
     /// Whether a lister may see the container.
     AuthorizeList(authorize::request::AuthorizeList),
-    /// The dependencies the container declared, to deploy.
-    Dependencies(Vec<Template>),
+    /// The dependencies the container declared, to deploy, with the
+    /// run's id.
+    Dependencies {
+        /// The run's id, told before the id response.
+        id: String,
+        /// The dependency tool templates, in the order declared.
+        dependencies: Vec<Template>,
+    },
     /// The content of a write this caller started, by its id.
     Write(u32),
     /// A database connection the container opened, by the id the
@@ -90,7 +96,10 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
             Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
-            Frame::Dependencies(request) => Ask::Dependencies(request.dependencies.into_owned()),
+            Frame::Dependencies(request) => Ask::Dependencies {
+                id: request.id.into_owned(),
+                dependencies: request.dependencies.into_owned(),
+            },
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
             Frame::Daemon(request) => Ask::Daemon(request.connection_id),

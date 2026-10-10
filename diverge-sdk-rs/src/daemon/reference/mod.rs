@@ -12,12 +12,15 @@
 //! else ever, and names it still after it is deleted — when a request
 //! naming it that way finds nothing. A connected tool has no template,
 //! and is named instead by the PROVIDER and container ID it joined,
-//! which name it once and for all the same way. These are the variants
-//! of [`Agent`] and of
+//! which name it once and for all the same way. A dependency tool has
+//! neither, and is named by the AGENT it was deployed for and the
+//! name its template DECLARED, which name it while it runs. These are
+//! the variants of [`Agent`] and of
 //! [`Tool`], one JSON object each, told apart by their members:
-//! `{"name":…}`, `{"template":…,"index":…}`, or for a connected tool
-//! `{"provider":…,"id":…}`. An object carrying members of more than one
-//! is malformed.
+//! `{"name":…}`, `{"template":…,"index":…}`, for a connected tool
+//! `{"provider":…,"id":…}`, for a dependency tool
+//! `{"agent":…,"dependency":…}`. An object carrying members of more
+//! than one is malformed.
 //!
 //! A volume is named one way only, by [`Volume`]: the provider that
 //! holds it and the name that provider lists it under,

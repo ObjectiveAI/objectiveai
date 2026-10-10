@@ -1,16 +1,27 @@
-//! Where a tool comes from: made by this caller, or somebody else's
-//! joined.
+//! Where a tool comes from: made by this caller, somebody else's
+//! joined, or deployed for an agent.
 
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::endpoints::agents::logs::server::response::{Identity, Provider};
+use crate::daemon::key;
+use crate::shared::containers::dependencies::Template;
 
-/// The two ways a tool comes to be, and what the daemon knows of
-/// each: a [`create`](crate::daemon::endpoints::tools::create) made
-/// it from an image, or a
+/// The three ways a tool comes to be, and what the daemon knows of
+/// each: a [`create`](crate::daemon::endpoints::tools::create) made it
+/// from an image, a
 /// [`connect`](crate::daemon::endpoints::tools::connect) named a
-/// container somebody else runs. JSON-tagged by `kind`, `created` or
-/// `connected`.
+/// container somebody else runs, or an agent's program declared it
+/// as a dependency and the daemon deployed it when the agent's
+/// container started. JSON-tagged by `kind`, `created`, `connected`
+/// or `dependency`.
+///
+/// A created or a connected tool is a record, with the index its
+/// kind counts: the first made the same way is `1`, each after is one
+/// more, and no number is given twice, so the fixed part and the
+/// index name the tool once and for all. A dependency tool is no
+/// record: it is listed while its agent's container runs and not
+/// after, named once and for all by its agent and its declared name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Origin {
@@ -20,6 +31,9 @@ pub enum Origin {
         /// [`templates::create`](crate::daemon::endpoints::tools::templates::create)
         /// answered.
         template: String,
+        /// Its number among all tools of the caller's ever made from
+        /// that template, deleted ones included.
+        index: u64,
         /// The provider the container runs on, if it runs, or last
         /// ran on; absent for a tool that has never run. See
         /// [`Provider`].
@@ -40,6 +54,30 @@ pub enum Origin {
         /// it.
         provider: Identity,
         /// The container's id, as the connect named it.
+        id: String,
+        /// Its number among all tools of the caller's ever joined to
+        /// that provider's container of that id, deleted ones
+        /// included.
+        index: u64,
+    },
+    /// Deployed for an agent, from the dependency tool template the
+    /// agent's program declared: the daemon runs its container for as
+    /// long as the agent's runs, and lists it only then.
+    Dependency {
+        /// The agent it was deployed for: see [`key::Agent`].
+        agent: key::Agent,
+        /// The name the agent's program declared it under, unique
+        /// among that agent's dependencies: what the agent calls its
+        /// tools by, as a prefix.
+        name: String,
+        /// The template it was deployed from, as the program declared
+        /// it: its image, its limits, its arguments, which database
+        /// scope it gets, the agent's paths served into it, and the
+        /// grants its requests are judged by. See [`Template`].
+        template: Template,
+        /// The provider the container runs on. See [`Provider`].
+        provider: Provider,
+        /// The container's id, as the provider's run answered it.
         id: String,
     },
 }

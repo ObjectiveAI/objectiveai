@@ -19,6 +19,9 @@ use crate::shared::error::Error;
 /// the container stopped, with the error carried to the caller as the
 /// caller's policy.
 pub trait DependencyDeployer: Send + Sync {
-    /// Run every dependency, or say why not.
-    fn deploy(&self, dependencies: Vec<Template>) -> impl Future<Output = Result<(), Error>> + Send;
+    /// Run every dependency for the container running under `id` on
+    /// the provider that asks — the id its run will answer, told
+    /// first so the caller can serve the container's paths into the
+    /// dependencies — or say why not.
+    fn deploy(&self, id: String, dependencies: Vec<Template>) -> impl Future<Output = Result<(), Error>> + Send;
 }

@@ -1,7 +1,7 @@
 //! Grants: what a role allows, kind by kind.
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds —
-//! agents, agent templates, tools, tool templates, routes, outgoing
+//! agents, agent templates, tools, tool templates, outgoing
 //! providers, incoming credentials, accounts, roles, volumes,
 //! the database — and a [role](crate::daemon::endpoints::roles) is a
 //! list of them, held by
@@ -12,8 +12,8 @@
 //! the logic:
 //!
 //! - **To make.** A bare array of the kind's making actions — the ones
-//!   that bring something into being: a create, an add, an upload, a
-//! connect, a route's set — `{"agents":["create"]}`. Holding the action
+//!   that bring something into being: a create, an add, a connect —
+//! `{"agents":["create"]}`. Holding the action
 //! is the whole of it; nothing is judged but that it is held, since
 //! there is nothing yet to judge it over.
 //! - **Over what exists.** An object of `actions`, the kind's actions
@@ -90,9 +90,11 @@
 //! here reaches by the kind's own filter. Every kind but the database
 //! carries tags — agents, templates, tools, providers, credentials,
 //! accounts, roles and volumes alike — so every kind but the database
-//! has the tagging shape. Routes alone have no shared actions: a route
-//! names a position, and travels nowhere.
+//! has the tagging shape. A grant that names nothing becomes one of
+//! these by [`From`]: the same actions, reaching by a filter of the
+//! tags alone, which is how a dependency tool's requests are judged.
 
+mod convert;
 mod grant;
 
 pub use grant::*;
@@ -102,7 +104,6 @@ pub mod agents;
 pub mod agents_templates;
 pub mod tools;
 pub mod tools_templates;
-pub mod routes;
 pub mod providers_outgoing;
 pub mod providers_incoming;
 pub mod accounts;

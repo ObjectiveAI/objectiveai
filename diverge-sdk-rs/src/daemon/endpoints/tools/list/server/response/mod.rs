@@ -4,8 +4,8 @@
 //! [`Frame`] is what a response frame holds — one [`Tool`] as it comes
 //! to be listed, changes, or goes, the word, forbidden, or a failure. [`Tool`] is what one is: one tool as the daemon holds
 //! it — its name, where it comes from — its [`Origin`], created from a
-//! template or connected to somebody else's container — and its number
-//! among the tools made with the same, who made it — its
+//! template, connected to somebody else's container, or deployed for
+//! an agent as a dependency — who made it — its
 //! [`creator`](crate::daemon::creator) — whether its container runs,
 //! the agents it is attached to, and its tags.
 
