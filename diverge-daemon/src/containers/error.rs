@@ -3,11 +3,14 @@
 use std::fmt;
 
 use super::NoProvider;
+use crate::daemons;
 use crate::logs;
 use crate::store;
 
 /// What a start fails with, in the order a start goes: the records,
-/// the template, the provider, the mounts, the run itself, the log.
+/// the template, the provider — or, a connected tool, the daemon
+/// record and the connection to it — the mounts, the run itself, the
+/// log.
 pub enum StartError {
     /// The records could not be read or written.
     Store(store::Error),
@@ -15,6 +18,11 @@ pub enum StartError {
     NoTemplate(String),
     /// No provider to run on.
     Provider(NoProvider),
+    /// The daemon record a connected tool names is not on record any
+    /// more.
+    NoDaemon(String),
+    /// No connection to the daemon named could be opened.
+    Daemon(daemons::Fail),
     /// A mount could not be served: a volume the provider refused, or
     /// a provider not connected.
     Mounts(String),
@@ -30,6 +38,8 @@ impl fmt::Display for StartError {
             StartError::Store(error) => write!(f, "{error}"),
             StartError::NoTemplate(id) => write!(f, "the template {id} is not on record"),
             StartError::Provider(error) => write!(f, "{error}"),
+            StartError::NoDaemon(name) => write!(f, "the daemon {name} is not on record"),
+            StartError::Daemon(error) => write!(f, "{error}"),
             StartError::Mounts(error) => write!(f, "a mount could not be served: {error}"),
             StartError::Run(error) => write!(f, "the provider did not run the container: {error}"),
             StartError::Logs(error) => write!(f, "the log: {error}"),

@@ -1,6 +1,6 @@
 # The lists that become streams
 
-Which of the daemon wire's twelve lists ([`LISTS_1.md`](LISTS_1.md))
+Which of the daemon wire's eleven lists ([`LISTS_1.md`](LISTS_1.md))
 become streams kept open, in what order, and what each needs. The
 purpose is a visual client: one that opens a list once and is told
 every change as it occurs, rather than asking again.
@@ -31,7 +31,7 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
   what it last sent per item and tells only a difference, so a change
   that leaves the item as it was is nothing.
 
-## 2. The twelve, in the order they are built
+## 2. The lists, in the order they are built
 
 | Order | Tag | List | What tells the daemon something changed |
 |---|---|---|---|
@@ -39,12 +39,13 @@ two listings took on 2026-10-07 (`containers::tools::list_for`,
 | 2 | 78 | `postgres list` | `Live.connections`: a connection opened or closed. **Built 2026-10-08.** |
 | 3 | 67 | `volumes list` | Each connected provider's own stream, merged; a provider connecting or leaving; the records that mount a volume (an agent or tool created, edited, deleted). **Built 2026-10-08: the daemon mirrors one listing per connected provider (`volumes::Mirror`, `volumes::watch`).** |
 | 4 | 5 | `agents list` | The record (create, edit, tag, untag, delete, attach, detach, a tool renamed); `Live.agents` (a run starting or ending, its loop active or inactive, a start failed). **Built 2026-10-08.** The log's length is read at those changes and not per line: see §3. |
-| 5 | 23 | `tools list` | The record (create, connect, edit, tag, untag, delete, attach, detach, admit, unadmit, a route set or deleted, an agent renamed); `Live.tools` (a run inserted or removed). **Built 2026-10-08.** |
-| 6 | 28 | `tools routes list` | The record (set, delete; a tool deleted); a tool renamed. **Built 2026-10-08.** |
+| 5 | 22 | `tools list` | The record (create, connect, edit, tag, untag, delete, attach, detach, an agent renamed); `Live.tools` (a run inserted or removed, an expose starting one). **Built 2026-10-08.** |
+| 6 | — | `tools routes list` | **Removed 2026-10-09** with the routes feature. |
 | 8 | 11, 31 | `agents templates list`, `tools templates list` | The record (create, tag, untag, delete; an agent or tool made from one for `in_use`). **Built 2026-10-08.** |
 | 9 | 47 | `accounts list` | The record (create, edit, tag, untag, delete); a role renamed or deleted; `Live.connected` (a client connecting or leaving). **Built 2026-10-08.** |
 | 10 | 54 | `roles list` | The record (create, edit, tag, untag, delete); an account made, edited or deleted. **Built 2026-10-08.** |
-| 11 | 37, 42 | `providers outgoing list`, `providers incoming list` | The record (add, edit, delete); `Live.providers` (a connection taken or given back); `last_connected` written by the dial. **Built 2026-10-07, first of the record lists.** |
+| 11 | 33, 40 | `providers outgoing list`, `providers incoming list` | The record (add, edit, delete); `Live.providers` (a connection taken or given back); `last_connected` written by the dial. **Built 2026-10-07, first of the record lists.** |
+| 12 | 84 | `providers daemons list` | The record (add, edit, delete, tag, untag); `Live.daemons` (a connection to a daemon opened or ended). **Built 2026-10-10, in the shape of the two provider lists.** |
 
 ## 3. What the record lists need, once
 
@@ -83,7 +84,7 @@ connected provider, and `tools list_for` is gone (2026-10-09).
 
 ## 5. Done
 
-All twelve are built as of 2026-10-08 (the resources list went with the resources feature the same day), in the one shape of §1: a
+All eleven are built — ten as of 2026-10-08 (the resources list went with the resources feature the same day), the daemon records list on 2026-10-10 — in the one shape of §1: a
 word per kind (`daemon::Kind`, `Live::changed`), one loop
 (`serve::stream::listing` over a `Source`, the difference told by
 key), the client's cancel as the end, and the agents rule of §3 —

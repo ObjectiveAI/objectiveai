@@ -17,7 +17,7 @@ use tokio::sync::{Mutex, watch};
 use crate::containers::answerers::Answerer;
 use crate::containers::fuse::Mounts;
 use crate::containers::mcp::Served;
-use crate::containers::{Caller, Dependency, Key, ToolHandle, ToolKey, ToolRun, build, provider, stop};
+use crate::containers::{Caller, Dependency, Key, ToolHandle, ToolKey, ToolRun, User, build, provider, stop};
 use crate::daemon::Kind;
 use crate::judge::Standing;
 use crate::store::{AgentId, hash};
@@ -141,11 +141,12 @@ async fn start(
             provider: identity,
             container: Some(container_id.id),
             handle: ToolHandle::Run(handle),
-            users: Mutex::new(HashSet::from([Key::Agent(agent)])),
+            users: Mutex::new(HashSet::from([User::Container(Key::Agent(agent))])),
             connectors: watch::channel(0).0,
             touched: touched.clone(),
             mounts: Arc::clone(&mounts),
             volumes: Vec::new(),
+            ended: watch::channel(false).0,
             tasks: Mutex::new(Vec::new()),
             dependency: Some(Dependency {
                 id: dependency_id,
@@ -155,6 +156,7 @@ async fn start(
                 declared: template,
                 started: Utc::now(),
             }),
+            exposure: None,
         });
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::Tools);

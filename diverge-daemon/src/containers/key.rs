@@ -22,6 +22,25 @@ pub enum ToolKey {
     Dependency(DependencyId),
 }
 
+/// An exposure's number among those opened since the daemon started:
+/// minted by [`Live`](crate::daemon::Live), never given twice. What
+/// holds a tool's run up for an expose scope's life.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ExposureId(pub u64);
+
+/// One user of a tool's run: a container of the daemon's that calls
+/// it or works on its files, or an expose scope that holds it for
+/// another daemon to join. The run is stopped when no user remains
+/// and no connector is attached from outside.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum User {
+    /// A container: an agent whose loop runs or whose call is being
+    /// served, or a container a file operation is on.
+    Container(Key),
+    /// An expose scope, for as long as it is open.
+    Exposure(ExposureId),
+}
+
 /// One container of the daemon's: an agent, by the record it is made
 /// from; or a tool, by its record or by its deployment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

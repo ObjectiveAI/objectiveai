@@ -71,6 +71,24 @@ CREATE TABLE IF NOT EXISTS diverge.providers_outgoing (
     creator        JSONB NOT NULL
 );
 
+-- Another daemon the caller holds an account on, reached through a
+-- provider both are connected to and never otherwise: the mode this
+-- daemon authenticates to it in, credential and all, and the links it
+-- is reached through, each a provider of the caller's and the identity
+-- the remote is known by there.
+CREATE TABLE IF NOT EXISTS diverge.providers_daemons (
+    id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    -- One record per name.
+    name    TEXT NOT NULL UNIQUE,
+    -- The wire's Mode, as JSON. Never answered whole.
+    mode    JSONB NOT NULL,
+    -- The wire's links, as a JSON array.
+    links   JSONB NOT NULL DEFAULT '[]',
+    tags    TEXT[] NOT NULL DEFAULT '{}',
+    created TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creator JSONB NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS diverge.providers_incoming (
     id       BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     -- One credential per identity; the key is kept as its SHA-256 hex.
@@ -137,17 +155,16 @@ CREATE TABLE IF NOT EXISTS diverge.agents (
     UNIQUE (template, index)
 );
 
--- A tool: made from a template, or joined to somebody else's
--- container by its provider, its id and an authorization.
+-- A tool: made from a template, or joined to another daemon's tool by
+-- the daemon's record, by name, and the tool as that daemon names it.
 CREATE TABLE IF NOT EXISTS diverge.tools (
     id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     -- `created` or `connected`.
     kind                  TEXT NOT NULL,
     template              TEXT,
     provider              JSONB,
-    connected_provider    JSONB,
-    connected_id          TEXT,
-    authorization         TEXT,
+    connected_daemon      TEXT,
+    connected_tool        JSONB,
     index                 BIGINT NOT NULL,
     name                  TEXT UNIQUE,
     account               BIGINT REFERENCES diverge.accounts(id) ON DELETE RESTRICT,
@@ -158,17 +175,15 @@ CREATE TABLE IF NOT EXISTS diverge.tools (
     tags                  TEXT[] NOT NULL DEFAULT '{}',
     created               TIMESTAMPTZ NOT NULL DEFAULT now(),
     creator               JSONB NOT NULL,
-    CONSTRAINT tools_origin_whole CHECK (
+    CONSTRAINT tools_origin_daemon CHECK (
         (kind = 'created' AND template IS NOT NULL
-            AND connected_provider IS NULL AND connected_id IS NULL AND authorization IS NULL)
+            AND connected_daemon IS NULL AND connected_tool IS NULL)
         OR (kind = 'connected' AND template IS NULL AND provider IS NULL
-            AND connected_provider IS NOT NULL AND connected_id IS NOT NULL AND authorization IS NOT NULL)
+            AND connected_daemon IS NOT NULL AND connected_tool IS NOT NULL)
     )
 );
 CREATE UNIQUE INDEX IF NOT EXISTS tools_created_index
     ON diverge.tools (template, index) WHERE kind = 'created';
-CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
-    ON diverge.tools (connected_provider, connected_id, index) WHERE kind = 'connected';
 
 -- A tool attached to an agent; `seq` is the order of attaching.
 CREATE TABLE IF NOT EXISTS diverge.attachments (
@@ -178,17 +193,6 @@ CREATE TABLE IF NOT EXISTS diverge.attachments (
     PRIMARY KEY (tool, agent)
 );
 CREATE INDEX IF NOT EXISTS attachments_agent ON diverge.attachments (agent);
-
--- Who may join a created tool from its provider: the key is kept as
--- its hash.
-CREATE TABLE IF NOT EXISTS diverge.admissions (
-    tool        BIGINT NOT NULL REFERENCES diverge.tools(id) ON DELETE CASCADE,
-    identity    TEXT NOT NULL,
-    address     TEXT,
-    key_hash    TEXT NOT NULL UNIQUE,
-    created     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (tool, identity)
-);
 
 -- The tags on a volume: the one thing the daemon keeps of one, which
 -- is its provider's and listed by it. One row per tagged volume; a
@@ -205,7 +209,32 @@ CREATE TABLE IF NOT EXISTS diverge.volume_tags (
 ALTER TABLE diverge.providers_outgoing ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE diverge.providers_incoming ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE diverge.agents DROP COLUMN IF EXISTS deployer;
-DELETE FROM diverge.admissions WHERE key_hash IS NULL;
-ALTER TABLE diverge.admissions DROP COLUMN IF EXISTS admits;
-ALTER TABLE diverge.admissions ALTER COLUMN key_hash SET NOT NULL;
 DROP TABLE IF EXISTS diverge.routes;
+-- Admissions gave way to exposures, which are held in memory alone.
+DROP TABLE IF EXISTS diverge.admissions;
+-- A connected tool names a daemon record and a tool, not a provider,
+-- an id and an authorization: a tool joined the old way joins nothing
+-- any more, and goes.
+ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS connected_daemon TEXT;
+ALTER TABLE diverge.tools ADD COLUMN IF NOT EXISTS connected_tool JSONB;
+DELETE FROM diverge.tools WHERE kind = 'connected' AND connected_daemon IS NULL;
+ALTER TABLE diverge.tools DROP CONSTRAINT IF EXISTS tools_origin_whole;
+ALTER TABLE diverge.tools DROP COLUMN IF EXISTS connected_provider;
+ALTER TABLE diverge.tools DROP COLUMN IF EXISTS connected_id;
+ALTER TABLE diverge.tools DROP COLUMN IF EXISTS authorization;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tools_origin_daemon') THEN
+        ALTER TABLE diverge.tools ADD CONSTRAINT tools_origin_daemon CHECK (
+            (kind = 'created' AND template IS NOT NULL
+                AND connected_daemon IS NULL AND connected_tool IS NULL)
+            OR (kind = 'connected' AND template IS NULL AND provider IS NULL
+                AND connected_daemon IS NOT NULL AND connected_tool IS NOT NULL)
+        );
+    END IF;
+END $$;
+-- After the columns above exist on every database: a connected tool's
+-- once-and-for-all index counts among tools joined to one daemon's one
+-- tool.
+CREATE UNIQUE INDEX IF NOT EXISTS tools_connected_index
+    ON diverge.tools (connected_daemon, connected_tool, index) WHERE kind = 'connected';

@@ -8,7 +8,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, providers_outgoing};
+use crate::store::{self, in_use, providers_outgoing};
 
 /// Answer the delete and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -21,8 +21,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
-/// for a provider the grants do not reach; `InUse` while a container
-/// is pinned to it or mounts or serves a volume of its; else the
+/// for a provider the grants do not reach; `InUse` while a daemon
+/// record links through it; else the
 /// provider forgotten, its dial ended and the connection it held
 /// dropped, and its address free for an add.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -40,7 +40,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::providers_outgoing::over(&standing, Over::Delete, &provider, connected) {
         return Ok(Frame::Forbidden);
     }
-    if in_use(&provider) {
+    if in_use::provider_linked(&mut tx, &provider.identity()).await? {
         return Ok(Frame::InUse);
     }
     providers_outgoing::delete(&mut tx, provider.id).await?;
@@ -48,10 +48,4 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     daemon.live.changed(Kind::ProvidersOutgoing);
     daemon.live.stop_dial(&provider.address).await;
     Ok(Frame::Deleted)
-}
-
-/// Whether a container is pinned to the provider, or mounts or serves
-/// a volume of its. No container exists yet, and no volume is served.
-fn in_use(_: &providers_outgoing::Outgoing) -> bool {
-    false
 }

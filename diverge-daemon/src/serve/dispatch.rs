@@ -15,7 +15,7 @@ use crate::judge::Who;
 ///
 /// One arm per request of the wire, so that a request added to the
 /// SDK is a request this cannot compile without. Every one of the
-/// eighty-three has a handler. A payload that is no request at all is
+/// eighty-nine has a handler. A payload that is no request at all is
 /// finished with nothing before it, which is what the wire means by a
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc<Daemon>) {
@@ -101,8 +101,14 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], who: Who, daemon: &Arc
         ClientRequest::VolumesFiletree(frame) => volumes::filetree::handle(scope, frame, who, daemon).await,
         ClientRequest::PostgresGet(frame) => postgres::get::handle(scope, frame, who, daemon).await,
         ClientRequest::PostgresList(frame) => postgres::list::handle(scope, frame, who, daemon).await,
-        ClientRequest::ToolsAdmit(frame) => tools::admit::handle(scope, frame, who, daemon).await,
-        ClientRequest::ToolsUnadmit(frame) => tools::unadmit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ToolsExpose(frame) => tools::expose::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsAdd(frame) => providers::daemons::add::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsGet(frame) => providers::daemons::get::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsList(frame) => providers::daemons::list::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsDelete(frame) => providers::daemons::delete::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsEdit(frame) => providers::daemons::edit::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsTag(frame) => providers::daemons::tag::handle(scope, frame, who, daemon).await,
+        ClientRequest::ProvidersDaemonsUntag(frame) => providers::daemons::untag::handle(scope, frame, who, daemon).await,
         ClientRequest::Invalid(_) => scope.send_response_finish().await,
     }
 }

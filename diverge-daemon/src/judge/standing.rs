@@ -64,6 +64,14 @@ impl Standing {
         })
     }
 
+    /// The grants over daemon records.
+    pub fn providers_daemons(&self) -> impl Iterator<Item = &grant::providers_daemons::Permission> {
+        self.grants.iter().filter_map(|grant| match grant {
+            Grant::ProvidersDaemons(permission) => Some(permission),
+            _ => None,
+        })
+    }
+
     /// The grants over agent templates.
     pub fn agents_templates(&self) -> impl Iterator<Item = &grant::agents_templates::Permission> {
         self.grants.iter().filter_map(|grant| match grant {

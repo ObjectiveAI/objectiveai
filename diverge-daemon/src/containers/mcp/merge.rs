@@ -12,7 +12,7 @@ use rmcp::model::{
 use tokio::sync::{Mutex, mpsc};
 
 use super::{Entry, Served, exposed, split};
-use crate::containers::{Caller, Key, ToolKey, ToolRun, tools};
+use crate::containers::{Caller, Key, ToolKey, ToolRun, User, tools};
 use crate::daemon::Daemon;
 
 /// The notifications a container hears: every served tool's, and the
@@ -44,7 +44,7 @@ pub async fn running(context: &Context, key: ToolKey) -> Result<Arc<ToolRun>, St
             None => return Err("no tool is served under that prefix".to_string()),
         }
     };
-    let run = tools::use_tool(&context.daemon, &idle, context.user)
+    let run = tools::use_tool(&context.daemon, &idle, User::Container(context.user))
         .await
         .map_err(|error| error.to_string())?;
     context.served.lock().await.running(key, Arc::clone(&run));

@@ -1,15 +1,16 @@
 //! One container per tool on record: started for the first container
-//! that uses it, stopped when nothing holds it.
+//! or exposure that uses it, stopped when nothing holds it.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
-use super::{Key, StartError, ToolKey, ToolRun, start};
+use super::{StartError, ToolKey, ToolRun, User, start};
 use crate::daemon::Daemon;
 use crate::store::tools::Tool;
 
 /// The tool's run, with `user` among its users: started now if it was
-/// not running.
-pub async fn use_tool(daemon: &Arc<Daemon>, tool: &Tool, user: Key) -> Result<Arc<ToolRun>, StartError> {
+/// not running, and touched if it was.
+pub async fn use_tool(daemon: &Arc<Daemon>, tool: &Tool, user: User) -> Result<Arc<ToolRun>, StartError> {
     if let Some(run) = daemon.live.tool_run(ToolKey::Record(tool.id)).await {
         run.users.lock().await.insert(user);
         run.touch();
@@ -24,7 +25,7 @@ pub async fn use_tool(daemon: &Arc<Daemon>, tool: &Tool, user: Key) -> Result<Ar
 /// was the last user and no connector is attached from outside. A
 /// dependency is nobody's to release: it is stopped with its agent,
 /// and this does nothing for one.
-pub async fn release(daemon: &Daemon, tool: ToolKey, user: Key) {
+pub async fn release(daemon: &Daemon, tool: ToolKey, user: User) {
     if let ToolKey::Dependency(_) = tool {
         return;
     }
@@ -37,16 +38,17 @@ pub async fn release(daemon: &Daemon, tool: ToolKey, user: Key) {
 }
 
 /// A connector left the tool: its run is stopped when none remains
-/// and no container of the daemon's uses it.
+/// and nothing of the daemon's uses it.
 pub async fn disconnected(run: &ToolRun) {
     let users = run.users.lock().await;
     stop_if_unheld(run, &users).await;
 }
 
-/// Stop the run unless something holds it: the one test both the last
-/// user and the last connector leaving come to, under the users lock
-/// so that a user arriving between the test and the stop is not lost.
-async fn stop_if_unheld(run: &ToolRun, users: &std::collections::HashSet<Key>) {
+/// Stop the run unless something holds it: the one test the last
+/// user, the last exposure and the last connector leaving all come
+/// to, under the users lock so that a user arriving between the test
+/// and the stop is not lost.
+async fn stop_if_unheld(run: &ToolRun, users: &HashSet<User>) {
     if !run.is_held(users) {
         run.handle.stop().await;
     }

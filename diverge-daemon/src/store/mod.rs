@@ -10,17 +10,20 @@
 //! `accounts` table before, so that somebody can be the first to
 //! connect — and both are ordinary records from then on, editable and
 //! deletable. [`accounts`], [`roles`], [`providers_outgoing`],
-//! [`providers_incoming`], [`agents_templates`], [`tools_templates`],
+//! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
+//! [`tools_templates`],
 //! [`agents`] and [`tools`] are the records of each kind,
 //! and [`volumes`] what the daemon keeps of a volume, which is its
 //! tags alone;
 //! loaded whole and written whole; [`hash`] is the one id that is a
 //! hash; [`counters`] is the once-and-for-all
 //! index of a container; [`in_use`] is what containers hold —
-//! templates, accounts — as the records say; [`of_account`]
+//! templates, accounts, daemons — and what daemon records hold —
+//! providers — as the records say; [`of_account`]
 //! is what an account may do, read fresh for every request; [`tags`]
 //! is the one way a set of tags is kept; the ids are [`AccountId`],
-//! [`RoleId`], [`AgentId`], [`ToolId`] and the providers', so that an
+//! [`RoleId`], [`AgentId`], [`ToolId`], [`DaemonId`] and the
+//! providers', so that an
 //! id of one kind is never handed to a query of another.
 //!
 //! # Whole or not at all
@@ -58,6 +61,7 @@ pub mod agents_templates;
 pub mod counters;
 pub mod hash;
 pub mod in_use;
+pub mod providers_daemons;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod roles;

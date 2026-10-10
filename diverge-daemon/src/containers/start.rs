@@ -5,8 +5,11 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use chrono::Utc;
-use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
+use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Identity, Item, Provider};
+use diverge_sdk::daemon::endpoints::tools::expose::client::{execute as expose, request as expose_request};
+use diverge_sdk::daemon::endpoints::tools::expose::server::response::Exposed;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::{execute as agents_run, request as agents_request};
+use diverge_sdk::provider::endpoints::containers::tools::connect::client::execute::ExecuteHandle as JoinedHandle;
 use diverge_sdk::provider::endpoints::containers::tools::connect::client::{execute as tools_connect, request as connect_request};
 use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{Connection, ConnectionsStream};
 use diverge_sdk::provider::endpoints::containers::tools::run::client::{execute as tools_run, request as tools_request};
@@ -17,11 +20,13 @@ use tokio::sync::{Mutex, watch};
 use super::answerers::Answerer;
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{AgentRun, Caller, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, stop, tools};
+use super::{AgentRun, Caller, Exposure, Inflight, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, sender_of_agent, sender_of_tool, serve_name, stop, tools};
 use crate::daemon::{Daemon, Kind};
+use crate::daemons;
 use crate::store::agents::Agent;
+use crate::store::providers_daemons::Record;
 use crate::store::tools::{Origin, Tool, attachments};
-use crate::store::{agents, agents_templates, tools as tool_records, tools_templates};
+use crate::store::{agents, agents_templates, providers_daemons, tools as tool_records, tools_templates};
 
 /// The agent's run, started now if it was not up: the providers it
 /// may run on found, the mounts served, the attached tools served
@@ -175,15 +180,18 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
 
 /// The tool's run, started now: a created tool's container run on the
 /// first of its providers that runs it, with its mounts served; a
-/// connected tool's container joined through its provider. A waiter
-/// takes the run down when it ends. A tool declares no dependencies,
-/// so nothing is served to it.
+/// connected tool's container joined — the daemon named connected to,
+/// its expose opened naming the tool, and the container the expose
+/// answered joined through the provider the expose names, by the link
+/// that names it. A waiter takes the run down when it ends: the
+/// container's run, the join, or the exposure, whichever ends first.
+/// A tool declares no dependencies, so nothing is served to it.
 pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, StartError> {
     if let Some(run) = daemon.live.tool_run(ToolKey::Record(tool.id)).await {
         return Ok(run);
     }
     let touched = watch::channel(Instant::now()).0;
-    let (identity, container, handle, mounts, image) = match &tool.origin {
+    let (identity, container, handle, mounts, image, exposure) = match &tool.origin {
         Origin::Created { template, provider: pinned } => {
             let template = {
                 let mut conn = daemon.store.acquire().await?;
@@ -233,21 +241,37 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
                 mounts.stop().await;
                 return Err(StartError::Run(last));
             };
-            (identity, Some(id), ToolHandle::Run(handle), mounts, Some(image))
+            (identity, Some(id), ToolHandle::Run(handle), mounts, Some(image), None)
         }
-        Origin::Connected { provider, id, authorization } => {
-            let Some(handle) = daemon.live.provider(provider).await else {
-                return Err(StartError::Provider(provider::NoProvider::NotConnected(provider.clone())));
+        Origin::Connected { daemon: name, tool: remote } => {
+            let record = {
+                let mut conn = daemon.store.acquire().await?;
+                providers_daemons::by_name(&mut conn, name, false)
+                    .await?
+                    .ok_or_else(|| StartError::NoDaemon(name.clone()))?
             };
-            let request = connect_request::Frame(Connect {
-                id: id.clone(),
-                authorization: authorization.clone(),
-            });
-            let joined = tools_connect::execute(&handle, &request)
+            let peer = daemons::connect(daemon, &record).await.map_err(StartError::Daemon)?;
+            let request = expose_request::Frame { tool: remote.clone() };
+            let (stream, cancel) = expose::execute(&peer.connected.handle, &request)
                 .await
-                .map_err(|error| StartError::Run(format!("{error:?}")))?;
+                .map_err(|error| StartError::Run(format!("{error}")))?;
+            let mut exposure = Exposure::new(stream, cancel);
+            let exposed = match exposure.first().await {
+                Ok(exposed) => exposed,
+                Err(error) => {
+                    exposure.cancel().await;
+                    return Err(StartError::Run(error));
+                }
+            };
+            let (identity, joined) = match join(daemon, &record, &exposed).await {
+                Ok(joined) => joined,
+                Err(error) => {
+                    exposure.cancel().await;
+                    return Err(error);
+                }
+            };
             let mounts = Arc::new(Mounts::empty());
-            (provider.clone(), None, ToolHandle::Joined(joined), mounts, None)
+            (identity, None, ToolHandle::Joined(joined), mounts, None, Some(exposure))
         }
     };
     let run = Arc::new(ToolRun {
@@ -264,8 +288,10 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         touched,
         mounts,
         volumes: crate::volumes::of_tool(tool),
+        ended: watch::channel(false).0,
         tasks: Mutex::new(Vec::new()),
         dependency: None,
+        exposure,
     });
     {
         let mut conn = daemon.store.acquire().await?;
@@ -277,15 +303,58 @@ pub async fn tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, Sta
         let daemon = Arc::clone(daemon);
         let run = Arc::clone(&run);
         tokio::spawn(async move {
-            match run.handle.connections() {
-                Some(connections) => connectors(&run, connections).await,
-                None => run.handle.wait().await,
+            match (run.handle.connections(), &run.exposure) {
+                (Some(connections), _) => connectors(&run, connections).await,
+                (None, Some(exposure)) => {
+                    tokio::select! {
+                        () = run.handle.wait() => {}
+                        () = exposure.ended() => {}
+                    }
+                }
+                (None, None) => run.handle.wait().await,
             }
             stop::ended_tool(&daemon, run).await;
         })
     };
     run.tasks.lock().await.push(waiter.abort_handle());
     Ok(run)
+}
+
+/// The exposed container joined: through the link of the record whose
+/// identity is the one the expose answered — the daemon named is
+/// known by that identity at the provider the tool runs on, and a
+/// link names it so — each such link tried on its provider, when
+/// connected, until one joins. An expose that names no identity, a
+/// record with no link naming it, and no link's provider connected
+/// are each the start's error.
+async fn join(daemon: &Daemon, record: &Record, exposed: &Exposed) -> Result<(Identity, JoinedHandle), StartError> {
+    let Some(identity) = &exposed.identity else {
+        return Err(StartError::Run(
+            "the tool runs on a provider through which the daemon named accepts no connections".to_string(),
+        ));
+    };
+    let links: Vec<_> = record.links.iter().filter(|link| link.identity == *identity).collect();
+    if links.is_empty() {
+        return Err(StartError::Run(
+            "the tool runs on a provider this daemon has no link to the daemon named by".to_string(),
+        ));
+    }
+    let mut last = None;
+    for link in links {
+        let Some(handle) = daemon.live.provider(&link.provider).await else {
+            last.get_or_insert(StartError::Provider(provider::NoProvider::NotConnected(link.provider.clone())));
+            continue;
+        };
+        let request = connect_request::Frame(Connect {
+            id: exposed.id.clone(),
+            authorization: exposed.authorization.clone(),
+        });
+        match tools_connect::execute(&handle, &request).await {
+            Ok(joined) => return Ok((link.provider.clone(), joined)),
+            Err(error) => last = Some(StartError::Run(format!("{error:?}"))),
+        }
+    }
+    Err(last.unwrap_or(StartError::Provider(provider::NoProvider::None)))
 }
 
 /// Read the run's main stream to its end, counting the connectors the

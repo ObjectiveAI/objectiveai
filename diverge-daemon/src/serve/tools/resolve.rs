@@ -29,7 +29,7 @@ pub enum Found {
 pub const READ_ONLY: &str = "a dependency tool is its agent's: it is read, not changed";
 
 /// The tool the reference names, if any: by name, by template and
-/// index, or by provider and id, a record, locked for the
+/// index, or by daemon and tool, a record, locked for the
 /// transaction when `lock`; by agent and template, the dependency
 /// deployed from that template for that agent, if the agent runs and
 /// serves one.

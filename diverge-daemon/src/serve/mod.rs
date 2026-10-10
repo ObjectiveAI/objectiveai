@@ -18,9 +18,12 @@
 //! of the wire served; what the file operations of every family
 //! share is [`files`]. A credential that admits a provider rather
 //! than a client hands the socket to [`providers`](crate::providers)
-//! instead, where the daemon is the caller. [`reply`] is
-//! how every handler sends a frame and how a store failure becomes the
-//! wire's error. [`Error`] is why the daemon could not start or could
+//! instead, where the daemon is the caller. A connection carried
+//! inside the process — a container's `/daemon` pair, or another
+//! daemon come through a provider — is served by [`serve_pair`], the
+//! same session and dispatch, for a standing admitted elsewhere.
+//! [`reply`] is how every handler sends a frame and how a store
+//! failure becomes the wire's error. [`Error`] is why the daemon could not start or could
 //! not listen, the one report a failed start gets; the daemon prints
 //! nothing else.
 //!
@@ -42,6 +45,7 @@ mod connection;
 mod dispatch;
 mod error;
 mod listen;
+mod pair;
 mod reply;
 mod run;
 
@@ -49,6 +53,7 @@ pub use connection::*;
 pub use dispatch::*;
 pub use error::*;
 pub use listen::*;
+pub use pair::*;
 pub use reply::*;
 pub use run::*;
 

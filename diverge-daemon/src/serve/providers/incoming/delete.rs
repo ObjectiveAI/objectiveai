@@ -8,7 +8,7 @@ use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
-use crate::store::{self, providers_incoming};
+use crate::store::{self, in_use, providers_incoming};
 
 /// Answer the delete and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -22,7 +22,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for a credential the grants do not reach; `InUse` while a provider
-/// is connected through it; else the credential gone, and its key
+/// is connected through it or a daemon record links through it; else
+/// the credential gone, and its key
 /// admitting nothing from then on.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
@@ -39,7 +40,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if !judge::providers_incoming::over(&standing, Over::Delete, &credential, connected) {
         return Ok(Frame::Forbidden);
     }
-    if connected {
+    if connected || in_use::provider_linked(&mut tx, &credential.provider()).await? {
         return Ok(Frame::InUse);
     }
     providers_incoming::delete(&mut tx, credential.id).await?;

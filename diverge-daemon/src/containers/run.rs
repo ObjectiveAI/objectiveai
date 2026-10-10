@@ -5,7 +5,11 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use chrono::{DateTime, Utc};
+use diverge_sdk::daemon::client::Cancel;
+use diverge_sdk::daemon::client::stream::StreamError;
 use diverge_sdk::daemon::creator::Creator;
+use diverge_sdk::daemon::endpoints::tools::expose::client::execute::ExecuteStream as ExposeStream;
+use diverge_sdk::daemon::endpoints::tools::expose::server::response::{self as expose, Exposed};
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::reference;
@@ -25,7 +29,7 @@ use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
 use super::mcp::Served;
-use super::{DependencyId, Frames, Inflight, Key, ToolKey};
+use super::{DependencyId, Frames, Inflight, ToolKey, User};
 use crate::content::Pieces;
 use crate::store::{AccountId, AgentId};
 
@@ -234,10 +238,68 @@ pub struct Dependency {
     pub started: DateTime<Utc>,
 }
 
-/// A running tool: the scope held on it, which containers use it,
-/// who is connected to it from outside, and what it mounts — a
-/// record's container, a connected tool's joined, or a dependency
-/// deployed for an agent.
+/// The expose scope a connected tool's run was joined through, held
+/// on the other daemon for the join's life: the stream the exposure
+/// came on, read to its end — which is the tool's run ending there —
+/// and the cancel that lets the exposure go.
+pub struct Exposure {
+    /// The scope's stream, after the first frame.
+    stream: Mutex<ExposeStream>,
+    /// The cancel.
+    cancel: Cancel,
+}
+
+impl Exposure {
+    /// The scope as it was opened, nothing read yet.
+    pub fn new(stream: ExposeStream, cancel: Cancel) -> Self {
+        Exposure {
+            stream: Mutex::new(stream),
+            cancel,
+        }
+    }
+
+    /// The first frame: the exposure, or why there is none, in words
+    /// a start's error carries.
+    pub async fn first(&mut self) -> Result<Exposed, String> {
+        match self.stream.get_mut().next().await {
+            Some(Ok(expose::Frame::Exposed(exposed))) => Ok(exposed),
+            Some(Ok(expose::Frame::NotFound)) => Err("the daemon named has no such tool".to_string()),
+            Some(Ok(expose::Frame::Forbidden)) => Err("the daemon named does not allow this daemon to expose the tool".to_string()),
+            Some(Ok(expose::Frame::Error(error))) => Err(format!("the daemon named could not expose the tool: {}", error.0)),
+            Some(Err(error)) => Err(stream_end(&error)),
+            None => Err("the daemon named finished the expose before answering".to_string()),
+        }
+    }
+
+    /// The scope's end, however it comes: the tool's run ending on the
+    /// other daemon, the daemon connection going, or a frame that will
+    /// not read.
+    pub async fn ended(&self) {
+        let mut stream = self.stream.lock().await;
+        while let Some(item) = stream.next().await {
+            if item.is_err() {
+                break;
+            }
+        }
+    }
+
+    /// Let the exposure go: the other daemon finishes the scope, and a
+    /// tool held by nothing else there stops. Nothing to say to a
+    /// scope that has finished already.
+    pub async fn cancel(&self) {
+        let _ = self.cancel.cancel().await;
+    }
+}
+
+/// Why an expose stream stopped short, in words.
+fn stream_end<E: std::fmt::Display>(error: &StreamError<E>) -> String {
+    format!("the expose on the daemon named ended: {error}")
+}
+
+/// A running tool: the scope held on it, which containers and
+/// exposures use it, who is connected to it from outside, and what it
+/// mounts — a record's container, a connected tool's joined, or a
+/// dependency deployed for an agent.
 pub struct ToolRun {
     /// The record, or the deployment.
     pub id: ToolKey,
@@ -257,9 +319,10 @@ pub struct ToolRun {
     pub container: Option<String>,
     /// The scope.
     pub handle: ToolHandle,
-    /// The containers using it now. A dependency has one user for its
-    /// life, its agent, and is stopped with it.
-    pub users: Mutex<HashSet<Key>>,
+    /// The containers using it now, and the exposures holding it. A
+    /// dependency has one user for its life, its agent, and is stopped
+    /// with it.
+    pub users: Mutex<HashSet<User>>,
     /// The connectors attached to it from outside now, as the provider
     /// tells of them: the other thing that holds a record's run up.
     pub connectors: watch::Sender<usize>,
@@ -270,10 +333,16 @@ pub struct ToolRun {
     /// Every volume its record names in its mounts: held while it
     /// runs.
     pub volumes: Vec<reference::Volume>,
+    /// Whether the run has ended: `true` once, when it has, which every
+    /// expose scope on the tool waits for.
+    pub ended: watch::Sender<bool>,
     /// The tasks that are the run's: the waiter.
     pub tasks: Mutex<Vec<AbortHandle>>,
     /// What it is as a dependency, when it is one.
     pub dependency: Option<Dependency>,
+    /// The expose scope it was joined through, for a connected tool:
+    /// its end is the run's, and the run's end lets it go.
+    pub exposure: Option<Exposure>,
 }
 
 impl ToolRun {
@@ -283,10 +352,11 @@ impl ToolRun {
     }
 
     /// Whether anything holds the run up: a container of the daemon's
-    /// uses it, or a connector is attached from outside. Exactly those
-    /// two; a record's run is stopped when neither holds. Asked under
-    /// the users lock by whoever lets go of either.
-    pub fn is_held(&self, users: &HashSet<Key>) -> bool {
+    /// uses it, an expose scope holds it, or a connector is attached
+    /// from outside. Exactly those three; a record's run is stopped
+    /// when none holds. Asked under the users lock by whoever lets go
+    /// of any of them.
+    pub fn is_held(&self, users: &HashSet<User>) -> bool {
         !users.is_empty() || *self.connectors.borrow() > 0
     }
 }

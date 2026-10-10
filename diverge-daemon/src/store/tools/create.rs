@@ -1,8 +1,9 @@
-//! Making a tool: from a template, or joined to somebody else's
-//! container.
+//! Making a tool: from a template, or joined to another daemon's
+//! tool.
 
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::FuseMount;
+use diverge_sdk::shared::canonical;
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
@@ -10,7 +11,7 @@ use super::Origin;
 use crate::store::{AccountId, Error, ToolId, counters};
 
 /// What a new tool is made of: its origin, checked by the caller —
-/// the template live, the provider on record — and what a create
+/// the template live, the daemon record there — and what a create
 /// adds, which a connect adds none of but the name.
 #[derive(Debug, Clone)]
 pub struct New {
@@ -44,40 +45,26 @@ pub enum Created {
 pub async fn create(conn: &mut PgConnection, new: &New) -> Result<Created, Error> {
     let key = match &new.origin {
         Origin::Created { template, .. } => format!("tools:{template}"),
-        Origin::Connected { provider, id, .. } => {
-            format!("tools:{}:{id}", serde_json::to_string(provider).map_err(Error::Json)?)
+        Origin::Connected { daemon, tool } => {
+            let tool = canonical::bytes(tool).map_err(Error::Json)?;
+            format!("tools:{daemon}:{}", String::from_utf8_lossy(&tool))
         }
     };
     let index = counters::next(conn, &key).await?;
-    let (kind, template, provider, connected_provider, connected_id, authorization) = match &new.origin {
-        Origin::Created { template, provider } => (
-            "created",
-            Some(template.clone()),
-            provider.as_ref().map(Json),
-            None,
-            None,
-            None,
-        ),
-        Origin::Connected { provider, id, authorization } => (
-            "connected",
-            None,
-            None,
-            Some(Json(provider)),
-            Some(id.clone()),
-            Some(authorization.clone()),
-        ),
+    let (kind, template, provider, connected_daemon, connected_tool) = match &new.origin {
+        Origin::Created { template, provider } => ("created", Some(template.clone()), provider.as_ref().map(Json), None, None),
+        Origin::Connected { daemon, tool } => ("connected", None, None, Some(daemon.clone()), Some(Json(tool))),
     };
     let inserted = sqlx::query(
-        "INSERT INTO diverge.tools (kind, template, provider, connected_provider, connected_id, authorization, index, name, \
+        "INSERT INTO diverge.tools (kind, template, provider, connected_daemon, connected_tool, index, name, \
          account, fuse_file_mounts, fuse_directory_mounts, creator) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
     )
     .bind(kind)
     .bind(template)
     .bind(provider)
-    .bind(connected_provider)
-    .bind(connected_id)
-    .bind(authorization)
+    .bind(connected_daemon)
+    .bind(connected_tool)
     .bind(i64::try_from(index).unwrap_or(i64::MAX))
     .bind(&new.name)
     .bind(new.account.map(|account| account.0))

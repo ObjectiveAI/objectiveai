@@ -13,7 +13,8 @@
 //! running only while the agent is not active — no loop, and nothing
 //! [`Inflight`]; [`message`] is the one way into an agent;
 //! [`use_tool`] and [`release`] are "one container per tool", started
-//! for the first container that uses it and stopped with the last;
+//! for the first container or exposure that uses it and stopped with
+//! the last, a [`User`] either way;
 //! [`mcp`] is the one tool list an agent sees and the routing of its
 //! calls; [`deploy`] deploys a container's declared dependencies then
 //! and there, each a tool of the agent's own for the agent's life;

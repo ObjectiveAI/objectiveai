@@ -18,6 +18,10 @@ pub struct OutgoingId(pub i64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct IncomingId(pub i64);
 
+/// A daemon record's row id, likewise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct DaemonId(pub i64);
+
 /// An agent's row id. Never on the wire — an agent is named there by
 /// its name, or by its template and index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

@@ -12,12 +12,13 @@
 //!
 //! # What serves today
 //!
-//! Every request of the wire, all eighty-three: the fourteen over
-//! accounts and roles, the fourteen over outgoing providers and
-//! incoming credentials, the twelve over the two template families,
+//! Every request of the wire, all eighty-nine: the fourteen over
+//! accounts and roles, the twenty-one over outgoing providers,
+//! incoming credentials and the daemons reached through them, the
+//! twelve over the two template families,
 //! the thirteen over agents — their logs, their messages, and the
-//! files of their containers — the sixteen over tools, attachments
-//! and admissions and their containers' files, the twelve over
+//! files of their containers — the fifteen over tools, attachments
+//! and exposures and their containers' files, the twelve over
 //! volumes, and the two over the database —
 //! are served as the wire states them, and every connection is
 //! judged. A volume is its provider's, found by asking, judged by what
@@ -34,12 +35,16 @@
 //! its container asks, tools of its own for its container's life;
 //! the provider's asks on a run — the container's `/daemon`
 //! connections, its tool calls, its mounts, its dependencies, who may
-//! see or join it — are answered by [`containers`]; its database
+//! join it — are answered by [`containers`]; its database
 //! connections reach one scope of its own, the handshake the daemon's
 //! and the rest relayed unread, by [`database`]. An outgoing provider on record is dialled and dialled
 //! again for the daemon's life; a provider that dials in is admitted
 //! by a credential the daemon minted; on either connection the daemon
-//! is the caller of the provider protocol, [`providers`]. The records live in the one Postgres
+//! is the caller of the provider protocol, [`providers`]. Another
+//! daemon on record is reached through a provider both are connected
+//! to, as a client of it, [`daemons`]; a daemon that reaches this one
+//! comes the same way, admitted by a credential as any client is,
+//! through every provider this daemon accepts on. The records live in the one Postgres
 //! the daemon runs on — its own, started beside it, or a remote one,
 //! as its block of the one `config.yaml` says,
 //! [`diverge_sdk::config::daemon`] — in a schema of the daemon's,
@@ -76,6 +81,7 @@
 pub mod containers;
 pub mod content;
 pub mod daemon;
+pub mod daemons;
 pub mod database;
 pub mod judge;
 pub mod logs;

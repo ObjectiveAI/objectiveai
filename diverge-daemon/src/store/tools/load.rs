@@ -26,7 +26,7 @@ pub async fn by_id(conn: &mut PgConnection, id: ToolId, lock: bool) -> Result<Op
 }
 
 /// The tool the reference names, if any — by name, by template and
-/// index, or by the provider and id it is connected to. A dependency
+/// index, or by the daemon and tool it is connected to. A dependency
 /// reference names no record and finds none here. With `lock`, its
 /// row is locked for the transaction, so that two edits of one tool
 /// take turns.
@@ -45,10 +45,10 @@ pub async fn by_reference(conn: &mut PgConnection, reference: &reference::Tool, 
                 .fetch_optional(&mut *conn)
                 .await?
         }
-        reference::Tool::Connected { provider, id } => {
-            sqlx::query("SELECT id FROM diverge.tools WHERE kind = 'connected' AND connected_provider = $1 AND connected_id = $2 ORDER BY index LIMIT 1")
-                .bind(Json(provider))
-                .bind(id)
+        reference::Tool::Connected { daemon, tool } => {
+            sqlx::query("SELECT id FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1 AND connected_tool = $2 ORDER BY index LIMIT 1")
+                .bind(daemon)
+                .bind(Json(tool))
                 .fetch_optional(&mut *conn)
                 .await?
         }

@@ -13,7 +13,8 @@
 //! the roles it holds, read fresh inside the request's own
 //! transaction, or a dependency's grants as fixed — and
 //! [`accounts`], [`roles`], [`providers_outgoing`],
-//! [`providers_incoming`], [`agents_templates`], [`tools_templates`],
+//! [`providers_incoming`], [`providers_daemons`], [`agents_templates`],
+//! [`tools_templates`],
 //! [`agents`], [`tools`], [`postgres`] and [`volumes`] are the pure functions that say whether a
 //! standing holds a making action, holds an action over a record, or
 //! holds a tagging action over a record and its tags, by the rule the
@@ -45,6 +46,7 @@ pub mod agents_templates;
 pub mod filter;
 pub mod key;
 pub mod postgres;
+pub mod providers_daemons;
 pub mod providers_incoming;
 pub mod providers_outgoing;
 pub mod roles;

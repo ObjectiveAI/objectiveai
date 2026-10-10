@@ -19,12 +19,19 @@
 //! and the slot given back. One connection per identity, and one per
 //! incoming credential: the slot is taken before the version is asked,
 //! and a newcomer that collides on either is dropped without a word.
-//! [`url`] is the one rule for the address of an outgoing provider
-//! as a URL. [`Error`] is why an attach did not happen.
+//! On every connection held, when the configuration says so, the
+//! daemon [`accept`]s other daemons through the provider: one
+//! `daemons::accept` scope for the connection's life, each connection
+//! the provider announces judged by its credential and served by the
+//! [`DaemonAcceptor`] as the client it admits. [`url`] is the one
+//! rule for the address of an outgoing provider as a URL. [`Error`]
+//! is why an attach did not happen.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
+mod accept;
+mod acceptor;
 mod attach;
 mod error;
 mod incoming;
@@ -32,6 +39,8 @@ mod outgoing;
 mod refusing;
 mod url;
 
+pub use accept::*;
+pub use acceptor::*;
 pub use attach::*;
 pub use error::*;
 pub use incoming::*;

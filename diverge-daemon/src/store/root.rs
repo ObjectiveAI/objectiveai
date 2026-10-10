@@ -68,9 +68,9 @@ pub async fn seed(conn: &mut PgConnection) -> Result<(), Error> {
 /// tag, and both actions over the database.
 pub fn every_grant() -> Vec<Grant> {
     use grant::{
-        accounts as ac, agents as ag, agents_templates as at, postgres as pg, providers_incoming as pi,
-        providers_outgoing as po, roles as ro, tools as to, tools_templates as tt,
-        volumes as vo,
+        accounts as ac, agents as ag, agents_templates as at, postgres as pg, providers_daemons as pd,
+        providers_incoming as pi, providers_outgoing as po, roles as ro, tools as to,
+        tools_templates as tt, volumes as vo,
     };
     let tagging = vec![Tagging::Tag, Tagging::Untag];
     vec![
@@ -118,8 +118,7 @@ pub fn every_grant() -> Vec<Grant> {
                 to::Over::Upload,
                 to::Over::Transfer,
                 to::Over::Filetree,
-                to::Over::Admit,
-                to::Over::Unadmit,
+                to::Over::Expose,
             ],
             within: Within::Any,
         }),
@@ -154,6 +153,16 @@ pub fn every_grant() -> Vec<Grant> {
             within: Within::Any,
         }),
         Grant::ProvidersIncoming(pi::Permission::Tags {
+            actions: tagging.clone(),
+            within: Within::Any,
+            tags: Within::Any,
+        }),
+        Grant::ProvidersDaemons(pd::Permission::Make(vec![pd::Make::Add])),
+        Grant::ProvidersDaemons(pd::Permission::Over {
+            actions: vec![pd::Over::Get, pd::Over::List, pd::Over::Delete, pd::Over::Edit],
+            within: Within::Any,
+        }),
+        Grant::ProvidersDaemons(pd::Permission::Tags {
             actions: tagging.clone(),
             within: Within::Any,
             tags: Within::Any,

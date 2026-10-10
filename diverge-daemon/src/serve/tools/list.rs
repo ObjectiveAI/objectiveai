@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 use std::future::Future;
 
-use diverge_sdk::daemon::endpoints::tools::Admission;
 use diverge_sdk::daemon::endpoints::tools::list::client::request::{self, Filter};
 use diverge_sdk::daemon::endpoints::tools::list::server::response::{Frame, Tool};
 use diverge_sdk::daemon::grant::tools::Over;
@@ -17,7 +16,6 @@ use crate::judge::filter::tools::Facts;
 use crate::judge::{self, Standing, Who, filter};
 use crate::serve::stream::{self, Change, Source};
 use crate::serve::reply;
-use crate::store::tools::admissions;
 use crate::store::{self, ToolId, agents, tools};
 
 /// Send the list and its changes, then finish the scope.
@@ -34,10 +32,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// now, oldest deployed first after them — the first `count` of
 /// them, one frame each, then the word that the list is whole — and
 /// from then on each tool added, changed or removed as the records,
-/// the attachments, the admissions and the runs change, a dependency
-/// added when its agent's container starts and removed when it ends,
-/// until the client cancels. The attachments and the admissions are
-/// one load each for the whole list, at every reading.
+/// the attachments and the runs change, a dependency added when its
+/// agent's container starts and removed when it ends, until the
+/// client cancels. The attachments are one load for the whole list,
+/// at every reading.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) -> Result<(), store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
@@ -88,10 +86,6 @@ impl Source for Listed<'_> {
                     attached.entry(attachment.tool).or_default().push(key.clone());
                 }
             }
-            let mut admitted: HashMap<ToolId, Vec<Admission>> = HashMap::new();
-            for record in admissions::all(&mut conn).await? {
-                admitted.entry(record.tool).or_default().push(record.admission);
-            }
             drop(conn);
             let states = self.daemon.live.active_tools().await;
             let empty = Vec::new();
@@ -104,13 +98,8 @@ impl Source for Listed<'_> {
                 if !judge::tools::over(self.standing, Over::List, &facts) || !filter::tools::test(self.filter, &facts) {
                     continue;
                 }
-                let admissions = if tool.is_connected() {
-                    Vec::new()
-                } else {
-                    admitted.get(&tool.id).cloned().unwrap_or_default()
-                };
                 let running = states.get(&key).cloned().flatten();
-                listed.push((key, tool.report(active, running, attached.clone(), admissions)));
+                listed.push((key, tool.report(active, running, attached.clone())));
             }
             let mut dependencies: Vec<_> = self
                 .daemon

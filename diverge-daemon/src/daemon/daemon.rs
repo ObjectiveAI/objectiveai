@@ -25,19 +25,25 @@ pub struct Daemon {
     /// The database the daemon serves, as the daemon reaches it: see
     /// [`database`](crate::database).
     pub database: Target,
+    /// Whether the daemon accepts connections from other daemons
+    /// through every provider it is connected to: `accept_daemons` of
+    /// the configuration.
+    pub accept_daemons: bool,
 }
 
 impl Daemon {
     /// A daemon on an open store, holding its agents' logs under
     /// `logs`, ending a run unused for `idle`, serving the database
-    /// `database`, with nothing live yet.
-    pub fn new(store: Store, logs: PathBuf, idle: Duration, database: Target) -> Self {
+    /// `database`, accepting other daemons when `accept_daemons`, with
+    /// nothing live yet.
+    pub fn new(store: Store, logs: PathBuf, idle: Duration, database: Target, accept_daemons: bool) -> Self {
         Daemon {
             store,
             live: Live::new(),
             logs,
             idle,
             database,
+            accept_daemons,
         }
     }
 }

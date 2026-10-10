@@ -54,7 +54,7 @@ Two populations, kept apart by type and by fate:
 
 | | durable records | live state |
 |---|---|---|
-| what | accounts, roles, grants, templates, agent and tool definitions, providers, the mode, counters, volume tags | running containers, their scopes and channels, open database connections, held volumes, transfers, uploads |
+| what | accounts, roles, grants, templates, agent and tool definitions, providers, daemon records, the mode, counters, volume tags | running containers, their scopes and channels, open database connections, daemon connections, open exposures, held volumes, transfers, uploads |
 | where | the store | memory, under the `Daemon` |
 | at restart | reloaded | gone; the records say what SHOULD be running and the daemon converges |
 
@@ -107,6 +107,23 @@ Two populations, kept apart by type and by fate:
   judged by the new key; a delete while connected is refused. The
   provider server keeps the same rule for the peers that dial it, by
   identity and by credential. (Ruling of 2026-10-07.)
+- **Daemons reach one another through providers, and accept by
+  default.** A daemon holds, under `providers::daemons`, the other
+  daemons it has an account on — a name here, the mode it
+  authenticates to the remote in, and one link per provider the remote
+  is reachable through, each a provider of the caller's and the
+  identity the remote is known by there — and reaches each only
+  through a provider both are connected to: the provider protocol's
+  `daemons::connect`, the remote judging the credential as it judges
+  any client's. On every provider connection it holds, a daemon opens
+  one `daemons::accept` scope, unless `daemon: accept_daemons: false`
+  in `config.yaml`, and is known there by the identity the provider
+  answers; each connection the provider announces is judged by the
+  credential in its mode and the address the provider saw, as a
+  socket's handshake is, and served by the same session a socket
+  gets. A daemon record is deleted only while no connected tool names
+  it; a provider only while no record links through it. (Ruling of
+  2026-10-09; built 2026-10-10.)
 
 ## 5. Containers
 
@@ -121,17 +138,30 @@ Two populations, kept apart by type and by fate:
   account through the same front dispatch a client gets; Postgres pairs,
   handshaken and relayed to the served database; MCP, enqueue and
   dequeue, filetree, vault — each as the provider protocol states.
-- **Who may see or join a tool from outside is an admission.** A
-  provider asks the daemon two questions about a tool it runs there:
-  may this lister see the container, and may this connector attach. The
-  answers come from ADMISSIONS on the tool, records put down by
-  `tools::admit` and taken back by `tools::unadmit`: an identity on the
-  provider, an address if one, and what it admits — list, connect, or
-  both. A list is yes when an admission names the lister's identity and
-  admits a list; a connect is yes when the connector's authorization is
-  an admission's key — minted and answered once, as an account's — and
-  the admission admits a connect. Default deny. A connected tool is
-  somebody else's, and its runner admits.
+- **Who may join a tool from outside is an exposure.** A provider
+  asks the daemon one question about a tool it runs there: may this
+  connector attach. The answer comes from EXPOSURES, held in memory
+  and on no record: a `tools::expose` scope starts the tool's
+  container if it does not run, holds it while the scope is open, and
+  answers once — the provider the container runs on, the identity the
+  daemon is known by there, the container's id, and a key minted for
+  that exposure alone — then stays open until the tool's run ends or
+  the client cancels. A connect is yes when the connector's
+  authorization is an open exposure's key and the exposure is this
+  tool's; the key is spent by that one connection, and dies with the
+  scope. Default deny. A connected tool is another daemon's, and that
+  daemon exposes it. (Admissions gone 2026-10-10.)
+- **A connected tool is another daemon's tool, reached through a
+  provider.** `tools::connect` names a daemon record and a tool as
+  that daemon names it. While an attached agent is active, the daemon
+  connects to that daemon through a linked provider — the one
+  connection reused while it lasts, opened through the connected
+  links in random order when none is held — opens that daemon's
+  `tools::expose` naming the tool, and joins the container the expose
+  answers by `containers::tools::connect` on the provider the expose
+  names, through the link whose identity the expose answered. The
+  join and the expose are let go together with the last attached
+  agent; either ending ends the run. (2026-10-10.)
 - **Templates are the definitions.** An agent or a tool is a template
   plus what its create added — mounts, account, provider — and the record
   is that; the container is work made from it, and remade from it after a
@@ -200,12 +230,13 @@ Two populations, kept apart by type and by fate:
 - **A tool runs while held.** A record tool's container is started
   for the first container of the daemon's that uses it — an agent's
   loop beginning, a call outside a loop, a file operation — and
-  stopped when nothing holds it: no user of the daemon's, and no
-  connector attached from outside. The provider tells the runner of
-  every connector coming and going on the run's own stream
-  (`Connected`/`Disconnected`, 2026-10-09), and the daemon counts
-  them; the last of either leaving is the one test. A tool has no
-  idle clock.
+  stopped when nothing holds it: no user of the daemon's, no expose
+  scope open on it, and no connector attached from outside. The
+  provider tells the runner of every connector coming and going on
+  the run's own stream (`Connected`/`Disconnected`, 2026-10-09), and
+  the daemon counts them; the last of the three leaving is the one
+  test. An expose on a tool already running is a touch of it. A tool
+  has no idle clock.
 - **Unused, a container stops.** Every agent has an
   idle clock: it resets on every use — a message delivered, a tool call
   relayed, a file moved in or out, a request the container itself makes
@@ -316,5 +347,5 @@ Two populations, kept apart by type and by fate:
 
 Each step replaced arms of the front's refusal and nothing else about
 the front changed; the shape that exists is the shape that ships. All
-six are built (2026-10-07): every one of the eighty-one requests has its
+six are built (2026-10-07): every one of the eighty-nine requests has its
 handler, and the refusal is gone.

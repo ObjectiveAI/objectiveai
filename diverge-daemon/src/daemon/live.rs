@@ -13,15 +13,18 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::reference;
 
 use super::{Changes, Kind, Peers};
-use crate::volumes::Mirror;
-use crate::containers::{AgentRun, DependencyId, Key, ToolKey, ToolRun};
+use crate::containers::{AgentRun, DependencyId, ExposureId, Key, ToolKey, ToolRun};
+use crate::daemons::Peer;
 use crate::database::Scope;
-use crate::store::{AccountId, AgentId};
+use crate::store::{AccountId, AgentId, ToolId};
+use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
 /// connected as them, and how many; which providers the daemon holds
 /// a connection to, and the handle it speaks to each on; and the dial
-/// tasks keeping the outgoing ones connected; every agent's log as
+/// tasks keeping the outgoing ones connected; which daemons it holds
+/// a connection to through them; which exposures are open, each a
+/// key spent by one connection; every agent's log as
 /// it is appended and watched; which agents and tools run — a tool
 /// on record, or a dependency deployed for an agent — and what is
 /// live for each. Behind async mutexes, held for a lookup and never
@@ -64,6 +67,15 @@ pub struct Live {
     changes: Changes,
     /// Each connected provider's volumes, as its listing streams them.
     volumes: Mutex<HashMap<Identity, Arc<Mirror>>>,
+    /// The daemons connected to now, by record name, each through
+    /// one provider: what a connected tool's expose rides.
+    daemons: Mutex<HashMap<String, Arc<Peer>>>,
+    /// Every exposure open now: the hash of its key, and the tool it
+    /// admits one connection to. Taken out by the connection that
+    /// presents the key, or when the expose scope ends.
+    exposures: Mutex<HashMap<String, ToolId>>,
+    /// The next exposure number.
+    next_exposure: Mutex<u64>,
 }
 
 impl std::fmt::Debug for Live {
@@ -437,5 +449,104 @@ impl Live {
     /// The operation is over.
     pub async fn release_volume(&self, volume: &reference::Volume) {
         self.operations.lock().await.remove(volume);
+    }
+
+    /// The connection to the daemon record, if one is held.
+    pub async fn daemon_peer(&self, name: &str) -> Option<Arc<Peer>> {
+        self.daemons.lock().await.get(name).cloned()
+    }
+
+    /// A connection to a daemon is open: held under its record's name,
+    /// replacing one that ended.
+    pub async fn insert_daemon(&self, peer: Arc<Peer>) {
+        self.daemons.lock().await.insert(peer.name.clone(), peer);
+        self.changes.changed(Kind::ProvidersDaemons);
+    }
+
+    /// The peer's connection ended: forgotten, unless a newer one has
+    /// taken its name.
+    pub async fn remove_peer(&self, peer: &Arc<Peer>) {
+        let removed = {
+            let mut daemons = self.daemons.lock().await;
+            match daemons.get(&peer.name) {
+                Some(held) if Arc::ptr_eq(held, peer) => daemons.remove(&peer.name).is_some(),
+                _ => false,
+            }
+        };
+        if removed {
+            self.changes.changed(Kind::ProvidersDaemons);
+        }
+    }
+
+    /// The record is deleted: whatever connection it had is let go.
+    pub async fn remove_daemon(&self, name: &str) {
+        if self.daemons.lock().await.remove(name).is_some() {
+            self.changes.changed(Kind::ProvidersDaemons);
+        }
+    }
+
+    /// Whether this daemon holds a connection to the daemon record
+    /// now, one that has not ended.
+    pub async fn is_daemon_connected(&self, name: &str) -> bool {
+        self.daemons.lock().await.get(name).is_some_and(|peer| !peer.connected.is_ended())
+    }
+
+    /// Every daemon record connected to now: one snapshot, for a list.
+    pub async fn connected_daemons(&self) -> HashSet<String> {
+        self.daemons
+            .lock()
+            .await
+            .iter()
+            .filter(|(_, peer)| !peer.connected.is_ended())
+            .map(|(name, _)| name.clone())
+            .collect()
+    }
+
+    /// A number for an exposure about to be opened, never given twice
+    /// this daemon life.
+    pub async fn mint_exposure(&self) -> ExposureId {
+        let mut next = self.next_exposure.lock().await;
+        *next += 1;
+        ExposureId(*next)
+    }
+
+    /// An exposure is open: a key hashing to `hash` admits one
+    /// connection to the tool.
+    pub async fn expose(&self, hash: String, tool: ToolId) {
+        self.exposures.lock().await.insert(hash, tool);
+    }
+
+    /// The tool a key hashing to `hash` admits a connection to, and
+    /// the key spent: a second presentation finds nothing.
+    pub async fn take_exposure(&self, hash: &str) -> Option<ToolId> {
+        self.exposures.lock().await.remove(hash)
+    }
+
+    /// The expose scope ended: its key admits nothing from then on,
+    /// whether or not it was spent.
+    pub async fn unexpose(&self, hash: &str) {
+        self.exposures.lock().await.remove(hash);
+    }
+
+    /// The provider answered the daemon's accept: this is the identity
+    /// the daemon is known by there, kept in the provider's slot.
+    pub async fn set_known_as(&self, identity: &Identity, name: String) {
+        if let Some(slot) = self.providers.lock().await.slots.get_mut(identity) {
+            slot.known_as = Some(name);
+        }
+    }
+
+    /// The accept ended, with the provider still connected: the daemon
+    /// is known by nothing there.
+    pub async fn clear_known_as(&self, identity: &Identity) {
+        if let Some(slot) = self.providers.lock().await.slots.get_mut(identity) {
+            slot.known_as = None;
+        }
+    }
+
+    /// The identity the daemon is known by at the provider, when it
+    /// accepts daemon connections through it: what an expose answers.
+    pub async fn known_as(&self, identity: &Identity) -> Option<String> {
+        self.providers.lock().await.slots.get(identity).and_then(|slot| slot.known_as.clone())
     }
 }

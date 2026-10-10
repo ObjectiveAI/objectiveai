@@ -49,9 +49,11 @@ pub struct Attached {
 /// client router and handle; the provider is asked its version, with
 /// the router driven meanwhile, and one that does not answer is not a
 /// provider, [`Error::Version`], the slot given back and the socket
-/// dropped; then the handle fills the slot, the provider's volumes
-/// listing is opened and kept for the connection's life, and what
-/// comes back is the rest of the connection's life, to be served.
+/// dropped; then the handle fills the slot, the daemon's accept of
+/// other daemons is opened on the connection when the configuration
+/// says so, the provider's volumes listing is opened and kept for the
+/// connection's life, and what comes back is the rest of the
+/// connection's life, to be served.
 pub async fn attach(connection: Connection, identity: Identity, credential: Option<String>, daemon: &Arc<Daemon>) -> Result<Attached, Error> {
     let Some(evict) = daemon.live.take_provider(identity.clone(), credential).await else {
         return Err(Error::Held);
@@ -75,6 +77,9 @@ pub async fn attach(connection: Connection, identity: Identity, credential: Opti
         }
     }
     daemon.live.connect_provider(&identity, handle.clone()).await;
+    if daemon.accept_daemons {
+        tokio::spawn(super::accept(Arc::clone(daemon), identity.clone(), handle.clone()));
+    }
     tokio::spawn(crate::volumes::watch(Arc::clone(daemon), identity.clone(), handle));
     Ok(Attached {
         daemon: Arc::clone(daemon),

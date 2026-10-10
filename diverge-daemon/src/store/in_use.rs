@@ -1,12 +1,17 @@
 //! What containers hold: the templates they were made from, the
-//! accounts they run under.
+//! accounts they run under, the daemons their tools are on; and what
+//! daemon records hold: the providers their links name.
 //!
 //! A template is in use while a container made from it exists; an
-//! account while a container names it. Both are facts of the records,
-//! not of what runs, so they survive a restart as the records do.
+//! account while a container names it; a daemon record while a
+//! connected tool names it; a provider while a daemon record links
+//! through it. All are facts of the records, not of what runs, so
+//! they survive a restart as the records do.
 
 use std::collections::HashSet;
 
+use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
 use crate::store::{AccountId, Error};
@@ -30,6 +35,25 @@ pub async fn account(conn: &mut PgConnection, id: AccountId) -> Result<bool, Err
     .bind(id.0)
     .fetch_one(&mut *conn)
     .await?;
+    Ok(row.try_get("held")?)
+}
+
+/// Whether some connected tool names the daemon record.
+pub async fn daemon(conn: &mut PgConnection, name: &str) -> Result<bool, Error> {
+    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.tools WHERE kind = 'connected' AND connected_daemon = $1) AS held")
+        .bind(name)
+        .fetch_one(&mut *conn)
+        .await?;
+    Ok(row.try_get("held")?)
+}
+
+/// Whether some daemon record links through the provider: a link
+/// naming it, by JSON containment of one element.
+pub async fn provider_linked(conn: &mut PgConnection, identity: &Identity) -> Result<bool, Error> {
+    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.providers_daemons WHERE links @> $1) AS held")
+        .bind(Json(serde_json::json!([{ "provider": identity }])))
+        .fetch_one(&mut *conn)
+        .await?;
     Ok(row.try_get("held")?)
 }
 

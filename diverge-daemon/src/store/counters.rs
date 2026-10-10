@@ -6,7 +6,8 @@ use crate::store::Error;
 
 /// The next index for `key` — one key per way of making a container:
 /// `agents:<template>`, `tools:<template>`, or
-/// `tools:<provider JSON>:<id>` for a connected tool. The first is
+/// `tools:<daemon>:<canonical tool JSON>` for a connected tool. The
+/// first is
 /// `1`, and no number is given twice: the row is advanced in the
 /// caller's transaction, so a create that does not commit gives its
 /// number back.

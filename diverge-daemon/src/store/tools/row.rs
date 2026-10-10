@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
+use diverge_sdk::daemon::reference;
 use sqlx::Row as _;
 use sqlx::postgres::PgRow;
 use sqlx::types::Json;
@@ -12,7 +13,7 @@ use super::{Origin, Tool};
 use crate::store::{AccountId, Error, ToolId};
 
 /// The columns every tool query selects.
-pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_provider, connected_id, authorization, index, name, \
+pub(super) const SELECT: &str = "SELECT id, kind, template, provider, connected_daemon, connected_tool, index, name, \
      account, fuse_file_mounts, fuse_directory_mounts, last_provider, last_active, tags, created, creator \
      FROM diverge.tools";
 
@@ -31,14 +32,13 @@ pub(super) fn tool(row: &PgRow) -> Result<Tool, Error> {
             }
         }
         "connected" => {
-            let provider: Option<Json<Identity>> = row.try_get("connected_provider")?;
-            let Some(Json(provider)) = provider else {
-                return Err(Error::Json(serde::de::Error::custom("a connected tool names no provider")));
+            let tool: Option<Json<reference::Tool>> = row.try_get("connected_tool")?;
+            let Some(Json(tool)) = tool else {
+                return Err(Error::Json(serde::de::Error::custom("a connected tool names no tool")));
             };
             Origin::Connected {
-                provider,
-                id: row.try_get::<Option<String>, _>("connected_id")?.unwrap_or_default(),
-                authorization: row.try_get::<Option<String>, _>("authorization")?.unwrap_or_default(),
+                daemon: row.try_get::<Option<String>, _>("connected_daemon")?.unwrap_or_default(),
+                tool,
             }
         }
         other => {

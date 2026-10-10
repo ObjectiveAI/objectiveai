@@ -4,9 +4,9 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::{self, Creator};
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as logs, Identity};
-use diverge_sdk::daemon::endpoints::tools::Admission;
 use diverge_sdk::daemon::endpoints::tools::list::server::response;
 use diverge_sdk::daemon::key;
+use diverge_sdk::daemon::reference;
 
 use crate::store::{AccountId, ToolId};
 
@@ -21,15 +21,12 @@ pub enum Origin {
         /// The provider pin and its volumes, if any.
         provider: Option<Provider>,
     },
-    /// Joined to a container somebody else runs.
+    /// Joined to a tool another daemon holds.
     Connected {
-        /// Which provider runs it.
-        provider: Identity,
-        /// The container's id there.
-        id: String,
-        /// What is offered to its runner at every join. Never
-        /// reported.
-        authorization: String,
+        /// The daemon the tool is on, by the name of its record.
+        daemon: String,
+        /// The tool, as that daemon names it.
+        tool: reference::Tool,
     },
 }
 
@@ -50,7 +47,8 @@ pub struct Tool {
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes, likewise.
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The provider it last ran on, if it ever ran.
+    /// The provider it last ran on, or was last joined through, if it
+    /// ever was.
     pub last_provider: Option<Identity>,
     /// When it last began or ceased running.
     pub last_active: Option<DateTime<Utc>>,
@@ -71,8 +69,8 @@ impl Tool {
         }
     }
 
-    /// Whether it is a connected tool: somebody else's, which the
-    /// daemon never runs and never admits anyone to.
+    /// Whether it is a connected tool: another daemon's, which this
+    /// daemon never runs and never exposes.
     pub fn is_connected(&self) -> bool {
         matches!(self.origin, Origin::Connected { .. })
     }
@@ -84,9 +82,9 @@ impl Tool {
             Origin::Created { template, .. } => key::Origin::Created {
                 template: template.clone(),
             },
-            Origin::Connected { provider, id, .. } => key::Origin::Connected {
-                provider: provider.clone(),
-                id: id.clone(),
+            Origin::Connected { daemon, tool } => key::Origin::Connected {
+                daemon: daemon.clone(),
+                tool: Box::new(tool.clone()),
             },
         };
         key::Tool::Record {
@@ -108,9 +106,9 @@ impl Tool {
 
     /// The tool as a list reports it, given whether its container
     /// runs or its connect scope is held now, the container's id
-    /// while it runs, the agents it is attached to in attach order,
-    /// and its admissions in the order admitted.
-    pub fn report(&self, active: bool, running: Option<String>, agents: Vec<key::Agent>, admissions: Vec<Admission>) -> response::Tool {
+    /// while it runs, and the agents it is attached to in attach
+    /// order.
+    pub fn report(&self, active: bool, running: Option<String>, agents: Vec<key::Agent>) -> response::Tool {
         let origin = match &self.origin {
             Origin::Created { template, .. } => response::Origin::Created {
                 template: template.clone(),
@@ -118,9 +116,9 @@ impl Tool {
                 provider: self.last_provider.clone().map(|identity| logs::Provider { identity }),
                 id: running,
             },
-            Origin::Connected { provider, id, .. } => response::Origin::Connected {
-                provider: provider.clone(),
-                id: id.clone(),
+            Origin::Connected { daemon, tool } => response::Origin::Connected {
+                daemon: daemon.clone(),
+                tool: tool.clone(),
                 index: self.index,
             },
         };
@@ -133,7 +131,6 @@ impl Tool {
             last_active: self.last_active,
             agents,
             tags: self.tags.clone(),
-            admissions,
         }
     }
 }

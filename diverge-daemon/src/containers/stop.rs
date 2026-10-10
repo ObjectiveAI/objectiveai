@@ -6,7 +6,7 @@ use chrono::Utc;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::{self as log, Item, Provider};
 use futures_util::future;
 
-use super::{AgentRun, Key, ToolKey, ToolRun, pump, tools};
+use super::{AgentRun, Key, ToolKey, ToolRun, User, pump, tools};
 use crate::daemon::{Daemon, Kind};
 use crate::store::{AgentId, agents, tools as tool_records};
 
@@ -37,7 +37,7 @@ pub async fn ended_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     };
     future::join(
         stop_dependencies(daemon, dependencies),
-        future::join_all(attached.into_iter().map(|key| tools::release(daemon, key, Key::Agent(run.id)))),
+        future::join_all(attached.into_iter().map(|key| tools::release(daemon, key, User::Container(Key::Agent(run.id))))),
     )
     .await;
     run.mounts.stop().await;
@@ -71,17 +71,23 @@ pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>)
     }
 }
 
-/// The tool's run has ended: forgotten as live, its tasks ended, its
-/// mounts let go; a record's told where and when it last ran; a
-/// dependency's taken out of its agent's served set, which tells the
-/// agent its tools changed, and its scope's password forgotten, since
-/// its key is never seen again.
+/// The tool's run has ended: forgotten as live, its tasks ended, the
+/// word that it ended said — which finishes every expose scope on it
+/// — its exposure let go, for a connected tool, its mounts let go; a
+/// record's told where and when it last ran; a dependency's taken out
+/// of its agent's served set, which tells the agent its tools changed,
+/// and its scope's password forgotten, since its key is never seen
+/// again.
 pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     if daemon.live.remove_tool(run.id).await.is_none() {
         return;
     }
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
+    }
+    run.ended.send_replace(true);
+    if let Some(exposure) = &run.exposure {
+        exposure.cancel().await;
     }
     run.mounts.stop().await;
     match (run.id, &run.dependency) {

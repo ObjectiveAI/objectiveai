@@ -10,7 +10,7 @@ use diverge_sdk::shared::mcp::Who;
 use futures_util::{StreamExt as _, future};
 
 use super::mcp::{self, Context};
-use super::{AgentRun, Caller, Key, stop, tools};
+use super::{AgentRun, Caller, Key, User, stop, tools};
 use crate::daemon::{Daemon, Kind};
 use crate::logs;
 use crate::store::AgentId;
@@ -55,7 +55,7 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                 daemon.live.changed(Kind::Agents);
                 run.touch();
                 let attached = run.served.lock().await.attached_running();
-                future::join_all(attached.iter().map(|key| tools::release(&daemon, *key, Key::Agent(run.id)))).await;
+                future::join_all(attached.iter().map(|key| tools::release(&daemon, *key, User::Container(Key::Agent(run.id))))).await;
                 let mut served = run.served.lock().await;
                 for key in attached {
                     served.idle(key);

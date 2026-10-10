@@ -1,6 +1,4 @@
-//! Who may join a tool from outside: the tool's admissions.
-
-use std::net::IpAddr;
+//! Who may join a tool from outside: the tool's exposures.
 
 use diverge_sdk::provider::client::ConnectionAuthorizer;
 use diverge_sdk::shared::containers::authorize::request::AuthorizeConnect;
@@ -9,13 +7,13 @@ use diverge_sdk::shared::containers::authorize::response::Frame;
 use super::Answerer;
 use crate::containers::{Key, ToolKey};
 use crate::judge::key;
-use crate::store::tools::admissions;
 
 /// Default deny. A connect is yes when the connector's authorization
-/// is an admission's key, the admission is this tool's, and its
-/// address fits. An agent container, taking no connector, is never
-/// asked and would say no; a dependency tool, nobody's record, has no
-/// admissions and says no.
+/// is an exposure's key — minted by `tools::expose`, held in memory,
+/// spent by this one presentation — and the exposure is this tool's.
+/// An agent container, taking no connector, is never asked and would
+/// say no; a dependency tool, nobody's record, is exposed never and
+/// says no.
 impl ConnectionAuthorizer for Answerer {
     async fn authorize_connect(&self, request: &AuthorizeConnect) -> Frame {
         let Key::Tool(ToolKey::Record(tool)) = self.key else {
@@ -24,18 +22,9 @@ impl ConnectionAuthorizer for Answerer {
         if request.authorization.is_empty() {
             return Frame::Denied;
         }
-        let Ok(mut conn) = self.daemon.store.acquire().await else {
-            return Frame::Denied;
-        };
-        let Ok(Some(record)) = admissions::by_key_hash(&mut conn, &key::hash(&request.authorization)).await else {
-            return Frame::Denied;
-        };
-        let admitted = record.tool == tool && fits(record.admission.address, request.address);
-        if admitted { Frame::Authorized } else { Frame::Denied }
+        match self.daemon.live.take_exposure(&key::hash(&request.authorization)).await {
+            Some(exposed) if exposed == tool => Frame::Authorized,
+            _ => Frame::Denied,
+        }
     }
-}
-
-/// Whether the address the admission names, if any, is the one seen.
-fn fits(named: Option<IpAddr>, seen: IpAddr) -> bool {
-    named.is_none_or(|named| named.to_canonical() == seen.to_canonical())
 }

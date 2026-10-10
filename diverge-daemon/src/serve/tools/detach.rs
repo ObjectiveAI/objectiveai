@@ -7,7 +7,7 @@ use diverge_sdk::daemon::grant::tools::Over;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use super::{Found, READ_ONLY, reaches, resolve};
-use crate::containers::{self, Key, ToolKey};
+use crate::containers::{self, Key, ToolKey, User};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::agents;
@@ -64,7 +64,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if let Some(run) = daemon.live.agent_run(agent.id).await
         && run.served.lock().await.remove(ToolKey::Record(tool.id)).is_some()
     {
-        containers::release(daemon, ToolKey::Record(tool.id), Key::Agent(agent.id)).await;
+        containers::release(daemon, ToolKey::Record(tool.id), User::Container(Key::Agent(agent.id))).await;
     }
     Ok(Frame::Detached)
 }

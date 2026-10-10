@@ -1,16 +1,16 @@
 # The lists of the daemon wire
 
-Every list the daemon serves, as of 2026-10-08 (resources gone, tags renumbered), in one page: what is
+Every list the daemon serves, as of 2026-10-10 (daemon records added, admissions gone), in one page: what is
 asked, what comes back, where each part of an item comes from, and
 what already streams. Written so that a watchable list — a list kept
 open, sending what changes — can be decided over it. Decided and
-built: as of 2026-10-08 every one of the twelve is a stream kept
+built: every one of the eleven is a stream kept
 open, in the one shape `STREAMS_1.md` states; the rows below say so.
 
 ## 1. One shape
 
-Ten lists are over the daemon's records. Every one is the same
-exchange:
+Ten lists are over the daemon's records, and one over its
+providers' volumes. Every one is the same exchange:
 
 - **The request** is one frame: a `filter`, flattened, whose every
   member is optional and absent means any; and `count`, the most to
@@ -36,22 +36,23 @@ exchange:
   sent.
 
 One list is not over records, and has no filter and no count:
-`postgres list` (81) reads the daemon's live state alone.
+`postgres list` (80) reads the daemon's live state alone.
 
-## 2. The ten
+## 2. The eleven
 
 | Tag | Request | Item | Filter members | Live in the item |
 |---|---|---|---|---|
-| 48 | `accounts list` | `Account` | names, identities, named, credentialed, roles, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-08 |
-| 55 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | —; a stream since 2026-10-08 |
-| 34 | `providers outgoing list` | `Outgoing` | addresses, kinds, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-07 |
-| 41 | `providers incoming list` | `Incoming` | identities, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-07 |
+| 47 | `accounts list` | `Account` | names, identities, named, credentialed, roles, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-08 |
+| 54 | `roles list` | `Role` | names, accounts, creators, all_tags, any_tags, created_from, created_to | —; a stream since 2026-10-08 |
+| 33 | `providers outgoing list` | `Outgoing` | addresses, kinds, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-07 |
+| 40 | `providers incoming list` | `Incoming` | identities, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-07 |
+| 84 | `providers daemons list` | `Daemon` | names, providers, connected, creators, all_tags, any_tags, created_from, created_to | `connected`; a stream since 2026-10-10 |
 | 11 | `agents templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
 | 28 | `tools templates list` | `Listed` | ids, creators, in_use, all_tags, any_tags, created_from, created_to | `in_use` (filter only); a stream since 2026-10-08 |
 | 5 | `agents list` | `Agent` | names, templates, creators, active, all_tags, any_tags, created_from, created_to | `active`, `logs_index`; a stream since 2026-10-08 |
-| 23 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active`; every dependency tool running now, as an item of its own while it runs (2026-10-09); a stream since 2026-10-08 |
+| 22 | `tools list` | `Tool` | names, templates, creators, kind, active, agents, all_tags, any_tags, created_from, created_to | `active`; every dependency tool running now, as an item of its own while it runs (2026-10-09); a stream since 2026-10-08 |
 | 68 | `volumes list` | `Volume` | providers, names, modes, mounted, all_tags, any_tags, created_from, created_to | `mounted` (filter only); a stream since 2026-10-08, over the daemon's mirror of each connected provider's listing |
-| 81 | `postgres list` | `Connection` | none | all of it; a stream since 2026-10-08 |
+| 80 | `postgres list` | `Connection` | none | all of it; a stream since 2026-10-08 |
 
 
 ## 3. The items
@@ -73,6 +74,10 @@ are read at list time.
 - **`Incoming`** — `identity`, `address`, `created`, `creator`; live:
   `connected` (`Live.providers`, the slot for
   `Identity::IncomingUnbrokered`; exactly one connection or none).
+- **`Daemon`** — `name`, `kind`, `links` (each a provider of the
+  caller's, as the daemon names it, and the remote's identity there),
+  `created`, `creator`, `tags`; live: `connected` (`Live.daemons`, a
+  connection held to it through one of its links, not yet ended).
 - **`Listed`** (templates, both kinds) — `id`, `template` (the
   definition whole), `tags`, `created`, `creator`. `in_use` is not in
   the item: it is a filter member, read from the records that name the
@@ -83,15 +88,15 @@ are read at list time.
   `tags`; live: `active` (`Live.agents`, the run's loop), `logs_index`
   (the log's length on disk).
 - **`Tool`** — `name`, `origin` (created from a template, connected
-  through a provider, or a dependency deployed for an agent — each
+  to another daemon's tool, or a dependency deployed for an agent — each
   with its index, the dependency with its agent, its template's id
   and the template whole, its provider and its container id — a
   dependency has no `name`), `creator`,
   `created`, `last_active`, `agents` (keys of the agents it is attached
-  to), `admissions`, `tags`; live: `active` (`Live.tools`). A
+  to), `tags`; live: `active` (`Live.tools`). A
   dependency tool is no record: it is an item while its run is in
   `Live.tools` and gone after — always `active`, attached to the one
-  agent it was deployed for, no tags, no admissions, made by itself as
+  agent it was deployed for, no tags, made by itself as
   `Creator::Tool(Dependency)` when it was deployed (2026-10-09).
 - **`Volume`** — `provider`, `name`, `bytes`, `mode`, `created` (the
   provider's listing), `agents` and `tools` (keys of the records that
@@ -110,8 +115,7 @@ itself.
 
 **The record changed.** Every create, edit, tag, untag, delete of the
 kind, and — for items that join other records — an attach or detach
-(agents' `tools`, tools' `agents`), an admission (tools'
-`admissions`), a role assigned or
+(agents' `tools`, tools' `agents`), a role assigned or
 unassigned (accounts' `roles`, roles' `accounts`), a template's use
 (templates' `in_use`), a mount named (volumes'
 `agents`/`tools`), a dial opening or closing (`last_connected`), a
@@ -120,7 +124,8 @@ request, in its transaction; nothing is told afterwards but the
 kind's word.
 
 **The live state changed.** A client connecting or leaving
-(`connected`), a provider's slot taken or given back (`connected`), an
+(`connected`), a provider's slot taken or given back (`connected`), a
+connection to a daemon opened or ended (`connected`), an
 agent's or a tool's run starting, its loop going active or inactive,
 or ending (`active`), a dependency deployed or ended with its agent
 (a tools item added or removed), a line appended to a log (`logs_index`), a
@@ -142,7 +147,7 @@ list would be shaped after.
   appended after, as the log's `latest` moves, until the client's
   cancel channel or the agent's deletion. The cursor is `logs_index`;
   a client that reconnects asks from the index it last saw.
-- **`agents filetree` (79), `tools filetree` (80)** — a `Snapshot`
+- **`agents filetree` (76), `tools filetree` (77)** — a `Snapshot`
   frame of the whole tree first, then `Inserted`, `Modified`, `Removed`
   frames, each naming a path, until cancel, the run's end, or an
   error. The daemon merges the provider's stream with its own mounts'

@@ -50,7 +50,13 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
             return Err(Error::Database(error));
         }
     };
-    let daemon = Arc::new(Daemon::new(store, logs, std::time::Duration::from_secs(config.idle_seconds), database));
+    let daemon = Arc::new(Daemon::new(
+        store,
+        logs,
+        std::time::Duration::from_secs(config.idle_seconds),
+        database,
+        config.accept_daemons,
+    ));
     if let Err(error) = providers::dial_all(&daemon).await {
         postgres.stop().await;
         return Err(Error::Store(error));

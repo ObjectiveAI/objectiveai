@@ -27,8 +27,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// for a tool the grants do not reach; the error for a dependency,
 /// which is its agent's and goes with it; `Attached` while it is
 /// attached to any agent; else the tool gone — its database scope
-/// dropped with its every table, its admissions with it, its name
-/// free. A tool attached nowhere runs nowhere, so nothing is stopped.
+/// dropped with its every table, its name free. A tool attached
+/// nowhere runs nowhere, so nothing is stopped.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {

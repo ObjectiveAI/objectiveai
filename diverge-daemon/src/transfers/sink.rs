@@ -6,7 +6,7 @@ use diverge_sdk::daemon::reference;
 use diverge_sdk::daemon::transfer::Destination;
 
 use super::Fail;
-use crate::containers::{self, Key, Opened, ToolKey};
+use crate::containers::{self, Key, Opened, ToolKey, User};
 use crate::daemon::Daemon;
 use crate::store::{agents, tools};
 use crate::volumes;
@@ -63,7 +63,7 @@ impl Sink {
                 let Some(record) = record else {
                     return Err(Fail::NoDestination);
                 };
-                let run = containers::use_tool(daemon, &record, Key::Tool(ToolKey::Record(record.id)))
+                let run = containers::use_tool(daemon, &record, User::Container(Key::Tool(ToolKey::Record(record.id))))
                     .await
                     .map_err(|error| Fail::Error(error.to_string()))?;
                 Ok(Sink::Opened {
@@ -96,7 +96,7 @@ impl Sink {
             opened: Opened::Tool(run), ..
         } = self
         {
-            containers::release(daemon, run.id, Key::Tool(run.id)).await;
+            containers::release(daemon, run.id, User::Container(Key::Tool(run.id))).await;
         }
     }
 }

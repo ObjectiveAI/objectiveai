@@ -22,14 +22,17 @@ pub enum Kind {
     /// Incoming credentials: the records, and which have a provider
     /// connected through them.
     ProvidersIncoming,
+    /// Daemon records: the records, and which this daemon holds a
+    /// connection to.
+    ProvidersDaemons,
     /// Agent templates: the records, and which are in use.
     AgentsTemplates,
     /// Tool templates: the records, and which are in use.
     ToolsTemplates,
     /// Agents: the records, what is attached, which run.
     Agents,
-    /// Tools: the records, what is attached and admitted, which run,
-    /// and which dependencies run.
+    /// Tools: the records, what is attached, which run, and which
+    /// dependencies run.
     Tools,
     /// Volumes: a provider's listing, and the records that mount one.
     Volumes,
