@@ -142,7 +142,7 @@ async fn start(
             container: Some(container_id.id),
             handle: ToolHandle::Run(handle),
             users: Mutex::new(HashSet::from([User::Container(Key::Agent(agent))])),
-            connectors: watch::channel(0).0,
+            held: watch::channel(true).0,
             touched: touched.clone(),
             mounts: Arc::clone(&mounts),
             volumes: Vec::new(),
@@ -156,7 +156,6 @@ async fn start(
                 declared: template,
                 started: Utc::now(),
             }),
-            exposure: None,
         });
         daemon.live.insert_tool(Arc::clone(&run)).await;
         daemon.live.changed(Kind::Tools);

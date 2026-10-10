@@ -78,7 +78,7 @@ pub async fn attach(connection: Connection, identity: Identity, credential: Opti
     }
     daemon.live.connect_provider(&identity, handle.clone()).await;
     if daemon.accept_daemons {
-        tokio::spawn(super::accept(Arc::clone(daemon), identity.clone(), handle.clone()));
+        tokio::spawn(super::accept(Arc::clone(daemon), handle.clone()));
     }
     tokio::spawn(crate::volumes::watch(Arc::clone(daemon), identity.clone(), handle));
     Ok(Attached {

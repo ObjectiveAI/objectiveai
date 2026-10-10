@@ -4,7 +4,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use futures_util::{Stream, StreamExt as _, stream};
-use diverge_sdk::shared::mcp::{Who, attest, attest_request};
+use diverge_sdk::shared::mcp::attest_request;
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, ErrorData, GetMeta as _, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
     ReadResourceResult, ServerNotification,
@@ -78,7 +78,7 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
             run.touch();
             for mut tool in result.tools {
                 tool.name = exposed(&prefix, &tool.name).into();
-                attest(tool.meta.get_or_insert_default(), run.image.as_ref(), Who::Tool(&run.key));
+                run.attest(tool.meta.get_or_insert_default());
                 tools.push(tool);
             }
         }
@@ -99,7 +99,7 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
         if let Ok(result) = run.handle.list_resources(Some(params)).await {
             run.touch();
             for mut resource in result.resources {
-                attest(resource.meta.get_or_insert_default(), run.image.as_ref(), Who::Tool(&run.key));
+                run.attest(resource.meta.get_or_insert_default());
                 resources.push(resource);
             }
         }
@@ -126,7 +126,7 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
         .call_tool(params)
         .await
         .map_err(|error| ErrorData::internal_error(error, None))?;
-    attest(result.meta.get_or_insert_default(), run.image.as_ref(), Who::Tool(&run.key));
+    run.attest(result.meta.get_or_insert_default());
     Ok(result)
 }
 
@@ -142,7 +142,7 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
         match run.handle.read_resource(params.clone()).await {
             Ok(mut result) => {
                 run.touch();
-                attest(result.meta.get_or_insert_default(), run.image.as_ref(), Who::Tool(&run.key));
+                run.attest(result.meta.get_or_insert_default());
                 return Ok(result);
             }
             Err(error) => last = Some(error),
@@ -169,7 +169,7 @@ pub async fn notifications(context: &Context) -> Notifications {
                 while let Some(item) = stream.next().await {
                     let forwarded = match item {
                         Ok(mut notification) => {
-                            attest(notification.get_meta_mut(), run.image.as_ref(), Who::Tool(&run.key));
+                            run.attest(notification.get_meta_mut());
                             Ok(notification)
                         }
                         Err(error) => Err(ErrorData::internal_error(format!("{error:?}"), None)),

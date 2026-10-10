@@ -161,8 +161,9 @@ list would be shaped after.
 `volumes list` is a provider's answer, not the daemon's: the
 provider's `volumes list` is a stream since 2026-10-07, with a volume
 changed beside added and removed. (`tools list_for`, the provider's
-other listing, was removed from both wires on 2026-10-09; a tool's
-connectors are told to its runner on the run's own stream instead.)
+other listing, was removed from both wires on 2026-10-09, and the
+provider's `containers::tools::connect` on 2026-10-10: a tool is
+reached from another daemon over the daemon connection.)
 The daemon holds one `volumes list` of each connected
 provider for the connection's life, mirrored in `Live`, which every
 reading of a provider's volumes on the daemon reads — no scope per

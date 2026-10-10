@@ -15,7 +15,7 @@ use crate::daemon::Daemon;
 use crate::judge::Standing;
 use crate::store::AccountId;
 
-/// One run's answerer: the eight traits on one value.
+/// One run's answerer: the seven traits on one value.
 pub struct Answerer {
     /// The daemon.
     pub daemon: Arc<Daemon>,
@@ -48,15 +48,14 @@ pub struct Answerer {
     pub inflight: Arc<Inflight>,
 }
 
-/// The answerers of a run: all eight the one [`Answerer`].
-pub type Set = Answerers<Answerer, Answerer, Answerer, Answerer, Answerer, Answerer, Answerer, Answerer>;
+/// The answerers of a run: all seven the one [`Answerer`].
+pub type Set = Answerers<Answerer, Answerer, Answerer, Answerer, Answerer, Answerer, Answerer>;
 
 impl Answerer {
-    /// The eight, as the executors take them.
+    /// The seven, as the executors take them.
     pub fn set(self: &Arc<Self>) -> Set {
         Answerers {
             oci: Arc::clone(self),
-            authorizer: Arc::clone(self),
             dependencies: Arc::clone(self),
             postgres: Arc::clone(self),
             daemon: Arc::clone(self),

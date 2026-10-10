@@ -22,7 +22,8 @@ pub type Frames = Pin<Box<dyn Stream<Item = Result<Frame, String>> + Send>>;
 pub enum Opened {
     /// An agent's run.
     Agent(Arc<AgentRun>),
-    /// A tool's run, or the connect scope joined to it.
+    /// A tool's run, or the connect scope held on another daemon's
+    /// tool, whose every file operation answers an error.
     Tool(Arc<ToolRun>),
 }
 
@@ -43,7 +44,7 @@ impl Opened {
         }
     }
 
-    /// The provider it runs on, or is joined through.
+    /// The provider it runs on, or is connected through.
     pub fn provider(&self) -> &Identity {
         match self {
             Opened::Agent(run) => &run.provider,
@@ -52,7 +53,8 @@ impl Opened {
     }
 
     /// The container's id on its provider, which a transfer into it
-    /// names; a connected tool's id is its runner's.
+    /// names; a connected tool has none here, its container being the
+    /// other daemon's.
     pub fn container(&self) -> Option<&str> {
         match self {
             Opened::Agent(run) => Some(&run.container),

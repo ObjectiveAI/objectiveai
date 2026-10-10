@@ -18,7 +18,7 @@
 //! twelve over the two template families,
 //! the thirteen over agents — their logs, their messages, and the
 //! files of their containers — the fifteen over tools, attachments
-//! and exposures and their containers' files, the twelve over
+//! and connections and their containers' files, the twelve over
 //! volumes, and the two over the database —
 //! are served as the wire states them, and every connection is
 //! judged. A volume is its provider's, found by asking, judged by what
@@ -30,21 +30,23 @@
 //! a provider from its first message and stops after `idle_seconds`
 //! unused — active being a loop running or a call in flight, and
 //! nothing else; a tool's runs while a container of the daemon's uses
-//! it or a connector is attached to it from outside, and not a moment
-//! longer; an agent's declared dependencies are deployed the moment
+//! it or another daemon's connect scope holds it, and not a moment
+//! longer, and a connected tool's connection is let go `idle_seconds`
+//! after the last use; an agent's declared dependencies are deployed the moment
 //! its container asks, tools of its own for its container's life;
 //! the provider's asks on a run — the container's `/daemon`
-//! connections, its tool calls, its mounts, its dependencies, who may
-//! join it — are answered by [`containers`]; its database
+//! connections, its tool calls, its mounts, its dependencies — are
+//! answered by [`containers`]; its database
 //! connections reach one scope of its own, the handshake the daemon's
 //! and the rest relayed unread, by [`database`]. An outgoing provider on record is dialled and dialled
 //! again for the daemon's life; a provider that dials in is admitted
 //! by a credential the daemon minted; on either connection the daemon
 //! is the caller of the provider protocol, [`providers`]. Another
 //! daemon on record is reached through a provider both are connected
-//! to, as a client of it, [`daemons`]; a daemon that reaches this one
-//! comes the same way, admitted by a credential as any client is,
-//! through every provider this daemon accepts on. The records live in the one Postgres
+//! to, as a client of it, [`daemons`], and a tool it holds is served
+//! over that connection by its `tools::connect`; a daemon that reaches
+//! this one comes the same way, admitted by a credential as any client
+//! is, through every provider this daemon accepts on. The records live in the one Postgres
 //! the daemon runs on — its own, started beside it, or a remote one,
 //! as its block of the one `config.yaml` says,
 //! [`diverge_sdk::config::daemon`] — in a schema of the daemon's,

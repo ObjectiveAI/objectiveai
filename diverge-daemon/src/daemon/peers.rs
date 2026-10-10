@@ -22,9 +22,8 @@ pub struct Peers {
 }
 
 /// One provider's connection: the handle, once the provider answered
-/// its version; the word that evicts it; the credential it holds, for
-/// an incoming one; and what the daemon is known as there, while it
-/// accepts.
+/// its version; the word that evicts it; and the credential it holds,
+/// for an incoming one.
 pub struct Slot {
     /// The caller's handle on the provider, filled once the version
     /// came back: what every request to a provider rides.
@@ -36,10 +35,6 @@ pub struct Slot {
     /// The hash of the key the provider presented, for an incoming
     /// provider; an outgoing one presents the daemon's.
     pub credential: Option<String>,
-    /// The identity the daemon is known by at the provider, while it
-    /// accepts daemon connections through it: what the provider
-    /// answered the accept with. Absent while it accepts none there.
-    pub known_as: Option<String>,
 }
 
 impl Peers {
@@ -64,7 +59,6 @@ impl Peers {
                 handle: None,
                 evict: Arc::clone(&evict),
                 credential,
-                known_as: None,
             },
         );
         Some(evict)

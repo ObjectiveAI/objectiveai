@@ -331,9 +331,7 @@ pub struct Daemon {
 /// is known by at that provider — what the provider protocol's
 /// `daemons::connect` names an acceptor by there. A daemon's links are
 /// every provider it is reachable through; a connection to it is opened
-/// through any one whose provider this daemon is connected to, and a
-/// tool it exposes is joined through the one whose `identity` the
-/// expose answers.
+/// through any one whose provider this daemon is connected to.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Link {
     /// The provider, as this daemon names one: see [`Identity`]. One of
@@ -341,8 +339,7 @@ pub struct Link {
     pub provider: Identity,
     /// The remote daemon's identity at that provider: what its
     /// connection there is authorized under, which the provider answers
-    /// it when it accepts daemon connections and it reports in an
-    /// expose.
+    /// it when it accepts daemon connections.
     pub identity: String,
 }
 ```
@@ -537,7 +534,7 @@ pub enum Agent {
 pub enum Tool {
     /// By name: `{"name":…}`.
     Name {
-        /// The tool's name, as its create or its connect gave it. A
+        /// The tool's name, as its create or its register gave it. A
         /// tool given none is not reached this way.
         name: String,
     },
@@ -549,9 +546,9 @@ pub enum Tool {
         /// from that template, as its list item carries it.
         index: u64,
     },
-    /// By what it joined: `{"daemon":…,"tool":…}`. A connected tool
-    /// only, which has no template; the pair names it once and for
-    /// all, as the connect named it.
+    /// By what it is registered from: `{"daemon":…,"tool":…}`. A
+    /// connected tool only, which has no template; the pair names it
+    /// once and for all, as the register named it.
     Connected {
         /// The daemon the tool is on, by the name of its record.
         daemon: String,
@@ -792,13 +789,13 @@ pub enum Origin {
         /// The template, by id.
         template: String,
     },
-    /// Joined by a connect, to another daemon's tool.
+    /// Registered, from another daemon's tool.
     Connected {
         /// The daemon the tool is on, by the name of its record, as
-        /// the connect named it.
+        /// the register named it.
         daemon: String,
-        /// The tool, as that daemon names it and as the connect named
-        /// it: see [`reference::Tool`].
+        /// The tool, as that daemon names it and as the register
+        /// named it: see [`reference::Tool`].
         tool: Box<reference::Tool>,
     },
 }
@@ -983,7 +980,7 @@ pub struct Tool {
 /// The three ways a tool comes to be, and what the daemon knows of
 /// each: a [`create`](crate::daemon::endpoints::tools::create) made it
 /// from an image, a
-/// [`connect`](crate::daemon::endpoints::tools::connect) named a
+/// [`register`](crate::daemon::endpoints::tools::register) named a
 /// tool another daemon holds, or an agent's program declared it
 /// as a dependency and the daemon deployed it when the agent's
 /// container started. JSON-tagged by `kind`, `created`, `connected`
@@ -1013,23 +1010,20 @@ pub enum Origin {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         provider: Option<Provider>,
         /// The container's id while it runs, as the provider's run
-        /// answered it: what an
-        /// [`expose`](crate::daemon::endpoints::tools::expose) hands,
-        /// with the provider and an authorization, to the daemon it
-        /// lets connect. Absent while the container does not run.
+        /// answered it. Absent while the container does not run.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         id: Option<String>,
     },
-    /// Another daemon's tool, joined by this caller's connect: the
-    /// daemon holds that daemon's expose and a connect scope on the
-    /// container while an attached agent is active, and never starts
-    /// or stops it itself.
+    /// Another daemon's tool, registered by this caller: the daemon
+    /// holds that daemon's connect scope on it while an attached agent
+    /// uses it and for `idle_seconds` after, and never starts or stops
+    /// it itself.
     Connected {
         /// The daemon the tool is on, by the name of its record, as
-        /// the connect named it.
+        /// the register named it.
         daemon: String,
-        /// The tool, as that daemon names it and as the connect named
-        /// it: see [`reference::Tool`].
+        /// The tool, as that daemon names it and as the register
+        /// named it: see [`reference::Tool`].
         tool: reference::Tool,
         /// Its number among all tools of the caller's ever joined to
         /// that daemon's tool, deleted ones included.
@@ -2188,7 +2182,7 @@ pub enum Over {
 ```rust
 /// The actions over tools that make one where there was none, which a
 /// grant holds or does not and judges by nothing else. Snake case on
-/// the wire: `"create"`, `"connect"`.
+/// the wire: `"create"`, `"register"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -2196,10 +2190,10 @@ pub enum Make {
     /// Create a tool, as
     /// [`tools::create`](crate::daemon::endpoints::tools::create) does.
     Create,
-    /// Hold somebody else's tool container under a name, as
-    /// [`tools::connect`](crate::daemon::endpoints::tools::connect)
+    /// Hold another daemon's tool under a name, as
+    /// [`tools::register`](crate::daemon::endpoints::tools::register)
     /// does.
-    Connect,
+    Register,
 }
 ```
 
@@ -2211,7 +2205,7 @@ pub enum Make {
 /// The actions over tools that exist, which a grant reaches as far as
 /// its `within` says. Snake case on the wire: `"get"`, `"edit"`,
 /// `"attach"`, `"detach"`, `"delete"`, `"list"`, `"download"`,
-/// `"upload"`, `"transfer"`, `"filetree"`, `"expose"`.
+/// `"upload"`, `"transfer"`, `"filetree"`, `"connect"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -2253,9 +2247,9 @@ pub enum Over {
     /// [`tools::filetree`](crate::daemon::endpoints::tools::filetree)
     /// does.
     Filetree,
-    /// Expose one to another daemon's connect, as
-    /// [`tools::expose`](crate::daemon::endpoints::tools::expose) does.
-    Expose,
+    /// Serve one to another daemon, as
+    /// [`tools::connect`](crate::daemon::endpoints::tools::connect) does.
+    Connect,
 }
 ```
 

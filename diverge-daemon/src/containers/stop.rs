@@ -72,12 +72,11 @@ pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>)
 }
 
 /// The tool's run has ended: forgotten as live, its tasks ended, the
-/// word that it ended said — which finishes every expose scope on it
-/// — its exposure let go, for a connected tool, its mounts let go; a
-/// record's told where and when it last ran; a dependency's taken out
-/// of its agent's served set, which tells the agent its tools changed,
-/// and its scope's password forgotten, since its key is never seen
-/// again.
+/// word that it ended said — which finishes every connect scope on it
+/// — its mounts let go; a record's told where and when it last ran; a
+/// dependency's taken out of its agent's served set, which tells the
+/// agent its tools changed, and its scope's password forgotten, since
+/// its key is never seen again.
 pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     if daemon.live.remove_tool(run.id).await.is_none() {
         return;
@@ -86,9 +85,6 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
         task.abort();
     }
     run.ended.send_replace(true);
-    if let Some(exposure) = &run.exposure {
-        exposure.cancel().await;
-    }
     run.mounts.stop().await;
     match (run.id, &run.dependency) {
         (ToolKey::Record(id), _) => {

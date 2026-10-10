@@ -18,9 +18,11 @@ pub async fn open_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Opened, S
         .map_err(|error| error.to_string())
 }
 
-/// The tool's container, started or joined for the operation as a
-/// user of its own; [`close`] releases it, which stops it when nothing
-/// else uses it.
+/// The tool's container, started for the operation as a user of its
+/// own; [`close`] releases it, which stops it when nothing else uses
+/// it. A connected tool is connected to the same way, and every file
+/// operation on it then answers the handle's error: its files are the
+/// other daemon's.
 pub async fn open_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Opened, String> {
     containers::use_tool(daemon, tool, User::Container(Key::Tool(ToolKey::Record(tool.id))))
         .await

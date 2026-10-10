@@ -54,7 +54,7 @@ Two populations, kept apart by type and by fate:
 
 | | durable records | live state |
 |---|---|---|
-| what | accounts, roles, grants, templates, agent and tool definitions, providers, daemon records, the mode, counters, volume tags | running containers, their scopes and channels, open database connections, daemon connections, open exposures, held volumes, transfers, uploads |
+| what | accounts, roles, grants, templates, agent and tool definitions, providers, daemon records, the mode, counters, volume tags | running containers, their scopes and channels, open database connections, daemon connections, the connect scopes other daemons hold, held volumes, transfers, uploads |
 | where | the store | memory, under the `Daemon` |
 | at restart | reloaded | gone; the records say what SHOULD be running and the daemon converges |
 
@@ -138,30 +138,32 @@ Two populations, kept apart by type and by fate:
   account through the same front dispatch a client gets; Postgres pairs,
   handshaken and relayed to the served database; MCP, enqueue and
   dequeue, filetree, vault — each as the provider protocol states.
-- **Who may join a tool from outside is an exposure.** A provider
-  asks the daemon one question about a tool it runs there: may this
-  connector attach. The answer comes from EXPOSURES, held in memory
-  and on no record: a `tools::expose` scope starts the tool's
-  container if it does not run, holds it while the scope is open, and
-  answers once — the provider the container runs on, the identity the
-  daemon is known by there, the container's id, and a key minted for
-  that exposure alone — then stays open until the tool's run ends or
-  the client cancels. A connect is yes when the connector's
-  authorization is an open exposure's key and the exposure is this
-  tool's; the key is spent by that one connection, and dies with the
-  scope. Default deny. A connected tool is another daemon's, and that
-  daemon exposes it. (Admissions gone 2026-10-10.)
-- **A connected tool is another daemon's tool, reached through a
-  provider.** `tools::connect` names a daemon record and a tool as
-  that daemon names it. While an attached agent is active, the daemon
-  connects to that daemon through a linked provider — the one
-  connection reused while it lasts, opened through the connected
-  links in random order when none is held — opens that daemon's
-  `tools::expose` naming the tool, and joins the container the expose
-  answers by `containers::tools::connect` on the provider the expose
-  names, through the link whose identity the expose answered. The
-  join and the expose are let go together with the last attached
-  agent; either ending ends the run. (2026-10-10.)
+- **A tool is served to another daemon by `tools::connect`, over the
+  daemon connection.** Nobody joins a container on a provider: the
+  provider protocol has no connect, no connector and no authorization
+  ask. Another daemon, come through a provider as a client of this
+  one, opens `tools::connect` naming a record tool — a created one;
+  a dependency is its agent's and a connected one is served
+  elsewhere — and the daemon starts the tool's container if it does
+  not run, holds it while the scope is open, answers `Connected`, and
+  then serves the scope's six channels: the five MCP exchanges, each
+  put to the tool's server and its answer attested as the daemon's
+  own containers' answers are, and the disconnect. The scope ends on
+  the disconnect, on the tool's run ending, or on the client going.
+  (Expose and admissions gone 2026-10-10.)
+- **A connected tool is another daemon's tool, reached over the
+  daemon connection.** `tools::register` names a daemon record and a
+  tool as that daemon names it. While an attached agent uses the
+  tool, the daemon connects to that daemon through a linked provider —
+  the one connection reused while it lasts, opened through the
+  connected links in random order when none is held — and opens that
+  daemon's `tools::connect` naming the tool; the agent's MCP exchanges
+  travel on that scope, their answers passed on as the other daemon
+  attested them, under this daemon's own prefix and key. A connected
+  tool is MCP-only: its files are on the other daemon, and every file
+  operation on it answers an error. The connection is held like an
+  agent is: `idle_seconds` after the last use with nothing using it,
+  the daemon disconnects. (2026-10-10.)
 - **Templates are the definitions.** An agent or a tool is a template
   plus what its create added — mounts, account, provider — and the record
   is that; the container is work made from it, and remade from it after a
@@ -230,13 +232,11 @@ Two populations, kept apart by type and by fate:
 - **A tool runs while held.** A record tool's container is started
   for the first container of the daemon's that uses it — an agent's
   loop beginning, a call outside a loop, a file operation — and
-  stopped when nothing holds it: no user of the daemon's, no expose
-  scope open on it, and no connector attached from outside. The
-  provider tells the runner of every connector coming and going on
-  the run's own stream (`Connected`/`Disconnected`, 2026-10-09), and
-  the daemon counts them; the last of the three leaving is the one
-  test. An expose on a tool already running is a touch of it. A tool
-  has no idle clock.
+  stopped when nothing holds it: no user of the daemon's, and no
+  connect scope of another daemon's open on it. The last of either
+  leaving is the one test; a connect on a tool already running is a
+  touch of it. A created tool has no idle clock. (The provider's
+  connector events went with its connect, 2026-10-10.)
 - **Unused, a container stops.** Every agent has an
   idle clock: it resets on every use — a message delivered, a tool call
   relayed, a file moved in or out, a request the container itself makes

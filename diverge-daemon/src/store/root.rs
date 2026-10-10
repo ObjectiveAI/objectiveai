@@ -105,7 +105,7 @@ pub fn every_grant() -> Vec<Grant> {
             within: Within::Any,
             tags: Within::Any,
         }),
-        Grant::Tools(to::Permission::Make(vec![to::Make::Create, to::Make::Connect])),
+        Grant::Tools(to::Permission::Make(vec![to::Make::Create, to::Make::Register])),
         Grant::Tools(to::Permission::Over {
             actions: vec![
                 to::Over::Get,
@@ -118,7 +118,7 @@ pub fn every_grant() -> Vec<Grant> {
                 to::Over::Upload,
                 to::Over::Transfer,
                 to::Over::Filetree,
-                to::Over::Expose,
+                to::Over::Connect,
             ],
             within: Within::Any,
         }),

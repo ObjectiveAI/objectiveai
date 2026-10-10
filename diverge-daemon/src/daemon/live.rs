@@ -13,18 +13,17 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::reference;
 
 use super::{Changes, Kind, Peers};
-use crate::containers::{AgentRun, DependencyId, ExposureId, Key, ToolKey, ToolRun};
+use crate::containers::{AgentRun, ConnectionId, DependencyId, Key, ToolKey, ToolRun};
 use crate::daemons::Peer;
 use crate::database::Scope;
-use crate::store::{AccountId, AgentId, ToolId};
+use crate::store::{AccountId, AgentId};
 use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
 /// connected as them, and how many; which providers the daemon holds
 /// a connection to, and the handle it speaks to each on; and the dial
 /// tasks keeping the outgoing ones connected; which daemons it holds
-/// a connection to through them; which exposures are open, each a
-/// key spent by one connection; every agent's log as
+/// a connection to through them; every agent's log as
 /// it is appended and watched; which agents and tools run — a tool
 /// on record, or a dependency deployed for an agent — and what is
 /// live for each. Behind async mutexes, held for a lookup and never
@@ -70,12 +69,8 @@ pub struct Live {
     /// The daemons connected to now, by record name, each through
     /// one provider: what a connected tool's expose rides.
     daemons: Mutex<HashMap<String, Arc<Peer>>>,
-    /// Every exposure open now: the hash of its key, and the tool it
-    /// admits one connection to. Taken out by the connection that
-    /// presents the key, or when the expose scope ends.
-    exposures: Mutex<HashMap<String, ToolId>>,
-    /// The next exposure number.
-    next_exposure: Mutex<u64>,
+    /// The next number for a connect scope another daemon opens.
+    next_connect: Mutex<u64>,
 }
 
 impl std::fmt::Debug for Live {
@@ -502,51 +497,11 @@ impl Live {
             .collect()
     }
 
-    /// A number for an exposure about to be opened, never given twice
-    /// this daemon life.
-    pub async fn mint_exposure(&self) -> ExposureId {
-        let mut next = self.next_exposure.lock().await;
+    /// A number for a connect scope another daemon is opening, never
+    /// given twice this daemon life.
+    pub async fn mint_connection(&self) -> ConnectionId {
+        let mut next = self.next_connect.lock().await;
         *next += 1;
-        ExposureId(*next)
-    }
-
-    /// An exposure is open: a key hashing to `hash` admits one
-    /// connection to the tool.
-    pub async fn expose(&self, hash: String, tool: ToolId) {
-        self.exposures.lock().await.insert(hash, tool);
-    }
-
-    /// The tool a key hashing to `hash` admits a connection to, and
-    /// the key spent: a second presentation finds nothing.
-    pub async fn take_exposure(&self, hash: &str) -> Option<ToolId> {
-        self.exposures.lock().await.remove(hash)
-    }
-
-    /// The expose scope ended: its key admits nothing from then on,
-    /// whether or not it was spent.
-    pub async fn unexpose(&self, hash: &str) {
-        self.exposures.lock().await.remove(hash);
-    }
-
-    /// The provider answered the daemon's accept: this is the identity
-    /// the daemon is known by there, kept in the provider's slot.
-    pub async fn set_known_as(&self, identity: &Identity, name: String) {
-        if let Some(slot) = self.providers.lock().await.slots.get_mut(identity) {
-            slot.known_as = Some(name);
-        }
-    }
-
-    /// The accept ended, with the provider still connected: the daemon
-    /// is known by nothing there.
-    pub async fn clear_known_as(&self, identity: &Identity) {
-        if let Some(slot) = self.providers.lock().await.slots.get_mut(identity) {
-            slot.known_as = None;
-        }
-    }
-
-    /// The identity the daemon is known by at the provider, when it
-    /// accepts daemon connections through it: what an expose answers.
-    pub async fn known_as(&self, identity: &Identity) -> Option<String> {
-        self.providers.lock().await.slots.get(identity).and_then(|slot| slot.known_as.clone())
+        ConnectionId(*next)
     }
 }

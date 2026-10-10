@@ -5,24 +5,21 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use chrono::{DateTime, Utc};
-use diverge_sdk::daemon::client::Cancel;
-use diverge_sdk::daemon::client::stream::StreamError;
 use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::tools::expose::client::execute::ExecuteStream as ExposeStream;
-use diverge_sdk::daemon::endpoints::tools::expose::server::response::{self as expose, Exposed};
+use diverge_sdk::daemon::endpoints::tools::connect::client::execute::ExecuteHandle as ConnectHandle;
 use diverge_sdk::daemon::key;
 use diverge_sdk::daemon::endpoints::agents::logs::server::response::Identity;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::ExecuteHandle as AgentHandle;
-use diverge_sdk::provider::endpoints::containers::tools::connect::client::execute::ExecuteHandle as JoinedHandle;
-use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ConnectionsStream, ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
+use diverge_sdk::provider::endpoints::containers::tools::run::client::execute::{ExecuteHandle as ToolContainerHandle, McpNotificationsStream};
 use diverge_sdk::shared::containers::dependencies::Template;
 use diverge_sdk::shared::containers::request::Image;
+use diverge_sdk::shared::mcp::{Who, attest};
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt as _};
 use rmcp::model::{
-    CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
-    ReadResourceResult,
+    CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult, MetaObject, PaginatedRequestParams,
+    ReadResourceRequestParams, ReadResourceResult,
 };
 use tokio::sync::{Mutex, watch};
 use tokio::task::AbortHandle;
@@ -89,21 +86,27 @@ impl AgentRun {
     }
 }
 
-/// The scope held on a tool: its own container's run, or the connect
-/// scope joined to somebody else's.
+/// The scope held on a tool: its own container's run on a provider,
+/// or the connect scope held on another daemon.
 pub enum ToolHandle {
     /// A created tool's container, run by the daemon.
     Run(ToolContainerHandle),
-    /// A connected tool's container, joined.
-    Joined(JoinedHandle),
+    /// A connected tool, served by another daemon over the daemon
+    /// connection: its MCP exchanges, and nothing else.
+    Connected(ConnectHandle),
 }
+
+/// The one sentence every file operation on a connected tool answers
+/// with: a connected tool's container is another daemon's, and its
+/// files are there.
+pub const CONNECTED_FILES: &str = "a connected tool is another daemon's: its files are there";
 
 impl ToolHandle {
     /// The tool's MCP tools.
     pub async fn list_tools(&self, params: Option<PaginatedRequestParams>) -> Result<ListToolsResult, String> {
         match self {
             ToolHandle::Run(handle) => handle.list_tools(params).await.map_err(|error| error.to_string()),
-            ToolHandle::Joined(handle) => handle.list_tools(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(handle) => handle.list_tools(params).await.map_err(|error| error.to_string()),
         }
     }
 
@@ -111,7 +114,7 @@ impl ToolHandle {
     pub async fn list_resources(&self, params: Option<PaginatedRequestParams>) -> Result<ListResourcesResult, String> {
         match self {
             ToolHandle::Run(handle) => handle.list_resources(params).await.map_err(|error| error.to_string()),
-            ToolHandle::Joined(handle) => handle.list_resources(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(handle) => handle.list_resources(params).await.map_err(|error| error.to_string()),
         }
     }
 
@@ -119,7 +122,7 @@ impl ToolHandle {
     pub async fn call_tool(&self, params: CallToolRequestParams) -> Result<CallToolResult, String> {
         match self {
             ToolHandle::Run(handle) => handle.call_tool(params).await.map_err(|error| error.to_string()),
-            ToolHandle::Joined(handle) => handle.call_tool(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(handle) => handle.call_tool(params).await.map_err(|error| error.to_string()),
         }
     }
 
@@ -127,7 +130,7 @@ impl ToolHandle {
     pub async fn read_resource(&self, params: ReadResourceRequestParams) -> Result<ReadResourceResult, String> {
         match self {
             ToolHandle::Run(handle) => handle.read_resource(params).await.map_err(|error| error.to_string()),
-            ToolHandle::Joined(handle) => handle.read_resource(params).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(handle) => handle.read_resource(params).await.map_err(|error| error.to_string()),
         }
     }
 
@@ -135,39 +138,36 @@ impl ToolHandle {
     pub async fn notifications(&self) -> Result<McpNotificationsStream, String> {
         match self {
             ToolHandle::Run(handle) => handle.notifications().await.map_err(|error| error.to_string()),
-            ToolHandle::Joined(handle) => handle.notifications().await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(handle) => handle.notifications().await.map_err(|error| error.to_string()),
         }
     }
 
-    /// The container's tree, watched.
+    /// The container's tree, watched. A connected tool's is on the
+    /// other daemon: [`CONNECTED_FILES`].
     pub async fn filetree(&self) -> Result<Frames, String> {
-        Ok(match self {
+        match self {
             ToolHandle::Run(handle) => {
                 let stream = handle.filetree().await.map_err(|error| error.to_string())?;
-                Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string())))
+                Ok(Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string()))))
             }
-            ToolHandle::Joined(handle) => {
-                let stream = handle.filetree().await.map_err(|error| error.to_string())?;
-                Box::pin(stream.map(|frame| frame.map_err(|error| error.to_string())))
-            }
-        })
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
     }
 
-    /// One file read out of the container.
+    /// One file read out of the container. A connected tool's is on
+    /// the other daemon: [`CONNECTED_FILES`].
     pub async fn read(&self, path: Vec<String>) -> Result<Pieces, String> {
-        Ok(match self {
+        match self {
             ToolHandle::Run(handle) => {
                 let stream = handle.read(path).await.map_err(|error| error.to_string())?;
-                Box::pin(stream.map(|piece| piece.map_err(|error| error.to_string())))
+                Ok(Box::pin(stream.map(|piece| piece.map_err(|error| error.to_string()))))
             }
-            ToolHandle::Joined(handle) => {
-                let stream = handle.read(path).await.map_err(|error| error.to_string())?;
-                Box::pin(stream.map(|piece| piece.map_err(|error| error.to_string())))
-            }
-        })
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
+        }
     }
 
-    /// One file written into the container, replaced whole.
+    /// One file written into the container, replaced whole. A
+    /// connected tool's is on the other daemon: [`CONNECTED_FILES`].
     pub async fn write<S, E>(&self, path: Vec<String>, content: S) -> Result<(), String>
     where
         S: Stream<Item = Result<Bytes, E>> + Send + 'static,
@@ -175,35 +175,27 @@ impl ToolHandle {
     {
         match self {
             ToolHandle::Run(handle) => handle.write(path, content).await.map_err(|error| error.to_string()),
-            ToolHandle::Joined(handle) => handle.write(path, content).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
         }
     }
 
     /// One file copied into the container under `id` on the same
-    /// provider.
+    /// provider. A connected tool's is on the other daemon:
+    /// [`CONNECTED_FILES`].
     pub async fn transfer(&self, path: Vec<String>, id: String, destination: Vec<String>) -> Result<(), String> {
         match self {
             ToolHandle::Run(handle) => handle.transfer(path, id, destination).await.map_err(|error| error.to_string()),
-            ToolHandle::Joined(handle) => handle.transfer(path, id, destination).await.map_err(|error| error.to_string()),
+            ToolHandle::Connected(_) => Err(CONNECTED_FILES.to_string()),
         }
     }
 
-    /// End it: the container stopped, or the connector left.
+    /// End it: the container stopped, or the connection to the other
+    /// daemon's tool let go.
     pub async fn stop(&self) {
         let _ = match self {
             ToolHandle::Run(handle) => handle.stop().await,
-            ToolHandle::Joined(handle) => handle.disconnect().await,
+            ToolHandle::Connected(handle) => handle.disconnect().await,
         };
-    }
-
-    /// The connectors coming and going on the run's main stream, for a
-    /// container the daemon runs; none for a joined one, whose
-    /// connectors are its runner's to count.
-    pub fn connections(&self) -> Option<ConnectionsStream> {
-        match self {
-            ToolHandle::Run(handle) => Some(handle.connections()),
-            ToolHandle::Joined(_) => None,
-        }
     }
 
     /// Wait for its end, however it comes.
@@ -212,8 +204,8 @@ impl ToolHandle {
             ToolHandle::Run(handle) => {
                 let _ = handle.wait().await;
             }
-            ToolHandle::Joined(handle) => {
-                let _ = handle.wait().await;
+            ToolHandle::Connected(handle) => {
+                handle.wait().await;
             }
         }
     }
@@ -238,68 +230,9 @@ pub struct Dependency {
     pub started: DateTime<Utc>,
 }
 
-/// The expose scope a connected tool's run was joined through, held
-/// on the other daemon for the join's life: the stream the exposure
-/// came on, read to its end — which is the tool's run ending there —
-/// and the cancel that lets the exposure go.
-pub struct Exposure {
-    /// The scope's stream, after the first frame.
-    stream: Mutex<ExposeStream>,
-    /// The cancel.
-    cancel: Cancel,
-}
-
-impl Exposure {
-    /// The scope as it was opened, nothing read yet.
-    pub fn new(stream: ExposeStream, cancel: Cancel) -> Self {
-        Exposure {
-            stream: Mutex::new(stream),
-            cancel,
-        }
-    }
-
-    /// The first frame: the exposure, or why there is none, in words
-    /// a start's error carries.
-    pub async fn first(&mut self) -> Result<Exposed, String> {
-        match self.stream.get_mut().next().await {
-            Some(Ok(expose::Frame::Exposed(exposed))) => Ok(exposed),
-            Some(Ok(expose::Frame::NotFound)) => Err("the daemon named has no such tool".to_string()),
-            Some(Ok(expose::Frame::Forbidden)) => Err("the daemon named does not allow this daemon to expose the tool".to_string()),
-            Some(Ok(expose::Frame::Error(error))) => Err(format!("the daemon named could not expose the tool: {}", error.0)),
-            Some(Err(error)) => Err(stream_end(&error)),
-            None => Err("the daemon named finished the expose before answering".to_string()),
-        }
-    }
-
-    /// The scope's end, however it comes: the tool's run ending on the
-    /// other daemon, the daemon connection going, or a frame that will
-    /// not read.
-    pub async fn ended(&self) {
-        let mut stream = self.stream.lock().await;
-        while let Some(item) = stream.next().await {
-            if item.is_err() {
-                break;
-            }
-        }
-    }
-
-    /// Let the exposure go: the other daemon finishes the scope, and a
-    /// tool held by nothing else there stops. Nothing to say to a
-    /// scope that has finished already.
-    pub async fn cancel(&self) {
-        let _ = self.cancel.cancel().await;
-    }
-}
-
-/// Why an expose stream stopped short, in words.
-fn stream_end<E: std::fmt::Display>(error: &StreamError<E>) -> String {
-    format!("the expose on the daemon named ended: {error}")
-}
-
-/// A running tool: the scope held on it, which containers and
-/// exposures use it, who is connected to it from outside, and what it
-/// mounts — a record's container, a connected tool's joined, or a
-/// dependency deployed for an agent.
+/// A running tool: the scope held on it, which containers and connect
+/// scopes use it, and what it mounts — a record's container, a
+/// connected tool's connection, or a dependency deployed for an agent.
 pub struct ToolRun {
     /// The record, or the deployment.
     pub id: ToolKey,
@@ -313,19 +246,21 @@ pub struct ToolRun {
     pub sender: Creator,
     /// The account it runs under, if any.
     pub account: Option<AccountId>,
-    /// The provider it runs on, or is joined through.
+    /// The provider it runs on, or the daemon connection to its daemon
+    /// goes through.
     pub provider: Identity,
     /// The container's id, for a container the daemon runs.
     pub container: Option<String>,
     /// The scope.
     pub handle: ToolHandle,
-    /// The containers using it now, and the exposures holding it. A
-    /// dependency has one user for its life, its agent, and is stopped
-    /// with it.
+    /// The containers using it now, and the connect scopes holding it.
+    /// A dependency has one user for its life, its agent, and is
+    /// stopped with it.
     pub users: Mutex<HashSet<User>>,
-    /// The connectors attached to it from outside now, as the provider
-    /// tells of them: the other thing that holds a record's run up.
-    pub connectors: watch::Sender<usize>,
+    /// Whether anything uses it now: `true` while `users` is not
+    /// empty, kept in step under the users lock. What a connected
+    /// tool's idle clock waits on.
+    pub held: watch::Sender<bool>,
     /// When it was last used.
     pub touched: watch::Sender<Instant>,
     /// What it mounts, served by the daemon.
@@ -334,15 +269,13 @@ pub struct ToolRun {
     /// runs.
     pub volumes: Vec<reference::Volume>,
     /// Whether the run has ended: `true` once, when it has, which every
-    /// expose scope on the tool waits for.
+    /// connect scope on the tool waits for.
     pub ended: watch::Sender<bool>,
-    /// The tasks that are the run's: the waiter.
+    /// The tasks that are the run's: the waiter, and a connected
+    /// tool's idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
     /// What it is as a dependency, when it is one.
     pub dependency: Option<Dependency>,
-    /// The expose scope it was joined through, for a connected tool:
-    /// its end is the run's, and the run's end lets it go.
-    pub exposure: Option<Exposure>,
 }
 
 impl ToolRun {
@@ -352,11 +285,31 @@ impl ToolRun {
     }
 
     /// Whether anything holds the run up: a container of the daemon's
-    /// uses it, an expose scope holds it, or a connector is attached
-    /// from outside. Exactly those three; a record's run is stopped
-    /// when none holds. Asked under the users lock by whoever lets go
-    /// of any of them.
+    /// uses it, or a connect scope of another daemon's holds it. Exactly
+    /// those two; a record's container is stopped when neither holds,
+    /// and a connected tool's connection is let go by its idle clock
+    /// once neither has for `idle_seconds`. Asked under the users lock
+    /// by whoever lets go of either.
     pub fn is_held(&self, users: &HashSet<User>) -> bool {
-        !users.is_empty() || *self.connectors.borrow() > 0
+        !users.is_empty()
+    }
+
+    /// Whether this daemon attests what the tool answers under `_meta`.
+    /// The rule: the daemon attests what its own containers answer —
+    /// its image and its key put on every result, resource, tool and
+    /// notification — and passes through what another daemon attested,
+    /// since a connected tool's answers come attested by the daemon
+    /// that runs it, and this one saw neither the image nor the
+    /// container.
+    pub fn attests(&self) -> bool {
+        matches!(self.handle, ToolHandle::Run(_))
+    }
+
+    /// Attest `meta` as this tool's, when the rule of
+    /// [`attests`](Self::attests) says to; else leave it as it came.
+    pub fn attest(&self, meta: &mut MetaObject) {
+        if self.attests() {
+            attest(meta, self.image.as_ref(), Who::Tool(&self.key));
+        }
     }
 }

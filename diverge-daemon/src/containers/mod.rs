@@ -11,10 +11,11 @@
 //! end it; [`pump`] reads the agent's conversation off the run into
 //! its log and keeps whether a loop runs; [`idle`] is the clock,
 //! running only while the agent is not active — no loop, and nothing
-//! [`Inflight`]; [`message`] is the one way into an agent;
+//! [`Inflight`] — and [`idle_tool`] a connected tool's, running only
+//! while nothing uses it; [`message`] is the one way into an agent;
 //! [`use_tool`] and [`release`] are "one container per tool", started
-//! for the first container or exposure that uses it and stopped with
-//! the last, a [`User`] either way;
+//! for the first container or connect scope that uses it and stopped
+//! with the last, a [`User`] either way;
 //! [`mcp`] is the one tool list an agent sees and the routing of its
 //! calls; [`deploy`] deploys a container's declared dependencies then
 //! and there, each a tool of the agent's own for the agent's life;

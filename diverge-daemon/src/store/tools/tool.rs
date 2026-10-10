@@ -47,7 +47,7 @@ pub struct Tool {
     pub fuse_file_mounts: Vec<FuseMount>,
     /// Directories of other providers' volumes, likewise.
     pub fuse_directory_mounts: Vec<FuseMount>,
-    /// The provider it last ran on, or was last joined through, if it
+    /// The provider it last ran on, or was last connected through, if it
     /// ever was.
     pub last_provider: Option<Identity>,
     /// When it last began or ceased running.
@@ -70,7 +70,7 @@ impl Tool {
     }
 
     /// Whether it is a connected tool: another daemon's, which this
-    /// daemon never runs and never exposes.
+    /// daemon never runs and never serves to another daemon.
     pub fn is_connected(&self) -> bool {
         matches!(self.origin, Origin::Connected { .. })
     }

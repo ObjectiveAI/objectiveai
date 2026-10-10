@@ -10,9 +10,9 @@
 //! link's identity, the mode presented as the connection's credential,
 //! which the remote judges as it judges any client's — the first to
 //! answer kept as a [`Peer`] in [`Live`](crate::daemon::Live) until
-//! it ends. What a connection is FOR is a connected tool: its
-//! `tools::expose` is opened on the peer's handle, and the container
-//! it answers is joined through the provider the expose names. The
+//! it ends. What a connection is FOR is a connected tool: that
+//! daemon's `tools::connect` is opened on the peer's handle, and the
+//! tool's MCP exchanges travel on it for as long as it is held. The
 //! other direction — a daemon reaching this one — is
 //! [`providers::accept`](crate::providers::accept). [`Fail`] is why no
 //! connection could be opened.

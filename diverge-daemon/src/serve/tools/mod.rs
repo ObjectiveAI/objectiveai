@@ -1,7 +1,7 @@
 //! The requests over tools, served: the fifteen over the records and
-//! the dependencies — [`create`], [`connect`], [`get`], [`list`],
+//! the dependencies — [`create`], [`register`], [`get`], [`list`],
 //! [`edit`], [`delete`], [`tag`], [`untag`], [`attach`], [`detach`],
-//! [`expose`], [`download`], [`upload`], [`transfer`], [`filetree`] —
+//! [`connect`], [`download`], [`upload`], [`transfer`], [`filetree`] —
 //! and [`templates`], what tools are made from. What a request names
 //! is [`resolve`]d to a [`Found`]: a record, or a dependency that
 //! runs now, which the reading requests reach and every changing one
@@ -30,10 +30,10 @@ pub mod delete;
 pub mod detach;
 pub mod download;
 pub mod edit;
-pub mod expose;
 pub mod filetree;
 pub mod get;
 pub mod list;
+pub mod register;
 pub mod tag;
 pub mod templates;
 pub mod transfer;
