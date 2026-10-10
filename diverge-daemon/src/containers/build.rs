@@ -17,8 +17,16 @@ use super::fuse::Mounts;
 pub fn container<T>(template: &Template<T>, volumes: &[VolumeMount], mounts: &Mounts) -> request::Container {
     request::Container {
         image: request::Image {
-            name: template.image.name.clone(),
             digest: template.image.digest.clone(),
+            references: template
+                .image
+                .references
+                .iter()
+                .map(|reference| request::Reference {
+                    registry: reference.registry.clone(),
+                    name: reference.name.clone(),
+                })
+                .collect(),
         },
         memory: template.memory,
         disk: template.disk,
@@ -42,10 +50,7 @@ pub fn container<T>(template: &Template<T>, volumes: &[VolumeMount], mounts: &Mo
 /// of the agent's paths under the id the daemon serves it by.
 pub fn dependency(template: &dependencies::Template, mounts: &Mounts) -> request::Container {
     request::Container {
-        image: request::Image {
-            name: template.image.name.clone(),
-            digest: template.image.digest.clone(),
-        },
+        image: template.image.clone(),
         memory: template.memory,
         disk: template.disk,
         volume_mounts: Vec::new(),

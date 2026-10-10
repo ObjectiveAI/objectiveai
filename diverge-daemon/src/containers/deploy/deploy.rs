@@ -37,7 +37,7 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
     let mut declared = Vec::with_capacity(templates.len());
     let mut ids = HashSet::new();
     for template in templates {
-        let template_id = hash::template_id(&template).map_err(|failure| error("", &failure.to_string()))?;
+        let template_id = hash::template_id(&template.hashed()).map_err(|failure| error("", &failure.to_string()))?;
         if !ids.insert(template_id.clone()) {
             return Err(error(&template_id, "declared twice"));
         }

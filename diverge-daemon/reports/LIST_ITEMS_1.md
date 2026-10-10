@@ -23,9 +23,9 @@ imports; nothing here is hand-edited.
 | 80 | [`postgres list`](#postgres-list) | `diverge_sdk::daemon::endpoints::postgres::Connection` | 5 types |
 | 67 | [`volumes list`](#volumes-list) | `diverge_sdk::daemon::endpoints::volumes::list::server::response::Volume` | 7 types |
 | 5 | [`agents list`](#agents-list) | `diverge_sdk::daemon::endpoints::agents::list::server::response::Agent` | 11 types |
-| 22 | [`tools list`](#tools-list) | `diverge_sdk::daemon::endpoints::tools::list::server::response::Tool` | 49 types |
-| 11 | [`agents templates list`](#agents-templates-list) | `diverge_sdk::daemon::endpoints::agents::templates::list::server::response::Listed` | 8 types |
-| 27 | [`tools templates list`](#tools-templates-list) | `diverge_sdk::daemon::endpoints::tools::templates::list::server::response::Listed` | 8 types |
+| 22 | [`tools list`](#tools-list) | `diverge_sdk::daemon::endpoints::tools::list::server::response::Tool` | 50 types |
+| 11 | [`agents templates list`](#agents-templates-list) | `diverge_sdk::daemon::endpoints::agents::templates::list::server::response::Listed` | 9 types |
+| 27 | [`tools templates list`](#tools-templates-list) | `diverge_sdk::daemon::endpoints::tools::templates::list::server::response::Listed` | 9 types |
 | 47 | [`accounts list`](#accounts-list) | `diverge_sdk::daemon::endpoints::accounts::list::server::response::Account` | 5 types |
 | 54 | [`roles list`](#roles-list) | `diverge_sdk::daemon::endpoints::roles::list::server::response::Role` | 30 types |
 
@@ -1089,8 +1089,9 @@ pub enum Origin {
 /// There is no name. A dependency is named by its ID: the lowercase
 /// hexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)
 /// bytes — this template as compact JSON, absent members omitted,
-/// every object key sorted at every depth, the `arguments` included
-/// — sixty-four characters, which the caller computes. Two
+/// the image's `references` absent too, every object key sorted at
+/// every depth, the `arguments` included — sixty-four characters,
+/// which the caller computes over [`hashed`](Self::hashed). Two
 /// declarations with one id are one dependency, and a list that
 /// declares one twice is refused; the same template deployed for the
 /// same agent, on whatever provider, is the same dependency with the
@@ -1100,8 +1101,8 @@ pub enum Origin {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Template {
-    /// The image: a name and a digest, the pair a
-    /// `containers::tools::run` request names.
+    /// The image: a digest and its references, as a
+    /// `containers::tools::run` request names one.
     pub image: Image,
     /// The memory the tool container needs, in bytes.
     pub memory: u64,
@@ -1213,8 +1214,9 @@ pub enum Grant {
 `diverge-sdk-rs/src/shared/containers/request/image.rs`
 
 ```rust
-/// The image, by its repository path and its manifest digest — the
-/// pair [`images::check`](crate::provider::endpoints::images::check::client::request::Frame)
+/// The image, by its manifest digest and the references under which
+/// its bytes may be fetched — what
+/// [`images::check`](crate::provider::endpoints::images::check::client::request::Frame)
 /// asks about, so a check that came back available names an image a
 /// run can ask for, with nothing to translate between them.
 ///
@@ -1223,34 +1225,36 @@ pub enum Grant {
 /// A digest cannot be repointed at different content, so an image
 /// means the same bytes every time, wherever they come from. That is
 /// the whole of what the wire asserts: the provider runs the image
-/// the digest names and no other.
+/// the digest names and no other. The references are not the image:
+/// the same bytes sit under different names on different registries,
+/// and an id that hashes an image hashes it with none — see
+/// [`hashed`](Self::hashed).
 ///
 /// # Who supplies the bytes is the provider's
 ///
-/// Not on the wire. A provider may hold the image already, pull it
-/// from a registry it uses, or take it from the caller — asking on
+/// A provider looks in what it holds first, by digest alone. Failing
+/// that it may ask any referenced registry its own policy lists, with
+/// the credential it holds for it, and ignores a reference naming one
+/// it does not; and it may take the image from the caller — asking on
 /// the run scope whether the caller holds it and, when it does, for
 /// its manifest and blobs, see [`oci`](crate::shared::containers::oci).
-/// Which of those, in what order, and which registries, is the
-/// provider's policy, and a caller learns only whether the run
-/// happened. A caller need not hold what it names; one that does
-/// answers so when asked.
+/// Which of those, in what order, is the provider's policy, and a
+/// caller learns only whether the run happened. A caller need not
+/// hold what it names; one that does answers so when asked.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Image {
-    /// The repository path — `library/nginx`, `myorg/myimage`. No
-    /// host: where the bytes come from is not the caller's to say.
-    ///
-    /// It lands in a reference by concatenation wherever a provider
-    /// pulls from, so a provider refuses one that is not a repository
-    /// path and normalizes nothing.
-    pub name: String,
     /// The manifest digest, `<algorithm>:<hex>`.
     ///
-    /// What actually identifies the image: a runtime hashes what it
-    /// pulls, so a source serving other bytes under it fails before
-    /// anything runs.
+    /// What identifies the image: a runtime hashes what it pulls, so
+    /// a source serving other bytes under it fails before anything
+    /// runs.
     pub digest: String,
+    /// Where the bytes may be fetched, each a registry and a path
+    /// there: see [`Reference`]. Absent when there are none, and then
+    /// the provider has only what it holds and what the caller holds.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<Reference>,
 }
 ```
 
@@ -1731,6 +1735,36 @@ pub enum Permission {
         /// Which tags: `"any"`, or only these.
         tags: Within<Vec<String>>,
     },
+}
+```
+
+### `diverge_sdk::shared::containers::request::Reference`
+
+`diverge-sdk-rs/src/shared/containers/request/reference.rs`
+
+```rust
+/// One place the bytes an image's digest names may be fetched from: a
+/// registry, and the repository path there. A reference locates and
+/// does not identify — the digest does — so an image may carry none,
+/// one or several, and two images with one digest are one image
+/// whatever each lists. A provider asks a referenced registry only
+/// where its own policy lists that registry, with the credential it
+/// holds for it, and ignores a reference naming one it does not.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
+pub struct Reference {
+    /// The registry's host, as a reference names it before its first
+    /// `/`: `docker.io`, `ghcr.io`, `registry.example.com:5000`. No
+    /// scheme and no path.
+    pub registry: String,
+    /// The repository path at that registry — `library/nginx`,
+    /// `myorg/myimage`. No host and no tag: the image is
+    /// `<registry>/<name>@<digest>` there.
+    ///
+    /// It lands in a reference by concatenation wherever a provider
+    /// pulls from, so a provider refuses one that is not a repository
+    /// path and normalizes nothing.
+    pub name: String,
 }
 ```
 
@@ -2503,7 +2537,8 @@ pub struct Template<Type> {
     /// container, and read by nothing but a person.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    /// The image: a name and a digest. See [`Image`].
+    /// The image: a digest and its references. See [`Image`]; the id
+    /// hashes it with the references absent, see [`hashed`](Self::hashed).
     pub image: Image,
     /// How much memory the container may have, in BYTES.
     ///
@@ -2544,32 +2579,63 @@ pub struct Template<Type> {
 `diverge-sdk-rs/src/daemon/endpoints/agents/create/client/request/image.rs`
 
 ```rust
-/// The image, by its repository path and its manifest digest.
+/// The image, by its manifest digest and the references under which
+/// its bytes may be fetched.
 ///
 /// # The digest is the image
 ///
 /// A digest cannot be repointed at different content, so an image
 /// means the same bytes every time, wherever they come from. That is
 /// the whole of what the request asserts: the agent runs the image
-/// the digest names and no other.
+/// the digest names and no other. The references are not the image:
+/// the same bytes sit under different names on different registries,
+/// and a template's id hashes the image with none — see
+/// [`hashed`](Self::hashed).
 ///
 /// # Who supplies the bytes is not the caller's
 ///
-/// Not on the wire. The daemon asks a provider for the image, and the
-/// provider holds it already, pulls it, or takes it from the daemon;
-/// which, and from where, is between them, and a caller learns only
-/// whether the agent runs.
+/// The daemon asks a provider for the image, references and all, and
+/// the provider holds it already, pulls it from a referenced registry
+/// its policy lists, or takes it from the daemon; which, and from
+/// where, is between them, and a caller learns only whether the agent
+/// runs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Image {
-    /// The repository path — `library/nginx`, `myorg/myimage`. No
-    /// host: where the bytes come from is not the caller's to say.
-    pub name: String,
     /// The manifest digest, `<algorithm>:<hex>`.
     ///
-    /// What actually identifies the image: a runtime hashes what it
-    /// pulls, so a source serving other bytes under it fails before
-    /// anything runs.
+    /// What identifies the image: a runtime hashes what it pulls, so
+    /// a source serving other bytes under it fails before anything
+    /// runs.
     pub digest: String,
+    /// Where the bytes may be fetched, each a registry and a path
+    /// there: see [`Reference`]. Absent when there are none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<Reference>,
+}
+```
+
+### `diverge_sdk::daemon::endpoints::agents::create::client::request::Reference`
+
+`diverge-sdk-rs/src/daemon/endpoints/agents/create/client/request/reference.rs`
+
+```rust
+/// One place the bytes an image's digest names may be fetched from: a
+/// registry, and the repository path there. A reference locates and
+/// does not identify — the digest does — so an image may carry none,
+/// one or several, and a template's id hashes it with none. The
+/// daemon hands the references to the provider it asks for the image,
+/// and the provider asks a referenced registry only where its own
+/// policy lists that registry.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Reference {
+    /// The registry's host, as a reference names it before its first
+    /// `/`: `docker.io`, `ghcr.io`, `registry.example.com:5000`. No
+    /// scheme and no path.
+    pub registry: String,
+    /// The repository path at that registry — `library/nginx`,
+    /// `myorg/myimage`. No host and no tag: the image is
+    /// `<registry>/<name>@<digest>` there.
+    pub name: String,
 }
 ```
 
@@ -2646,7 +2712,7 @@ pub enum ToolType {
 }
 ```
 
-Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::template::Template` (under `agents templates list`), `diverge_sdk::daemon::endpoints::agents::create::client::request::Image` (under `agents templates list`).
+Also reached, quoted above: `diverge_sdk::daemon::creator::Creator` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Agent` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Client` (under `providers outgoing list`), `diverge_sdk::daemon::creator::Tool` (under `providers outgoing list`), `diverge_sdk::daemon::template::Template` (under `agents templates list`), `diverge_sdk::daemon::endpoints::agents::create::client::request::Image` (under `agents templates list`), `diverge_sdk::daemon::endpoints::agents::create::client::request::Reference` (under `agents templates list`).
 
 ## `accounts list` (tag 47)
 

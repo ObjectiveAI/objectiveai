@@ -9,8 +9,8 @@ use super::Answerer;
 /// The daemon keeps no image: a provider asked whether the caller
 /// holds one is told no, and pulls from its own registries.
 impl OciStore for Answerer {
-    async fn holds(&self, _: &str, _: &str) -> bool {
-        false
+    async fn holds(&self, _: &str) -> Option<String> {
+        None
     }
 
     type Blob = stream::Empty<Bytes>;
