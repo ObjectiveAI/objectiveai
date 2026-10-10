@@ -252,9 +252,9 @@ async fn register(
             ));
         }
     };
-    let tools = agent.mcp_tools.clone();
+    let dependencies = agent.dependencies.clone();
     match registration::register(agent) {
-        Ok(()) => Ok((StatusCode::OK, Json(Response { tools }))),
+        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies }))),
         Err(_) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({

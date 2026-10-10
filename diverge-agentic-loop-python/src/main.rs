@@ -276,9 +276,9 @@ async fn register(Json(request): Json<register::request::Request>) -> Result<(St
             ));
         }
     };
-    let tools = agent.mcp_tools.clone();
+    let dependencies = agent.dependencies.clone();
     match registration::register(agent).await {
-        Ok(()) => Ok((StatusCode::OK, Json(Response { tools }))),
+        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies }))),
         Err(error) => Err((error.status(), Json(error.message()))),
     }
 }

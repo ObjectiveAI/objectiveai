@@ -1,6 +1,6 @@
 //! The Claude Code agent.
 
-use diverge_sdk::shared::containers::tools::Tool;
+use diverge_sdk::shared::containers::dependencies::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -32,10 +32,11 @@ pub struct Agent {
     /// [`thinking`](Self::thinking) on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
-    /// The tool containers this agent depends on, each one the caller
-    /// runs and serves to it as an MCP server, in the form the
-    /// provider's wire defines. Passed back whole as the registration's
-    /// answer, which is how the caller learns of them. Absent is none.
+    /// The tool containers this agent depends on, each a dependency
+    /// tool template the caller deploys and serves to it as an MCP
+    /// server, in the form the provider's wire defines. Passed back
+    /// whole as the registration's answer, which is how the caller
+    /// learns of them. Absent is none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub mcp_tools: Vec<Tool>,
+    pub dependencies: Vec<Template>,
 }

@@ -251,9 +251,9 @@ async fn register(Json(request): Json<diverge_sdk::container_proxy::inside::regi
             ));
         }
     };
-    let tools = agent.mcp_tools.clone();
+    let dependencies = agent.dependencies.clone();
     match registration::register(agent) {
-        Ok(()) => Ok((StatusCode::OK, Json(Response { tools }))),
+        Ok(()) => Ok((StatusCode::OK, Json(Response { dependencies }))),
         Err(_) => Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({

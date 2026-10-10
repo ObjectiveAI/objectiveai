@@ -4,9 +4,9 @@
 //! be, and every type here derives its JSON Schema so `GET /schema`
 //! can say so — [`schemars::schema_for!`] over [`Agent`] is the
 //! whole answer. One member is not this image's to define:
-//! `mcp_tools`, the tool containers the agent depends on, in the form
-//! the provider's wire gives a tool, passed back whole as the
-//! registration's answer.
+//! `dependencies`, the tool containers the agent depends on, each a
+//! dependency tool template in the form the provider's wire gives one,
+//! passed back whole as the registration's answer.
 //!
 //! Eliza (elizaOS, the TypeScript agent framework) is a LIBRARY the
 //! harness drives from an entry of its own: one `AgentRuntime` per
