@@ -58,7 +58,10 @@ more.
 | [Endpoints](/endpoints/) | the eighteen scopes a client opens on the Protocol |
 
 The reference crate, [`diverge-sdk`](https://docs.rs/diverge-sdk),
-implements the protocol and is versioned with this document. Where a
+defines the protocol — its wire, its frames and its client half — and
+is versioned with this document; the server half that implements it
+for a provider is the `protocol` module of the `diverge-provider`
+crate. Where a
 page of this document includes a file of the crate, the file is part
 of this specification.
 
