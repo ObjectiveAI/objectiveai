@@ -17,7 +17,7 @@ illustrator to decide about who connects to what.
 
 A tall poster, portrait, in a hand-made anarchist / conspiracy-theory
 style: xeroxed zine texture, black spray-paint stencil edges, red
-string pinned between things with real pins, torn newsprint scraps,
+and blue string pinned between things with real pins, torn newsprint scraps,
 smudged photocopier grain, a corkboard-and-concrete background, white
 chalk and red marker over black. Collage, not vector. Nothing is
 clean; everything is deliberate. No people, no faces, no logos.
@@ -115,7 +115,7 @@ stencilled numeral and nothing else:
 
 Twelve entities stand in the two bands above: in band one, two
 agents, one tool and five tags; in band two, one agent and three
-tags. From each of the twelve, exactly one red string runs down into
+tags. From each of the twelve, exactly one BLUE string runs down into
 the third band and pins into exactly one provider. Twelve strings,
 twelve pins. No entity has two strings; none has none. The
 assignment is exactly this:
@@ -149,15 +149,20 @@ leftmost tag on the poster, runs all the way to the mast on the far
 right; the courier runs from the middle of band one back to the
 transformer on the far left; the three tags under `CASSANDRA` fan
 out to all of `III`, `II`, `II` while she herself goes to `I`. The
-twelve strings cross and recross in a dense red web over the lower
+twelve strings cross and recross in a dense blue web over the lower
 half of the poster. Chaotic to look at, simple to trace: each has one
 start and one end.
 
 ### Everything else
 
-- All strings are the same red: the tag strings short, the provider
-  strings long, the `attached` string thicker, the `exposed` string
-  the longest. Nothing else connects anything.
+- Two colours of string, and the colour says what a string is.
+  Every string between containers is RED: the short tag strings
+  under each agent, the thicker `attached` string, and the long
+  `exposed` string, which is the longest red one. Every string down
+  to a provider is BLUE, the same cold blue for all twelve, so that
+  the red web of what-uses-what and the blue web of what-runs-where
+  can be read apart at a glance. No string is any other colour, and
+  nothing else connects anything.
 - Pins are real push-pins, drawn with a shadow.
 - Under a few cabinets a scrap of masking tape carries a scrawled
   marker note too small to read, as if someone annotated the wall
