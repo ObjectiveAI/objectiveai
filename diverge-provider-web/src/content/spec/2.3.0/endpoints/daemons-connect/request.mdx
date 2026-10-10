@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 18 followed by the acceptor’s identity and the connector’s mode as JSON.'
+summary: 'The payload is the tag byte 17 followed by the acceptor’s identity and the connector’s mode as JSON.'
 order: 1
 draft: false
 ---
@@ -9,7 +9,7 @@ The payload of the request is the tag byte followed by the request as
 JSON, read as [Notation](/endpoints/#notation) provides:
 
 ```text
-[18][connect JSON …]
+[17][connect JSON …]
 ```
 
 - **`daemon`.** The identity an acceptor is known by on this server:
@@ -21,7 +21,7 @@ JSON, read as [Notation](/endpoints/#notation) provides:
   is an object with the member `credential`, a string. The server
   relays the mode verbatim and does not read it.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `18`, and a payload whose bytes after the tag do not parse
+  is not `17`, and a payload whose bytes after the tag do not parse
   as the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 

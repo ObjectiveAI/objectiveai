@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 4 followed by the id of a running container and the path of a directory of it as JSON.'
+summary: 'The payload is the tag byte 2 followed by the id of a running container and the path of a directory of it as JSON.'
 order: 1
 draft: false
 ---
@@ -9,7 +9,7 @@ The payload of the request is the tag byte followed by the request as
 JSON, read as [Notation](/endpoints/#notation) provides:
 
 ```text
-[4][request JSON …]
+[2][request JSON …]
 ```
 
 - **`id`.** The id the response of a run carried. The server resolves
@@ -21,7 +21,7 @@ JSON, read as [Notation](/endpoints/#notation) provides:
   contains `/` or NUL; a path with such a component is answered with
   an error, not as malformed.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `4`, and a payload whose bytes after the tag do not parse as
+  is not `2`, and a payload whose bytes after the tag do not parse as
   the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 

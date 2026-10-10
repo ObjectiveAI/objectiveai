@@ -1,32 +1,28 @@
 ---
 title: 'Response'
-summary: 'The server sends the id, the volume that refused the run, or an error; after the id it sends one response for every connector attached and one for every connector leaving, and the finish that ends a running container carries no error.'
+summary: 'The server sends the id, the volume that refused the run, or an error, as the one response; after the id it sends nothing, and the finish that ends a running container carries no error.'
 order: 2
 draft: false
 ---
 
 The server sends the id, the volume that refused the run — held, or
-in another mode — or an error, as the first response on the scope.
-After the id, the server sends one response for every connector it
-attaches to the container and one for every connector whose scope on
-the container ends. The response finish ends the scope. No frame
-bearing the scope follows the finish.
+in another mode — or an error, as the one response on the scope.
+After the id, the server sends no response. The response finish ends
+the scope. No frame bearing the scope follows the finish.
 
 ```text
 [0][id JSON …]                  once, when the container is running
 [1][volume-held JSON …]         once, when a named volume is held
 [2][volume-mode JSON …]         once, when a named volume is not in the mode its mount names
 [3][error JSON …]               once, when it is not running for another reason
-[4][connector JSON …]           per connector attached, after the id
-[5][connector JSON …]           per connector whose scope ended, after the id
 ```
 
 - **The sequence.** Before the id, the server sends no response.
   The first response is the id, the volume that refused the run, or
   an error. A refusal and an error are each followed by the response
   finish, and the container is not running and will not be. After
-  the id, the server sends zero or more connector responses, then
-  the finish, and the finish carries no error: a run that ended after its id
+  the id, the server sends the finish and nothing before it, and the
+  finish carries no error: a run that ended after its id
   ended by the client's stop, by the container's own end, or by the
   client's connection ending. A response finish that no response
   precedes states that the request was not served, as
@@ -63,24 +59,6 @@ bearing the scope follows the finish.
   after that byte, exactly one JSON value in the form defined on the
   [volumes::list response](/endpoints/volumes-list/response/) page.
   This revision prescribes nothing about its content.
-- **A connector attached.** A payload whose first byte is `4`
-  carries, after that byte as JSON, an object with the members
-  `identity`, a string, the identity under which the server
-  authorized the connector's connection, and `address`, a string,
-  the peer address of that connection as the server observed it.
-  The server sends it once per
-  [containers::tools::connect](/endpoints/containers-tools-connect/)
-  scope it attaches to the container, after it has attached the
-  connector and before it serves any channel of the connect scope,
-  and never before the id. One identity connected twice is two
-  connectors and two responses.
-- **A connector gone.** A payload whose first byte is `5` carries
-  the same object as a `4`. The server sends it once for every
-  `4`, when that connect scope has ended — by the connector's
-  disconnect, by the connector's connection ending, or by the run
-  ending — and after the `4` it answers. A run that ends with
-  connectors attached sends a `5` for each of them before the
-  finish.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is none of `0`, `1`, `2` and `3`, a payload whose bytes after `0`
   do not parse as the id, a payload whose bytes after `1` or `2` do

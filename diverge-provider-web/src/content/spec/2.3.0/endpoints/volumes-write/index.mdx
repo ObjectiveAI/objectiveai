@@ -1,12 +1,12 @@
 ---
 title: 'volumes::write'
-summary: 'Tag 7: a client names a volume from its listing and one file in it; the server asks for the content on a channel of its own, puts the file in place whole, and answers Written or an error, and the finish, while the volume is mounted nowhere.'
-order: 8
+summary: 'Tag 6: a client names a volume from its listing and one file in it; the server asks for the content on a channel of its own, puts the file in place whole, and answers Written or an error, and the finish, while the volume is mounted nowhere.'
+order: 6
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`7` followed by the name of a volume and the path of one file in it.
+`6` followed by the name of a volume and the path of one file in it.
 The server opens one channel on the scope, the content, and the
 client answers on it with the bytes of the file; the server puts the
 file in place and answers with exactly one response, `Written` or an

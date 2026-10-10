@@ -1,12 +1,12 @@
 ---
 title: 'volumes::list'
-summary: 'Tag 4: a client asks which volumes are available to it; the server sends every such volume as added, says when the listing is whole, keeps sending as volumes are created, edited and deleted, and finishes when the client stops.'
-order: 5
+summary: 'Tag 3: a client asks which volumes are available to it; the server sends every such volume as added, says when the listing is whole, keeps sending as volumes are created, edited and deleted, and finishes when the client stops.'
+order: 3
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`5` and nothing more. The server sends every volume available to the
+`3` and nothing more. The server sends every volume available to the
 client, one response each, then the word that the listing is whole,
 and keeps the scope open: a volume created is sent as added, a volume
 edited as changed, a volume deleted as removed, for as long as the

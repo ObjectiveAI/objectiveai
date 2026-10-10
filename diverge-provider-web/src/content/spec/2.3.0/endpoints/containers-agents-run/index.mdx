@@ -109,8 +109,8 @@ about the client, which may open any channel at any time.
    or from any other id. The server sends it as exactly one
    response. From that moment the container
    is running for the client, and a
-   [containers::tools::connect](/endpoints/containers-tools-connect/)
-   request naming the id finds it. After the id, the server sends the
+   [containers::serve](/endpoints/containers-serve/) request of the
+   client's naming the id finds it. After the id, the server sends the
    agent's chunks as they come, each as one response, and no other
    response on the scope.
 9. **The server serves the scope.** Concurrently, for as long as the

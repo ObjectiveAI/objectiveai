@@ -1,12 +1,12 @@
 ---
 title: 'daemons::connect'
-summary: 'Tag 18: a client, the daemon connector, names an acceptor by identity and presents its mode; the server announces the connection to the acceptor, answers the byte 0 when the acceptor takes it, and relays every frame both ways, unread, until either side hangs up.'
-order: 19
+summary: 'Tag 17: a client, the daemon connector, names an acceptor by identity and presents its mode; the server announces the connection to the acceptor, answers the byte 0 when the acceptor takes it, and relays every frame both ways, unread, until either side hangs up.'
+order: 17
 draft: false
 ---
 
 A client, the daemon connector, opens the scope with a request whose
-payload is the tag byte `18` followed by the request as JSON: the
+payload is the tag byte `17` followed by the request as JSON: the
 identity of an acceptor, and the mode the connector authenticates to
 it in. The server announces the connection on the accept scope held
 under that identity, and, when the acceptor takes it, sends the byte
