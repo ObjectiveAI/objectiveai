@@ -65,7 +65,8 @@ pub enum Frame<'a> {
     /// The other half of a pull; see
     /// [`oci`](crate::shared::containers::oci).
     OciBlob(oci::blob::request::Request),
-    /// Whether the caller holds an image, by name and digest. Tag `2`.
+    /// Whether the caller holds an image, by digest, and under what
+    /// name. Tag `2`.
     ///
     /// Opened by a provider that would take the image from the caller,
     /// before it asks for anything of it; see

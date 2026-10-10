@@ -13,8 +13,8 @@ use crate::daemon::key;
 use crate::shared::containers::request::Image;
 
 /// `diverge.network/image`: the image the container on the other
-/// side was made from, `{"name":…,"digest":…}` as the run request
-/// named it. Absent when the daemon does not know it — a tool it
+/// side was made from, `{"digest":…,"references":…}` as the run
+/// request named it. Absent when the daemon does not know it — a tool it
 /// joined through its provider rather than ran.
 pub const IMAGE: &str = "diverge.network/image";
 

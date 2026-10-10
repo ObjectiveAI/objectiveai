@@ -57,7 +57,8 @@ pub struct Template<Type> {
     /// container, and read by nothing but a person.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    /// The image: a name and a digest. See [`Image`].
+    /// The image: a digest and its references. See [`Image`]; the id
+    /// hashes it with the references absent, see [`hashed`](Self::hashed).
     pub image: Image,
     /// How much memory the container may have, in BYTES.
     ///
@@ -90,4 +91,16 @@ pub struct Template<Type> {
     /// that typed it would have to be revised for every image that ever
     /// ran. It is handed to the container and not read here.
     pub arguments: Value,
+}
+
+impl<Type: Clone> Template<Type> {
+    /// The template as its id hashes it: the same, with the image's
+    /// references absent, since where the bytes may be fetched is not
+    /// what the template is.
+    pub fn hashed(&self) -> Template<Type> {
+        Template {
+            image: self.image.hashed(),
+            ..self.clone()
+        }
+    }
 }

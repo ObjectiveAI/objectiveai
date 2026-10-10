@@ -38,8 +38,9 @@ use crate::shared::permission::Grant;
 /// There is no name. A dependency is named by its ID: the lowercase
 /// hexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)
 /// bytes — this template as compact JSON, absent members omitted,
-/// every object key sorted at every depth, the `arguments` included
-/// — sixty-four characters, which the caller computes. Two
+/// the image's `references` absent too, every object key sorted at
+/// every depth, the `arguments` included — sixty-four characters,
+/// which the caller computes over [`hashed`](Self::hashed). Two
 /// declarations with one id are one dependency, and a list that
 /// declares one twice is refused; the same template deployed for the
 /// same agent, on whatever provider, is the same dependency with the
@@ -49,8 +50,8 @@ use crate::shared::permission::Grant;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Template {
-    /// The image: a name and a digest, the pair a
-    /// `containers::tools::run` request names.
+    /// The image: a digest and its references, as a
+    /// `containers::tools::run` request names one.
     pub image: Image,
     /// The memory the tool container needs, in bytes.
     pub memory: u64,
@@ -81,4 +82,16 @@ pub struct Template {
     /// nothing through the daemon.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub permissions: Vec<Grant>,
+}
+
+impl Template {
+    /// The template as its id hashes it: the same, with the image's
+    /// references absent, since where the bytes may be fetched is not
+    /// what the tool is.
+    pub fn hashed(&self) -> Template {
+        Template {
+            image: self.image.hashed(),
+            ..self.clone()
+        }
+    }
 }

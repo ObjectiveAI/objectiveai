@@ -1,4 +1,4 @@
-//! The ask: a name and a digest.
+//! The ask: a digest.
 
 mod request;
 

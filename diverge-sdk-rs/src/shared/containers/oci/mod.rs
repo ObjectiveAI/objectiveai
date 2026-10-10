@@ -3,7 +3,8 @@
 //!
 //! A provider that would take a run's image from the caller asks
 //! here, on the run scope. First whether the caller [`has`] it at
-//! all, by name and digest. Then, running a registry — the read side
+//! all, by digest — a caller that does answers the repository path it
+//! holds it under, which the provider's registry serves it from. Then, running a registry — the read side
 //! of the OCI Distribution API, on its own loopback — that its
 //! container runtime pulls from as from any registry, whatever that
 //! registry does not hold: a [`manifest`] by digest, a [`blob`] by

@@ -20,9 +20,11 @@
 //!
 //! The lowercase hexadecimal SHA-256 of the template's
 //! [`canonical`](crate::shared::canonical) bytes — its compact JSON,
-//! absent members omitted, no whitespace, every object key sorted at
-//! every depth, the `arguments` and every map inside them included.
-//! Sixty-four characters. The daemon computes it on a create and
+//! absent members omitted, the image's `references` absent too, since
+//! one image under different names is one template, no whitespace,
+//! every object key sorted at every depth, the `arguments` and every
+//! map inside them included; see [`Template::hashed`]. Sixty-four
+//! characters. The daemon computes it on a create and
 //! answers it; a caller may compute it the same way and need not.
 
 mod template;

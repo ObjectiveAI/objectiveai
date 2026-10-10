@@ -11,17 +11,16 @@ use crate::provider::client::OciStore;
 use crate::wire::client::handle::Handle;
 use crate::shared::containers::oci;
 
-/// One frame — held or not — then the finish.
+/// One frame — not held, or held under a name — then the finish.
 pub(crate) async fn has<O: OciStore>(
     handle: &Handle,
     scope: u32,
     channel: u32,
-    name: String,
     digest: String,
     store: Arc<O>,
 ) -> Result<(), Stop> {
-    let held = store.holds(&name, &digest).await;
-    respond(handle, scope, channel, &oci::has::response::Frame { held }).await?;
+    let name = store.holds(&digest).await;
+    respond(handle, scope, channel, &oci::has::response::Frame { name }).await?;
     finish(handle, scope, channel).await
 }
 

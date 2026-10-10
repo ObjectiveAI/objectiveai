@@ -24,8 +24,8 @@ pub enum Ask {
     OciManifest(String),
     /// A blob of an image the caller holds, by digest.
     OciBlob(String),
-    /// Whether the caller holds an image: its name, its digest.
-    OciHas(String, String),
+    /// Whether the caller holds an image: its digest.
+    OciHas(String),
     /// The dependencies the container declared, to deploy, with the
     /// run's id.
     Dependencies {
@@ -89,7 +89,7 @@ impl From<agents::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
-            Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
+            Frame::OciHas(request) => Ask::OciHas(request.digest),
             Frame::Dependencies(request) => Ask::Dependencies {
                 id: request.id.into_owned(),
                 dependencies: request.dependencies.into_owned(),
@@ -148,7 +148,7 @@ impl From<tools::run::server::channel_request::Frame<'_>> for Ask {
         match frame {
             Frame::OciManifest(request) => Ask::OciManifest(request.digest),
             Frame::OciBlob(request) => Ask::OciBlob(request.digest),
-            Frame::OciHas(request) => Ask::OciHas(request.name, request.digest),
+            Frame::OciHas(request) => Ask::OciHas(request.digest),
             Frame::Write(request) => Ask::Write(request.write_id),
             Frame::Postgres(request) => Ask::Postgres(request.connection_id),
             Frame::Daemon(request) => Ask::Daemon(request.connection_id),

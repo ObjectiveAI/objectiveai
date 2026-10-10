@@ -1,8 +1,8 @@
 //! What a caller sends back during a run, one module per kind of
 //! channel the provider opens.
 //!
-//! [`oci_has`] says whether the caller holds the image, and
-//! [`oci_manifest`] and [`oci_blob`] hand it over when the provider
+//! [`oci_has`] says whether the caller holds the image and under
+//! what name, and [`oci_manifest`] and [`oci_blob`] hand it over when the provider
 //! takes it from there; [`write_bytes`] streams the content of a file
 //! being written. The rest answer the CONTAINER, relayed: [`postgres`]
 //! is what its database said, [`daemon`] the server frames that answer

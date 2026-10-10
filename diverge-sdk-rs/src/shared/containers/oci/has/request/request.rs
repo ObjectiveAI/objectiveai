@@ -6,13 +6,11 @@ use serde_json::Error;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// The image, as the run request named it: the digest is what is
-/// asked about, and the name rides with it for a store that keys by
-/// both.
+/// The digest, as the run request named it, and deliberately nothing
+/// else: the caller's store is keyed by digest, and the name the
+/// caller holds the image under is the caller's to answer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Request {
-    /// The repository path, as the run request has it.
-    pub name: String,
     /// The manifest digest, `<algorithm>:<hex>`.
     pub digest: String,
 }

@@ -15,12 +15,14 @@ use super::Registry;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Podman {
-    /// The registries the provider looks in, all at once and beside
-    /// the caller, for an image it does not hold itself, each with the
-    /// credential the provider presents to it, if any; the first to
-    /// have the image is pulled from. The provider's own registry,
-    /// which serves what a caller holds, is not listed here and needs
-    /// no entry.
+    /// The registries the provider will look in when an image's
+    /// references name them, each with the credential the provider
+    /// presents to it, if any: for an image it does not hold, every
+    /// referenced registry listed here is asked at once, beside the
+    /// caller, and the first to have the image is pulled from; a
+    /// reference naming a registry not listed here is ignored. The
+    /// provider's own registry, which serves what a caller holds, is
+    /// not listed here and needs no entry.
     pub registries: Vec<Registry>,
     /// The directory podman's data is kept under: the image cache,
     /// what a container writes over its image, and what holds a
@@ -74,7 +76,7 @@ pub struct Podman {
 }
 
 /// What a provider runs with before it has written a line of
-/// configuration: the three registries a caller may name, `docker.io`
+/// configuration: the three registries a reference may name, `docker.io`
 /// first, each pulled from anonymously; podman's data under
 /// `provider/podman_data` beside `config.yaml`; a 32 GiB image cache; 32 GiB
 /// of overlay disk; and 8 GiB of memory.

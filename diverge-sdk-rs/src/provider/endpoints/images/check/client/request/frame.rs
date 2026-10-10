@@ -2,36 +2,33 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::shared::containers::request::Image;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// Ask a provider whether it can supply a particular image.
+/// Ask a provider whether it can supply a particular image: the
+/// [`Image`] — its digest, and the references under which its bytes
+/// may be fetched — and nothing else.
 ///
-/// No registry. The digest is the image's identity and a registry is
-/// only a locator — any registry serving these bytes serves the same
-/// image, because a client recomputes the hash on pull and rejects a
+/// The digest is the image's identity and a reference is only a
+/// locator — any registry serving these bytes serves the same image,
+/// because a client recomputes the hash on pull and rejects a
 /// mismatch. So WHERE a provider gets it is the provider's business:
-/// its own mirror, a pull-through cache, a private registry it has
-/// credentials for, or something it already holds locally.
+/// what it already holds, by digest, first; then any referenced
+/// registry its own policy lists, ignoring a reference naming one it
+/// does not; a mirror or a private registry of its own besides. The
+/// references are where the client knows the bytes to be, and a
+/// client that knows of none sends none.
 ///
 /// That is also what makes proprietary images answerable. A provider
-/// with access to an image no public registry serves can still say
-/// yes, and a caller naming a registry it cannot reach would be
-/// asserting something it has no standing to assert.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub struct Frame {
-    /// The repository path — `library/nginx`, `myorg/myimage`.
-    ///
-    /// Kept alongside the digest because a digest alone is not
-    /// resolvable: every registry API is repository-scoped, and there
-    /// is no lookup from a digest to wherever it lives.
-    pub name: String,
-    /// The manifest digest, `<algorithm>:<hex>`.
-    ///
-    /// What actually identifies the image. Unlike a tag, it cannot be
-    /// repointed at different content.
-    pub digest: String,
-}
+/// with access to an image no referenced registry serves can still
+/// say yes, and a client naming a registry the provider cannot reach
+/// has asserted nothing the provider is bound by.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Frame(
+    /// The image asked about.
+    pub Image,
+);
 
 /// This frame's tag among the scope-opening requests.
 ///
@@ -53,7 +50,7 @@ impl Encode for Frame {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(&[TAG]);
-        serde_json::to_writer(out, self)
+        serde_json::to_writer(out, &self.0)
     }
 }
 
@@ -66,7 +63,7 @@ impl Decode<'_> for Frame {
         if *tag != TAG {
             return Err(FrameError::UnexpectedTag(*tag));
         }
-        serde_json::from_slice(rest).map_err(FrameError::Body)
+        serde_json::from_slice(rest).map(Frame).map_err(FrameError::Body)
     }
 }
 

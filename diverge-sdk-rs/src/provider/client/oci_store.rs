@@ -28,12 +28,13 @@ pub struct Manifest {
 /// sends as the empty finish, the wire's "could not serve". There is
 /// no error vocabulary on this exchange; a store that cannot read
 /// what it holds answers as if it did not. A caller that holds no
-/// image at all answers `false` and `None` to everything, and a
+/// image at all answers `None` to everything, and a
 /// provider that can get the image elsewhere runs it all the same.
 pub trait OciStore: Send + Sync {
-    /// Whether the image is held: its manifest under `digest`, as the
-    /// run request named it by `name`.
-    fn holds(&self, name: &str, digest: &str) -> impl Future<Output = bool> + Send;
+    /// Whether the image is held — its manifest under `digest` — and
+    /// the repository path it is held under, which the provider's
+    /// registry serves it as; `None` for one not held.
+    fn holds(&self, digest: &str) -> impl Future<Output = Option<String>> + Send;
 
     /// A blob's pieces, in order. Piece sizes are the store's; the
     /// executor re-splits at [`CHUNK_SIZE`](crate::CHUNK_SIZE).

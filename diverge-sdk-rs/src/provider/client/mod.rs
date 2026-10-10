@@ -18,7 +18,7 @@
 //!
 //! | trait | answers |
 //! |-------|---------|
-//! | [`OciStore`] | whether the caller holds an image, and its manifest and blobs |
+//! | [`OciStore`] | whether the caller holds an image, under what name, and its manifest and blobs |
 //! | [`DependencyDeployer`] | the dependencies the container declared, each a tool container, run |
 //! | [`PostgresDialer`] | the container's database connections |
 //! | [`Daemon`] | the frames of the container's daemon connection, answered by the daemon's session for it |

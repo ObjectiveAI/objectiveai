@@ -3,7 +3,8 @@
 //!
 //! An AGENT container's program answers its registration with the
 //! tools it depends on — each a [`Template`]: a tool container the
-//! caller runs, by its image, its limits and its arguments; the
+//! caller runs, by its image — a digest, and where its bytes may be
+//! fetched — its limits and its arguments; the
 //! agent's own files and directories the caller serves live into it;
 //! which database it gets; the grants its account holds — and named
 //! by its id, the hash of its canonical bytes, which the caller

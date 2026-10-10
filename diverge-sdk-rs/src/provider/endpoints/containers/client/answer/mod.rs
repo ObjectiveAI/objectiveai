@@ -46,7 +46,7 @@ pub(crate) async fn answer<O, T, P, D, V, M, F>(
     let _ = match ask {
         Ask::OciManifest(digest) => oci::manifest(&handle, scope, channel, digest, answerers.oci).await,
         Ask::OciBlob(digest) => oci::blob(&handle, scope, channel, digest, answerers.oci).await,
-        Ask::OciHas(name, digest) => oci::has(&handle, scope, channel, name, digest, answerers.oci).await,
+        Ask::OciHas(digest) => oci::has(&handle, scope, channel, digest, answerers.oci).await,
         Ask::Dependencies { id, dependencies: declared } => {
             dependencies::dependencies(&handle, scope, channel, id, declared, answerers.dependencies).await
         }
