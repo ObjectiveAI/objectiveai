@@ -26,6 +26,10 @@
 //! alone, which a dependency tool template carries and the daemon's
 //! own grants are built of.
 //!
+//! [`canonical`] is the one form a value is hashed in — compact JSON
+//! with every object key sorted at every depth — which every id that
+//! is a hash is computed over.
+//!
 //! [`error`] is the odd one out: a shape nothing carries yet. It is
 //! here rather than beside whichever frame first needs it, because a
 //! failure that means different things in different modules is a
@@ -37,6 +41,7 @@
 //! [`Root::update`](filetree::response::Root::update) is exactly the
 //! kind of thing that would stop agreeing quietly.
 
+pub mod canonical;
 pub mod containers;
 pub mod error;
 pub mod filetree;

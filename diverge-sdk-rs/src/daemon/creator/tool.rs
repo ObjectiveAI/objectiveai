@@ -8,7 +8,7 @@ use super::Agent;
 /// from a template, named once and for all by its template and its
 /// index, and by its name as it was called; or a dependency tool,
 /// named once and for all by the agent it was deployed for and the
-/// name its template declared. A connected tool makes nothing.
+/// template it was deployed from. A connected tool makes nothing.
 /// Externally tagged on the wire, snake case: `{"record":{…}}` or
 /// `{"dependency":{…}}`, beside the creator's own `type`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub enum Tool {
     Dependency {
         /// The agent it was deployed for: see [`Agent`].
         agent: Agent,
-        /// The name the agent's program declared it under.
-        name: String,
+        /// The dependency tool template it was deployed from, by id.
+        template: String,
     },
 }

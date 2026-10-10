@@ -34,17 +34,21 @@ use crate::shared::permission::Grant;
 /// The daemon's own tool templates are another thing: a record the
 /// daemon keeps, named by a hash, made by a request; this is what an
 /// image declares and a caller deploys.
+///
+/// There is no name. A dependency is named by its ID: the lowercase
+/// hexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)
+/// bytes — this template as compact JSON, absent members omitted,
+/// every object key sorted at every depth, the `arguments` included
+/// — sixty-four characters, which the caller computes. Two
+/// declarations with one id are one dependency, and a list that
+/// declares one twice is refused; the same template deployed for the
+/// same agent, on whatever provider, is the same dependency with the
+/// same database scope. The caller labels the tool's MCP tools by the
+/// id when it merges lists, and the program knows which tool serves
+/// each by the keys under `_meta`, see [`shared::mcp`](crate::shared::mcp).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Template {
-    /// What the program calls it: the caller's handle for the tool
-    /// container, and the label the caller uses when it prefixes the
-    /// tool's MCP tools as it merges lists. Unique in the list. The
-    /// program never finds a server by it — it calls tools by whatever
-    /// names the caller's merged list shows, and knows which tool
-    /// serves each by the keys under `_meta`, see
-    /// [`shared::mcp`](crate::shared::mcp).
-    pub name: String,
     /// The image: a name and a digest, the pair a
     /// `containers::tools::run` request names.
     pub image: Image,

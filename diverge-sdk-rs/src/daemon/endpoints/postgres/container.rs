@@ -15,8 +15,17 @@ use crate::daemon::reference;
 /// shares with, see [`Dependency`]. On the wire one object with one
 /// member, named for the family: `{"agent":{"template":…,"index":…}}`,
 /// `{"tool":{"provider":…,"id":…}}` or
-/// `{"dependency":{"parent":…,"name":…}}`. The daemon's role and
-/// schema for the scope is a hash of exactly this JSON.
+/// `{"dependency":{"parent":…,"template":…}}`. The daemon's role
+/// and schema for the scope name its OWNER first: `diverge_`, the
+/// first twenty hexadecimal characters of the SHA-256 of the owner's
+/// canonical bytes — the agent or the tool the scope is a container's
+/// own, or the dependency's parent — then the first twenty of the
+/// SHA-256 of the scope's part within the owner, `null` for a
+/// container's own scope and the dependency's template id as a JSON
+/// string for a dependency's; so that everything an agent owns, its
+/// own scope and its per-instance dependencies' scopes, shares its
+/// prefix and goes with it when it is deleted, and what an agent
+/// template owns does not.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Container {

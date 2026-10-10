@@ -20,9 +20,10 @@ use super::Origin;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tool {
     /// The name, as its create or its connect gave it, if it gave
-    /// one, or the name a dependency was declared under; absent for a
-    /// tool made with none, which is reached by its template and its
-    /// index, or by the provider and id it joined, alone.
+    /// one; absent for a tool made with none, which is reached by its
+    /// template and its index, or by the provider and id it joined,
+    /// alone, and absent for a dependency, which has none and is
+    /// reached by its agent and its template.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// Where it comes from, and what the daemon knows of its

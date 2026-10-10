@@ -43,8 +43,8 @@ use crate::daemon::endpoints::agents::create::client::request::Image;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Template<Type> {
     /// What the template is for: the one value the family's type
-    /// admits, `agent` or `tool`. First, so the hashed JSON leads
-    /// with it.
+    /// admits, `agent` or `tool`. Inside the hash, so the two kinds
+    /// never hash the same.
     pub r#type: Type,
     /// How to make a container from this, in words, for whoever does:
     /// what the create has to supply that a template cannot name — the

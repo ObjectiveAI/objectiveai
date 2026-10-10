@@ -37,14 +37,15 @@ pub enum Tool {
         /// The container's id, as the connect named it.
         id: String,
     },
-    /// By the agent it was deployed for and its declared name:
-    /// `{"agent":…,"dependency":…}`. A dependency tool only, which
+    /// By the agent it was deployed for and its template:
+    /// `{"agent":…,"template":…}`. A dependency tool only, which
     /// lives while its agent's container runs: found while it does,
     /// and nothing after.
     Dependency {
         /// The agent, by its name or once and for all: see [`Agent`].
         agent: Agent,
-        /// The name the agent's program declared the dependency under.
-        dependency: String,
+        /// The dependency tool template it was deployed from, by id:
+        /// the hash of the template's canonical bytes.
+        template: String,
     },
 }

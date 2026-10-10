@@ -5,8 +5,9 @@
 //! tools it depends on — each a [`Template`]: a tool container the
 //! caller runs, by its image, its limits and its arguments; the
 //! agent's own files and directories the caller serves live into it;
-//! which database it gets; the grants its account holds; and the name
-//! the caller serves it to the program under. The proxy carries the
+//! which database it gets; the grants its account holds — and named
+//! by its id, the hash of its canonical bytes, which the caller
+//! serves it to the program under. The proxy carries the
 //! list on the agents begin's `Begun`; the provider, when the list is
 //! not empty, opens one channel on the run scope with
 //! [`request::Request`], the list verbatim, and the caller answers

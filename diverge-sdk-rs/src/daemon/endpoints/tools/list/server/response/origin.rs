@@ -21,7 +21,7 @@ use crate::shared::containers::dependencies::Template;
 /// more, and no number is given twice, so the fixed part and the
 /// index name the tool once and for all. A dependency tool is no
 /// record: it is listed while its agent's container runs and not
-/// after, named once and for all by its agent and its declared name.
+/// after, named once and for all by its agent and its template's id.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Origin {
@@ -66,15 +66,17 @@ pub enum Origin {
     Dependency {
         /// The agent it was deployed for: see [`key::Agent`].
         agent: key::Agent,
-        /// The name the agent's program declared it under, unique
-        /// among that agent's dependencies: what the agent calls its
-        /// tools by, as a prefix.
-        name: String,
-        /// The template it was deployed from, as the program declared
-        /// it: its image, its limits, its arguments, which database
-        /// scope it gets, the agent's paths served into it, and the
-        /// grants its requests are judged by. See [`Template`].
-        template: Template,
+        /// The dependency tool template it was deployed from, by id:
+        /// the lowercase hexadecimal SHA-256 of the template's
+        /// canonical bytes, unique among that agent's dependencies.
+        /// The agent calls the tool's MCP tools by its first eight
+        /// characters, as a prefix.
+        template: String,
+        /// The template whole, as the program declared it: its image,
+        /// its limits, its arguments, which database scope it gets,
+        /// the agent's paths served into it, and the grants its
+        /// requests are judged by. See [`Template`].
+        declared: Template,
         /// The provider the container runs on. See [`Provider`].
         provider: Provider,
         /// The container's id, as the provider's run answered it.

@@ -23,8 +23,9 @@ pub struct Filter {
     /// Any one of these names, as a create or a connect gave them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub names: Vec<String>,
-    /// A created tool made from any one of these templates, by id; a
-    /// connected tool matches none of them.
+    /// A created tool made from any one of these templates, by id,
+    /// or a dependency deployed from any one of them, by the id of
+    /// its template; a connected tool matches none of them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
     /// Made by any one of these, directly: see

@@ -14,8 +14,10 @@ use crate::daemon::reference;
 pub struct Dependency {
     /// Whose the scope is: see [`Parent`].
     pub parent: Parent,
-    /// The name the agent's program declared the dependency under.
-    pub name: String,
+    /// The dependency tool template, by id: the hash of its canonical
+    /// bytes. The same template deployed again for the same parent,
+    /// on whatever provider, reaches the same scope.
+    pub template: String,
 }
 
 /// What a dependency tool's scope is shared with: the one agent it
