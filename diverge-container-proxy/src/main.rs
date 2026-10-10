@@ -21,7 +21,7 @@
 //!
 //! For either kind of container the proxy registers the arguments
 //! with the program's own server on the loopback when the server
-//! begins, hands the server the tools the program answered with, and
+//! begins, hands the server the dependencies the program answered with, and
 //! asks the program for their schema when the server asks. It sets
 //! nothing under `_meta` on any MCP exchange it relays, in either
 //! direction, and nothing on any chunk the agent says: who is on

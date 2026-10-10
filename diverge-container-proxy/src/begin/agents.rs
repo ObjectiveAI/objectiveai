@@ -21,7 +21,7 @@ use crate::{agent, inside, program};
 /// the first goes on. Otherwise the arguments are registered with the
 /// program's server — its refusal is the `Error`, in its own words,
 /// and the connection has not begun — and then `Begun` goes out
-/// carrying the tools the program answered with, the
+/// carrying the dependencies the program answered with, the
 /// scope is published to every surface inside the container, the
 /// queue's driver and the resident notifications ask are started,
 /// and every channel the server opens on the scope is served on a
@@ -33,8 +33,8 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         refuse(&scope, begun()).await;
         return;
     }
-    let tools = match program::register(&proxy.upstream, frame.arguments).await {
-        Ok(tools) => tools,
+    let dependencies = match program::register(&proxy.upstream, frame.arguments).await {
+        Ok(dependencies) => dependencies,
         Err(error) => {
             proxy.release_begin().await;
             refuse(&scope, error).await;
@@ -42,7 +42,7 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         }
     };
     let scope = Arc::new(scope);
-    if let Some(payload) = encoded(&response::Frame::Begun(tools)) {
+    if let Some(payload) = encoded(&response::Frame::Begun(dependencies)) {
         scope.send_response(&payload).await;
     }
     proxy.publish(Begun {
