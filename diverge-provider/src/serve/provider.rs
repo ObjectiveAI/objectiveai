@@ -9,6 +9,7 @@ use tokio::sync::Mutex;
 
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::server::authorization::Authorization;
+use diverge_sdk::provider::server::acceptors::Acceptors;
 use diverge_sdk::provider::server::directory::Directory;
 use diverge_sdk::provider::server::volume_changes::VolumeChanges;
 use diverge_sdk::provider::server::handle::handle;
@@ -29,8 +30,10 @@ use crate::Limit;
 
 /// The provider's pieces, built once and shared by every connection:
 /// the SDK takes each behind an `Arc`, and the directory of running
-/// containers is one per provider by the SDK's own rule, since a
-/// connector on one connection names a container run on another.
+/// containers and the acceptors of daemon connections are one per
+/// provider by the SDK's own rule, since a connector on one
+/// connection names a container run, or a daemon accepting, on
+/// another.
 #[derive(Debug)]
 pub struct Provider {
     /// The `auth` section, from which an authorizer is made for each
@@ -48,6 +51,9 @@ pub struct Provider {
     registry: Arc<ImageRegistry>,
     /// The running containers, one map for the provider.
     directory: Arc<Directory>,
+    /// The daemons accepting connections from other daemons, one map
+    /// for the provider.
+    acceptors: Arc<Acceptors>,
     /// The peers connected now, one per identity and per credential.
     peers: Arc<Peers>,
     /// Every change to any caller's volumes, for the listings open.
@@ -91,6 +97,7 @@ impl Provider {
             checker,
             registry,
             directory: Arc::new(Directory::new()),
+            acceptors: Arc::new(Acceptors::new()),
             peers: Arc::new(Peers::default()),
             volume_changes: Arc::new(VolumeChanges::new()),
         })
@@ -131,6 +138,7 @@ impl Provider {
             Arc::clone(&self.registry),
             Arc::clone(&self.directory),
             Arc::clone(&self.volume_changes),
+            Arc::clone(&self.acceptors),
         )
         .await;
     }

@@ -15,7 +15,8 @@
 //! again five seconds after it ends or fails, for the provider's
 //! life. [`Provider`] is what every connection is served with — the
 //! deployer, the volumes, the image checker, the registry, and the
-//! one directory of running containers — built once by
+//! one directory of running containers and one registry of accepting
+//! daemons — built once by
 //! [`Provider::start`]; [`run`] builds it, listens and dials, waits
 //! for Ctrl-C or SIGTERM, and stops: the listener drained, the dials
 //! ended, every container and loop mount of this provider swept away,
