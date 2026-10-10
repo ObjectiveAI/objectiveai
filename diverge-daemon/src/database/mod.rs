@@ -14,7 +14,11 @@
 //! scope of, or the agent or the agent template a dependency's scope
 //! is shared under — then twenty of the hash of the scope's part
 //! within the owner, so that everything an owner has shares its
-//! prefix and is swept with it at its delete. Made at the container's
+//! prefix and is swept with it at its delete: an agent's own scope
+//! and its `per_agent_instance` dependencies' at the agent's, an
+//! agent template's `per_agent_template` scopes at the template's, a
+//! tool's own at the tool's; a tool template owns none. Made at the
+//! container's
 //! first connection, in one transaction under an advisory lock, by
 //! statements every Postgres since 10 takes — the role with a
 //! SCRAM-SHA-256 verifier, a member of nothing, able to create

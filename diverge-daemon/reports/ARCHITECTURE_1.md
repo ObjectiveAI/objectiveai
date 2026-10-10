@@ -251,7 +251,10 @@ Two populations, kept apart by type and by fate:
   scope and the scope of every `per_agent_instance` dependency ever
   deployed for it are swept from the catalog by the agent's prefix at
   its delete, logs and all; a `per_agent_template` scope is the agent
-  template's and is never swept by an agent's delete (2026-10-09).
+  template's, never swept by an agent's delete, and swept by the
+  template's delete, which only happens once no agent is left of it;
+  a tool's own scope goes with the tool, and a tool template owns
+  none (2026-10-09).
   Every id that is a hash — a template's, an owner's — is over
   canonical bytes: compact JSON, every object key sorted at every
   depth, `arguments` included (`diverge_sdk::shared::canonical`). The daemon performs the handshake for the container and relays

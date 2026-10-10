@@ -6,6 +6,7 @@ use diverge_sdk::daemon::endpoints::agents::templates::delete::server::response:
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use crate::daemon::{Daemon, Kind};
+use crate::database::{self, Owner};
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store::{self, agents_templates};
@@ -23,8 +24,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for a template the grants do not reach; `InUse` while some agent
-/// was made from it; else the template deleted — its row kept, so one
-/// made anew is this one again.
+/// was made from it; else the template deleted — the compartment of
+/// every `per_agent_template` dependency its agents ever had dropped
+/// with its every table, its row kept, so one made anew is this one
+/// again, with fresh compartments.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -44,6 +47,13 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     if used {
         return Ok(Frame::InUse);
     }
+    database::provision::sweep(
+        &mut tx,
+        &database::prefix_of(&Owner::AgentTemplate {
+            template: record.id.clone(),
+        }),
+    )
+    .await?;
     agents_templates::delete(&mut tx, &record.id).await?;
     tx.commit().await?;
     daemon.live.changed(Kind::AgentsTemplates);
