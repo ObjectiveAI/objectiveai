@@ -88,8 +88,9 @@ are read at list time.
   (the log's length on disk).
 - **`Tool`** — `name`, `origin` (created from a template, connected
   through a provider, or a dependency deployed for an agent — each
-  with its index, the dependency with its agent, its declared name,
-  its template whole, its provider and its container id), `creator`,
+  with its index, the dependency with its agent, its template's id
+  and the template whole, its provider and its container id — a
+  dependency has no `name`), `creator`,
   `created`, `last_active`, `agents` (keys of the agents it is attached
   to), `admissions`, `tags`; live: `active` (`Live.tools`). A
   dependency tool is no record: it is an item while its run is in

@@ -206,19 +206,20 @@ impl ToolHandle {
 }
 
 /// What a dependency tool is, beyond a tool run: whose it is, what
-/// it was deployed from, and when.
+/// it was deployed from — by id, and whole — and when.
 pub struct Dependency {
     /// Its number among the dependencies deployed since the start.
     pub id: DependencyId,
     /// The agent it was deployed for.
     pub agent: AgentId,
     /// That agent, once and for all, with its name: what names the
-    /// dependency beside its own name.
+    /// dependency beside its template.
     pub agent_key: key::Agent,
-    /// The name the agent's program declared it under.
-    pub name: String,
+    /// The template it was deployed from, by id: the hash of its
+    /// canonical bytes, unique among the agent's dependencies.
+    pub template: String,
     /// The template it was deployed from, whole.
-    pub template: Template,
+    pub declared: Template,
     /// When it was deployed.
     pub started: DateTime<Utc>,
 }

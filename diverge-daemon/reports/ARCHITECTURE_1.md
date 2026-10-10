@@ -225,9 +225,11 @@ Two populations, kept apart by type and by fate:
   reading tool requests — get, filetree, download, transfer out — and
   refused by every changing one, since it is its agent's. Its
   `/daemon` connections are served under its template's grants, fixed
-  at the deploy; its database scope is named by its agent, once and
-  for all, or by its agent's template, as the template's `database`
-  says. When the agent's run ends, every dependency and every attached
+  at the deploy; it is named by its template's id — the hash of the
+  template's canonical bytes; a template has no name — and its
+  database scope by its agent, once and for all, or by its agent's
+  template, as the template's `database` says, the same scope on
+  whatever provider it is deployed. When the agent's run ends, every dependency and every attached
   tool is told to stop at the same time, and the daemon waits for all.
   An unpinned agent or tool is placed the same way: every connected
   provider, shuffled, the next tried on a failed run.
@@ -243,7 +245,16 @@ Two populations, kept apart by type and by fate:
 - **One scope per container.** A login role and a same-named schema,
   made at the container's first connection, searched implicitly,
   inescapable by privilege, dropped at delete — `POSTGRES_1.md` in the SDK
-  reports. The daemon performs the handshake for the container and relays
+  reports. The role names its OWNER first — `diverge_`, twenty hex of
+  the owner's canonical hash, twenty of the scope's part within it —
+  so that everything an owner has shares a prefix: an agent's own
+  scope and the scope of every `per_agent_instance` dependency ever
+  deployed for it are swept from the catalog by the agent's prefix at
+  its delete, logs and all; a `per_agent_template` scope is the agent
+  template's and is never swept by an agent's delete (2026-10-09).
+  Every id that is a hash — a template's, an owner's — is over
+  canonical bytes: compact JSON, every object key sorted at every
+  depth, `arguments` included (`diverge_sdk::shared::canonical`). The daemon performs the handshake for the container and relays
   the rest unread, so no credential ever enters a container.
 - **Never swapped while running.** Another database is a config edit
   and a restart.

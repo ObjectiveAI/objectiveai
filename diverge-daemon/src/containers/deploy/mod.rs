@@ -8,7 +8,8 @@
 //! random order; its mounts the agent's paths served live from the
 //! agent's container; its database scope the one its template names;
 //! its requests to the daemon judged by its template's grants; served
-//! to the agent under the declared name. The first that cannot be
+//! to the agent under its template's id, short. A template declared
+//! twice is refused. The first that cannot be
 //! deployed is the run's error, and the rest are stopped. A
 //! dependency lives for as long as the agent's container does, and
 //! no longer. A tool container declares no dependencies and is never

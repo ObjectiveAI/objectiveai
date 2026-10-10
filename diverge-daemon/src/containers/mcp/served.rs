@@ -62,11 +62,11 @@ impl Served {
         prefix
     }
 
-    /// Serve the dependency under the name its template declared; the
-    /// prefix it gets.
-    pub fn insert_dependency(&mut self, run: Arc<ToolRun>, name: &str) -> String {
+    /// Serve the dependency under `serve_name`, its template's id
+    /// short; the prefix it gets.
+    pub fn insert_dependency(&mut self, run: Arc<ToolRun>, serve_name: &str) -> String {
         let key = run.id;
-        let prefix = self.registry.assign(key, name);
+        let prefix = self.registry.assign(key, serve_name);
         self.entries.insert(key, Entry::Dependency(run));
         self.changed();
         prefix
@@ -141,10 +141,10 @@ impl Served {
             .collect()
     }
 
-    /// The dependency served under `name`, if one.
-    pub fn dependency_named(&self, name: &str) -> Option<Arc<ToolRun>> {
+    /// The dependency deployed from the template, by id, if one.
+    pub fn dependency_of_template(&self, template: &str) -> Option<Arc<ToolRun>> {
         self.entries.values().find_map(|entry| match entry {
-            Entry::Dependency(run) if run.dependency.as_ref().is_some_and(|dependency| dependency.name == name) => Some(Arc::clone(run)),
+            Entry::Dependency(run) if run.dependency.as_ref().is_some_and(|dependency| dependency.template == template) => Some(Arc::clone(run)),
             _ => None,
         })
     }

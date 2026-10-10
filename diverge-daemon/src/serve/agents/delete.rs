@@ -26,10 +26,12 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 
 /// `Forbidden` with no `delete` grant at all; `NotFound`; `Forbidden`
 /// for an agent the grants do not reach; `Active` while a loop runs
-/// in it; else the agent gone — its database scope dropped with its
-/// every table, its container stopped if it was up, its attachments
-/// with it, its name free, every watch on its log ended and the log
-/// removed.
+/// in it; else the agent gone — its database scope and the scope of
+/// every `per_agent_instance` dependency ever deployed for it dropped
+/// with their every table, the `per_agent_template` scopes left to
+/// the template's other agents, its container stopped if it was up,
+/// its attachments with it, its name free, every watch on its log
+/// ended and the log removed.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, Failure> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
@@ -49,7 +51,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::Active);
     }
     agents::delete(&mut tx, agent.id).await?;
-    database::provision::drop(&mut tx, &database::role_of(&database::container_of_agent(&agent))).await?;
+    database::provision::sweep(&mut tx, &database::prefix_of(&database::owner_of(&database::container_of_agent(&agent)))).await?;
     tx.commit().await?;
     daemon.live.forget_scope(containers::Key::Agent(agent.id)).await;
     containers::stop_agent(daemon, agent.id).await;

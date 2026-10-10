@@ -9,8 +9,12 @@
 //! extension, no change to its configuration.
 //!
 //! A SCOPE is one login role and one schema of the same name, owned
-//! by the role, in the one database: `diverge_` and a hash of the
-//! container's once-and-for-all identity. Made at the container's
+//! by the role, in the one database: `diverge_`, twenty hex of the
+//! hash of the scope's OWNER — the agent or the tool it is the own
+//! scope of, or the agent or the agent template a dependency's scope
+//! is shared under — then twenty of the hash of the scope's part
+//! within the owner, so that everything an owner has shares its
+//! prefix and is swept with it at its delete. Made at the container's
 //! first connection, in one transaction under an advisory lock, by
 //! statements every Postgres since 10 takes — the role with a
 //! SCRAM-SHA-256 verifier, a member of nothing, able to create
@@ -37,8 +41,8 @@
 //! ends the other.
 //!
 //! [`Target`] is what the daemon knows of its database; [`role_of`]
-//! and [`container_of`] name a container's scope; [`provision`] is the
-//! statements; [`Scope`] is the password in memory and the scope made
+//! and [`container_of`] name a container's scope, [`Owner`] and
+//! [`prefix_of`] whose it is; [`provision`] is the statements; [`Scope`] is the password in memory and the scope made
 //! once per daemon life; [`connect`] is one connection, handshake to
 //! end. Not guaranteed, as the design says: names leak through the
 //! catalog, `public` is the database's, `LISTEN` and advisory locks

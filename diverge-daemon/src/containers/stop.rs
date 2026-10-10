@@ -74,7 +74,8 @@ pub async fn stop_dependencies(daemon: &Daemon, dependencies: Vec<Arc<ToolRun>>)
 /// The tool's run has ended: forgotten as live, its tasks ended, its
 /// mounts let go; a record's told where and when it last ran; a
 /// dependency's taken out of its agent's served set, which tells the
-/// agent its tools changed.
+/// agent its tools changed, and its scope's password forgotten, since
+/// its key is never seen again.
 pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
     if daemon.live.remove_tool(run.id).await.is_none() {
         return;
@@ -93,8 +94,11 @@ pub async fn ended_tool(daemon: &Daemon, run: Arc<ToolRun>) {
             if let Some(agent) = daemon.live.agent_run(dependency.agent).await {
                 agent.served.lock().await.remove(run.id);
             }
+            daemon.live.forget_scope(Key::Tool(run.id)).await;
         }
-        (ToolKey::Dependency(_), None) => {}
+        (ToolKey::Dependency(_), None) => {
+            daemon.live.forget_scope(Key::Tool(run.id)).await;
+        }
     }
     daemon.live.changed(Kind::Tools);
 }

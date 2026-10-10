@@ -27,18 +27,18 @@ pub async fn report(conn: &mut PgConnection, daemon: &Daemon, tool: &Tool) -> Re
     Ok(tool.report(active(daemon, tool.id).await, running(daemon, tool.id).await, agents, admissions))
 }
 
-/// The dependency as a list reports it, from its run alone: active,
-/// attached to the one agent it was deployed for, made by that agent
-/// when it was deployed, with no tags and no admissions. `None` for a
-/// run that is a record's.
+/// The dependency as a list reports it, from its run alone: no name,
+/// active, attached to the one agent it was deployed for, made by
+/// itself when it was deployed, with no tags and no admissions.
+/// `None` for a run that is a record's.
 pub fn report_dependency(run: &ToolRun) -> Option<response::Tool> {
     let dependency = run.dependency.as_ref()?;
     Some(response::Tool {
-        name: Some(dependency.name.clone()),
+        name: None,
         origin: response::Origin::Dependency {
             agent: dependency.agent_key.clone(),
-            name: dependency.name.clone(),
             template: dependency.template.clone(),
+            declared: dependency.declared.clone(),
             provider: Provider {
                 identity: run.provider.clone(),
             },

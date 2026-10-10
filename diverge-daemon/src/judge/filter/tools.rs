@@ -13,7 +13,8 @@ use crate::store::tools::Tool;
 /// narrowed by one test. A record brings its row, whether it is
 /// active now and the agents it is attached to; a dependency brings
 /// its run, always active, attached to the one agent it was deployed
-/// for, with no tags and no template id.
+/// for, with no name and no tags, its template the id of the one it
+/// was deployed from.
 pub struct Facts<'a> {
     /// Its name, if any.
     pub name: Option<&'a str>,
@@ -53,8 +54,8 @@ impl<'a> Facts<'a> {
     pub fn dependency(run: &'a ToolRun) -> Option<Facts<'a>> {
         let dependency = run.dependency.as_ref()?;
         Some(Facts {
-            name: Some(&dependency.name),
-            template: None,
+            name: None,
+            template: Some(&dependency.template),
             creator: &run.sender,
             kind: Kind::Dependency,
             active: true,

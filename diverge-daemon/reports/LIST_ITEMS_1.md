@@ -183,7 +183,7 @@ pub struct Client {
 /// from a template, named once and for all by its template and its
 /// index, and by its name as it was called; or a dependency tool,
 /// named once and for all by the agent it was deployed for and the
-/// name its template declared. A connected tool makes nothing.
+/// template it was deployed from. A connected tool makes nothing.
 /// Externally tagged on the wire, snake case: `{"record":{…}}` or
 /// `{"dependency":{…}}`, beside the creator's own `type`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -207,8 +207,8 @@ pub enum Tool {
     Dependency {
         /// The agent it was deployed for: see [`Agent`].
         agent: Agent,
-        /// The name the agent's program declared it under.
-        name: String,
+        /// The dependency tool template it was deployed from, by id.
+        template: String,
     },
 }
 ```
@@ -318,8 +318,17 @@ pub struct Connection {
 /// shares with, see [`Dependency`]. On the wire one object with one
 /// member, named for the family: `{"agent":{"template":…,"index":…}}`,
 /// `{"tool":{"provider":…,"id":…}}` or
-/// `{"dependency":{"parent":…,"name":…}}`. The daemon's role and
-/// schema for the scope is a hash of exactly this JSON.
+/// `{"dependency":{"parent":…,"template":…}}`. The daemon's role
+/// and schema for the scope name its OWNER first: `diverge_`, the
+/// first twenty hexadecimal characters of the SHA-256 of the owner's
+/// canonical bytes — the agent or the tool the scope is a container's
+/// own, or the dependency's parent — then the first twenty of the
+/// SHA-256 of the scope's part within the owner, `null` for a
+/// container's own scope and the dependency's template id as a JSON
+/// string for a dependency's; so that everything an agent owns, its
+/// own scope and its per-instance dependencies' scopes, shares its
+/// prefix and goes with it when it is deleted, and what an agent
+/// template owns does not.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Container {
@@ -347,8 +356,10 @@ pub enum Container {
 pub struct Dependency {
     /// Whose the scope is: see [`Parent`].
     pub parent: Parent,
-    /// The name the agent's program declared the dependency under.
-    pub name: String,
+    /// The dependency tool template, by id: the hash of its canonical
+    /// bytes. The same template deployed again for the same parent,
+    /// on whatever provider, reaches the same scope.
+    pub template: String,
 }
 ```
 
@@ -418,15 +429,16 @@ pub enum Tool {
         /// The container's id, as the connect named it.
         id: String,
     },
-    /// By the agent it was deployed for and its declared name:
-    /// `{"agent":…,"dependency":…}`. A dependency tool only, which
+    /// By the agent it was deployed for and its template:
+    /// `{"agent":…,"template":…}`. A dependency tool only, which
     /// lives while its agent's container runs: found while it does,
     /// and nothing after.
     Dependency {
         /// The agent, by its name or once and for all: see [`Agent`].
         agent: Agent,
-        /// The name the agent's program declared the dependency under.
-        dependency: String,
+        /// The dependency tool template it was deployed from, by id:
+        /// the hash of the template's canonical bytes.
+        template: String,
     },
 }
 ```
@@ -653,15 +665,15 @@ pub struct Agent {
 ```rust
 /// One tool of the caller's, once and for all: a record, by its fixed
 /// [`Origin`] and its index, with its name beside when it has one; or
-/// a dependency, by the agent it was deployed for and the name its
-/// template declared. Externally tagged on the wire, snake case:
+/// a dependency, by the agent it was deployed for and the template
+/// it was deployed from. Externally tagged on the wire, snake case:
 /// `{"record":{…}}` or `{"dependency":{…}}`.
 ///
 /// A dependency tool is no record: it is deployed when its agent's
 /// container starts, from the template the agent's program declared,
 /// and ends with the agent. What names it once and for all is its
-/// agent — itself once and for all, by template and index — and the
-/// declared name, unique among the agent's dependencies.
+/// agent — itself once and for all, by template and index — and its
+/// template's id, unique among the agent's dependencies.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Tool {
@@ -677,14 +689,15 @@ pub enum Tool {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         name: Option<String>,
     },
-    /// A dependency tool: deployed for an agent, from the template the
-    /// agent's program declared under a name.
+    /// A dependency tool: deployed for an agent, from a template the
+    /// agent's program declared.
     Dependency {
         /// The agent it was deployed for: see [`Agent`].
         agent: Agent,
-        /// The name the agent's program declared it under, unique
-        /// among that agent's dependencies.
-        name: String,
+        /// The dependency tool template it was deployed from, by id —
+        /// the hash of the template's canonical bytes — unique among
+        /// that agent's dependencies.
+        template: String,
     },
 }
 ```
@@ -845,9 +858,10 @@ Item: `diverge_sdk::daemon::endpoints::tools::list::server::response::Tool`
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tool {
     /// The name, as its create or its connect gave it, if it gave
-    /// one, or the name a dependency was declared under; absent for a
-    /// tool made with none, which is reached by its template and its
-    /// index, or by the provider and id it joined, alone.
+    /// one; absent for a tool made with none, which is reached by its
+    /// template and its index, or by the provider and id it joined,
+    /// alone, and absent for a dependency, which has none and is
+    /// reached by its agent and its template.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// Where it comes from, and what the daemon knows of its
@@ -956,7 +970,7 @@ pub struct Admission {
 /// more, and no number is given twice, so the fixed part and the
 /// index name the tool once and for all. A dependency tool is no
 /// record: it is listed while its agent's container runs and not
-/// after, named once and for all by its agent and its declared name.
+/// after, named once and for all by its agent and its template's id.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Origin {
@@ -1001,15 +1015,17 @@ pub enum Origin {
     Dependency {
         /// The agent it was deployed for: see [`key::Agent`].
         agent: key::Agent,
-        /// The name the agent's program declared it under, unique
-        /// among that agent's dependencies: what the agent calls its
-        /// tools by, as a prefix.
-        name: String,
-        /// The template it was deployed from, as the program declared
-        /// it: its image, its limits, its arguments, which database
-        /// scope it gets, the agent's paths served into it, and the
-        /// grants its requests are judged by. See [`Template`].
-        template: Template,
+        /// The dependency tool template it was deployed from, by id:
+        /// the lowercase hexadecimal SHA-256 of the template's
+        /// canonical bytes, unique among that agent's dependencies.
+        /// The agent calls the tool's MCP tools by its first eight
+        /// characters, as a prefix.
+        template: String,
+        /// The template whole, as the program declared it: its image,
+        /// its limits, its arguments, which database scope it gets,
+        /// the agent's paths served into it, and the grants its
+        /// requests are judged by. See [`Template`].
+        declared: Template,
         /// The provider the container runs on. See [`Provider`].
         provider: Provider,
         /// The container's id, as the provider's run answered it.
@@ -1078,17 +1094,21 @@ pub enum Admits {
 /// The daemon's own tool templates are another thing: a record the
 /// daemon keeps, named by a hash, made by a request; this is what an
 /// image declares and a caller deploys.
+///
+/// There is no name. A dependency is named by its ID: the lowercase
+/// hexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)
+/// bytes — this template as compact JSON, absent members omitted,
+/// every object key sorted at every depth, the `arguments` included
+/// — sixty-four characters, which the caller computes. Two
+/// declarations with one id are one dependency, and a list that
+/// declares one twice is refused; the same template deployed for the
+/// same agent, on whatever provider, is the same dependency with the
+/// same database scope. The caller labels the tool's MCP tools by the
+/// id when it merges lists, and the program knows which tool serves
+/// each by the keys under `_meta`, see [`shared::mcp`](crate::shared::mcp).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Template {
-    /// What the program calls it: the caller's handle for the tool
-    /// container, and the label the caller uses when it prefixes the
-    /// tool's MCP tools as it merges lists. Unique in the list. The
-    /// program never finds a server by it — it calls tools by whatever
-    /// names the caller's merged list shows, and knows which tool
-    /// serves each by the keys under `_meta`, see
-    /// [`shared::mcp`](crate::shared::mcp).
-    pub name: String,
     /// The image: a name and a digest, the pair a
     /// `containers::tools::run` request names.
     pub image: Image,
@@ -2419,8 +2439,8 @@ pub enum AgentType {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Template<Type> {
     /// What the template is for: the one value the family's type
-    /// admits, `agent` or `tool`. First, so the hashed JSON leads
-    /// with it.
+    /// admits, `agent` or `tool`. Inside the hash, so the two kinds
+    /// never hash the same.
     pub r#type: Type,
     /// How to make a container from this, in words, for whoever does:
     /// what the create has to supply that a template cannot name — the
@@ -3484,8 +3504,9 @@ pub struct Filter {
     /// Any one of these names, as a create or a connect gave them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub names: Vec<String>,
-    /// A created tool made from any one of these templates, by id; a
-    /// connected tool matches none of them.
+    /// A created tool made from any one of these templates, by id,
+    /// or a dependency deployed from any one of them, by the id of
+    /// its template; a connected tool matches none of them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
     /// Made by any one of these, directly: see

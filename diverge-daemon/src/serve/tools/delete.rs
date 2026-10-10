@@ -51,7 +51,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::Attached);
     }
     tools::delete(&mut tx, tool.id).await?;
-    database::provision::drop(&mut tx, &database::role_of(&database::container_of_tool(&tool))).await?;
+    database::provision::sweep(&mut tx, &database::prefix_of(&database::owner_of(&database::container_of_tool(&tool)))).await?;
     tx.commit().await?;
     daemon.live.forget_scope(Key::Tool(ToolKey::Record(tool.id))).await;
     daemon.live.changed(Kind::Tools);

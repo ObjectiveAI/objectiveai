@@ -30,17 +30,18 @@ pub const READ_ONLY: &str = "a dependency tool is its agent's: it is read, not c
 
 /// The tool the reference names, if any: by name, by template and
 /// index, or by provider and id, a record, locked for the
-/// transaction when `lock`; by agent and dependency, the run served
-/// to that agent under that name, if the agent runs and serves one.
+/// transaction when `lock`; by agent and template, the dependency
+/// deployed from that template for that agent, if the agent runs and
+/// serves one.
 pub async fn resolve(conn: &mut PgConnection, daemon: &Daemon, reference: &reference::Tool, lock: bool) -> Result<Option<Found>, store::Error> {
-    if let reference::Tool::Dependency { agent, dependency } = reference {
+    if let reference::Tool::Dependency { agent, template } = reference {
         let Some(agent) = agents::by_reference(conn, agent, false).await? else {
             return Ok(None);
         };
         let Some(run) = daemon.live.agent_run(agent.id).await else {
             return Ok(None);
         };
-        let found = run.served.lock().await.dependency_named(dependency);
+        let found = run.served.lock().await.dependency_of_template(template);
         return Ok(found.map(Found::Dependency));
     }
     Ok(tools::by_reference(conn, reference, lock).await?.map(Found::Record))

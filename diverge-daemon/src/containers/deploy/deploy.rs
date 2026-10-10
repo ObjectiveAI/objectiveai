@@ -20,49 +20,52 @@ use crate::containers::mcp::Served;
 use crate::containers::{Caller, Dependency, Key, ToolHandle, ToolKey, ToolRun, build, provider, stop};
 use crate::daemon::Kind;
 use crate::judge::Standing;
-use crate::store::AgentId;
+use crate::store::{AgentId, hash};
 
 /// Deploy every template for the agent `answerer` answers for, whose
 /// container runs under `id` on the answerer's provider: all at once,
-/// each served to the agent under its declared name once every one is
-/// up. A name declared twice, a tool container asking, no provider
-/// to run on, a path of the agent's that cannot be served, or a
-/// provider that will not run one — every candidate tried — is the
-/// error, in the dependency's name, and every dependency started is
-/// stopped.
+/// each served to the agent under its template's id once every one is
+/// up. A template declared twice — one id twice — a tool container
+/// asking, no provider to run on, a path of the agent's that cannot
+/// be served, or a provider that will not run one — every candidate
+/// tried — is the error, naming the dependency by its id, and every
+/// dependency started is stopped.
 pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -> Result<(), Error> {
     let (Key::Agent(agent), Caller::Agent { key: agent_key, .. }) = (answerer.key, &answerer.caller) else {
         return Err(error("", "a tool container declares no dependencies"));
     };
-    let mut names = HashSet::new();
-    for template in &templates {
-        if !names.insert(template.name.as_str()) {
-            return Err(error(&template.name, "declared twice"));
+    let mut declared = Vec::with_capacity(templates.len());
+    let mut ids = HashSet::new();
+    for template in templates {
+        let template_id = hash::template_id(&template).map_err(|failure| error("", &failure.to_string()))?;
+        if !ids.insert(template_id.clone()) {
+            return Err(error(&template_id, "declared twice"));
         }
+        declared.push((template_id, template));
     }
     let id = id.as_str();
-    let started = future::join_all(templates.into_iter().map(|template| {
-        let name = template.name.clone();
-        async move { (name, start(answerer, agent, agent_key, id, template).await) }
+    let started = future::join_all(declared.into_iter().map(|(template_id, template)| async move {
+        let outcome = start(answerer, agent, agent_key, id, template_id.clone(), template).await;
+        (template_id, outcome)
     }))
     .await;
     let mut runs = Vec::with_capacity(started.len());
     let mut failed = None;
-    for (name, outcome) in started {
+    for (template_id, outcome) in started {
         match outcome {
             Ok(run) => runs.push(run),
-            Err(reason) => failed = failed.or(Some((name, reason))),
+            Err(reason) => failed = failed.or(Some((template_id, reason))),
         }
     }
-    if let Some((name, reason)) = failed {
+    if let Some((template_id, reason)) = failed {
         stop::stop_dependencies(&answerer.daemon, runs).await;
-        return Err(error(&name, &reason));
+        return Err(error(&template_id, &reason));
     }
     let mut served = answerer.served.lock().await;
     for run in runs {
         if let Some(dependency) = &run.dependency {
-            let name = dependency.name.clone();
-            served.insert_dependency(run, &name);
+            let serve_name = short(&dependency.template);
+            served.insert_dependency(run, &serve_name);
         }
     }
     Ok(())
@@ -72,7 +75,14 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
 /// container run on the first candidate provider that will, its run
 /// entered as live with a waiter. The reason it could not be, in a
 /// sentence.
-async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agent_container: &str, template: Template) -> Result<Arc<ToolRun>, String> {
+async fn start(
+    answerer: &Answerer,
+    agent: AgentId,
+    agent_key: &key::Agent,
+    agent_container: &str,
+    template_id: String,
+    template: Template,
+) -> Result<Arc<ToolRun>, String> {
     let daemon = &answerer.daemon;
     let candidates = provider::candidates(daemon, None).await.map_err(|error| error.to_string())?;
     let mounts = Arc::new(Mounts::build_dependency(daemon, &answerer.provider, agent_container, &template).await?);
@@ -81,7 +91,7 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
     let dependency_id = daemon.live.mint_dependency().await;
     let key = key::Tool::Dependency {
         agent: agent_key.clone(),
-        name: template.name.clone(),
+        template: template_id.clone(),
     };
     let sender = Creator::Tool(creator::Tool::Dependency {
         agent: creator::Agent {
@@ -89,11 +99,11 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
             index: agent_key.index,
             name: agent_key.name.clone(),
         },
-        name: template.name.clone(),
+        template: template_id.clone(),
     });
     let standing = (!template.permissions.is_empty()).then(|| {
         let grants: Vec<Grant> = template.permissions.iter().cloned().map(Grant::from).collect();
-        Arc::new(Standing::from_grants(identity(agent_key, &template.name), grants))
+        Arc::new(Standing::from_grants(identity(agent_key, &template_id), grants))
     });
     let touched = watch::channel(Instant::now()).0;
     let mut last = String::new();
@@ -140,8 +150,8 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
                 id: dependency_id,
                 agent,
                 agent_key: agent_key.clone(),
-                name: template.name.clone(),
-                template,
+                template: template_id,
+                declared: template,
                 started: Utc::now(),
             }),
         });
@@ -162,22 +172,28 @@ async fn start(answerer: &Answerer, agent: AgentId, agent_key: &key::Agent, agen
     Err(format!("no provider ran it; the last said: {last}"))
 }
 
+/// The first eight characters of a template id: what a dependency is
+/// served to its agent as, and known as in a standing's identity.
+pub fn short(template_id: &str) -> String {
+    template_id.chars().take(8).collect()
+}
+
 /// The identity a dependency's requests are served under: the
 /// agent's name, or its template's first eight digits and its index,
-/// then the dependency's name.
-fn identity(agent: &key::Agent, name: &str) -> String {
+/// then the dependency's template, short.
+fn identity(agent: &key::Agent, template_id: &str) -> String {
     let agent = match &agent.name {
         Some(name) => name.clone(),
         None => format!("{}-{}", agent.template.chars().take(8).collect::<String>(), agent.index),
     };
-    format!("{agent}/{name}")
+    format!("{agent}/{}", short(template_id))
 }
 
-/// The run's error, naming the dependency.
-fn error(name: &str, reason: &str) -> Error {
+/// The run's error, naming the dependency by its template's id.
+fn error(template_id: &str, reason: &str) -> Error {
     Error(serde_json::json!({
         "kind": "dependency",
-        "dependency": name,
+        "dependency": template_id,
         "error": reason,
     }))
 }
