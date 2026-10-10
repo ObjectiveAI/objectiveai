@@ -1,0 +1,41 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: the connection as JSON, with no tag.'
+order: 1
+draft: false
+---
+
+```text
+[connection JSON …]
+```
+
+- **No tag.** The server opens one kind of channel on an accept
+  scope, so its channel request carries no tag: the payload is the
+  connection as JSON, read as [Notation](/endpoints/#notation)
+  provides.
+- **`connection_id`.** The id the server minted for the connection,
+  an integer. The acceptor quotes it, as four bytes big-endian, in
+  the channel request of its half.
+- **`identity`.** The identity of the connection the connect scope
+  was opened on, as the [authorization](/authorization/) established
+  it.
+- **`address`.** The peer IP address of that connection, as the
+  server observed it.
+- **`mode`.** The connector's mode, verbatim: one object whose one
+  member names the mode, `unbrokered`, whose value carries the
+  credential the connector presents to the acceptor.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/daemons/connection.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/daemons/connection.rs
+```
+
+and by `diverge-sdk-rs/src/shared/daemons/mode.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/daemons/mode.rs
+```

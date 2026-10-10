@@ -1,0 +1,75 @@
+---
+title: 'daemons::connect'
+summary: 'Tag 18: a client, the daemon connector, names an acceptor by identity and presents its mode; the server announces the connection to the acceptor, answers the byte 0 when the acceptor takes it, and relays every frame both ways, unread, until either side hangs up.'
+order: 19
+draft: false
+---
+
+A client, the daemon connector, opens the scope with a request whose
+payload is the tag byte `18` followed by the request as JSON: the
+identity of an acceptor, and the mode the connector authenticates to
+it in. The server announces the connection on the accept scope held
+under that identity, and, when the acceptor takes it, sends the byte
+`0` and relays the connection: every frame the acceptor sends as a
+response on this scope, and every frame the connector sends on the
+one channel the server opens as a channel response onto the
+acceptor's half. The response finish ends the scope. This section
+states what the server does, in the order it does it. It states
+nothing about the connector or the acceptor.
+
+- **The request.** [Request](/endpoints/daemons-connect/request/)
+  states its form.
+- **The response.** [Response](/endpoints/daemons-connect/response/)
+  states the responses and the sequence of the main stream.
+- **The channel.** The connector opens no channel on the scope; the
+  server opens the one channel that
+  [Server Channels](/endpoints/daemons-connect/server/) defines.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Endpoints](/endpoints/) provides.
+2. **The server finds the acceptor.** The server looks the `daemon`
+   up among the identities under which an
+   [accept](/endpoints/daemons-accept/) scope is open. An identity
+   under which none is open is answered by exactly one response, the
+   error `{"kind":"missing"}`, and the finish.
+3. **The server announces the connection.** The server mints a
+   connection id, opens a
+   [connection](/endpoints/daemons-accept/server/connection/) channel
+   on the accept scope carrying the id, the identity and peer
+   address of the connector's connection as the server observed
+   them, and the request's `mode` verbatim, and waits for the
+   acceptor. The acceptor finishing that channel with no channel
+   response before the finish, and the accept scope ending, are each
+   answered by exactly one response, the error `{"kind":"denied"}`,
+   and the finish.
+4. **The server opens the connection.** When the acceptor opens its
+   half quoting the id, the server sends exactly one response, the
+   byte `0` and nothing else, and opens a
+   [frames](/endpoints/daemons-connect/server/frames/) channel on the
+   scope, carrying nothing. The server sends the byte `0` before any
+   frame of the acceptor's.
+5. **The server relays the connection.** The server relays every
+   channel response of the frames channel onto the acceptor's half as
+   one channel response each, in order, and relays every channel
+   response the acceptor sends on the server's half onto the scope
+   as one response each, the byte `2` followed by the frame, in
+   order. The server reads no frame.
+6. **The server ends the scope.** When the acceptor finishes the
+   server's half, when the connector finishes the frames channel,
+   when the accept scope ends, or when the connector's connection
+   ends, the server finishes the acceptor's half, finishes the frames
+   channel, and sends the response finish. A finish after the byte
+   `0` carries no error.
+
+## The rules that hold throughout
+
+- **No timeout.** The server times nothing out.
+- **The conduit.** The server relays the bytes of every relayed
+  frame verbatim, unread, unaltered, unreordered within one channel,
+  and never twice.
+- **The credential is the acceptor's to judge.** The server relays
+  the mode and reads nothing of it. Whether the connection is taken
+  is the acceptor's answer.

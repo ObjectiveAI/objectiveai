@@ -1,0 +1,18 @@
+---
+title: 'Server Channels'
+summary: 'The one channel the server opens on the scope: the frames channel, on which the connector answers with everything it sends to the acceptor.'
+order: 3
+draft: false
+---
+
+The server opens exactly one kind of channel on a connect scope. Its
+channel request carries no tag and no payload.
+
+| Tag | Channel |
+|-----|---------|
+| — | [frames](/endpoints/daemons-connect/server/frames/) |
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/connect/server/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/connect/server/channel_request/frame.rs
+```

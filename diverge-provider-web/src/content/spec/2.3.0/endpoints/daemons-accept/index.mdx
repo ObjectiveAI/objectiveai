@@ -1,0 +1,88 @@
+---
+title: 'daemons::accept'
+summary: 'Tag 17: a client, the acceptor, offers to take daemon connections under its identity; the server answers the identity once and, for as long as the scope lives, announces each connection a daemon connector opens as a pair of channels, relaying every frame of it unread.'
+order: 18
+draft: false
+---
+
+A client, the acceptor, opens the scope with a request whose payload
+is the tag byte `17` and nothing more. The server sends exactly one
+response: the identity of the connection, under which the acceptor
+takes daemon connections from then on, or an error when another
+scope accepts under that identity already. For as long as the scope
+lives, the server announces each daemon connection a connector opens
+by [daemons::connect](/endpoints/daemons-connect/) naming that
+identity, as a pair of channels: the server's half, a
+[connection](/endpoints/daemons-accept/server/connection/) channel
+the server opens, and the acceptor's half, a
+[connection](/endpoints/daemons-accept/client/connection/) channel
+the acceptor opens quoting the same id. The response finish ends the
+scope and every connection on it. This section states what the
+server does, in the order it does it. It states nothing about the
+acceptor or the connector.
+
+- **The request.** [Request](/endpoints/daemons-accept/request/)
+  states its form.
+- **The response.** [Response](/endpoints/daemons-accept/response/)
+  states the one response and the sequence of the main stream.
+- **The channels.** The acceptor opens the channels that
+  [Client Channels](/endpoints/daemons-accept/client/) defines; the
+  server opens the one channel that
+  [Server Channels](/endpoints/daemons-accept/server/) defines.
+
+## The order
+
+1. **The server reads the request.** A request whose payload does not
+   decode is answered by a response finish that no response precedes,
+   as [Endpoints](/endpoints/) provides.
+2. **The server takes the identity.** The identity of the connection
+   on which the scope was opened, as the
+   [authorization](/authorization/) established it, is the identity
+   the acceptor is known by to connectors. An accept scope open under
+   that identity already, on any connection, is answered by exactly
+   one response, the error `{"kind":"held"}`, and the finish. The
+   server holds the identity for the scope from the moment it
+   answers the identity until the scope ends.
+3. **The server answers the identity.** The server sends exactly one
+   response, the byte `0` followed by the identity as JSON, and holds
+   the scope.
+4. **The server announces each connection.** When a connect scope
+   names the identity, the server opens a
+   [connection](/endpoints/daemons-accept/server/connection/) channel
+   on the accept scope, carrying a connection id the server minted,
+   the connector's identity and peer address as the server observed
+   them, and the connector's mode verbatim. The server's half is
+   that channel; the acceptor's half is the
+   [connection](/endpoints/daemons-accept/client/connection/)
+   channel the acceptor opens quoting the id. The acceptor takes the
+   connection by opening its half. The acceptor declines the
+   connection by finishing the server's half with no channel
+   response before the finish.
+5. **The server relays the connection.** The server relays every
+   channel response of the connector's
+   [frames](/endpoints/daemons-connect/server/frames/) channel onto
+   the acceptor's half as one channel response each, in order, and
+   relays every channel response the acceptor sends on the server's
+   half onto the connect scope as one response each, the byte `2`
+   before the frame, in order. The server reads no frame.
+6. **The server ends each connection.** The acceptor finishing the
+   server's half ends the connection: the server finishes the
+   connect scope. The connector finishing its frames channel, or the
+   connect scope ending, ends the connection: the server finishes
+   the acceptor's half. The server finishes the other half of a
+   connection whose one half has finished.
+7. **The server ends the scope.** When it receives the acceptor's
+   [stop](/endpoints/daemons-accept/client/stop/), or when the
+   acceptor's connection ends, the server finishes every half of
+   every connection open on the scope, finishes every connect scope
+   relayed to it, releases the identity, and sends the response
+   finish.
+
+## The rules that hold throughout
+
+- **No timeout.** The server times nothing out.
+- **The conduit.** The server relays the bytes of every relayed
+  frame verbatim, unread, unaltered, unreordered within one channel,
+  and never twice.
+- **One acceptor per identity.** At most one accept scope is open
+  under one identity at a time, on the server as a whole.

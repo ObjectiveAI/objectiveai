@@ -1,0 +1,23 @@
+---
+title: 'Client Channels'
+summary: 'The channels the client opens on the scope, by tag; the server serves each as its section states and answers a channel request it cannot decode by a channel response finish with nothing before it.'
+order: 3
+draft: false
+---
+
+The acceptor opens each of these channels on the scope, as
+[Channels](/frames/channels/) provides. The payload of the channel
+request begins with one tag byte designating the channel; the
+remainder is the channel's request. The server serves each as its
+section states, and answers a channel request that does not decode by
+a channel response finish that no channel response precedes.
+
+| Tag | Channel |
+|-----|---------|
+| `0` | [connection](/endpoints/daemons-accept/client/connection/) |
+| `1` | [stop](/endpoints/daemons-accept/client/stop/) |
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/client/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/accept/client/channel_request/frame.rs
+```

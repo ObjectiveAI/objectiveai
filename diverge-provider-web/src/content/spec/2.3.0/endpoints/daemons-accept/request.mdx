@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 16 alone; the server ignores any bytes that follow the tag.'
+summary: 'The payload is the tag byte 17 alone; the server ignores any bytes that follow the tag.'
 order: 1
 draft: false
 ---
@@ -8,11 +8,12 @@ draft: false
 The payload of the request is exactly one byte:
 
 ```text
-[16]
+[17]
 ```
 
 - **No parameter.** The request carries nothing after the tag. The
-  tag is the whole request.
+  identity the acceptor takes connections under is the connection's
+  own, and is not stated.
 - **Bytes after the tag.** A server ignores every byte that follows
   the tag. A request whose payload extends past the tag is not
   malformed.
@@ -20,8 +21,7 @@ The payload of the request is exactly one byte:
   endpoint. [Endpoints](/endpoints/) states how a server answers a
   request it cannot read.
 
-The request is defined by
-`diverge-sdk-rs/src/provider/endpoints/version/client/request/frame.rs`:
+The request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/client/request/frame.rs`:
 
-```rust include=diverge-sdk-rs/src/provider/endpoints/version/client/request/frame.rs
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/accept/client/request/frame.rs
 ```

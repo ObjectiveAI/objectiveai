@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the seventeen endpoints and their
+types, the authorization handshake, the nineteen endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,7 +94,7 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the seventeen scope-opening requests
+1.9 **"Endpoint"** means one of the nineteen scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `containers::tools::connect`, `3` `containers::serve`, `4`
@@ -182,12 +182,17 @@ between a Client and a Container, without reading it: every channel
 the Proxy opens on a begin Scope and every ask a FUSE Mount makes on
 its Scope, with the Client's answer; the content of a Client's write;
 the bytes of a read; the bytes of a transfer, from one Container into
-another; a filetree; a database connection; and the MCP exchanges
-into a tool Container.
+another; a filetree; a database connection; the MCP exchanges
+into a tool Container; and a daemon connection between a Daemon
+Connector and an Acceptor.
 
 1.19 **"Runner"** means the Client on whose `containers::tools::run`
 scope a Container is running. **"Connector"** means a Client that
 opens a `containers::tools::connect` scope naming that Container.
+**"Acceptor"** means a Client on whose `daemons::accept` scope the
+Provider announces daemon connections, under the Identity of that
+scope's Connection. **"Daemon Connector"** means a Client that opens
+a `daemons::connect` scope naming an Acceptor's Identity.
 
 1.20 **"Obligation"** means each requirement this Agreement imposes on
 the Provider, including every requirement incorporated from the
@@ -936,6 +941,62 @@ shall serve a Container of either family alike, shall serve any number
 of serve Scopes of one Container at once, shall hold no Volume and no
 mount on account of a serve, shall time nothing out, and shall send
 nothing on the main stream of a serve Scope after the byte `0`.
+
+### 5.12 Daemon connections — `daemons::accept` (tag 17) and `daemons::connect` (tag 18)
+
+(a) For every accept request, the Provider shall, in order: read the
+request and answer a payload that does not decode by a Bare Finish;
+answer an accept Scope already open under the Identity of the
+Connection, on any Connection, by exactly one Response, the byte `1`
+followed by exactly `{"kind":"held"}`, and the Response Finish; hold
+the Identity for the Scope; answer exactly one Response, the byte `0`
+followed by the Identity as JSON; and hold the Scope open until the
+Acceptor's `stop` Channel request or the Acceptor's Connection ending,
+on which it shall finish every half of every connection open on the
+Scope, finish every connect Scope relayed to it, release the Identity,
+and send the Response Finish.
+
+(b) For every connect request, the Provider shall, in order: read the
+request and answer a payload that does not decode by a Bare Finish;
+answer a `daemon` under which no accept Scope is open by exactly one
+Response, the byte `1` followed by exactly `{"kind":"missing"}`, and
+the Response Finish; mint a connection id unique among the
+connections announced on that accept Scope and not yet finished, and
+open on the accept Scope exactly one `connection` Channel carrying as
+JSON the id, the Identity and peer IP address of the Daemon
+Connector's Connection as the Provider observed them, and the
+request's `mode` verbatim; answer the Acceptor finishing that Channel
+with no Channel Response before the finish, and the accept Scope
+ending before the Acceptor has opened its half, by exactly one
+Response, the byte `1` followed by exactly `{"kind":"denied"}`, and
+the Response Finish; and, when the Acceptor opens its half quoting
+the id, send exactly one Response, the byte `0` and nothing else,
+before any frame of the Acceptor's, and open on the connect Scope
+exactly one `frames` Channel carrying nothing.
+
+(c) For every connection opened, the Provider shall relay every
+Channel Response of the `frames` Channel onto the Acceptor's half as
+exactly one Channel Response each, in order, and relay every Channel
+Response the Acceptor sends on the Provider's half onto the connect
+Scope as exactly one Response each, the byte `2` followed by the
+frame verbatim, in order; shall hold a Channel Response the Acceptor
+sends before it has opened its half and relay it after the byte `0`,
+in order; shall read, alter, reorder and repeat no frame; and shall
+relay the `mode` without reading it.
+
+(d) The Provider shall end a connection — finishing the Acceptor's
+half, finishing the `frames` Channel, and sending the Response Finish
+of the connect Scope with no error — when the Acceptor finishes the
+Provider's half, when the Daemon Connector finishes the `frames`
+Channel or answers on it a Channel Response that is not one client
+frame of the daemon protocol, when the accept Scope ends, and when the
+Daemon Connector's Connection ends. The Provider shall finish the
+other half of a connection whose one half has finished.
+
+(e) The Provider shall hold at most one accept Scope under one
+Identity at a time, shall time nothing out, and shall send nothing on
+the main stream of a connect Scope after the byte `0` but the frames
+of the Acceptor's and the Response Finish.
 
 ### 5.13 Prohibitions
 

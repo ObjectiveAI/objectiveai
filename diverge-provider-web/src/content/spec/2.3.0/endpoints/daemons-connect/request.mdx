@@ -1,0 +1,36 @@
+---
+title: 'Request'
+summary: 'The payload is the tag byte 18 followed by the acceptor’s identity and the connector’s mode as JSON.'
+order: 1
+draft: false
+---
+
+The payload of the request is the tag byte followed by the request as
+JSON, read as [Notation](/endpoints/#notation) provides:
+
+```text
+[18][connect JSON …]
+```
+
+- **`daemon`.** The identity an acceptor is known by on this server:
+  the string the server answered that acceptor's
+  [accept](/endpoints/daemons-accept/response/). The server compares
+  it and does not read it.
+- **`mode`.** How the connector authenticates to the acceptor: one
+  object whose one member names the mode, `unbrokered`, whose value
+  is an object with the member `credential`, a string. The server
+  relays the mode verbatim and does not read it.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is not `18`, and a payload whose bytes after the tag do not parse
+  as the request are malformed. [Endpoints](/endpoints/) states how a
+  server answers a request it cannot read.
+
+The request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/connect/client/request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/connect/client/request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/daemons/mode.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/daemons/mode.rs
+```

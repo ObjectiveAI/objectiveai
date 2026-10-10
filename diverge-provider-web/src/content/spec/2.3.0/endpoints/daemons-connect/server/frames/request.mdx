@@ -1,0 +1,20 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the server sends: nothing, with no tag.'
+order: 1
+draft: false
+---
+
+```text
+[]
+```
+
+- **No tag, no payload.** The server opens one kind of channel on a
+  connect scope, so its channel request carries no tag; and the
+  channel asks for nothing but the connector's frames, so it carries
+  no payload. The channel request's payload is empty.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/connect/server/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/daemons/connect/server/channel_request/frame.rs
+```
