@@ -9,7 +9,7 @@ The server opens this channel when the `Begun` the proxy answered its
 begin with carries one or more dependencies: the tool containers the
 container's program declared when it was registered, each as a
 dependency tool template, which the client deploys and serves to the
-container under the template's name. The client's answer decides
+container under the template's id. The client's answer decides
 whether the run goes on.
 
 - **When.** After the begin has been answered and before the id is
@@ -41,6 +41,6 @@ whether the run goes on.
   serves them and a FUSE mount of the tools run mounts them; gives
   the tool the database the template's `database` names and an
   account holding the template's `permissions`; and serves the tool
-  to the container under the template's `name` among the MCP servers
+  to the container under the template's id among the MCP servers
   the client answers the container's tool calls with. A tool
   container declares no dependencies of its own.

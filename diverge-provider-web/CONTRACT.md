@@ -763,7 +763,7 @@ for no `containers::tools::connect` request before the id is sent.
 When the Proxy's answer to the begin Scope carries one or more
 dependency tool templates, the Provider shall open exactly one
 `dependencies` Channel on the run Scope carrying the id and the
-templates verbatim — every template whole, its name, image, limits,
+templates verbatim — every template whole, its image, limits,
 arguments, database, mounts and permissions unread — before the id
 is sent and beside the FUSE Mounts, and shall read the Client's
 answer to its finish; the Provider shall treat the byte `1`, a Bare
