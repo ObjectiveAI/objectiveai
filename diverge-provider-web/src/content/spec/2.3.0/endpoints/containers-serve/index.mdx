@@ -1,12 +1,12 @@
 ---
 title: 'containers::serve'
-summary: 'Tag 4: a client names a container it is running, by id, and a directory of it; the server opens a serve of that directory on the proxy of the container, answers Serving once, and for as long as the scope lives relays on channels the client opens the nine asks a FUSE mount makes, each answered from the filesystem of the container, and the tree of the directory as the container holds it; the client stops the scope, or the container ends.'
+summary: 'Tag 3: a client names a container it is running, by id, and a directory of it; the server opens a serve of that directory on the proxy of the container, answers Serving once, and for as long as the scope lives relays on channels the client opens the nine asks a FUSE mount makes, each answered from the filesystem of the container, and the tree of the directory as the container holds it; the client stops the scope, or the container ends.'
 order: 4
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`4` followed by the request as JSON: the id of a container the client
+`3` followed by the request as JSON: the id of a container the client
 is running and the path of a directory of it. The server sends
 exactly one response, which is either `Serving` or an error. After
 `Serving` the scope stays open: the client opens on it, as channels,

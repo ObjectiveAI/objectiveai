@@ -1,6 +1,6 @@
 ---
 title: 'containers::tools::connect'
-summary: 'Tag 2: a connector names a running tool container by id and offers an authorization; the server asks the runner, and, when authorized, serves the connector’s channels on the container until the connector disconnects or the run ends.'
+summary: 'Tag 2: a connector names a running tool container by id and offers an authorization; the server asks the runner, and, when authorized, tells the runner the connector is attached, serves the connector’s channels on the container until the connector disconnects or the run ends, and tells the runner it has gone.'
 order: 2
 draft: false
 ---
@@ -42,7 +42,11 @@ runner.
    it, and a runner that is gone are each answered on the connect
    scope by exactly one response, the error `{"kind":"denied"}`, and
    the finish. The byte `1` opens the connection: the server sends
-   nothing on the main stream.
+   nothing on the connect scope's main stream, attaches the connector
+   once the run's id has been sent, and sends on the RUN scope exactly
+   one response, the byte `4` followed by the connector's identity and
+   address as the [run's response](/endpoints/containers-tools-run/response/)
+   states, before it serves any channel of the connect scope.
 4. **The server serves the scope.** The server serves every channel
    the connector opens on the run's own connection to the container's
    proxy — its tree, read, write and transfer scopes, and its MCP exchanges as
@@ -58,9 +62,10 @@ runner.
 5. **The server ends the scope.** When it receives the connector's
    [disconnect](/endpoints/containers-tools-connect/client/disconnect/), when the run of the
    container ends, or when the connector's connection ends, the
-   server ends every channel task and sends the response finish. The
-   server stops nothing and releases nothing: the container is the
-   runner's.
+   server ends every channel task, sends on the RUN scope exactly one
+   response, the byte `5` followed by the same identity and address,
+   and sends the response finish on the connect scope. The server
+   stops nothing and releases nothing: the container is the runner's.
 
 ## The rules that hold throughout
 

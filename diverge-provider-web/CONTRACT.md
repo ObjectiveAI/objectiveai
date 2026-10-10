@@ -63,7 +63,7 @@ Provider, and the Provider is not required to use it.
 
 1.3 **"Protocol"** means the wire protocol the Specification defines:
 the WebSocket transport, the nine-byte frame header and seven frame
-types, the authorization handshake, the eighteen endpoints and their
+types, the authorization handshake, the seventeen endpoints and their
 channels, and the payload forms the Specification states for each.
 
 1.4 **"Server"** means the party that, on one WebSocket connection,
@@ -94,15 +94,15 @@ Specification's Frames layer gives them. **"Bare Finish"** means a
 Response Finish that no Response precedes, or a Channel Response
 Finish that no Channel Response precedes.
 
-1.9 **"Endpoint"** means one of the eighteen scope-opening requests
+1.9 **"Endpoint"** means one of the seventeen scope-opening requests
 the Specification's Endpoints layer defines, designated by its tag
 byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
-`containers::tools::connect`, `3` `containers::tools::list_for`, `4`
-`containers::serve`, `5` `volumes::list`, `6` `volumes::stat`, `7`
-`volumes::read`, `8` `volumes::write`, `9` `volumes::filetree`, `10`
-`volumes::serve`, `11` `volumes::create_capacity`, `12`
-`volumes::create`, `13` `volumes::edit_capacity`, `14`
-`volumes::edit`, `15` `volumes::delete`, `16` `images::check`, `17`
+`containers::tools::connect`, `3` `containers::serve`, `4`
+`volumes::list`, `5` `volumes::stat`, `6` `volumes::read`, `7`
+`volumes::write`, `8` `volumes::filetree`, `9` `volumes::serve`, `10`
+`volumes::create_capacity`, `11` `volumes::create`, `12`
+`volumes::edit_capacity`, `13`
+`volumes::edit`, `14` `volumes::delete`, `15` `images::check`, `16`
 `version`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
@@ -188,8 +188,6 @@ into a tool Container.
 1.19 **"Runner"** means the Client on whose `containers::tools::run`
 scope a Container is running. **"Connector"** means a Client that
 opens a `containers::tools::connect` scope naming that Container.
-**"Lister"** means a Client that opens a `containers::tools::list_for`
-scope naming an identity.
 
 1.20 **"Obligation"** means each requirement this Agreement imposes on
 the Provider, including every requirement incorporated from the
@@ -409,7 +407,7 @@ byte the Specification does not require.
 that follow a request, the Provider shall ignore them and shall not
 treat the request as malformed on their account.
 
-### 5.5 `version` (tag 17)
+### 5.5 `version` (tag 16)
 
 The Provider shall answer every `version` request with exactly one
 Response whose payload is the string `2.3.0` encoded as UTF-8 with no
@@ -417,7 +415,7 @@ tag and no length prefix, followed by the Response Finish. The
 Provider shall not send any other string, shall not send an empty
 string, and shall not send an error on this Endpoint.
 
-### 5.6 `images::check` (tag 16)
+### 5.6 `images::check` (tag 15)
 
 The Provider shall answer every `images::check` request with exactly
 one Response and the Response Finish: the byte `0` followed by exactly
@@ -785,10 +783,17 @@ and the name as its only Response, and a run that fails has the error
 as its only Response. From that moment the Container is running for
 the Client and shall be findable by a `containers::tools::connect`
 request naming the id. After the id the Provider shall send, for a
-tool container, no further Response on the Scope, and, for an agent
-container, every chunk the Proxy sends on the begin Scope's main
-stream as one Response, the byte `4` followed by the chunk verbatim,
-in the order the Proxy sent them, and no other Response.
+tool container, exactly one Response, the byte `4` followed by the
+Connector's identity and peer IP address as JSON, for every
+`containers::tools::connect` Scope it attaches to the Container,
+after attaching it and before serving any Channel of it, and exactly
+one Response, the byte `5` followed by the same, when that Scope
+ends, however it ends, after the byte `4` it answers, and no other
+Response; and, for an agent container, every chunk the Proxy sends
+on the begin Scope's main stream as one Response, the byte `4`
+followed by the chunk verbatim, in the order the Proxy sent them,
+and no other Response. The Provider shall attach no Connector, and
+send no Response for one, before the id.
 
 (j) **Serve the Scope.** For as long as the Scope lives, and
 concurrently, the Provider shall relay every Channel the Proxy opens
@@ -880,7 +885,10 @@ the request's `authorization` string verbatim, read the Runner's
 answer, and answer the byte `0`, any byte other than `1`, a Bare
 Finish, or a Runner that is gone by exactly one Response, the error
 `{"kind":"denied"}`, and the Response Finish; (d) on the byte `1`,
-send nothing on the main stream, and serve every Channel the Connector
+send nothing on the connect Scope's main stream, attach the Connector
+once the run's id has been sent, send on the run Scope exactly one
+Response, the byte `4` followed by the Connector's identity and peer
+IP address as JSON, and serve every Channel the Connector
 opens on the run's own connection to the Container's Proxy — its
 tree, read, write and transfer Scopes, and its MCP exchanges as Channels on the
 run's begin Scope — as for a run, except that a
@@ -890,44 +898,13 @@ that the only Channel the Provider opens on a Connector is
 Connector opens leaves out every FUSE Mount of the run and no other
 mount; (e) end the Scope
 by the Response Finish with no error when the Connector disconnects,
-when the run ends, or when the Connector's Connection ends, stopping
-nothing and releasing nothing. The Provider shall not send anything on
+when the run ends, or when the Connector's Connection ends, sending
+on the run Scope exactly one Response, the byte `5` followed by the
+same identity and address, stopping nothing and releasing nothing. The Provider shall not send anything on
 the connect Scope, and shall serve no Channel of it, before the Runner
 has answered.
 
-### 5.11 `containers::tools::list_for` (tag 3)
-
-For every list_for request, the Provider shall, in order: (a) read the
-request and answer a payload that does not decode by a Bare Finish;
-(b) find every tool Container it is running whose Runner is the
-identity the request names, by the Runner alone — no agent Container
-and no Container the identity is attached to as a Connector among
-them; (c) open an `authorize-list` Channel on the run Scope of each
-such Container, carrying the peer IP address of the Lister's
-Connection as the Provider observed it and the identity under which
-the Provider authorized the Lister's Connection, without waiting on
-any other's answer, and answer the byte `1` on a Channel by exactly
-one Response, the byte `0` followed by that Container's id and nothing
-else of it, sent when the byte arrives and not held for any other
-Runner, and the byte `0`, any other byte, a Bare Finish, or a Runner
-that is gone by nothing; (d) send exactly one Response whose payload
-is the byte `2` and nothing else when every Channel opened under (c)
-has finished, and send it exactly once on the Scope; (e) for the life
-of the Scope, ask under (c) about every tool Container the identity
-begins after, when its run has been answered with its id, exactly
-once per Container per Scope, and answer a Container whose run ends,
-when the Provider has sent it under (c) or (e), by exactly one
-Response, the byte `1` followed by its id; (f) end the Scope by the
-Response Finish when it receives the Lister's `stop` Channel request
-or the Lister's Connection ends, letting go of every ask not yet
-answered, or by the byte `3` followed by an error and the Response
-Finish when it cannot ask. The Provider shall not end the Scope
-because the identity runs no tool Container, shall time no Runner
-out, shall send a Container as added at most once per Scope and as
-removed only after it sent it as added, and shall send nothing of a
-Container but its id.
-
-### 5.12 `containers::serve` (tag 4)
+### 5.11 `containers::serve` (tag 3)
 
 For every serve request, the Provider shall, in order: (a) read the
 request and answer a payload that does not decode by a Bare Finish;

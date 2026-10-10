@@ -1,12 +1,12 @@
 ---
 title: 'volumes::stat'
-summary: 'Tag 6: a client names a volume from its listing; the server sends exactly one response carrying the volume as the listing reports it, its bytes in use and the hash of its content, or an error, and the scope finishes.'
+summary: 'Tag 5: a client names a volume from its listing; the server sends exactly one response carrying the volume as the listing reports it, its bytes in use and the hash of its content, or an error, and the scope finishes.'
 order: 6
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`6` followed by the name of a volume. The server sends exactly one
+`5` followed by the name of a volume. The server sends exactly one
 response, which is either the volume examined or an error. The
 response finish follows the response, and no frame follows the
 finish.

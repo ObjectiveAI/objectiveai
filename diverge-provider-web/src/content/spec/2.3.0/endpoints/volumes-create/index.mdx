@@ -1,12 +1,12 @@
 ---
 title: 'volumes::create'
-summary: 'Tag 12: a client names a volume, its size in bytes and its mode; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
+summary: 'Tag 11: a client names a volume, its size in bytes and its mode; the server sends exactly one response stating that the volume exists, that the server has insufficient capacity for it, or an error, and the scope finishes; the volume persists until the client deletes it.'
 order: 12
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`12` followed by the name, the size and the mode of the volume. The server sends
+`11` followed by the name, the size and the mode of the volume. The server sends
 exactly one response, which states that the volume exists, that the
 server has insufficient capacity for it, or an error. The response
 finish follows the response, and no frame follows the finish.
